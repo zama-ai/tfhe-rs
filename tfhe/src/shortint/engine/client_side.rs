@@ -30,11 +30,7 @@ impl ShortintEngine {
         })
     }
 
-    pub(crate) fn encrypt(
-        &mut self,
-        client_key: &ClientKey,
-        message: u64,
-    ) -> EngineResult<Ciphertext> {
+    pub fn encrypt(&mut self, client_key: &ClientKey, message: u64) -> EngineResult<Ciphertext> {
         self.encrypt_with_message_modulus(
             client_key,
             message,
@@ -138,7 +134,7 @@ impl ShortintEngine {
         Ok((decrypted_u64.wrapping_add(rounding)) / delta)
     }
 
-    pub(crate) fn decrypt(&mut self, client_key: &ClientKey, ct: &Ciphertext) -> EngineResult<u64> {
+    pub fn decrypt(&mut self, client_key: &ClientKey, ct: &Ciphertext) -> EngineResult<u64> {
         self.decrypt_message_and_carry(client_key, ct)
             .map(|message_and_carry| message_and_carry % ct.message_modulus.0 as u64)
     }

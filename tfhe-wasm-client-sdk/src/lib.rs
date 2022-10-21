@@ -10,7 +10,7 @@ use std::panic::set_hook;
 pub struct ShortintCiphertext(pub(crate) tfhe::shortint::ciphertext::Ciphertext);
 
 #[wasm_bindgen]
-pub struct ShortintClientKeys(pub(crate) tfhe::shortint::ClientKey);
+pub struct ShortintClientKey(pub(crate) tfhe::shortint::ClientKey);
 
 #[wasm_bindgen]
 pub struct ShortintEngine(pub(crate) tfhe::shortint::engine::ShortintEngine);
@@ -85,12 +85,36 @@ impl ShortintEngine {
     pub fn new_client_key(
         &mut self,
         parameters: &ShortintParameters,
-    ) -> Result<ShortintClientKeys, JsError> {
+    ) -> Result<ShortintClientKey, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         self.0
             .new_client_key(parameters.0.to_owned())
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
-            .map(ShortintClientKeys)
+            .map(ShortintClientKey)
+    }
+
+    #[wasm_bindgen]
+    pub fn encrypt(
+        &mut self,
+        client_key: &ShortintClientKey,
+        message: u64,
+    ) -> Result<ShortintCiphertext, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        self.0
+            .encrypt(&client_key.0, message)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map(ShortintCiphertext)
+    }
+
+    #[wasm_bindgen]
+    pub fn decrypt(
+        &mut self,
+        client_key: &ShortintClientKey,
+        ct: &ShortintCiphertext,
+    ) -> Result<u64, JsError> {
+        self.0
+            .decrypt(&client_key.0, &ct.0)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
     }
 }
 

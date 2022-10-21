@@ -193,10 +193,6 @@ where
             bootstrapper: Default::default(),
         }
     }
-    #[cfg(target_arch = "wasm32")]
-    pub fn new(seeder: Box<dyn Seeder>) -> Self {
-
-    }
 
     /// convert into an actual LWE ciphertext even when trivial
     fn convert_into_lwe_ciphertext_32(
