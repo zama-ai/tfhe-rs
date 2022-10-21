@@ -1,0 +1,11 @@
+[package]
+name = "concrete-tasks"
+version = "0.0.0"
+edition = "2018"
+categories = ["do_not_publish"]
+
+[dependencies]
+clap = "2.3"
+lazy_static = "1.4"
+log = "0.4"
+simplelog = "0.12.0"

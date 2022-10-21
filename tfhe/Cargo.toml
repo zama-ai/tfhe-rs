@@ -1,0 +1,139 @@
+[package]
+name = "tfhe"
+version = "0.1.0"
+edition = "2021"
+readme = "README.md"
+keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
+homepage = "https://zama.ai/"
+license = "BSD-3-Clause-Clear"
+description = "Concrete is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE."
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dev-dependencies]
+rand = "0.7"
+kolmogorov_smirnov = "1.1.0"
+paste = "1.0.7"
+concrete-utils = { path = "../concrete-utils", version = "0.2.0"}
+lazy_static = { version = "1.4.0" }
+criterion = "0.3.5"
+doc-comment = "0.3.3"
+# Used in user documentation
+bincode = "1.3.3"
+
+[dependencies]
+concrete-csprng = { version = "0.2.1" }
+concrete-cuda = { version = "0.1.1", optional = true }
+# both utils and lazy_static are used for the keycache
+# they both are deps to allow usage in bench in integer crate
+# and dev-deps to automatically enable them in tests
+concrete-utils = { path = "../concrete-utils", version = "0.2.0", optional = true }
+lazy_static = { version = "1.4.0", optional = true }
+serde = { version = "1.0", optional = true }
+rayon = { version = "1.5.0", optional = true }
+bincode = { version = "1.3.3", optional = true }
+concrete-fft = { version = "0.1", optional = true }
+aligned-vec = "0.5"
+dyn-stack = "0.8"
+once_cell = "1.13"
+paste = "1.0.7"
+
+[features]
+booleans = []
+shortints = []
+internal-keycache = ["concrete-utils", "lazy_static"]
+
+cuda = ["backend_cuda"]
+nightly-avx512 = ["backend_fft_nightly_avx512"]
+
+# A pure-rust backend. Included by default in the build.
+backend_default = ["concrete-csprng/generator_soft"]
+
+# An accelerated backend, using the `concrete-fft` library.
+backend_fft = ["concrete-fft"]
+backend_fft_serialization = [
+    "bincode",
+    "concrete-fft/serde",
+    "aligned-vec/serde",
+    "__commons_serialization",
+]
+backend_fft_nightly_avx512 = ["concrete-fft/nightly"]
+
+# Enables the parallel engine in default backend.
+backend_default_parallel = ["__commons_parallel"]
+
+# Enable the x86_64 specific accelerated implementation of the random generator for the default
+# backend
+backend_default_generator_x86_64_aesni = [
+    "concrete-csprng/generator_x86_64_aesni",
+]
+
+backend_default_generator_aarch64_aes = [
+    "concrete-csprng/generator_aarch64_aes",
+]
+
+# Enable the serialization engine in the default backend.
+backend_default_serialization = ["bincode", "__commons_serialization"]
+
+# A GPU backend, relying on Cuda acceleration
+backend_cuda = ["concrete-cuda"]
+
+# Private features
+__profiling = []
+__private_docs = []
+__commons_parallel = ["rayon", "concrete-csprng/parallel"]
+__commons_serialization = ["serde", "serde/derive"]
+
+seeder_unix = ["concrete-csprng/seeder_unix"]
+seeder_x86_64_rdseed = ["concrete-csprng/seeder_x86_64_rdseed"]
+
+# These target_arch features enable a set of public features for concrete-core if users want a known
+# good/working configuration for concrete-core.
+# For a target_arch that does not yet have such a feature, one can still enable features manually or
+# create a feature for said target_arch to make its use simpler.
+x86_64 = [
+    "backend_default",
+    "backend_default_parallel",
+    "backend_default_generator_x86_64_aesni",
+    "backend_default_serialization",
+    "backend_fft",
+    "backend_fft_serialization",
+    "seeder_x86_64_rdseed",
+]
+x86_64-unix = ["x86_64", "seeder_unix"]
+
+# CUDA builds are Unix only at the moment
+x86_64-unix-cuda = ["x86_64-unix", "cuda"]
+
+aarch64 = [
+    "backend_default",
+    "backend_default_parallel",
+    "backend_default_generator_aarch64_aes",
+    "backend_default_serialization",
+    "backend_fft",
+    "backend_fft_serialization",
+]
+aarch64-unix = ["aarch64", "seeder_unix"]
+
+[package.metadata.docs.rs]
+# TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
+features = ["x86_64-unix"]
+rustdoc-args = ["--html-in-header", "katex-header.html"]
+
+###########
+#         #
+# Benches #
+#         #
+###########
+
+[[bench]]
+name = "boolean-bench"
+path = "benches/boolean/bench.rs"
+harness = false
+required-features = ["booleans", "internal-keycache"]
+
+[[bench]]
+name = "shortint-bench"
+path = "benches/shortint/bench.rs"
+harness = false
+required-features = ["shortints", "internal-keycache"]

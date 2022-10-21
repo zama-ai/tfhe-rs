@@ -1,0 +1,32 @@
+# Check commit and PR compliance
+name: Check commit and PR compliance
+on:
+  pull_request:
+    branches: 
+      - main
+jobs:
+  check-commit-pr:
+    name: Check commit and PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check first line
+        uses: gsactions/commit-message-checker@v1
+        with:
+          pattern: '^((feat|fix|chore|refactor|style|test|docs|doc)\(\w+\)\:) .+$'
+          flags: 'gs'
+          error: 'Your first line has to contain a commit type and scope like "feat(my_feature): msg".'
+          excludeDescription: 'true' # optional: this excludes the description body of a pull request
+          excludeTitle: 'true' # optional: this excludes the title of a pull request
+          checkAllCommitMessages: 'true' # optional: this checks all commits associated with a pull request
+          accessToken: ${{ secrets.GITHUB_TOKEN }} # github access token is only required if checkAllCommitMessages is true
+
+      - name: Check line length
+        uses: gsactions/commit-message-checker@v1
+        with:
+          pattern: '(^.{0,74}$\r?\n?){0,20}'
+          flags: 'gm'
+          error: 'The maximum line length of 74 characters is exceeded.'
+          excludeDescription: 'true' # optional: this excludes the description body of a pull request
+          excludeTitle: 'true' # optional: this excludes the title of a pull request
+          checkAllCommitMessages: 'true' # optional: this checks all commits associated with a pull request
+          accessToken: ${{ secrets.GITHUB_TOKEN }} # github access token is only required if checkAllCommitMessages is true

@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "tfhe",
+    "concrete-tasks",
+    "concrete-utils",
+    "tfhe-wasm-client-sdk",
+]
+
+[profile.bench]
+lto = "fat"
+
+[profile.release]
+lto = "fat"

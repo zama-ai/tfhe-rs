@@ -1,0 +1,67 @@
+name: Concrete AWS Tests
+
+env:
+  CARGO_TERM_COLOR: always
+
+on:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
+  workflow_dispatch:
+    # All the inputs are provided by Slab
+    inputs:
+      instance_id:
+        description: 'AWS instance ID'
+        type: string
+      instance_image_id:
+        description: 'AWS instance AMI ID'
+        type: string
+      instance_type:
+        description: 'AWS instance product type'
+        type: string
+      runner_name:
+        description: 'Action runner name'
+        type: string
+
+jobs:
+  concrete-tests:
+    runs-on: ${{ github.event.inputs.runner_name }}
+    steps:
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_IAM_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_IAM_KEY }}
+          role-to-assume: concrete-lib-ci
+          aws-region: eu-west-3
+          role-duration-seconds: 7200
+
+      # Step used for log purpose.
+      - name: Instance configuration used
+        run: |
+          echo "ID: ${{ github.event.inputs.instance_id }}"
+          echo "AMI: ${{ github.event.inputs.instance_image_id }}"
+          echo "Type: ${{ github.event.inputs.instance_type }}"
+
+      - uses: actions/checkout@v2
+
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          default: true
+
+      - name: Install AWS CLI
+        run: |
+          apt update
+          apt install -y awscli
+
+      - name: Download keys locally
+        run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
+      
+      - name: Run concrete tests
+        run: cargo test --release -p concrete --all-features
+        env: 
+          RUSTFLAGS: "-C target-cpu=native"

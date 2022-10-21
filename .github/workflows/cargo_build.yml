@@ -1,0 +1,58 @@
+name: Cargo Build
+
+on:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-builds:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          default: true
+
+      - name: Build Release concrete-boolean
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p concrete-boolean --all-targets
+
+      - name: Build Release concrete-shortint
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p concrete-shortint --all-targets --all-features
+
+      - name: Build Release concrete features=booleans
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p concrete --all-targets --features=booleans
+
+      - name: Build Release concrete features=shortints
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p concrete --all-targets --features=shortints
+
+      - name: Build Release concrete features=all
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p concrete --all-targets --all-features

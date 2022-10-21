@@ -1,0 +1,19 @@
+[profile.cpu-big]
+region = "eu-west-3"
+image_id = "ami-04deffe45b5b236fd"
+instance_type = "c5a.8xlarge"
+
+[profile.cpu]
+region = "eu-west-3"
+image_id = "ami-04deffe45b5b236fd"
+instance_type = "m5.2xlarge"
+
+[command.shortint-test-cpu]
+workflow = "aws_slab_shortint.yml"
+profile = "cpu-big"
+check_run_name = "Shortint CPU AWS Tests"
+
+[command.concrete-test-cpu]
+workflow = "aws_slab_concrete.yml"
+profile = "cpu"
+check_run_name = "Concrete CPU AWS Tests"
