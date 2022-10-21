@@ -1,68 +1,68 @@
 #![allow(clippy::boxed_local)]
-use tfhe::impls::core_crypto::specification::engines::*;
+use tfhe::core_crypto::specification::engines::*;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub struct Cleartext64(pub(crate) tfhe::impls::core_crypto::prelude::Cleartext64);
+pub struct Cleartext64(pub(crate) tfhe::core_crypto::prelude::Cleartext64);
 #[wasm_bindgen]
 pub struct CleartextVector64(
-    pub(crate) tfhe::impls::core_crypto::prelude::CleartextVector64,
+    pub(crate) tfhe::core_crypto::prelude::CleartextVector64,
 );
 #[wasm_bindgen]
-pub struct GlweSecretKey64(pub(crate) tfhe::impls::core_crypto::prelude::GlweSecretKey64);
+pub struct GlweSecretKey64(pub(crate) tfhe::core_crypto::prelude::GlweSecretKey64);
 #[wasm_bindgen]
 pub struct LweBootstrapKey64(
-    pub(crate) tfhe::impls::core_crypto::prelude::LweBootstrapKey64,
+    pub(crate) tfhe::core_crypto::prelude::LweBootstrapKey64,
 );
 #[wasm_bindgen]
-pub struct LweCiphertext64(pub(crate) tfhe::impls::core_crypto::prelude::LweCiphertext64);
+pub struct LweCiphertext64(pub(crate) tfhe::core_crypto::prelude::LweCiphertext64);
 #[wasm_bindgen]
 pub struct LweCiphertextVector64(
-    pub(crate) tfhe::impls::core_crypto::prelude::LweCiphertextVector64,
+    pub(crate) tfhe::core_crypto::prelude::LweCiphertextVector64,
 );
 #[wasm_bindgen]
 pub struct LweKeyswitchKey64(
-    pub(crate) tfhe::impls::core_crypto::prelude::LweKeyswitchKey64,
+    pub(crate) tfhe::core_crypto::prelude::LweKeyswitchKey64,
 );
 #[wasm_bindgen]
 pub struct LwePackingKeyswitchKey64(
-    pub(crate) tfhe::impls::core_crypto::prelude::LwePackingKeyswitchKey64,
+    pub(crate) tfhe::core_crypto::prelude::LwePackingKeyswitchKey64,
 );
 #[wasm_bindgen]
-pub struct LwePublicKey64(pub(crate) tfhe::impls::core_crypto::prelude::LwePublicKey64);
+pub struct LwePublicKey64(pub(crate) tfhe::core_crypto::prelude::LwePublicKey64);
 #[wasm_bindgen]
-pub struct LweSecretKey64(pub(crate) tfhe::impls::core_crypto::prelude::LweSecretKey64);
+pub struct LweSecretKey64(pub(crate) tfhe::core_crypto::prelude::LweSecretKey64);
 #[wasm_bindgen]
 pub struct LweSeededBootstrapKey64(
-    pub(crate) tfhe::impls::core_crypto::prelude::LweSeededBootstrapKey64,
+    pub(crate) tfhe::core_crypto::prelude::LweSeededBootstrapKey64,
 );
 #[wasm_bindgen]
 pub struct LweSeededCiphertext64(
-    pub(crate) tfhe::impls::core_crypto::prelude::LweSeededCiphertext64,
+    pub(crate) tfhe::core_crypto::prelude::LweSeededCiphertext64,
 );
 #[wasm_bindgen]
 pub struct LweSeededCiphertextVector64(
-    pub(crate) tfhe::impls::core_crypto::prelude::LweSeededCiphertextVector64,
+    pub(crate) tfhe::core_crypto::prelude::LweSeededCiphertextVector64,
 );
 #[wasm_bindgen]
 pub struct LweSeededKeyswitchKey64(
-    pub(crate) tfhe::impls::core_crypto::prelude::LweSeededKeyswitchKey64,
+    pub(crate) tfhe::core_crypto::prelude::LweSeededKeyswitchKey64,
 );
 #[wasm_bindgen]
-pub struct Plaintext64(pub(crate) tfhe::impls::core_crypto::prelude::Plaintext64);
+pub struct Plaintext64(pub(crate) tfhe::core_crypto::prelude::Plaintext64);
 #[wasm_bindgen]
 pub struct PlaintextVector64(
-    pub(crate) tfhe::impls::core_crypto::prelude::PlaintextVector64,
+    pub(crate) tfhe::core_crypto::prelude::PlaintextVector64,
 );
 
 #[wasm_bindgen]
-pub struct DefaultEngine(pub(crate) tfhe::impls::core_crypto::prelude::DefaultEngine);
+pub struct DefaultEngine(pub(crate) tfhe::core_crypto::prelude::DefaultEngine);
 #[wasm_bindgen]
 impl DefaultEngine {
     #[wasm_bindgen(constructor)]
     pub fn new(seeder: crate::JsFunctionSeeder) -> Result<DefaultEngine, JsError> {
         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        tfhe::impls::core_crypto::prelude::DefaultEngine::new(Box::new(seeder))
+        tfhe::core_crypto::prelude::DefaultEngine::new(Box::new(seeder))
             .map_err(|e| wasm_bindgen::JsError::new(format!("{}", e).as_str()))
             .map(DefaultEngine)
     }
@@ -639,14 +639,14 @@ impl DefaultEngine {
 }
 #[wasm_bindgen]
 pub struct DefaultParallelEngine(
-    pub(crate) tfhe::impls::core_crypto::prelude::DefaultParallelEngine,
+    pub(crate) tfhe::core_crypto::prelude::DefaultParallelEngine,
 );
 #[wasm_bindgen]
 impl DefaultParallelEngine {
     #[wasm_bindgen(constructor)]
     pub fn new(seeder: crate::JsFunctionSeeder) -> Result<DefaultParallelEngine, JsError> {
         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        tfhe::impls::core_crypto::prelude::DefaultParallelEngine::new(Box::new(seeder))
+        tfhe::core_crypto::prelude::DefaultParallelEngine::new(Box::new(seeder))
             .map_err(|e| wasm_bindgen::JsError::new(format!("{}", e).as_str()))
             .map(DefaultParallelEngine)
     }
@@ -729,14 +729,14 @@ impl DefaultParallelEngine {
 }
 #[wasm_bindgen]
 pub struct DefaultSerializationEngine(
-    pub(crate) tfhe::impls::core_crypto::prelude::DefaultSerializationEngine,
+    pub(crate) tfhe::core_crypto::prelude::DefaultSerializationEngine,
 );
 #[wasm_bindgen]
 impl DefaultSerializationEngine {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Result<DefaultSerializationEngine, JsError> {
         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        tfhe::impls::core_crypto::prelude::DefaultSerializationEngine::new(())
+        tfhe::core_crypto::prelude::DefaultSerializationEngine::new(())
             .map_err(|e| wasm_bindgen::JsError::new(format!("{}", e).as_str()))
             .map(DefaultSerializationEngine)
     }
@@ -1111,8 +1111,8 @@ impl DefaultSerializationEngine {
 }
 
 mod seeder {
-    use tfhe::impls::core_crypto::commons::math::random::Seed;
-    use tfhe::impls::core_crypto::prelude::Seeder;
+    use tfhe::core_crypto::commons::math::random::Seed;
+    use tfhe::core_crypto::prelude::Seeder;
     use js_sys::{Function, Uint8Array};
     use std::panic;
     use wasm_bindgen::prelude::*;
@@ -1162,26 +1162,26 @@ mod commons {
     use wasm_bindgen::prelude::*;
 
     macro_rules! param {
-    ($(($public: ident, $private: ident, $typ: ty)),*) => {
-        $(
-            #[wasm_bindgen]
-            pub struct $public(pub(crate) tfhe::impls::core_crypto::prelude::$private);
-
-            #[wasm_bindgen]
-            impl $public {
-                #[wasm_bindgen(constructor)]
-                pub fn new(val: $typ) -> $public {
-                    $public(tfhe::impls::core_crypto::prelude::$private(val))
-                }
+        ($(($public: ident, $private: ident, $typ: ty)),*) => {
+            $(
+                #[wasm_bindgen]
+                pub struct $public(pub(crate) tfhe::core_crypto::prelude::$private);
 
                 #[wasm_bindgen]
-                pub fn unwrap(&self) -> $typ {
-                    self.0.0
+                impl $public {
+                    #[wasm_bindgen(constructor)]
+                    pub fn new(val: $typ) -> $public {
+                        $public(tfhe::core_crypto::prelude::$private(val))
+                    }
+
+                    #[wasm_bindgen]
+                    pub fn unwrap(&self) -> $typ {
+                        self.0.0
+                    }
                 }
-            }
-        )*
-    };
-}
+            )*
+        };
+    }
 
     param! {
         (Variance, Variance, f64),
