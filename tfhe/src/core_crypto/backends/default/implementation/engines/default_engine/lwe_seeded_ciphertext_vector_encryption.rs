@@ -11,9 +11,7 @@ use crate::core_crypto::commons::math::random::{CompressionSeed, Seeder};
 use crate::core_crypto::specification::engines::{
     LweSeededCiphertextVectorEncryptionEngine, LweSeededCiphertextVectorEncryptionError,
 };
-use crate::core_crypto::specification::entities::{
-    LweSecretKeyEntity, PlaintextVectorEntity,
-};
+use crate::core_crypto::specification::entities::{LweSecretKeyEntity, PlaintextVectorEntity};
 
 /// # Description:
 /// Implementation of [`LweSeededCiphertextVectorEncryptionEngine`] for [`DefaultEngine`] that

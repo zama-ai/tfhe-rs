@@ -1,7 +1,5 @@
 use crate::core_crypto::backends::default::implementation::engines::DefaultEngine;
-use crate::core_crypto::backends::default::implementation::entities::{
-    Plaintext32, Plaintext64,
-};
+use crate::core_crypto::backends::default::implementation::entities::{Plaintext32, Plaintext64};
 use crate::core_crypto::specification::engines::{
     PlaintextDiscardingRetrievalEngine, PlaintextDiscardingRetrievalError,
 };

@@ -37,9 +37,7 @@ impl LweCiphertextVectorConversionEngine<LweCiphertextVector32, CudaLweCiphertex
 {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -118,9 +116,7 @@ impl LweCiphertextVectorConversionEngine<CudaLweCiphertextVector32, LweCiphertex
 {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -189,9 +185,7 @@ impl LweCiphertextVectorConversionEngine<LweCiphertextVector64, CudaLweCiphertex
 {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -270,9 +264,7 @@ impl LweCiphertextVectorConversionEngine<CudaLweCiphertextVector64, LweCiphertex
 {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {

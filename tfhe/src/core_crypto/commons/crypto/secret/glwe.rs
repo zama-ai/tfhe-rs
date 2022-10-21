@@ -52,12 +52,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::{BinaryKeyKind, GlweDimension, PolynomialSize};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: GlweSecretKey<BinaryKeyKind, Vec<u32>> =
     ///     GlweSecretKey::generate_binary(GlweDimension(256), PolynomialSize(10), &mut generator);
@@ -86,12 +86,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::{GlweDimension, PolynomialSize, TernaryKeyKind};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: GlweSecretKey<_, Vec<u32>> = GlweSecretKey::generate_ternary(
     ///     GlweDimension(256),
@@ -124,12 +124,14 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::prelude::{GaussianKeyKind, GlweDimension, LweDimension, PolynomialSize};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::prelude::{
+    ///     GaussianKeyKind, GlweDimension, LweDimension, PolynomialSize,
+    /// };
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: GlweSecretKey<GaussianKeyKind, Vec<u32>> = GlweSecretKey::generate_gaussian(
     ///     GlweDimension(256),
@@ -161,12 +163,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::{GlweDimension, PolynomialSize, UniformKeyKind};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: GlweSecretKey<UniformKeyKind, Vec<u32>> = GlweSecretKey::generate_uniform(
     ///     GlweDimension(256),
@@ -330,11 +332,11 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::GlweSecretKey;
     /// use tfhe::core_crypto::prelude::{GlweDimension, LweDimension, PolynomialSize};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let glwe_secret_key: GlweSecretKey<_, Vec<u32>> =
     ///     GlweSecretKey::generate_binary(GlweDimension(2), PolynomialSize(10), &mut secret_generator);
@@ -360,12 +362,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::{GlweDimension, PolynomialSize};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: GlweSecretKey<_, Vec<u32>> = GlweSecretKey::generate_binary(
     ///     GlweDimension(256),
@@ -386,12 +388,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::{GlweDimension, PolynomialSize};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: GlweSecretKey<_, Vec<u32>> = GlweSecretKey::generate_binary(
     ///     GlweDimension(256),
@@ -409,12 +411,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::{GlweDimension, PolynomialCount, PolynomialSize};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: GlweSecretKey<_, Vec<u32>> = GlweSecretKey::generate_binary(
     ///     GlweDimension(256),
@@ -437,13 +439,13 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
     /// use tfhe::core_crypto::prelude::{GlweDimension, PolynomialSize};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut secret_key: GlweSecretKey<_, Vec<u32>> = GlweSecretKey::generate_binary(
     ///     GlweDimension(256),
@@ -509,9 +511,7 @@ where
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweDimension, GlweSize, LogStandardDev, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{GlweDimension, GlweSize, LogStandardDev, PolynomialSize};
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key = GlweSecretKey::generate_binary(
     ///     GlweDimension(256),
@@ -600,6 +600,8 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::{Seed, UnixSeeder};
     /// use tfhe::core_crypto::commons::crypto::encoding::PlaintextList;
     /// use tfhe::core_crypto::commons::crypto::glwe::{GlweCiphertext, GlweSeededCiphertext};
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
@@ -608,8 +610,6 @@ where
     /// use tfhe::core_crypto::commons::math::random::CompressionSeed;
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
     /// use tfhe::core_crypto::prelude::{GlweDimension, GlweSize, LogStandardDev, PolynomialSize};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::{Seed, UnixSeeder};
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key = GlweSecretKey::generate_binary(
     ///     GlweDimension(256),
@@ -692,9 +692,7 @@ where
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweDimension, GlweSize, LogStandardDev, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{GlweDimension, GlweSize, LogStandardDev, PolynomialSize};
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key = GlweSecretKey::generate_binary(
     ///     GlweDimension(256),
@@ -819,9 +817,7 @@ where
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::{Seed, UnixSeeder};
     /// use tfhe::core_crypto::commons::crypto::encoding::PlaintextList;
-    /// use tfhe::core_crypto::commons::crypto::glwe::{
-    ///     GlweCiphertext, GlweList, GlweSeededList,
-    /// };
+    /// use tfhe::core_crypto::commons::crypto::glwe::{GlweCiphertext, GlweList, GlweSeededList};
     /// use tfhe::core_crypto::commons::crypto::secret::generators::{
     ///     EncryptionRandomGenerator, SecretRandomGenerator,
     /// };

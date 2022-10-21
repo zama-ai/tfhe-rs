@@ -2,9 +2,7 @@ use crate::core_crypto::commons::crypto::glwe::GlweSeededCiphertext as ImplGlweS
 use crate::core_crypto::commons::math::random::CompressionSeed;
 use crate::core_crypto::prelude::{GlweDimension, PolynomialSize};
 use crate::core_crypto::specification::entities::markers::GlweSeededCiphertextKind;
-use crate::core_crypto::specification::entities::{
-    AbstractEntity, GlweSeededCiphertextEntity,
-};
+use crate::core_crypto::specification::entities::{AbstractEntity, GlweSeededCiphertextEntity};
 #[cfg(feature = "backend_default_serialization")]
 use serde::{Deserialize, Serialize};
 

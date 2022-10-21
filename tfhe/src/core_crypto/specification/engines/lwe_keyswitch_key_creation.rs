@@ -1,7 +1,5 @@
 use super::engine_error;
-use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-};
+use crate::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
 use crate::core_crypto::specification::engines::AbstractEngine;
 use crate::core_crypto::specification::entities::LweKeyswitchKeyEntity;
 

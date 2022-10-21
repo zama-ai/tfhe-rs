@@ -194,11 +194,11 @@ impl<Cont> GgswLevelMatrix<Cont> {
     /// # Example
     ///
     /// ```rust
+    /// use rayon::iter::ParallelIterator;
     /// use tfhe::core_crypto::commons::crypto::ggsw::GgswLevelMatrix;
     /// use tfhe::core_crypto::commons::math::decomposition::DecompositionLevel;
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
     /// use tfhe::core_crypto::prelude::{GlweSize, PolynomialSize};
-    /// use rayon::iter::ParallelIterator;
     /// let mut level_matrix = GgswLevelMatrix::from_container(
     ///     vec![0 as u8; 10 * 7 * 7],
     ///     PolynomialSize(10),

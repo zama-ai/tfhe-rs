@@ -1,9 +1,7 @@
 use super::engine_error;
 use crate::core_crypto::specification::engines::AbstractEngine;
 
-use crate::core_crypto::specification::entities::{
-    LweCiphertextEntity, LweKeyswitchKeyEntity,
-};
+use crate::core_crypto::specification::entities::{LweCiphertextEntity, LweKeyswitchKeyEntity};
 
 engine_error! {
     LweCiphertextDiscardingKeyswitchError for LweCiphertextDiscardingKeyswitchEngine @

@@ -15,9 +15,7 @@ impl GlweCiphertextDiscardingDecryptionEngine<GlweSecretKey32, GlweCiphertext32,
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweDimension, PlaintextCount, PolynomialSize, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{GlweDimension, PlaintextCount, PolynomialSize, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -74,9 +72,7 @@ impl GlweCiphertextDiscardingDecryptionEngine<GlweSecretKey64, GlweCiphertext64,
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweDimension, PlaintextCount, PolynomialSize, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{GlweDimension, PlaintextCount, PolynomialSize, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {

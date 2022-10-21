@@ -20,8 +20,8 @@ use crate::core_crypto::specification::entities::AbstractEntity;
 /// ## LWE dimension
 /// It corresponds to the number of element in the LWE secret key.
 /// In an LWE ciphertext, it is the length of the vector $\vec{a}$.
-/// At [`encryption`](`crate::core_crypto::specification::engines::LweCiphertextEncryptionEngine`) time, it is
-/// the number of uniformly random
+/// At [`encryption`](`crate::core_crypto::specification::engines::LweCiphertextEncryptionEngine`)
+/// time, it is the number of uniformly random
 /// integers generated.
 pub trait LweCiphertextEntity: AbstractEntity<Kind = LweCiphertextKind> {
     /// Returns the LWE dimension of the ciphertext.

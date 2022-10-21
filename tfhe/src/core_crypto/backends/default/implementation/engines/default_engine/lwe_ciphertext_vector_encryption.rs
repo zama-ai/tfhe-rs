@@ -9,9 +9,7 @@ use crate::core_crypto::commons::crypto::lwe::LweList as ImplLweList;
 use crate::core_crypto::specification::engines::{
     LweCiphertextVectorEncryptionEngine, LweCiphertextVectorEncryptionError,
 };
-use crate::core_crypto::specification::entities::{
-    LweSecretKeyEntity, PlaintextVectorEntity,
-};
+use crate::core_crypto::specification::entities::{LweSecretKeyEntity, PlaintextVectorEntity};
 
 /// # Description:
 /// Implementation of [`LweCiphertextVectorEncryptionEngine`] for [`DefaultEngine`] that operates on

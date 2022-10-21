@@ -8,9 +8,7 @@ use super::{AsMutSlice, AsRefSlice};
 /// collections of various kind. In essence, this trait allows to extract a tensor properly
 /// qualified to use all the methods of the `Tensor` type:
 /// ```rust
-/// use tfhe::core_crypto::commons::math::tensor::{
-///     AsRefSlice, AsRefTensor, Tensor,
-/// };
+/// use tfhe::core_crypto::commons::math::tensor::{AsRefSlice, AsRefTensor, Tensor};
 ///
 /// pub struct Matrix<Cont> {
 ///     tensor: Tensor<Cont>,

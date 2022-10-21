@@ -115,9 +115,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// use tfhe::core_crypto::prelude::PolynomialSize;
     /// let poly = Polynomial::allocate(0 as u32, PolynomialSize(100));
     /// for monomial in poly.monomial_iter() {
@@ -140,9 +138,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// use tfhe::core_crypto::prelude::PolynomialSize;
     /// let poly = Polynomial::allocate(0 as u32, PolynomialSize(100));
     /// for coef in poly.coefficient_iter() {
@@ -164,9 +160,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// let poly = Polynomial::from_container(vec![16_u32, 8, 19, 12, 3]);
     /// let mono = poly.get_monomial(MonomialDegree(0));
     /// assert_eq!(*mono.get_coefficient(), 16_u32);
@@ -247,9 +241,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// let mut poly = Polynomial::from_container(vec![16_u32, 8, 19, 12, 3]);
     /// let mut mono = poly.get_mut_monomial(MonomialDegree(0));
     /// mono.set_coefficient(18);
@@ -277,9 +269,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// use tfhe::core_crypto::prelude::PolynomialSize;
     /// let lhs = Polynomial::from_container(vec![4_u8, 5, 0]);
     /// let rhs = Polynomial::from_container(vec![7_u8, 9, 0]);
@@ -336,9 +326,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// use tfhe::core_crypto::prelude::PolynomialSize;
     /// let lhs = Polynomial::from_container(vec![1_u32; 128]);
     /// let rhs = Polynomial::from_container(vec![2_u32; 128]);
@@ -536,9 +524,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// let poly_1 = Polynomial::from_container(vec![1_u8, 2, 3]);
     /// let poly_2 = Polynomial::from_container(vec![0, 1, 1]);
     /// let mut res = Polynomial::from_container(vec![1, 0, 253]);
@@ -591,9 +577,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// let poly = Polynomial::from_container(vec![1_u8, 2, 3]);
     /// let bin_poly = Polynomial::from_container(vec![0, 1, 1]);
     /// let mut res = Polynomial::from_container(vec![255, 255, 1]);
@@ -647,9 +631,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// let mut first = Polynomial::from_container(vec![1u8, 2, 3]);
     /// let second = Polynomial::from_container(vec![255u8, 255, 255]);
     /// first.update_with_wrapping_add(&second);
@@ -676,9 +658,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// let mut first = Polynomial::from_container(vec![1u8, 2, 3]);
     /// let second = Polynomial::from_container(vec![4u8, 5, 6]);
     /// first.update_with_wrapping_sub(&second);
@@ -715,9 +695,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Examples
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// let mut poly = Polynomial::from_container(vec![1u8, 2, 3]);
     /// poly.update_with_wrapping_monic_monomial_mul(MonomialDegree(2));
     /// assert_eq!(*poly.get_monomial(MonomialDegree(0)).get_coefficient(), 254);
@@ -753,9 +731,7 @@ impl<Cont> Polynomial<Cont> {
     /// # Examples
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, Polynomial,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, Polynomial};
     /// let mut poly = Polynomial::from_container(vec![1u8, 2, 3]);
     /// poly.update_with_wrapping_unit_monomial_div(MonomialDegree(2));
     /// assert_eq!(*poly.get_monomial(MonomialDegree(0)).get_coefficient(), 3);

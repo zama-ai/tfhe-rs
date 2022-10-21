@@ -10,9 +10,7 @@ use crate::core_crypto::prelude::{CiphertextCount, Variance};
 use crate::core_crypto::specification::engines::{
     GlweSeededCiphertextVectorEncryptionEngine, GlweSeededCiphertextVectorEncryptionError,
 };
-use crate::core_crypto::specification::entities::{
-    GlweSecretKeyEntity, PlaintextVectorEntity,
-};
+use crate::core_crypto::specification::entities::{GlweSecretKeyEntity, PlaintextVectorEntity};
 
 /// # Description:
 /// Implementation of [`GlweSeededCiphertextVectorEncryptionEngine`] for [`DefaultEngine`] that

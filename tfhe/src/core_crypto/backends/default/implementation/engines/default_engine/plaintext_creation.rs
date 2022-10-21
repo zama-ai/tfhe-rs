@@ -1,11 +1,7 @@
 use crate::core_crypto::backends::default::implementation::engines::DefaultEngine;
-use crate::core_crypto::backends::default::implementation::entities::{
-    Plaintext32, Plaintext64,
-};
+use crate::core_crypto::backends::default::implementation::entities::{Plaintext32, Plaintext64};
 use crate::core_crypto::commons::crypto::encoding::Plaintext as ImplPlaintext;
-use crate::core_crypto::specification::engines::{
-    PlaintextCreationEngine, PlaintextCreationError,
-};
+use crate::core_crypto::specification::engines::{PlaintextCreationEngine, PlaintextCreationError};
 
 /// # Description:
 /// Implementation of [`PlaintextCreationEngine`] for [`DefaultEngine`] that operates on

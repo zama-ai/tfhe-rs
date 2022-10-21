@@ -4,9 +4,7 @@ use crate::core_crypto::prelude::{GlweCiphertextCount, GlweDimension, Polynomial
 
 use crate::core_crypto::backends::cuda::private::crypto::glwe::list::CudaGlweList;
 use crate::core_crypto::specification::entities::markers::GlweCiphertextVectorKind;
-use crate::core_crypto::specification::entities::{
-    AbstractEntity, GlweCiphertextVectorEntity,
-};
+use crate::core_crypto::specification::entities::{AbstractEntity, GlweCiphertextVectorEntity};
 
 /// A structure representing a vector of GLWE ciphertexts with 32 bits of precision on the GPU.
 /// It is used as input to the Cuda bootstrap for the array of lookup tables.

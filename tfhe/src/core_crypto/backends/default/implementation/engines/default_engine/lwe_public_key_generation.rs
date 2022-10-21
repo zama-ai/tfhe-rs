@@ -2,9 +2,7 @@ use crate::core_crypto::backends::default::engines::DefaultEngine;
 use crate::core_crypto::backends::default::entities::{
     LwePublicKey32, LwePublicKey64, LweSecretKey32, LweSecretKey64,
 };
-use crate::core_crypto::prelude::{
-    LweCiphertextCount, LwePublicKeyZeroEncryptionCount, Variance,
-};
+use crate::core_crypto::prelude::{LweCiphertextCount, LwePublicKeyZeroEncryptionCount, Variance};
 use crate::core_crypto::specification::engines::{
     LweCiphertextVectorZeroEncryptionEngine, LwePublicKeyGenerationEngine,
     LwePublicKeyGenerationError,
@@ -16,9 +14,7 @@ use crate::core_crypto::specification::engines::{
 impl LwePublicKeyGenerationEngine<LweSecretKey32, LwePublicKey32> for DefaultEngine {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweDimension, LwePublicKeyZeroEncryptionCount, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweDimension, LwePublicKeyZeroEncryptionCount, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -86,9 +82,7 @@ impl LwePublicKeyGenerationEngine<LweSecretKey32, LwePublicKey32> for DefaultEng
 impl LwePublicKeyGenerationEngine<LweSecretKey64, LwePublicKey64> for DefaultEngine {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweDimension, LwePublicKeyZeroEncryptionCount, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweDimension, LwePublicKeyZeroEncryptionCount, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {

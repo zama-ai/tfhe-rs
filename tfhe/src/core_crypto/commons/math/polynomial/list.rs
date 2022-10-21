@@ -139,9 +139,7 @@ impl<Cont> PolynomialList<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, PolynomialList,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, PolynomialList};
     /// use tfhe::core_crypto::prelude::PolynomialSize;
     /// let list = PolynomialList::from_container(vec![1u8, 2, 3, 4, 5, 6, 7, 8], PolynomialSize(2));
     /// let poly = list.get_polynomial(2);
@@ -164,9 +162,7 @@ impl<Cont> PolynomialList<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, PolynomialList,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, PolynomialList};
     /// use tfhe::core_crypto::prelude::PolynomialSize;
     /// let mut list =
     ///     PolynomialList::from_container(vec![1u8, 2, 3, 4, 5, 6, 7, 8], PolynomialSize(2));
@@ -252,9 +248,7 @@ impl<Cont> PolynomialList<Cont> {
     /// # Example
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, PolynomialList,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, PolynomialList};
     /// use tfhe::core_crypto::prelude::PolynomialSize;
     /// let mut list =
     ///     PolynomialList::from_container(vec![1u8, 2, 3, 4, 5, 6, 7, 8], PolynomialSize(2));
@@ -320,9 +314,7 @@ impl<Cont> PolynomialList<Cont> {
     /// # Examples
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, PolynomialList,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, PolynomialList};
     /// use tfhe::core_crypto::prelude::PolynomialSize;
     /// let mut list = PolynomialList::from_container(vec![1u8, 2, 3, 4, 5, 6], PolynomialSize(3));
     /// list.update_with_wrapping_monic_monomial_mul(MonomialDegree(2));
@@ -347,9 +339,7 @@ impl<Cont> PolynomialList<Cont> {
     /// # Examples
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::polynomial::{
-    ///     MonomialDegree, PolynomialList,
-    /// };
+    /// use tfhe::core_crypto::commons::math::polynomial::{MonomialDegree, PolynomialList};
     /// use tfhe::core_crypto::prelude::PolynomialSize;
     /// let mut list = PolynomialList::from_container(vec![1u8, 2, 3, 4, 5, 6], PolynomialSize(3));
     /// list.update_with_wrapping_monic_monomial_div(MonomialDegree(2));

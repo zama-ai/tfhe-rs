@@ -2357,9 +2357,7 @@ impl EntitySerializationEngine<LweCircuitBootstrapPrivateFunctionalPackingKeyswi
 impl EntitySerializationEngine<LweCiphertextVector32, Vec<u8>> for DefaultSerializationEngine {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -2417,9 +2415,7 @@ impl EntitySerializationEngine<LweCiphertextVector32, Vec<u8>> for DefaultSerial
 impl EntitySerializationEngine<LweCiphertextVector64, Vec<u8>> for DefaultSerializationEngine {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -2479,9 +2475,7 @@ impl<'b> EntitySerializationEngine<LweCiphertextVectorView32<'b>, Vec<u8>>
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -2548,9 +2542,7 @@ impl<'b> EntitySerializationEngine<LweCiphertextVectorView64<'b>, Vec<u8>>
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -2617,9 +2609,7 @@ impl<'b> EntitySerializationEngine<LweCiphertextVectorMutView32<'b>, Vec<u8>>
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -2688,9 +2678,7 @@ impl<'b> EntitySerializationEngine<LweCiphertextVectorMutView64<'b>, Vec<u8>>
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -3232,9 +3220,7 @@ impl EntitySerializationEngine<LweSeededCiphertextVector32, Vec<u8>>
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -3294,9 +3280,7 @@ impl EntitySerializationEngine<LweSeededCiphertextVector64, Vec<u8>>
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -3618,9 +3602,7 @@ impl EntitySerializationEngine<LwePackingKeyswitchKey64, Vec<u8>> for DefaultSer
 impl EntitySerializationEngine<LwePublicKey32, Vec<u8>> for DefaultSerializationEngine {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweDimension, LwePublicKeyZeroEncryptionCount, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweDimension, LwePublicKeyZeroEncryptionCount, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -3679,9 +3661,7 @@ impl EntitySerializationEngine<LwePublicKey32, Vec<u8>> for DefaultSerialization
 impl EntitySerializationEngine<LwePublicKey64, Vec<u8>> for DefaultSerializationEngine {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweDimension, LwePublicKeyZeroEncryptionCount, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweDimension, LwePublicKeyZeroEncryptionCount, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {

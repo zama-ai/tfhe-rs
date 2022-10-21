@@ -14,9 +14,7 @@ impl LweToGlweSecretKeyTransformationEngine<LweSecretKey32, GlweSecretKey32> for
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweDimension, LweDimension, PolynomialSize, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{GlweDimension, LweDimension, PolynomialSize, *};
     ///
     /// // DISCLAIMER: the parameters used here are only for test purpose, and are not secure.
     /// let lwe_dimension = LweDimension(8);
@@ -74,9 +72,7 @@ impl LweToGlweSecretKeyTransformationEngine<LweSecretKey64, GlweSecretKey64> for
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweDimension, LweDimension, PolynomialSize, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{GlweDimension, LweDimension, PolynomialSize, *};
     ///
     /// // DISCLAIMER: the parameters used here are only for test purpose, and are not secure.
     /// let lwe_dimension = LweDimension(8);

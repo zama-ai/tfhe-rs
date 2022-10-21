@@ -1,12 +1,8 @@
 use crate::core_crypto::backends::default::implementation::engines::DefaultEngine;
-use crate::core_crypto::backends::default::implementation::entities::{
-    Cleartext32, Cleartext64,
-};
+use crate::core_crypto::backends::default::implementation::entities::{Cleartext32, Cleartext64};
 use crate::core_crypto::commons::crypto::encoding::Cleartext as ImplCleartext;
 use crate::core_crypto::prelude::CleartextF64;
-use crate::core_crypto::specification::engines::{
-    CleartextCreationEngine, CleartextCreationError,
-};
+use crate::core_crypto::specification::engines::{CleartextCreationEngine, CleartextCreationError};
 
 /// # Description:
 /// Implementation of [`CleartextCreationEngine`] for [`DefaultEngine`] that operates on 32 bits

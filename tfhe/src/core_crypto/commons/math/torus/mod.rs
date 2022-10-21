@@ -15,9 +15,7 @@
 use crate::core_crypto::commons::math::random::{
     Gaussian, RandomGenerable, Uniform, UniformBinary, UniformTernary,
 };
-pub use crate::core_crypto::commons::numeric::{
-    CastInto, FloatingPoint, Numeric, UnsignedInteger,
-};
+pub use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint, Numeric, UnsignedInteger};
 use crate::core_crypto::prelude::LogStandardDev;
 use std::fmt::{Debug, Display};
 

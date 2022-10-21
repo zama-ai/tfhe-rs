@@ -17,9 +17,7 @@ use crate::core_crypto::commons::crypto::glwe::{
 };
 use crate::core_crypto::commons::crypto::lwe::{LweCiphertext, LweKeyswitchKey, LweList};
 use crate::core_crypto::commons::math::polynomial::PolynomialList;
-use crate::core_crypto::commons::math::tensor::{
-    AsMutTensor, AsRefTensor, Container, Split,
-};
+use crate::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor, Container, Split};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::utils::izip;

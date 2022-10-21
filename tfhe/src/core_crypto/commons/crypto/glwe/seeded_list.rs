@@ -1,6 +1,4 @@
-use crate::core_crypto::prelude::{
-    CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-};
+use crate::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
 #[cfg(feature = "__commons_serialization")]
 use serde::{Deserialize, Serialize};
 
@@ -36,9 +34,7 @@ where
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweSeededList;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
     /// let glwe_dimension = GlweDimension(20);
@@ -105,9 +101,7 @@ impl<Cont> GlweSeededList<Cont> {
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweSeededList;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
     /// let glwe_dimension = GlweDimension(20);
@@ -138,9 +132,7 @@ impl<Cont> GlweSeededList<Cont> {
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweSeededList;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
     /// let glwe_dimension = GlweDimension(20);
@@ -167,9 +159,7 @@ impl<Cont> GlweSeededList<Cont> {
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweSeededList;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
     /// let glwe_dimension = GlweDimension(20);
@@ -196,9 +186,7 @@ impl<Cont> GlweSeededList<Cont> {
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweSeededList;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
     /// let glwe_dimension = GlweDimension(20);
@@ -221,9 +209,7 @@ impl<Cont> GlweSeededList<Cont> {
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweSeededList;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
     /// let glwe_dimension = GlweDimension(20);
@@ -250,12 +236,8 @@ impl<Cont> GlweSeededList<Cont> {
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweSeededList;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::commons::math::tensor::{
-    ///     AsRefSlice, AsRefTensor, Tensor,
-    /// };
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::commons::math::tensor::{AsRefSlice, AsRefTensor, Tensor};
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
     /// let glwe_dimension = GlweDimension(20);
@@ -297,9 +279,7 @@ impl<Cont> GlweSeededList<Cont> {
     /// use tfhe::core_crypto::commons::math::tensor::{
     ///     AsMutSlice, AsMutTensor, AsRefSlice, AsRefTensor, Tensor,
     /// };
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
     /// let glwe_dimension = GlweDimension(20);
@@ -349,9 +329,7 @@ impl<Cont> GlweSeededList<Cont> {
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::{Seed, UnixSeeder};
     /// use tfhe::core_crypto::commons::crypto::encoding::PlaintextList;
-    /// use tfhe::core_crypto::commons::crypto::glwe::{
-    ///     GlweCiphertext, GlweList, GlweSeededList,
-    /// };
+    /// use tfhe::core_crypto::commons::crypto::glwe::{GlweCiphertext, GlweList, GlweSeededList};
     /// use tfhe::core_crypto::commons::crypto::secret::generators::{
     ///     EncryptionRandomGenerator, SecretRandomGenerator,
     /// };

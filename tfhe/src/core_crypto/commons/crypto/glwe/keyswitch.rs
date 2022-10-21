@@ -922,6 +922,8 @@ impl<Cont> LwePrivateFunctionalPackingKeyswitchKey<Cont> {
     /// # Example
     ///
     /// ```
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::{Seed, UnixSeeder};
     /// use tfhe::core_crypto::commons::crypto::glwe::LwePrivateFunctionalPackingKeyswitchKey;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::{
     ///     EncryptionRandomGenerator, SecretRandomGenerator,
@@ -934,8 +936,6 @@ impl<Cont> LwePrivateFunctionalPackingKeyswitchKey<Cont> {
     ///     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LogStandardDev, LweDimension,
     ///     LweSize, PolynomialSize,
     /// };
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::{Seed, UnixSeeder};
     ///
     /// let input_size = LweDimension(10);
     /// let output_size = GlweDimension(3);
@@ -1067,6 +1067,8 @@ impl<Cont> LwePrivateFunctionalPackingKeyswitchKey<Cont> {
     /// # Example
     ///
     /// ```
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::{Seed, UnixSeeder};
     /// use tfhe::core_crypto::commons::crypto::glwe::LwePrivateFunctionalPackingKeyswitchKey;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::{
     ///     EncryptionRandomGenerator, SecretRandomGenerator,
@@ -1079,8 +1081,6 @@ impl<Cont> LwePrivateFunctionalPackingKeyswitchKey<Cont> {
     ///     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LogStandardDev, LweDimension,
     ///     LweSize, PolynomialSize,
     /// };
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::{Seed, UnixSeeder};
     ///
     /// let input_size = LweDimension(10);
     /// let output_size = GlweDimension(3);

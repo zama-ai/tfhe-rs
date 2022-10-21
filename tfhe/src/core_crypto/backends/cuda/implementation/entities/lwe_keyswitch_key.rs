@@ -1,6 +1,4 @@
-use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-};
+use crate::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
 
 use crate::core_crypto::backends::cuda::private::crypto::keyswitch::CudaLweKeyswitchKey;
 use crate::core_crypto::specification::entities::markers::LweKeyswitchKeyKind;

@@ -1,9 +1,9 @@
+use criterion::{criterion_group, criterion_main, Criterion};
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{Ciphertext, Parameters, ServerKey};
-use criterion::{criterion_group, criterion_main, Criterion};
 
-use tfhe::shortint::keycache::KEY_CACHE;
 use rand::Rng;
+use tfhe::shortint::keycache::KEY_CACHE;
 
 use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
 use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6;

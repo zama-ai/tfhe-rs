@@ -184,9 +184,7 @@ impl<Cont> LweKeyswitchKey<Cont> {
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweKeyswitchKey;
     /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     /// let ksk = LweKeyswitchKey::allocate(
     ///     0 as u8,
     ///     DecompositionLevelCount(10),
@@ -237,9 +235,7 @@ impl<Cont> LweKeyswitchKey<Cont> {
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweKeyswitchKey;
     /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     /// let ksk = LweKeyswitchKey::allocate(
     ///     0 as u8,
     ///     DecompositionLevelCount(10),
@@ -263,9 +259,7 @@ impl<Cont> LweKeyswitchKey<Cont> {
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweKeyswitchKey;
     /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     /// let ksk = LweKeyswitchKey::allocate(
     ///     0 as u8,
     ///     DecompositionLevelCount(10),
@@ -294,9 +288,7 @@ impl<Cont> LweKeyswitchKey<Cont> {
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweKeyswitchKey;
     /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     /// let ksk = LweKeyswitchKey::allocate(
     ///     0 as u8,
     ///     DecompositionLevelCount(10),

@@ -583,12 +583,12 @@ impl<Cont> StandardBootstrapKey<Cont> {
     /// # Example
     ///
     /// ```
+    /// use rayon::iter::ParallelIterator;
     /// use tfhe::core_crypto::commons::crypto::bootstrap::StandardBootstrapKey;
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
     /// use tfhe::core_crypto::prelude::{
     ///     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
     /// };
-    /// use rayon::iter::ParallelIterator;
     /// let mut bsk = StandardBootstrapKey::allocate(
     ///     9u32,
     ///     GlweSize(7),

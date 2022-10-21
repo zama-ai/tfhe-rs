@@ -4,9 +4,7 @@ use crate::core_crypto::prelude::{LweCiphertextCount, LweDimension};
 
 use crate::core_crypto::backends::cuda::private::crypto::lwe::list::CudaLweList;
 use crate::core_crypto::specification::entities::markers::LweCiphertextVectorKind;
-use crate::core_crypto::specification::entities::{
-    AbstractEntity, LweCiphertextVectorEntity,
-};
+use crate::core_crypto::specification::entities::{AbstractEntity, LweCiphertextVectorEntity};
 
 /// A structure representing a vector of LWE ciphertexts with 32 bits of precision on the GPU.
 #[derive(Debug)]

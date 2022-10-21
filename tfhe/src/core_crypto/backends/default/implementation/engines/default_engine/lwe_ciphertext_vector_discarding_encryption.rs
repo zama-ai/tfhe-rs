@@ -5,9 +5,7 @@ use crate::core_crypto::backends::default::implementation::entities::{
     LweCiphertextVector32, LweCiphertextVector64, LweSecretKey32, LweSecretKey64,
     PlaintextVector32, PlaintextVector64,
 };
-use crate::core_crypto::prelude::{
-    LweCiphertextVectorMutView32, LweCiphertextVectorMutView64,
-};
+use crate::core_crypto::prelude::{LweCiphertextVectorMutView32, LweCiphertextVectorMutView64};
 use crate::core_crypto::specification::engines::{
     LweCiphertextVectorDiscardingEncryptionEngine, LweCiphertextVectorDiscardingEncryptionError,
 };

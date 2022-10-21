@@ -4,9 +4,7 @@ use crate::core_crypto::backends::default::implementation::entities::{
     LweKeyswitchKeyView32, LweKeyswitchKeyView64,
 };
 use crate::core_crypto::commons::crypto::lwe::LweKeyswitchKey as ImplLweKeyswitchKey;
-use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-};
+use crate::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
 use crate::core_crypto::specification::engines::{
     LweKeyswitchKeyCreationEngine, LweKeyswitchKeyCreationError,
 };

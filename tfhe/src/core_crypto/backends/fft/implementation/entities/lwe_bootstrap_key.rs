@@ -38,9 +38,7 @@ impl LweBootstrapKeyEntity for FftFourierLweBootstrapKey32 {
         self.0.decomposition_base_log()
     }
 
-    fn decomposition_level_count(
-        &self,
-    ) -> crate::core_crypto::prelude::DecompositionLevelCount {
+    fn decomposition_level_count(&self) -> crate::core_crypto::prelude::DecompositionLevelCount {
         self.0.decomposition_level_count()
     }
 }
@@ -61,9 +59,7 @@ impl LweBootstrapKeyEntity for FftFourierLweBootstrapKey64 {
         self.0.decomposition_base_log()
     }
 
-    fn decomposition_level_count(
-        &self,
-    ) -> crate::core_crypto::prelude::DecompositionLevelCount {
+    fn decomposition_level_count(&self) -> crate::core_crypto::prelude::DecompositionLevelCount {
         self.0.decomposition_level_count()
     }
 }

@@ -34,9 +34,7 @@
 //! several structures representing multi-dimensional collections. The pattern we use for such
 //! structures is pretty simple:
 //! ```
-//! use tfhe::core_crypto::commons::math::tensor::{
-//!     AsRefSlice, AsRefTensor, Tensor,
-//! };
+//! use tfhe::core_crypto::commons::math::tensor::{AsRefSlice, AsRefTensor, Tensor};
 //!
 //! // We want to have a matrix structure stored row-major.
 //! pub struct Matrix<Cont> {
@@ -75,8 +73,7 @@
 // question must be a structure with a `tensor` field.
 macro_rules! tensor_traits {
     ($Type:ident) => {
-        impl<Element, Cont> $crate::core_crypto::commons::math::tensor::AsRefTensor
-            for $Type<Cont>
+        impl<Element, Cont> $crate::core_crypto::commons::math::tensor::AsRefTensor for $Type<Cont>
         where
             Cont: $crate::core_crypto::commons::math::tensor::AsRefSlice<Element = Element>,
         {
@@ -87,8 +84,7 @@ macro_rules! tensor_traits {
             }
         }
 
-        impl<Element, Cont> $crate::core_crypto::commons::math::tensor::AsMutTensor
-            for $Type<Cont>
+        impl<Element, Cont> $crate::core_crypto::commons::math::tensor::AsMutTensor for $Type<Cont>
         where
             Cont: $crate::core_crypto::commons::math::tensor::AsMutSlice<Element = Element>,
         {

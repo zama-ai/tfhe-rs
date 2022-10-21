@@ -23,9 +23,7 @@ impl
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -97,9 +95,7 @@ impl
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {

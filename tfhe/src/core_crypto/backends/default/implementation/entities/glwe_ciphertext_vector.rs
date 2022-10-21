@@ -1,9 +1,7 @@
 use crate::core_crypto::commons::crypto::glwe::GlweList as ImplGlweList;
 use crate::core_crypto::prelude::{GlweCiphertextCount, GlweDimension, PolynomialSize};
 use crate::core_crypto::specification::entities::markers::GlweCiphertextVectorKind;
-use crate::core_crypto::specification::entities::{
-    AbstractEntity, GlweCiphertextVectorEntity,
-};
+use crate::core_crypto::specification::entities::{AbstractEntity, GlweCiphertextVectorEntity};
 #[cfg(feature = "backend_default_serialization")]
 use serde::{Deserialize, Serialize};
 

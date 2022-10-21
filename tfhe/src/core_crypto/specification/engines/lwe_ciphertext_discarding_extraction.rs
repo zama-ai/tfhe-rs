@@ -1,9 +1,7 @@
 use super::engine_error;
 use crate::core_crypto::prelude::{LweDimension, MonomialIndex};
 use crate::core_crypto::specification::engines::AbstractEngine;
-use crate::core_crypto::specification::entities::{
-    GlweCiphertextEntity, LweCiphertextEntity,
-};
+use crate::core_crypto::specification::entities::{GlweCiphertextEntity, LweCiphertextEntity};
 
 engine_error! {
     LweCiphertextDiscardingExtractionError for LweCiphertextDiscardingExtractionEngine @

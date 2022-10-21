@@ -1,9 +1,7 @@
 use super::engine_error;
 use crate::core_crypto::prelude::AbstractEngine;
 
-use crate::core_crypto::specification::entities::{
-    LweCiphertextEntity, LweSeededCiphertextEntity,
-};
+use crate::core_crypto::specification::entities::{LweCiphertextEntity, LweSeededCiphertextEntity};
 
 engine_error! {
     LweSeededCiphertextToLweCiphertextTransformationError for

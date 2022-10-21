@@ -31,20 +31,17 @@ mod test {
 
     fn test_ksk_seeded_gen_equivalence<T: UnsignedTorus>() {
         for _ in 0..10 {
-            let input_lwe_dim = LweDimension(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
-            let output_lwe_dim = LweDimension(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
+            let input_lwe_dim =
+                LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
+            let output_lwe_dim =
+                LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
             let level = DecompositionLevelCount(
                 crate::core_crypto::commons::test_tools::random_usize_between(2..5),
             );
             let base_log = DecompositionBaseLog(
                 crate::core_crypto::commons::test_tools::random_usize_between(2..5),
             );
-            let mask_seed =
-                Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
+            let mask_seed = Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
             let deterministic_seeder_seed =
                 Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
 

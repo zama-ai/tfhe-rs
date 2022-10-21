@@ -19,9 +19,7 @@ impl
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweDimension, PlaintextCount, PolynomialSize, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{GlweDimension, PlaintextCount, PolynomialSize, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -87,9 +85,7 @@ impl
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweDimension, PlaintextCount, PolynomialSize, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{GlweDimension, PlaintextCount, PolynomialSize, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {

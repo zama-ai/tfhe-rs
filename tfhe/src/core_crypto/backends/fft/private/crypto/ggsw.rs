@@ -6,9 +6,7 @@ use super::super::math::polynomial::{FourierPolynomialUninitMutView, FourierPoly
 use super::super::{as_mut_uninit, assume_init_mut};
 use crate::core_crypto::commons::crypto::ggsw::StandardGgswCiphertext;
 use crate::core_crypto::commons::crypto::glwe::GlweCiphertext;
-use crate::core_crypto::commons::math::decomposition::{
-    DecompositionLevel, SignedDecomposer,
-};
+use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::polynomial::Polynomial;
 #[cfg(feature = "backend_fft_serialization")]
 use crate::core_crypto::commons::math::tensor::ContainerOwned;

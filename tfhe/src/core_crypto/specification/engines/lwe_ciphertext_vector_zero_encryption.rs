@@ -1,9 +1,7 @@
 use super::engine_error;
 use crate::core_crypto::prelude::{LweCiphertextCount, Variance};
 use crate::core_crypto::specification::engines::AbstractEngine;
-use crate::core_crypto::specification::entities::{
-    LweCiphertextVectorEntity, LweSecretKeyEntity,
-};
+use crate::core_crypto::specification::entities::{LweCiphertextVectorEntity, LweSecretKeyEntity};
 
 engine_error! {
     LweCiphertextVectorZeroEncryptionError for LweCiphertextVectorZeroEncryptionEngine @

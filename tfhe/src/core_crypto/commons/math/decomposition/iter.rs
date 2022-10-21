@@ -85,9 +85,7 @@ where
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
     /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let decomposable = Tensor::allocate(1_340_987_234_u32, 2);
@@ -107,9 +105,7 @@ where
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
     /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let decomposable = Tensor::allocate(1_340_987_234_u32, 2);
@@ -130,13 +126,9 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::commons::math::decomposition::{
-    ///     DecompositionLevel, SignedDecomposer,
-    /// };
+    /// use tfhe::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
     /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let decomposable = Tensor::allocate(1_340_987_234_u32, 1);
@@ -225,9 +217,7 @@ where
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let val = 1_340_987_234_u32;
@@ -246,9 +236,7 @@ where
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let val = 1_340_987_234_u32;

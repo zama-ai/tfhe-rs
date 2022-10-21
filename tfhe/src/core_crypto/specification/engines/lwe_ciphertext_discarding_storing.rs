@@ -1,9 +1,7 @@
 use super::engine_error;
 use crate::core_crypto::prelude::LweCiphertextIndex;
 use crate::core_crypto::specification::engines::AbstractEngine;
-use crate::core_crypto::specification::entities::{
-    LweCiphertextEntity, LweCiphertextVectorEntity,
-};
+use crate::core_crypto::specification::entities::{LweCiphertextEntity, LweCiphertextVectorEntity};
 
 engine_error! {
     LweCiphertextDiscardingStoringError for LweCiphertextDiscardingStoringEngine @

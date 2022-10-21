@@ -3,9 +3,7 @@ use crate::core_crypto::backends::cuda::implementation::entities::{
     CudaLweCiphertextVector32, CudaLweCiphertextVector64,
 };
 use crate::core_crypto::backends::cuda::private::crypto::lwe::list::discard_copy_lwe_ciphertext_vector_from_gpu_to_cpu;
-use crate::core_crypto::prelude::{
-    LweCiphertextVectorMutView32, LweCiphertextVectorMutView64,
-};
+use crate::core_crypto::prelude::{LweCiphertextVectorMutView32, LweCiphertextVectorMutView64};
 use crate::core_crypto::specification::engines::{
     LweCiphertextVectorDiscardingConversionEngine, LweCiphertextVectorDiscardingConversionError,
 };

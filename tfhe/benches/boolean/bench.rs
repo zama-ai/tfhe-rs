@@ -1,10 +1,8 @@
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tfhe::boolean::client_key::ClientKey;
-use tfhe::boolean::parameters::{
-    BooleanParameters, DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS,
-};
+use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS};
 use tfhe::boolean::prelude::BinaryBooleanGates;
 use tfhe::boolean::server_key::ServerKey;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 criterion_group!(
     gates_benches,

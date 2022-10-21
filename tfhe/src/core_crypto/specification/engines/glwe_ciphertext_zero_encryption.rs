@@ -1,9 +1,7 @@
 use super::engine_error;
 use crate::core_crypto::prelude::Variance;
 use crate::core_crypto::specification::engines::AbstractEngine;
-use crate::core_crypto::specification::entities::{
-    GlweCiphertextEntity, GlweSecretKeyEntity,
-};
+use crate::core_crypto::specification::entities::{GlweCiphertextEntity, GlweSecretKeyEntity};
 
 engine_error! {
     GlweCiphertextZeroEncryptionError for GlweCiphertextZeroEncryptionEngine @
@@ -19,7 +17,8 @@ engine_error! {
 /// # Formal Definition
 ///
 /// This generates a [`GLWE
-/// encryption`](`crate::core_crypto::specification::engines::GlweCiphertextEncryptionEngine`) of zero.
+/// encryption`](`crate::core_crypto::specification::engines::GlweCiphertextEncryptionEngine`) of
+/// zero.
 pub trait GlweCiphertextZeroEncryptionEngine<SecretKey, Ciphertext>: AbstractEngine
 where
     SecretKey: GlweSecretKeyEntity,

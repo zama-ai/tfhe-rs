@@ -1,6 +1,4 @@
-use crate::core_crypto::commons::crypto::encoding::{
-    Cleartext, Encoder, Plaintext, RealEncoder,
-};
+use crate::core_crypto::commons::crypto::encoding::{Cleartext, Encoder, Plaintext, RealEncoder};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::test_tools::{any_uint, random_uint_between};
 

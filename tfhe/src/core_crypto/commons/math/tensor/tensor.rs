@@ -270,8 +270,8 @@ impl<Container> Tensor<Container> {
     ///
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// use rayon::iter::ParallelIterator;
+    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// let tensor = Tensor::allocate(9 as u8, 1000);
     /// tensor.par_iter().for_each(|scalar| {
     ///     assert_eq!(*scalar, 9);
@@ -367,8 +367,8 @@ impl<Container> Tensor<Container> {
     ///
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// use rayon::iter::ParallelIterator;
+    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// let mut tensor = Tensor::allocate(9 as u8, 1000);
     /// tensor.par_subtensor_iter(10).for_each(|sub| {
     ///     assert_eq!(sub.len(), 10);
@@ -427,8 +427,8 @@ impl<Container> Tensor<Container> {
     ///
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// use rayon::iter::ParallelIterator;
+    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// let mut tensor = Tensor::allocate(9 as u8, 1000);
     /// tensor.par_subtensor_iter_mut(10).for_each(|mut sub| {
     ///     assert_eq!(sub.len(), 10);
@@ -902,8 +902,8 @@ impl<Container> Tensor<Container> {
     /// Fills a mutable tensor by repeatedly calling a closure.
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// use std::cell::RefCell;
+    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// let mut tensor = Tensor::allocate(9 as u16, 1000);
     /// let mut boxed = RefCell::from(0);
     /// tensor.fill_with(|| {
@@ -1088,8 +1088,8 @@ impl<Container> Tensor<Container> {
     /// Updates a mutable tensor by repeatedly calling a closure.
     ///
     /// ```
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// use std::cell::RefCell;
+    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
     /// let mut tensor = Tensor::allocate(9 as u16, 1000);
     /// let mut boxed = RefCell::from(0);
     /// tensor.update_with(|t| {

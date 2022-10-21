@@ -15,9 +15,7 @@ use crate::core_crypto::specification::engines::{
 impl LwePublicKeyGenerationEngine<LweSecretKey32, LwePublicKey32> for DefaultParallelEngine {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweDimension, LwePublicKeyZeroEncryptionCount, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweDimension, LwePublicKeyZeroEncryptionCount, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -86,9 +84,7 @@ impl LwePublicKeyGenerationEngine<LweSecretKey32, LwePublicKey32> for DefaultPar
 impl LwePublicKeyGenerationEngine<LweSecretKey64, LwePublicKey64> for DefaultParallelEngine {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweDimension, LwePublicKeyZeroEncryptionCount, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweDimension, LwePublicKeyZeroEncryptionCount, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {

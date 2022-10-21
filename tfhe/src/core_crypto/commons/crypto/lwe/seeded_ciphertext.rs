@@ -148,9 +148,7 @@ impl<Scalar: Numeric> LweSeededCiphertext<Scalar> {
     ///
     /// ```
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use tfhe::core_crypto::commons::crypto::lwe::{
-    ///     LweBody, LweCiphertext, LweSeededCiphertext,
-    /// };
+    /// use tfhe::core_crypto::commons::crypto::lwe::{LweBody, LweCiphertext, LweSeededCiphertext};
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
     /// use tfhe::core_crypto::prelude::{LweDimension, LweSize};
     ///

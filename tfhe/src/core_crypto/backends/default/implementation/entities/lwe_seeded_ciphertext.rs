@@ -2,9 +2,7 @@ use crate::core_crypto::commons::crypto::lwe::LweSeededCiphertext as ImplLweSeed
 use crate::core_crypto::commons::math::random::CompressionSeed;
 use crate::core_crypto::prelude::LweDimension;
 use crate::core_crypto::specification::entities::markers::LweSeededCiphertextKind;
-use crate::core_crypto::specification::entities::{
-    AbstractEntity, LweSeededCiphertextEntity,
-};
+use crate::core_crypto::specification::entities::{AbstractEntity, LweSeededCiphertextEntity};
 #[cfg(feature = "backend_default_serialization")]
 use serde::{Deserialize, Serialize};
 

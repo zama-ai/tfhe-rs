@@ -1,7 +1,5 @@
 use crate::core_crypto::specification::engines::AbstractEngine;
-use crate::core_crypto::specification::entities::{
-    GgswCiphertextEntity, GlweCiphertextEntity,
-};
+use crate::core_crypto::specification::entities::{GgswCiphertextEntity, GlweCiphertextEntity};
 
 use super::engine_error;
 

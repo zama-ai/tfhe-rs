@@ -456,12 +456,12 @@ impl<Cont> StandardGgswCiphertext<Cont> {
     /// # Example
     ///
     /// ```
+    /// use rayon::iter::ParallelIterator;
     /// use tfhe::core_crypto::commons::crypto::ggsw::StandardGgswCiphertext;
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
     /// use tfhe::core_crypto::prelude::{
     ///     DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
     /// };
-    /// use rayon::iter::ParallelIterator;
     ///
     /// let mut ggsw = StandardGgswCiphertext::allocate(
     ///     9 as u8,

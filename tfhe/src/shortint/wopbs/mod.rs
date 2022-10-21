@@ -78,12 +78,12 @@ impl WopbsKey {
     /// # Example
     ///
     /// ```rust
+    /// use rand::Rng;
     /// use tfhe::shortint::ciphertext::Ciphertext;
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::shortint::wopbs::*;
-    /// use rand::Rng;
     ///
     /// // Generate the client key and the server key:
     /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -118,10 +118,10 @@ impl WopbsKey {
     /// # Example
     ///
     /// ```rust
+    /// use rand::Rng;
     /// use tfhe::shortint::ciphertext::Ciphertext;
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2;
-    /// use rand::Rng;
     ///
     /// // Generate the client key and the server key:
     /// let (mut cks, mut sks) = gen_keys(WOPBS_PARAM_MESSAGE_2_CARRY_2);
@@ -155,10 +155,10 @@ impl WopbsKey {
     /// # Example
     ///
     /// ```rust
+    /// use rand::Rng;
     /// use tfhe::shortint::ciphertext::Ciphertext;
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_3_NORM2_2;
-    /// use rand::Rng;
     ///
     /// // Generate the client key and the server key:
     /// let (mut cks, mut sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_NORM2_2);
@@ -195,13 +195,12 @@ impl WopbsKey {
     /// # Example
     ///
     /// ```rust
+    /// use rand::Rng;
     /// use tfhe::shortint::ciphertext::Ciphertext;
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::parameters_wopbs_message_carry
-    /// ::WOPBS_PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::shortint::wopbs::*;
-    /// use rand::Rng;
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -235,11 +234,11 @@ impl WopbsKey {
     /// # Example
     ///
     /// ```rust
+    /// use rand::Rng;
     /// use tfhe::shortint::ciphertext::Ciphertext;
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::shortint::wopbs::*;
-    /// use rand::Rng;
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_2_CARRY_2);
@@ -261,11 +260,11 @@ impl WopbsKey {
     /// # Example
     ///
     /// ```rust
+    /// use rand::Rng;
     /// use tfhe::shortint::ciphertext::Ciphertext;
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_1_NORM2_2;
     /// use tfhe::shortint::wopbs::*;
-    /// use rand::Rng;
     ///
     /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_1_NORM2_2);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);

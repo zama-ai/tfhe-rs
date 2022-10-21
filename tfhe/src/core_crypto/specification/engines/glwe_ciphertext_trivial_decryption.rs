@@ -1,8 +1,6 @@
 use super::engine_error;
 use crate::core_crypto::specification::engines::AbstractEngine;
-use crate::core_crypto::specification::entities::{
-    GlweCiphertextEntity, PlaintextVectorEntity,
-};
+use crate::core_crypto::specification::entities::{GlweCiphertextEntity, PlaintextVectorEntity};
 
 engine_error! {
     GlweCiphertextTrivialDecryptionError for GlweCiphertextTrivialDecryptionEngine @

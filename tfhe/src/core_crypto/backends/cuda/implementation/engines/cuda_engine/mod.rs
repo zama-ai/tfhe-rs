@@ -1,6 +1,4 @@
-use crate::core_crypto::backends::cuda::private::device::{
-    CudaStream, GpuIndex, NumberOfGpus,
-};
+use crate::core_crypto::backends::cuda::private::device::{CudaStream, GpuIndex, NumberOfGpus};
 use crate::core_crypto::prelude::sealed::AbstractEngineSeal;
 use crate::core_crypto::prelude::{AbstractEngine, CudaError, SharedMemoryAmount};
 use concrete_cuda::cuda_bind::cuda_get_number_of_gpus;

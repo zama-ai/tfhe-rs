@@ -6,9 +6,7 @@ use crate::core_crypto::commons::crypto::secret::GlweSecretKey;
 use crate::core_crypto::commons::math::random::{CompressionSeed, Seeder};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::test_tools;
-use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, LogStandardDev,
-};
+use crate::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LogStandardDev};
 use concrete_csprng::generators::SoftwareRandomGenerator;
 
 use super::{StandardGgswCiphertext, StandardGgswSeededCiphertext};

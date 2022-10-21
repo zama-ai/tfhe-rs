@@ -9,9 +9,7 @@ use crate::core_crypto::commons::crypto::glwe::GlweList as ImplGlweList;
 use crate::core_crypto::specification::engines::{
     GlweCiphertextVectorEncryptionEngine, GlweCiphertextVectorEncryptionError,
 };
-use crate::core_crypto::specification::entities::{
-    GlweSecretKeyEntity, PlaintextVectorEntity,
-};
+use crate::core_crypto::specification::entities::{GlweSecretKeyEntity, PlaintextVectorEntity};
 
 /// # Description:
 /// Implementation of [`GlweCiphertextVectorEncryptionEngine`] for [`DefaultEngine`] that operates

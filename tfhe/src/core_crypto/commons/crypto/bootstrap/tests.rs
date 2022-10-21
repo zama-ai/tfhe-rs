@@ -17,15 +17,12 @@ use concrete_csprng::seeders::Seed;
 
 fn test_bsk_seeded_gen_equivalence<T: UnsignedTorus + Send + Sync>() {
     for _ in 0..10 {
-        let lwe_dim = LweDimension(
-            crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-        );
-        let glwe_dim = GlweDimension(
-            crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-        );
-        let poly_size = PolynomialSize(
-            crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-        );
+        let lwe_dim =
+            LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
+        let glwe_dim =
+            GlweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
+        let poly_size =
+            PolynomialSize(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
         let level = DecompositionLevelCount(
             crate::core_crypto::commons::test_tools::random_usize_between(2..5),
         );
@@ -115,9 +112,7 @@ mod parallel {
     use crate::core_crypto::commons::crypto::secret::{GlweSecretKey, LweSecretKey};
     use crate::core_crypto::commons::math::random::CompressionSeed;
     use crate::core_crypto::commons::math::torus::UnsignedTorus;
-    use crate::core_crypto::commons::test_tools::{
-        new_secret_random_generator, UnsafeRandSeeder,
-    };
+    use crate::core_crypto::commons::test_tools::{new_secret_random_generator, UnsafeRandSeeder};
     use crate::core_crypto::prelude::{
         DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
         StandardDev,
@@ -127,12 +122,10 @@ mod parallel {
 
     fn test_bsk_gen_equivalence<T: UnsignedTorus + Send + Sync>() {
         for _ in 0..10 {
-            let lwe_dim = LweDimension(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
-            let glwe_dim = GlweDimension(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
+            let lwe_dim =
+                LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
+            let glwe_dim =
+                GlweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
             let poly_size = PolynomialSize(
                 crate::core_crypto::commons::test_tools::random_usize_between(5..10),
             );
@@ -198,12 +191,10 @@ mod parallel {
 
     fn test_bsk_par_seeded_gen_equivalence<T: UnsignedTorus + Send + Sync>() {
         for _ in 0..10 {
-            let lwe_dim = LweDimension(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
-            let glwe_dim = GlweDimension(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
+            let lwe_dim =
+                LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
+            let glwe_dim =
+                GlweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
             let poly_size = PolynomialSize(
                 crate::core_crypto::commons::test_tools::random_usize_between(5..10),
             );
@@ -213,8 +204,7 @@ mod parallel {
             let base_log = DecompositionBaseLog(
                 crate::core_crypto::commons::test_tools::random_usize_between(2..5),
             );
-            let mask_seed =
-                Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
+            let mask_seed = Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
             let deterministic_seeder_seed =
                 Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
 

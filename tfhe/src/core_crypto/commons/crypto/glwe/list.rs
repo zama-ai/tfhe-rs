@@ -31,9 +31,7 @@ where
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweList;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     /// let list = GlweList::allocate(
     ///     0 as u8,
     ///     PolynomialSize(10),
@@ -69,9 +67,7 @@ impl<Cont> GlweList<Cont> {
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweList;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     /// let list = GlweList::from_container(
     ///     vec![0 as u8; 10 * 21 * 30],
     ///     GlweDimension(20),
@@ -105,9 +101,7 @@ impl<Cont> GlweList<Cont> {
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweList;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, PolynomialSize};
     /// let list = GlweList::allocate(
     ///     0 as u8,
     ///     PolynomialSize(10),
@@ -130,9 +124,7 @@ impl<Cont> GlweList<Cont> {
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweList;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, GlweSize, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, GlweSize, PolynomialSize};
     /// let list = GlweList::allocate(
     ///     0 as u8,
     ///     PolynomialSize(10),
@@ -154,9 +146,7 @@ impl<Cont> GlweList<Cont> {
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweList;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, PolynomialSize};
     /// let list = GlweList::allocate(
     ///     0 as u8,
     ///     PolynomialSize(10),
@@ -175,9 +165,7 @@ impl<Cont> GlweList<Cont> {
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::GlweList;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, PolynomialSize};
     /// let list = GlweList::allocate(
     ///     0 as u8,
     ///     PolynomialSize(10),
@@ -200,9 +188,7 @@ impl<Cont> GlweList<Cont> {
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::{GlweBody, GlweList};
     /// use tfhe::core_crypto::commons::math::tensor::AsRefTensor;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, PolynomialSize};
     /// let list = GlweList::allocate(
     ///     0 as u8,
     ///     PolynomialSize(10),
@@ -236,9 +222,7 @@ impl<Cont> GlweList<Cont> {
     /// ```rust
     /// use tfhe::core_crypto::commons::crypto::glwe::{GlweBody, GlweList};
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, GlweDimension, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{CiphertextCount, GlweDimension, PolynomialSize};
     /// let mut list = GlweList::allocate(
     ///     0 as u8,
     ///     PolynomialSize(10),

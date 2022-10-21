@@ -76,13 +76,9 @@ impl<Cont> GlweSeededCiphertext<Cont> {
     /// represent a valid glwe body.
     ///
     /// ```rust
-    /// use tfhe::core_crypto::commons::crypto::glwe::{
-    ///     GlweBody, GlweSeededCiphertext,
-    /// };
+    /// use tfhe::core_crypto::commons::crypto::glwe::{GlweBody, GlweSeededCiphertext};
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::commons::math::tensor::{
-    ///     AsRefSlice, AsRefTensor, Tensor,
-    /// };
+    /// use tfhe::core_crypto::commons::math::tensor::{AsRefSlice, AsRefTensor, Tensor};
     /// use tfhe::core_crypto::prelude::{GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
@@ -221,13 +217,9 @@ impl<Cont> GlweSeededCiphertext<Cont> {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::commons::crypto::glwe::{
-    ///     GlweBody, GlweSeededCiphertext,
-    /// };
+    /// use tfhe::core_crypto::commons::crypto::glwe::{GlweBody, GlweSeededCiphertext};
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::commons::math::tensor::{
-    ///     AsRefSlice, AsRefTensor, Tensor,
-    /// };
+    /// use tfhe::core_crypto::commons::math::tensor::{AsRefSlice, AsRefTensor, Tensor};
     /// use tfhe::core_crypto::prelude::{GlweDimension, GlweSize, PolynomialSize};
     ///
     /// let polynomial_size = PolynomialSize(10);
@@ -261,9 +253,7 @@ impl<Cont> GlweSeededCiphertext<Cont> {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::commons::crypto::glwe::{
-    ///     GlweBody, GlweSeededCiphertext,
-    /// };
+    /// use tfhe::core_crypto::commons::crypto::glwe::{GlweBody, GlweSeededCiphertext};
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
     /// use tfhe::core_crypto::commons::math::tensor::{
     ///     AsMutSlice, AsMutTensor, AsRefSlice, AsRefTensor, Tensor,
@@ -334,14 +324,14 @@ impl<Cont> GlweSeededCiphertext<Cont> {
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::glwe::{GlweCiphertext, GlweSeededCiphertext};
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::commons::math::random::CompressionSeed;
     /// use tfhe::core_crypto::prelude::{GlweDimension, GlweSize, PolynomialSize};
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     ///
     /// let polynomial_size = PolynomialSize(5);
     /// let glwe_dimension = GlweDimension(256);

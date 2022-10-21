@@ -1,7 +1,5 @@
 use crate::core_crypto::commons::math::random::CompressionSeed;
-use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-};
+use crate::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
 use crate::core_crypto::specification::entities::markers::LweSeededKeyswitchKeyKind;
 use crate::core_crypto::specification::entities::AbstractEntity;
 

@@ -2,9 +2,7 @@ use super::engine_error;
 use crate::core_crypto::specification::engines::AbstractEngine;
 
 use crate::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, Variance};
-use crate::core_crypto::specification::entities::{
-    LweKeyswitchKeyEntity, LweSecretKeyEntity,
-};
+use crate::core_crypto::specification::entities::{LweKeyswitchKeyEntity, LweSecretKeyEntity};
 
 engine_error! {
     LweKeyswitchKeyGenerationError for LweKeyswitchKeyGenerationEngine @

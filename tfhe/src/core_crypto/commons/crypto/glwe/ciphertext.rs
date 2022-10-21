@@ -422,9 +422,7 @@ impl<Cont> GlweCiphertext<Cont> {
     /// use tfhe::core_crypto::commons::crypto::secret::GlweSecretKey;
     /// use tfhe::core_crypto::commons::math::polynomial::MonomialDegree;
     /// use tfhe::core_crypto::commons::math::tensor::AsRefTensor;
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweDimension, LogStandardDev, LweDimension, PolynomialSize,
-    /// };
+    /// use tfhe::core_crypto::prelude::{GlweDimension, LogStandardDev, LweDimension, PolynomialSize};
     ///
     /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut encryption_generator =

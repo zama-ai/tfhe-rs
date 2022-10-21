@@ -11,9 +11,7 @@ use crate::core_crypto::prelude::{
 use crate::core_crypto::commons::crypto::encoding::{Plaintext, PlaintextList};
 use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::crypto::secret::LweSecretKey;
-use crate::core_crypto::commons::math::decomposition::{
-    DecompositionLevel, DecompositionTerm,
-};
+use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, CompressionSeed, RandomGenerable, RandomGenerator, Seeder, Uniform,
 };
@@ -58,9 +56,7 @@ where
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweSeededKeyswitchKey;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     ///
     /// let levels = DecompositionLevelCount(10);
     /// let base_log = DecompositionBaseLog(16);
@@ -109,9 +105,7 @@ impl<Cont> LweSeededKeyswitchKey<Cont> {
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweSeededKeyswitchKey;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     ///
     /// let levels = DecompositionLevelCount(10);
     /// let base_log = DecompositionBaseLog(16);
@@ -143,9 +137,7 @@ impl<Cont> LweSeededKeyswitchKey<Cont> {
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweSeededKeyswitchKey;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     ///
     /// let levels = DecompositionLevelCount(10);
     /// let base_log = DecompositionBaseLog(16);
@@ -176,9 +168,7 @@ impl<Cont> LweSeededKeyswitchKey<Cont> {
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweSeededKeyswitchKey;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     ///
     /// let levels = DecompositionLevelCount(10);
     /// let base_log = DecompositionBaseLog(16);
@@ -211,9 +201,7 @@ impl<Cont> LweSeededKeyswitchKey<Cont> {
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweSeededKeyswitchKey;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     ///
     /// let levels = DecompositionLevelCount(10);
     /// let base_log = DecompositionBaseLog(16);
@@ -412,9 +400,7 @@ impl<Cont> LweSeededKeyswitchKey<Cont> {
     /// ```
     /// use tfhe::core_crypto::commons::crypto::lwe::LweSeededKeyswitchKey;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     ///
     /// let levels = DecompositionLevelCount(10);
     /// let base_log = DecompositionBaseLog(16);
@@ -439,13 +425,9 @@ impl<Cont> LweSeededKeyswitchKey<Cont> {
     /// # Example
     /// ```
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use tfhe::core_crypto::commons::crypto::lwe::{
-    ///     LweKeyswitchKey, LweSeededKeyswitchKey,
-    /// };
+    /// use tfhe::core_crypto::commons::crypto::lwe::{LweKeyswitchKey, LweSeededKeyswitchKey};
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
-    /// use tfhe::core_crypto::prelude::{
-    ///     DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-    /// };
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
     ///
     /// let levels = DecompositionLevelCount(3);
     /// let base_log = DecompositionBaseLog(5);

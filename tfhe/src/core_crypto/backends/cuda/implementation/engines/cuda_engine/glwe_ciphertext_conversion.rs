@@ -5,9 +5,7 @@ use crate::core_crypto::backends::cuda::implementation::entities::{
 use crate::core_crypto::backends::cuda::private::crypto::glwe::ciphertext::CudaGlweCiphertext;
 use crate::core_crypto::commons::crypto::glwe::GlweCiphertext;
 use crate::core_crypto::commons::math::tensor::{AsRefSlice, AsRefTensor};
-use crate::core_crypto::prelude::{
-    GlweCiphertext32, GlweCiphertext64, GlweCiphertextView64,
-};
+use crate::core_crypto::prelude::{GlweCiphertext32, GlweCiphertext64, GlweCiphertextView64};
 use crate::core_crypto::specification::engines::{
     GlweCiphertextConversionEngine, GlweCiphertextConversionError,
 };

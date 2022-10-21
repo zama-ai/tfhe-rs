@@ -4,9 +4,7 @@ use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, PolynomialSize,
 };
 use crate::core_crypto::specification::entities::markers::GgswSeededCiphertextKind;
-use crate::core_crypto::specification::entities::{
-    AbstractEntity, GgswSeededCiphertextEntity,
-};
+use crate::core_crypto::specification::entities::{AbstractEntity, GgswSeededCiphertextEntity};
 #[cfg(feature = "backend_default_serialization")]
 use serde::{Deserialize, Serialize};
 

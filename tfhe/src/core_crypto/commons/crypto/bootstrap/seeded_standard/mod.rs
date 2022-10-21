@@ -547,13 +547,13 @@ impl<Cont> StandardSeededBootstrapKey<Cont> {
     ///
     /// # Example
     /// ```
+    /// use rayon::iter::ParallelIterator;
     /// use tfhe::core_crypto::commons::crypto::bootstrap::StandardSeededBootstrapKey;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
     /// use tfhe::core_crypto::prelude::{
     ///     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
     /// };
-    /// use rayon::iter::ParallelIterator;
     /// let mut bsk = StandardSeededBootstrapKey::<Vec<u32>>::allocate(
     ///     GlweSize(7),
     ///     PolynomialSize(9),
@@ -603,13 +603,13 @@ impl<Cont> StandardSeededBootstrapKey<Cont> {
     /// # Example
     /// # Example
     /// ```
+    /// use rayon::iter::ParallelIterator;
     /// use tfhe::core_crypto::commons::crypto::bootstrap::StandardSeededBootstrapKey;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
     /// use tfhe::core_crypto::prelude::{
     ///     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
     /// };
-    /// use rayon::iter::ParallelIterator;
     /// let mut bsk = StandardSeededBootstrapKey::<Vec<u32>>::allocate(
     ///     GlweSize(7),
     ///     PolynomialSize(9),

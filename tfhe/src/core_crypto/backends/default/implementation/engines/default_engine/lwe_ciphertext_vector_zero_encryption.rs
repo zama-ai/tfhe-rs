@@ -1,6 +1,4 @@
-use crate::core_crypto::prelude::{
-    CiphertextCount, LweCiphertextCount, PlaintextCount, Variance,
-};
+use crate::core_crypto::prelude::{CiphertextCount, LweCiphertextCount, PlaintextCount, Variance};
 
 use crate::core_crypto::backends::default::implementation::engines::DefaultEngine;
 use crate::core_crypto::backends::default::implementation::entities::{
@@ -21,9 +19,7 @@ impl LweCiphertextVectorZeroEncryptionEngine<LweSecretKey32, LweCiphertextVector
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -89,9 +85,7 @@ impl LweCiphertextVectorZeroEncryptionEngine<LweSecretKey64, LweCiphertextVector
 {
     /// # Example:
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     LweCiphertextCount, LweDimension, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude::{LweCiphertextCount, LweDimension, Variance, *};
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {

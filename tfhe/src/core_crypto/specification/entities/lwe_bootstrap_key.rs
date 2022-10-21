@@ -10,8 +10,8 @@ use crate::core_crypto::specification::entities::AbstractEntity;
 ///
 /// ## Bootstrapping Key
 /// A bootstrapping key is a vector of
-/// [`GGSW ciphertexts`](`crate::core_crypto::specification::entities::GgswCiphertextEntity`). It encrypts the
-/// coefficients of the [`LWE secret
+/// [`GGSW ciphertexts`](`crate::core_crypto::specification::entities::GgswCiphertextEntity`). It
+/// encrypts the coefficients of the [`LWE secret
 /// key`](`crate::core_crypto::specification::entities::LweSecretKeyEntity`) $\vec{s}\_{\
 /// mathsf{in}}$ under the [GLWE secret
 /// key](`crate::core_crypto::specification::entities::GlweSecretKeyEntity`) $\vec{S}\_{\

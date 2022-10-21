@@ -47,12 +47,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::LweDimension;
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: LweSecretKey<_, Vec<u32>> =
     ///     LweSecretKey::generate_binary(LweDimension(256), &mut generator);
@@ -79,12 +79,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::LweDimension;
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: LweSecretKey<_, Vec<u32>> =
     ///     LweSecretKey::generate_ternary(LweDimension(256), &mut generator);
@@ -112,12 +112,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::LweDimension;
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: LweSecretKey<_, Vec<u32>> =
     ///     LweSecretKey::generate_gaussian(LweDimension(256), &mut generator);
@@ -144,12 +144,12 @@ where
     /// # Example
     ///
     /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
     /// use tfhe::core_crypto::commons::crypto::secret::*;
     /// use tfhe::core_crypto::commons::crypto::*;
     /// use tfhe::core_crypto::prelude::LweDimension;
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
     /// let mut generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let secret_key: LweSecretKey<_, Vec<u32>> =
     ///     LweSecretKey::generate_uniform(LweDimension(256), &mut generator);

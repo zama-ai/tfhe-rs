@@ -4,9 +4,7 @@ use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use crate::core_crypto::specification::entities::markers::LweSeededBootstrapKeyKind;
-use crate::core_crypto::specification::entities::{
-    AbstractEntity, LweSeededBootstrapKeyEntity,
-};
+use crate::core_crypto::specification::entities::{AbstractEntity, LweSeededBootstrapKeyEntity};
 #[cfg(feature = "backend_default_serialization")]
 use serde::{Deserialize, Serialize};
 

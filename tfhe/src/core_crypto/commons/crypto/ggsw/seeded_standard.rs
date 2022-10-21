@@ -447,13 +447,13 @@ impl<Cont> StandardGgswSeededCiphertext<Cont> {
     /// # Example
     ///
     /// ```
+    /// use rayon::iter::ParallelIterator;
     /// use tfhe::core_crypto::commons::crypto::ggsw::StandardGgswSeededCiphertext;
     /// use tfhe::core_crypto::commons::math::random::{CompressionSeed, Seed};
     /// use tfhe::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
     /// use tfhe::core_crypto::prelude::{
     ///     DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
     /// };
-    /// use rayon::iter::ParallelIterator;
     ///
     /// let polynomial_size = PolynomialSize(10);
     /// let glwe_size = GlweSize(7);
