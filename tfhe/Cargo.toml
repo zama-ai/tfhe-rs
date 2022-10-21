@@ -5,6 +5,7 @@ edition = "2021"
 readme = "README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
 homepage = "https://zama.ai/"
+repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
 description = "Concrete is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE."
 

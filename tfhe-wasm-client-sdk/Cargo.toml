@@ -6,6 +6,7 @@ edition = "2021"
 license = "BSD-3-Clause-Clear"
 description = "Wasm client interface for tfhe"
 homepage = "https://www.zama.ai/concrete-framework"
+repository = "https://github.com/zama-ai/tfhe-rs"
 readme = "README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
 
