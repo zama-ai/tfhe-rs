@@ -1,0 +1,102 @@
+name: AWS Tests on CPU
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+
+on:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
+  workflow_dispatch:
+    # All the inputs are provided by Slab
+    inputs:
+      instance_id:
+        description: "AWS instance ID"
+        type: string
+      instance_image_id:
+        description: "AWS instance AMI ID"
+        type: string
+      instance_type:
+        description: "AWS instance product type"
+        type: string
+      runner_name:
+        description: "Action runner name"
+        type: string
+
+jobs:
+  shortint-tests:
+    concurrency:
+      group: ${{ github.ref }}_${{ github.event.inputs.instance_image_id }}_${{ github.event.inputs.instance_type }}
+      cancel-in-progress: true
+    runs-on: ${{ github.event.inputs.runner_name }}
+    steps:
+      # Step used for log purpose.
+      - name: Instance configuration used
+        run: |
+          echo "ID: ${{ github.event.inputs.instance_id }}"
+          echo "AMI: ${{ github.event.inputs.instance_image_id }}"
+          echo "Type: ${{ github.event.inputs.instance_type }}"
+
+      - uses: actions/checkout@v2
+
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+
+      - name: Run core tests
+        run: |
+          make test_core_crypto
+
+      - name: Run C API tests
+        run: |
+          make test_c_api
+
+      - name: Run user docs tests
+        run: |
+          make test_user_doc
+
+      - name: Install AWS CLI
+        run: |
+          apt update
+          apt install -y awscli
+
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_IAM_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_IAM_KEY }}
+          role-to-assume: concrete-lib-ci
+          aws-region: eu-west-3
+          role-duration-seconds: 10800
+
+      - name: Download keys locally
+        run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
+
+      - name: Gen Keys if required
+        run: |
+          make gen_key_cache
+
+      - name: Sync keys
+        run: aws s3 sync ./keys s3://concrete-libs-keycache
+
+      - name: Run shortint tests
+        run: |
+          make test_shortint_ci
+
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "Shortint tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

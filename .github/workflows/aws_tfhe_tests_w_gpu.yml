@@ -1,0 +1,113 @@
+# Compile and test project on an AWS instance
+name: AWS tests on GPU
+
+# This workflow is meant to be run via Zama CI bot Slab.
+on:
+  workflow_dispatch:
+    inputs:
+      instance_id:
+        description: "AWS instance ID"
+        type: string
+      instance_image_id:
+        description: "AWS instance AMI ID"
+        type: string
+      instance_type:
+        description: "AWS EC2 instance product type"
+        type: string
+      runner_name:
+        description: "Action runner name"
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C target-cpu=native"
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  run-tests-linux:
+    concurrency:
+      group: ${{ github.ref }}_${{ github.event.inputs.instance_image_id }}_${{ github.event.inputs.instance_type }}
+      cancel-in-progress: true
+    name: Test code in EC2
+    runs-on: ${{ github.event.inputs.runner_name }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-20.04
+            cuda: "11.8"
+            old_cuda: "11.1"
+            cuda_arch: "70"
+            gcc: 8
+    env:
+      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
+      OLD_CUDA_PATH: /usr/local/cuda-${{ matrix.old_cuda }}
+
+    steps:
+      - name: EC2 instance configuration used
+        run: |
+          echo "IDs: ${{ github.event.inputs.instance_id }}"
+          echo "AMI: ${{ github.event.inputs.instance_image_id }}"
+          echo "Type: ${{ github.event.inputs.instance_type }}"
+      - uses: actions/checkout@v2
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+      - name: Export CUDA variables
+        run: |
+          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
+          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
+      # Specify the correct host compilers
+      - name: Export gcc and g++ variables
+        run: |
+          echo "CC=/usr/bin/gcc-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
+          echo "CXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
+          echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
+          echo "CUDACXX=$CUDA_PATH/bin/nvcc" >> "${GITHUB_ENV}"
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+
+      - name: Cuda clippy
+        run: |
+          make clippy_cuda
+
+      - name: Run core cuda tests
+        run: |
+          make test_core_crypto_cuda
+
+      - name: Test tfhe-rs/boolean with cpu
+        run: |
+          make test_boolean
+
+      - name: Test tfhe-rs/boolean with cuda backend with CUDA 11.8
+        run: |
+          make test_boolean_cuda
+
+      - name: Export variables for CUDA 11.1
+        run: |
+          echo "CUDA_PATH=$OLD_CUDA_PATH" >> "${GITHUB_ENV}"
+          echo "LD_LIBRARY_PATH=$OLD_CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
+          echo "CUDACXX=$OLD_CUDA_PATH/bin/nvcc" >> "${GITHUB_ENV}"
+
+      - name: Test tfhe-rs/boolean with cuda backend with CUDA 11.1
+        run: |
+          cargo clean
+          make test_boolean_cuda
+
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "(Slab ci-bot beta) AWS tests GPU finished with status ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

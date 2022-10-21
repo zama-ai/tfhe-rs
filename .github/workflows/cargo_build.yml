@@ -1,0 +1,69 @@
+name: Cargo Build
+
+on:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C target-cpu=native"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-builds:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Get rust toolchain to use for checks and lints
+        id: toolchain
+        run: |
+          echo "rs-toolchain=$(make rs_toolchain)" >> "${GITHUB_OUTPUT}"
+
+      - name: Check format
+        run: |
+          make check_fmt
+
+      - name: Build doc
+        run: |
+          make doc
+
+      - name: Clippy boolean
+        run: |
+          make clippy_boolean
+
+      - name: Build Release boolean
+        run: |
+          make build_boolean
+
+      - name: Clippy shortint
+        run: |
+          make clippy_shortint
+
+      - name: Build Release shortint
+        run: |
+          make build_shortint
+
+      - name: Clippy shortint and boolean
+        run: |
+          make clippy
+
+      - name: Build Release shortint and boolean
+        run: |
+          make build_boolean_and_shortint
+
+      - name: C API Clippy
+        run: |
+          make clippy_c_api
+
+      - name: Build Release c_api
+        run: |
+          make build_c_api

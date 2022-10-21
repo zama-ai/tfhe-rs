@@ -1,0 +1,128 @@
+name: Tests on M1 CPU
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C target-cpu=native"
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-builds:
+    if: "github.event_name != 'pull_request' || contains(github.event.label.name, 'm1_test')"
+    runs-on: ["self-hosted", "m1mac"]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+
+      - name: Build doc
+        run: |
+          make doc
+
+      - name: Clippy boolean
+        run: |
+          make clippy_boolean
+
+      - name: Build Release boolean
+        run: |
+          make build_boolean
+
+      - name: Clippy shortint
+        run: |
+          make clippy_shortint
+
+      - name: Build Release shortint
+        run: |
+          make build_shortint
+
+      - name: Clippy shortint and boolean
+        run: |
+          make clippy
+
+      - name: Build Release shortint and boolean
+        run: |
+          make build_boolean_and_shortint
+
+      - name: C API Clippy
+        run: |
+          make clippy_c_api
+
+      - name: Build Release c_api
+        run: |
+          make build_c_api
+
+      - name: Test tfhe-rs/boolean with cpu
+        run: |
+          make test_boolean
+
+      - name: Run core tests
+        run: |
+          make test_core_crypto
+
+      - name: Run C API tests
+        run: |
+          make test_c_api
+
+      - name: Run user docs tests
+        run: |
+          make test_user_doc
+
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_IAM_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_IAM_KEY }}
+          role-to-assume: concrete-lib-ci
+          aws-region: eu-west-3
+          role-duration-seconds: 10800
+
+      - name: Download keys locally
+        run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
+
+      - name: Gen Keys if required
+        run: |
+          make gen_key_cache
+
+      - name: Sync keys
+        run: aws s3 sync ./keys s3://concrete-libs-keycache
+
+      - name: Run shortint tests
+        run: |
+          make test_shortint_ci
+
+  remove_label:
+    name: Remove m1_test label
+    runs-on: ubuntu-latest
+    needs:
+      - cargo-builds
+    if: ${{ always() }}
+    steps:
+      - uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          labels: m1_test
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        env:
+          SLACK_COLOR: ${{ needs.cargo-builds.result }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "M1 tests finished with status: ${{ needs.cargo-builds.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
