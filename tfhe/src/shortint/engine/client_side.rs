@@ -6,7 +6,7 @@ use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{Ciphertext, ClientKey, Parameters};
 
 impl ShortintEngine {
-    pub(crate) fn new_client_key(&mut self, parameters: Parameters) -> EngineResult<ClientKey> {
+    pub fn new_client_key(&mut self, parameters: Parameters) -> EngineResult<ClientKey> {
         // generate the lwe secret key
         let small_lwe_secret_key: LweSecretKey64 = self
             .engine

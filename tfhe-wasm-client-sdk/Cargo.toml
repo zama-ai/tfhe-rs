@@ -29,4 +29,5 @@ features = [
     "backend_default_serialization",
     "backend_fft",
     "backend_fft_serialization",
+    "shortints",
 ]

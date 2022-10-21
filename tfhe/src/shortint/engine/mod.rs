@@ -1,17 +1,27 @@
 use crate::core_crypto::prelude::*;
 use crate::shortint::ServerKey;
+#[cfg(not(target_arch = "wasm32"))]
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 mod client_side;
+#[cfg(not(target_arch = "wasm32"))]
 mod server_side;
+#[cfg(not(target_arch = "wasm32"))]
 mod wopbs;
 
+#[cfg(target_arch = "wasm32")]
+use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
+#[cfg(target_arch = "wasm32")]
+use concrete_csprng::generators::SoftwareRandomGenerator;
+
+#[cfg(not(target_arch = "wasm32"))]
 thread_local! {
     static LOCAL_ENGINE: RefCell<ShortintEngine> = RefCell::new(ShortintEngine::new());
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn new_seeder() -> Box<dyn Seeder> {
     let seeder: Box<dyn Seeder>;
     #[cfg(target_arch = "x86_64")]
@@ -96,6 +106,7 @@ impl ShortintEngine {
     /// Safely gives access to the `thead_local` shortint engine
     /// to call one (or many) of its method.
     #[inline]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn with_thread_local_mut<F, R>(func: F) -> R
     where
         F: FnOnce(&mut Self) -> R,
@@ -113,9 +124,36 @@ impl ShortintEngine {
     /// # Panics
     ///
     /// This will panic if the `CoreEngine` failed to create.
+    #[cfg(not(target_arch = "wasm32"))]
     fn new() -> Self {
         let engine = DefaultEngine::new(new_seeder()).expect("Failed to create a DefaultEngine");
         let par_engine = DefaultParallelEngine::new(new_seeder())
+            .expect("Failed to create a DefaultParallelEngine");
+        let fft_engine = FftEngine::new(()).unwrap();
+        Self {
+            engine,
+            // fftw_engine,
+            fft_engine,
+            par_engine,
+            buffers: Default::default(),
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn new(mut seeder: Box<dyn Seeder>) -> Self {
+        let mut deterministic_seeder =
+            DeterministicSeeder::<SoftwareRandomGenerator>::new(seeder.seed());
+
+        let default_engine_seeder = Box::new(DeterministicSeeder::<SoftwareRandomGenerator>::new(
+            deterministic_seeder.seed(),
+        ));
+        let default_parallel_engine_seeder = Box::new(
+            DeterministicSeeder::<SoftwareRandomGenerator>::new(deterministic_seeder.seed()),
+        );
+
+        let engine =
+            DefaultEngine::new(default_engine_seeder).expect("Failed to create a DefaultEngine");
+        let par_engine = DefaultParallelEngine::new(default_parallel_engine_seeder)
             .expect("Failed to create a DefaultParallelEngine");
         let fft_engine = FftEngine::new(()).unwrap();
         Self {
