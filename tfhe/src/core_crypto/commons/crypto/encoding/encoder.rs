@@ -610,7 +610,7 @@ mod test {
         );
         plaintext
             .as_mut_tensor()
-            .update_with_add(plaintext_error.as_tensor());
+            .update_with_wrapping_add(plaintext_error.as_tensor());
 
         // decode
         let mut decoding = CleartextList::allocate(0.0f64, CleartextCount(nb_messages));
@@ -642,7 +642,7 @@ mod test {
         );
         plaintext
             .as_mut_tensor()
-            .update_with_add(plaintext_error.as_tensor());
+            .update_with_wrapping_add(plaintext_error.as_tensor());
 
         // decode
         let mut decoding = CleartextList::allocate(0.0f64, CleartextCount(nb_messages));

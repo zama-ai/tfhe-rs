@@ -6,10 +6,10 @@
 //! ```
 //! use tfhe::core_crypto::commons::math::tensor::Tensor;
 //! // We allocate two tensors of size 10
-//! let mut tensor1 = Tensor::allocate(5. as f32, 10);
-//! let tensor2 = Tensor::allocate(3. as f32, 10);
+//! let mut tensor1 = Tensor::allocate(5u32, 10);
+//! let tensor2 = Tensor::allocate(3u32, 10);
 //! // We update the values of `tensor1` inplace, by adding it the values of `tensor2`;
-//! tensor1.update_with_add(&tensor2);
+//! tensor1.update_with_wrapping_add(&tensor2);
 //! ```
 //!
 //! The first interest of this type is that it can be backed by several collection containers,
@@ -23,7 +23,7 @@
 //! let mut distant_container = vec![4 as u32; 100];
 //! let mut tensor2: Tensor<&mut [u32]> = Tensor::from_container(distant_container.as_mut_slice());
 //! // We update the values of `distant_container` via `tensor2`
-//! tensor2.update_with_add(&tensor1);
+//! tensor2.update_with_wrapping_add(&tensor1);
 //! ```
 //!
 //! It is important to note that the `Tensor` type we have here, is *not* an n-dimmensional array,

@@ -337,7 +337,7 @@ fn test_circuit_bootstrapping_binary() {
 
             expected_decryption
                 .as_mut_tensor()
-                .update_with_scalar_mul(&multiplying_factor);
+                .update_with_wrapping_scalar_mul(&multiplying_factor);
 
             let decomposer =
                 SignedDecomposer::new(base_log_cbs, DecompositionLevelCount(current_level));

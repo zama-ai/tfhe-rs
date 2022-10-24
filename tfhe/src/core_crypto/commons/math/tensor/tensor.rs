@@ -1,7 +1,6 @@
 use std::iter::FromIterator;
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
-    Mul, MulAssign, Neg, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Shl, ShlAssign, Shr, ShrAssign,
 };
 use std::slice::SliceIndex;
 
@@ -945,11 +944,6 @@ impl<Container> Tensor<Container> {
         self.fill_with_one(other, |a| <Self as AsMutSlice>::Element::cast_from(*a));
     }
 
-    fill_with!(Add, fill_with_add, |l, r| *l + *r);
-    fill_with!(Sub, fill_with_sub, |l, r| *l - *r);
-    fill_with!(Mul, fill_with_mul, |l, r| *l * *r);
-    fill_with!(Div, fill_with_div, |l, r| *l / *r);
-    fill_with!(Rem, fill_with_rem, |l, r| *l % *r);
     fill_with!(BitAnd, fill_with_bit_and, |l, r| *l & *r);
     fill_with!(BitOr, fill_with_bit_or, |l, r| *l | *r);
     fill_with!(BitXor, fill_with_bit_xor, |l, r| *l ^ *r);
@@ -1109,11 +1103,6 @@ impl<Container> Tensor<Container> {
         }
     }
 
-    update_with!(AddAssign, update_with_add, |s, a| *s += *a);
-    update_with!(SubAssign, update_with_sub, |s, a| *s -= *a);
-    update_with!(MulAssign, update_with_mul, |s, a| *s *= *a);
-    update_with!(DivAssign, update_with_div, |s, a| *s /= *a);
-    update_with!(RemAssign, update_with_rem, |s, a| *s %= *a);
     update_with!(BitAndAssign, update_with_and, |s, a| *s &= *a);
     update_with!(BitOrAssign, update_with_or, |s, a| *s |= *a);
     update_with!(BitXorAssign, update_with_xor, |s, a| *s ^= *a);
@@ -1125,11 +1114,6 @@ impl<Container> Tensor<Container> {
     update_with_wrapping!(update_with_wrapping_mul, |s, a| *s = s.wrapping_mul(*a));
     update_with_wrapping!(update_with_wrapping_div, |s, a| *s = s.wrapping_div(*a));
 
-    update_with_scalar!(AddAssign, update_with_scalar_add, |s, a| *s += *a);
-    update_with_scalar!(SubAssign, update_with_scalar_sub, |s, a| *s -= *a);
-    update_with_scalar!(MulAssign, update_with_scalar_mul, |s, a| *s *= *a);
-    update_with_scalar!(DivAssign, update_with_scalar_div, |s, a| *s /= *a);
-    update_with_scalar!(RemAssign, update_with_scalar_rem, |s, a| *s %= *a);
     update_with_scalar!(BitAndAssign, update_with_scalar_and, |s, a| *s &= *a);
     update_with_scalar!(BitOrAssign, update_with_scalar_or, |s, a| *s |= *a);
     update_with_scalar!(BitXorAssign, update_with_scalar_xor, |s, a| *s ^= *a);
@@ -1144,25 +1128,6 @@ impl<Container> Tensor<Container> {
         s.wrapping_mul(*a));
     update_with_wrapping_scalar!(update_with_wrapping_scalar_div, |s, a| *s =
         s.wrapping_div(*a));
-
-    /// Sets each value of `self` to its own opposite.
-    ///
-    /// # Example
-    /// ```
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut tensor = Tensor::allocate(9 as i16, 1000);
-    /// tensor.update_with_neg();
-    /// for scalar in tensor.iter() {
-    ///     assert_eq!(*scalar, -9);
-    /// }
-    /// ```
-    pub fn update_with_neg(&mut self)
-    where
-        Self: AsMutSlice,
-        <Self as AsMutSlice>::Element: Neg<Output = <Self as AsMutSlice>::Element> + Copy,
-    {
-        self.update_with(|a| *a = -*a);
-    }
 
     /// Sets each value of `self` to its own wrapping opposite.
     ///
@@ -1181,31 +1146,6 @@ impl<Container> Tensor<Container> {
         <Self as AsMutSlice>::Element: UnsignedInteger,
     {
         self.update_with(|a| *a = a.wrapping_neg());
-    }
-
-    /// Fills a mutable tensor with the result of the multiplication of elements of another tensor
-    /// by an element.
-    ///
-    /// # Example
-    /// ```
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut t1 = Tensor::allocate(9 as u8, 1000);
-    /// let t2 = Tensor::allocate(3 as u8, 1000);
-    /// t1.fill_with_element_mul(&t2, 2);
-    /// for scalar in t1.iter() {
-    ///     assert_eq!(*scalar, 6);
-    /// }
-    /// ```
-    pub fn fill_with_element_mul<Cont, Element>(&mut self, tensor: &Tensor<Cont>, element: Element)
-    where
-        Self: AsMutSlice,
-        Tensor<Cont>: AsRefSlice,
-        <Tensor<Cont> as AsRefSlice>::Element: Mul<Element, Output = <Self as AsMutSlice>::Element>,
-        Element: Copy,
-        <Tensor<Cont> as AsRefSlice>::Element: Copy,
-    {
-        ck_dim_eq!(self.len() => tensor.len());
-        self.fill_with_one(tensor, |t| *t * element);
     }
 
     /// Fills a mutable tensor with the result of the wrapping multiplication of elements of
@@ -1234,35 +1174,6 @@ impl<Container> Tensor<Container> {
         self.fill_with_one(tensor, |t| t.wrapping_mul(element));
     }
 
-    /// Updates the values of a mutable tensor by subtracting the product of the element of
-    /// another tensor and an element.
-    ///
-    /// # Example
-    /// ```
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut t1 = Tensor::allocate(9 as u8, 1000);
-    /// let t2 = Tensor::allocate(2 as u8, 1000);
-    /// t1.update_with_sub_element_mul(&t2, 4);
-    /// for scalar in t1.iter() {
-    ///     assert_eq!(*scalar, 1);
-    /// }
-    /// ```
-    pub fn update_with_sub_element_mul<Cont, Element>(
-        &mut self,
-        tensor: &Tensor<Cont>,
-        scalar: Element,
-    ) where
-        Self: AsMutSlice,
-        Tensor<Cont>: AsRefSlice,
-        <Tensor<Cont> as AsRefSlice>::Element: Copy,
-        Element: Copy,
-        <Tensor<Cont> as AsRefSlice>::Element: Mul<Element, Output = <Self as AsMutSlice>::Element>,
-        <Self as AsMutSlice>::Element: SubAssign<<Self as AsMutSlice>::Element>,
-    {
-        ck_dim_eq!(self.len() => tensor.len());
-        self.update_with_one(tensor, |s, t| *s -= *t * scalar);
-    }
-
     /// Updates the values of a mutable tensor by wrap-subtracting the wrapping product of the
     /// elements of another tensor and an element.
     ///
@@ -1287,35 +1198,6 @@ impl<Container> Tensor<Container> {
     {
         ck_dim_eq!(self.len() => tensor.len());
         self.update_with_one(tensor, |s, t| *s = s.wrapping_sub(t.wrapping_mul(scalar)));
-    }
-
-    /// Updates the values of a mutable tensor by adding the product of the element of another
-    /// tensor and an element.
-    ///
-    /// # Example
-    /// ```
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut t1 = Tensor::allocate(9 as u8, 1000);
-    /// let t2 = Tensor::allocate(2 as u8, 1000);
-    /// t1.update_with_add_element_mul(&t2, 4);
-    /// for scalar in t1.iter() {
-    ///     assert_eq!(*scalar, 17);
-    /// }
-    /// ```
-    pub fn update_with_add_element_mul<Cont, Element>(
-        &mut self,
-        tensor: &Tensor<Cont>,
-        scalar: Element,
-    ) where
-        Self: AsMutSlice,
-        Tensor<Cont>: AsRefSlice,
-        <Tensor<Cont> as AsRefSlice>::Element: Copy,
-        Element: Copy,
-        <Tensor<Cont> as AsRefSlice>::Element: Mul<Element, Output = <Self as AsMutSlice>::Element>,
-        <Self as AsMutSlice>::Element: AddAssign<<Self as AsMutSlice>::Element>,
-    {
-        ck_dim_eq!(self.len() => tensor.len());
-        self.update_with_one(tensor, |s, t| *s += *t * scalar);
     }
 
     /// Updates the values of a mutable tensor by wrap-adding the wrapping product of the elements

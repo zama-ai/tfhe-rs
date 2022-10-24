@@ -158,7 +158,6 @@ impl ShortintEngine {
         let fft_engine = FftEngine::new(()).unwrap();
         Self {
             engine,
-            // fftw_engine,
             fft_engine,
             par_engine,
             buffers: Default::default(),

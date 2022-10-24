@@ -1039,15 +1039,17 @@ impl<Cont> LwePrivateFunctionalPackingKeyswitchKey<Cont> {
                 .map(DecompositionLevel)
                 .zip(messages.sublist_iter_mut(PlaintextCount(polynomial_size.0)))
             {
-                message.as_mut_tensor().update_with_add_element_mul(
-                    polynomial.as_tensor(),
-                    DecompositionTerm::new(
-                        level,
-                        decomp_base_log,
-                        f(Scalar::ONE).wrapping_mul(input_key_bit),
-                    )
-                    .to_recomposition_summand(),
-                );
+                message
+                    .as_mut_tensor()
+                    .update_with_wrapping_add_element_mul(
+                        polynomial.as_tensor(),
+                        DecompositionTerm::new(
+                            level,
+                            decomp_base_log,
+                            f(Scalar::ONE).wrapping_mul(input_key_bit),
+                        )
+                        .to_recomposition_summand(),
+                    );
             }
 
             // We encrypt the buffer
@@ -1188,15 +1190,17 @@ impl<Cont> LwePrivateFunctionalPackingKeyswitchKey<Cont> {
                         .map(DecompositionLevel)
                         .zip(messages.sublist_iter_mut(PlaintextCount(polynomial_size.0)))
                     {
-                        message.as_mut_tensor().update_with_add_element_mul(
-                            polynomial.as_tensor(),
-                            DecompositionTerm::new(
-                                level,
-                                decomp_base_log,
-                                f(Scalar::ONE).wrapping_mul(input_key_bit),
-                            )
-                            .to_recomposition_summand(),
-                        );
+                        message
+                            .as_mut_tensor()
+                            .update_with_wrapping_add_element_mul(
+                                polynomial.as_tensor(),
+                                DecompositionTerm::new(
+                                    level,
+                                    decomp_base_log,
+                                    f(Scalar::ONE).wrapping_mul(input_key_bit),
+                                )
+                                .to_recomposition_summand(),
+                            );
                     }
 
                     // We encrypt the buffer
