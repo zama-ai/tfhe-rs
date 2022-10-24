@@ -162,28 +162,40 @@ impl<B> BooleanEngine<B> {
 }
 
 fn new_seeder() -> Box<dyn Seeder> {
-    let seeder: Box<dyn Seeder>;
-    #[cfg(target_arch = "x86_64")]
+    let mut seeder: Option<Box<dyn Seeder>> = None;
+    #[cfg(feature = "seeder_x86_64_rdseed")]
     {
         if RdseedSeeder::is_available() {
-            seeder = Box::new(RdseedSeeder);
-        } else {
-            seeder = Box::new(UnixSeeder::new(0));
+            seeder = Some(Box::new(RdseedSeeder));
         }
     }
-    #[cfg(not(target_arch = "x86_64"))]
+
+    // This Seeder is normally always available on macOS, so we enable it by default when on that
+    // platform
+    #[cfg(target_os = "macos")]
     {
-        seeder = Box::new(UnixSeeder::new(0));
+        if seeder.is_none() && AppleSecureEnclaveSeeder::is_available() {
+            seeder = Some(Box::new(AppleSecureEnclaveSeeder))
+        }
     }
 
-    seeder
+    #[cfg(feature = "seeder_unix")]
+    {
+        if seeder.is_none() && UnixSeeder::is_available() {
+            seeder = Some(Box::new(UnixSeeder::new(0)));
+        }
+    }
+
+    seeder.expect(
+        "Unable to instantiate a seeder for BooleanEngine, make sure to enable a seeder feature \
+        like seeder_unix for example on unix platforms.",
+    )
 }
 
 impl<B> BooleanEngine<B>
 where
     B: Bootstrapper,
 {
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Self {
         let engine =
             DefaultEngine::new(new_seeder()).expect("Unexpectedly failed to create a core engine");

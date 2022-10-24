@@ -1,0 +1,213 @@
+use crate::c_api::utils::*;
+use std::os::raw::c_int;
+
+use crate::boolean;
+use crate::boolean::server_key::BinaryBooleanGates;
+
+use super::BooleanCiphertext;
+
+pub struct BooleanServerKey(pub(in crate::c_api) boolean::server_key::ServerKey);
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_and(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.and(&ct_left.0, &ct_right.0)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_nand(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        let heap_allocated_result = Box::new(BooleanCiphertext(
+            server_key.0.nand(&ct_left.0, &ct_right.0),
+        ));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_nor(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.nor(&ct_left.0, &ct_right.0)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_or(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.or(&ct_left.0, &ct_right.0)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_xor(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.xor(&ct_left.0, &ct_right.0)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_xnor(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        let heap_allocated_result = Box::new(BooleanCiphertext(
+            server_key.0.xnor(&ct_left.0, &ct_right.0),
+        ));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_not(
+    server_key: *const BooleanServerKey,
+    ct_input: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_input = get_ref_checked(ct_input).unwrap();
+
+        let heap_allocated_result = Box::new(BooleanCiphertext(server_key.0.not(&ct_input.0)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_mux(
+    server_key: *const BooleanServerKey,
+    ct_condition: *const BooleanCiphertext,
+    ct_then: *const BooleanCiphertext,
+    ct_else: *const BooleanCiphertext,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_condition = get_ref_checked(ct_condition).unwrap();
+        let ct_then = get_ref_checked(ct_then).unwrap();
+        let ct_else = get_ref_checked(ct_else).unwrap();
+
+        let heap_allocated_result = Box::new(BooleanCiphertext(server_key.0.mux(
+            &ct_condition.0,
+            &ct_then.0,
+            &ct_else.0,
+        )));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
