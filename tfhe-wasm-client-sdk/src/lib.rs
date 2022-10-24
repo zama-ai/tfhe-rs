@@ -1,4 +1,3 @@
-#![allow(clippy::boxed_local)]
 use wasm_bindgen::prelude::*;
 
 pub mod core_crypto;
@@ -69,6 +68,68 @@ pub fn get_shortint_parameters(
         )),
     }
     .map(ShortintParameters)
+}
+
+#[wasm_bindgen]
+pub fn new_shortint_parameters(
+    lwe_dimension: usize,
+    glwe_dimension: usize,
+    polynomial_size: usize,
+    lwe_modular_std_dev: f64,
+    glwe_modular_std_dev: f64,
+    pbs_base_log: usize,
+    pbs_level: usize,
+    ks_base_log: usize,
+    ks_level: usize,
+    pfks_level: usize,
+    pfks_base_log: usize,
+    pfks_modular_std_dev: f64,
+    cbs_level: usize,
+    cbs_base_log: usize,
+    message_modulus: usize,
+    carry_modulus: usize,
+) -> ShortintParameters {
+    use tfhe::core_crypto::prelude::*;
+    ShortintParameters(tfhe::shortint::Parameters {
+        lwe_dimension: LweDimension(lwe_dimension),
+        glwe_dimension: GlweDimension(glwe_dimension),
+        polynomial_size: PolynomialSize(polynomial_size),
+        lwe_modular_std_dev: StandardDev(lwe_modular_std_dev),
+        glwe_modular_std_dev: StandardDev(glwe_modular_std_dev),
+        pbs_base_log: DecompositionBaseLog(pbs_base_log),
+        pbs_level: DecompositionLevelCount(pbs_level),
+        ks_base_log: DecompositionBaseLog(ks_base_log),
+        ks_level: DecompositionLevelCount(ks_level),
+        pfks_level: DecompositionLevelCount(pfks_level),
+        pfks_base_log: DecompositionBaseLog(pfks_base_log),
+        pfks_modular_std_dev: StandardDev(pfks_modular_std_dev),
+        cbs_level: DecompositionLevelCount(cbs_level),
+        cbs_base_log: DecompositionBaseLog(cbs_base_log),
+        message_modulus: tfhe::shortint::parameters::MessageModulus(message_modulus),
+        carry_modulus: tfhe::shortint::parameters::CarryModulus(carry_modulus),
+    })
+}
+
+#[wasm_bindgen]
+pub fn new_client_key_from_seed_and_parameters(
+    seed_high_bytes: u64,
+    seed_low_bytes: u64,
+    parameters: &ShortintParameters,
+) -> Result<ShortintClientKey, JsError> {
+    let seed_high_bytes: u128 = seed_high_bytes.into();
+    let seed_low_bytes: u128 = seed_low_bytes.into();
+    let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
+
+    let constant_seeder = Box::new(seeder::ConstantSeeder::new(
+        tfhe::core_crypto::commons::math::random::Seed(seed),
+    ));
+
+    let mut tmp_shortint_engine = tfhe::shortint::engine::ShortintEngine::new(constant_seeder);
+
+    tmp_shortint_engine
+        .new_client_key(parameters.0.to_owned())
+        .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+        .map(ShortintClientKey)
 }
 
 #[wasm_bindgen]
@@ -154,6 +215,29 @@ mod seeder {
             array.copy_to(&mut self.buffer);
             let seed = u128::from_le_bytes(self.buffer);
             Seed(seed)
+        }
+
+        fn is_available() -> bool
+        where
+            Self: Sized,
+        {
+            true
+        }
+    }
+
+    pub struct ConstantSeeder {
+        seed: Seed,
+    }
+
+    impl ConstantSeeder {
+        pub fn new(seed: Seed) -> Self {
+            Self { seed }
+        }
+    }
+
+    impl Seeder for ConstantSeeder {
+        fn seed(&mut self) -> Seed {
+            self.seed
         }
 
         fn is_available() -> bool
