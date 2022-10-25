@@ -186,10 +186,15 @@ fn new_seeder() -> Box<dyn Seeder> {
         }
     }
 
-    seeder.expect(
+    #[cfg(not(feature = "__c_api"))]
+    let err_msg =
         "Unable to instantiate a seeder for BooleanEngine, make sure to enable a seeder feature \
-        like seeder_unix for example on unix platforms.",
-    )
+    like seeder_unix for example on unix platforms.";
+
+    #[cfg(feature = "__c_api")]
+    let err_msg = "No compatible seeder for current machine found.";
+
+    seeder.expect(err_msg)
 }
 
 impl<B> BooleanEngine<B>

@@ -13,7 +13,6 @@ pub use ciphertext::BooleanCiphertext;
 pub use client_key::BooleanClientKey;
 pub use server_key::BooleanServerKey;
 
-
 #[no_mangle]
 pub unsafe extern "C" fn booleans_gen_keys_with_default_parameters(
     result_client_key: *mut *mut BooleanClientKey,
@@ -94,5 +93,25 @@ pub unsafe extern "C" fn booleans_gen_keys_with_predefined_parameters_set(
 
         *result_client_key = Box::into_raw(heap_allocated_client_key);
         *result_server_key = Box::into_raw(heap_allocated_server_key);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_trivial_encrypt(
+    message: bool,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        use boolean::engine::WithThreadLocalEngine;
+
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        let heap_allocated_result = Box::new(BooleanCiphertext(
+            boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
+                engine.trivial_encrypt(message)
+            }),
+        ));
+
+        *result = Box::into_raw(heap_allocated_result);
     })
 }

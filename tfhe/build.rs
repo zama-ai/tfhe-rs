@@ -1,10 +1,10 @@
 // concrete-core-ffi/build.rs
 
-use std::env;
-use std::path::PathBuf;
-
 #[cfg(feature = "__c_api")]
 fn gen_c_api() {
+    use std::env;
+    use std::path::PathBuf;
+
     /// Find the location of the `target/` directory. Note that this may be
     /// overridden by `cmake`, so we also need to check the `CARGO_TARGET_DIR`
     /// variable.
