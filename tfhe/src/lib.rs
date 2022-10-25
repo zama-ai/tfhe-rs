@@ -8,3 +8,8 @@ pub mod core_crypto;
 #[cfg(feature = "shortints")]
 /// cbindgen:ignore
 pub mod shortint;
+#[cfg(feature = "__wasm_api")]
+/// cbindgen:ignore
+pub mod js_on_wasm_api;
+#[cfg(feature = "__wasm_api")]
+pub use js_on_wasm_api::*;

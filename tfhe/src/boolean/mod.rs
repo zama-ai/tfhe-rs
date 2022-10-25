@@ -60,7 +60,9 @@
 //! ```
 
 use crate::boolean::client_key::ClientKey;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::boolean::parameters::DEFAULT_PARAMETERS;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::boolean::server_key::ServerKey;
 #[cfg(test)]
 use rand::Rng;
@@ -70,6 +72,7 @@ pub mod client_key;
 pub mod engine;
 pub mod parameters;
 pub mod prelude;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod server_key;
 
 /// The scaling factor used for the plaintext
@@ -122,6 +125,7 @@ pub(crate) fn random_integer() -> u32 {
 /// # #[cfg(feature = "cuda")]
 /// # fn main() {}
 /// ```
+#[cfg(not(target_arch = "wasm32"))]
 pub fn gen_keys() -> (ClientKey, ServerKey) {
     // generate the client key
     let cks = ClientKey::new(&DEFAULT_PARAMETERS);

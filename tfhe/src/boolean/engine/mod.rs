@@ -3,6 +3,7 @@ use crate::boolean::parameters::BooleanParameters;
 use crate::boolean::{ClientKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
 use crate::core_crypto::prelude::*;
 use bootstrapping::{BooleanServerKey, Bootstrapper, CpuBootstrapper};
+#[cfg(not(target_arch = "wasm32"))]
 use std::cell::RefCell;
 pub mod bootstrapping;
 use crate::boolean::engine::bootstrapping::CpuBootstrapKey;
@@ -31,6 +32,7 @@ pub(crate) type CpuBooleanEngine = BooleanEngine<CpuBootstrapper>;
 #[cfg(feature = "cuda")]
 pub(crate) type CudaBooleanEngine = BooleanEngine<CudaBootstrapper>;
 
+#[cfg(not(target_arch = "wasm32"))]
 // All our thread local engines
 // that our exposed types will use internally to implement their methods
 thread_local! {
@@ -39,6 +41,7 @@ thread_local! {
     static CUDA_ENGINE: RefCell<BooleanEngine<CudaBootstrapper>> = RefCell::new(BooleanEngine::<_>::new());
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl WithThreadLocalEngine for CpuBooleanEngine {
     fn with_thread_local_mut<R, F>(func: F) -> R
     where
@@ -48,6 +51,7 @@ impl WithThreadLocalEngine for CpuBooleanEngine {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "cuda")]
 impl WithThreadLocalEngine for CudaBooleanEngine {
     fn with_thread_local_mut<R, F>(func: F) -> R
@@ -161,6 +165,7 @@ impl<B> BooleanEngine<B> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn new_seeder() -> Box<dyn Seeder> {
     let mut seeder: Option<Box<dyn Seeder>> = None;
     #[cfg(feature = "seeder_x86_64_rdseed")]
@@ -201,9 +206,21 @@ impl<B> BooleanEngine<B>
 where
     B: Bootstrapper,
 {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Self {
         let engine =
             DefaultEngine::new(new_seeder()).expect("Unexpectedly failed to create a core engine");
+
+        Self {
+            engine,
+            bootstrapper: Default::default(),
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn new(seeder: Box<dyn Seeder>) -> Self {
+        let engine =
+            DefaultEngine::new(seeder).expect("Unexpectedly failed to create a core engine");
 
         Self {
             engine,
