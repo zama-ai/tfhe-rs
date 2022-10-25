@@ -178,22 +178,46 @@ bool c_xnor(bool left, bool right) { return !c_xor(left, right); }
 void test_server_key(void) {
   BooleanClientKey *cks = NULL;
   BooleanServerKey *sks = NULL;
+  Buffer cks_ser_buffer = {.pointer = NULL, .length = 0};
+  BooleanClientKey *deser_cks = NULL;
+  Buffer sks_ser_buffer = {.pointer = NULL, .length = 0};
+  BooleanServerKey *deser_sks = NULL;
 
   int gen_keys_ok = booleans_gen_keys_with_default_parameters(&cks, &sks);
   assert(gen_keys_ok == 0);
 
-  test_binary_boolean_function(cks, sks, c_and, booleans_server_key_and);
-  test_binary_boolean_function(cks, sks, c_nand, booleans_server_key_nand);
-  test_binary_boolean_function(cks, sks, c_or, booleans_server_key_or);
-  test_binary_boolean_function(cks, sks, c_nor, booleans_server_key_nor);
-  test_binary_boolean_function(cks, sks, c_xor, booleans_server_key_xor);
-  test_binary_boolean_function(cks, sks, c_xnor, booleans_server_key_xnor);
+  int ser_cks_ok = booleans_serialize_client_key(cks, &cks_ser_buffer);
+  assert(ser_cks_ok == 0);
 
-  test_not(cks, sks);
-  test_mux(cks, sks);
+  BufferView deser_view = {.pointer = cks_ser_buffer.pointer, .length = cks_ser_buffer.length};
+
+  int deser_cks_ok = booleans_deserialize_client_key(deser_view, &deser_cks);
+  assert(deser_cks_ok == 0);
+
+  int ser_sks_ok = booleans_serialize_server_key(sks, &sks_ser_buffer);
+  assert(ser_sks_ok == 0);
+
+  deser_view.pointer = sks_ser_buffer.pointer;
+  deser_view.length = sks_ser_buffer.length;
+
+  int deser_sks_ok = booleans_deserialize_server_key(deser_view, &deser_sks);
+  assert(deser_sks_ok == 0);
+
+  test_binary_boolean_function(deser_cks, deser_sks, c_and, booleans_server_key_and);
+  test_binary_boolean_function(deser_cks, deser_sks, c_nand, booleans_server_key_nand);
+  test_binary_boolean_function(deser_cks, deser_sks, c_or, booleans_server_key_or);
+  test_binary_boolean_function(deser_cks, deser_sks, c_nor, booleans_server_key_nor);
+  test_binary_boolean_function(deser_cks, deser_sks, c_xor, booleans_server_key_xor);
+  test_binary_boolean_function(deser_cks, deser_sks, c_xnor, booleans_server_key_xnor);
+  test_not(deser_cks, deser_sks);
+  test_mux(deser_cks, deser_sks);
 
   destroy_boolean_client_key(cks);
   destroy_boolean_server_key(sks);
+  destroy_boolean_client_key(deser_cks);
+  destroy_boolean_server_key(deser_sks);
+  destroy_buffer(&cks_ser_buffer);
+  destroy_buffer(&sks_ser_buffer);
 }
 
 int main(void) {

@@ -48,7 +48,7 @@ booleans = []
 shortints = []
 internal-keycache = ["concrete-utils", "lazy_static"]
 
-__c_api = ["cbindgen"]
+__c_api = ["cbindgen", "minimal_core_crypto_features"]
 booleans-c-api = ["booleans", "__c_api"]
 shortints-c-api = ["shortints", "__c_api"]
 
@@ -96,17 +96,21 @@ __commons_serialization = ["serde", "serde/derive"]
 seeder_unix = ["concrete-csprng/seeder_unix"]
 seeder_x86_64_rdseed = ["concrete-csprng/seeder_x86_64_rdseed"]
 
+minimal_core_crypto_features = [
+    "backend_default",
+    "backend_default_parallel",
+    "backend_default_serialization",
+    "backend_fft",
+    "backend_fft_serialization",
+]
+
 # These target_arch features enable a set of public features for concrete-core if users want a known
 # good/working configuration for concrete-core.
 # For a target_arch that does not yet have such a feature, one can still enable features manually or
 # create a feature for said target_arch to make its use simpler.
 x86_64 = [
-    "backend_default",
-    "backend_default_parallel",
+    "minimal_core_crypto_features",
     "backend_default_generator_x86_64_aesni",
-    "backend_default_serialization",
-    "backend_fft",
-    "backend_fft_serialization",
     "seeder_x86_64_rdseed",
 ]
 x86_64-unix = ["x86_64", "seeder_unix"]
@@ -115,12 +119,8 @@ x86_64-unix = ["x86_64", "seeder_unix"]
 x86_64-unix-cuda = ["x86_64-unix", "cuda"]
 
 aarch64 = [
-    "backend_default",
-    "backend_default_parallel",
+    "minimal_core_crypto_features",
     "backend_default_generator_aarch64_aes",
-    "backend_default_serialization",
-    "backend_fft",
-    "backend_fft_serialization",
 ]
 aarch64-unix = ["aarch64", "seeder_unix"]
 

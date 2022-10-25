@@ -1,4 +1,3 @@
-use std::fmt::{Debug, Display};
 use std::os::raw::c_int;
 
 pub fn catch_panic<F>(closure: F) -> c_int
@@ -45,8 +44,4 @@ pub fn get_ref_checked<'a, T>(ptr: *const T) -> Result<&'a T, String> {
         },
         Err(e) => Err(e),
     }
-}
-
-pub fn engine_error_as_readable_string<R, T: Debug + Display>(error: T) -> Result<R, String> {
-    Err(format!("{:#?}: {}", error, error))
 }
