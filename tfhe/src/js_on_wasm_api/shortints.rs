@@ -91,6 +91,7 @@ impl Shortint {
         message_modulus: usize,
         carry_modulus: usize,
     ) -> ShortintParameters {
+        set_hook(Box::new(console_error_panic_hook::hook));
         use crate::core_crypto::prelude::*;
         ShortintParameters(crate::shortint::Parameters {
             lwe_dimension: LweDimension(lwe_dimension),
@@ -118,6 +119,7 @@ impl Shortint {
         seed_low_bytes: u64,
         parameters: &ShortintParameters,
     ) -> Result<ShortintClientKey, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
         let seed_high_bytes: u128 = seed_high_bytes.into();
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
@@ -153,6 +155,7 @@ impl Shortint {
 
     #[wasm_bindgen]
     pub fn decrypt(client_key: &ShortintClientKey, ct: &ShortintCiphertext) -> u64 {
+        set_hook(Box::new(console_error_panic_hook::hook));
         client_key.0.decrypt(&ct.0)
     }
 
@@ -160,12 +163,14 @@ impl Shortint {
     pub fn serialize_shortint_ciphertext(
         ciphertext: &ShortintCiphertext,
     ) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&ciphertext.0)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_shortint_ciphertext(buffer: &[u8]) -> Result<ShortintCiphertext, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(ShortintCiphertext)
@@ -175,12 +180,14 @@ impl Shortint {
     pub fn serialize_shortint_client_key(
         client_key: &ShortintClientKey,
     ) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&client_key.0)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_shortint_client_key(buffer: &[u8]) -> Result<ShortintClientKey, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(ShortintClientKey)

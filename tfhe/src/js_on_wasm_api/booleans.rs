@@ -65,6 +65,7 @@ impl Boolean {
         ks_base_log: usize,
         ks_level: usize,
     ) -> BooleanParameters {
+        set_hook(Box::new(console_error_panic_hook::hook));
         use crate::core_crypto::prelude::*;
         BooleanParameters(crate::boolean::parameters::BooleanParameters {
             lwe_dimension: LweDimension(lwe_dimension),
@@ -85,6 +86,7 @@ impl Boolean {
         seed_low_bytes: u64,
         parameters: &BooleanParameters,
     ) -> BooleanClientKey {
+        set_hook(Box::new(console_error_panic_hook::hook));
         let seed_high_bytes: u128 = seed_high_bytes.into();
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
@@ -119,6 +121,7 @@ impl Boolean {
 
     #[wasm_bindgen]
     pub fn decrypt(client_key: &BooleanClientKey, ct: &BooleanCiphertext) -> bool {
+        set_hook(Box::new(console_error_panic_hook::hook));
         client_key.0.decrypt(&ct.0)
     }
 
@@ -126,12 +129,14 @@ impl Boolean {
     pub fn serialize_boolean_ciphertext(
         ciphertext: &BooleanCiphertext,
     ) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&ciphertext.0)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_boolean_ciphertext(buffer: &[u8]) -> Result<BooleanCiphertext, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(BooleanCiphertext)
@@ -139,12 +144,14 @@ impl Boolean {
 
     #[wasm_bindgen]
     pub fn serialize_boolean_client_key(client_key: &BooleanClientKey) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&client_key.0)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_boolean_client_key(buffer: &[u8]) -> Result<BooleanClientKey, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(BooleanClientKey)
