@@ -10,7 +10,7 @@ use crate::boolean;
 pub struct BooleanParameters(pub(in crate::c_api) boolean::parameters::BooleanParameters);
 
 #[no_mangle]
-pub unsafe extern "C" fn create_boolean_parameters(
+pub unsafe extern "C" fn booleans_create_parameters(
     lwe_dimension: usize,
     glwe_dimension: usize,
     polynomial_size: usize,

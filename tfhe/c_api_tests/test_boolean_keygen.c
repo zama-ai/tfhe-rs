@@ -44,7 +44,7 @@ void test_default_keygen_w_serde(void) {
   destroy_buffer(&ct_ser_buffer);
 }
 
-void test_predefiend_keygen(void) {
+void test_predefined_keygen_w_serde(void) {
   BooleanClientKey *cks = NULL;
   BooleanServerKey *sks = NULL;
 
@@ -70,7 +70,7 @@ void test_custom_keygen(void) {
   BooleanServerKey *sks = NULL;
   BooleanParameters *params = NULL;
 
-  int params_ok = create_boolean_parameters(10, 1, 1024, 10e-100, 10e-100, 3, 1, 4, 2, &params);
+  int params_ok = booleans_create_parameters(10, 1, 1024, 10e-100, 10e-100, 3, 1, 4, 2, &params);
   assert(params_ok == 0);
 
   int gen_keys_ok = booleans_gen_keys_with_parameters(params, &cks, &sks);
@@ -84,7 +84,7 @@ void test_custom_keygen(void) {
 
 int main(void) {
   test_default_keygen_w_serde();
-  test_predefiend_keygen();
+  test_predefined_keygen_w_serde();
   test_custom_keygen();
   return EXIT_SUCCESS;
 }

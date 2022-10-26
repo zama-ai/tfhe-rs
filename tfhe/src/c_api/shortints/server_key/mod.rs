@@ -6,6 +6,11 @@ use crate::shortint;
 
 use super::ShortintCiphertext;
 
+pub mod add;
+pub mod mul;
+pub mod shift;
+pub mod sub;
+
 pub struct ShortintServerKey(pub(in crate::c_api) shortint::server_key::ServerKey);
 
 #[no_mangle]
