@@ -26,9 +26,14 @@ void test_default_keygen_w_serde(void) {
   int deser_ok = booleans_deserialize_ciphertext(deser_view, &deser_ct);
   assert(deser_ok == 0);
 
+  assert(deser_view.length == ct_ser_buffer.length);
+  for (size_t idx = 0; idx < deser_view.length; ++idx) {
+    assert(deser_view.pointer[idx] == ct_ser_buffer.pointer[idx]);
+  }
+
   bool result = false;
   int decrypt_ok = booleans_client_key_decrypt(cks, deser_ct, &result);
-  assert(decrypt_ok);
+  assert(decrypt_ok == 0);
 
   assert(result == true);
 

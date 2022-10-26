@@ -2,7 +2,6 @@
 use crate::core_crypto::prelude::*;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(not(feature = "__wasm_api"))]
 use std::cmp;
 use std::fmt::Debug;
 
@@ -13,7 +12,6 @@ use std::fmt::Debug;
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct Degree(pub usize);
 
-#[cfg(not(feature = "__wasm_api"))]
 impl Degree {
     pub(crate) fn after_bitxor(&self, other: Degree) -> Degree {
         let max = cmp::max(self.0, other.0);

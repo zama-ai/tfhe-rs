@@ -3,14 +3,12 @@ use crate::boolean::parameters::BooleanParameters;
 use crate::boolean::{ClientKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
 use crate::core_crypto::prelude::*;
 use bootstrapping::{BooleanServerKey, Bootstrapper, CpuBootstrapper};
-#[cfg(not(feature = "__wasm_api"))]
 use std::cell::RefCell;
 pub mod bootstrapping;
 use crate::boolean::engine::bootstrapping::CpuBootstrapKey;
-#[cfg(feature = "__wasm_api")]
+use crate::core_crypto::backends::default::engines::ActivatedRandomGenerator;
 use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
-#[cfg(feature = "__wasm_api")]
-use concrete_csprng::generators::SoftwareRandomGenerator;
+use crate::seeders::new_seeder;
 
 #[cfg(feature = "cuda")]
 use bootstrapping::{CudaBootstrapKey, CudaBootstrapper};
@@ -36,7 +34,6 @@ pub(crate) type CpuBooleanEngine = BooleanEngine<CpuBootstrapper>;
 #[cfg(feature = "cuda")]
 pub(crate) type CudaBooleanEngine = BooleanEngine<CudaBootstrapper>;
 
-#[cfg(not(feature = "__wasm_api"))]
 // All our thread local engines
 // that our exposed types will use internally to implement their methods
 thread_local! {
@@ -45,7 +42,6 @@ thread_local! {
     static CUDA_ENGINE: RefCell<BooleanEngine<CudaBootstrapper>> = RefCell::new(BooleanEngine::<_>::new());
 }
 
-#[cfg(not(feature = "__wasm_api"))]
 impl WithThreadLocalEngine for CpuBooleanEngine {
     fn with_thread_local_mut<R, F>(func: F) -> R
     where
@@ -168,66 +164,26 @@ impl<B> BooleanEngine<B> {
     }
 }
 
-#[cfg(not(feature = "__wasm_api"))]
-fn new_seeder() -> Box<dyn Seeder> {
-    let mut seeder: Option<Box<dyn Seeder>> = None;
-    #[cfg(feature = "seeder_x86_64_rdseed")]
-    {
-        if RdseedSeeder::is_available() {
-            seeder = Some(Box::new(RdseedSeeder));
-        }
-    }
-
-    // This Seeder is normally always available on macOS, so we enable it by default when on that
-    // platform
-    #[cfg(target_os = "macos")]
-    {
-        if seeder.is_none() && AppleSecureEnclaveSeeder::is_available() {
-            seeder = Some(Box::new(AppleSecureEnclaveSeeder))
-        }
-    }
-
-    #[cfg(feature = "seeder_unix")]
-    {
-        if seeder.is_none() && UnixSeeder::is_available() {
-            seeder = Some(Box::new(UnixSeeder::new(0)));
-        }
-    }
-
-    #[cfg(not(feature = "__c_api"))]
-    let err_msg =
-        "Unable to instantiate a seeder for BooleanEngine, make sure to enable a seeder feature \
-    like seeder_unix for example on unix platforms.";
-
-    #[cfg(feature = "__c_api")]
-    let err_msg = "No compatible seeder for current machine found.";
-
-    seeder.expect(err_msg)
-}
-
 impl<B> BooleanEngine<B>
 where
     B: Bootstrapper,
 {
-    #[cfg(not(feature = "__wasm_api"))]
     pub fn new() -> Self {
-        let engine =
-            DefaultEngine::new(new_seeder()).expect("Unexpectedly failed to create a core engine");
+        let root_seeder = new_seeder();
 
-        Self {
-            engine,
-            bootstrapper: Default::default(),
-        }
+        Self::new_from_seeder(root_seeder)
     }
 
-    #[cfg(feature = "__wasm_api")]
-    pub fn new(mut seeder: Box<dyn Seeder>) -> Self {
-        let deterministic_seeder = Box::new(
-            DeterministicSeeder::<SoftwareRandomGenerator>::new(seeder.seed()),
-        );
-        let engine = DefaultEngine::new(deterministic_seeder)
-            .expect("Unexpectedly failed to create a core engine");
+    pub fn new_from_seeder(mut root_seeder: Box<dyn Seeder>) -> Self {
+        let mut deterministic_seeder =
+            DeterministicSeeder::<ActivatedRandomGenerator>::new(root_seeder.seed());
 
+        let default_engine_seeder = Box::new(DeterministicSeeder::<ActivatedRandomGenerator>::new(
+            deterministic_seeder.seed(),
+        ));
+
+        let engine =
+            DefaultEngine::new(default_engine_seeder).expect("Failed to create a DefaultEngine");
         Self {
             engine,
             bootstrapper: Default::default(),

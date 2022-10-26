@@ -16,3 +16,5 @@ pub mod shortint;
 pub mod js_on_wasm_api;
 #[cfg(feature = "__wasm_api")]
 pub use js_on_wasm_api::*;
+
+pub(crate) mod seeders;

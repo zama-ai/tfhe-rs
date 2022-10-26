@@ -2,38 +2,24 @@
 //!
 //! This module implements the generation of the server public key, together with all the
 //! available homomorphic integer operations.
-#[cfg(not(feature = "__wasm_api"))]
 mod add;
-#[cfg(not(feature = "__wasm_api"))]
 mod bitwise_op;
-#[cfg(not(feature = "__wasm_api"))]
 mod comp_op;
-#[cfg(not(feature = "__wasm_api"))]
 mod div_mod;
-#[cfg(not(feature = "__wasm_api"))]
 mod mul;
-#[cfg(not(feature = "__wasm_api"))]
 mod neg;
-#[cfg(not(feature = "__wasm_api"))]
 mod scalar_add;
-#[cfg(not(feature = "__wasm_api"))]
 mod scalar_mul;
-#[cfg(not(feature = "__wasm_api"))]
 mod scalar_sub;
-#[cfg(not(feature = "__wasm_api"))]
 mod shift;
-#[cfg(not(feature = "__wasm_api"))]
 mod sub;
 
 #[cfg(test)]
 mod tests;
 
 use crate::core_crypto::prelude::*;
-#[cfg(not(feature = "__wasm_api"))]
 use crate::shortint::ciphertext::Ciphertext;
-#[cfg(not(feature = "__wasm_api"))]
 use crate::shortint::client_key::ClientKey;
-#[cfg(not(feature = "__wasm_api"))]
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -77,7 +63,6 @@ pub struct ServerKey {
     pub max_degree: MaxDegree,
 }
 
-#[cfg(not(feature = "__wasm_api"))]
 impl ServerKey {
     /// Generates a server key.
     ///

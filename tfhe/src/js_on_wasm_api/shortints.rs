@@ -1,7 +1,7 @@
 use bincode;
 use wasm_bindgen::prelude::*;
 
-use super::seeder;
+use super::js_wasm_seeder;
 
 use std::panic::set_hook;
 
@@ -12,13 +12,13 @@ pub struct ShortintCiphertext(pub(crate) crate::shortint::ciphertext::Ciphertext
 pub struct ShortintClientKey(pub(crate) crate::shortint::ClientKey);
 
 #[wasm_bindgen]
-pub struct ShortintEngine(pub(crate) crate::shortint::engine::ShortintEngine);
+pub struct Shortint {}
 
 #[wasm_bindgen]
 pub struct ShortintParameters(pub(crate) crate::shortint::Parameters);
 
 #[wasm_bindgen]
-impl ShortintClientKey {
+impl Shortint {
     #[wasm_bindgen]
     pub fn get_shortint_parameters(
         message_bits: usize,
@@ -122,24 +122,40 @@ impl ShortintClientKey {
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
 
-        let constant_seeder = Box::new(seeder::ConstantSeeder::new(
+        let constant_seeder = Box::new(js_wasm_seeder::ConstantSeeder::new(
             crate::core_crypto::commons::math::random::Seed(seed),
         ));
 
-        let mut tmp_shortint_engine = crate::shortint::engine::ShortintEngine::new(constant_seeder);
+        let mut tmp_shortint_engine =
+            crate::shortint::engine::ShortintEngine::new_from_seeder(constant_seeder);
 
         tmp_shortint_engine
             .new_client_key(parameters.0.to_owned())
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(ShortintClientKey)
     }
-}
 
-#[wasm_bindgen]
-pub struct ShortintSerializer;
+    #[wasm_bindgen]
+    pub fn new_client_key(parameters: &ShortintParameters) -> ShortintClientKey {
+        set_hook(Box::new(console_error_panic_hook::hook));
 
-#[wasm_bindgen]
-impl ShortintSerializer {
+        ShortintClientKey(crate::shortint::client_key::ClientKey::new(
+            parameters.0.to_owned(),
+        ))
+    }
+
+    #[wasm_bindgen]
+    pub fn encrypt(client_key: &ShortintClientKey, message: u64) -> ShortintCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        ShortintCiphertext(client_key.0.encrypt(message))
+    }
+
+    #[wasm_bindgen]
+    pub fn decrypt(client_key: &ShortintClientKey, ct: &ShortintCiphertext) -> u64 {
+        client_key.0.decrypt(&ct.0)
+    }
+
     #[wasm_bindgen]
     pub fn serialize_shortint_ciphertext(
         ciphertext: &ShortintCiphertext,
@@ -168,52 +184,5 @@ impl ShortintSerializer {
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(ShortintClientKey)
-    }
-}
-
-#[wasm_bindgen]
-impl ShortintEngine {
-    #[wasm_bindgen(constructor)]
-    pub fn new(seeder: crate::JsFunctionSeeder) -> ShortintEngine {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        ShortintEngine(crate::shortint::engine::ShortintEngine::new(Box::new(
-            seeder,
-        )))
-    }
-
-    #[wasm_bindgen]
-    pub fn new_client_key(
-        &mut self,
-        parameters: &ShortintParameters,
-    ) -> Result<ShortintClientKey, JsError> {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        self.0
-            .new_client_key(parameters.0.to_owned())
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
-            .map(ShortintClientKey)
-    }
-
-    #[wasm_bindgen]
-    pub fn encrypt(
-        &mut self,
-        client_key: &ShortintClientKey,
-        message: u64,
-    ) -> Result<ShortintCiphertext, JsError> {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        self.0
-            .encrypt(&client_key.0, message)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
-            .map(ShortintCiphertext)
-    }
-
-    #[wasm_bindgen]
-    pub fn decrypt(
-        &mut self,
-        client_key: &ShortintClientKey,
-        ct: &ShortintCiphertext,
-    ) -> Result<u64, JsError> {
-        self.0
-            .decrypt(&client_key.0, &ct.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
     }
 }

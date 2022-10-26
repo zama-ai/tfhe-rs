@@ -1,43 +1,20 @@
 use crate::core_crypto::prelude::*;
+use crate::seeders::new_seeder;
 use crate::shortint::ServerKey;
-#[cfg(not(feature = "__wasm_api"))]
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 mod client_side;
-#[cfg(not(feature = "__wasm_api"))]
 mod server_side;
 #[cfg(not(feature = "__wasm_api"))]
 mod wopbs;
 
-#[cfg(feature = "__wasm_api")]
+use crate::core_crypto::backends::default::engines::ActivatedRandomGenerator;
 use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
-#[cfg(feature = "__wasm_api")]
-use concrete_csprng::generators::SoftwareRandomGenerator;
 
-#[cfg(not(feature = "__wasm_api"))]
 thread_local! {
     static LOCAL_ENGINE: RefCell<ShortintEngine> = RefCell::new(ShortintEngine::new());
-}
-
-#[cfg(not(feature = "__wasm_api"))]
-fn new_seeder() -> Box<dyn Seeder> {
-    let seeder: Box<dyn Seeder>;
-    #[cfg(target_arch = "x86_64")]
-    {
-        if RdseedSeeder::is_available() {
-            seeder = Box::new(RdseedSeeder);
-        } else {
-            seeder = Box::new(UnixSeeder::new(0));
-        }
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        seeder = Box::new(UnixSeeder::new(0));
-    }
-
-    seeder
 }
 
 /// Stores buffers associated to a ServerKey
@@ -106,7 +83,6 @@ impl ShortintEngine {
     /// Safely gives access to the `thead_local` shortint engine
     /// to call one (or many) of its method.
     #[inline]
-    #[cfg(not(feature = "__wasm_api"))]
     pub fn with_thread_local_mut<F, R>(func: F) -> R
     where
         F: FnOnce(&mut Self) -> R,
@@ -124,32 +100,22 @@ impl ShortintEngine {
     /// # Panics
     ///
     /// This will panic if the `CoreEngine` failed to create.
-    #[cfg(not(feature = "__wasm_api"))]
-    fn new() -> Self {
-        let engine = DefaultEngine::new(new_seeder()).expect("Failed to create a DefaultEngine");
-        let par_engine = DefaultParallelEngine::new(new_seeder())
-            .expect("Failed to create a DefaultParallelEngine");
-        let fft_engine = FftEngine::new(()).unwrap();
-        Self {
-            engine,
-            // fftw_engine,
-            fft_engine,
-            par_engine,
-            buffers: Default::default(),
-        }
+    pub fn new() -> Self {
+        let root_seeder = new_seeder();
+
+        Self::new_from_seeder(root_seeder)
     }
 
-    #[cfg(feature = "__wasm_api")]
-    pub fn new(mut seeder: Box<dyn Seeder>) -> Self {
+    pub fn new_from_seeder(mut root_seeder: Box<dyn Seeder>) -> Self {
         let mut deterministic_seeder =
-            DeterministicSeeder::<SoftwareRandomGenerator>::new(seeder.seed());
+            DeterministicSeeder::<ActivatedRandomGenerator>::new(root_seeder.seed());
 
-        let default_engine_seeder = Box::new(DeterministicSeeder::<SoftwareRandomGenerator>::new(
+        let default_engine_seeder = Box::new(DeterministicSeeder::<ActivatedRandomGenerator>::new(
             deterministic_seeder.seed(),
         ));
-        let default_parallel_engine_seeder = Box::new(
-            DeterministicSeeder::<SoftwareRandomGenerator>::new(deterministic_seeder.seed()),
-        );
+        let default_parallel_engine_seeder = Box::new(DeterministicSeeder::<
+            ActivatedRandomGenerator,
+        >::new(deterministic_seeder.seed()));
 
         let engine =
             DefaultEngine::new(default_engine_seeder).expect("Failed to create a DefaultEngine");

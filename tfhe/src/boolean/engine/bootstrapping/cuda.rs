@@ -1,6 +1,7 @@
 use super::{BooleanServerKey, Bootstrapper, CpuBootstrapKey};
 use crate::boolean::PLAINTEXT_TRUE;
 use crate::core_crypto::prelude::*;
+use crate::seeders::new_seeder;
 
 use std::collections::BTreeMap;
 
@@ -111,7 +112,7 @@ impl Default for CudaBootstrapper {
         Self {
             cuda_engine: CudaEngine::new(()).unwrap(),
             // Secret does not matter, we won't generate keys or ciphertext.
-            cpu_engine: DefaultEngine::new(Box::new(UnixSeeder::new(0))).unwrap(),
+            cpu_engine: DefaultEngine::new(new_seeder()).unwrap(),
             memory: Default::default(),
         }
     }

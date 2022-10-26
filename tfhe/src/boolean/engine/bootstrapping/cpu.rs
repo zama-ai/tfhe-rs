@@ -1,6 +1,7 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::{ClientKey, PLAINTEXT_TRUE};
 use crate::core_crypto::prelude::*;
+use crate::seeders::new_seeder;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::error::Error;
 
@@ -142,34 +143,10 @@ impl CpuBootstrapper {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-mod dummy_seeder {
-    use crate::core_crypto::commons::math::random::{Seed, Seeder};
-    pub(super) struct DummySeeder {}
-
-    impl Seeder for DummySeeder {
-        fn seed(&mut self) -> Seed {
-            Seed(0)
-        }
-
-        fn is_available() -> bool
-        where
-            Self: Sized,
-        {
-            true
-        }
-    }
-}
-
 impl Default for CpuBootstrapper {
     fn default() -> Self {
-        #[cfg(target_arch = "wasm32")]
-        let seeder = Box::new(dummy_seeder::DummySeeder {});
-        #[cfg(not(target_arch = "wasm32"))]
-        let seeder = Box::new(UnixSeeder::new(0));
-
         let engine =
-            DefaultEngine::new(seeder).expect("Unexpectedly failed to create a core engine");
+            DefaultEngine::new(new_seeder()).expect("Unexpectedly failed to create a core engine");
 
         let fourier_engine = FftEngine::new(()).unwrap();
         Self {

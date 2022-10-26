@@ -2,9 +2,7 @@ use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
 use super::parameters::BooleanParameters;
-use super::BooleanCiphertext;
-use super::BooleanClientKey;
-use super::BooleanServerKey;
+use super::{BooleanCiphertext, BooleanClientKey, BooleanServerKey};
 
 #[no_mangle]
 pub unsafe extern "C" fn destroy_boolean_client_key(client_key: *mut BooleanClientKey) -> c_int {

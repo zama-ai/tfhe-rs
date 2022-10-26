@@ -76,7 +76,6 @@ pub use server_key::{CheckError, ServerKey};
 /// // generate the client key and the server key:
 /// let (cks, sks) = gen_keys(Default::default());
 /// ```
-#[cfg(not(feature = "__wasm_api"))]
 pub fn gen_keys(parameters_set: Parameters) -> (ClientKey, ServerKey) {
     let cks = ClientKey::new(parameters_set);
     let sks = ServerKey::new(&cks);

@@ -17,7 +17,6 @@ pub struct BooleanEngine(pub(crate) tfhe::boolean::engine::CpuBooleanEngine);
 #[wasm_bindgen]
 pub struct BooleanParameters(pub(crate) tfhe::boolean::parameters::BooleanParameters);
 
-
 #[wasm_bindgen]
 pub struct Serializer;
 
@@ -39,9 +38,7 @@ impl Serializer {
     }
 
     #[wasm_bindgen]
-    pub fn serialize_boolean_client_key(
-        client_key: &BooleanClientKey,
-    ) -> Result<Vec<u8>, JsError> {
+    pub fn serialize_boolean_client_key(client_key: &BooleanClientKey) -> Result<Vec<u8>, JsError> {
         bincode::serialize(&client_key.0)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
     }

@@ -1,7 +1,7 @@
 use bincode;
 use wasm_bindgen::prelude::*;
 
-use super::seeder;
+use super::js_wasm_seeder;
 
 use std::panic::set_hook;
 
@@ -12,13 +12,10 @@ pub struct BooleanCiphertext(pub(crate) crate::boolean::ciphertext::Ciphertext);
 pub struct BooleanClientKey(pub(crate) crate::boolean::client_key::ClientKey);
 
 #[wasm_bindgen]
-pub struct BooleanEngine(pub(crate) crate::boolean::engine::CpuBooleanEngine);
+pub struct Boolean {}
 
 #[wasm_bindgen]
 pub struct BooleanParameters(pub(crate) crate::boolean::parameters::BooleanParameters);
-
-#[wasm_bindgen]
-pub struct BooleanSerializer;
 
 #[wasm_bindgen]
 pub enum BooleanParameterSet {
@@ -42,7 +39,7 @@ impl TryFrom<u32> for BooleanParameterSet {
 }
 
 #[wasm_bindgen]
-impl BooleanClientKey {
+impl Boolean {
     #[wasm_bindgen]
     pub fn get_boolean_parameters(parameter_choice: u32) -> Result<BooleanParameters, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
@@ -92,18 +89,39 @@ impl BooleanClientKey {
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
 
-        let constant_seeder = Box::new(seeder::ConstantSeeder::new(
+        let constant_seeder = Box::new(js_wasm_seeder::ConstantSeeder::new(
             crate::core_crypto::commons::math::random::Seed(seed),
         ));
 
-        let mut tmp_boolean_engine = crate::boolean::engine::CpuBooleanEngine::new(constant_seeder);
+        let mut tmp_boolean_engine =
+            crate::boolean::engine::CpuBooleanEngine::new_from_seeder(constant_seeder);
 
         BooleanClientKey(tmp_boolean_engine.create_client_key(parameters.0.to_owned()))
     }
-}
 
-#[wasm_bindgen]
-impl BooleanSerializer {
+    #[wasm_bindgen]
+    pub fn new_client_key(parameters: &BooleanParameters) -> BooleanClientKey {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        BooleanClientKey(crate::boolean::client_key::ClientKey::new(&parameters.0))
+    }
+
+    #[wasm_bindgen]
+    pub fn encrypt(client_key: &BooleanClientKey, message: bool) -> BooleanCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        BooleanCiphertext(client_key.0.encrypt(message))
+    }
+
+    #[wasm_bindgen]
+    pub fn trivial_encrypt(&mut self, message: bool) -> BooleanCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        BooleanCiphertext(crate::boolean::ciphertext::Ciphertext::Trivial(message))
+    }
+
+    #[wasm_bindgen]
+    pub fn decrypt(client_key: &BooleanClientKey, ct: &BooleanCiphertext) -> bool {
+        client_key.0.decrypt(&ct.0)
+    }
+
     #[wasm_bindgen]
     pub fn serialize_boolean_ciphertext(
         ciphertext: &BooleanCiphertext,
@@ -130,39 +148,5 @@ impl BooleanSerializer {
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(BooleanClientKey)
-    }
-}
-
-#[wasm_bindgen]
-impl BooleanEngine {
-    #[wasm_bindgen(constructor)]
-    pub fn new(seeder: crate::JsFunctionSeeder) -> BooleanEngine {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        BooleanEngine(crate::boolean::engine::CpuBooleanEngine::new(Box::new(
-            seeder,
-        )))
-    }
-
-    #[wasm_bindgen]
-    pub fn new_client_key(&mut self, parameters: &BooleanParameters) -> BooleanClientKey {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        BooleanClientKey(self.0.create_client_key(parameters.0.to_owned()))
-    }
-
-    #[wasm_bindgen]
-    pub fn encrypt(&mut self, client_key: &BooleanClientKey, message: bool) -> BooleanCiphertext {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        BooleanCiphertext(self.0.encrypt(message, &client_key.0))
-    }
-
-    #[wasm_bindgen]
-    pub fn trivial_encrypt(&mut self, message: bool) -> BooleanCiphertext {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        BooleanCiphertext(self.0.trivial_encrypt(message))
-    }
-
-    #[wasm_bindgen]
-    pub fn decrypt(&mut self, client_key: &BooleanClientKey, ct: &BooleanCiphertext) -> bool {
-        self.0.decrypt(&ct.0, &client_key.0)
     }
 }
