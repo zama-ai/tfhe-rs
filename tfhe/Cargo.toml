@@ -67,6 +67,7 @@ __wasm_api = [
     "console_error_panic_hook",
     "serde-wasm-bindgen",
     "getrandom",
+    "getrandom/js",
 ]
 booleans-client-js-wasm-api = ["booleans", "__wasm_api"]
 shortints-client-js-wasm-api = ["shortints", "__wasm_api"]
@@ -145,7 +146,7 @@ aarch64-unix = ["aarch64", "seeder_unix"]
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
-features = ["x86_64-unix"]
+features = ["x86_64-unix", "booleans", "shortints"]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 ###########
