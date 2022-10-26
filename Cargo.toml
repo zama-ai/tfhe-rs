@@ -4,7 +4,6 @@ members = [
     "tfhe",
     "concrete-tasks",
     "concrete-utils",
-    "tfhe-wasm-client-sdk",
 ]
 
 [profile.bench]
