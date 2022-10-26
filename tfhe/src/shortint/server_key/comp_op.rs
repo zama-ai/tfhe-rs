@@ -82,7 +82,7 @@ impl ServerKey {
 
     /// Computes homomorphically a `>` between two ciphertexts encrypting integer values.
     ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
+    /// This checks that the operation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
     /// # Example
     ///
@@ -149,7 +149,7 @@ impl ServerKey {
 
     /// Computes homomorphically a `>=` between two ciphertexts encrypting integer values.
     ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
+    /// This checks that the operation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
     /// # Example
     ///
@@ -297,7 +297,7 @@ impl ServerKey {
 
     /// Computes homomorphically a `<` between two ciphertexts encrypting integer values.
     ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
+    /// This checks that the operation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
     /// # Example
     ///
@@ -404,7 +404,7 @@ impl ServerKey {
 
     /// Computes homomorphically a `<=` between two ciphertexts encrypting integer values.
     ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
+    /// This checks that the operation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
     /// # Example
     ///
@@ -426,7 +426,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!((msg >= msg) as u64, res);
+    /// assert_eq!((msg <= msg) as u64, res);
     /// ```
     pub fn smart_less_or_equal(
         &self,
@@ -467,7 +467,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "less" (`==`) operator between two ciphertexts with checks.
+    /// Implements the "equal" (`==`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -539,6 +539,111 @@ impl ServerKey {
         })
     }
 
+    /// Implements the "not equal" operator (`!=`) between two ciphertexts without checks.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg_1 = 1;
+    /// let msg_2 = 2;
+    ///
+    /// // Encrypt two messages
+    /// let ct_left = cks.encrypt(msg_1);
+    /// let ct_right = cks.encrypt(msg_2);
+    ///
+    /// let ct_res = sks.unchecked_not_equal(&ct_left, &ct_right);
+    ///
+    /// // Decrypt
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!(res, 1);
+    /// ```
+    pub fn unchecked_not_equal(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.unchecked_not_equal(self, ct_left, ct_right).unwrap()
+        })
+    }
+
+    /// Implements the "not equal" (`!=`) operator between two ciphertexts with checks.
+    ///
+    /// If the operation can be performed, the result is returned in a _new_ ciphertext.
+    /// Otherwise [CheckError::CarryFull] is returned.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg_1 = 1;
+    /// let msg_2 = 2;
+    ///
+    /// // Encrypt two messages:
+    /// let ct_left = cks.encrypt(msg_1);
+    /// let ct_right = cks.encrypt(msg_2);
+    ///
+    /// let res = sks.checked_not_equal(&ct_left, &ct_right);
+    ///
+    /// assert!(res.is_ok());
+    /// let res = res.unwrap();
+    ///
+    /// let clear_res = cks.decrypt(&res);
+    /// assert_eq!((msg_1 != msg_2) as u64, clear_res);
+    /// ```
+    pub fn checked_not_equal(
+        &self,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+    ) -> Result<Ciphertext, CheckError> {
+        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            Ok(self.unchecked_not_equal(ct_left, ct_right))
+        } else {
+            Err(CarryFull)
+        }
+    }
+
+    /// Computes homomorphically a `!=` between two ciphertexts encrypting integer values.
+    ///
+    /// This checks that the operation is possible. In the case where the carry buffers are full,
+    /// then it is automatically cleared to allow the operation.
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct1 = cks.encrypt(msg);
+    /// let mut ct2 = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically an OR:
+    /// let ct_res = sks.smart_not_equal(&mut ct1, &mut ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!((msg != msg) as u64, res);
+    /// ```
+    pub fn smart_not_equal(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.smart_not_equal(self, ct_left, ct_right).unwrap()
+        })
+    }
+
     /// Implements the "equal" operator (`==`) between a ciphertext and a scalar without checks.
     ///
     /// # Example
@@ -567,7 +672,38 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "equal" operator (`>=`) between a ciphertext and a scalar without checks.
+    /// Implements the "not equal" operator (`!=`) between a ciphertext and a scalar without checks.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg_1 = 2;
+    /// let scalar = 2;
+    ///
+    /// // Encrypt two messages
+    /// let ct_left = cks.encrypt(msg_1);
+    ///
+    /// let ct_res = sks.smart_scalar_not_equal(&ct_left, scalar);
+    ///
+    /// // Decrypt
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!(res, (msg_1 != scalar as u64) as u64);
+    /// ```
+    pub fn smart_scalar_not_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .smart_scalar_not_equal(self, ct_left, scalar)
+                .unwrap()
+        })
+    }
+
+    /// Implements the "greater or equal" operator (`>=`) between a ciphertext and a scalar without
+    /// checks.
     ///
     /// # Example
     ///
@@ -628,7 +764,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "equal" operator (`>`) between a ciphertext and a scalar without checks.
+    /// Implements the "greater" operator (`>`) between a ciphertext and a scalar without checks.
     ///
     /// # Example
     ///

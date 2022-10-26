@@ -7,7 +7,12 @@ use crate::shortint;
 use super::ShortintCiphertext;
 
 pub mod add;
+pub mod bitwise_op;
+pub mod comp_op;
 pub mod mul;
+pub mod scalar_add;
+pub mod scalar_mul;
+pub mod scalar_sub;
 pub mod shift;
 pub mod sub;
 

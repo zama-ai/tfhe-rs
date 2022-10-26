@@ -2,7 +2,7 @@
 #![allow(clippy::missing_safety_doc)]
 #[cfg(feature = "booleans-c-api")]
 pub mod booleans;
+pub mod buffer;
 #[cfg(feature = "shortints-c-api")]
 pub mod shortints;
-pub mod buffer;
 pub(crate) mod utils;
