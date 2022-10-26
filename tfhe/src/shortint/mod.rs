@@ -56,7 +56,7 @@ pub mod parameters;
 pub mod server_key;
 #[cfg(doctest)]
 mod test_user_docs;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 pub mod wopbs;
 
 pub use ciphertext::Ciphertext;
@@ -76,7 +76,7 @@ pub use server_key::{CheckError, ServerKey};
 /// // generate the client key and the server key:
 /// let (cks, sks) = gen_keys(Default::default());
 /// ```
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 pub fn gen_keys(parameters_set: Parameters) -> (ClientKey, ServerKey) {
     let cks = ClientKey::new(parameters_set);
     let sks = ServerKey::new(&cks);

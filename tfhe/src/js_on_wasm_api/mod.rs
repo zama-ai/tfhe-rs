@@ -1,6 +1,3 @@
-use bincode;
-use wasm_bindgen::prelude::*;
-
 #[cfg(feature = "shortints-client-js-wasm-api")]
 pub mod shortints;
 #[cfg(feature = "shortints-client-js-wasm-api")]
@@ -10,8 +7,6 @@ pub use shortints::*;
 pub mod booleans;
 #[cfg(feature = "booleans-client-js-wasm-api")]
 pub use booleans::*;
-
-use std::panic::set_hook;
 
 mod seeder {
     use crate::core_crypto::commons::math::random::Seed;

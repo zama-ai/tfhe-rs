@@ -2,38 +2,38 @@
 //!
 //! This module implements the generation of the server public key, together with all the
 //! available homomorphic integer operations.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod add;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod bitwise_op;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod comp_op;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod div_mod;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod mul;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod neg;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod scalar_add;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod scalar_mul;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod scalar_sub;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod shift;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod sub;
 
 #[cfg(test)]
 mod tests;
 
 use crate::core_crypto::prelude::*;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 use crate::shortint::ciphertext::Ciphertext;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 use crate::shortint::client_key::ClientKey;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -77,7 +77,7 @@ pub struct ServerKey {
     pub max_degree: MaxDegree,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 impl ServerKey {
     /// Generates a server key.
     ///

@@ -1,27 +1,27 @@
 use crate::core_crypto::prelude::*;
 use crate::shortint::ServerKey;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 mod client_side;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod server_side;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 mod wopbs;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(feature = "__wasm_api")]
 use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
-#[cfg(target_arch = "wasm32")]
+#[cfg(feature = "__wasm_api")]
 use concrete_csprng::generators::SoftwareRandomGenerator;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 thread_local! {
     static LOCAL_ENGINE: RefCell<ShortintEngine> = RefCell::new(ShortintEngine::new());
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 fn new_seeder() -> Box<dyn Seeder> {
     let seeder: Box<dyn Seeder>;
     #[cfg(target_arch = "x86_64")]
@@ -106,7 +106,7 @@ impl ShortintEngine {
     /// Safely gives access to the `thead_local` shortint engine
     /// to call one (or many) of its method.
     #[inline]
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(feature = "__wasm_api"))]
     pub fn with_thread_local_mut<F, R>(func: F) -> R
     where
         F: FnOnce(&mut Self) -> R,
@@ -124,7 +124,7 @@ impl ShortintEngine {
     /// # Panics
     ///
     /// This will panic if the `CoreEngine` failed to create.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(feature = "__wasm_api"))]
     fn new() -> Self {
         let engine = DefaultEngine::new(new_seeder()).expect("Failed to create a DefaultEngine");
         let par_engine = DefaultParallelEngine::new(new_seeder())
@@ -139,7 +139,7 @@ impl ShortintEngine {
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(feature = "__wasm_api")]
     pub fn new(mut seeder: Box<dyn Seeder>) -> Self {
         let mut deterministic_seeder =
             DeterministicSeeder::<SoftwareRandomGenerator>::new(seeder.seed());

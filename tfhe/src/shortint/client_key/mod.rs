@@ -1,11 +1,11 @@
 //! Module with the definition of the ClientKey.
 
 use crate::core_crypto::prelude::*;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 use crate::shortint::ciphertext::Ciphertext;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 use crate::shortint::engine::ShortintEngine;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::parameters::Parameters;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -29,7 +29,7 @@ pub struct ClientKey {
     pub parameters: Parameters,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 impl ClientKey {
     /// Generates a client key.
     ///

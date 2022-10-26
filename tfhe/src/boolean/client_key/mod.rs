@@ -3,9 +3,9 @@
 //! This module implements the generation of the client' secret keys, together with the
 //! encryption and decryption methods.
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 use crate::boolean::ciphertext::Ciphertext;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 use crate::boolean::engine::{CpuBooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanParameters;
 use crate::core_crypto::prelude::*;
@@ -47,7 +47,7 @@ impl Debug for ClientKey {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "__wasm_api"))]
 impl ClientKey {
     /// Encrypts a Boolean message using the client key.
     ///
