@@ -153,11 +153,11 @@ void test_shortint_binary_op_assign(const ShortintClientKey *cks, const Shortint
   }
 }
 
-void test_shortint_binary_scalar_op(const ShortintClientKey *cks, const ShortintServerKey *sks,
-                                    const uint32_t message_bits, const uint32_t carry_bits,
-                                    uint64_t (*c_fun)(uint64_t, uint8_t),
-                                    int (*api_fun)(const ShortintServerKey *, ShortintCiphertext *,
-                                                   uint8_t, ShortintCiphertext **)) {
+void test_shortint_binary_scalar_op(
+    const ShortintClientKey *cks, const ShortintServerKey *sks, const uint32_t message_bits,
+    const uint32_t carry_bits, uint64_t (*c_fun)(uint64_t, uint8_t),
+    int (*api_fun)(const ShortintServerKey *, ShortintCiphertext *, uint8_t, ShortintCiphertext **),
+    uint8_t forbidden_scalar_values[], size_t forbidden_scalar_values_len) {
 
   int message_max = 1 << message_bits;
 
@@ -168,6 +168,20 @@ void test_shortint_binary_scalar_op(const ShortintClientKey *cks, const Shortint
 
       uint64_t left = (uint64_t)val_left;
       uint8_t scalar_right = (uint8_t)val_right;
+
+      if (forbidden_scalar_values != NULL) {
+        bool found_forbiden_value = false;
+        for (int idx = 0; idx < forbidden_scalar_values_len; ++idx) {
+          if (forbidden_scalar_values[idx] == scalar_right) {
+            found_forbiden_value = true;
+            break;
+          }
+        }
+
+        if (found_forbiden_value) {
+          continue;
+        }
+      }
 
       uint64_t expected = c_fun(left, scalar_right) % message_max;
 
@@ -193,7 +207,8 @@ void test_shortint_binary_scalar_op(const ShortintClientKey *cks, const Shortint
 void test_shortint_binary_scalar_op_assign(
     const ShortintClientKey *cks, const ShortintServerKey *sks, const uint32_t message_bits,
     const uint32_t carry_bits, uint64_t (*c_fun)(uint64_t, uint8_t),
-    int (*api_fun)(const ShortintServerKey *, ShortintCiphertext *, uint8_t)) {
+    int (*api_fun)(const ShortintServerKey *, ShortintCiphertext *, uint8_t),
+    uint8_t forbidden_scalar_values[], size_t forbidden_scalar_values_len) {
 
   int message_max = 1 << message_bits;
 
@@ -203,6 +218,20 @@ void test_shortint_binary_scalar_op_assign(
 
       uint64_t left = (uint64_t)val_left;
       uint8_t scalar_right = (uint8_t)val_right;
+
+      if (forbidden_scalar_values != NULL) {
+        bool found_forbiden_value = false;
+        for (int idx = 0; idx < forbidden_scalar_values_len; ++idx) {
+          if (forbidden_scalar_values[idx] == scalar_right) {
+            found_forbiden_value = true;
+            break;
+          }
+        }
+
+        if (found_forbiden_value) {
+          continue;
+        }
+      }
 
       uint64_t expected = c_fun(left, scalar_right) % message_max;
 
@@ -259,6 +288,7 @@ uint64_t scalar_not_equal(uint64_t left, uint8_t right) { return (uint64_t)(left
 uint64_t scalar_add(uint64_t left, uint8_t right) { return left + right; }
 uint64_t scalar_sub(uint64_t left, uint8_t right) { return left - right; }
 uint64_t scalar_mul(uint64_t left, uint8_t right) { return left * right; }
+uint64_t scalar_div(uint64_t left, uint8_t right) { return left / right; }
 
 uint64_t left_shift(uint64_t left, uint8_t right) { return left << right; }
 uint64_t right_shift(uint64_t left, uint8_t right) { return left >> right; }
@@ -330,53 +360,57 @@ void test_server_key(void) {
 
   printf("left_shift\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, left_shift,
-                                 shortints_server_key_smart_scalar_left_shift);
+                                 shortints_server_key_smart_scalar_left_shift, NULL, 0);
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, left_shift,
-                                 shortints_server_key_unchecked_scalar_left_shift);
+                                 shortints_server_key_unchecked_scalar_left_shift, NULL, 0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, left_shift,
-                                        shortints_server_key_smart_scalar_left_shift_assign);
+                                        shortints_server_key_smart_scalar_left_shift_assign, NULL,
+                                        0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, left_shift,
-                                        shortints_server_key_unchecked_scalar_left_shift_assign);
+                                        shortints_server_key_unchecked_scalar_left_shift_assign,
+                                        NULL, 0);
 
   printf("right_shift\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, right_shift,
-                                 shortints_server_key_smart_scalar_right_shift);
+                                 shortints_server_key_smart_scalar_right_shift, NULL, 0);
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, right_shift,
-                                 shortints_server_key_unchecked_scalar_right_shift);
+                                 shortints_server_key_unchecked_scalar_right_shift, NULL, 0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, right_shift,
-                                        shortints_server_key_smart_scalar_right_shift_assign);
+                                        shortints_server_key_smart_scalar_right_shift_assign, NULL,
+                                        0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, right_shift,
-                                        shortints_server_key_unchecked_scalar_right_shift_assign);
+                                        shortints_server_key_unchecked_scalar_right_shift_assign,
+                                        NULL, 0);
 
   printf("scalar_add\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_add,
-                                 shortints_server_key_smart_scalar_add);
+                                 shortints_server_key_smart_scalar_add, NULL, 0);
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_add,
-                                 shortints_server_key_unchecked_scalar_add);
+                                 shortints_server_key_unchecked_scalar_add, NULL, 0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, scalar_add,
-                                        shortints_server_key_smart_scalar_add_assign);
+                                        shortints_server_key_smart_scalar_add_assign, NULL, 0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, scalar_add,
-                                        shortints_server_key_unchecked_scalar_add_assign);
+                                        shortints_server_key_unchecked_scalar_add_assign, NULL, 0);
 
   printf("scalar_sub\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_sub,
-                                 shortints_server_key_smart_scalar_sub);
+                                 shortints_server_key_smart_scalar_sub, NULL, 0);
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_sub,
-                                 shortints_server_key_unchecked_scalar_sub);
+                                 shortints_server_key_unchecked_scalar_sub, NULL, 0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, scalar_sub,
-                                        shortints_server_key_smart_scalar_sub_assign);
+                                        shortints_server_key_smart_scalar_sub_assign, NULL, 0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, scalar_sub,
-                                        shortints_server_key_unchecked_scalar_sub_assign);
+                                        shortints_server_key_unchecked_scalar_sub_assign, NULL, 0);
 
   printf("scalar_mul\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_mul,
-                                 shortints_server_key_smart_scalar_mul);
+                                 shortints_server_key_smart_scalar_mul, NULL, 0);
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_mul,
-                                 shortints_server_key_unchecked_scalar_mul);
+                                 shortints_server_key_unchecked_scalar_mul, NULL, 0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, scalar_mul,
-                                        shortints_server_key_smart_scalar_mul_assign);
+                                        shortints_server_key_smart_scalar_mul_assign, NULL, 0);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, scalar_mul,
-                                        shortints_server_key_unchecked_scalar_mul_assign);
+                                        shortints_server_key_unchecked_scalar_mul_assign, NULL, 0);
 
   printf("bitand\n");
   test_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, bitand,
@@ -446,29 +480,29 @@ void test_server_key(void) {
 
   printf("scalar_greater\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_greater,
-                                 shortints_server_key_smart_scalar_greater);
+                                 shortints_server_key_smart_scalar_greater, NULL, 0);
 
   printf("scalar_greater_or_equal\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits,
                                  scalar_greater_or_equal,
-                                 shortints_server_key_smart_scalar_greater_or_equal);
+                                 shortints_server_key_smart_scalar_greater_or_equal, NULL, 0);
 
   printf("scalar_less\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_less,
-                                 shortints_server_key_smart_scalar_less);
+                                 shortints_server_key_smart_scalar_less, NULL, 0);
 
   printf("scalar_less_or_equal\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits,
                                  scalar_less_or_equal,
-                                 shortints_server_key_smart_scalar_less_or_equal);
+                                 shortints_server_key_smart_scalar_less_or_equal, NULL, 0);
 
   printf("scalar_equal\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_equal,
-                                 shortints_server_key_smart_scalar_equal);
+                                 shortints_server_key_smart_scalar_equal, NULL, 0);
 
   printf("scalar_not_equal\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_not_equal,
-                                 shortints_server_key_smart_scalar_not_equal);
+                                 shortints_server_key_smart_scalar_not_equal, NULL, 0);
 
   printf("neg\n");
   test_shortint_unary_op(deser_cks, deser_sks, message_bits, carry_bits, neg,
@@ -489,6 +523,15 @@ void test_server_key(void) {
                                  shortints_server_key_smart_div_assign);
   test_shortint_binary_op_assign(deser_cks, deser_sks, message_bits, carry_bits, homomorphic_div,
                                  shortints_server_key_unchecked_div_assign);
+
+  printf("scalar_div\n");
+  uint8_t forbiden_scalar_div_values[1] = {0};
+  test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_div,
+                                 shortints_server_key_unchecked_scalar_div,
+                                 forbiden_scalar_div_values, 1);
+  test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, scalar_div,
+                                        shortints_server_key_unchecked_scalar_div_assign,
+                                        forbiden_scalar_div_values, 1);
 
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);
