@@ -289,6 +289,7 @@ uint64_t scalar_add(uint64_t left, uint8_t right) { return left + right; }
 uint64_t scalar_sub(uint64_t left, uint8_t right) { return left - right; }
 uint64_t scalar_mul(uint64_t left, uint8_t right) { return left * right; }
 uint64_t scalar_div(uint64_t left, uint8_t right) { return left / right; }
+uint64_t scalar_mod(uint64_t left, uint8_t right) { return left % right; }
 
 uint64_t left_shift(uint64_t left, uint8_t right) { return left << right; }
 uint64_t right_shift(uint64_t left, uint8_t right) { return left >> right; }
@@ -532,6 +533,14 @@ void test_server_key(void) {
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, scalar_div,
                                         shortints_server_key_unchecked_scalar_div_assign,
                                         forbiden_scalar_div_values, 1);
+  printf("scalar_mod\n");
+  uint8_t forbiden_scalar_mod_values[1] = {0};
+  test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_mod,
+                                 shortints_server_key_unchecked_scalar_mod,
+                                 forbiden_scalar_mod_values, 1);
+  test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, scalar_mod,
+                                        shortints_server_key_unchecked_scalar_mod_assign,
+                                        forbiden_scalar_mod_values, 1);
 
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);
