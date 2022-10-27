@@ -148,15 +148,11 @@ macro_rules! engine_error {
 }
 pub(crate) use engine_error;
 
-mod cleartext_conversion;
 mod cleartext_creation;
-mod cleartext_discarding_conversion;
 mod cleartext_discarding_retrieval;
 mod cleartext_encoding;
 mod cleartext_retrieval;
-mod cleartext_vector_conversion;
 mod cleartext_vector_creation;
-mod cleartext_vector_discarding_conversion;
 mod cleartext_vector_discarding_retrieval;
 mod cleartext_vector_encoding;
 mod cleartext_vector_retrieval;
@@ -298,15 +294,11 @@ mod plaintext_vector_discarding_conversion;
 mod plaintext_vector_discarding_retrieval;
 mod plaintext_vector_retrieval;
 
-pub use cleartext_conversion::*;
 pub use cleartext_creation::*;
-pub use cleartext_discarding_conversion::*;
 pub use cleartext_discarding_retrieval::*;
 pub use cleartext_encoding::*;
 pub use cleartext_retrieval::*;
-pub use cleartext_vector_conversion::*;
 pub use cleartext_vector_creation::*;
-pub use cleartext_vector_discarding_conversion::*;
 pub use cleartext_vector_discarding_retrieval::*;
 pub use cleartext_vector_encoding::*;
 pub use cleartext_vector_retrieval::*;
