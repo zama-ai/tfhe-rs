@@ -79,11 +79,7 @@ entity_kind_marker! {
         LweBootstrapKeyKind
             => "An empty type representing the LWE bootstrap key kind in the type system.",
         LweSeededBootstrapKeyKind
-            => "An empty type representing the seeded LWE bootstrap key kind in the type system.",
-        EncoderKind
-            => "An empty type representing the encoder kind in the type system.",
-        EncoderVectorKind
-            => "An empty type representing the encoder vector kind in the type system"
+            => "An empty type representing the seeded LWE bootstrap key kind in the type system."
 }
 
 pub(crate) mod seal {

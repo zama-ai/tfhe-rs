@@ -17,32 +17,11 @@ use std::fmt::{Display, Formatter};
 /// There is currently no such case, as the default implementation is not expected to undergo some
 /// major issues unrelated to FHE.
 #[derive(Debug)]
-pub enum DefaultError {
-    FloatEncoderMessageOutsideInterval,
-    FloatEncoderNullPrecision,
-    FloatEncoderMinMaxOrder,
-    FloatEncoderNullRadius,
-}
+pub enum DefaultError {}
 
 impl Display for DefaultError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            DefaultError::FloatEncoderMessageOutsideInterval => write!(
-                f,
-                "Tried to encode a message outside float encoder interval."
-            ),
-            DefaultError::FloatEncoderNullPrecision => write!(
-                f,
-                "Tried to create a float encoder with zero bits of precision."
-            ),
-            DefaultError::FloatEncoderMinMaxOrder => write!(
-                f,
-                "Tried to create a float encoder whose min bound is larger than max bound."
-            ),
-            DefaultError::FloatEncoderNullRadius => {
-                write!(f, "Tried to create a float encoder with null radius.")
-            }
-        }
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
+        Ok(())
     }
 }
 
@@ -90,14 +69,10 @@ impl AbstractEngine for DefaultEngine {
 
 mod cleartext_creation;
 mod cleartext_discarding_retrieval;
-mod cleartext_encoding;
 mod cleartext_retrieval;
 mod cleartext_vector_creation;
 mod cleartext_vector_discarding_retrieval;
-mod cleartext_vector_encoding;
 mod cleartext_vector_retrieval;
-mod encoder_creation;
-mod encoder_vector_creation;
 mod ggsw_ciphertext_scalar_discarding_encryption;
 mod ggsw_ciphertext_scalar_encryption;
 mod ggsw_ciphertext_scalar_trivial_encryption;
@@ -189,10 +164,8 @@ mod lwe_seeded_keyswitch_key_to_lwe_keyswitch_key_transformation;
 mod lwe_seeded_to_lwe_ciphertext_transformation;
 mod lwe_to_glwe_secret_key_transformation;
 mod plaintext_creation;
-mod plaintext_decoding;
 mod plaintext_discarding_retrieval;
 mod plaintext_retrieval;
 mod plaintext_vector_creation;
-mod plaintext_vector_decoding;
 mod plaintext_vector_discarding_retrieval;
 mod plaintext_vector_retrieval;
