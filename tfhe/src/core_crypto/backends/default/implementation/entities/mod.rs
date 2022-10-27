@@ -3,8 +3,6 @@
 
 mod cleartext;
 mod cleartext_vector;
-mod encoder;
-mod encoder_vector;
 mod ggsw_ciphertext;
 mod ggsw_seeded_ciphertext;
 mod glwe_ciphertext;
@@ -30,8 +28,6 @@ mod plaintext_vector;
 
 pub use cleartext::*;
 pub use cleartext_vector::*;
-pub use encoder::*;
-pub use encoder_vector::*;
 pub use ggsw_ciphertext::*;
 pub use ggsw_seeded_ciphertext::*;
 pub use glwe_ciphertext::*;

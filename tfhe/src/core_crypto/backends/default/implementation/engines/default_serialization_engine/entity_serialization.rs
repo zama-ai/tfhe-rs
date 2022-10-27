@@ -5,8 +5,7 @@ use crate::core_crypto::commons::crypto::bootstrap::{
     StandardSeededBootstrapKey as ImplStandardSeededBootstrapKey,
 };
 use crate::core_crypto::commons::crypto::encoding::{
-    Cleartext as ImplCleartext, CleartextList as ImplCleartextList,
-    FloatEncoder as ImplFloatEncoder, Plaintext as ImplPlaintext,
+    Cleartext as ImplCleartext, CleartextList as ImplCleartextList, Plaintext as ImplPlaintext,
     PlaintextList as ImplPlaintextList,
 };
 use crate::core_crypto::commons::crypto::ggsw::{
@@ -32,8 +31,7 @@ use crate::core_crypto::prelude::{
     CleartextF64Version, CleartextVector32, CleartextVector32Version, CleartextVector64,
     CleartextVector64Version, CleartextVectorF64, CleartextVectorF64Version,
     DefaultSerializationEngine, DefaultSerializationError, EntitySerializationEngine,
-    EntitySerializationError, FloatEncoder, FloatEncoderVector, FloatEncoderVectorVersion,
-    FloatEncoderVersion, GgswCiphertext32, GgswCiphertext32Version, GgswCiphertext64,
+    EntitySerializationError, GgswCiphertext32, GgswCiphertext32Version, GgswCiphertext64,
     GgswCiphertext64Version, GgswSeededCiphertext32, GgswSeededCiphertext32Version,
     GgswSeededCiphertext64, GgswSeededCiphertext64Version, GlweCiphertext32,
     GlweCiphertext32Version, GlweCiphertext64, GlweCiphertext64Version, GlweCiphertextMutView32,
@@ -3913,118 +3911,6 @@ impl EntitySerializationEngine<PlaintextVector64, Vec<u8>> for DefaultSerializat
     }
 
     unsafe fn serialize_unchecked(&mut self, entity: &PlaintextVector64) -> Vec<u8> {
-        self.serialize(entity).unwrap()
-    }
-}
-
-/// # Description:
-/// Implementation of [`EntitySerializationEngine`] for [`DefaultSerializationEngine`] that operates
-/// on 64 bits integers. It serializes a float encoder entity.
-impl EntitySerializationEngine<FloatEncoder, Vec<u8>> for DefaultSerializationEngine {
-    /// # Example:
-    /// ```
-    /// use tfhe::core_crypto::prelude::{PlaintextCount, *};
-    /// # use std::error::Error;
-    ///
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    ///
-    /// // Unix seeder must be given a secret input.
-    /// // Here we just give it 0, which is totally unsafe.
-    /// const UNSAFE_SECRET: u128 = 0;
-    /// let mut engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
-    /// let encoder = engine.create_encoder_from(&FloatEncoderMinMaxConfig {
-    ///     min: 0.,
-    ///     max: 10.,
-    ///     nb_bit_precision: 8,
-    ///     nb_bit_padding: 1,
-    /// })?;
-    ///
-    /// let mut serialization_engine = DefaultSerializationEngine::new(())?;
-    /// let serialized = serialization_engine.serialize(&encoder)?;
-    /// let recovered = serialization_engine.deserialize(serialized.as_slice())?;
-    /// assert_eq!(encoder, recovered);
-    ///
-    /// #
-    /// # Ok(())
-    /// # }
-    /// ```
-    fn serialize(
-        &mut self,
-        entity: &FloatEncoder,
-    ) -> Result<Vec<u8>, EntitySerializationError<Self::EngineError>> {
-        #[derive(Serialize)]
-        struct SerializableFloatEncoder<'a> {
-            version: FloatEncoderVersion,
-            inner: &'a ImplFloatEncoder,
-        }
-        let serializable = SerializableFloatEncoder {
-            version: FloatEncoderVersion::V0,
-            inner: &entity.0,
-        };
-        bincode::serialize(&serializable)
-            .map_err(DefaultSerializationError::Serialization)
-            .map_err(EntitySerializationError::Engine)
-    }
-
-    unsafe fn serialize_unchecked(&mut self, entity: &FloatEncoder) -> Vec<u8> {
-        self.serialize(entity).unwrap()
-    }
-}
-
-/// # Description:
-/// Implementation of [`EntitySerializationEngine`] for [`DefaultSerializationEngine`] that operates
-/// on 64 bits integers. It serializes a float encoder vector entity.
-impl EntitySerializationEngine<FloatEncoderVector, Vec<u8>> for DefaultSerializationEngine {
-    /// # Example:
-    /// ```
-    /// use tfhe::core_crypto::prelude::PlaintextCount;
-    /// use tfhe::core_crypto::prelude::*;
-    /// # use std::error::Error;
-    ///
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    ///
-    /// // Unix seeder must be given a secret input.
-    /// // Here we just give it 0, which is totally unsafe.
-    /// const UNSAFE_SECRET: u128 = 0;
-    /// let mut engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
-    /// let encoder_vector = engine.create_encoder_vector_from(&vec![
-    ///     FloatEncoderCenterRadiusConfig {
-    ///         center: 10.,
-    ///         radius: 5.,
-    ///         nb_bit_precision: 8,
-    ///         nb_bit_padding: 1,
-    ///     };
-    ///     1
-    /// ])?;
-    ///
-    /// let mut serialization_engine = DefaultSerializationEngine::new(())?;
-    /// let serialized = serialization_engine.serialize(&encoder_vector)?;
-    /// let recovered = serialization_engine.deserialize(serialized.as_slice())?;
-    /// assert_eq!(encoder_vector, recovered);
-    ///
-    /// #
-    /// # Ok(())
-    /// # }
-    /// ```
-    fn serialize(
-        &mut self,
-        entity: &FloatEncoderVector,
-    ) -> Result<Vec<u8>, EntitySerializationError<Self::EngineError>> {
-        #[derive(Serialize)]
-        struct SerializableFloatEncoderVector<'a> {
-            version: FloatEncoderVectorVersion,
-            inner: &'a Vec<ImplFloatEncoder>,
-        }
-        let serializable = SerializableFloatEncoderVector {
-            version: FloatEncoderVectorVersion::V0,
-            inner: &entity.0,
-        };
-        bincode::serialize(&serializable)
-            .map_err(DefaultSerializationError::Serialization)
-            .map_err(EntitySerializationError::Engine)
-    }
-
-    unsafe fn serialize_unchecked(&mut self, entity: &FloatEncoderVector) -> Vec<u8> {
         self.serialize(entity).unwrap()
     }
 }
