@@ -5,6 +5,72 @@
 #include <stdlib.h>
 #include <tgmath.h>
 
+void test_shortint_unary_op(const ShortintClientKey *cks, const ShortintServerKey *sks,
+                            const uint32_t message_bits, const uint32_t carry_bits,
+                            uint64_t (*c_fun)(uint64_t),
+                            int (*api_fun)(const ShortintServerKey *, ShortintCiphertext *,
+                                           ShortintCiphertext **)) {
+
+  int message_max = 1 << message_bits;
+
+  for (int val_in = 0; val_in < message_max; ++val_in) {
+    ShortintCiphertext *ct_in = NULL;
+    ShortintCiphertext *ct_result = NULL;
+
+    uint64_t in = (uint64_t)val_in;
+
+    uint64_t expected = c_fun(in) % message_max;
+
+    int encrypt_left_ok = shortints_client_key_encrypt(cks, in, &ct_in);
+    assert(encrypt_left_ok == 0);
+
+    int api_call_ok = api_fun(sks, ct_in, &ct_result);
+    assert(api_call_ok == 0);
+
+    uint64_t decrypted_result = -1;
+
+    int decrypt_ok = shortints_client_key_decrypt(cks, ct_result, &decrypted_result);
+    assert(decrypt_ok == 0);
+
+    assert(decrypted_result == expected);
+
+    destroy_shortint_ciphertext(ct_in);
+    destroy_shortint_ciphertext(ct_result);
+  }
+}
+
+void test_shortint_unary_op_assign(const ShortintClientKey *cks, const ShortintServerKey *sks,
+                                   const uint32_t message_bits, const uint32_t carry_bits,
+                                   uint64_t (*c_fun)(uint64_t),
+                                   int (*api_fun)(const ShortintServerKey *,
+                                                  ShortintCiphertext *)) {
+
+  int message_max = 1 << message_bits;
+
+  for (int in = 0; in < message_max; ++in) {
+    ShortintCiphertext *ct_in_and_result = NULL;
+
+    uint64_t in = (uint64_t)in;
+
+    uint64_t expected = c_fun(in) % message_max;
+
+    int encrypt_left_ok = shortints_client_key_encrypt(cks, in, &ct_in_and_result);
+    assert(encrypt_left_ok == 0);
+
+    int api_call_ok = api_fun(sks, ct_in_and_result);
+    assert(api_call_ok == 0);
+
+    uint64_t decrypted_result = -1;
+
+    int decrypt_ok = shortints_client_key_decrypt(cks, ct_in_and_result, &decrypted_result);
+    assert(decrypt_ok == 0);
+
+    assert(decrypted_result == expected);
+
+    destroy_shortint_ciphertext(ct_in_and_result);
+  }
+}
+
 void test_shortint_binary_op(const ShortintClientKey *cks, const ShortintServerKey *sks,
                              const uint32_t message_bits, const uint32_t carry_bits,
                              uint64_t (*c_fun)(uint64_t, uint64_t),
@@ -96,7 +162,7 @@ void test_shortint_binary_scalar_op(const ShortintClientKey *cks, const Shortint
   int message_max = 1 << message_bits;
 
   for (int val_left = 0; val_left < message_max; ++val_left) {
-    for (int val_right = 0; val_right < 256; ++val_right) {
+    for (int val_right = 0; val_right < message_max; ++val_right) {
       ShortintCiphertext *ct_left = NULL;
       ShortintCiphertext *ct_result = NULL;
 
@@ -132,7 +198,7 @@ void test_shortint_binary_scalar_op_assign(
   int message_max = 1 << message_bits;
 
   for (int val_left = 0; val_left < message_max; ++val_left) {
-    for (int val_right = 0; val_right < 256; ++val_right) {
+    for (int val_right = 0; val_right < message_max; ++val_right) {
       ShortintCiphertext *ct_left_and_result = NULL;
 
       uint64_t left = (uint64_t)val_left;
@@ -161,6 +227,7 @@ void test_shortint_binary_scalar_op_assign(
 uint64_t add(uint64_t left, uint64_t right) { return left + right; }
 uint64_t sub(uint64_t left, uint64_t right) { return left - right; }
 uint64_t mul(uint64_t left, uint64_t right) { return left * right; }
+uint64_t neg(uint64_t in) { return -in; }
 
 uint64_t bitand(uint64_t left, uint64_t right) { return left & right; }
 uint64_t bitxor(uint64_t left, uint64_t right) { return left ^ right; }
@@ -255,17 +322,12 @@ void test_server_key(void) {
   printf("left_shift\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, left_shift,
                                  shortints_server_key_smart_scalar_left_shift);
-  // // Hard to properly test at the moment, as it's "just" a multiplication which can bring
-  // // noise bits in the message
-  // test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, left_shift,
-  //                                shortints_server_key_unchecked_scalar_left_shift);
+  test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, left_shift,
+                                 shortints_server_key_unchecked_scalar_left_shift);
   test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, left_shift,
                                         shortints_server_key_smart_scalar_left_shift_assign);
-  // // Hard to properly test at the moment, as it's "just" a multiplication which can bring
-  // // noise bits in the message
-  // test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits,
-  // left_shift,
-  // shortints_server_key_unchecked_scalar_left_shift_assign);
+  test_shortint_binary_scalar_op_assign(deser_cks, deser_sks, message_bits, carry_bits, left_shift,
+                                        shortints_server_key_unchecked_scalar_left_shift_assign);
 
   printf("right_shift\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, right_shift,
@@ -398,6 +460,16 @@ void test_server_key(void) {
   printf("scalar_not_equal\n");
   test_shortint_binary_scalar_op(deser_cks, deser_sks, message_bits, carry_bits, scalar_not_equal,
                                  shortints_server_key_smart_scalar_not_equal);
+
+  printf("neg\n");
+  test_shortint_unary_op(deser_cks, deser_sks, message_bits, carry_bits, neg,
+                         shortints_server_key_smart_neg);
+  test_shortint_unary_op(deser_cks, deser_sks, message_bits, carry_bits, neg,
+                         shortints_server_key_unchecked_neg);
+  test_shortint_unary_op_assign(deser_cks, deser_sks, message_bits, carry_bits, neg,
+                                shortints_server_key_smart_neg_assign);
+  test_shortint_unary_op_assign(deser_cks, deser_sks, message_bits, carry_bits, neg,
+                                shortints_server_key_unchecked_neg_assign);
 
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);

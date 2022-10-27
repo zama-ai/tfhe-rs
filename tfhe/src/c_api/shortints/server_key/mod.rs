@@ -10,6 +10,7 @@ pub mod add;
 pub mod bitwise_op;
 pub mod comp_op;
 pub mod mul;
+pub mod neg;
 pub mod scalar_add;
 pub mod scalar_mul;
 pub mod scalar_sub;
