@@ -229,6 +229,15 @@ uint64_t sub(uint64_t left, uint64_t right) { return left - right; }
 uint64_t mul(uint64_t left, uint64_t right) { return left * right; }
 uint64_t neg(uint64_t in) { return -in; }
 
+uint64_t homomorphic_div(uint64_t left, uint64_t right) {
+  if (right != 0) {
+    return left / right;
+  } else {
+    // Special value chosen in the shortint implementation in case of a division by 0
+    return 0;
+  }
+}
+
 uint64_t bitand(uint64_t left, uint64_t right) { return left & right; }
 uint64_t bitxor(uint64_t left, uint64_t right) { return left ^ right; }
 uint64_t bitor (uint64_t left, uint64_t right) { return left | right; }
@@ -470,6 +479,16 @@ void test_server_key(void) {
                                 shortints_server_key_smart_neg_assign);
   test_shortint_unary_op_assign(deser_cks, deser_sks, message_bits, carry_bits, neg,
                                 shortints_server_key_unchecked_neg_assign);
+
+  printf("div\n");
+  test_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, homomorphic_div,
+                          shortints_server_key_smart_div);
+  test_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, homomorphic_div,
+                          shortints_server_key_unchecked_div);
+  test_shortint_binary_op_assign(deser_cks, deser_sks, message_bits, carry_bits, homomorphic_div,
+                                 shortints_server_key_smart_div_assign);
+  test_shortint_binary_op_assign(deser_cks, deser_sks, message_bits, carry_bits, homomorphic_div,
+                                 shortints_server_key_unchecked_div_assign);
 
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);

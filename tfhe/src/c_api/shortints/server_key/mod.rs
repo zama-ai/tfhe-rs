@@ -9,6 +9,7 @@ use super::ShortintCiphertext;
 pub mod add;
 pub mod bitwise_op;
 pub mod comp_op;
+pub mod div_mod;
 pub mod mul;
 pub mod neg;
 pub mod scalar_add;
