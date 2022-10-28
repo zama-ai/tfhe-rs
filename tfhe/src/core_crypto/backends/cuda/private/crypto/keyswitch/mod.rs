@@ -1,5 +1,4 @@
 //! Keyswitch key with Cuda.
-use crate::core_crypto::backends::cuda::private::crypto::lwe::list::CudaLweList;
 use crate::core_crypto::backends::cuda::private::vec::CudaVec;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
