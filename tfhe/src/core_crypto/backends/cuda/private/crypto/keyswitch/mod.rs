@@ -1,14 +1,8 @@
 //! Keyswitch key with Cuda.
 use crate::core_crypto::backends::cuda::private::crypto::lwe::list::CudaLweList;
-use crate::core_crypto::backends::cuda::private::device::{CudaStream, GpuIndex, NumberOfGpus};
 use crate::core_crypto::backends::cuda::private::vec::CudaVec;
-use crate::core_crypto::backends::cuda::private::{
-    compute_number_of_samples_on_gpu, number_of_active_gpus,
-};
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::prelude::{
-    CiphertextCount, DecompositionBaseLog, DecompositionLevelCount, LweDimension,
-};
+use crate::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount, LweDimension};
 
 #[derive(Debug)]
 pub(crate) struct CudaLweKeyswitchKey<T: UnsignedInteger> {
