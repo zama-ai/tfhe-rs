@@ -42,7 +42,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitand(
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
             server_key
                 .0
-                .unchecked_bitand(&mut ct_left.0, &mut ct_right.0),
+                .unchecked_bitand(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -79,7 +79,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitand_assign(
 
         server_key
             .0
-            .unchecked_bitand_assign(&mut ct_left_and_result.0, &mut ct_right.0);
+            .unchecked_bitand_assign(&mut ct_left_and_result.0, &ct_right.0);
     })
 }
 
@@ -120,9 +120,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitxor(
         let ct_right = get_mut_checked(ct_right).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key
-                .0
-                .unchecked_bitxor(&mut ct_left.0, &mut ct_right.0),
+            server_key.0.unchecked_bitxor(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -159,7 +157,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitxor_assign(
 
         server_key
             .0
-            .unchecked_bitxor_assign(&mut ct_left_and_result.0, &mut ct_right.0);
+            .unchecked_bitxor_assign(&mut ct_left_and_result.0, &ct_right.0);
     })
 }
 
@@ -200,9 +198,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitor(
         let ct_right = get_mut_checked(ct_right).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key
-                .0
-                .unchecked_bitor(&mut ct_left.0, &mut ct_right.0),
+            server_key.0.unchecked_bitor(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -239,6 +235,6 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitor_assign(
 
         server_key
             .0
-            .unchecked_bitor_assign(&mut ct_left_and_result.0, &mut ct_right.0);
+            .unchecked_bitor_assign(&mut ct_left_and_result.0, &ct_right.0);
     })
 }

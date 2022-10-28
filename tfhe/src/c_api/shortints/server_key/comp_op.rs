@@ -42,7 +42,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_greater(
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
             server_key
                 .0
-                .unchecked_greater(&mut ct_left.0, &mut ct_right.0),
+                .unchecked_greater(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -90,7 +90,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_greater_or_equal(
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
             server_key
                 .0
-                .unchecked_greater_or_equal(&mut ct_left.0, &mut ct_right.0),
+                .unchecked_greater_or_equal(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -134,7 +134,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_less(
         let ct_right = get_mut_checked(ct_right).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.unchecked_less(&mut ct_left.0, &mut ct_right.0),
+            server_key.0.unchecked_less(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -182,7 +182,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_less_or_equal(
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
             server_key
                 .0
-                .unchecked_less_or_equal(&mut ct_left.0, &mut ct_right.0),
+                .unchecked_less_or_equal(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -228,7 +228,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_equal(
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
             server_key
                 .0
-                .unchecked_equal(&mut ct_left.0, &mut ct_right.0),
+                .unchecked_equal(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -276,7 +276,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_not_equal(
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
             server_key
                 .0
-                .unchecked_not_equal(&mut ct_left.0, &mut ct_right.0),
+                .unchecked_not_equal(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -297,7 +297,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_greater(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.smart_scalar_greater(&mut ct_left.0, right),
+            server_key.0.smart_scalar_greater(&ct_left.0, right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -320,7 +320,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_greater_or_equal(
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
             server_key
                 .0
-                .smart_scalar_greater_or_equal(&mut ct_left.0, right),
+                .smart_scalar_greater_or_equal(&ct_left.0, right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -341,7 +341,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_less(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.smart_scalar_less(&mut ct_left.0, right),
+            server_key.0.smart_scalar_less(&ct_left.0, right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -362,9 +362,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_less_or_equal(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key
-                .0
-                .smart_scalar_less_or_equal(&mut ct_left.0, right),
+            server_key.0.smart_scalar_less_or_equal(&ct_left.0, right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -385,7 +383,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_equal(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.smart_scalar_equal(&mut ct_left.0, right),
+            server_key.0.smart_scalar_equal(&ct_left.0, right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -406,7 +404,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_not_equal(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.smart_scalar_not_equal(&mut ct_left.0, right),
+            server_key.0.smart_scalar_not_equal(&ct_left.0, right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);

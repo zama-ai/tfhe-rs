@@ -163,7 +163,7 @@ impl WopbsKey {
     /// use tfhe::shortint::wopbs::WopbsKey;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks,sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_NORM2_2);
+    /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_NORM2_2);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let message_modulus = 5;
     /// let m = 2;

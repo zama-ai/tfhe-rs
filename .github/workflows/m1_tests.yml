@@ -79,7 +79,7 @@ jobs:
       - name: Test tfhe-rs/boolean with cpu
         run: |
           RUSTFLAGS="-C target-cpu=native" cargo test --tests --release \
-            --features=x86_64-unix,booleans,internal-keycache -p tfhe -- boolean::
+            --features=aarch64-unix,booleans,internal-keycache -p tfhe -- boolean::
 
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1

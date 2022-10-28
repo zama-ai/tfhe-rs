@@ -40,7 +40,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_div(
         let ct_right = get_mut_checked(ct_right).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.unchecked_div(&mut ct_left.0, &mut ct_right.0),
+            server_key.0.unchecked_div(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -77,7 +77,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_div_assign(
 
         server_key
             .0
-            .unchecked_div_assign(&mut ct_left_and_result.0, &mut ct_right.0);
+            .unchecked_div_assign(&mut ct_left_and_result.0, &ct_right.0);
     })
 }
 
@@ -95,7 +95,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_div(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.unchecked_scalar_div(&mut ct_left.0, right),
+            server_key.0.unchecked_scalar_div(&ct_left.0, right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -132,7 +132,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_mod(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.unchecked_scalar_mod(&mut ct_left.0, right),
+            server_key.0.unchecked_scalar_mod(&ct_left.0, right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);

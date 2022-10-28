@@ -38,7 +38,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_left_shift(
         let ct = get_mut_checked(ct).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.unchecked_scalar_left_shift(&mut ct.0, shift),
+            server_key.0.unchecked_scalar_left_shift(&ct.0, shift),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -69,7 +69,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_right_shift(
         let ct = get_mut_checked(ct).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.unchecked_scalar_right_shift(&mut ct.0, shift),
+            server_key.0.unchecked_scalar_right_shift(&ct.0, shift),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
