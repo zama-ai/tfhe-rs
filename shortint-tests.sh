@@ -40,6 +40,7 @@ cargo test \
     --release \
     --package tfhe \
     --features=x86_64-unix,shortints,internal-keycache \
-    --doc
+    --doc \
+    -E 'test(/^shortint.*)'
 
 echo "Test ran in $SECONDS seconds"
