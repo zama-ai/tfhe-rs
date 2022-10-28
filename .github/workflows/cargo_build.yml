@@ -27,10 +27,10 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
+          components: clippy
           default: true
 
       - name: Clippy booleans
-        continue-on-error: true
         run: |
           cargo clippy \
             --features=x86_64-unix,booleans -p tfhe -- \
@@ -43,7 +43,6 @@ jobs:
           args: --release -p tfhe --features=x86_64-unix,booleans
 
       - name: Clippy shortints
-        continue-on-error: true
         run: |
           cargo clippy \
             --features=x86_64-unix,shortints -p tfhe -- \
@@ -56,7 +55,6 @@ jobs:
           args: --release -p tfhe --features=x86_64-unix,shortints
 
       - name: Clippy shortints and booleans
-        continue-on-error: true
         run: |
           cargo clippy \
             --features=x86_64-unix,shortints,booleans -p tfhe -- \
@@ -69,7 +67,6 @@ jobs:
           args: --release -p tfhe --features=x86_64-unix,shortints,booleans
 
       - name: C API Clippy
-        continue-on-error: true
         run: |
           cargo clippy \
             --features=x86_64-unix,booleans-c-api,shortints-c-api -p tfhe -- \
