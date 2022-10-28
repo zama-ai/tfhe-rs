@@ -29,17 +29,51 @@ jobs:
           toolchain: nightly
           default: true
 
+      - name: Clippy booleans
+        continue-on-error: true
+        run: |
+          cargo clippy \
+            --features=x86_64-unix,booleans -p tfhe -- \
+            --no-deps -D warnings
+
       - name: Build Release boolean
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release -p tfhe --features=x86_64-unix,booleans
 
+      - name: Clippy shortints
+        continue-on-error: true
+        run: |
+          cargo clippy \
+            --features=x86_64-unix,shortints -p tfhe -- \
+            --no-deps -D warnings
+
       - name: Build Release shortint
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release -p tfhe --features=x86_64-unix,shortints
+
+      - name: Clippy shortints and booleans
+        continue-on-error: true
+        run: |
+          cargo clippy \
+            --features=x86_64-unix,shortints,booleans -p tfhe -- \
+            --no-deps -D warnings
+
+      - name: Build Release shortint and boolean
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p tfhe --features=x86_64-unix,shortints,booleans
+
+      - name: C API Clippy
+        continue-on-error: true
+        run: |
+          cargo clippy \
+            --features=x86_64-unix,booleans-c-api,shortints-c-api -p tfhe -- \
+            --no-deps -D warnings
 
       - name: Build Release c_api
         uses: actions-rs/cargo@v1
