@@ -38,9 +38,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_sub(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key
-                .0
-                .unchecked_scalar_sub(&mut ct_left.0, scalar_right),
+            server_key.0.unchecked_scalar_sub(&ct_left.0, scalar_right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);

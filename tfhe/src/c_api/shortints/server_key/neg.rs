@@ -34,9 +34,8 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_neg(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left = get_mut_checked(ct_left).unwrap();
 
-        let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.unchecked_neg(&mut ct_left.0),
-        ));
+        let heap_allocated_ct_result =
+            Box::new(ShortintCiphertext(server_key.0.unchecked_neg(&ct_left.0)));
 
         *result = Box::into_raw(heap_allocated_ct_result);
     })
