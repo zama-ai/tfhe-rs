@@ -4,9 +4,15 @@ set -e
 
 nproc_bin=nproc
 
+arch_feature=x86_64-unix
+
 # macOS detects CPUs differently
 if [[ $(uname) == "Darwin" ]]; then
     nproc_bin="sysctl -n hw.logicalcpu"
+fi
+
+if uname | grep "arm64"; then
+    arch_feature=aarch64-unix
 fi
 
 filter_expression=''\
@@ -32,14 +38,14 @@ cargo nextest run \
     --release \
     --package tfhe \
     --profile ci \
-    --features=x86_64-unix,shortints,internal-keycache \
+    --features="${arch_feature}",shortints,internal-keycache \
     --test-threads "$(${nproc_bin})" \
     -E "${filter_expression}"
 
 cargo test \
     --release \
     --package tfhe \
-    --features=x86_64-unix,shortints,internal-keycache \
+    --features="${arch_feature}",shortints,internal-keycache \
     --doc \
     shortint::
 
