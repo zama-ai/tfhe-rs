@@ -1,0 +1,116 @@
+name: Cargo Build M1
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C target-cpu=native"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-builds:
+    if: "github.event_name != 'pull_request' || contains(github.event.label.name, 'm1_test')"
+    runs-on: ["self-hosted", "m1mac"]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy
+          default: true
+
+      - name: Clippy booleans
+        run: |
+          cargo clippy \
+            --features=aarch64-unix,booleans -p tfhe -- \
+            --no-deps -D warnings
+
+      - name: Build Release boolean
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p tfhe --features=aarch64-unix,booleans
+
+      - name: Clippy shortints
+        run: |
+          cargo clippy \
+            --features=aarch64-unix,shortints -p tfhe -- \
+            --no-deps -D warnings
+
+      - name: Build Release shortint
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p tfhe --features=aarch64-unix,shortints
+
+      - name: Clippy shortints and booleans
+        run: |
+          cargo clippy \
+            --features=aarch64-unix,shortints,booleans -p tfhe -- \
+            --no-deps -D warnings
+
+      - name: Build Release shortint and boolean
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p tfhe --features=aarch64-unix,shortints,booleans
+
+      - name: C API Clippy
+        run: |
+          cargo clippy \
+            --features=aarch64-unix,booleans-c-api,shortints-c-api -p tfhe -- \
+            --no-deps -D warnings
+
+      - name: Build Release c_api
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p tfhe --features=aarch64-unix,booleans-c-api,shortints-c-api
+
+      - name: Test tfhe-rs/boolean with cpu
+        run: |
+          RUSTFLAGS="-C target-cpu=native" cargo test --tests --release \
+            --features=x86_64-unix,booleans,internal-keycache -p tfhe -- boolean::
+
+      - name: Configure AWS credentials from Test account
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_IAM_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_IAM_KEY }}
+          role-to-assume: concrete-lib-ci
+          aws-region: eu-west-3
+          role-duration-seconds: 10800
+
+      - name: Install AWS CLI
+        run: |
+          brew install awscli
+
+      - name: Download keys locally
+        run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
+
+      - name: Run shortint tests
+        run: ./shortint-tests.sh
+
+      - name: Sync keys
+        run: aws s3 sync ./keys s3://concrete-libs-keycache
+
+  remove_label:
+    name: Remove m1_test label
+    runs-on: ubuntu-latest
+    needs:
+      - cargo-builds
+    if: ${{ always() }}
+    steps:
+      - uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          labels: m1_test
+          github_token: ${{ secrets.GITHUB_TOKEN }}
