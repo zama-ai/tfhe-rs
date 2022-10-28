@@ -12,7 +12,7 @@ where
 
 pub fn check_ptr_is_non_null_and_aligned<T>(ptr: *const T) -> Result<(), String> {
     if ptr.is_null() {
-        return Err(format!("pointer is null, got: {:p}", ptr));
+        return Err(format!("pointer is null, got: {ptr:p}"));
     }
     let expected_alignment = std::mem::align_of::<T>();
     if ptr as usize % expected_alignment != 0 {
