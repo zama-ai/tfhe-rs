@@ -10,9 +10,6 @@ use std::fmt::{Display, Formatter};
 mod cuda_engine;
 pub use cuda_engine::*;
 
-mod cuda_amortized_engine;
-pub use cuda_amortized_engine::*;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SharedMemoryAmount(pub usize);
 

@@ -48,7 +48,7 @@ impl ShortintEngine {
             (1_u64 << 63) / (_server_key.message_modulus.0 * _server_key.carry_modulus.0) as u64;
 
         //Scaling + 1 on the padding bit
-        let w = z * delta as u64;
+        let w = z * delta;
 
         // (0,Delta*z) - ct
         self.engine.fuse_opp_lwe_ciphertext(&mut ct.ct)?;

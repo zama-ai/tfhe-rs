@@ -3,7 +3,6 @@
 //! This module implements low-overhead fully homomorphic operations.
 
 pub mod bootstrap;
-pub mod ggsw;
 pub mod glwe;
 pub mod keyswitch;
 pub mod lwe;
