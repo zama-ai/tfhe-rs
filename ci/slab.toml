@@ -3,11 +3,6 @@ region = "eu-west-3"
 image_id = "ami-04deffe45b5b236fd"
 instance_type = "c5a.8xlarge"
 
-[profile.cpu]
-region = "eu-west-3"
-image_id = "ami-04deffe45b5b236fd"
-instance_type = "m5.2xlarge"
-
 [profile.gpu]
 region = "us-east-1"
 image_id = "ami-0ae662beb44082155"
@@ -19,11 +14,6 @@ security_group = "sg-0466d33ced960ba35"
 workflow = "aws_slab_shortint.yml"
 profile = "cpu-big"
 check_run_name = "Shortint CPU AWS Tests"
-
-[command.concrete-test-cpu]
-workflow = "aws_slab_concrete.yml"
-profile = "cpu"
-check_run_name = "Concrete CPU AWS Tests"
 
 [command.gpu_test]
 workflow = "aws_tests_gpu_slab_beta.yml"
