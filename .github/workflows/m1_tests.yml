@@ -90,9 +90,8 @@ jobs:
           aws-region: eu-west-3
           role-duration-seconds: 10800
 
-      - name: Install AWS CLI
-        run: |
-          brew install awscli
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
 
       - name: Download keys locally
         run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
