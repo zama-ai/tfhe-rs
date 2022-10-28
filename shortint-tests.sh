@@ -11,7 +11,7 @@ if [[ $(uname) == "Darwin" ]]; then
     nproc_bin="sysctl -n hw.logicalcpu"
 fi
 
-if uname | grep "arm64"; then
+if uname -a | grep "arm64"; then
     arch_feature=aarch64-unix
 fi
 
