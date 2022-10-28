@@ -17,10 +17,10 @@ impl Display for DefaultSerializationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             DefaultSerializationError::Serialization(bincode_error) => {
-                write!(f, "Failed to serialize entity: {}", bincode_error)
+                write!(f, "Failed to serialize entity: {bincode_error}")
             }
             DefaultSerializationError::Deserialization(bincode_error) => {
-                write!(f, "Failed to deserialize entity: {}", bincode_error)
+                write!(f, "Failed to deserialize entity: {bincode_error}")
             }
             DefaultSerializationError::UnsupportedVersion => {
                 write!(

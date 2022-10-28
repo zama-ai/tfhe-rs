@@ -153,7 +153,7 @@ impl ShortintEngine {
 
         // This accumulator extracts the carry bits
         for i in 0..modulus_sup {
-            let index = i as usize * box_size;
+            let index = i * box_size;
             accumulator_u64[index..index + box_size]
                 .iter_mut()
                 .for_each(|a| *a = f(i as u64) * delta);

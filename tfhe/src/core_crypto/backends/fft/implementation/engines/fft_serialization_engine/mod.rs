@@ -15,10 +15,10 @@ impl Display for FftSerializationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             FftSerializationError::Serialization(bincode_error) => {
-                write!(f, "Failed to serialize entity: {}", bincode_error)
+                write!(f, "Failed to serialize entity: {bincode_error}")
             }
             FftSerializationError::Deserialization(bincode_error) => {
-                write!(f, "Failed to deserialize entity: {}", bincode_error)
+                write!(f, "Failed to deserialize entity: {bincode_error}")
             }
             FftSerializationError::UnsupportedVersion => {
                 write!(
