@@ -74,7 +74,6 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cuda clippy
-        continue-on-error: true
         run: |
           RUSTFLAGS="-C target-cpu=native" cargo clippy \
             --features=x86_64-unix,cuda,shortints,booleans,internal-keycache -p tfhe -- \
