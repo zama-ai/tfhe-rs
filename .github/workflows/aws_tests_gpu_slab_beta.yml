@@ -83,13 +83,13 @@ jobs:
       - name: Test tfhe-rs/boolean with cpu
         continue-on-error: true
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo test --tests \
+          RUSTFLAGS="-C target-cpu=native" cargo test --tests --release \
             --features=x86_64-unix,booleans,internal-keycache -p tfhe -- boolean::
 
       - name: Test tfhe-rs/boolean with cuda backend with CUDA 11.8
         continue-on-error: true
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo test --tests \
+          RUSTFLAGS="-C target-cpu=native" cargo test --tests --release \
             --features=x86_64-unix,cuda,booleans,internal-keycache -p tfhe -- boolean::
 
       - name: Export variables for CUDA 11.1
@@ -101,7 +101,7 @@ jobs:
       - name: Test tfhe-rs/boolean with cuda backend with CUDA 11.1
         continue-on-error: true
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo test --tests \
+          RUSTFLAGS="-C target-cpu=native" cargo test --tests --release \
             --features=x86_64-unix,cuda,booleans,internal-keycache -p tfhe -- boolean::
 
       # - name: Slack Notification
