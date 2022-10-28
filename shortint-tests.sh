@@ -26,7 +26,9 @@ filter_expression=''\
 
 export RUSTFLAGS="-C target-cpu=native"
 
+# Run tests only no examples or benches
 cargo nextest run \
+    --tests \
     --release \
     --package tfhe \
     --profile ci \
