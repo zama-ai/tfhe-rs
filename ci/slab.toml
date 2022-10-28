@@ -16,6 +16,6 @@ profile = "cpu-big"
 check_run_name = "Shortint CPU AWS Tests"
 
 [command.gpu_test]
-workflow = "aws_tests_gpu_slab_beta.yml"
+workflow = "aws_slab_boolean_w_gpu.yml"
 profile = "gpu"
 check_run_name = "AWS tests GPU (Slab)"
