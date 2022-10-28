@@ -5,6 +5,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C target-cpu=native"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
@@ -17,6 +18,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v2
@@ -27,32 +29,20 @@ jobs:
           toolchain: nightly
           default: true
 
-      - name: Build Release concrete-boolean
+      - name: Build Release boolean
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release -p concrete-boolean --all-targets
+          args: --release -p tfhe --features=x86_64-unix,booleans
 
-      - name: Build Release concrete-shortint
+      - name: Build Release shortint
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release -p concrete-shortint --all-targets --all-features
+          args: --release -p tfhe --features=x86_64-unix,shortints
 
-      - name: Build Release concrete features=booleans
+      - name: Build Release c_api
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release -p concrete --all-targets --features=booleans
-
-      - name: Build Release concrete features=shortints
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p concrete --all-targets --features=shortints
-
-      - name: Build Release concrete features=all
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p concrete --all-targets --all-features
+          args: --release -p tfhe --features=x86_64-unix,booleans-c-api,shortints-c-api

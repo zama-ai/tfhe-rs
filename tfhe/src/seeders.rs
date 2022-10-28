@@ -1,4 +1,6 @@
 use crate::core_crypto::commons::math::random::Seeder;
+#[cfg(target_os = "macos")]
+use concrete_csprng::seeders::AppleSecureEnclaveSeeder;
 #[cfg(feature = "seeder_x86_64_rdseed")]
 use concrete_csprng::seeders::RdseedSeeder;
 #[cfg(feature = "seeder_unix")]
