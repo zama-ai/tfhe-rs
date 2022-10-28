@@ -9,20 +9,23 @@ on:
     # All the inputs are provided by Slab
     inputs:
       instance_id:
-        description: 'AWS instance ID'
+        description: "AWS instance ID"
         type: string
       instance_image_id:
-        description: 'AWS instance AMI ID'
+        description: "AWS instance AMI ID"
         type: string
       instance_type:
-        description: 'AWS instance product type'
+        description: "AWS instance product type"
         type: string
       runner_name:
-        description: 'Action runner name'
+        description: "Action runner name"
         type: string
 
 jobs:
   shortint-tests:
+    concurrency:
+      group: ${{ github.ref }}_${{ github.event.inputs.instance_image_id }}_${{ github.event.inputs.instance_type }}
+      cancel-in-progress: true
     runs-on: ${{ github.event.inputs.runner_name }}
     steps:
       - name: Configure AWS credentials from Test account
@@ -63,7 +66,7 @@ jobs:
 
       - name: Download keys locally
         run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
-      
+
       - name: Run shortint tests
         run: ./shortint-tests.sh
 
