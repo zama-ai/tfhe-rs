@@ -7,7 +7,10 @@ use crate::shortint::{ClientKey, ServerKey};
 use lazy_static::*;
 use serde::{Deserialize, Serialize};
 
-use utils::{FileStorage, KeyCache as TKeyCache, NamedParam, SharedKey as GenericSharedKey};
+pub use utils::{
+    FileStorage, KeyCache as TKeyCache, NamedParam, PersistentStorage,
+    SharedKey as GenericSharedKey,
+};
 
 #[macro_use]
 pub mod utils {
