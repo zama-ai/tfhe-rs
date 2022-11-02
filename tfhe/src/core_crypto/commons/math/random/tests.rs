@@ -73,12 +73,14 @@ fn test_distribution<T: UnsignedTorus>() {
     assert_noise_distribution(&first, &second, LogStandardDev(-5.));
 }
 
-#[test]
-fn test_distribution_u32() {
-    test_distribution::<u32>();
-}
+// // These tests are notoriously flaky
 
-#[test]
-fn test_distribution_u64() {
-    test_distribution::<u64>();
-}
+// #[test]
+// fn test_distribution_u32() {
+//     test_distribution::<u32>();
+// }
+
+// #[test]
+// fn test_distribution_u64() {
+//     test_distribution::<u64>();
+// }
