@@ -82,6 +82,11 @@ jobs:
           RUSTFLAGS="-C target-cpu=native" cargo test --tests --release \
             --features=aarch64-unix,booleans,internal-keycache -p tfhe -- boolean::
 
+      - name: Run core tests
+        run: |
+          RUSTFLAGS="-C target-cpu=native" cargo test --release \
+            --features=aarch64-unix,booleans,shortints,internal-keycache -p tfhe -- core_crypto::
+
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
         with:
