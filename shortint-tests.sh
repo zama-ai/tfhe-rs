@@ -11,8 +11,15 @@ if [[ $(uname) == "Darwin" ]]; then
     nproc_bin="sysctl -n hw.logicalcpu"
 fi
 
+n_threads="$(${nproc_bin})"
+
 if uname -a | grep "arm64"; then
     arch_feature=aarch64-unix
+    if [[ $(uname) == "Darwin" ]]; then
+        # M1 mac runs were super slow, most likely because of keys, biggest keys are ~1.7G
+        # so 4 threads should leave some beathing room in the 8 gigs of RAM the M1 mac mini has
+        n_threads=4
+    fi
 fi
 
 filter_expression=''\
@@ -39,7 +46,7 @@ cargo nextest run \
     --package tfhe \
     --profile ci \
     --features="${arch_feature}",shortints,internal-keycache \
-    --test-threads "$(${nproc_bin})" \
+    --test-threads "${n_threads}" \
     -E "${filter_expression}"
 
 cargo test \
