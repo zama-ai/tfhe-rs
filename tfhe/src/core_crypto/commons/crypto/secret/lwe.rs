@@ -333,42 +333,6 @@ where
     }
 
     /// Encrypts a single ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::{Seed, UnixSeeder};
-    /// use tfhe::core_crypto::commons::crypto::encoding::*;
-    /// use tfhe::core_crypto::commons::crypto::lwe::*;
-    /// use tfhe::core_crypto::commons::crypto::secret::generators::{
-    ///     EncryptionRandomGenerator, SecretRandomGenerator,
-    /// };
-    /// use tfhe::core_crypto::commons::crypto::secret::*;
-    /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::prelude::{LogStandardDev, LweDimension, LweSize};
-    ///
-    /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let secret_key = LweSecretKey::generate_binary(LweDimension(256), &mut secret_generator);
-    /// let encoder = RealEncoder {
-    ///     offset: 0. as f32,
-    ///     delta: 10.,
-    /// };
-    /// let noise = LogStandardDev::from_log_standard_dev(-15.);
-    ///
-    /// let clear = Cleartext(2. as f32);
-    /// let plain: Plaintext<u32> = encoder.encode(clear);
-    /// let mut encrypted = LweCiphertext::allocate(0u32, LweSize(257));
-    /// let mut encryption_generator =
-    ///     EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0), &mut UnixSeeder::new(0));
-    /// secret_key.encrypt_lwe(&mut encrypted, &plain, noise, &mut encryption_generator);
-    ///
-    /// let mut decrypted = Plaintext(0u32);
-    /// secret_key.decrypt_lwe(&mut decrypted, &encrypted);
-    /// let decoded = encoder.decode(decrypted);
-    ///
-    /// assert!((decoded.0 - clear.0).abs() < 0.1);
-    /// ```
     pub fn encrypt_lwe<OutputCont, Scalar, Gen>(
         &self,
         output: &mut LweCiphertext<OutputCont>,
@@ -393,52 +357,6 @@ where
     }
 
     /// Encrypts a single seeded ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::commons::crypto::encoding::*;
-    /// use tfhe::core_crypto::commons::crypto::lwe::*;
-    /// use tfhe::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
-    /// use tfhe::core_crypto::commons::crypto::secret::*;
-    /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::commons::math::random::CompressionSeed;
-    /// use tfhe::core_crypto::prelude::{LogStandardDev, LweDimension, LweSize};
-    ///
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::{Seed, Seeder, UnixSeeder};
-    ///
-    /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    ///
-    /// let mut seeder = UnixSeeder::new(0);
-    ///
-    /// let secret_key = LweSecretKey::generate_binary(LweDimension(256), &mut secret_generator);
-    /// let encoder = RealEncoder {
-    ///     offset: 0. as f32,
-    ///     delta: 10.,
-    /// };
-    /// let noise = LogStandardDev::from_log_standard_dev(-15.);
-    ///
-    /// let clear = Cleartext(2. as f32);
-    /// let plain: Plaintext<u32> = encoder.encode(clear);
-    /// let mut encrypted: LweSeededCiphertext<u32> =
-    ///     LweSeededCiphertext::allocate(LweDimension(256), CompressionSeed { seed: Seed(42) });
-    /// secret_key.encrypt_seeded_lwe::<_, _, _, SoftwareRandomGenerator>(
-    ///     &mut encrypted,
-    ///     &plain,
-    ///     noise,
-    ///     &mut seeder,
-    /// );
-    ///
-    /// let mut encrypted_expanded = LweCiphertext::allocate(0u32, LweSize(257));
-    /// encrypted.expand_into::<_, SoftwareRandomGenerator>(&mut encrypted_expanded);
-    ///
-    /// let mut decrypted = Plaintext(0u32);
-    /// secret_key.decrypt_lwe(&mut decrypted, &encrypted_expanded);
-    /// let decoded = encoder.decode(decrypted);
-    ///
-    /// assert!((decoded.0 - clear.0).abs() < 0.1);
-    /// ```
     pub fn encrypt_seeded_lwe<Scalar, NoiseParameter, NoiseSeeder, Gen>(
         &self,
         output: &mut LweSeededCiphertext<Scalar>,
@@ -478,55 +396,6 @@ where
     }
 
     /// Encrypts a list of ciphertexts.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::{Seed, UnixSeeder};
-    /// use tfhe::core_crypto::commons::crypto::encoding::*;
-    /// use tfhe::core_crypto::commons::crypto::lwe::*;
-    /// use tfhe::core_crypto::commons::crypto::secret::generators::{
-    ///     EncryptionRandomGenerator, SecretRandomGenerator,
-    /// };
-    /// use tfhe::core_crypto::commons::crypto::secret::*;
-    /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, CleartextCount, LogStandardDev, LweDimension, LweSize, PlaintextCount,
-    /// };
-    ///
-    /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let secret_key = LweSecretKey::generate_binary(LweDimension(256), &mut secret_generator);
-    /// let encoder = RealEncoder {
-    ///     offset: 0. as f32,
-    ///     delta: 10.,
-    /// };
-    /// let noise = LogStandardDev::from_log_standard_dev(-15.);
-    ///
-    /// let clear_values = CleartextList::allocate(2. as f32, CleartextCount(100));
-    /// let mut plain_values = PlaintextList::allocate(0u32, PlaintextCount(100));
-    /// encoder.encode_list(&mut plain_values, &clear_values);
-    /// let mut encrypted_values = LweList::allocate(0u32, LweSize(257), CiphertextCount(100));
-    /// let mut encryption_generator =
-    ///     EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0), &mut UnixSeeder::new(0));
-    /// secret_key.encrypt_lwe_list(
-    ///     &mut encrypted_values,
-    ///     &plain_values,
-    ///     noise,
-    ///     &mut encryption_generator,
-    /// );
-    ///
-    /// let mut decrypted_values = PlaintextList::allocate(0u32, PlaintextCount(100));
-    /// secret_key.decrypt_lwe_list(&mut decrypted_values, &encrypted_values);
-    /// let mut decoded_values = CleartextList::allocate(0. as f32, CleartextCount(100));
-    /// encoder.decode_list(&mut decoded_values, &decrypted_values);
-    /// for (clear, decoded) in clear_values
-    ///     .cleartext_iter()
-    ///     .zip(decoded_values.cleartext_iter())
-    /// {
-    ///     assert!((clear.0 - decoded.0).abs() < 0.1);
-    /// }
-    /// ```
     pub fn encrypt_lwe_list<OutputCont, InputCont, Scalar, Gen>(
         &self,
         output: &mut LweList<OutputCont>,

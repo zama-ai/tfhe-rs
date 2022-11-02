@@ -51,54 +51,8 @@ where
 {
     /// Creates a new ciphertext containing the trivial encryption of the plain text
     ///
-    /// `Trivial` means that the LWE masks consist of zeros only.
-    ///
-    /// # Example
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::crypto::encoding::*;
-    /// use tfhe::core_crypto::commons::crypto::lwe::*;
-    /// use tfhe::core_crypto::commons::crypto::secret::generators::{
-    ///     EncryptionRandomGenerator, SecretRandomGenerator,
-    /// };
-    /// use tfhe::core_crypto::commons::crypto::secret::*;
-    /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::prelude::{
-    ///     CiphertextCount, CleartextCount, LogStandardDev, LweDimension, LweSize, PlaintextCount,
-    /// };
-    ///
-    /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let secret_key = LweSecretKey::generate_binary(LweDimension(256), &mut secret_generator);
-    ///
-    /// let clear_values = CleartextList::allocate(2. as f32, CleartextCount(100));
-    /// let mut plain_values = PlaintextList::allocate(0u32, PlaintextCount(100));
-    /// let encoder = RealEncoder {
-    ///     offset: 0. as f32,
-    ///     delta: 10.,
-    /// };
-    ///
-    /// encoder.encode_list(&mut plain_values, &clear_values);
-    /// let mut encrypted_values =
-    ///     LweList::new_trivial_encryption(secret_key.key_size().to_lwe_size(), &plain_values);
-    ///
-    /// for ciphertext in encrypted_values.ciphertext_iter() {
-    ///     for mask in ciphertext.get_mask().mask_element_iter() {
-    ///         assert_eq!(*mask, 0);
-    ///     }
-    /// }
-    ///
-    /// let mut decrypted_values = PlaintextList::allocate(0u32, PlaintextCount(100));
-    /// secret_key.decrypt_lwe_list(&mut decrypted_values, &encrypted_values);
-    /// let mut decoded_values = CleartextList::allocate(0. as f32, CleartextCount(100));
-    /// encoder.decode_list(&mut decoded_values, &decrypted_values);
-    /// for (clear, decoded) in clear_values
-    ///     .cleartext_iter()
-    ///     .zip(decoded_values.cleartext_iter())
-    /// {
-    ///     assert!((clear.0 - decoded.0).abs() < 0.1);
-    /// }
-    /// ```
+    /// `Trivial` means that the LWE masks consist of zeros only and can therefore be decrypted with
+    /// any key.
     pub fn new_trivial_encryption<PlaintextContainer>(
         lwe_size: LweSize,
         plaintexts: &PlaintextList<PlaintextContainer>,
@@ -399,60 +353,6 @@ impl<Cont> LweList<Cont> {
     /// $$
     /// bias\[i\] + \sum\_j input\_list\[i\]\[j\] * weights\[i\]\[j\]
     /// $$
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::{Seed, UnixSeeder};
-    /// use tfhe::core_crypto::commons::crypto::encoding::*;
-    /// use tfhe::core_crypto::commons::crypto::lwe::*;
-    /// use tfhe::core_crypto::commons::crypto::secret::generators::{
-    ///     EncryptionRandomGenerator, SecretRandomGenerator,
-    /// };
-    /// use tfhe::core_crypto::commons::crypto::secret::*;
-    /// use tfhe::core_crypto::commons::crypto::*;
-    /// use tfhe::core_crypto::commons::math::tensor::AsRefTensor;
-    /// use tfhe::core_crypto::prelude::{LogStandardDev, LweDimension, LweSize};
-    ///
-    /// let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut encryption_generator =
-    ///     EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(Seed(0), &mut UnixSeeder::new(0));
-    ///
-    /// let secret_key = LweSecretKey::generate_binary(LweDimension(4), &mut secret_generator);
-    /// let parameters = LogStandardDev::from_log_standard_dev(-60.);
-    /// let encoder = RealEncoder {
-    ///     offset: 0. as f32,
-    ///     delta: 200.,
-    /// };
-    ///
-    /// let clear_values = CleartextList::from_container(vec![1f32, 2., 3., 4., 5., 6.]);
-    /// let mut plain_values = PlaintextList::from_container(vec![0u32; 6]);
-    /// encoder.encode_list(&mut plain_values, &clear_values);
-    /// let mut cipher_values = LweList::from_container(vec![0. as u32; 5 * 6], LweSize(5));
-    /// secret_key.encrypt_lwe_list(
-    ///     &mut cipher_values,
-    ///     &plain_values,
-    ///     parameters,
-    ///     &mut encryption_generator,
-    /// );
-    ///
-    /// let mut output = LweList::from_container(vec![0u32; 5 * 2], LweSize(5));
-    /// let weights = CleartextList::from_container(vec![7, 8, 9, 10, 11, 12]);
-    /// let biases = PlaintextList::from_container(vec![
-    ///     encoder.encode(Cleartext(13.)).0,
-    ///     encoder.encode(Cleartext(14.)).0,
-    /// ]);
-    ///
-    /// output.fill_with_multisums_with_biases(&cipher_values, &weights, &biases);
-    ///
-    /// let mut decrypted = PlaintextList::from_container(vec![0u32; 2]);
-    /// secret_key.decrypt_lwe_list(&mut decrypted, &output);
-    /// let mut decoded = CleartextList::from_container(vec![0f32; 2]);
-    /// encoder.decode_list(&mut decoded, &decrypted);
-    /// assert!((decoded.as_tensor().first() - 63.).abs() < 0.3);
-    /// assert!((decoded.as_tensor().last() - 181.).abs() < 0.3);
-    /// ```
     pub fn fill_with_multisums_with_biases<Scalar, InputCont, WeightCont, BiasesCont>(
         &mut self,
         input_list: &LweList<InputCont>,
