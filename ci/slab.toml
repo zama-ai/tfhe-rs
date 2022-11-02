@@ -10,7 +10,7 @@ instance_type = "p3.2xlarge"
 subnet_id = "subnet-8123c9e7"
 security_group = "sg-0466d33ced960ba35"
 
-[command.shortint-test-cpu]
+[command.cpu_test]
 workflow = "aws_slab_shortint.yml"
 profile = "cpu-big"
 check_run_name = "Shortint CPU AWS Tests"
