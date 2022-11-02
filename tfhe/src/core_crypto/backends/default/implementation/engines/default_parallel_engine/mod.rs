@@ -35,9 +35,9 @@ pub struct DefaultParallelEngine {
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
     pub(crate) encryption_generator: ImplEncryptionRandomGenerator<ActivatedRandomGenerator>,
-    /// A seeder that can be called to generate 128 bits seeds, useful to create new
-    /// [`ImplEncryptionRandomGenerator`] to encrypt seeded types.
-    seeder: ImplDeterministicSeeder<ActivatedRandomGenerator>,
+    // /// A seeder that can be called to generate 128 bits seeds, useful to create new
+    // /// [`ImplEncryptionRandomGenerator`] to encrypt seeded types.
+    // seeder: ImplDeterministicSeeder<ActivatedRandomGenerator>,
 }
 
 impl AbstractEngineSeal for DefaultParallelEngine {}
@@ -56,7 +56,7 @@ impl AbstractEngine for DefaultParallelEngine {
                 deterministic_seeder.seed(),
                 &mut deterministic_seeder,
             ),
-            seeder: deterministic_seeder,
+            // seeder: deterministic_seeder,
         })
     }
 }
@@ -65,4 +65,4 @@ mod lwe_bootstrap_key_generation;
 mod lwe_ciphertext_vector_zero_encryption;
 mod lwe_circuit_bootstrap_private_functional_packing_keyswitch_keys_generation;
 mod lwe_public_key_generation;
-mod lwe_seeded_bootstrap_key_generation;
+// mod lwe_seeded_bootstrap_key_generation;

@@ -68,6 +68,7 @@ impl AbstractEngine for DefaultEngine {
 }
 
 mod cleartext_creation;
+mod glwe_ciphertext_consuming_retrieval;
 mod glwe_ciphertext_creation;
 mod glwe_ciphertext_trivial_encryption;
 mod glwe_secret_key_generation;
@@ -107,7 +108,6 @@ mod plaintext_vector_creation;
 // mod ggsw_ciphertext_scalar_discarding_encryption;
 // mod ggsw_ciphertext_scalar_encryption;
 // mod ggsw_ciphertext_scalar_trivial_encryption;
-// mod glwe_ciphertext_consuming_retrieval;
 // mod glwe_ciphertext_decryption;
 // mod glwe_ciphertext_discarding_decryption;
 // mod glwe_ciphertext_discarding_encryption;
