@@ -2,7 +2,6 @@
 //! the cuda backend.
 
 use crate::core_crypto::backends::cuda::private::device::GpuIndex;
-use crate::core_crypto::specification::engines::LweCiphertextVectorDiscardingBootstrapError;
 
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -68,12 +67,6 @@ impl Display for CudaError {
 }
 
 impl Error for CudaError {}
-
-impl From<CudaError> for LweCiphertextVectorDiscardingBootstrapError<CudaError> {
-    fn from(err: CudaError) -> Self {
-        Self::Engine(err)
-    }
-}
 
 macro_rules! check_glwe_dim {
     ($glwe_dimension: ident) => {
