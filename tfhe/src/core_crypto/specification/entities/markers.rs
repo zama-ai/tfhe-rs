@@ -32,32 +32,12 @@ entity_kind_marker! {
             => "An empty type representing the plaintext vector kind in the type system",
         CleartextKind
             => "An empty type representing the cleartext kind in the type system.",
-        CleartextVectorKind
-            => "An empty type representing the cleartext vector kind in the type system.",
         LweCiphertextKind
             => "An empty type representing the LWE ciphertext kind in the type system.",
         LweCiphertextVectorKind
             => "An empty type representing the LWE ciphertext vector kind in the type system.",
-        LweSeededCiphertextKind
-            => "An empty type representing the seeded LWE ciphertext kind in the type system.",
-        LweSeededCiphertextVectorKind
-            => "An empty type representing the seeded LWE ciphertext vector kind in the type system.",
         GlweCiphertextKind
             => "An empty type representing the GLWE ciphertext kind in the type system.",
-        GlweCiphertextVectorKind
-            => "An empty type representing the GLWE ciphertext vector kind in the type system.",
-        GlweSeededCiphertextKind
-            => "An empty type representing the seeded GLWE ciphertext kind in the type system.",
-        GlweSeededCiphertextVectorKind
-            => "An empty type representing the seeded GLWE ciphertext vector kind in the type system.",
-        GgswCiphertextKind
-            => "An empty type representing the GGSW ciphertext kind in the type system.",
-        GgswSeededCiphertextKind
-            => "An empty type representing the seeded GGSW ciphertext kind in the type system.",
-        GswCiphertextKind
-            => "An empty type representing the GSW ciphertext kind in the type system.",
-        GswCiphertextVectorKind
-            => "An empty type representing the GSW ciphertext vector kind in the type system.",
         LwePublicKeyKind
             => "An empty type representing the LWE public key kind in the type system.",
         LweSecretKeyKind
@@ -66,20 +46,11 @@ entity_kind_marker! {
             => "An empty type representing the GLWE secret key kind in the type system.",
         LweKeyswitchKeyKind
             => "An empty type representing the LWE keyswitch key kind in the type system.",
-        LweSeededKeyswitchKeyKind
-            => "An empty type representing the seeded LWE keyswitch key kind in the type system.",
-        LwePackingKeyswitchKeyKind
-            => "An empty type representing the packing keyswitch key kind in the type system.",
-        LwePrivateFunctionalPackingKeyswitchKeyKind
-            => "An empty type representing the private functional packing keyswitch key in the \
-            type system.",
         LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeysKind
             => "An empty type representing the private functional packing keyswitch key vector \
             used for a circuit bootstrap in the type system.",
         LweBootstrapKeyKind
-            => "An empty type representing the LWE bootstrap key kind in the type system.",
-        LweSeededBootstrapKeyKind
-            => "An empty type representing the seeded LWE bootstrap key kind in the type system."
+            => "An empty type representing the LWE bootstrap key kind in the type system."
 }
 
 pub(crate) mod seal {
