@@ -1,2 +1,0 @@
-[alias]
-xtask = "run --manifest-path ./concrete-tasks/Cargo.toml --"

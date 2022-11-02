@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["tfhe", "concrete-tasks"]
+members = ["tfhe"]
 
 [profile.bench]
 lto = "fat"
