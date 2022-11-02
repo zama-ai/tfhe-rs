@@ -21,6 +21,7 @@ criterion = "0.3.5"
 doc-comment = "0.3.3"
 # Used in user documentation
 bincode = "1.3.3"
+base64 = "0.13.1"
 
 [build-dependencies]
 cbindgen = { version = "0.24.3", optional = true }
@@ -34,7 +35,7 @@ rayon = { version = "1.5.0", optional = true }
 bincode = { version = "1.3.3", optional = true }
 concrete-fft = { version = "0.1", optional = true }
 aligned-vec = "0.5"
-dyn-stack = "0.8"
+dyn-stack = { version = "0.8", optional = true }
 once_cell = "1.13"
 paste = "1.0.7"
 
@@ -70,11 +71,11 @@ shortints-client-js-wasm-api = ["shortints", "__wasm_api"]
 cuda = ["backend_cuda"]
 nightly-avx512 = ["backend_fft_nightly_avx512"]
 
-# A pure-rust backend. Included by default in the build.
+# A pure-rust CPU backend.
 backend_default = ["concrete-csprng/generator_soft"]
 
 # An accelerated backend, using the `concrete-fft` library.
-backend_fft = ["concrete-fft"]
+backend_fft = ["concrete-fft", "dyn-stack"]
 backend_fft_serialization = [
     "bincode",
     "concrete-fft/serde",
@@ -92,6 +93,8 @@ backend_default_generator_x86_64_aesni = [
     "concrete-csprng/generator_x86_64_aesni",
 ]
 
+# Enable the aarch64 specific accelerated implementation of the random generator for the default
+# backend
 backend_default_generator_aarch64_aes = [
     "concrete-csprng/generator_aarch64_aes",
 ]
@@ -104,7 +107,6 @@ backend_cuda = ["concrete-cuda"]
 
 # Private features
 __profiling = []
-__private_docs = []
 __commons_parallel = ["rayon", "concrete-csprng/parallel"]
 __commons_serialization = ["serde", "serde/derive"]
 
@@ -161,6 +163,9 @@ name = "shortint-bench"
 path = "benches/shortint/bench.rs"
 harness = false
 required-features = ["shortints", "internal-keycache"]
+
+[[example]]
+name = "convert_file_bytes_to_base64"
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
