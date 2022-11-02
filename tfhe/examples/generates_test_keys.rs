@@ -1,4 +1,4 @@
-use concrete_utils::keycache::{FileStorage, NamedParam, PersistentStorage};
+use tfhe::shortint::keycache::{utils::PersistentStorage, FileStorage, NamedParam};
 
 use tfhe::shortint::gen_keys;
 use tfhe::shortint::parameters::ALL_PARAMETER_VEC;

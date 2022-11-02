@@ -16,7 +16,6 @@ build = "build.rs"
 rand = "0.7"
 kolmogorov_smirnov = "1.1.0"
 paste = "1.0.7"
-concrete-utils = { path = "../concrete-utils", version = "0.2.0" }
 lazy_static = { version = "1.4.0" }
 criterion = "0.3.5"
 doc-comment = "0.3.3"
@@ -29,10 +28,6 @@ cbindgen = { version = "0.24.3", optional = true }
 [dependencies]
 concrete-csprng = { version = "0.2.1" }
 concrete-cuda = { version = "0.1.1", optional = true }
-# both utils and lazy_static are used for the keycache
-# they both are deps to allow usage in bench in integer crate
-# and dev-deps to automatically enable them in tests
-concrete-utils = { path = "../concrete-utils", version = "0.2.0", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
 serde = { version = "1.0", optional = true }
 rayon = { version = "1.5.0", optional = true }
@@ -55,7 +50,7 @@ getrandom = { version = "0.2.8", optional = true }
 [features]
 booleans = ["minimal_core_crypto_features"]
 shortints = ["minimal_core_crypto_features"]
-internal-keycache = ["concrete-utils", "lazy_static"]
+internal-keycache = ["lazy_static"]
 
 __c_api = ["cbindgen", "minimal_core_crypto_features"]
 booleans-c-api = ["booleans", "__c_api"]
