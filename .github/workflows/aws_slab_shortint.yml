@@ -57,6 +57,11 @@ jobs:
           toolchain: stable
           default: true
 
+      - name: Run core tests
+        run: |
+          RUSTFLAGS="-C target-cpu=native" cargo test --release \
+            --features=x86_64-unix,booleans,shortints,internal-keycache -p tfhe -- core_crypto::
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
 
