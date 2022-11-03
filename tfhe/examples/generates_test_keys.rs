@@ -14,6 +14,11 @@ fn client_server_keys() {
             ALL_PARAMETER_VEC.len(),
             params.name()
         );
+
+        if file_storage.load(params).is_some() {
+            continue;
+        }
+
         let client_server_keys = gen_keys(params);
         file_storage.store(params, &client_server_keys);
     }
