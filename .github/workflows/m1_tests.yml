@@ -79,38 +79,44 @@ jobs:
 
       - name: Test tfhe-rs/boolean with cpu
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo test --release \
+          cargo test --release \
             --features=aarch64-unix,booleans,internal-keycache -p tfhe -- boolean::
 
       - name: Run core tests
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo test --release \
+          cargo test --release \
             --features=aarch64-unix,booleans,shortints,internal-keycache -p tfhe -- core_crypto::
 
       - name: Run C API tests
         run: |
           ./scripts/c_api_tests.sh
 
-      - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_IAM_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_IAM_KEY }}
-          role-to-assume: concrete-lib-ci
-          aws-region: eu-west-3
-          role-duration-seconds: 10800
+      # - name: Configure AWS credentials from Test account
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_IAM_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_IAM_KEY }}
+      #     role-to-assume: concrete-lib-ci
+      #     aws-region: eu-west-3
+      #     role-duration-seconds: 10800
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
 
-      - name: Download keys locally
-        run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
+      # - name: Download keys locally
+      #   run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
+
+      - name: Generate keys
+        run: |
+          cargo run --release \
+          --example generates_test_keys \
+          --features=aarch64-unix,shortints,internal-keycache -p tfhe
 
       - name: Run shortint tests
         run: ./scripts/shortint-tests.sh
 
-      - name: Sync keys
-        run: aws s3 sync ./keys s3://concrete-libs-keycache
+      # - name: Sync keys
+      #   run: aws s3 sync ./keys s3://concrete-libs-keycache
 
   remove_label:
     name: Remove m1_test label
