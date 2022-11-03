@@ -21,7 +21,6 @@ criterion = "0.3.5"
 doc-comment = "0.3.3"
 # Used in user documentation
 bincode = "1.3.3"
-base64 = "0.13.1"
 
 [build-dependencies]
 cbindgen = { version = "0.24.3", optional = true }
@@ -107,6 +106,7 @@ backend_cuda = ["concrete-cuda"]
 
 # Private features
 __profiling = []
+__private_docs = []
 __commons_parallel = ["rayon", "concrete-csprng/parallel"]
 __commons_serialization = ["serde", "serde/derive"]
 
@@ -163,9 +163,6 @@ name = "shortint-bench"
 path = "benches/shortint/bench.rs"
 harness = false
 required-features = ["shortints", "internal-keycache"]
-
-[[example]]
-name = "convert_file_bytes_to_base64"
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
