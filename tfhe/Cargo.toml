@@ -164,5 +164,9 @@ path = "benches/shortint/bench.rs"
 harness = false
 required-features = ["shortints", "internal-keycache"]
 
+[[example]]
+name = "generates_test_keys"
+required-features = ["shortints", "internal-keycache"]
+
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]

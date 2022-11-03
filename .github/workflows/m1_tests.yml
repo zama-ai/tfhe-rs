@@ -79,7 +79,7 @@ jobs:
 
       - name: Test tfhe-rs/boolean with cpu
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo test --tests --release \
+          RUSTFLAGS="-C target-cpu=native" cargo test --release \
             --features=aarch64-unix,booleans,internal-keycache -p tfhe -- boolean::
 
       - name: Run core tests
