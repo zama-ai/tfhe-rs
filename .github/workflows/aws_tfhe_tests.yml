@@ -79,7 +79,8 @@ jobs:
 
       - name: Gen Keys if required
         run: |
-          cargo run --example generates_test_keys --features=shortints,internal-keycache -p tfhe
+          cargo run --example generates_test_keys \
+          --features=x86_64-unix,shortints,internal-keycache -p tfhe
 
       - name: Run shortint tests
         run: ./scripts/shortint-tests.sh
