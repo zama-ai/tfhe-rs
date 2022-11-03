@@ -11,11 +11,11 @@ subnet_id = "subnet-8123c9e7"
 security_group = "sg-0466d33ced960ba35"
 
 [command.cpu_test]
-workflow = "aws_slab_shortint.yml"
+workflow = "aws_tfhe_tests.yml"
 profile = "cpu-big"
 check_run_name = "Shortint CPU AWS Tests"
 
 [command.gpu_test]
-workflow = "aws_slab_boolean_w_gpu.yml"
+workflow = "aws_tfhe_tests_w_gpu.yml"
 profile = "gpu"
 check_run_name = "AWS tests GPU (Slab)"

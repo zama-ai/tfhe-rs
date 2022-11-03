@@ -1,4 +1,4 @@
-name: Shortint AWS Tests
+name: AWS Tests on CPU
 
 env:
   CARGO_TERM_COLOR: always
@@ -74,7 +74,7 @@ jobs:
         run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
 
       - name: Run shortint tests
-        run: ./shortint-tests.sh
+        run: ./scripts/shortint-tests.sh
 
       - name: Sync keys
         run: aws s3 sync ./keys s3://concrete-libs-keycache
