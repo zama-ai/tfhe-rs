@@ -125,6 +125,40 @@ impl ServerKey {
         })
     }
 
+    /// Constructs the accumulator for a given bivariate function as input.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 3;
+    ///
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(0);
+    /// // Generate the accumulator for the function f: x -> x^2 mod 2^2
+    /// let f = |x, y| (x + y) ^ 2 % 4;
+    ///
+    /// let acc = sks.generate_accumulator_bivariate(f);
+    /// let ct_res = sks.keyswitch_programmable_bootstrap_bivariate(&ct1, &ct2, &acc);
+    ///
+    /// let dec = cks.decrypt(&ct_res);
+    /// // 3^2 mod 4 = 1
+    /// assert_eq!(dec, f(msg, 0));
+    /// ```
+    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> GlweCiphertext64
+    where
+        F: Fn(u64, u64) -> u64,
+    {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.generate_accumulator_bivariate(self, f).unwrap()
+        })
+    }
+
     /// Computes a keyswitch and a bootstrap, returning a new ciphertext with empty
     /// carry bits.
     ///
@@ -178,6 +212,56 @@ impl ServerKey {
     pub fn keyswitch_bootstrap_assign(&self, ct_in: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.keyswitch_bootstrap_assign(self, ct_in).unwrap()
+        })
+    }
+
+    /// Computes a keyswitch and programmable bootstrap.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg: u64 = 3;
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
+    /// let acc = sks.generate_accumulator_bivariate(|x, y| x * y * x % modulus);
+    /// let ct_res = sks.keyswitch_programmable_bootstrap_bivariate(&ct1, &ct2, &acc);
+    ///
+    /// let dec = cks.decrypt(&ct_res);
+    /// // 3^3 mod 4 = 3
+    /// assert_eq!(dec, (msg * msg * msg) % modulus);
+    /// ```
+    pub fn keyswitch_programmable_bootstrap_bivariate(
+        &self,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+        acc: &GlweCiphertext64,
+    ) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .programmable_bootstrap_keyswitch_bivariate(self, ct_left, ct_right, acc)
+                .unwrap()
+        })
+    }
+
+    pub fn keyswitch_programmable_bootstrap_bivariate_assign(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
+        acc: &GlweCiphertext64,
+    ) {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .programmable_bootstrap_keyswitch_bivariate_assign(self, ct_left, ct_right, acc)
+                .unwrap()
         })
     }
 

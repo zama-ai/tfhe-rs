@@ -181,6 +181,24 @@ impl ShortintEngine {
         Ok(accumulator)
     }
 
+    fn generate_accumulator_bivariate_with_engine<F>(
+        engine: &mut DefaultEngine,
+        server_key: &ServerKey,
+        f: F,
+    ) -> EngineResult<GlweCiphertext64>
+    where
+        F: Fn(u64, u64) -> u64,
+    {
+        let modulus = server_key.message_modulus.0 as u64;
+        let wrapped_f = |input: u64| -> u64 {
+            let lhs = (input / modulus) % modulus;
+            let rhs = input % modulus;
+
+            f(lhs, rhs)
+        };
+        ShortintEngine::generate_accumulator_with_engine(engine, server_key, wrapped_f)
+    }
+
     /// Returns the `Buffers` for the given `ServerKey`
     ///
     /// Takes care creating the buffers if they do not exists for the given key

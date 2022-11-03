@@ -17,7 +17,6 @@
 //! Note that if you desire, you can also create your own set of parameters.
 //! This is an unsafe operation as failing to properly fix the parameters will potentially result
 //! with an incorrect and/or insecure computation.
-// TODO: speak about the lattice estimator and give the explicit used commit for the parameters
 
 pub use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
@@ -49,7 +48,7 @@ impl BooleanParameters {
     /// of those parameters, you __must__ stick with the provided parameters [`DEFAULT_PARAMETERS`]
     /// and [`TFHE_LIB_PARAMETERS`], which both offer correct results with 128 bits of security.
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn new_insecure(
+    pub unsafe fn new(
         lwe_dimension: LweDimension,
         glwe_dimension: GlweDimension,
         polynomial_size: PolynomialSize,

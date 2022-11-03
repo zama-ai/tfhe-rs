@@ -1,8 +1,8 @@
-# Writing Your First Circuit
+# Tutorial: Writing an homomorphic circuit using shortints
 
 # 1. Key Generation
 
-`concrete-shortint` provides 2 key types:
+`tfhe::shortint` provides 2 key types:
  - `ClientKey`
  - `ServerKey`
 
@@ -23,9 +23,9 @@ To reflect that, computation/operation methods are tied to the `ServerKey` type.
 
 
 ```rust
-use concrete_shortint::{gen_keys, Parameters};
+use tfhe::shortint::prelude::*;
 
-fn main() {
+fn main()  {
     // We generate a set of client/server keys, using the default parameters:
     let (client_key, server_key) = gen_keys(Parameters::default());
 }
@@ -34,10 +34,10 @@ fn main() {
 
 # 2. Encrypting values
 
-Once we have our keys we can encrypt values:
+Once the keys have been generated, the client key is used to encrypt data:
 
 ```rust
-use concrete_shortint::{gen_keys, Parameters};
+use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
@@ -52,13 +52,35 @@ fn main() {
 }
 ```
 
+# 2 bis. Encrypting values using a public key
+
+Once the keys have been generated, the client key is used to encrypt data:
+
+```rust
+use tfhe::shortint::prelude::*;
+
+fn main() {
+    // We generate a set of client/server keys, using the default parameters:
+   let (client_key, server_key) = gen_keys(Parameters::default());
+   let public_key = PublicKey::new(&client_key);
+    
+    let msg1 = 1;
+    let msg2 = 0;
+   
+    // We use the client key to encrypt two messages:
+    let ct_1 = public_key.encrypt(&server_key, msg1);
+    let ct_2 = public_key.encrypt(&server_key, msg2);
+}
+```
+
+
 # 3. Computing and decrypting
 
 With our `server_key`, and encrypted values, we can now do an addition
 and then decrypt the result.
 
 ```rust
-use concrete_shortint::{gen_keys, Parameters};
+use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
