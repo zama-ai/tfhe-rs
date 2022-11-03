@@ -91,21 +91,10 @@ jobs:
         run: |
           ./scripts/c_api_tests.sh
 
-      # - name: Configure AWS credentials from Test account
-      #   uses: aws-actions/configure-aws-credentials@v1
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_IAM_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_IAM_KEY }}
-      #     role-to-assume: concrete-lib-ci
-      #     aws-region: eu-west-3
-      #     role-duration-seconds: 10800
-
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
 
-      # - name: Download keys locally
-      #   run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
-
+      # Generating keys is faster than downloading the cache for a machine not in the AWS datacenter
       - name: Generate keys
         run: |
           cargo run --release \
@@ -114,9 +103,6 @@ jobs:
 
       - name: Run shortint tests
         run: ./scripts/shortint-tests.sh
-
-      # - name: Sync keys
-      #   run: aws s3 sync ./keys s3://concrete-libs-keycache
 
   remove_label:
     name: Remove m1_test label
