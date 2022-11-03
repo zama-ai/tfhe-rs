@@ -61,6 +61,7 @@
 
 use crate::boolean::client_key::ClientKey;
 use crate::boolean::parameters::DEFAULT_PARAMETERS;
+use crate::boolean::public_key::PublicKey;
 use crate::boolean::server_key::ServerKey;
 #[cfg(test)]
 use rand::Rng;
@@ -70,6 +71,7 @@ pub mod client_key;
 pub mod engine;
 pub mod parameters;
 pub mod prelude;
+pub mod public_key;
 pub mod server_key;
 
 /// The scaling factor used for the plaintext

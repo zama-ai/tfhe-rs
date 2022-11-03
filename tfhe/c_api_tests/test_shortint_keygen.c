@@ -67,8 +67,41 @@ void test_custom_keygen(void) {
   destroy_shortint_server_key(sks);
 }
 
+void test_public_keygen(void) {
+  ShortintClientKey *cks = NULL;
+  ShortintPublicKey *pks = NULL;
+  ShortintParameters *params = NULL;
+  ShortintCiphertext *ct = NULL;
+
+  int get_params_ok = shortints_get_parameters(2, 2, &params);
+  assert(get_params_ok == 0);
+
+  int gen_keys_ok = shortints_gen_client_key(params, &cks);
+  assert(gen_keys_ok == 0);
+
+  int gen_pks = shortints_gen_public_key(cks, &pks);
+  assert(gen_pks == 0);
+
+  uint64_t msg = 2;
+
+  int encrypt_ok = shortints_public_key_encrypt(pks, msg, &ct);
+  assert(encrypt_ok == 0);
+
+  uint64_t result = -1;
+  int decrypt_ok = shortints_client_key_decrypt(cks, ct, &result);
+  assert(decrypt_ok == 0);
+
+  assert(result == 2);
+
+  destroy_shortint_parameters(params);
+  destroy_shortint_client_key(cks);
+  destroy_shortint_public_key(pks);
+  destroy_shortint_ciphertext(ct);
+}
+
 int main(void) {
   test_predefined_keygen_w_serde();
   test_custom_keygen();
+  test_public_keygen();
   return EXIT_SUCCESS;
 }

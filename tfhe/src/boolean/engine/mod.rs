@@ -1,6 +1,6 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::parameters::BooleanParameters;
-use crate::boolean::{ClientKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
+use crate::boolean::{ClientKey, PublicKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
 use crate::core_crypto::prelude::*;
 use bootstrapping::{BooleanServerKey, Bootstrapper, CpuBootstrapper};
 use std::cell::RefCell;
@@ -83,6 +83,9 @@ impl BooleanEngine<CudaBootstrapper> {
     }
 }
 
+// We have q = 32 so log2q = 5
+const LOG2_Q_32: usize = 5;
+
 impl<B> BooleanEngine<B> {
     pub fn create_client_key(&mut self, parameters: BooleanParameters) -> ClientKey {
         // generate the lwe secret key
@@ -103,6 +106,28 @@ impl<B> BooleanEngine<B> {
             parameters,
         }
     }
+
+    pub fn create_public_key(&mut self, client_key: &ClientKey) -> PublicKey {
+        let client_parameters = client_key.parameters;
+
+        // Formula is (n + 1) * log2(q) + 128
+        let zero_encryption_count = LwePublicKeyZeroEncryptionCount(
+            client_parameters.lwe_dimension.to_lwe_size().0 * LOG2_Q_32 + 128,
+        );
+
+        PublicKey {
+            lwe_public_key: self
+                .engine
+                .generate_new_lwe_public_key(
+                    &client_key.lwe_secret_key,
+                    Variance(client_key.parameters.lwe_modular_std_dev.get_variance()),
+                    zero_encryption_count,
+                )
+                .unwrap(),
+            parameters: client_key.parameters.to_owned(),
+        }
+    }
+
     pub fn trivial_encrypt(&mut self, message: bool) -> Ciphertext {
         Ciphertext::Trivial(message)
     }
@@ -125,6 +150,31 @@ impl<B> BooleanEngine<B> {
             .unwrap();
 
         Ciphertext::Encrypted(ct)
+    }
+
+    pub fn encrypt_with_public_key(&mut self, message: bool, pks: &PublicKey) -> Ciphertext {
+        // encode the boolean message
+        let plain: Plaintext32 = if message {
+            self.engine.create_plaintext_from(&PLAINTEXT_TRUE).unwrap()
+        } else {
+            self.engine.create_plaintext_from(&PLAINTEXT_FALSE).unwrap()
+        };
+
+        let mut underlying_ciphertext = self
+            .engine
+            .create_lwe_ciphertext_from(vec![0u32; pks.parameters.lwe_dimension.to_lwe_size().0])
+            .unwrap();
+
+        // encryption
+        self.engine
+            .discard_encrypt_lwe_ciphertext_with_public_key(
+                &pks.lwe_public_key,
+                &mut underlying_ciphertext,
+                &plain,
+            )
+            .unwrap();
+
+        Ciphertext::Encrypted(underlying_ciphertext)
     }
 
     pub fn decrypt(&mut self, ct: &Ciphertext, cks: &ClientKey) -> bool {

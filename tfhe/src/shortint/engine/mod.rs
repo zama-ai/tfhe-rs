@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 mod client_side;
+mod public_side;
 mod server_side;
 #[cfg(not(feature = "__wasm_api"))]
 mod wopbs;
