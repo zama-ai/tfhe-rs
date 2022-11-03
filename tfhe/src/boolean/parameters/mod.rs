@@ -81,15 +81,15 @@ impl BooleanParameters {
 /// This parameter set allows to evaluate faster Boolean circuits than the `TFHE_LIB_PARAMETERS`
 /// one.
 pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(586),
-    glwe_dimension: GlweDimension(2),
+    lwe_dimension: LweDimension(684),
+    glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.000_092_511_997_467_675_6), // 2^{-13.4}
-    glwe_modular_std_dev: StandardDev(0.000_000_034_233_878_701_836_9), // 2^{-24.8}
-    pbs_base_log: DecompositionBaseLog(8),
-    pbs_level: DecompositionLevelCount(2),
-    ks_base_log: DecompositionBaseLog(2),
-    ks_level: DecompositionLevelCount(5),
+    lwe_modular_std_dev: StandardDev(0.00002043784477291318),
+    glwe_modular_std_dev: StandardDev(0.0000000000034525330484572114),
+    pbs_base_log: DecompositionBaseLog(18),
+    pbs_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(4),
+    ks_level: DecompositionLevelCount(3),
 };
 
 /// Parameter set used in [TFHE library](https://tfhe.github.io/tfhe/) for 128-bits of security.
