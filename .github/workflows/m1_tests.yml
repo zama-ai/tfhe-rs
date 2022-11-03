@@ -87,6 +87,10 @@ jobs:
           RUSTFLAGS="-C target-cpu=native" cargo test --release \
             --features=aarch64-unix,booleans,shortints,internal-keycache -p tfhe -- core_crypto::
 
+      - name: Run C API tests
+        run: |
+          ./scripts/c_api_tests.sh
+
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
         with:
