@@ -50,12 +50,10 @@
 pub mod ciphertext;
 pub mod client_key;
 pub mod engine;
-#[cfg(any(test, feature = "internal-keycache"))]
+#[cfg(any(test, doctest, feature = "internal-keycache"))]
 pub mod keycache;
 pub mod parameters;
 pub mod server_key;
-#[cfg(doctest)]
-mod test_user_docs;
 #[cfg(not(feature = "__wasm_api"))]
 pub mod wopbs;
 
