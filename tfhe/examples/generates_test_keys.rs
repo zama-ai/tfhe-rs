@@ -2,6 +2,7 @@ use tfhe::shortint::keycache::{FileStorage, NamedParam, PersistentStorage};
 
 use tfhe::shortint::gen_keys;
 use tfhe::shortint::parameters::ALL_PARAMETER_VEC;
+use tfhe::shortint::{ClientKey, ServerKey};
 
 fn client_server_keys() {
     let file_storage = FileStorage::new("keys/shortint/client_server".to_string());
@@ -15,7 +16,10 @@ fn client_server_keys() {
             params.name()
         );
 
-        if file_storage.load(params).is_some() {
+        let keys: Option<(ClientKey, ServerKey)> =
+            file_storage.load(params);
+
+        if keys.is_some() {
             continue;
         }
 
