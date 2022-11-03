@@ -154,6 +154,55 @@ impl ShortintEngine {
         Ok(())
     }
 
+    pub(crate) fn programmable_bootstrap_keyswitch_bivariate(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+        acc: &GlweCiphertext64,
+    ) -> EngineResult<Ciphertext> {
+        let mut ct_res = ct_left.clone();
+        self.programmable_bootstrap_keyswitch_bivariate_assign(
+            server_key,
+            &mut ct_res,
+            ct_right,
+            acc,
+        )?;
+        Ok(ct_res)
+    }
+
+    pub(crate) fn programmable_bootstrap_keyswitch_bivariate_assign(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
+        acc: &GlweCiphertext64,
+    ) -> EngineResult<()> {
+        let modulus = (ct_right.degree.0 + 1) as u64;
+
+        // Message 1 is shifted to the carry bits
+        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
+
+        // Message 2 is placed in the message bits
+        self.unchecked_add_assign(ct_left, ct_right)?;
+
+        // Compute the PBS
+        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, acc)?;
+
+        Ok(())
+    }
+
+    pub(crate) fn generate_accumulator_bivariate<F>(
+        &mut self,
+        server_key: &ServerKey,
+        f: F,
+    ) -> EngineResult<GlweCiphertext64>
+    where
+        F: Fn(u64, u64) -> u64,
+    {
+        Self::generate_accumulator_bivariate_with_engine(&mut self.engine, server_key, f)
+    }
+
     pub(crate) fn unchecked_functional_bivariate_pbs<F>(
         &mut self,
         server_key: &ServerKey,

@@ -26,7 +26,7 @@ impl PublicKey {
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(Parameters::default());
-    /// // DISCLAIMER: Note that this parameter is not guaranteed to be secure
+    ///
     /// let pk = PublicKey::new(&cks);
     /// ```
     pub fn new(client_key: &ClientKey) -> PublicKey {
@@ -48,7 +48,6 @@ impl PublicKey {
     ///
     /// let sks = ServerKey::new(&cks);
     ///
-    /// // DISCLAIMER: Note that this parameter is not guaranteed to be secure
     /// let pk = PublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
@@ -84,7 +83,7 @@ impl PublicKey {
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(Parameters::default());
-    /// // DISCLAIMER: Note that this parameter is not guaranteed to be secure
+    ///
     /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 3;
@@ -117,7 +116,7 @@ impl PublicKey {
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(Parameters::default());
-    /// // DISCLAIMER: Note that this parameter is not guaranteed to be secure
+    ///
     /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 7;
@@ -179,7 +178,7 @@ impl PublicKey {
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(Parameters::default());
-    /// // DISCLAIMER: Note that this parameter is not guaranteed to be secure
+    ///
     /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 2;

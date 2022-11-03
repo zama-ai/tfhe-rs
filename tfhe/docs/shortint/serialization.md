@@ -4,7 +4,8 @@ As explained in the introduction, some types (`Serverkey`, `Ciphertext`) are mea
 with the server that does the computations.
 
 The easiest way to send these data to a server is to use the serialization and deserialization features.
-concrete-shortint uses the serde framework, serde's Serialize and Deserialize are implemented on concrete-shortint's
+tfhe::shortint uses the serde framework, serde's Serialize and Deserialize are implemented on 
+tfhe::shortint's
 types.
 
 To be able to serialize our data, we need to pick a [data format], for our use case,
@@ -24,11 +25,8 @@ bincode = "1.3.3"
 // main.rs
 
 use bincode;
-
 use std::io::Cursor;
-
-use concrete_shortint::{gen_keys, Parameters};
-use concrete_shortint::{ServerKey, Ciphertext};
+use tfhe::shortint::prelude::*;
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

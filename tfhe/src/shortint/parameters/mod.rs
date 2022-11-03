@@ -53,7 +53,7 @@ impl Parameters {
     /// and unsecure computation. Unless you are a cryptographer who really knows the impact of each
     /// of those parameters, you __must__ stick with the provided parameters.
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn new_unsecure(
+    pub unsafe fn new(
         lwe_dimension: LweDimension,
         glwe_dimension: GlweDimension,
         polynomial_size: PolynomialSize,
@@ -63,9 +63,9 @@ impl Parameters {
         pbs_level: DecompositionLevelCount,
         ks_base_log: DecompositionBaseLog,
         ks_level: DecompositionLevelCount,
-        pfks_level: DecompositionLevelCount,
-        pfks_base_log: DecompositionBaseLog,
         pfks_modular_std_dev: StandardDev,
+        pfks_base_log: DecompositionBaseLog,
+        pfks_level: DecompositionLevelCount,
         cbs_level: DecompositionLevelCount,
         cbs_base_log: DecompositionBaseLog,
         message_modulus: MessageModulus,

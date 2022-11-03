@@ -29,86 +29,91 @@
   </a>
 </p>
 
-The `concrete` ecosystem is a set of crates that implements Zama's variant of
+`TFHE.rs` implements Zama's variant of
 [TFHE](https://eprint.iacr.org/2018/421.pdf). In a nutshell,
 [fully homomorphic encryption (FHE)](https://en.wikipedia.org/wiki/Homomorphic_encryption), allows
 you to perform computations over encrypted data, allowing you to implement Zero Trust services.
 
-Concrete is based on the
+TFHE.rs is based on the
 [Learning With Errors (LWE)](https://cims.nyu.edu/~regev/papers/lwesurvey.pdf) and the
 [Ring Learning With Errors (RLWE)](https://eprint.iacr.org/2012/230.pdf) problems, which are well
 studied cryptographic hardness assumptions believed to be secure even against quantum computers.
 
 ## Links
 
-- [documentation](https://docs.zama.ai/concrete)
+- [documentation](https://docs.zama.ai/thfe)
 - [whitepaper](http://whitepaper.zama.ai)
 - [community website](https://community.zama.ai)
 
-## Concrete crates
-
-Concrete is implemented using the [Rust Programming language](https://www.rust-lang.org/), which
-allows very fast, yet very secure implementations.
-
-The ecosystem is composed of several crates (packages in the Rust language).
-The crates are split into 2 repositories:
-
-- The `concrete` repository which contains crates intended to be more approachable by
-non-cryptographers.
-- The [concrete-core](https://github.com/zama-ai/concrete-core) repository which contains the crates
-  implementing the low level cryptographic primitives.
-
-The crates within this repository are:
-- [`concrete`](concrete): A high-level library, useful to cryptographers that want to quickly
-  implement homomorphic applications, without having to understand the details of the
-  jmplementation.
-- [`concrete-boolean`](concrete-boolean): A high-level library, implementing homomorphic Boolean gates, making it easy
-  to run any kind of circuits over encrypted data.
-- [`concrete-shortint`](concrete-shortint): A high-level library, implementing operations on short integers (about 1 to 4 bits).
-
 ## Installation
 
-As `concrete` relies on `concrete-core`, `concrete` is only supported on `x86_64 Linux` and `x86_64 macOS`.
-Windows users can use `concrete` through the `WSL`. For Installation instructions see [Install.md](INSTALL.md)
-or [documentation](https://docs.zama.ai/concrete).
+See [here](tfhe/docs/getting_started/installation.md)
+
 
 ## Getting Started
 
-Here is a simple example of an encrypted addition between two encrypted 8-bit variables. For more
-information please read the [documentation](https://docs.zama.ai/concrete).
+To use `TFHE.rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
+
+```toml
+tfhe = { version = "0.1.0", features = [ "booleans","shortints","x86_64-unix" ] }
+```
+
+Here is a full example using ``tfhe::shortint``
 
 ```rust
-use concrete::{ConfigBuilder, generate_keys, set_server_key, FheUint8};
-use concrete::prelude::*;
+use tfhe::shortint::prelude::*;
 
 fn main() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_uint8()
-        .build();
+    // We generate a set of client/server keys, using the default parameters:
+    let (client_key, server_key) = gen_keys(Parameters::default());
 
-    let (client_key, server_key) = generate_keys(config);
+    let msg1 = 1;
+    let msg2 = 0;
 
-    set_server_key(server_key);
+    let modulus = client_key.parameters.message_modulus.0;
 
-    let clear_a = 27u8;
-    let clear_b = 128u8;
+    // We use the client key to encrypt two messages:
+    let ct_1 = client_key.encrypt(msg1);
+    let ct_2 = client_key.encrypt(msg2);
 
-    let a = FheUint8::encrypt(clear_a, &client_key);
-    let b = FheUint8::encrypt(clear_b, &client_key);
+    // We use the server public key to execute an integer circuit:
+    let ct_3 = server_key.unchecked_add(&ct_1, &ct_2);
 
-    let result = a + b;
+    // We use the client key to decrypt the output of the circuit:
+    let output = client_key.decrypt(&ct_3);
+    assert_eq!(output, (msg1 + msg2) % modulus as u64);
+}
+```
 
-    let decrypted_result: u8 = result.decrypt(&client_key);
+Another example of how the library can be used to evaluate a Boolean circuit:
 
-    let clear_result = clear_a + clear_b;
+```rust
+use tfhe::boolean::prelude::*;
 
-    assert_eq!(decrypted_result, clear_result);
+fn main() {
+// We generate a set of client/server keys, using the default parameters:
+    let (mut client_key, mut server_key) = gen_keys();
+
+// We use the client secret key to encrypt two messages:
+    let ct_1 = client_key.encrypt(true);
+    let ct_2 = client_key.encrypt(false);
+
+// We use the server public key to execute a boolean circuit:
+// if ((NOT ct_2) NAND (ct_1 AND ct_2)) then (NOT ct_2) else (ct_1 AND ct_2)
+    let ct_3 = server_key.not(&ct_2);
+    let ct_4 = server_key.and(&ct_1, &ct_2);
+    let ct_5 = server_key.nand(&ct_3, &ct_4);
+    let ct_6 = server_key.mux(&ct_5, &ct_3, &ct_4);
+
+// We use the client key to decrypt the output of the circuit:
+    let output = client_key.decrypt(&ct_6);
+    assert_eq!(output, true);
 }
 ```
 
 ## Contributing
 
-There are two ways to contribute to Concrete:
+There are two ways to contribute to TFHE.rs:
 
 - you can open issues to report bugs or typos and to suggest new ideas
 - you can ask to become an official contributor by emailing [hello@zama.ai](mailto:hello@zama.ai).
@@ -118,25 +123,12 @@ Only approved contributors can send pull requests, so please make sure to get in
 
 ## Citing Concrete
 
-To cite Concrete in academic papers, please use the following entry:
-
-```text
-@inproceedings{WAHC:CJLOT20,
-  title={CONCRETE: Concrete Operates oN Ciphertexts Rapidly by Extending TfhE},
-  author={Chillotti, Ilaria and Joye, Marc and Ligier, Damien and Orfila, Jean-Baptiste and Tap, Samuel},
-  booktitle={WAHC 2020--8th Workshop on Encrypted Computing \& Applied Homomorphic Cryptography},
-  volume={15},
-  year={2020}
-}
-```
+TODO
 
 ## Credits
 
 This library uses several dependencies and we would like to thank the contributors of those
 libraries.
-
-We thank [Daniel May](https://gitlab.com/danieljrmay) for supporting this project and donating the
-`concrete` crate.
 
 ## License
 
@@ -147,15 +139,13 @@ please contact us at `hello@zama.ai`.
 
 ### Security Estimation
 
-Security estimation, in this repository, used to be based on
-the [LWE Estimator](https://bitbucket.org/malb/lwe-estimator/src/master/),
-with `reduction_cost_model = BKZ.sieve`.
-We are currently moving to the [Lattice Estimator](https://github.com/malb/lattice-estimator)
+Security estimations are done using the 
+[Lattice Estimator](https://github.com/malb/lattice-estimator)
 with `red_cost_model = reduction.RC.BDGL16`.
 
 When a new update is published in the Lattice Estimator, we update parameters accordingly.
 
 ### Side-Channel Attacks
 
-Mitigation for side channel attacks have not yet been implemented in Concrete,
+Mitigation for side channel attacks have not yet been implemented in TFHE.rs,
 and will be released in upcoming versions.
