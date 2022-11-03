@@ -12,6 +12,9 @@ pub struct ShortintCiphertext(pub(crate) crate::shortint::ciphertext::Ciphertext
 pub struct ShortintClientKey(pub(crate) crate::shortint::ClientKey);
 
 #[wasm_bindgen]
+pub struct ShortintPublicKey(pub(crate) crate::shortint::PublicKey);
+
+#[wasm_bindgen]
 pub struct Shortint {}
 
 #[wasm_bindgen]
@@ -147,10 +150,27 @@ impl Shortint {
     }
 
     #[wasm_bindgen]
+    pub fn new_public_key(client_key: &ShortintClientKey) -> ShortintPublicKey {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        ShortintPublicKey(crate::shortint::public_key::PublicKey::new(&client_key.0))
+    }
+
+    #[wasm_bindgen]
     pub fn encrypt(client_key: &ShortintClientKey, message: u64) -> ShortintCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
 
         ShortintCiphertext(client_key.0.encrypt(message))
+    }
+
+    #[wasm_bindgen]
+    pub fn encrypt_with_public_key(
+        public_key: &ShortintPublicKey,
+        message: u64,
+    ) -> ShortintCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        ShortintCiphertext(public_key.0.encrypt(message))
     }
 
     #[wasm_bindgen]

@@ -53,14 +53,16 @@ pub mod engine;
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
 pub mod keycache;
 pub mod parameters;
+pub mod prelude;
+pub mod public_key;
 pub mod server_key;
 #[cfg(not(feature = "__wasm_api"))]
 pub mod wopbs;
-pub mod prelude;
 
 pub use ciphertext::Ciphertext;
 pub use client_key::ClientKey;
 pub use parameters::Parameters;
+pub use public_key::PublicKey;
 pub use server_key::{CheckError, ServerKey};
 
 /// Generate a couple of client and server keys.

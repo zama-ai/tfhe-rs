@@ -2,6 +2,7 @@ pub mod ciphertext;
 pub mod client_key;
 pub mod destroy;
 pub mod parameters;
+pub mod public_key;
 pub mod server_key;
 
 use crate::c_api::utils::*;
@@ -11,6 +12,7 @@ use crate::shortint;
 
 pub use ciphertext::ShortintCiphertext;
 pub use client_key::ShortintClientKey;
+pub use public_key::ShortintPublicKey;
 pub use server_key::ShortintServerKey;
 
 #[no_mangle]

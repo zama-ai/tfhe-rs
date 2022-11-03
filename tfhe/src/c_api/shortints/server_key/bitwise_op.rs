@@ -40,9 +40,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitand(
         let ct_right = get_mut_checked(ct_right).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key
-                .0
-                .unchecked_bitand(&ct_left.0, &ct_right.0),
+            server_key.0.unchecked_bitand(&ct_left.0, &ct_right.0),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);

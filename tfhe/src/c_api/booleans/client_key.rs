@@ -9,6 +9,28 @@ use super::BooleanCiphertext;
 pub struct BooleanClientKey(pub(in crate::c_api) boolean::client_key::ClientKey);
 
 #[no_mangle]
+pub unsafe extern "C" fn booleans_gen_client_key(
+    boolean_parameters: *const super::parameters::BooleanParameters,
+    result_client_key: *mut *mut BooleanClientKey,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result_client_key).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result_client_key = std::ptr::null_mut();
+
+        let boolean_parameters = get_ref_checked(boolean_parameters).unwrap();
+
+        let client_key = boolean::client_key::ClientKey::new(&boolean_parameters.0);
+
+        let heap_allocated_client_key = Box::new(BooleanClientKey(client_key));
+
+        *result_client_key = Box::into_raw(heap_allocated_client_key);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn booleans_client_key_encrypt(
     client_key: *const BooleanClientKey,
     value_to_encrypt: bool,

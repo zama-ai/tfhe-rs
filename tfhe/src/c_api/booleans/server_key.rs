@@ -10,6 +10,28 @@ use super::BooleanCiphertext;
 pub struct BooleanServerKey(pub(in crate::c_api) boolean::server_key::ServerKey);
 
 #[no_mangle]
+pub unsafe extern "C" fn booleans_gen_server_key(
+    client_key: *const super::BooleanClientKey,
+    result_server_key: *mut *mut BooleanServerKey,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result_server_key).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result_server_key = std::ptr::null_mut();
+
+        let client_key = get_ref_checked(client_key).unwrap();
+
+        let server_key = boolean::server_key::ServerKey::new(&client_key.0);
+
+        let heap_allocated_server_key = Box::new(BooleanServerKey(server_key));
+
+        *result_server_key = Box::into_raw(heap_allocated_server_key);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn booleans_server_key_and(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,

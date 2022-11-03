@@ -179,8 +179,8 @@ pub mod utils {
                 Ok(result) => f(&result),
                 Err(()) => {
                     {
-                        // we only hold a write lock for a short duration to push the lazily evaluated
-                        // key without actually evaluating the key
+                        // we only hold a write lock for a short duration to push the lazily
+                        // evaluated key without actually evaluating the key
                         let mut memory_storage = self.memory_storage.write().unwrap();
                         if !memory_storage.iter().any(|(p, _)| *p == param) {
                             memory_storage.push((

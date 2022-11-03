@@ -2,7 +2,7 @@ use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
 use super::parameters::ShortintParameters;
-use super::{ShortintCiphertext, ShortintClientKey, ShortintServerKey};
+use super::{ShortintCiphertext, ShortintClientKey, ShortintPublicKey, ShortintServerKey};
 
 #[no_mangle]
 pub unsafe extern "C" fn destroy_shortint_client_key(client_key: *mut ShortintClientKey) -> c_int {
@@ -19,6 +19,15 @@ pub unsafe extern "C" fn destroy_shortint_server_key(server_key: *mut ShortintSe
         check_ptr_is_non_null_and_aligned(server_key).unwrap();
 
         drop(Box::from_raw(server_key));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn destroy_shortint_public_key(public_key: *mut ShortintPublicKey) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(public_key).unwrap();
+
+        drop(Box::from_raw(public_key));
     })
 }
 

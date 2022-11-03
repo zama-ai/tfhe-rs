@@ -12,6 +12,9 @@ pub struct BooleanCiphertext(pub(crate) crate::boolean::ciphertext::Ciphertext);
 pub struct BooleanClientKey(pub(crate) crate::boolean::client_key::ClientKey);
 
 #[wasm_bindgen]
+pub struct BooleanPublicKey(pub(crate) crate::boolean::public_key::PublicKey);
+
+#[wasm_bindgen]
 pub struct Boolean {}
 
 #[wasm_bindgen]
@@ -108,9 +111,26 @@ impl Boolean {
     }
 
     #[wasm_bindgen]
+    pub fn new_public_key(client_key: &BooleanClientKey) -> BooleanPublicKey {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        BooleanPublicKey(crate::boolean::public_key::PublicKey::new(&client_key.0))
+    }
+
+    #[wasm_bindgen]
     pub fn encrypt(client_key: &BooleanClientKey, message: bool) -> BooleanCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
         BooleanCiphertext(client_key.0.encrypt(message))
+    }
+
+    #[wasm_bindgen]
+    pub fn encrypt_with_public_key(
+        public_key: &BooleanPublicKey,
+        message: bool,
+    ) -> BooleanCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        BooleanCiphertext(public_key.0.encrypt(message))
     }
 
     #[wasm_bindgen]

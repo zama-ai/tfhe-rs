@@ -82,9 +82,42 @@ void test_custom_keygen(void) {
   destroy_boolean_server_key(sks);
 }
 
+void test_public_keygen(void) {
+  BooleanClientKey *cks = NULL;
+  BooleanPublicKey *pks = NULL;
+  BooleanParameters *params = NULL;
+  BooleanCiphertext *ct = NULL;
+
+  int get_params_ok = booleans_get_parameters(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &params);
+  assert(get_params_ok == 0);
+
+  int gen_keys_ok = booleans_gen_client_key(params, &cks);
+  assert(gen_keys_ok == 0);
+
+  int gen_pks = booleans_gen_public_key(cks, &pks);
+  assert(gen_pks == 0);
+
+  bool msg = true;
+
+  int encrypt_ok = booleans_public_key_encrypt(pks, msg, &ct);
+  assert(encrypt_ok == 0);
+
+  bool result = false;
+  int decrypt_ok = booleans_client_key_decrypt(cks, ct, &result);
+  assert(decrypt_ok == 0);
+
+  assert(result == true);
+
+  destroy_boolean_parameters(params);
+  destroy_boolean_client_key(cks);
+  destroy_boolean_public_key(pks);
+  destroy_boolean_ciphertext(ct);
+}
+
 int main(void) {
   test_default_keygen_w_serde();
   test_predefined_keygen_w_serde();
   test_custom_keygen();
+  test_public_keygen();
   return EXIT_SUCCESS;
 }
