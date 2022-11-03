@@ -77,6 +77,10 @@ jobs:
       - name: Download keys locally
         run: aws s3 cp --recursive --no-progress s3://concrete-libs-keycache ./keys
 
+      - name: Gen Keys if required
+        run: |
+          cargo run --example generates_test_keys --features=shortints,internal-keycache -p tfhe
+
       - name: Run shortint tests
         run: ./scripts/shortint-tests.sh
 

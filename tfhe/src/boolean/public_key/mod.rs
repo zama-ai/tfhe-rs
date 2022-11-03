@@ -18,6 +18,7 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
+    /// # #[cfg(not(feature = "cuda"))]
     /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
@@ -50,6 +51,7 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
+    /// # #[cfg(not(feature = "cuda"))]
     /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
