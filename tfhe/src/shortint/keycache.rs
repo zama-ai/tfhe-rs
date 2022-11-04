@@ -14,6 +14,7 @@ pub use utils::{
 
 #[macro_use]
 pub mod utils {
+    use fs2::FileExt;
     use once_cell::sync::OnceCell;
     use serde::de::DeserializeOwned;
     use serde::Serialize;
@@ -71,8 +72,11 @@ pub mod utils {
             path_buf.set_extension("bin");
 
             if path_buf.exists() {
-                let file = BufReader::new(File::open(&path_buf).unwrap());
-                bincode::deserialize_from::<_, (P, K)>(file)
+                let file = File::open(&path_buf).unwrap();
+                // Lock for reading
+                file.lock_shared().unwrap();
+                let file_reader = BufReader::new(file);
+                bincode::deserialize_from::<_, (P, K)>(file_reader)
                     .ok()
                     .and_then(|(p, k)| if p == param { Some(k) } else { None })
             } else {
@@ -87,8 +91,12 @@ pub mod utils {
             path_buf.push(param.name());
             path_buf.set_extension("bin");
 
-            let file = BufWriter::new(File::create(&path_buf).unwrap());
-            bincode::serialize_into(file, &(param, key)).unwrap();
+            let file = File::create(&path_buf).unwrap();
+            // Lock for writing
+            file.lock_exclusive().unwrap();
+
+            let file_writer = BufWriter::new(file);
+            bincode::serialize_into(file_writer, &(param, key)).unwrap();
         }
     }
 
