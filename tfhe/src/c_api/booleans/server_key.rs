@@ -3,7 +3,6 @@ use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
 use crate::boolean;
-use crate::boolean::engine::WithThreadLocalEngine;
 use crate::boolean::server_key::BinaryBooleanGates;
 
 use super::BooleanCiphertext;
@@ -252,12 +251,9 @@ pub unsafe extern "C" fn booleans_server_key_and_scalar(
 
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left = get_ref_checked(ct_left).unwrap();
-        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
-            engine.trivial_encrypt(scalar)
-        });
 
         let heap_allocated_result =
-            Box::new(BooleanCiphertext(server_key.0.and(&ct_left.0, &ct_right)));
+            Box::new(BooleanCiphertext(server_key.0.and(&ct_left.0, scalar)));
 
         *result = Box::into_raw(heap_allocated_result);
     })
@@ -279,12 +275,9 @@ pub unsafe extern "C" fn booleans_server_key_nand_scalar(
 
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left = get_ref_checked(ct_left).unwrap();
-        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
-            engine.trivial_encrypt(scalar)
-        });
 
         let heap_allocated_result =
-            Box::new(BooleanCiphertext(server_key.0.nand(&ct_left.0, &ct_right)));
+            Box::new(BooleanCiphertext(server_key.0.nand(&ct_left.0, scalar)));
 
         *result = Box::into_raw(heap_allocated_result);
     })
@@ -306,12 +299,9 @@ pub unsafe extern "C" fn booleans_server_key_nor_scalar(
 
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left = get_ref_checked(ct_left).unwrap();
-        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
-            engine.trivial_encrypt(scalar)
-        });
 
         let heap_allocated_result =
-            Box::new(BooleanCiphertext(server_key.0.nor(&ct_left.0, &ct_right)));
+            Box::new(BooleanCiphertext(server_key.0.nor(&ct_left.0, scalar)));
 
         *result = Box::into_raw(heap_allocated_result);
     })
@@ -333,12 +323,9 @@ pub unsafe extern "C" fn booleans_server_key_or_scalar(
 
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left = get_ref_checked(ct_left).unwrap();
-        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
-            engine.trivial_encrypt(scalar)
-        });
 
         let heap_allocated_result =
-            Box::new(BooleanCiphertext(server_key.0.or(&ct_left.0, &ct_right)));
+            Box::new(BooleanCiphertext(server_key.0.or(&ct_left.0, scalar)));
 
         *result = Box::into_raw(heap_allocated_result);
     })
@@ -360,12 +347,9 @@ pub unsafe extern "C" fn booleans_server_key_xor_scalar(
 
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left = get_ref_checked(ct_left).unwrap();
-        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
-            engine.trivial_encrypt(scalar)
-        });
 
         let heap_allocated_result =
-            Box::new(BooleanCiphertext(server_key.0.xor(&ct_left.0, &ct_right)));
+            Box::new(BooleanCiphertext(server_key.0.xor(&ct_left.0, scalar)));
 
         *result = Box::into_raw(heap_allocated_result);
     })
@@ -387,12 +371,9 @@ pub unsafe extern "C" fn booleans_server_key_xnor_scalar(
 
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left = get_ref_checked(ct_left).unwrap();
-        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
-            engine.trivial_encrypt(scalar)
-        });
 
         let heap_allocated_result =
-            Box::new(BooleanCiphertext(server_key.0.xnor(&ct_left.0, &ct_right)));
+            Box::new(BooleanCiphertext(server_key.0.xnor(&ct_left.0, scalar)));
 
         *result = Box::into_raw(heap_allocated_result);
     })
