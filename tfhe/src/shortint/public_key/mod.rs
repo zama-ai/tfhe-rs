@@ -3,7 +3,7 @@ use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, Parameters};
-use crate::shortint::ClientKey;
+use crate::shortint::{ClientKey, ServerKey};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Debug;
 
@@ -63,9 +63,11 @@ impl PublicKey {
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(msg % modulus, dec);
     /// ```
-    pub fn encrypt(&self, message: u64) -> Ciphertext {
+    pub fn encrypt(&self, server_key: &ServerKey, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.encrypt_with_public_key(self, message).unwrap()
+            engine
+                .encrypt_with_public_key(self, server_key, message)
+                .unwrap()
         })
     }
 

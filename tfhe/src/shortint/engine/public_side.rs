@@ -3,7 +3,7 @@ use super::{EngineResult, ShortintEngine};
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
-use crate::shortint::{Ciphertext, ClientKey, PublicKey};
+use crate::shortint::{Ciphertext, ClientKey, PublicKey, ServerKey};
 
 // We have q = 64 so log2q = 6
 const LOG2_Q_64: usize = 6;
@@ -30,13 +30,20 @@ impl ShortintEngine {
     pub(crate) fn encrypt_with_public_key(
         &mut self,
         public_key: &PublicKey,
+        server_key: &ServerKey,
         message: u64,
     ) -> EngineResult<Ciphertext> {
-        self.encrypt_with_message_modulus_and_public_key(
+        let mut ciphertext = self.encrypt_with_message_modulus_and_public_key(
             public_key,
             message,
             public_key.parameters.message_modulus,
-        )
+        )?;
+
+        let acc = self.generate_accumulator(server_key, |x| x)?;
+
+        self.programmable_bootstrap_keyswitch_assign(server_key, &mut ciphertext, &acc)?;
+
+        Ok(ciphertext)
     }
 
     pub(crate) fn encrypt_with_message_modulus_and_public_key(

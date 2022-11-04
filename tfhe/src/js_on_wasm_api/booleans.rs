@@ -176,4 +176,19 @@ impl Boolean {
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(BooleanClientKey)
     }
+
+    #[wasm_bindgen]
+    pub fn serialize_boolean_public_key(public_key: &BooleanPublicKey) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::serialize(&public_key.0)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+    }
+
+    #[wasm_bindgen]
+    pub fn deserialize_boolean_public_key(buffer: &[u8]) -> Result<BooleanPublicKey, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::deserialize(buffer)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map(BooleanPublicKey)
+    }
 }
