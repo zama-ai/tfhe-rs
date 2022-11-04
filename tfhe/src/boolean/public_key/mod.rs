@@ -34,6 +34,8 @@ impl PublicKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(true, dec);
     /// # }
+    /// # #[cfg(feature = "cuda")]
+    /// # fn main() {}
     /// ```
     pub fn encrypt(&self, message: bool) -> Ciphertext {
         CpuBooleanEngine::with_thread_local_mut(|engine| {
@@ -60,6 +62,8 @@ impl PublicKey {
     ///
     /// let pks = PublicKey::new(&cks);
     /// # }
+    /// # #[cfg(feature = "cuda")]
+    /// # fn main() {}
     /// ```
     pub fn new(client_key: &ClientKey) -> PublicKey {
         CpuBooleanEngine::with_thread_local_mut(|engine| engine.create_public_key(client_key))
