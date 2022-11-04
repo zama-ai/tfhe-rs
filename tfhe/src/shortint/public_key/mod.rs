@@ -41,23 +41,26 @@ impl PublicKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, PublicKey};
+    /// use tfhe::shortint::{ClientKey, PublicKey, ServerKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let sks = ServerKey::new(&cks);
+    ///
     /// // DISCLAIMER: Note that this parameter is not guaranteed to be secure
     /// let pk = PublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 3;
-    /// let ct = pk.encrypt(msg);
+    /// let ct = pk.encrypt(&sks, msg);
     ///
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg, dec);
     ///
     /// // Encryption of one message that is outside the encrypted message modulus:
     /// let msg = 5;
-    /// let ct = pk.encrypt(msg);
+    /// let ct = pk.encrypt(&sks, msg);
     ///
     /// let dec = cks.decrypt(&ct);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
