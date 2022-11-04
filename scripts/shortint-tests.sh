@@ -16,10 +16,12 @@ n_threads="$(${nproc_bin})"
 if uname -a | grep "arm64"; then
     arch_feature=aarch64-unix
     if [[ $(uname) == "Darwin" ]]; then
-        # M1 mac runs were super slow, most likely because of keys, biggest keys are ~1.7G
-        # so 4 threads should leave some beathing room in the 8 gigs of RAM the M1 mac mini has
-        n_threads=4
+        # Keys are 4.7 gigs at max, M1 macs only has 8 gigs of RAM
+        n_threads=1
     fi
+else
+    # Keys are 4.7 gigs at max, test machine has 32 gigs of RAM
+    n_threads=6
 fi
 
 filter_expression=''\
