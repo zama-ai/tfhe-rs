@@ -60,6 +60,40 @@ void test_binary_boolean_function(BooleanClientKey *cks, BooleanServerKey *sks,
   }
 }
 
+void test_binary_boolean_function_scalar(BooleanClientKey *cks, BooleanServerKey *sks,
+                                         bool (*c_fun)(bool, bool),
+                                         int (*api_fun)(const BooleanServerKey *,
+                                                        const BooleanCiphertext *, bool,
+                                                        BooleanCiphertext **)) {
+  for (int idx_left = 0; idx_left < 2; ++idx_left) {
+    for (int idx_right = 0; idx_right < 2; ++idx_right) {
+      BooleanCiphertext *ct_left = NULL;
+      BooleanCiphertext *ct_result = NULL;
+
+      bool left = (bool)idx_left;
+      bool right = (bool)idx_right;
+
+      bool expected = c_fun(left, right);
+
+      int encrypt_left_ok = booleans_client_key_encrypt(cks, left, &ct_left);
+      assert(encrypt_left_ok == 0);
+
+      int api_call_ok = api_fun(sks, ct_left, right, &ct_result);
+      assert(api_call_ok == 0);
+
+      bool decrypted_result = false;
+
+      int decrypt_ok = booleans_client_key_decrypt(cks, ct_result, &decrypted_result);
+      assert(decrypt_ok == 0);
+
+      assert(decrypted_result == expected);
+
+      destroy_boolean_ciphertext(ct_left);
+      destroy_boolean_ciphertext(ct_result);
+    }
+  }
+}
+
 void test_not(BooleanClientKey *cks, BooleanServerKey *sks) {
   for (int idx_in_trivial = 0; idx_in_trivial < 2; ++idx_in_trivial) {
     for (int idx_in = 0; idx_in < 2; ++idx_in) {
@@ -211,6 +245,15 @@ void test_server_key(void) {
   test_binary_boolean_function(deser_cks, deser_sks, c_xnor, booleans_server_key_xnor);
   test_not(deser_cks, deser_sks);
   test_mux(deser_cks, deser_sks);
+
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_and, booleans_server_key_and_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_nand,
+                                      booleans_server_key_nand_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_or, booleans_server_key_or_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_nor, booleans_server_key_nor_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_xor, booleans_server_key_xor_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_xnor,
+                                      booleans_server_key_xnor_scalar);
 
   destroy_boolean_client_key(cks);
   destroy_boolean_server_key(sks);
