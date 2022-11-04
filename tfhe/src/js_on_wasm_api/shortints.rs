@@ -15,6 +15,9 @@ pub struct ShortintClientKey(pub(crate) crate::shortint::ClientKey);
 pub struct ShortintPublicKey(pub(crate) crate::shortint::PublicKey);
 
 #[wasm_bindgen]
+pub struct ShortintServerKey(pub(crate) crate::shortint::ServerKey);
+
+#[wasm_bindgen]
 pub struct Shortint {}
 
 #[wasm_bindgen]
@@ -157,6 +160,13 @@ impl Shortint {
     }
 
     #[wasm_bindgen]
+    pub fn new_server_key(client_key: &ShortintClientKey) -> ShortintServerKey {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        ShortintServerKey(crate::shortint::server_key::ServerKey::new(&client_key.0))
+    }
+
+    #[wasm_bindgen]
     pub fn encrypt(client_key: &ShortintClientKey, message: u64) -> ShortintCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
 
@@ -166,11 +176,12 @@ impl Shortint {
     #[wasm_bindgen]
     pub fn encrypt_with_public_key(
         public_key: &ShortintPublicKey,
+        server_key: &ShortintServerKey,
         message: u64,
     ) -> ShortintCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
 
-        ShortintCiphertext(public_key.0.encrypt(message))
+        ShortintCiphertext(public_key.0.encrypt(&server_key.0, message))
     }
 
     #[wasm_bindgen]
@@ -211,5 +222,39 @@ impl Shortint {
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(ShortintClientKey)
+    }
+
+    #[wasm_bindgen]
+    pub fn serialize_shortint_public_key(
+        public_key: &ShortintPublicKey,
+    ) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::serialize(&public_key.0)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+    }
+
+    #[wasm_bindgen]
+    pub fn deserialize_shortint_public_key(buffer: &[u8]) -> Result<ShortintPublicKey, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::deserialize(buffer)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map(ShortintPublicKey)
+    }
+
+    #[wasm_bindgen]
+    pub fn serialize_shortint_server_key(
+        server_key: &ShortintServerKey,
+    ) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::serialize(&server_key.0)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+    }
+
+    #[wasm_bindgen]
+    pub fn deserialize_shortint_server_key(buffer: &[u8]) -> Result<ShortintServerKey, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::deserialize(buffer)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map(ShortintServerKey)
     }
 }
