@@ -3,6 +3,7 @@ use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
 use crate::boolean;
+use crate::boolean::engine::WithThreadLocalEngine;
 use crate::boolean::server_key::BinaryBooleanGates;
 
 use super::BooleanCiphertext;
@@ -230,6 +231,168 @@ pub unsafe extern "C" fn booleans_server_key_mux(
             &ct_then.0,
             &ct_else.0,
         )));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_and_scalar(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    scalar: bool,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
+            engine.trivial_encrypt(scalar)
+        });
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.and(&ct_left.0, &ct_right)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_nand_scalar(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    scalar: bool,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
+            engine.trivial_encrypt(scalar)
+        });
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.nand(&ct_left.0, &ct_right)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_nor_scalar(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    scalar: bool,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
+            engine.trivial_encrypt(scalar)
+        });
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.nor(&ct_left.0, &ct_right)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_or_scalar(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    scalar: bool,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
+            engine.trivial_encrypt(scalar)
+        });
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.or(&ct_left.0, &ct_right)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_xor_scalar(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    scalar: bool,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
+            engine.trivial_encrypt(scalar)
+        });
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.xor(&ct_left.0, &ct_right)));
+
+        *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_xnor_scalar(
+    server_key: *const BooleanServerKey,
+    ct_left: *const BooleanCiphertext,
+    scalar: bool,
+    result: *mut *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
+            engine.trivial_encrypt(scalar)
+        });
+
+        let heap_allocated_result =
+            Box::new(BooleanCiphertext(server_key.0.xnor(&ct_left.0, &ct_right)));
 
         *result = Box::into_raw(heap_allocated_result);
     })
