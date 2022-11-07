@@ -23,7 +23,7 @@ impl From<CudaError> for GlweCiphertextConversionError<CudaError> {
 impl GlweCiphertextConversionEngine<GlweCiphertext32, CudaGlweCiphertext32> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude:: *;
+    /// use tfhe::core_crypto::prelude::*;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -87,7 +87,7 @@ impl GlweCiphertextConversionEngine<GlweCiphertext32, CudaGlweCiphertext32> for 
 impl GlweCiphertextConversionEngine<CudaGlweCiphertext32, GlweCiphertext32> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude:: *;
+    /// use tfhe::core_crypto::prelude::*;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -147,7 +147,7 @@ impl GlweCiphertextConversionEngine<CudaGlweCiphertext32, GlweCiphertext32> for 
 impl GlweCiphertextConversionEngine<GlweCiphertext64, CudaGlweCiphertext64> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude:: *;
+    /// use tfhe::core_crypto::prelude::*;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -211,7 +211,7 @@ impl GlweCiphertextConversionEngine<GlweCiphertext64, CudaGlweCiphertext64> for 
 impl GlweCiphertextConversionEngine<CudaGlweCiphertext64, GlweCiphertext64> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude:: *;
+    /// use tfhe::core_crypto::prelude::*;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
@@ -270,7 +270,7 @@ impl GlweCiphertextConversionEngine<CudaGlweCiphertext64, GlweCiphertext64> for 
 impl GlweCiphertextConversionEngine<GlweCiphertextView64<'_>, CudaGlweCiphertext64> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude:: *;
+    /// use tfhe::core_crypto::prelude::*;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
