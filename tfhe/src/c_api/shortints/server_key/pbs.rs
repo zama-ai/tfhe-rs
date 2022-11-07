@@ -1,6 +1,8 @@
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
+use crate::shortint::ciphertext::Degree;
+
 use super::{ShortintCiphertext, ShortintServerKey};
 
 // This is the accepted way to declare a pointer to a C function/callback in cbindgen
@@ -8,6 +10,7 @@ pub type AccumulatorCallback = Option<extern "C" fn(u64) -> u64>;
 
 pub struct ShortintPBSAccumulator(
     pub(in crate::c_api) crate::core_crypto::prelude::GlweCiphertext64,
+    Degree,
 );
 
 #[no_mangle]
@@ -33,6 +36,13 @@ pub unsafe extern "C" fn shortints_shortints_server_key_generate_pbs_accumulator
             server_key
                 .0
                 .generate_accumulator(|x: u64| accumulator_callback(x)),
+            Degree(
+                (0u64..(server_key.0.carry_modulus.0 as u64
+                    * server_key.0.message_modulus.0 as u64))
+                    .into_iter()
+                    .map(|x: u64| accumulator_callback(x))
+                    .fold(std::u64::MIN, |a, b| a.max(b)) as usize,
+            ),
         ));
 
         *result = Box::into_raw(heap_allocated_accumulator);
@@ -57,11 +67,13 @@ pub unsafe extern "C" fn shortints_server_key_programmable_bootstrap(
         let accumulator = get_ref_checked(accumulator).unwrap();
         let ct_in = get_ref_checked(ct_in).unwrap();
 
-        let heap_allocated_result = Box::new(ShortintCiphertext(
+        let mut heap_allocated_result = Box::new(ShortintCiphertext(
             server_key
                 .0
                 .keyswitch_programmable_bootstrap(&ct_in.0, &accumulator.0),
         ));
+
+        heap_allocated_result.as_mut().0.degree = accumulator.1;
 
         *result = Box::into_raw(heap_allocated_result);
     })
@@ -81,5 +93,7 @@ pub unsafe extern "C" fn shortints_server_key_programmable_bootstrap_assign(
         server_key
             .0
             .keyswitch_programmable_bootstrap_assign(&mut ct_in_and_result.0, &accumulator.0);
+
+        ct_in_and_result.0.degree = accumulator.1;
     })
 }
