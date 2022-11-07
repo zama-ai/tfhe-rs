@@ -34,8 +34,7 @@ jobs:
 
       - name: Build Release boolean
         run: |
-          cargo build \
-            --release --features=aarch64-unix,booleans -p tfhe
+          make build_boolean
 
       - name: Clippy shortints
         run: |
@@ -43,8 +42,7 @@ jobs:
 
       - name: Build Release shortint
         run: |
-          cargo build \
-            --release --features=aarch64-unix,shortints -p tfhe
+          make build_shortint
 
       - name: Clippy shortints and booleans
         run: |
@@ -52,8 +50,7 @@ jobs:
 
       - name: Build Release shortint and boolean
         run: |
-          cargo build \
-            --release --features=aarch64-unix,shortints,booleans -p tfhe
+          make build_boolean_and_shortint
 
       - name: C API Clippy
         run: |
@@ -61,8 +58,7 @@ jobs:
 
       - name: Build Release c_api
         run: |
-          cargo build \
-            --release --features=aarch64-unix,booleans-c-api,shortints-c-api -p tfhe
+          make build_c_api
 
       - name: Test tfhe-rs/boolean with cpu
         run: |
