@@ -95,8 +95,7 @@ jobs:
 
       - name: Gen Keys if required
         run: |
-          cargo run --release --example generates_test_keys \
-          --features=aarch64-unix,shortints,internal-keycache -p tfhe
+          make gen_key_cache
 
       - name: Sync keys
         run: aws s3 sync ./keys s3://concrete-libs-keycache

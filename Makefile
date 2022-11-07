@@ -53,6 +53,11 @@ clippy_cuda: install_rs_toolchain
 		--features=$(TARGET_ARCH_FEATURE),cuda,booleans-c-api,shortints-c-api \
 		-p tfhe -- --no-deps -D warnings
 
+.PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
+gen_key_cache:
+	cargo run --release --example generates_test_keys \
+		--features=$(TARGET_ARCH_FEATURE),shortints,internal-keycache -p tfhe
+
 .PHONY: help # Generate list of targets with descriptions
 help:
 	@grep '^.PHONY: .* #' Makefile | sed 's/\.PHONY: \(.*\) # \(.*\)/\1\t\2/' | expand -t30 | sort
