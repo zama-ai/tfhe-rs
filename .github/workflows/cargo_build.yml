@@ -32,14 +32,16 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ steps.toolchain.outputs.rs-toolchain }}
-          components: clippy
+          components: clippy,rustfmt
           default: true
+
+      - name: Check format
+        run: |
+          make check_fmt
 
       - name: Clippy booleans
         run: |
-          cargo clippy \
-            --features=x86_64-unix,booleans -p tfhe -- \
-            --no-deps -D warnings
+          make clippy_boolean
 
       - name: Build Release boolean
         run: |
@@ -48,9 +50,7 @@ jobs:
 
       - name: Clippy shortints
         run: |
-          cargo clippy \
-            --features=x86_64-unix,shortints -p tfhe -- \
-            --no-deps -D warnings
+          make clippy_shortint
 
       - name: Build Release shortint
         run: |
@@ -59,9 +59,7 @@ jobs:
 
       - name: Clippy shortints and booleans
         run: |
-          cargo clippy \
-            --features=x86_64-unix,shortints,booleans -p tfhe -- \
-            --no-deps -D warnings
+          make clippy
 
       - name: Build Release shortint and boolean
         run: |
@@ -70,9 +68,7 @@ jobs:
 
       - name: C API Clippy
         run: |
-          cargo clippy \
-            --features=x86_64-unix,booleans-c-api,shortints-c-api -p tfhe -- \
-            --no-deps -D warnings
+          make clippy_c_api
 
       - name: Build Release c_api
         run: |
