@@ -36,10 +36,9 @@ jobs:
             --no-deps -D warnings
 
       - name: Build Release boolean
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p tfhe --features=aarch64-unix,booleans
+        run: |
+          cargo build \
+            --release --features=aarch64-unix,booleans -p tfhe
 
       - name: Clippy shortints
         run: |
@@ -48,10 +47,9 @@ jobs:
             --no-deps -D warnings
 
       - name: Build Release shortint
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p tfhe --features=aarch64-unix,shortints
+        run: |
+          cargo build \
+            --release --features=aarch64-unix,shortints -p tfhe
 
       - name: Clippy shortints and booleans
         run: |
@@ -60,10 +58,9 @@ jobs:
             --no-deps -D warnings
 
       - name: Build Release shortint and boolean
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p tfhe --features=aarch64-unix,shortints,booleans
+        run: |
+          cargo build \
+            --release --features=aarch64-unix,shortints,booleans -p tfhe
 
       - name: C API Clippy
         run: |
@@ -72,10 +69,9 @@ jobs:
             --no-deps -D warnings
 
       - name: Build Release c_api
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p tfhe --features=aarch64-unix,booleans-c-api,shortints-c-api
+        run: |
+          cargo build \
+            --release --features=aarch64-unix,booleans-c-api,shortints-c-api -p tfhe
 
       - name: Test tfhe-rs/boolean with cpu
         run: |

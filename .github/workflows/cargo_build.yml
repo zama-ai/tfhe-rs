@@ -23,10 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Get rust toolchain to use for checks and lints
+        id: toolchain
+        run: |
+          echo "rs-toolchain=$(make rs_toolchain)" >> "${GITHUB_OUTPUT}"
+
       - name: Install latest nightly
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: ${{ steps.toolchain.outputs.rs-toolchain }}
           components: clippy
           default: true
 
@@ -37,10 +42,9 @@ jobs:
             --no-deps -D warnings
 
       - name: Build Release boolean
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p tfhe --features=x86_64-unix,booleans
+        run: |
+          cargo build \
+            --release --features=x86_64-unix,booleans -p tfhe
 
       - name: Clippy shortints
         run: |
@@ -49,10 +53,9 @@ jobs:
             --no-deps -D warnings
 
       - name: Build Release shortint
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p tfhe --features=x86_64-unix,shortints
+        run: |
+          cargo build \
+            --release --features=x86_64-unix,shortints -p tfhe
 
       - name: Clippy shortints and booleans
         run: |
@@ -61,10 +64,9 @@ jobs:
             --no-deps -D warnings
 
       - name: Build Release shortint and boolean
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p tfhe --features=x86_64-unix,shortints,booleans
+        run: |
+          cargo build \
+            --release --features=x86_64-unix,shortints,booleans -p tfhe
 
       - name: C API Clippy
         run: |
@@ -73,7 +75,6 @@ jobs:
             --no-deps -D warnings
 
       - name: Build Release c_api
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p tfhe --features=x86_64-unix,booleans-c-api,shortints-c-api
+        run: |
+          cargo build \
+            --release --features=x86_64-unix,booleans-c-api,shortints-c-api -p tfhe
