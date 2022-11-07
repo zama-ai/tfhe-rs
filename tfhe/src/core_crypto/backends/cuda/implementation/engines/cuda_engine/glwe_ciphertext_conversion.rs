@@ -23,27 +23,23 @@ impl From<CudaError> for GlweCiphertextConversionError<CudaError> {
 impl GlweCiphertextConversionEngine<GlweCiphertext32, CudaGlweCiphertext32> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweCiphertextCount, GlweDimension, PolynomialSize, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude:: *;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// // DISCLAIMER: the parameters used here are only for test purpose, and are not secure.
     /// let glwe_dimension = GlweDimension(2);
-    /// let polynomial_size = PolynomialSize(3);
+    /// let polynomial_size = PolynomialSize(4);
     /// // Here a hard-set encoding is applied (shift by 20 bits)
-    /// let input = vec![3_u32 << 20; 3];
+    /// let input = vec![3_u32 << 20; polynomial_size.0];
     /// let noise = Variance(2_f64.powf(-50.));
     ///
     /// const UNSAFE_SECRET: u128 = 0;
     /// let mut default_engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
-    /// let h_key: GlweSecretKey32 =
-    ///     default_engine.generate_new_glwe_secret_key(glwe_dimension, polynomial_size)?;
     /// let h_plaintext_vector: PlaintextVector32 =
     ///     default_engine.create_plaintext_vector_from(&input)?;
-    /// let mut h_ciphertext: GlweCiphertext32 =
-    ///     default_engine.encrypt_glwe_ciphertext(&h_key, &h_plaintext_vector, noise)?;
+    /// let mut h_ciphertext: GlweCiphertext32 = default_engine
+    ///     .trivially_encrypt_glwe_ciphertext(glwe_dimension.to_glwe_size(), &h_plaintext_vector)?;
     ///
     /// let mut cuda_engine = CudaEngine::new(())?;
     /// let d_ciphertext: CudaGlweCiphertext32 = cuda_engine.convert_glwe_ciphertext(&h_ciphertext)?;
@@ -91,27 +87,23 @@ impl GlweCiphertextConversionEngine<GlweCiphertext32, CudaGlweCiphertext32> for 
 impl GlweCiphertextConversionEngine<CudaGlweCiphertext32, GlweCiphertext32> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweCiphertextCount, GlweDimension, PolynomialSize, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude:: *;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// // DISCLAIMER: the parameters used here are only for test purpose, and are not secure.
     /// let glwe_dimension = GlweDimension(2);
-    /// let polynomial_size = PolynomialSize(3);
+    /// let polynomial_size = PolynomialSize(4);
     /// // Here a hard-set encoding is applied (shift by 20 bits)
-    /// let input = vec![3_u32 << 20; 3];
+    /// let input = vec![3_u32 << 20; polynomial_size.0];
     /// let noise = Variance(2_f64.powf(-50.));
     ///
     /// const UNSAFE_SECRET: u128 = 0;
     /// let mut default_engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
-    /// let h_key: GlweSecretKey32 =
-    ///     default_engine.generate_new_glwe_secret_key(glwe_dimension, polynomial_size)?;
     /// let h_plaintext_vector: PlaintextVector32 =
     ///     default_engine.create_plaintext_vector_from(&input)?;
-    /// let mut h_ciphertext: GlweCiphertext32 =
-    ///     default_engine.encrypt_glwe_ciphertext(&h_key, &h_plaintext_vector, noise)?;
+    /// let mut h_ciphertext: GlweCiphertext32 = default_engine
+    ///     .trivially_encrypt_glwe_ciphertext(glwe_dimension.to_glwe_size(), &h_plaintext_vector)?;
     ///
     /// let mut cuda_engine = CudaEngine::new(())?;
     /// let d_ciphertext: CudaGlweCiphertext32 = cuda_engine.convert_glwe_ciphertext(&h_ciphertext)?;
@@ -155,27 +147,23 @@ impl GlweCiphertextConversionEngine<CudaGlweCiphertext32, GlweCiphertext32> for 
 impl GlweCiphertextConversionEngine<GlweCiphertext64, CudaGlweCiphertext64> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweCiphertextCount, GlweDimension, PolynomialSize, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude:: *;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// // DISCLAIMER: the parameters used here are only for test purpose, and are not secure.
     /// let glwe_dimension = GlweDimension(2);
-    /// let polynomial_size = PolynomialSize(3);
+    /// let polynomial_size = PolynomialSize(4);
     /// // Here a hard-set encoding is applied (shift by 20 bits)
-    /// let input = vec![3_u64 << 20; 3];
+    /// let input = vec![3_u64 << 20; polynomial_size.0];
     /// let noise = Variance(2_f64.powf(-50.));
     ///
     /// const UNSAFE_SECRET: u128 = 0;
     /// let mut default_engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
-    /// let h_key: GlweSecretKey64 =
-    ///     default_engine.generate_new_glwe_secret_key(glwe_dimension, polynomial_size)?;
     /// let h_plaintext_vector: PlaintextVector64 =
     ///     default_engine.create_plaintext_vector_from(&input)?;
-    /// let mut h_ciphertext: GlweCiphertext64 =
-    ///     default_engine.encrypt_glwe_ciphertext(&h_key, &h_plaintext_vector, noise)?;
+    /// let mut h_ciphertext: GlweCiphertext32 = default_engine
+    ///     .trivially_encrypt_glwe_ciphertext(glwe_dimension.to_glwe_size(), &h_plaintext_vector)?;
     ///
     /// let mut cuda_engine = CudaEngine::new(())?;
     /// let d_ciphertext: CudaGlweCiphertext64 = cuda_engine.convert_glwe_ciphertext(&h_ciphertext)?;
@@ -223,27 +211,23 @@ impl GlweCiphertextConversionEngine<GlweCiphertext64, CudaGlweCiphertext64> for 
 impl GlweCiphertextConversionEngine<CudaGlweCiphertext64, GlweCiphertext64> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweCiphertextCount, GlweDimension, PolynomialSize, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude:: *;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// // DISCLAIMER: the parameters used here are only for test purpose, and are not secure.
     /// let glwe_dimension = GlweDimension(2);
-    /// let polynomial_size = PolynomialSize(3);
+    /// let polynomial_size = PolynomialSize(4);
     /// // Here a hard-set encoding is applied (shift by 20 bits)
-    /// let input = vec![3_u64 << 20; 3];
+    /// let input = vec![3_u64 << 20; polynomial_size.0];
     /// let noise = Variance(2_f64.powf(-50.));
     ///
     /// const UNSAFE_SECRET: u128 = 0;
     /// let mut default_engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
-    /// let h_key: GlweSecretKey64 =
-    ///     default_engine.generate_new_glwe_secret_key(glwe_dimension, polynomial_size)?;
     /// let h_plaintext_vector: PlaintextVector64 =
     ///     default_engine.create_plaintext_vector_from(&input)?;
-    /// let mut h_ciphertext: GlweCiphertext64 =
-    ///     default_engine.encrypt_glwe_ciphertext(&h_key, &h_plaintext_vector, noise)?;
+    /// let mut h_ciphertext: GlweCiphertext32 = default_engine
+    ///     .trivially_encrypt_glwe_ciphertext(glwe_dimension.to_glwe_size(), &h_plaintext_vector)?;
     ///
     /// let mut cuda_engine = CudaEngine::new(())?;
     /// let d_ciphertext: CudaGlweCiphertext64 = cuda_engine.convert_glwe_ciphertext(&h_ciphertext)?;
@@ -286,27 +270,23 @@ impl GlweCiphertextConversionEngine<CudaGlweCiphertext64, GlweCiphertext64> for 
 impl GlweCiphertextConversionEngine<GlweCiphertextView64<'_>, CudaGlweCiphertext64> for CudaEngine {
     /// # Example
     /// ```
-    /// use tfhe::core_crypto::prelude::{
-    ///     GlweCiphertextCount, GlweDimension, PolynomialSize, Variance, *,
-    /// };
+    /// use tfhe::core_crypto::prelude:: *;
     /// # use std::error::Error;
     ///
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// // DISCLAIMER: the parameters used here are only for test purpose, and are not secure.
     /// let glwe_dimension = GlweDimension(2);
-    /// let polynomial_size = PolynomialSize(3);
+    /// let polynomial_size = PolynomialSize(4);
     /// // Here a hard-set encoding is applied (shift by 20 bits)
-    /// let input = vec![3_u64 << 20; 3];
+    /// let input = vec![3_u64 << 20; polynomial_size.0];
     /// let noise = Variance(2_f64.powf(-50.));
     ///
     /// const UNSAFE_SECRET: u128 = 0;
     /// let mut default_engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
-    /// let h_key: GlweSecretKey64 =
-    ///     default_engine.generate_new_glwe_secret_key(glwe_dimension, polynomial_size)?;
     /// let h_plaintext_vector: PlaintextVector64 =
     ///     default_engine.create_plaintext_vector_from(&input)?;
-    /// let mut h_ciphertext: GlweCiphertext64 =
-    ///     default_engine.encrypt_glwe_ciphertext(&h_key, &h_plaintext_vector, noise)?;
+    /// let mut h_ciphertext: GlweCiphertext32 = default_engine
+    ///     .trivially_encrypt_glwe_ciphertext(glwe_dimension.to_glwe_size(), &h_plaintext_vector)?;
     /// let h_raw_ciphertext: Vec<u64> =
     ///     default_engine.consume_retrieve_glwe_ciphertext(h_ciphertext)?;
     /// let mut h_view_ciphertext: GlweCiphertextView64 =

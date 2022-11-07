@@ -72,8 +72,8 @@ impl
     /// let h_lut_plaintext_vector = default_engine.create_plaintext_vector_from(&lut)?;
     /// let h_lut_key: GlweSecretKey32 =
     ///     default_engine.generate_new_glwe_secret_key(glwe_dim, poly_size)?;
-    /// let h_lut =
-    ///     default_engine.encrypt_glwe_ciphertext(&h_lut_key, &h_lut_plaintext_vector, noise)?;
+    /// let mut h_lut: GlweCiphertext32 = default_engine
+    ///     .trivially_encrypt_glwe_ciphertext(glwe_dim.to_glwe_size(), &h_lut_plaintext_vector)?;
     /// // create a BSK
     /// let h_bootstrap_key: LweBootstrapKey32 = default_engine.generate_new_lwe_bootstrap_key(
     ///     &h_input_key,
@@ -211,8 +211,8 @@ impl
     /// let h_lut_plaintext_vector = default_engine.create_plaintext_vector_from(&lut)?;
     /// let h_lut_key: GlweSecretKey64 =
     ///     default_engine.generate_new_glwe_secret_key(glwe_dim, poly_size)?;
-    /// let h_lut =
-    ///     default_engine.encrypt_glwe_ciphertext(&h_lut_key, &h_lut_plaintext_vector, noise)?;
+    /// let mut h_lut: GlweCiphertext64 = default_engine
+    ///     .trivially_encrypt_glwe_ciphertext(glwe_dim.to_glwe_size(), &h_lut_plaintext_vector)?;
     /// // create a BSK
     /// let h_bootstrap_key: LweBootstrapKey64 = default_engine.generate_new_lwe_bootstrap_key(
     ///     &h_input_key,
