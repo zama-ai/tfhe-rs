@@ -12,6 +12,7 @@ pub mod comp_op;
 pub mod div_mod;
 pub mod mul;
 pub mod neg;
+pub mod pbs;
 pub mod scalar_add;
 pub mod scalar_mul;
 pub mod scalar_sub;
