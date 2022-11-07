@@ -162,7 +162,7 @@ impl GlweCiphertextConversionEngine<GlweCiphertext64, CudaGlweCiphertext64> for 
     /// let mut default_engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
     /// let h_plaintext_vector: PlaintextVector64 =
     ///     default_engine.create_plaintext_vector_from(&input)?;
-    /// let mut h_ciphertext: GlweCiphertext32 = default_engine
+    /// let mut h_ciphertext: GlweCiphertext64 = default_engine
     ///     .trivially_encrypt_glwe_ciphertext(glwe_dimension.to_glwe_size(), &h_plaintext_vector)?;
     ///
     /// let mut cuda_engine = CudaEngine::new(())?;
@@ -226,7 +226,7 @@ impl GlweCiphertextConversionEngine<CudaGlweCiphertext64, GlweCiphertext64> for 
     /// let mut default_engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
     /// let h_plaintext_vector: PlaintextVector64 =
     ///     default_engine.create_plaintext_vector_from(&input)?;
-    /// let mut h_ciphertext: GlweCiphertext32 = default_engine
+    /// let mut h_ciphertext: GlweCiphertext64 = default_engine
     ///     .trivially_encrypt_glwe_ciphertext(glwe_dimension.to_glwe_size(), &h_plaintext_vector)?;
     ///
     /// let mut cuda_engine = CudaEngine::new(())?;
@@ -285,7 +285,7 @@ impl GlweCiphertextConversionEngine<GlweCiphertextView64<'_>, CudaGlweCiphertext
     /// let mut default_engine = DefaultEngine::new(Box::new(UnixSeeder::new(UNSAFE_SECRET)))?;
     /// let h_plaintext_vector: PlaintextVector64 =
     ///     default_engine.create_plaintext_vector_from(&input)?;
-    /// let mut h_ciphertext: GlweCiphertext32 = default_engine
+    /// let mut h_ciphertext: GlweCiphertext64 = default_engine
     ///     .trivially_encrypt_glwe_ciphertext(glwe_dimension.to_glwe_size(), &h_plaintext_vector)?;
     /// let h_raw_ciphertext: Vec<u64> =
     ///     default_engine.consume_retrieve_glwe_ciphertext(h_ciphertext)?;
