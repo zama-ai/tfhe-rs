@@ -67,18 +67,15 @@ jobs:
           echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
           echo "CUDACXX=$CUDA_PATH/bin/nvcc" >> "${GITHUB_ENV}"
           echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
-      - name: Install Rust
+      - name: Install latest stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
-          override: true
-          components: rustfmt, clippy
+          toolchain: stable
+          default: true
 
       - name: Cuda clippy
         run: |
-          cargo clippy \
-            --features=x86_64-unix,cuda,shortints,booleans,internal-keycache -p tfhe -- \
-            --no-deps -D warnings
+          make clippy_cuda
 
       - name: Test tfhe-rs/boolean with cpu
         run: |
