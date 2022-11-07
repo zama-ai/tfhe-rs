@@ -58,6 +58,26 @@ gen_key_cache:
 	cargo run --release --example generates_test_keys \
 		--features=$(TARGET_ARCH_FEATURE),shortints,internal-keycache -p tfhe
 
+.PHONY: build_boolean # Build with boolean enabled
+build_boolean:
+	cargo build --release \
+		--features=$(TARGET_ARCH_FEATURE),booleans -p tfhe
+
+.PHONY: build_shortint # Build with shortint enabled
+build_shortint:
+	cargo build --release \
+		--features=$(TARGET_ARCH_FEATURE),shortints -p tfhe
+
+.PHONY: build_boolean_and_shortint # Build with boolean and shortint enabled
+build_boolean_and_shortint:
+	cargo build --release \
+		--features=$(TARGET_ARCH_FEATURE),booleans,shortints -p tfhe
+
+.PHONY: build_c_api # Build the C API for boolean and shortint
+build_c_api:
+	cargo build --release
+		--features=$(TARGET_ARCH_FEATURE),booleans-c-api,shortints-c-api -p tfhe
+
 .PHONY: help # Generate list of targets with descriptions
 help:
 	@grep '^.PHONY: .* #' Makefile | sed 's/\.PHONY: \(.*\) # \(.*\)/\1\t\2/' | expand -t30 | sort
