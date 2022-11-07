@@ -77,15 +77,17 @@ jobs:
         run: |
           make clippy_cuda
 
+      - name: Run core cuda tests
+        run: |
+          make test_core_crypto_cuda
+
       - name: Test tfhe-rs/boolean with cpu
         run: |
-          cargo test --release \
-            --features=x86_64-unix,booleans,internal-keycache -p tfhe -- boolean::
+          make test_boolean
 
       - name: Test tfhe-rs/boolean with cuda backend with CUDA 11.8
         run: |
-          cargo test --release \
-            --features=x86_64-unix,cuda,booleans,internal-keycache -p tfhe -- boolean::
+          make test_boolean_cuda
 
       - name: Export variables for CUDA 11.1
         run: |
@@ -96,8 +98,7 @@ jobs:
       - name: Test tfhe-rs/boolean with cuda backend with CUDA 11.1
         run: |
           cargo clean
-          cargo test --release \
-            --features=x86_64-unix,cuda,booleans,internal-keycache -p tfhe -- boolean::
+          make test_boolean_cuda
 
       - name: Slack Notification
         if: ${{ always() }}

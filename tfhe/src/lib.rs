@@ -22,4 +22,5 @@ pub mod js_on_wasm_api;
 #[cfg(feature = "__wasm_api")]
 pub use js_on_wasm_api::*;
 
+#[cfg(any(feature = "booleans", feature = "shortints"))]
 pub(crate) mod seeders;

@@ -2,6 +2,8 @@ SHELL:=$(shell /usr/bin/env which bash)
 RS_TOOLCHAIN:=$(shell cat toolchain.txt)
 CARGO_RS_TOOLCHAIN:=+$(RS_TOOLCHAIN)
 TARGET_ARCH_FEATURE:=$(shell ./scripts/get_arch_feature.sh)
+# This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
+# copy paste the command in the termianl and change them if required without forgetting the flags
 export RUSTFLAGS:=-C target-cpu=native
 
 .PHONY: rs_toolchain # Echo the used rust toolchain for checks
@@ -25,58 +27,78 @@ check_fmt: install_rs_toolchain
 
 .PHONY: clippy_boolean # Run clippy lints enabling the boolean features
 clippy_boolean: install_rs_toolchain
-	cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),booleans \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_shortint # Run clippy lints enabling the shortints features
 clippy_shortint: install_rs_toolchain
-	cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),shortints \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy # Run clippy lints enabling the booleans, shortints
 clippy: install_rs_toolchain
-	cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),booleans,shortints \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_c_api # Run clippy lints enabling the booleans, shortints and the C API
 clippy_c_api: install_rs_toolchain
-	cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),booleans-c-api,shortints-c-api \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_cuda # Run clippy lints enabling the booleans, shortints, cuda and c API features
 clippy_cuda: install_rs_toolchain
-	cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),cuda,booleans-c-api,shortints-c-api \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache:
-	cargo run --release --example generates_test_keys \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo run --release --example generates_test_keys \
 		--features=$(TARGET_ARCH_FEATURE),shortints,internal-keycache -p tfhe
 
 .PHONY: build_boolean # Build with boolean enabled
 build_boolean:
-	cargo build --release \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release \
 		--features=$(TARGET_ARCH_FEATURE),booleans -p tfhe
 
 .PHONY: build_shortint # Build with shortint enabled
 build_shortint:
-	cargo build --release \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release \
 		--features=$(TARGET_ARCH_FEATURE),shortints -p tfhe
 
 .PHONY: build_boolean_and_shortint # Build with boolean and shortint enabled
 build_boolean_and_shortint:
-	cargo build --release \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release \
 		--features=$(TARGET_ARCH_FEATURE),booleans,shortints -p tfhe
 
 .PHONY: build_c_api # Build the C API for boolean and shortint
 build_c_api:
-	cargo build --release
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build --release
 		--features=$(TARGET_ARCH_FEATURE),booleans-c-api,shortints-c-api -p tfhe
+
+.PHONY: test_core_crypto # Run the tests of the core_crypto module
+test_core_crypto:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
+		--features=$(TARGET_ARCH_FEATURE) -p tfhe -- core_crypto::
+
+.PHONY: test_core_crypto_cuda # Run the tests of the core_crypto module with cuda enabled
+test_core_crypto_cuda:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
+		--features=$(TARGET_ARCH_FEATURE),cuda -p tfhe -- core_crypto::backends::cuda::
+
+.PHONY: test_boolean # Run the tests of the boolean module
+test_boolean:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
+		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
+
+.PHONY: test_boolean_cuda # Run the tests of the boolean module with cuda enabled
+test_boolean_cuda:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
+		--features=$(TARGET_ARCH_FEATURE),boolean,cuda -p tfhe -- boolean::
 
 .PHONY: help # Generate list of targets with descriptions
 help:

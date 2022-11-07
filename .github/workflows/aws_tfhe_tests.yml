@@ -51,8 +51,7 @@ jobs:
 
       - name: Run core tests
         run: |
-          cargo test --release \
-            --features=x86_64-unix,booleans,shortints,internal-keycache -p tfhe -- core_crypto::
+          make test_core_crypto
 
       - name: Run C API tests
         run: |
