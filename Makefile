@@ -10,8 +10,10 @@ rs_toolchain:
 
 .PHONY: install_rs_toolchain # Install the toolchain used for checks
 install_rs_toolchain:
-	@rustup toolchain install "$(RS_TOOLCHAIN)" > /dev/null 2>&1 || \
-	echo "Unable to install $(RS_TOOLCHAIN) toolchain, check your rustup installation"
+	@rustup toolchain list | grep "$(RS_TOOLCHAIN)" > /dev/null || \
+	rustup toolchain install "$(RS_TOOLCHAIN)" || \
+	echo "Unable to install $(RS_TOOLCHAIN) toolchain, check your rustup installation. \
+	Rustup can be downloaded at https://rustup.rs/"
 
 .PHONY: fmt # Format rust code
 fmt: install_rs_toolchain
