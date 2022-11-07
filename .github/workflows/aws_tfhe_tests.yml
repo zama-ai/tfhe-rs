@@ -3,6 +3,7 @@ name: AWS Tests on CPU
 env:
   CARGO_TERM_COLOR: always
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
@@ -50,7 +51,7 @@ jobs:
 
       - name: Run core tests
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo test --release \
+          cargo test --release \
             --features=x86_64-unix,booleans,shortints,internal-keycache -p tfhe -- core_crypto::
 
       - name: Run C API tests
