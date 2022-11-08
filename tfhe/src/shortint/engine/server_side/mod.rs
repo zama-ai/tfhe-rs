@@ -244,6 +244,58 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // Those are currently not used in shortint, we therefore disable the warning when not compiling
+    // the C API
+    #[cfg_attr(not(feature = "__c_api"), allow(dead_code))]
+    pub(crate) fn smart_bivariate_pbs(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &Ciphertext,
+        ct_right: &mut Ciphertext,
+        acc: &GlweCiphertext64,
+    ) -> EngineResult<Ciphertext> {
+        let mut ct_res = ct_left.clone();
+        self.smart_bivariate_pbs_assign(server_key, &mut ct_res, ct_right, acc)?;
+        Ok(ct_res)
+    }
+
+    #[cfg_attr(not(feature = "__c_api"), allow(dead_code))]
+    pub(crate) fn smart_bivariate_pbs_assign(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+        acc: &GlweCiphertext64,
+    ) -> EngineResult<()> {
+        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            self.message_extract_assign(server_key, ct_left)?;
+            self.message_extract_assign(server_key, ct_right)?;
+        }
+
+        self.unchecked_bivariate_pbs_assign(server_key, ct_left, ct_right, acc)
+    }
+
+    #[cfg_attr(not(feature = "__c_api"), allow(dead_code))]
+    pub(crate) fn unchecked_bivariate_pbs_assign(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
+        acc: &GlweCiphertext64,
+    ) -> EngineResult<()> {
+        let modulus = (ct_right.degree.0 + 1) as u64;
+
+        // Message 1 is shifted to the carry bits
+        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
+
+        // Message 2 is placed in the message bits
+        self.unchecked_add_assign(ct_left, ct_right)?;
+
+        // Compute the PBS
+        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, acc)?;
+        Ok(())
+    }
+
     pub(crate) fn carry_extract_assign(
         &mut self,
         server_key: &ServerKey,
