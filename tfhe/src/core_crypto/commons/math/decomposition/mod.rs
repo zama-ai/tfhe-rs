@@ -1,8 +1,8 @@
 //! Signed decomposition of unsigned integers.
 //!
-//! Multiple homomorphic operations used in the concrete scheme use a signed decomposition to reduce
-//! the amount of noise. This module contains a [`SignedDecomposer`] which offer a clean api for
-//! this decomposition.
+//! Multiple homomorphic operations used in Zama's variant of the TFHE scheme use a signed
+//! decomposition to reduce the amount of noise. This module contains a [`SignedDecomposer`] which
+//! offer a clean api for this decomposition.
 //!
 //! # Description
 //!

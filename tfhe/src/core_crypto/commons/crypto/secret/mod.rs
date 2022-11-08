@@ -1,4 +1,4 @@
-//! Secret keys for the concrete schemes.
+//! Secret keys module.
 pub use glwe::*;
 pub use lwe::*;
 

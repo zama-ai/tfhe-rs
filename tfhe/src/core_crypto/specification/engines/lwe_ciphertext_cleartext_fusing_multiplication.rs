@@ -16,7 +16,7 @@ engine_error! {
 /// # Formal Definition
 ///
 /// cf
-/// [`here`](`crate::core_crypto::specification::engines::LweCiphertextCleartextDiscardingMultiplicationEngine`)
+/// [`here`](`crate::core_crypto::specification::engines::LweCiphertextCleartextFusingMultiplicationEngine`)
 pub trait LweCiphertextCleartextFusingMultiplicationEngine<Ciphertext, Cleartext>:
     AbstractEngine
 where

@@ -342,7 +342,7 @@ impl WopbsKey {
         })
     }
 
-    /// Temporary wrapper used in `concrete-integer`.
+    /// Temporary wrapper.
     ///
     /// # Warning Experimental
     pub fn circuit_bootstrapping_vertical_packing(

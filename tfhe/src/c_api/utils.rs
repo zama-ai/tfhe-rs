@@ -19,7 +19,7 @@ pub fn check_ptr_is_non_null_and_aligned<T>(ptr: *const T) -> Result<(), String>
         return Err(format!(
             "pointer is misaligned, expected {} bytes alignement, got pointer: {:p}. \
             You May have mixed some pointers in your function call. If that's not the case \
-            check concrete-core-ffi.h for alignment constants for plain data types allocation.",
+            check tfhe.h for alignment constants for plain data types allocation.",
             expected_alignment, ptr
         ));
     }

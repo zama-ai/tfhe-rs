@@ -8,8 +8,7 @@ use crate::core_crypto::specification::entities::AbstractEntity;
 ///
 /// ## Key Switching Key
 ///
-/// A key switching key is a vector of Lev ciphertexts (described on the bottom of
-/// [`this page`](`crate::core_crypto::specification::entities::GswCiphertextEntity`)).
+/// A key switching key is a vector of Lev ciphertexts.
 /// It encrypts the coefficient of
 /// the [`LWE secret key`](`crate::core_crypto::specification::entities::LweSecretKeyEntity`)
 /// $\vec{s}\_{\mathsf{in}}$ under the

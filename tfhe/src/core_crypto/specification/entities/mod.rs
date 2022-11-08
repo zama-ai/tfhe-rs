@@ -1,4 +1,4 @@
-//! A module containing specifications of the `concrete` FHE entities.
+//! A module containing specifications of FHE entities.
 //!
 //! In practice, __Entities__ are types which implement:
 //!
@@ -10,7 +10,7 @@ pub mod markers;
 use markers::*;
 use std::fmt::Debug;
 
-/// A top-level abstraction for entities of the concrete scheme.
+/// A top-level abstraction for entities.
 ///
 /// An `AbstractEntity` type is nothing more than a type with an associated
 /// [`Kind`](`AbstractEntity::Kind`) marker type (implementing the [`EntityKindMarker`] trait),

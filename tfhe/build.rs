@@ -1,4 +1,4 @@
-// concrete-core-ffi/build.rs
+// tfhe/build.rs
 
 #[cfg(feature = "__c_api")]
 fn gen_c_api() {

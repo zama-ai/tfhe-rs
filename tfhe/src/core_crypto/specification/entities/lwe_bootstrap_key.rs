@@ -9,13 +9,11 @@ use crate::core_crypto::specification::entities::AbstractEntity;
 /// # Formal Definition
 ///
 /// ## Bootstrapping Key
-/// A bootstrapping key is a vector of
-/// [`GGSW ciphertexts`](`crate::core_crypto::specification::entities::GgswCiphertextEntity`). It
-/// encrypts the coefficients of the [`LWE secret
-/// key`](`crate::core_crypto::specification::entities::LweSecretKeyEntity`) $\vec{s}\_{\
-/// mathsf{in}}$ under the [GLWE secret
-/// key](`crate::core_crypto::specification::entities::GlweSecretKeyEntity`) $\vec{S}\_{\
-/// mathsf{out}}$.
+/// A bootstrapping key is a vector of GGSW ciphertexts. It encrypts the coefficients of the
+/// [`LWE secret key`](`crate::core_crypto::specification::entities::LweSecretKeyEntity`)
+/// $\vec{s}\_{\ mathsf{in}}$ under the
+/// [GLWE secret key](`crate::core_crypto::specification::entities::GlweSecretKeyEntity`)
+/// $\vec{S}\_{\ mathsf{out}}$.
 ///
 /// $$\mathsf{BSK}\_{\vec{s}\_{\mathsf{in}}\rightarrow \vec{S}\_{\mathsf{out}}} = \left(
 /// \overline{\overline{\mathsf{CT}\_0}}, \cdots ,

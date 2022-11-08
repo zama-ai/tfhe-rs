@@ -47,7 +47,7 @@ impl ServerKey {
 }
 
 /// Simple wrapper around `std::error::Error` to be able to
-/// forward all the possible `EngineError` type from `concrete-core`
+/// forward all the possible `EngineError` type from [`core_cryto`](crate::core_crypto)
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct EngineError {
@@ -69,7 +69,7 @@ pub(crate) type EngineResult<T> = Result<T, EngineError>;
 
 /// ShortintEngine
 ///
-/// This 'engine' holds the necessary engines from `concrete-core`
+/// This 'engine' holds the necessary engines from [`core_crypto`](crate::core_crypto)
 /// as well as the buffers that we want to keep around to save processing time.
 ///
 /// This structs actually implements the logics into its methods.

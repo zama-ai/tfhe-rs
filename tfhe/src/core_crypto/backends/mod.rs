@@ -1,4 +1,4 @@
-//! A module containing various backends implementing the `concrete` FHE scheme.
+//! A module containing various backends implementing various FHE cryptographic primitives.
 
 #[cfg(feature = "backend_default")]
 pub mod default;

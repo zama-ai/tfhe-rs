@@ -1,5 +1,5 @@
 #![deny(rustdoc::broken_intra_doc_links)]
-//! Welcome the the `concrete-boolean` documentation!
+//! Welcome the the tfhe.rs `boolean` module documentation!
 //!
 //! # Description
 //! This library makes it possible to execute boolean gates over encrypted bits.
