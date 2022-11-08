@@ -100,6 +100,19 @@ test_boolean_cuda:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
 		--features=$(TARGET_ARCH_FEATURE),booleans,cuda -p tfhe -- boolean::
 
+.PHONY: test_c_api # Run the tests for the C API
+test_c_api:
+	./scripts/c_api_tests.sh
+
+.PHONY: test_shortint_ci # Run the tests for shortint ci
+test_shortint_ci:
+	./scripts/shortint-tests.sh
+
+.PHONY: test_shortint # Run all the tests for shortint
+test_shortint:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
+		--features=$(TARGET_ARCH_FEATURE),shortints -p tfhe -- shortint::
+
 .PHONY: help # Generate list of targets with descriptions
 help:
 	@grep '^.PHONY: .* #' Makefile | sed 's/\.PHONY: \(.*\) # \(.*\)/\1\t\2/' | expand -t30 | sort
