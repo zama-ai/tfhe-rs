@@ -2,39 +2,37 @@
 
 ## Importing into your project
 
-To use `TFHE.rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
+To use `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
 
 ```toml
-tfhe = { version = "0.1.0", features = [ "booleans","shortints","x86_64-unix" ] }
+tfhe = { version = "0.1.0", features = [ "booleans", "shortints", "x86_64-unix" ] }
 ```
 
 ## Choosing your features
 
-`TFHE.rs` exposes different `cargo features` to customize the types and features used.
+`TFHE-rs` exposes different `cargo features` to customize the types and features used.
 
 ### Kinds.
 
-This crate exposes two kinds of data types. Each kind is enabled by activating its corresponding 
-feature in the TOML line. Each kind may have multiple types:
+This crate exposes two kinds of data types. Each kind is enabled by activating its corresponding feature in the TOML line. Each kind may have multiple types:
 
 | Kind      | Features     | Type(s)                                  |
 | --------- | ------------- |------------------------------------------|
 | Booleans  | `booleans`    | Booleans                                 |
-| ShortInts | `shortints`   | Small unsigned integers                  |
+| ShortInts | `shortints`   | Short unsigned integers                  |
 
 
 ### Serialization.
+
 The different data types and keys exposed by the crate can be serialized / deserialized.
 
-More information can be found [here](../Booleans/serialization.md) for Booleans and 
-[here](../shortint/serialization.md) for shortint. 
-
-***
+More information can be found [here](../Booleans/serialization.md) for Booleans and [here](../shortint/serialization.md) for shortint.
 
 ## Supported platforms
-TFHE.rs supports Linux (x86, aarch64), macOS (x86, aarch64), Windows (x86 with `RDSEED` 
-instruction). 
+
+TFHE-rs is supported on Linux (x86, aarch64), macOS (x86, aarch64) and Windows (x86 with `RDSEED`
+instruction).
 
 | OS        | x86              | aarch64          |
 | --------- | -------------    |------------------|
@@ -43,8 +41,12 @@ instruction).
 | Windows   | `x86_64`         | Unsupported      |
 
 {% hint style="info" %}
-Users who have ARM devices can use `TFHE.rs` by compiling using the
+Users who have ARM devices can use `TFHE-rs` by compiling using the
 `nightly` toolchain.
+{% endhint %}
+
+
+### Using TFHE-rs with nightly toolchain
 
 First, install the needed Rust toolchain:
 

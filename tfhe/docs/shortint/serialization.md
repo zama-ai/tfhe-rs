@@ -1,15 +1,10 @@
 # Serialization / Deserialization
 
-As explained in the introduction, some types (`Serverkey`, `Ciphertext`) are meant to be shared
-with the server that does the computations.
+As explained in the introduction, some types (`Serverkey`, `Ciphertext`) are meant to be shared with the server that does the computations.
 
-The easiest way to send these data to a server is to use the serialization and deserialization features.
-tfhe::shortint uses the serde framework, serde's Serialize and Deserialize are implemented on 
-tfhe::shortint's
-types.
+The easiest way to send these data to a server is to use the serialization and deserialization features. tfhe::shortint uses the [serde](https://crates.io/crates/serde) framework, serde's Serialize and Deserialize are implemented on tfhe::shortint's types.
 
-To be able to serialize our data, we need to pick a [data format], for our use case,
-[bincode] is a good choice, mainly because it is binary format.
+To be able to serialize our data, we need to pick a [data format](https://serde.rs/#data-formats), for our use case, [bincode](https://crates.io/crates/bincode) is a good choice, mainly because it is binary format.
 
 
 ```toml
@@ -67,7 +62,3 @@ fn server_function(serialized_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error
     Ok(serialized_result)
 }
 ```
-
-[serde]: https://crates.io/crates/serde
-[data format]: https://serde.rs/#data-formats
-[bincode]: https://crates.io/crates/bincode 
