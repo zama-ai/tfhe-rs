@@ -1,4 +1,4 @@
-//! A module containing specifications of the concrete FHE engines.
+//! A module containing specifications of FHE engines.
 //!
 //! In essence, __engines__ are types which can be used to perform operations on fhe entities. These
 //! engines contain all the side-resources needed to execute the operations they declare.
@@ -62,12 +62,12 @@
 //! (example: [`LweCiphertextFusingAdditionEngine`]). In those operations though, the data
 //! originally contained in the output is used for computation.
 
-// This makes it impossible for types outside concrete to implement operations.
+// This makes it impossible for types outside this crate to implement operations.
 pub(crate) mod sealed {
     pub trait AbstractEngineSeal {}
 }
 
-/// A top-level abstraction for engines of the concrete scheme.
+/// A top-level abstraction for engines.
 ///
 /// An `AbstractEngine` is nothing more than a type with an associated error type
 /// [`EngineError`](`AbstractEngine::EngineError`) and a default constructor.

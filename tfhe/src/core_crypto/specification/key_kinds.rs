@@ -23,7 +23,7 @@ pub struct UniformKeyKind;
 /// This type is a marker for keys filled with zeros (used for testing)
 pub struct ZeroKeyKind;
 
-/// In concrete, secret keys can be based on different kinds of scalar values (put aside the
+/// Secret keys can be based on different kinds of scalar values (put aside the
 /// data type eventually used to store it in memory). This trait is implemented by marker types,
 /// which are used to specify in the type system, what kind of keys we are currently using.
 pub trait KeyKind: seal::SealedKeyKind + Sync + Clone {}
