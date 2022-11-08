@@ -1,6 +1,6 @@
 SHELL:=$(shell /usr/bin/env which bash)
-RS_TOOLCHAIN:=$(shell cat toolchain.txt)
-CARGO_RS_TOOLCHAIN:=+$(RS_TOOLCHAIN)
+RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt)
+CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
 TARGET_ARCH_FEATURE:=$(shell ./scripts/get_arch_feature.sh)
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the termianl and change them if required without forgetting the flags
@@ -8,50 +8,50 @@ export RUSTFLAGS:=-C target-cpu=native
 
 .PHONY: rs_toolchain # Echo the used rust toolchain for checks
 rs_toolchain:
-	@echo $(RS_TOOLCHAIN)
+	@echo $(RS_CHECK_TOOLCHAIN)
 
 .PHONY: install_rs_toolchain # Install the toolchain used for checks
 install_rs_toolchain:
-	@rustup toolchain list | grep "$(RS_TOOLCHAIN)" > /dev/null || \
-	rustup toolchain install "$(RS_TOOLCHAIN)" || \
-	echo "Unable to install $(RS_TOOLCHAIN) toolchain, check your rustup installation. \
+	@rustup toolchain list | grep "$(RS_CHECK_TOOLCHAIN)" > /dev/null || \
+	rustup toolchain install "$(RS_CHECK_TOOLCHAIN)" || \
+	echo "Unable to install $(RS_CHECK_TOOLCHAIN) toolchain, check your rustup installation. \
 	Rustup can be downloaded at https://rustup.rs/"
 
 .PHONY: fmt # Format rust code
 fmt: install_rs_toolchain
-	cargo "$(CARGO_RS_TOOLCHAIN)" fmt
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
 
 .PHONT: check_fmt # Check rust code format
 check_fmt: install_rs_toolchain
-	cargo "$(CARGO_RS_TOOLCHAIN)" fmt --check
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
 
 .PHONY: clippy_boolean # Run clippy lints enabling the boolean features
 clippy_boolean: install_rs_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),booleans \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_shortint # Run clippy lints enabling the shortints features
 clippy_shortint: install_rs_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),shortints \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy # Run clippy lints enabling the booleans, shortints
 clippy: install_rs_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),booleans,shortints \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_c_api # Run clippy lints enabling the booleans, shortints and the C API
 clippy_c_api: install_rs_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),booleans-c-api,shortints-c-api \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_cuda # Run clippy lints enabling the booleans, shortints, cuda and c API features
 clippy_cuda: install_rs_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_TOOLCHAIN)" clippy \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=$(TARGET_ARCH_FEATURE),cuda,booleans-c-api,shortints-c-api \
 		-p tfhe -- --no-deps -D warnings
 
@@ -112,6 +112,12 @@ test_shortint_ci:
 test_shortint:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
 		--features=$(TARGET_ARCH_FEATURE),shortints,internal-keycache -p tfhe -- shortint::
+
+.PHONY: doc # Build rust doc
+doc:
+	RUSTDOCFLAGS="--html-in-header katex-header.html" \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
+		--features=$(TARGET_ARCH_FEATURE),booleans,shortints --no-deps
 
 .PHONY: help # Generate list of targets with descriptions
 help:
