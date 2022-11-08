@@ -93,12 +93,12 @@ test_core_crypto_cuda:
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
+		--features=$(TARGET_ARCH_FEATURE),booleans -p tfhe -- boolean::
 
 .PHONY: test_boolean_cuda # Run the tests of the boolean module with cuda enabled
 test_boolean_cuda:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean,cuda -p tfhe -- boolean::
+		--features=$(TARGET_ARCH_FEATURE),booleans,cuda -p tfhe -- boolean::
 
 .PHONY: help # Generate list of targets with descriptions
 help:
