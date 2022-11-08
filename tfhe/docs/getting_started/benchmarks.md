@@ -1,13 +1,12 @@
 # Benchmarks
 
-Due to their nature, homomorphic operations are obviously slower than their clear equivalent.
-In what follows, some timings are exposed for the basic operations. For completeness, some 
-benchmarks of other libraries are also given. 
+Due to their nature, homomorphic operations are obviously slower than their clear equivalent. In what follows, some timings are exposed for the basic operations. For completeness, some benchmarks of other libraries are also given.
 
 All the benchmarks had been launched on an AWS m6i.metal with the following specifications:
-Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz and 512GB of RAM. 
+Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz and 512GB of RAM.
 
 ## Booleans
+
 This measures the execution time of a single binary boolean gate.
 
 ### thfe.rs::booleans
@@ -25,13 +24,13 @@ This measures the execution time of a single binary boolean gate.
 
 ### OpenFHE
 
-| Parameter set  | AP | GINX | AP (Intel HEXL) | GINX (Intel HEXL) |
-| --- | --- | --- | --- | --- |
-| STD_128 | 247ms | 172ms | 116ms | 78ms |
-| MEDIUM | 158ms | 113ms | 75ms | 50.2ms |
+| Parameter set  | GINX | GINX (Intel HEXL) |
+| --- | --- | --- |
+| STD_128 | 172ms | 78ms |
+| MEDIUM | 113ms | 50.2ms |
 
 ## Shortints
-This measures the execution time for some operations and some parameter sets of shortints. 
+This measures the execution time for some operations and some parameter sets of shortints.
 
 ### thfe.rs::shortint
 This uses the concrete-fft + avx512 configuration.

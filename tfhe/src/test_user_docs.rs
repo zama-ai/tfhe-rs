@@ -2,13 +2,11 @@ use doc_comment::doctest;
 
 // Getting started
 doctest!("../docs/getting_started/quick_start.md", quick_start);
-doctest!(
-    "../docs/getting_started/operations_and_examples.md",
-    operations
-);
+doctest!("../docs/getting_started/operations.md", operations);
 
 // Booleans
 doctest!("../docs/Booleans/parameters.md", booleans_parameters);
+doctest!("../docs/Booleans/operations.md", booleans_operations);
 doctest!("../docs/Booleans/serialization.md", booleans_serialization);
 doctest!("../docs/Booleans/tutorial.md", booleans_tutorial);
 
