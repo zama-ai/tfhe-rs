@@ -2,9 +2,10 @@
 
 set -e
 
-nproc_bin=nproc
+CURR_DIR="$(dirname "$0")"
+ARCH_FEATURE="$("${CURR_DIR}/get_arch_feature.sh")"
 
-arch_feature=x86_64-unix
+nproc_bin=nproc
 
 # macOS detects CPUs differently
 if [[ $(uname) == "Darwin" ]]; then
@@ -14,9 +15,8 @@ fi
 n_threads="$(${nproc_bin})"
 
 if uname -a | grep "arm64"; then
-    arch_feature=aarch64-unix
     if [[ $(uname) == "Darwin" ]]; then
-        # Keys are 4.7 gigs at max, M1 macs only has 8 gigs of RAM
+        # Keys are 4.7 gigs at max, CI M1 macs only has 8 gigs of RAM
         n_threads=1
     fi
 else
@@ -46,14 +46,14 @@ cargo nextest run \
     --release \
     --package tfhe \
     --profile ci \
-    --features="${arch_feature}",shortints,internal-keycache \
+    --features="${ARCH_FEATURE}",shortints,internal-keycache \
     --test-threads "${n_threads}" \
     -E "${filter_expression}"
 
 cargo test \
     --release \
     --package tfhe \
-    --features="${arch_feature}",shortints,internal-keycache \
+    --features="${ARCH_FEATURE}",shortints,internal-keycache \
     --doc \
     shortint::
 
