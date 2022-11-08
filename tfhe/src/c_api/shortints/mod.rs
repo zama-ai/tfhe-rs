@@ -13,7 +13,7 @@ use crate::shortint;
 pub use ciphertext::ShortintCiphertext;
 pub use client_key::ShortintClientKey;
 pub use public_key::ShortintPublicKey;
-pub use server_key::pbs::ShortintPBSAccumulator;
+pub use server_key::pbs::{ShortintBivariatePBSAccumulator, ShortintPBSAccumulator};
 pub use server_key::ShortintServerKey;
 
 #[no_mangle]
