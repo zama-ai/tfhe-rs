@@ -55,7 +55,7 @@ jobs:
 
       - name: Run C API tests
         run: |
-          ./scripts/c_api_tests.sh
+          make test_c_api
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
@@ -85,7 +85,8 @@ jobs:
         run: aws s3 sync ./keys s3://concrete-libs-keycache
 
       - name: Run shortint tests
-        run: ./scripts/shortint-tests.sh
+        run: |
+          make test_shortint_ci
 
       - name: Slack Notification
         if: ${{ always() }}
