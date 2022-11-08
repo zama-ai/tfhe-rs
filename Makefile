@@ -111,7 +111,7 @@ test_shortint_ci:
 .PHONY: test_shortint # Run all the tests for shortint
 test_shortint:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
-		--features=$(TARGET_ARCH_FEATURE),shortints -p tfhe -- shortint::
+		--features=$(TARGET_ARCH_FEATURE),shortints,internal-keycache -p tfhe -- shortint::
 
 .PHONY: help # Generate list of targets with descriptions
 help:
