@@ -10,7 +10,7 @@ fn client_server_keys() {
     for (i, params) in ALL_PARAMETER_VEC.iter().copied().enumerate() {
         println!(
             "Generating [{} / {}] : {}",
-            i,
+            i + 1,
             ALL_PARAMETER_VEC.len(),
             params.name()
         );
