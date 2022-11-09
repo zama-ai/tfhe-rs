@@ -3,7 +3,7 @@ use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
 use crate::boolean;
-use crate::boolean::server_key::BinaryBooleanGates;
+use crate::boolean::server_key::{BinaryBooleanGates, BinaryBooleanGatesAssign};
 
 use super::BooleanCiphertext;
 
@@ -206,6 +206,109 @@ pub unsafe extern "C" fn booleans_server_key_not(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_and_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        server_key.0.and_assign(&mut ct_left.0, &ct_right.0);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_nand_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        server_key.0.nand_assign(&mut ct_left.0, &ct_right.0);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_nor_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        server_key.0.nor_assign(&mut ct_left.0, &ct_right.0);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_or_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        server_key.0.or_assign(&mut ct_left.0, &ct_right.0);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_xor_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        server_key.0.xor_assign(&mut ct_left.0, &ct_right.0);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_xnor_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    ct_right: *const BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
+
+        server_key.0.xnor_assign(&mut ct_left.0, &ct_right.0);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_not_assign(
+    server_key: *const BooleanServerKey,
+    ct_input: *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_input = get_mut_checked(ct_input).unwrap();
+
+        server_key.0.not_assign(&mut ct_input.0);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn booleans_server_key_mux(
     server_key: *const BooleanServerKey,
     ct_condition: *const BooleanCiphertext,
@@ -376,6 +479,90 @@ pub unsafe extern "C" fn booleans_server_key_xnor_scalar(
             Box::new(BooleanCiphertext(server_key.0.xnor(&ct_left.0, scalar)));
 
         *result = Box::into_raw(heap_allocated_result);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_and_scalar_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    scalar: bool,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+
+        server_key.0.and_assign(&mut ct_left.0, scalar);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_nand_scalar_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    scalar: bool,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+
+        server_key.0.nand_assign(&mut ct_left.0, scalar);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_nor_scalar_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    scalar: bool,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+
+        server_key.0.nor_assign(&mut ct_left.0, scalar);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_or_scalar_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    scalar: bool,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+
+        server_key.0.or_assign(&mut ct_left.0, scalar);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_xor_scalar_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    scalar: bool,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+
+        server_key.0.xor_assign(&mut ct_left.0, scalar);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn booleans_server_key_xnor_scalar_assign(
+    server_key: *const BooleanServerKey,
+    ct_left: *mut BooleanCiphertext,
+    scalar: bool,
+) -> c_int {
+    catch_panic(|| {
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+
+        server_key.0.xnor_assign(&mut ct_left.0, scalar);
     })
 }
 
