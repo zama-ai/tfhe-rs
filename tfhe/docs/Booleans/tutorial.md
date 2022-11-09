@@ -54,8 +54,10 @@ fn main() {
 // We serialize the server key to bytes, and store them in a file:
     let encoded: Vec<u8> = bincode::serialize(&server_key).unwrap();
 
+    let server_key_file = "/tmp/tutorial_server_key.bin";
+
 // We write the server key to a file:
-    let mut file = File::create("/tmp/server_key.bin")
+    let mut file = File::create(server_key_file)
         .expect("failed to create server key file");
     file.write_all(encoded.as_slice()).expect("failed to write key to file");
 
@@ -67,7 +69,7 @@ fn main() {
 //---------------------------- SERVER SIDE ----------------------------
 
 // We read the file:
-    let mut file = File::open("/tmp/server_key.bin")
+    let mut file = File::open(server_key_file)
         .expect("failed to open server key file");
     let mut encoded: Vec<u8> = Vec::new();
     file.read_to_end(&mut encoded).expect("failed to read key");
