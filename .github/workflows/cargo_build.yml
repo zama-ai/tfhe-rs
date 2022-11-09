@@ -28,16 +28,13 @@ jobs:
         run: |
           echo "rs-toolchain=$(make rs_toolchain)" >> "${GITHUB_OUTPUT}"
 
-      - name: Install latest nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ steps.toolchain.outputs.rs-toolchain }}
-          components: clippy,rustfmt
-          default: true
-
       - name: Check format
         run: |
           make check_fmt
+
+      - name: Build doc
+        run: |
+          make doc
 
       - name: Clippy booleans
         run: |

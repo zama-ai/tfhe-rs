@@ -13,7 +13,7 @@ cd "${TFHE_BUILD_DIR}"
 
 cmake .. -DCMAKE_BUILD_TYPE=RELEASE
 
-RUSTFLAGS="-C target-cpu=native" cargo build \
+RUSTFLAGS="-C target-cpu=native" cargo ${1:+"${1}"} build \
 --release --features="${ARCH_FEATURE}",booleans-c-api,shortints-c-api -p tfhe
 
 make -j
