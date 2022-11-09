@@ -15,7 +15,9 @@ use crate::boolean::client_key::ClientKey;
 use crate::boolean::engine::bootstrapping::CpuBootstrapKey;
 #[cfg(feature = "cuda")]
 use crate::boolean::engine::{bootstrapping::CudaBootstrapKey, CudaBooleanEngine};
-use crate::boolean::engine::{BinaryGatesEngine, CpuBooleanEngine, WithThreadLocalEngine};
+use crate::boolean::engine::{
+    BinaryGatesAssignEngine, BinaryGatesEngine, CpuBooleanEngine, WithThreadLocalEngine,
+};
 #[cfg(feature = "cuda")]
 use std::sync::Arc;
 
@@ -26,6 +28,15 @@ pub trait BinaryBooleanGates<L, R> {
     fn or(&self, ct_left: L, ct_right: R) -> Ciphertext;
     fn xor(&self, ct_left: L, ct_right: R) -> Ciphertext;
     fn xnor(&self, ct_left: L, ct_right: R) -> Ciphertext;
+}
+
+pub trait BinaryBooleanGatesAssign<L, R> {
+    fn and_assign(&self, ct_left: L, ct_right: R);
+    fn nand_assign(&self, ct_left: L, ct_right: R);
+    fn nor_assign(&self, ct_left: L, ct_right: R);
+    fn or_assign(&self, ct_left: L, ct_right: R);
+    fn xor_assign(&self, ct_left: L, ct_right: R);
+    fn xnor_assign(&self, ct_left: L, ct_right: R);
 }
 
 trait RefFromServerKey {
@@ -124,6 +135,54 @@ where
     }
 }
 
+impl<Lhs, Rhs> BinaryBooleanGatesAssign<Lhs, Rhs> for ServerKey
+where
+    <ServerKey as DefaultImplementation>::Engine:
+        BinaryGatesAssignEngine<Lhs, Rhs, <ServerKey as DefaultImplementation>::BootsrapKey>,
+{
+    fn and_assign(&self, ct_left: Lhs, ct_right: Rhs) {
+        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
+        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+            engine.and_assign(ct_left, ct_right, bootstrap_key)
+        })
+    }
+
+    fn nand_assign(&self, ct_left: Lhs, ct_right: Rhs) {
+        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
+        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+            engine.nand_assign(ct_left, ct_right, bootstrap_key)
+        })
+    }
+
+    fn nor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
+        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
+        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+            engine.nor_assign(ct_left, ct_right, bootstrap_key)
+        })
+    }
+
+    fn or_assign(&self, ct_left: Lhs, ct_right: Rhs) {
+        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
+        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+            engine.or_assign(ct_left, ct_right, bootstrap_key)
+        })
+    }
+
+    fn xor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
+        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
+        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+            engine.xor_assign(ct_left, ct_right, bootstrap_key)
+        })
+    }
+
+    fn xnor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
+        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
+        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+            engine.xnor_assign(ct_left, ct_right, bootstrap_key)
+        })
+    }
+}
+
 impl ServerKey {
     pub fn new(cks: &ClientKey) -> Self {
         let cpu_key =
@@ -138,6 +197,10 @@ impl ServerKey {
 
     pub fn not(&self, ct: &Ciphertext) -> Ciphertext {
         CpuBooleanEngine::with_thread_local_mut(|engine| engine.not(ct))
+    }
+
+    pub fn not_assign(&self, ct: &mut Ciphertext) {
+        CpuBooleanEngine::with_thread_local_mut(|engine| engine.not_assign(ct))
     }
 
     pub fn mux(

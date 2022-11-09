@@ -1,7 +1,7 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
 use crate::boolean::parameters::BooleanParameters;
-use crate::boolean::server_key::{BinaryBooleanGates, ServerKey};
+use crate::boolean::server_key::{BinaryBooleanGates, BinaryBooleanGatesAssign, ServerKey};
 use crate::boolean::{random_boolean, random_integer};
 
 /// Number of assert in randomized tests
@@ -208,6 +208,40 @@ fn test_and_gate(parameters: BooleanParameters) {
 
         // assert
         assert_eq!(expected_result, dec_and, "left: {:?}, right: {:?}", b1, ct2);
+
+        // AND gate -> "left: {:?}, right: {:?}",ct1, ct2
+        let mut ct_res = ct1.clone();
+        sks.and_assign(&mut ct_res, &ct2);
+
+        // decryption
+        let dec_and = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(
+            expected_result, dec_and,
+            "left: {:?}, right: {:?}",
+            ct1, ct2
+        );
+
+        // AND gate -> left: Ciphertext, right: bool
+        let mut ct_res = ct1.clone();
+        sks.and_assign(&mut ct_res, b2);
+
+        // decryption
+        let dec_and = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_and, "left: {:?}, right: {:?}", ct1, b2);
+
+        // AND gate -> left: bool, right: Ciphertext
+        let mut ct_res = ct2.clone();
+        sks.and_assign(b1, &mut ct_res);
+
+        // decryption
+        let dec_and = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_and, "left: {:?}, right: {:?}", b1, ct2);
     }
 }
 
@@ -306,6 +340,48 @@ fn test_nand_gate(parameters: BooleanParameters) {
             "left: {:?}, right: {:?}",
             b1, ct2
         );
+
+        // NAND gate -> "left: {:?}, right: {:?}",ct1, ct2
+        let mut ct_res = ct1.clone();
+        sks.nand_assign(&mut ct_res, &ct2);
+
+        // decryption
+        let dec_nand = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(
+            expected_result, dec_nand,
+            "left: {:?}, right: {:?}",
+            ct1, ct2
+        );
+
+        // NAND gate -> left: Ciphertext, right: bool
+        let mut ct_res = ct1.clone();
+        sks.nand_assign(&mut ct_res, b2);
+
+        // decryption
+        let dec_nand = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(
+            expected_result, dec_nand,
+            "left: {:?}, right: {:?}",
+            ct1, b2
+        );
+
+        // NAND gate -> left: bool, right: Ciphertext
+        let mut ct_res = ct2.clone();
+        sks.nand_assign(b1, &mut ct_res);
+
+        // decryption
+        let dec_nand = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(
+            expected_result, dec_nand,
+            "left: {:?}, right: {:?}",
+            b1, ct2
+        );
     }
 }
 
@@ -358,6 +434,40 @@ fn test_nor_gate(parameters: BooleanParameters) {
 
         // assert
         assert_eq!(expected_result, dec_nor, "left: {:?}, right: {:?}", b1, ct2);
+
+        // NOR gate -> "left: {:?}, right: {:?}",ct1, ct2
+        let mut ct_res = ct1.clone();
+        sks.nor_assign(&mut ct_res, &ct2);
+
+        // decryption
+        let dec_nor = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(
+            expected_result, dec_nor,
+            "left: {:?}, right: {:?}",
+            ct1, ct2
+        );
+
+        // NOR gate -> left: Ciphertext, right: bool
+        let mut ct_res = ct1.clone();
+        sks.nor_assign(&mut ct_res, b2);
+
+        // decryption
+        let dec_nor = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_nor, "left: {:?}, right: {:?}", ct1, b2);
+
+        // NOR gate -> left: bool, right: Ciphertext
+        let mut ct_res = ct2.clone();
+        sks.nor_assign(b1, &mut ct_res);
+
+        // decryption
+        let dec_nor = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_nor, "left: {:?}, right: {:?}", b1, ct2);
     }
 }
 
@@ -378,6 +488,16 @@ fn test_not_gate(parameters: BooleanParameters) {
 
         // NOT gate
         let ct_res = sks.not(&ct1);
+
+        // decryption
+        let dec_not = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_not);
+
+        // NOT gate
+        let mut ct_res = ct1.clone();
+        sks.not_assign(&mut ct_res);
 
         // decryption
         let dec_not = cks.decrypt(&ct_res);
@@ -426,6 +546,36 @@ fn test_or_gate(parameters: BooleanParameters) {
 
         // OR gate -> left: bool, right: Ciphertext
         let ct_res = sks.or(b1, &ct2);
+
+        // decryption
+        let dec_or = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_or, "left: {:?}, right: {:?}", b1, ct2);
+
+        // OR gate -> "left: {:?}, right: {:?}",ct1, ct2
+        let mut ct_res = ct1.clone();
+        sks.or_assign(&mut ct_res, &ct2);
+
+        // decryption
+        let dec_or = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_or, "left: {:?}, right: {:?}", ct1, ct2);
+
+        // OR gate -> left: Ciphertext, right: bool
+        let mut ct_res = ct1.clone();
+        sks.or_assign(&mut ct_res, b2);
+
+        // decryption
+        let dec_or = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_or, "left: {:?}, right: {:?}", ct1, b2);
+
+        // OR gate -> left: bool, right: Ciphertext
+        let mut ct_res = ct2.clone();
+        sks.or_assign(b1, &mut ct_res);
 
         // decryption
         let dec_or = cks.decrypt(&ct_res);
@@ -492,6 +642,48 @@ fn test_xnor_gate(parameters: BooleanParameters) {
             "left: {:?}, right: {:?}",
             b1, ct2
         );
+
+        // XNOR gate -> "left: {:?}, right: {:?}",ct1, ct2
+        let mut ct_res = ct1.clone();
+        sks.xnor_assign(&mut ct_res, &ct2);
+
+        // decryption
+        let dec_xnor = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(
+            expected_result, dec_xnor,
+            "left: {:?}, right: {:?}",
+            ct1, ct2
+        );
+
+        // XNOR gate -> left: Ciphertext, right: bool
+        let mut ct_res = ct1.clone();
+        sks.xnor_assign(&mut ct_res, b2);
+
+        // decryption
+        let dec_xnor = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(
+            expected_result, dec_xnor,
+            "left: {:?}, right: {:?}",
+            ct1, b2
+        );
+
+        // XNOR gate -> left: bool, right: Ciphertext
+        let mut ct_res = ct2.clone();
+        sks.xnor_assign(b1, &mut ct_res);
+
+        // decryption
+        let dec_xnor = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(
+            expected_result, dec_xnor,
+            "left: {:?}, right: {:?}",
+            b1, ct2
+        );
     }
 }
 
@@ -538,6 +730,40 @@ fn test_xor_gate(parameters: BooleanParameters) {
 
         // XOR gate -> left: bool, right: Ciphertext
         let ct_res = sks.xor(b1, &ct2);
+
+        // decryption
+        let dec_xor = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_xor, "left: {:?}, right: {:?}", b1, ct2);
+
+        // XOR gate -> "left: {:?}, right: {:?}",ct1, ct2
+        let mut ct_res = ct1.clone();
+        sks.xor_assign(&mut ct_res, &ct2);
+
+        // decryption
+        let dec_xor = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(
+            expected_result, dec_xor,
+            "left: {:?}, right: {:?}",
+            ct1, ct2
+        );
+
+        // XOR gate -> left: Ciphertext, right: bool
+        let mut ct_res = ct1.clone();
+        sks.xor_assign(&mut ct_res, b2);
+
+        // decryption
+        let dec_xor = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(expected_result, dec_xor, "left: {:?}, right: {:?}", ct1, b2);
+
+        // XOR gate -> left: bool, right: Ciphertext
+        let mut ct_res = ct2.clone();
+        sks.xor_assign(b1, &mut ct_res);
 
         // decryption
         let dec_xor = cks.decrypt(&ct_res);
