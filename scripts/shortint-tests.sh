@@ -41,7 +41,7 @@ filter_expression=''\
 export RUSTFLAGS="-C target-cpu=native"
 
 # Run tests only no examples or benches
-cargo nextest run \
+cargo ${1:+"${1}"} nextest run \
     --tests \
     --release \
     --package tfhe \
@@ -50,7 +50,7 @@ cargo nextest run \
     --test-threads "${n_threads}" \
     -E "${filter_expression}"
 
-cargo test \
+cargo ${1:+"${1}"} test \
     --release \
     --package tfhe \
     --features="${ARCH_FEATURE}",shortints,internal-keycache \
