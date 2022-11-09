@@ -57,6 +57,10 @@ jobs:
         run: |
           make test_c_api
 
+      - name: Run user docs tests
+        run: |
+          make test_user_doc
+
       - name: Install AWS CLI
         run: |
           apt update
