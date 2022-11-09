@@ -134,6 +134,12 @@ test_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
 		--features=$(TARGET_ARCH_FEATURE),shortints,internal-keycache -p tfhe -- shortint::
 
+.PHONY: test_user_doc # Run tests from the .md documentation
+test_user_doc: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release --doc \
+		--features=$(TARGET_ARCH_FEATURE),shortints,booleans,internal-keycache -p tfhe \
+		-- test_user_docs::
+
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
