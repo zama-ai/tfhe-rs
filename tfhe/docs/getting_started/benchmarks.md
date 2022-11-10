@@ -13,8 +13,8 @@ This measures the execution time of a single binary boolean gate.
 
 | Parameter set | concrete-fft | concrete-fft + avx512 |
 | --- | --- | --- |
-| DEFAULT_PARAMETERS | 7.4ms | 5.9ms |
-| TFHE_LIB_PARAMETERS | 12.8ms | 10.7ms |
+| DEFAULT_PARAMETERS | 8.8ms | 6.8ms |
+| TFHE_LIB_PARAMETERS | 13.6ms | 10.9ms |
 
 ### tfhe-lib
 
