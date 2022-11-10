@@ -60,6 +60,7 @@ mod default_parameters_tests {
     }
 }
 
+#[cfg(not(feature = "cuda"))]
 mod tfhe_lib_parameters_tests {
     use super::*;
     use crate::boolean::parameters::TFHE_LIB_PARAMETERS;
@@ -103,6 +104,52 @@ mod tfhe_lib_parameters_tests {
     #[test]
     fn test_deep_circuit_tfhe_lib_parameters() {
         test_deep_circuit(TFHE_LIB_PARAMETERS);
+    }
+}
+
+mod gpu_default_parameters_tests {
+    use super::*;
+    use crate::boolean::parameters::GPU_DEFAULT_PARAMETERS;
+
+    #[test]
+    fn test_encrypt_decrypt_lwe_secret_key_default_parameters() {
+        test_encrypt_decrypt_lwe_secret_key(GPU_DEFAULT_PARAMETERS);
+    }
+    #[test]
+    fn test_and_gate_default_parameters() {
+        test_and_gate(GPU_DEFAULT_PARAMETERS);
+    }
+    #[test]
+    fn test_nand_gate_default_parameters() {
+        test_nand_gate(GPU_DEFAULT_PARAMETERS);
+    }
+    #[test]
+    fn test_or_gate_default_parameters() {
+        test_or_gate(GPU_DEFAULT_PARAMETERS);
+    }
+    #[test]
+    fn test_nor_gate_default_parameters() {
+        test_nor_gate(GPU_DEFAULT_PARAMETERS);
+    }
+    #[test]
+    fn test_xor_gate_default_parameters() {
+        test_xor_gate(GPU_DEFAULT_PARAMETERS);
+    }
+    #[test]
+    fn test_xnor_gate_default_parameters() {
+        test_xnor_gate(GPU_DEFAULT_PARAMETERS);
+    }
+    #[test]
+    fn test_not_gate_default_parameters() {
+        test_not_gate(GPU_DEFAULT_PARAMETERS);
+    }
+    #[test]
+    fn test_mux_gate_default_parameters() {
+        test_mux_gate(GPU_DEFAULT_PARAMETERS);
+    }
+    #[test]
+    fn test_deep_circuit_default_parameters() {
+        test_deep_circuit(GPU_DEFAULT_PARAMETERS);
     }
 }
 
