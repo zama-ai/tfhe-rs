@@ -20,7 +20,7 @@ This measures the execution time of a single binary boolean gate.
 
 | Parameter set  | fftw | spqlios-fma|
 | --- | --- | --- |
-| TFHE_LIB_PARAMETERS | 28.9ms | 15.7ms |
+| default_128bit_gate_bootstrapping_parameters | 28.9ms | 15.7ms |
 
 ### OpenFHE
 
