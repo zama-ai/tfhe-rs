@@ -5,8 +5,8 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{Ciphertext, ClientKey, PublicKey, ServerKey};
 
-// We have q = 64 so log2q = 6
-const LOG2_Q_64: usize = 6;
+// We have q = 2^64 so log2q = 64
+const LOG2_Q_64: usize = 64;
 
 impl ShortintEngine {
     pub(crate) fn new_public_key(&mut self, client_key: &ClientKey) -> EngineResult<PublicKey> {
