@@ -22,6 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+
       - name: Build doc
         run: |
           make doc
