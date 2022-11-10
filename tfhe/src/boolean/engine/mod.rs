@@ -92,8 +92,8 @@ impl BooleanEngine<CudaBootstrapper> {
     }
 }
 
-// We have q = 32 so log2q = 5
-const LOG2_Q_32: usize = 5;
+// We have q = 2^32 so log2q = 32
+const LOG2_Q_32: usize = 32;
 
 impl<B> BooleanEngine<B> {
     pub fn create_client_key(&mut self, parameters: BooleanParameters) -> ClientKey {
