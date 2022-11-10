@@ -41,7 +41,7 @@ production-ready library for all the advanced features of TFHE.
 To use `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
 ```toml
-tfhe = { version = "0.1.0", features = [ "boolean","shortint","x86_64-unix" ] }
+tfhe = { version = "0.2.0", features = [ "boolean","shortint","x86_64-unix" ] }
 ```
 
 Here is a full example evaluating a Boolean circuit:

@@ -6,7 +6,7 @@ To use `TFHE-rs` in your project, you first need to add it as a dependency in yo
 
 
 ```toml
-tfhe = { version = "0.1.0", features = [ "boolean", "shortint", "x86_64-unix" ] }
+tfhe = { version = "0.2.0", features = [ "boolean", "shortint", "x86_64-unix" ] }
 ```
 
 ## Choosing your features
