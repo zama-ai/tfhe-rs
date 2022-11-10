@@ -108,5 +108,5 @@ pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
         pbs_level: DecompositionLevelCount(1),
         ks_base_log: DecompositionBaseLog(5),
         ks_level: DecompositionLevelCount(3),
-    };
 };
+
