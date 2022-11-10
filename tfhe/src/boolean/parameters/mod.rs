@@ -80,16 +80,17 @@ impl BooleanParameters {
 /// This parameter set allows to evaluate faster Boolean circuits than the `TFHE_LIB_PARAMETERS`
 /// one.
 pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(684),
+    lwe_dimension: LweDimension(777),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.00002043784477291318),
+    lwe_modular_std_dev: StandardDev(0.000003725679281679651),
     glwe_modular_std_dev: StandardDev(0.0000000000034525330484572114),
     pbs_base_log: DecompositionBaseLog(18),
     pbs_level: DecompositionLevelCount(1),
     ks_base_log: DecompositionBaseLog(4),
     ks_level: DecompositionLevelCount(3),
 };
+
 
 /// Parameter set used in [TFHE library](https://tfhe.github.io/tfhe/) for 128-bits of security.
 ///
@@ -98,13 +99,14 @@ pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
 /// The secret keys generated with this parameter set are uniform binary.
 /// This parameter set ensures a probability of error is upper-bounded by $2^{-165}$.
 pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(630),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000_043_158_372_875_155_5), // 2^{-14.5}
-    glwe_modular_std_dev: StandardDev(0.000_000_034_233_878_701_836_9), // 2^{-24.8}
-    pbs_base_log: DecompositionBaseLog(7),
-    pbs_level: DecompositionLevelCount(3),
-    ks_base_log: DecompositionBaseLog(2),
-    ks_level: DecompositionLevelCount(8),
+        lwe_dimension: LweDimension(830),
+        glwe_dimension: GlweDimension(2),
+        polynomial_size: PolynomialSize(1024),
+        lwe_modular_std_dev: StandardDev(0.000001412290588219445),
+        glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+        pbs_base_log: DecompositionBaseLog(23),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(5),
+        ks_level: DecompositionLevelCount(3),
+    };
 };

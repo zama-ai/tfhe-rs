@@ -23,16 +23,18 @@ impl PublicKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, mut sks) = gen_keys();
+    /// let (cks, sks) = gen_keys();
     ///
     /// let pks = PublicKey::new(&cks);
     ///
     /// // Encryption of one message:
-    /// let ct = pks.encrypt(true);
+    /// let ct1 = pks.encrypt(true);
+    /// let ct2 = pks.encrypt(false);
+    /// let ct_res = sks.and(&ct1, &ct2);
     ///
     /// // Decryption:
-    /// let dec = cks.decrypt(&ct);
-    /// assert_eq!(true, dec);
+    /// let dec = cks.decrypt(&ct_res);
+    /// assert_eq!(false, dec);
     /// # }
     /// # #[cfg(feature = "cuda")]
     /// # fn main() {}
