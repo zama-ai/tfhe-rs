@@ -108,12 +108,23 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
+    /// # #[cfg(not(feature = "cuda"))]
+    /// # fn main() {
     /// use tfhe::boolean::client_key::ClientKey;
     /// use tfhe::boolean::parameters::TFHE_LIB_PARAMETERS;
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(&TFHE_LIB_PARAMETERS);
+    /// # }
+    /// # #[cfg(feature = "cuda")]
+    /// # fn main() {
+    /// use tfhe::boolean::client_key::ClientKey;
+    /// use tfhe::boolean::parameters::GPU_DEFAULT_PARAMETERS;
+    /// use tfhe::boolean::prelude::*;
+    ///
+    /// // Generate the client key:
+    /// let cks = ClientKey::new(&GPU_DEFAULT_PARAMETERS);}
     /// ```
     pub fn new(parameter_set: &BooleanParameters) -> ClientKey {
         #[cfg(feature = "cuda")]
