@@ -14,8 +14,9 @@ impl ShortintEngine {
 
         // Formula is (k*N + 1) * log2(q) + 128
         let zero_encryption_count = LwePublicKeyZeroEncryptionCount(
-            (client_parameters.polynomial_size.0*client_parameters.glwe_dimension.0 +1)* LOG2_Q_64 +
-                128,
+            (client_parameters.polynomial_size.0 * client_parameters.glwe_dimension.0 + 1)
+                * LOG2_Q_64
+                + 128,
         );
 
         Ok(PublicKey {

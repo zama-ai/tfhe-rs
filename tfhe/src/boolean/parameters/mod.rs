@@ -91,7 +91,6 @@ pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
     ks_level: DecompositionLevelCount(3),
 };
 
-
 /// Parameter set used in [TFHE library](https://tfhe.github.io/tfhe/) for 128-bits of security.
 ///
 /// Details about this set are provided
@@ -99,14 +98,13 @@ pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
 /// The secret keys generated with this parameter set are uniform binary.
 /// This parameter set ensures a probability of error is upper-bounded by $2^{-165}$.
 pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
-        lwe_dimension: LweDimension(830),
-        glwe_dimension: GlweDimension(2),
-        polynomial_size: PolynomialSize(1024),
-        lwe_modular_std_dev: StandardDev(0.000001412290588219445),
-        glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
-        pbs_base_log: DecompositionBaseLog(23),
-        pbs_level: DecompositionLevelCount(1),
-        ks_base_log: DecompositionBaseLog(5),
-        ks_level: DecompositionLevelCount(3),
+    lwe_dimension: LweDimension(830),
+    glwe_dimension: GlweDimension(2),
+    polynomial_size: PolynomialSize(1024),
+    lwe_modular_std_dev: StandardDev(0.000001412290588219445),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(5),
+    ks_level: DecompositionLevelCount(3),
 };
-
