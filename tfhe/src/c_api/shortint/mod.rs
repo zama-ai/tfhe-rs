@@ -17,7 +17,7 @@ pub use server_key::pbs::{ShortintBivariatePBSAccumulator, ShortintPBSAccumulato
 pub use server_key::ShortintServerKey;
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_gen_keys_with_parameters(
+pub unsafe extern "C" fn shortint_gen_keys_with_parameters(
     shortint_parameters: *const parameters::ShortintParameters,
     result_client_key: *mut *mut ShortintClientKey,
     result_server_key: *mut *mut ShortintServerKey,

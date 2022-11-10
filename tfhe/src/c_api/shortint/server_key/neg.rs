@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_neg(
+pub unsafe extern "C" fn shortint_server_key_smart_neg(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
@@ -23,7 +23,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_neg(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_neg(
+pub unsafe extern "C" fn shortint_server_key_unchecked_neg(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
@@ -42,7 +42,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_neg(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_neg_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_neg_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
 ) -> c_int {
@@ -55,7 +55,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_neg_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_neg_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_neg_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
 ) -> c_int {

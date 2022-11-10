@@ -10,7 +10,7 @@ use crate::boolean;
 pub struct BooleanParameters(pub(in crate::c_api) boolean::parameters::BooleanParameters);
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_get_parameters(
+pub unsafe extern "C" fn boolean_get_parameters(
     boolean_parameters_set: c_int,
     result: *mut *mut BooleanParameters,
 ) -> c_int {
@@ -27,7 +27,7 @@ pub unsafe extern "C" fn booleans_get_parameters(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_create_parameters(
+pub unsafe extern "C" fn boolean_create_parameters(
     lwe_dimension: usize,
     glwe_dimension: usize,
     polynomial_size: usize,

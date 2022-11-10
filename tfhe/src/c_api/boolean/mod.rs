@@ -16,7 +16,7 @@ pub use public_key::BooleanPublicKey;
 pub use server_key::BooleanServerKey;
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_gen_keys_with_default_parameters(
+pub unsafe extern "C" fn boolean_gen_keys_with_default_parameters(
     result_client_key: *mut *mut BooleanClientKey,
     result_server_key: *mut *mut BooleanServerKey,
 ) -> c_int {
@@ -39,7 +39,7 @@ pub unsafe extern "C" fn booleans_gen_keys_with_default_parameters(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_gen_keys_with_parameters(
+pub unsafe extern "C" fn boolean_gen_keys_with_parameters(
     boolean_parameters: *const parameters::BooleanParameters,
     result_client_key: *mut *mut BooleanClientKey,
     result_server_key: *mut *mut BooleanServerKey,
@@ -67,7 +67,7 @@ pub unsafe extern "C" fn booleans_gen_keys_with_parameters(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_gen_keys_with_predefined_parameters_set(
+pub unsafe extern "C" fn boolean_gen_keys_with_predefined_parameters_set(
     boolean_parameters_set: c_int,
     result_client_key: *mut *mut BooleanClientKey,
     result_server_key: *mut *mut BooleanServerKey,
@@ -99,7 +99,7 @@ pub unsafe extern "C" fn booleans_gen_keys_with_predefined_parameters_set(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_trivial_encrypt(
+pub unsafe extern "C" fn boolean_trivial_encrypt(
     message: bool,
     result: *mut *mut BooleanCiphertext,
 ) -> c_int {

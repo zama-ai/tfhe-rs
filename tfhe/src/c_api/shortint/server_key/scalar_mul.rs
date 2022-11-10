@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_mul(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_mul(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     scalar_right: u8,
@@ -25,7 +25,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_mul(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_mul(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_mul(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     scalar_right: u8,
@@ -46,7 +46,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_mul(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_mul_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_mul_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     scalar_right: u8,
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_mul_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_mul_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_mul_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     scalar_right: u8,

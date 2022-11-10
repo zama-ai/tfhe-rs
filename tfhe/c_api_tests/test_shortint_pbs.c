@@ -37,19 +37,19 @@ uint64_t get_max_value_of_bivariate_accumulator_generator(uint64_t (*accumulator
   return max_value;
 }
 
-void test_shortints_pbs_2_bits_message(void) {
+void test_shortint_pbs_2_bits_message(void) {
   ShortintPBSAccumulator *accumulator = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
   ShortintParameters *params = NULL;
 
-  int get_params_ok = shortints_get_parameters(2, 2, &params);
+  int get_params_ok = shortint_get_parameters(2, 2, &params);
   assert(get_params_ok == 0);
 
-  int gen_keys_ok = shortints_gen_keys_with_parameters(params, &cks, &sks);
+  int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
 
-  int gen_acc_ok = shortints_server_key_generate_pbs_accumulator(
+  int gen_acc_ok = shortint_server_key_generate_pbs_accumulator(
       sks, double_accumulator_2_bits_message, &accumulator);
   assert(gen_acc_ok == 0);
 
@@ -59,48 +59,47 @@ void test_shortints_pbs_2_bits_message(void) {
 
     uint64_t in_val = (uint64_t)in_idx;
 
-    int encrypt_ok = shortints_client_key_encrypt(cks, in_val, &ct);
+    int encrypt_ok = shortint_client_key_encrypt(cks, in_val, &ct);
     assert(encrypt_ok == 0);
 
     size_t degree = -1;
-    int get_degree_ok = shortints_ciphertext_get_degree(ct, &degree);
+    int get_degree_ok = shortint_ciphertext_get_degree(ct, &degree);
     assert(get_degree_ok == 0);
 
     assert(degree == 3);
 
-    int pbs_ok = shortints_server_key_programmable_bootstrap(sks, accumulator, ct, &ct_out);
+    int pbs_ok = shortint_server_key_programmable_bootstrap(sks, accumulator, ct, &ct_out);
     assert(pbs_ok == 0);
 
     size_t degree_to_set =
         (size_t)get_max_value_of_accumulator_generator(double_accumulator_2_bits_message, 2);
 
-    int set_degree_ok = shortints_ciphertext_set_degree(ct_out, degree_to_set);
+    int set_degree_ok = shortint_ciphertext_set_degree(ct_out, degree_to_set);
     assert(set_degree_ok == 0);
 
     degree = -1;
-    get_degree_ok = shortints_ciphertext_get_degree(ct_out, &degree);
+    get_degree_ok = shortint_ciphertext_get_degree(ct_out, &degree);
     assert(get_degree_ok == 0);
 
     assert(degree == degree_to_set);
 
     uint64_t result_non_assign = -1;
-    int decrypt_non_assign_ok = shortints_client_key_decrypt(cks, ct_out, &result_non_assign);
+    int decrypt_non_assign_ok = shortint_client_key_decrypt(cks, ct_out, &result_non_assign);
     assert(decrypt_non_assign_ok == 0);
 
     assert(result_non_assign == double_accumulator_2_bits_message(in_val));
 
-    int pbs_assign_ok =
-        shortints_server_key_programmable_bootstrap_assign(sks, accumulator, ct_out);
+    int pbs_assign_ok = shortint_server_key_programmable_bootstrap_assign(sks, accumulator, ct_out);
     assert(pbs_assign_ok == 0);
 
     degree_to_set =
         (size_t)get_max_value_of_accumulator_generator(double_accumulator_2_bits_message, 2);
 
-    set_degree_ok = shortints_ciphertext_set_degree(ct_out, degree_to_set);
+    set_degree_ok = shortint_ciphertext_set_degree(ct_out, degree_to_set);
     assert(set_degree_ok == 0);
 
     uint64_t result_assign = -1;
-    int decrypt_assign_ok = shortints_client_key_decrypt(cks, ct_out, &result_assign);
+    int decrypt_assign_ok = shortint_client_key_decrypt(cks, ct_out, &result_assign);
     assert(decrypt_assign_ok == 0);
 
     assert(result_assign == double_accumulator_2_bits_message(result_non_assign));
@@ -115,19 +114,19 @@ void test_shortints_pbs_2_bits_message(void) {
   destroy_shortint_parameters(params);
 }
 
-void test_shortints_bivariate_pbs_2_bits_message(void) {
+void test_shortint_bivariate_pbs_2_bits_message(void) {
   ShortintBivariatePBSAccumulator *accumulator = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
   ShortintParameters *params = NULL;
 
-  int get_params_ok = shortints_get_parameters(2, 2, &params);
+  int get_params_ok = shortint_get_parameters(2, 2, &params);
   assert(get_params_ok == 0);
 
-  int gen_keys_ok = shortints_gen_keys_with_parameters(params, &cks, &sks);
+  int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
 
-  int gen_acc_ok = shortints_server_key_generate_bivariate_pbs_accumulator(
+  int gen_acc_ok = shortint_server_key_generate_bivariate_pbs_accumulator(
       sks, product_accumulator_2_bits_encrypted_mul, &accumulator);
   assert(gen_acc_ok == 0);
 
@@ -140,40 +139,40 @@ void test_shortints_bivariate_pbs_2_bits_message(void) {
       uint64_t left_val = (uint64_t)left_idx;
       uint64_t right_val = (uint64_t)right_idx;
 
-      int encrypt_left_ok = shortints_client_key_encrypt(cks, left_val, &ct_left);
+      int encrypt_left_ok = shortint_client_key_encrypt(cks, left_val, &ct_left);
       assert(encrypt_left_ok == 0);
 
-      int encrypt_right_ok = shortints_client_key_encrypt(cks, right_val, &ct_right);
+      int encrypt_right_ok = shortint_client_key_encrypt(cks, right_val, &ct_right);
       assert(encrypt_right_ok == 0);
 
-      int pbs_ok = shortints_server_key_bivariate_programmable_bootstrap(sks, accumulator, ct_left,
-                                                                         ct_right, &ct_out);
+      int pbs_ok = shortint_server_key_bivariate_programmable_bootstrap(sks, accumulator, ct_left,
+                                                                        ct_right, &ct_out);
       assert(pbs_ok == 0);
 
       size_t degree_to_set = (size_t)get_max_value_of_bivariate_accumulator_generator(
           product_accumulator_2_bits_encrypted_mul, 2, 2);
 
-      int set_degree_ok = shortints_ciphertext_set_degree(ct_right, degree_to_set);
+      int set_degree_ok = shortint_ciphertext_set_degree(ct_right, degree_to_set);
       assert(set_degree_ok == 0);
 
       uint64_t result_non_assign = -1;
-      int decrypt_non_assign_ok = shortints_client_key_decrypt(cks, ct_out, &result_non_assign);
+      int decrypt_non_assign_ok = shortint_client_key_decrypt(cks, ct_out, &result_non_assign);
       assert(decrypt_non_assign_ok == 0);
 
       assert(result_non_assign == product_accumulator_2_bits_encrypted_mul(left_val, right_val));
 
-      int pbs_assign_ok = shortints_server_key_bivariate_programmable_bootstrap_assign(
+      int pbs_assign_ok = shortint_server_key_bivariate_programmable_bootstrap_assign(
           sks, accumulator, ct_out, ct_right);
       assert(pbs_assign_ok == 0);
 
       degree_to_set =
           (size_t)get_max_value_of_accumulator_generator(double_accumulator_2_bits_message, 2);
 
-      set_degree_ok = shortints_ciphertext_set_degree(ct_out, degree_to_set);
+      set_degree_ok = shortint_ciphertext_set_degree(ct_out, degree_to_set);
       assert(set_degree_ok == 0);
 
       uint64_t result_assign = -1;
-      int decrypt_assign_ok = shortints_client_key_decrypt(cks, ct_out, &result_assign);
+      int decrypt_assign_ok = shortint_client_key_decrypt(cks, ct_out, &result_assign);
       assert(decrypt_assign_ok == 0);
 
       assert(result_assign ==
@@ -192,7 +191,7 @@ void test_shortints_bivariate_pbs_2_bits_message(void) {
 }
 
 int main(void) {
-  test_shortints_pbs_2_bits_message();
-  test_shortints_bivariate_pbs_2_bits_message();
+  test_shortint_pbs_2_bits_message();
+  test_shortint_bivariate_pbs_2_bits_message();
   return EXIT_SUCCESS;
 }

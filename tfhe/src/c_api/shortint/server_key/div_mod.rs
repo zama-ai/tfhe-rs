@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_div(
+pub unsafe extern "C" fn shortint_server_key_smart_div(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -26,7 +26,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_div(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_div(
+pub unsafe extern "C" fn shortint_server_key_unchecked_div(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_div(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_div_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_div_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_div_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_div_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_div_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_div_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_div(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_div(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     right: u8,
@@ -103,7 +103,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_div(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_div_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_div_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     right: u8,
@@ -119,7 +119,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_div_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_mod(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_mod(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     right: u8,
@@ -140,7 +140,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_mod(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_mod_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_mod_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     right: u8,

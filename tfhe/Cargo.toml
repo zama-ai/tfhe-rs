@@ -51,13 +51,13 @@ serde-wasm-bindgen = { version = "0.4", optional = true }
 getrandom = { version = "0.2.8", optional = true }
 
 [features]
-booleans = ["minimal_core_crypto_features"]
-shortints = ["minimal_core_crypto_features"]
+boolean = ["minimal_core_crypto_features"]
+shortint = ["minimal_core_crypto_features"]
 internal-keycache = ["lazy_static", "fs2"]
 
 __c_api = ["cbindgen", "minimal_core_crypto_features"]
-booleans-c-api = ["booleans", "__c_api"]
-shortints-c-api = ["shortints", "__c_api"]
+boolean-c-api = ["boolean", "__c_api"]
+shortint-c-api = ["shortint", "__c_api"]
 
 __wasm_api = [
     "wasm-bindgen",
@@ -67,8 +67,8 @@ __wasm_api = [
     "getrandom",
     "getrandom/js",
 ]
-booleans-client-js-wasm-api = ["booleans", "__wasm_api"]
-shortints-client-js-wasm-api = ["shortints", "__wasm_api"]
+boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
+shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
 
 cuda = ["backend_cuda"]
 nightly-avx512 = ["backend_fft_nightly_avx512"]
@@ -146,7 +146,7 @@ aarch64-unix = ["aarch64", "seeder_unix"]
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
-features = ["x86_64-unix", "booleans", "shortints"]
+features = ["x86_64-unix", "boolean", "shortint"]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 ###########
@@ -159,21 +159,21 @@ rustdoc-args = ["--html-in-header", "katex-header.html"]
 name = "boolean-bench"
 path = "benches/boolean/bench.rs"
 harness = false
-required-features = ["booleans", "internal-keycache"]
+required-features = ["boolean", "internal-keycache"]
 
 [[bench]]
 name = "shortint-bench"
 path = "benches/shortint/bench.rs"
 harness = false
-required-features = ["shortints", "internal-keycache"]
+required-features = ["shortint", "internal-keycache"]
 
 [[example]]
 name = "generates_test_keys"
-required-features = ["shortints", "internal-keycache"]
+required-features = ["shortint", "internal-keycache"]
 
 [[example]]
 name = "micro_bench_and"
-required-features = ["booleans"]
+required-features = ["boolean"]
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]

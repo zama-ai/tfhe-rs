@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_add(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_sub(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     scalar_right: u8,
@@ -17,7 +17,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_add(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.smart_scalar_add(&mut ct_left.0, scalar_right),
+            server_key.0.smart_scalar_sub(&mut ct_left.0, scalar_right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -25,7 +25,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_add(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_add(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_sub(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     scalar_right: u8,
@@ -38,7 +38,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_add(
         let ct_left = get_mut_checked(ct_left).unwrap();
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(
-            server_key.0.unchecked_scalar_add(&ct_left.0, scalar_right),
+            server_key.0.unchecked_scalar_sub(&ct_left.0, scalar_right),
         ));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -46,7 +46,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_add(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_add_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_sub_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     scalar_right: u8,
@@ -57,12 +57,12 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_add_assign(
 
         server_key
             .0
-            .smart_scalar_add_assign(&mut ct_left_and_result.0, scalar_right);
+            .smart_scalar_sub_assign(&mut ct_left_and_result.0, scalar_right);
     })
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_add_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_sub_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     scalar_right: u8,
@@ -73,6 +73,6 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_add_assign(
 
         server_key
             .0
-            .unchecked_scalar_add_assign(&mut ct_left_and_result.0, scalar_right);
+            .unchecked_scalar_sub_assign(&mut ct_left_and_result.0, scalar_right);
     })
 }

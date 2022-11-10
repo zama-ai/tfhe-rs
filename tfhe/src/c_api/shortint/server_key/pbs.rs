@@ -15,7 +15,7 @@ pub struct ShortintBivariatePBSAccumulator(
 );
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_generate_pbs_accumulator(
+pub unsafe extern "C" fn shortint_server_key_generate_pbs_accumulator(
     server_key: *const ShortintServerKey,
     accumulator_callback: AccumulatorCallback,
     result: *mut *mut ShortintPBSAccumulator,
@@ -44,7 +44,7 @@ pub unsafe extern "C" fn shortints_server_key_generate_pbs_accumulator(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_programmable_bootstrap(
+pub unsafe extern "C" fn shortint_server_key_programmable_bootstrap(
     server_key: *const ShortintServerKey,
     accumulator: *const ShortintPBSAccumulator,
     ct_in: *const ShortintCiphertext,
@@ -72,7 +72,7 @@ pub unsafe extern "C" fn shortints_server_key_programmable_bootstrap(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_programmable_bootstrap_assign(
+pub unsafe extern "C" fn shortint_server_key_programmable_bootstrap_assign(
     server_key: *const ShortintServerKey,
     accumulator: *const ShortintPBSAccumulator,
     ct_in_and_result: *mut ShortintCiphertext,
@@ -89,7 +89,7 @@ pub unsafe extern "C" fn shortints_server_key_programmable_bootstrap_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_generate_bivariate_pbs_accumulator(
+pub unsafe extern "C" fn shortint_server_key_generate_bivariate_pbs_accumulator(
     server_key: *const ShortintServerKey,
     accumulator_callback: BivariateAccumulatorCallback,
     result: *mut *mut ShortintBivariatePBSAccumulator,
@@ -118,7 +118,7 @@ pub unsafe extern "C" fn shortints_server_key_generate_bivariate_pbs_accumulator
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_bivariate_programmable_bootstrap(
+pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap(
     server_key: *const ShortintServerKey,
     accumulator: *const ShortintBivariatePBSAccumulator,
     ct_left: *const ShortintCiphertext,
@@ -150,7 +150,7 @@ pub unsafe extern "C" fn shortints_server_key_bivariate_programmable_bootstrap(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_bivariate_programmable_bootstrap_assign(
+pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap_assign(
     server_key: *const ShortintServerKey,
     accumulator: *const ShortintBivariatePBSAccumulator,
     ct_left_and_result: *mut ShortintCiphertext,

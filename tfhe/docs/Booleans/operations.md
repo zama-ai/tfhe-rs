@@ -1,6 +1,6 @@
 # Operations and Examples
 
-In thfe::booleans, the available operations are mainly related to their equivalent Boolean gates,
+In thfe::boolean, the available operations are mainly related to their equivalent Boolean gates,
 i.e., AND, OR,... In what follows, an example of a unary gate (NOT) and one about a binary gate 
 (XOR). The last one is about the ternary MUX gate are detailed, which gives the possibility to 
 homomorphically compute conditional statements of the form ``If..Then..Else``.

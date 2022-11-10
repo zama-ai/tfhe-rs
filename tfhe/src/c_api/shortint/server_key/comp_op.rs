@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_greater(
+pub unsafe extern "C" fn shortint_server_key_smart_greater(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -26,7 +26,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_greater(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_greater(
+pub unsafe extern "C" fn shortint_server_key_unchecked_greater(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_greater(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_greater_or_equal(
+pub unsafe extern "C" fn shortint_server_key_smart_greater_or_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -72,7 +72,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_greater_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_greater_or_equal(
+pub unsafe extern "C" fn shortint_server_key_unchecked_greater_or_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_greater_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_less(
+pub unsafe extern "C" fn shortint_server_key_smart_less(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -118,7 +118,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_less(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_less(
+pub unsafe extern "C" fn shortint_server_key_unchecked_less(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -140,7 +140,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_less(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_less_or_equal(
+pub unsafe extern "C" fn shortint_server_key_smart_less_or_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -164,7 +164,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_less_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_less_or_equal(
+pub unsafe extern "C" fn shortint_server_key_unchecked_less_or_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -188,7 +188,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_less_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_equal(
+pub unsafe extern "C" fn shortint_server_key_smart_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -210,7 +210,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_equal(
+pub unsafe extern "C" fn shortint_server_key_unchecked_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -232,7 +232,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_not_equal(
+pub unsafe extern "C" fn shortint_server_key_smart_not_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -256,7 +256,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_not_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_not_equal(
+pub unsafe extern "C" fn shortint_server_key_unchecked_not_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -278,7 +278,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_not_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_greater(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_greater(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     right: u8,
@@ -299,7 +299,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_greater(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_greater_or_equal(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_greater_or_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     right: u8,
@@ -322,7 +322,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_greater_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_less(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_less(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     right: u8,
@@ -343,7 +343,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_less(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_less_or_equal(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_less_or_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     right: u8,
@@ -364,7 +364,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_less_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_equal(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     right: u8,
@@ -385,7 +385,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_not_equal(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_not_equal(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     right: u8,

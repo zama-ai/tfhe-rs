@@ -12,18 +12,18 @@ void test_default_keygen_w_serde(void) {
   Buffer ct_ser_buffer = {.pointer = NULL, .length = 0};
   BooleanCiphertext *deser_ct = NULL;
 
-  int gen_keys_ok = booleans_gen_keys_with_default_parameters(&cks, &sks);
+  int gen_keys_ok = boolean_gen_keys_with_default_parameters(&cks, &sks);
   assert(gen_keys_ok == 0);
 
-  int encrypt_ok = booleans_client_key_encrypt(cks, true, &ct);
+  int encrypt_ok = boolean_client_key_encrypt(cks, true, &ct);
   assert(encrypt_ok == 0);
 
-  int ser_ok = booleans_serialize_ciphertext(ct, &ct_ser_buffer);
+  int ser_ok = boolean_serialize_ciphertext(ct, &ct_ser_buffer);
   assert(ser_ok == 0);
 
   BufferView deser_view = {.pointer = ct_ser_buffer.pointer, .length = ct_ser_buffer.length};
 
-  int deser_ok = booleans_deserialize_ciphertext(deser_view, &deser_ct);
+  int deser_ok = boolean_deserialize_ciphertext(deser_view, &deser_ct);
   assert(deser_ok == 0);
 
   assert(deser_view.length == ct_ser_buffer.length);
@@ -32,7 +32,7 @@ void test_default_keygen_w_serde(void) {
   }
 
   bool result = false;
-  int decrypt_ok = booleans_client_key_decrypt(cks, deser_ct, &result);
+  int decrypt_ok = boolean_client_key_decrypt(cks, deser_ct, &result);
   assert(decrypt_ok == 0);
 
   assert(result == true);
@@ -48,7 +48,7 @@ void test_predefined_keygen_w_serde(void) {
   BooleanClientKey *cks = NULL;
   BooleanServerKey *sks = NULL;
 
-  int gen_keys_ok = booleans_gen_keys_with_predefined_parameters_set(
+  int gen_keys_ok = boolean_gen_keys_with_predefined_parameters_set(
       BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &cks, &sks);
 
   assert(gen_keys_ok == 0);
@@ -56,7 +56,7 @@ void test_predefined_keygen_w_serde(void) {
   destroy_boolean_client_key(cks);
   destroy_boolean_server_key(sks);
 
-  gen_keys_ok = booleans_gen_keys_with_predefined_parameters_set(
+  gen_keys_ok = boolean_gen_keys_with_predefined_parameters_set(
       BOOLEAN_PARAMETERS_SET_THFE_LIB_PARAMETERS, &cks, &sks);
 
   assert(gen_keys_ok == 0);
@@ -70,10 +70,10 @@ void test_custom_keygen(void) {
   BooleanServerKey *sks = NULL;
   BooleanParameters *params = NULL;
 
-  int params_ok = booleans_create_parameters(10, 1, 1024, 10e-100, 10e-100, 3, 1, 4, 2, &params);
+  int params_ok = boolean_create_parameters(10, 1, 1024, 10e-100, 10e-100, 3, 1, 4, 2, &params);
   assert(params_ok == 0);
 
-  int gen_keys_ok = booleans_gen_keys_with_parameters(params, &cks, &sks);
+  int gen_keys_ok = boolean_gen_keys_with_parameters(params, &cks, &sks);
 
   assert(gen_keys_ok == 0);
 
@@ -88,22 +88,22 @@ void test_public_keygen(void) {
   BooleanParameters *params = NULL;
   BooleanCiphertext *ct = NULL;
 
-  int get_params_ok = booleans_get_parameters(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &params);
+  int get_params_ok = boolean_get_parameters(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &params);
   assert(get_params_ok == 0);
 
-  int gen_keys_ok = booleans_gen_client_key(params, &cks);
+  int gen_keys_ok = boolean_gen_client_key(params, &cks);
   assert(gen_keys_ok == 0);
 
-  int gen_pks = booleans_gen_public_key(cks, &pks);
+  int gen_pks = boolean_gen_public_key(cks, &pks);
   assert(gen_pks == 0);
 
   bool msg = true;
 
-  int encrypt_ok = booleans_public_key_encrypt(pks, msg, &ct);
+  int encrypt_ok = boolean_public_key_encrypt(pks, msg, &ct);
   assert(encrypt_ok == 0);
 
   bool result = false;
-  int decrypt_ok = booleans_client_key_decrypt(cks, ct, &result);
+  int decrypt_ok = boolean_client_key_decrypt(cks, ct, &result);
   assert(decrypt_ok == 0);
 
   assert(result == true);
