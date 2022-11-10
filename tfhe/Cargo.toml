@@ -1,6 +1,6 @@
 [package]
 name = "tfhe"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 readme = "../README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
@@ -8,7 +8,7 @@ homepage = "https://zama.ai/"
 documentation = "https://docs.zama.ai/tfhe-rs"
 repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
-description = "Concrete is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE."
+description = "TFHE-rs is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE."
 build = "build.rs"
 exclude = ["/docs/", "/c_api_tests/", "/CMakeLists.txt"]
 
