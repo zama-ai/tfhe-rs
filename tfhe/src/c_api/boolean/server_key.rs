@@ -10,7 +10,7 @@ use super::BooleanCiphertext;
 pub struct BooleanServerKey(pub(in crate::c_api) boolean::server_key::ServerKey);
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_gen_server_key(
+pub unsafe extern "C" fn boolean_gen_server_key(
     client_key: *const super::BooleanClientKey,
     result_server_key: *mut *mut BooleanServerKey,
 ) -> c_int {
@@ -32,7 +32,7 @@ pub unsafe extern "C" fn booleans_gen_server_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_and(
+pub unsafe extern "C" fn boolean_server_key_and(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn booleans_server_key_and(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_nand(
+pub unsafe extern "C" fn boolean_server_key_nand(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -83,7 +83,7 @@ pub unsafe extern "C" fn booleans_server_key_nand(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_nor(
+pub unsafe extern "C" fn boolean_server_key_nor(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -108,7 +108,7 @@ pub unsafe extern "C" fn booleans_server_key_nor(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_or(
+pub unsafe extern "C" fn boolean_server_key_or(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -133,7 +133,7 @@ pub unsafe extern "C" fn booleans_server_key_or(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_xor(
+pub unsafe extern "C" fn boolean_server_key_xor(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -158,7 +158,7 @@ pub unsafe extern "C" fn booleans_server_key_xor(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_xnor(
+pub unsafe extern "C" fn boolean_server_key_xnor(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -184,7 +184,7 @@ pub unsafe extern "C" fn booleans_server_key_xnor(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_not(
+pub unsafe extern "C" fn boolean_server_key_not(
     server_key: *const BooleanServerKey,
     ct_input: *const BooleanCiphertext,
     result: *mut *mut BooleanCiphertext,
@@ -206,7 +206,7 @@ pub unsafe extern "C" fn booleans_server_key_not(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_and_assign(
+pub unsafe extern "C" fn boolean_server_key_and_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -221,7 +221,7 @@ pub unsafe extern "C" fn booleans_server_key_and_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_nand_assign(
+pub unsafe extern "C" fn boolean_server_key_nand_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -236,7 +236,7 @@ pub unsafe extern "C" fn booleans_server_key_nand_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_nor_assign(
+pub unsafe extern "C" fn boolean_server_key_nor_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -251,7 +251,7 @@ pub unsafe extern "C" fn booleans_server_key_nor_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_or_assign(
+pub unsafe extern "C" fn boolean_server_key_or_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -266,7 +266,7 @@ pub unsafe extern "C" fn booleans_server_key_or_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_xor_assign(
+pub unsafe extern "C" fn boolean_server_key_xor_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -281,7 +281,7 @@ pub unsafe extern "C" fn booleans_server_key_xor_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_xnor_assign(
+pub unsafe extern "C" fn boolean_server_key_xnor_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     ct_right: *const BooleanCiphertext,
@@ -296,7 +296,7 @@ pub unsafe extern "C" fn booleans_server_key_xnor_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_not_assign(
+pub unsafe extern "C" fn boolean_server_key_not_assign(
     server_key: *const BooleanServerKey,
     ct_input: *mut BooleanCiphertext,
 ) -> c_int {
@@ -309,7 +309,7 @@ pub unsafe extern "C" fn booleans_server_key_not_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_mux(
+pub unsafe extern "C" fn boolean_server_key_mux(
     server_key: *const BooleanServerKey,
     ct_condition: *const BooleanCiphertext,
     ct_then: *const BooleanCiphertext,
@@ -339,7 +339,7 @@ pub unsafe extern "C" fn booleans_server_key_mux(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_and_scalar(
+pub unsafe extern "C" fn boolean_server_key_and_scalar(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     scalar: bool,
@@ -363,7 +363,7 @@ pub unsafe extern "C" fn booleans_server_key_and_scalar(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_nand_scalar(
+pub unsafe extern "C" fn boolean_server_key_nand_scalar(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     scalar: bool,
@@ -387,7 +387,7 @@ pub unsafe extern "C" fn booleans_server_key_nand_scalar(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_nor_scalar(
+pub unsafe extern "C" fn boolean_server_key_nor_scalar(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     scalar: bool,
@@ -411,7 +411,7 @@ pub unsafe extern "C" fn booleans_server_key_nor_scalar(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_or_scalar(
+pub unsafe extern "C" fn boolean_server_key_or_scalar(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     scalar: bool,
@@ -435,7 +435,7 @@ pub unsafe extern "C" fn booleans_server_key_or_scalar(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_xor_scalar(
+pub unsafe extern "C" fn boolean_server_key_xor_scalar(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     scalar: bool,
@@ -459,7 +459,7 @@ pub unsafe extern "C" fn booleans_server_key_xor_scalar(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_xnor_scalar(
+pub unsafe extern "C" fn boolean_server_key_xnor_scalar(
     server_key: *const BooleanServerKey,
     ct_left: *const BooleanCiphertext,
     scalar: bool,
@@ -483,7 +483,7 @@ pub unsafe extern "C" fn booleans_server_key_xnor_scalar(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_and_scalar_assign(
+pub unsafe extern "C" fn boolean_server_key_and_scalar_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     scalar: bool,
@@ -497,7 +497,7 @@ pub unsafe extern "C" fn booleans_server_key_and_scalar_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_nand_scalar_assign(
+pub unsafe extern "C" fn boolean_server_key_nand_scalar_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     scalar: bool,
@@ -511,7 +511,7 @@ pub unsafe extern "C" fn booleans_server_key_nand_scalar_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_nor_scalar_assign(
+pub unsafe extern "C" fn boolean_server_key_nor_scalar_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     scalar: bool,
@@ -525,7 +525,7 @@ pub unsafe extern "C" fn booleans_server_key_nor_scalar_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_or_scalar_assign(
+pub unsafe extern "C" fn boolean_server_key_or_scalar_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     scalar: bool,
@@ -539,7 +539,7 @@ pub unsafe extern "C" fn booleans_server_key_or_scalar_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_xor_scalar_assign(
+pub unsafe extern "C" fn boolean_server_key_xor_scalar_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     scalar: bool,
@@ -553,7 +553,7 @@ pub unsafe extern "C" fn booleans_server_key_xor_scalar_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_server_key_xnor_scalar_assign(
+pub unsafe extern "C" fn boolean_server_key_xnor_scalar_assign(
     server_key: *const BooleanServerKey,
     ct_left: *mut BooleanCiphertext,
     scalar: bool,
@@ -567,7 +567,7 @@ pub unsafe extern "C" fn booleans_server_key_xnor_scalar_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_serialize_server_key(
+pub unsafe extern "C" fn boolean_serialize_server_key(
     server_key: *const BooleanServerKey,
     result: *mut Buffer,
 ) -> c_int {
@@ -583,7 +583,7 @@ pub unsafe extern "C" fn booleans_serialize_server_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_deserialize_server_key(
+pub unsafe extern "C" fn boolean_deserialize_server_key(
     buffer_view: BufferView,
     result: *mut *mut BooleanServerKey,
 ) -> c_int {

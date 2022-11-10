@@ -46,14 +46,14 @@ cargo ${1:+"${1}"} nextest run \
     --release \
     --package tfhe \
     --profile ci \
-    --features="${ARCH_FEATURE}",shortints,internal-keycache \
+    --features="${ARCH_FEATURE}",shortint,internal-keycache \
     --test-threads "${n_threads}" \
     -E "${filter_expression}"
 
 cargo ${1:+"${1}"} test \
     --release \
     --package tfhe \
-    --features="${ARCH_FEATURE}",shortints,internal-keycache \
+    --features="${ARCH_FEATURE}",shortint,internal-keycache \
     --doc \
     shortint::
 

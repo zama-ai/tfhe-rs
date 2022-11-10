@@ -10,7 +10,7 @@ use super::{BooleanCiphertext, BooleanClientKey};
 pub struct BooleanPublicKey(pub(in crate::c_api) boolean::public_key::PublicKey);
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_gen_public_key(
+pub unsafe extern "C" fn boolean_gen_public_key(
     client_key: *const BooleanClientKey,
     result: *mut *mut BooleanPublicKey,
 ) -> c_int {
@@ -32,7 +32,7 @@ pub unsafe extern "C" fn booleans_gen_public_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_public_key_encrypt(
+pub unsafe extern "C" fn boolean_public_key_encrypt(
     public_key: *const BooleanPublicKey,
     value_to_encrypt: bool,
     result: *mut *mut BooleanCiphertext,
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn booleans_public_key_encrypt(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_serialize_public_key(
+pub unsafe extern "C" fn boolean_serialize_public_key(
     public_key: *const BooleanPublicKey,
     result: *mut Buffer,
 ) -> c_int {
@@ -70,7 +70,7 @@ pub unsafe extern "C" fn booleans_serialize_public_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_deserialize_public_key(
+pub unsafe extern "C" fn boolean_deserialize_public_key(
     buffer_view: BufferView,
     result: *mut *mut BooleanPublicKey,
 ) -> c_int {

@@ -10,10 +10,10 @@ void micro_bench_and() {
   BooleanClientKey *cks = NULL;
   BooleanServerKey *sks = NULL;
 
-  // int gen_keys_ok = booleans_gen_keys_with_default_parameters(&cks, &sks);
+  // int gen_keys_ok = boolean_gen_keys_with_default_parameters(&cks, &sks);
   // assert(gen_keys_ok == 0);
 
-  int gen_keys_ok = booleans_gen_keys_with_predefined_parameters_set(
+  int gen_keys_ok = boolean_gen_keys_with_predefined_parameters_set(
       BOOLEAN_PARAMETERS_SET_THFE_LIB_PARAMETERS, &cks, &sks);
   assert(gen_keys_ok == 0);
 
@@ -22,16 +22,16 @@ void micro_bench_and() {
   BooleanCiphertext *ct_left = NULL;
   BooleanCiphertext *ct_right = NULL;
 
-  int encrypt_left_ok = booleans_client_key_encrypt(cks, false, &ct_left);
+  int encrypt_left_ok = boolean_client_key_encrypt(cks, false, &ct_left);
   assert(encrypt_left_ok == 0);
-  int encrypt_right_ok = booleans_client_key_encrypt(cks, true, &ct_right);
+  int encrypt_right_ok = boolean_client_key_encrypt(cks, true, &ct_right);
   assert(encrypt_right_ok == 0);
 
   clock_t start = clock();
 
   for (int idx_loops = 0; idx_loops < num_loops; ++idx_loops) {
     BooleanCiphertext *ct_result = NULL;
-    booleans_server_key_and(sks, ct_left, ct_right, &ct_result);
+    boolean_server_key_and(sks, ct_left, ct_right, &ct_result);
     destroy_boolean_ciphertext(ct_result);
   }
 

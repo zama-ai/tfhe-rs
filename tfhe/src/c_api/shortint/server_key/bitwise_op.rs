@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_bitand(
+pub unsafe extern "C" fn shortint_server_key_smart_bitand(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -26,7 +26,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_bitand(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_bitand(
+pub unsafe extern "C" fn shortint_server_key_unchecked_bitand(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitand(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_bitand_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_bitand_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_bitand_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_bitand_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_bitand_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitand_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_bitxor(
+pub unsafe extern "C" fn shortint_server_key_smart_bitxor(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -104,7 +104,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_bitxor(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_bitxor(
+pub unsafe extern "C" fn shortint_server_key_unchecked_bitxor(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitxor(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_bitxor_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_bitxor_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -143,7 +143,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_bitxor_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_bitxor_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_bitxor_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -160,7 +160,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitxor_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_bitor(
+pub unsafe extern "C" fn shortint_server_key_smart_bitor(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -182,7 +182,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_bitor(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_bitor(
+pub unsafe extern "C" fn shortint_server_key_unchecked_bitor(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -204,7 +204,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_bitor(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_bitor_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_bitor_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -221,7 +221,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_bitor_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_bitor_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_bitor_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,

@@ -7,7 +7,7 @@ use crate::shortint;
 pub struct ShortintCiphertext(pub(in crate::c_api) shortint::ciphertext::Ciphertext);
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_ciphertext_set_degree(
+pub unsafe extern "C" fn shortint_ciphertext_set_degree(
     ciphertext: *mut ShortintCiphertext,
     degree: usize,
 ) -> c_int {
@@ -19,7 +19,7 @@ pub unsafe extern "C" fn shortints_ciphertext_set_degree(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_ciphertext_get_degree(
+pub unsafe extern "C" fn shortint_ciphertext_get_degree(
     ciphertext: *const ShortintCiphertext,
     result: *mut usize,
 ) -> c_int {
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn shortints_ciphertext_get_degree(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_serialize_ciphertext(
+pub unsafe extern "C" fn shortint_serialize_ciphertext(
     ciphertext: *const ShortintCiphertext,
     result: *mut Buffer,
 ) -> c_int {
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn shortints_serialize_ciphertext(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_deserialize_ciphertext(
+pub unsafe extern "C" fn shortint_deserialize_ciphertext(
     buffer_view: BufferView,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {

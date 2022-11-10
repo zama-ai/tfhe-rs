@@ -1,12 +1,12 @@
-#[cfg(feature = "shortints-client-js-wasm-api")]
-pub mod shortints;
-#[cfg(feature = "shortints-client-js-wasm-api")]
-pub use shortints::*;
+#[cfg(feature = "shortint-client-js-wasm-api")]
+pub mod shortint;
+#[cfg(feature = "shortint-client-js-wasm-api")]
+pub use shortint::*;
 
-#[cfg(feature = "booleans-client-js-wasm-api")]
-pub mod booleans;
-#[cfg(feature = "booleans-client-js-wasm-api")]
-pub use booleans::*;
+#[cfg(feature = "boolean-client-js-wasm-api")]
+pub mod boolean;
+#[cfg(feature = "boolean-client-js-wasm-api")]
+pub use boolean::*;
 
 pub(self) mod js_wasm_seeder {
     use crate::core_crypto::commons::math::random::Seed;

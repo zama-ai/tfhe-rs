@@ -10,7 +10,7 @@ use crate::shortint;
 pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::Parameters);
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_get_parameters(
+pub unsafe extern "C" fn shortint_get_parameters(
     message_bits: u32,
     carry_bits: u32,
     result: *mut *mut ShortintParameters,
@@ -68,7 +68,7 @@ pub unsafe extern "C" fn shortints_get_parameters(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_create_parameters(
+pub unsafe extern "C" fn shortint_create_parameters(
     lwe_dimension: usize,
     glwe_dimension: usize,
     polynomial_size: usize,

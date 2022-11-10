@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_left_shift(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_left_shift(
     server_key: *const ShortintServerKey,
     ct: *mut ShortintCiphertext,
     shift: u8,
@@ -25,7 +25,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_left_shift(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_left_shift(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_left_shift(
     server_key: *const ShortintServerKey,
     ct: *mut ShortintCiphertext,
     shift: u8,
@@ -46,17 +46,17 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_left_shift(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_right_shift(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_right_shift(
     server_key: *const ShortintServerKey,
     ct: *mut ShortintCiphertext,
     shift: u8,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
-    shortints_server_key_unchecked_scalar_right_shift(server_key, ct, shift, result)
+    shortint_server_key_unchecked_scalar_right_shift(server_key, ct, shift, result)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_right_shift(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_right_shift(
     server_key: *const ShortintServerKey,
     ct: *mut ShortintCiphertext,
     shift: u8,
@@ -77,7 +77,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_right_shift(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_left_shift_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_left_shift_assign(
     server_key: *const ShortintServerKey,
     ct: *mut ShortintCiphertext,
     shift: u8,
@@ -93,7 +93,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_scalar_left_shift_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_left_shift_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_left_shift_assign(
     server_key: *const ShortintServerKey,
     ct: *mut ShortintCiphertext,
     shift: u8,
@@ -109,16 +109,16 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_left_shift_assign
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_scalar_right_shift_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_scalar_right_shift_assign(
     server_key: *const ShortintServerKey,
     ct: *mut ShortintCiphertext,
     shift: u8,
 ) -> c_int {
-    shortints_server_key_unchecked_scalar_right_shift_assign(server_key, ct, shift)
+    shortint_server_key_unchecked_scalar_right_shift_assign(server_key, ct, shift)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_scalar_right_shift_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_right_shift_assign(
     server_key: *const ShortintServerKey,
     ct: *mut ShortintCiphertext,
     shift: u8,

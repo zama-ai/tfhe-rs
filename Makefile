@@ -48,58 +48,58 @@ check_fmt: install_rs_check_toolchain
 .PHONY: clippy_boolean # Run clippy lints enabling the boolean features
 clippy_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),booleans \
+		--features=$(TARGET_ARCH_FEATURE),boolean \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy_shortint # Run clippy lints enabling the shortints features
+.PHONY: clippy_shortint # Run clippy lints enabling the shortint features
 clippy_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),shortints \
+		--features=$(TARGET_ARCH_FEATURE),shortint \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy # Run clippy lints enabling the booleans, shortints
+.PHONY: clippy # Run clippy lints enabling the boolean, shortint
 clippy: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),booleans,shortints \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy_c_api # Run clippy lints enabling the booleans, shortints and the C API
+.PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
 clippy_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),booleans-c-api,shortints-c-api \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy_cuda # Run clippy lints enabling the booleans, shortints, cuda and c API features
+.PHONY: clippy_cuda # Run clippy lints enabling the boolean, shortint, cuda and c API features
 clippy_cuda: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),cuda,booleans-c-api,shortints-c-api \
+		--features=$(TARGET_ARCH_FEATURE),cuda,boolean-c-api,shortint-c-api \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --release \
 		--example generates_test_keys \
-		--features=$(TARGET_ARCH_FEATURE),shortints,internal-keycache -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe
 
 .PHONY: build_boolean # Build with boolean enabled
 build_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),booleans -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe
 
 .PHONY: build_shortint # Build with shortint enabled
 build_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),shortints -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),shortint -p tfhe
 
 .PHONY: build_boolean_and_shortint # Build with boolean and shortint enabled
 build_boolean_and_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),booleans,shortints -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint -p tfhe
 
 .PHONY: build_c_api # Build the C API for boolean and shortint
 build_c_api: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release
-		--features=$(TARGET_ARCH_FEATURE),booleans-c-api,shortints-c-api -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api -p tfhe
 
 .PHONY: test_core_crypto # Run the tests of the core_crypto module
 test_core_crypto: install_rs_build_toolchain
@@ -114,12 +114,12 @@ test_core_crypto_cuda: install_rs_build_toolchain
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
-		--features=$(TARGET_ARCH_FEATURE),booleans -p tfhe -- boolean::
+		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
 
 .PHONY: test_boolean_cuda # Run the tests of the boolean module with cuda enabled
 test_boolean_cuda: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
-		--features=$(TARGET_ARCH_FEATURE),booleans,cuda -p tfhe -- boolean::
+		--features=$(TARGET_ARCH_FEATURE),boolean,cuda -p tfhe -- boolean::
 
 .PHONY: test_c_api # Run the tests for the C API
 test_c_api: install_rs_build_toolchain
@@ -132,19 +132,19 @@ test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
 .PHONY: test_shortint # Run all the tests for shortint
 test_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
-		--features=$(TARGET_ARCH_FEATURE),shortints,internal-keycache -p tfhe -- shortint::
+		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe -- shortint::
 
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release --doc \
-		--features=$(TARGET_ARCH_FEATURE),shortints,booleans,internal-keycache -p tfhe \
+		--features=$(TARGET_ARCH_FEATURE),shortint,boolean,internal-keycache -p tfhe \
 		-- test_user_docs::
 
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=$(TARGET_ARCH_FEATURE),booleans,shortints --no-deps
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint --no-deps
 
 .PHONY: help # Generate list of targets with descriptions
 help:

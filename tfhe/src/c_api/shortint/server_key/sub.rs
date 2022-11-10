@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_sub(
+pub unsafe extern "C" fn shortint_server_key_smart_sub(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -26,7 +26,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_sub(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_sub(
+pub unsafe extern "C" fn shortint_server_key_unchecked_sub(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn shortints_server_key_unchecked_sub(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_smart_sub_assign(
+pub unsafe extern "C" fn shortint_server_key_smart_sub_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn shortints_server_key_smart_sub_assign(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_server_key_unchecked_sub_assign(
+pub unsafe extern "C" fn shortint_server_key_unchecked_sub_assign(
     server_key: *const ShortintServerKey,
     ct_left_and_result: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,

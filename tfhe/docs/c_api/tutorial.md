@@ -11,7 +11,7 @@ This library exposes a C binding to the `TFHE-rs` primitives to implement _Fully
  `TFHE-rs` C API can be built on a Unix x86_64 machine using the following command:
 
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo build --release --features=x86_64-unix,booleans-c-api,shortints-c-api -p tfhe
+RUSTFLAGS="-C target-cpu=native" cargo build --release --features=x86_64-unix,boolean-c-api,shortint-c-api -p tfhe
 ```
 
 All features are opt-in, but for simplicity here, the C API is enabled for booleans and shortints.
@@ -105,15 +105,15 @@ int main(void)
     ShortintParameters *params = NULL;
 
     // Get the parameters for 2 bits messages with 2 bits of carry
-    int get_params_ok = shortints_get_parameters(2, 2, &params);
+    int get_params_ok = shortint_get_parameters(2, 2, &params);
     assert(get_params_ok == 0);
 
     // Generate the keys with the parameters
-    int gen_keys_ok = shortints_gen_keys_with_parameters(params, &cks, &sks);
+    int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
     assert(gen_keys_ok == 0);
 
     // Generate the accumulator for the PBS
-    int gen_acc_ok = shortints_server_key_generate_pbs_accumulator(
+    int gen_acc_ok = shortint_server_key_generate_pbs_accumulator(
         sks, double_accumulator_2_bits_message, &accumulator);
     assert(gen_acc_ok == 0);
 
@@ -125,20 +125,20 @@ int main(void)
     uint64_t in_val = 1;
 
     // Encrypt the input value
-    int encrypt_ok = shortints_client_key_encrypt(cks, in_val, &ct);
+    int encrypt_ok = shortint_client_key_encrypt(cks, in_val, &ct);
     assert(encrypt_ok == 0);
 
     // Check the degree is set to the maximum value that can be encrypted on 2 bits, i.e. 3
     // This check is not required and is just added to show, the degree information can be retrieved
     // in the C APi
     size_t degree = -1;
-    int get_degree_ok = shortints_ciphertext_get_degree(ct, &degree);
+    int get_degree_ok = shortint_ciphertext_get_degree(ct, &degree);
     assert(get_degree_ok == 0);
 
     assert(degree == 3);
 
     // Apply the PBS on our encrypted input
-    int pbs_ok = shortints_server_key_programmable_bootstrap(sks, accumulator, ct, &ct_out);
+    int pbs_ok = shortint_server_key_programmable_bootstrap(sks, accumulator, ct, &ct_out);
     assert(pbs_ok == 0);
 
     // Set the degree to keep consistency for potential further computations
@@ -146,12 +146,12 @@ int main(void)
     size_t degree_to_set =
         (size_t)get_max_value_of_accumulator_generator(double_accumulator_2_bits_message, 2);
 
-    int set_degree_ok = shortints_ciphertext_set_degree(ct_out, degree_to_set);
+    int set_degree_ok = shortint_ciphertext_set_degree(ct_out, degree_to_set);
     assert(set_degree_ok == 0);
 
     // Decrypt the result
     uint64_t result = -1;
-    int decrypt_non_assign_ok = shortints_client_key_decrypt(cks, ct_out, &result);
+    int decrypt_non_assign_ok = shortint_client_key_decrypt(cks, ct_out, &result);
     assert(decrypt_non_assign_ok == 0);
 
     // Check the result is what we expect i.e. 2

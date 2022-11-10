@@ -6,7 +6,7 @@ To use `TFHE-rs` in your project, you first need to add it as a dependency in yo
 
 
 ```toml
-tfhe = { version = "0.1.0", features = [ "booleans", "shortints", "x86_64-unix" ] }
+tfhe = { version = "0.1.0", features = [ "boolean", "shortint", "x86_64-unix" ] }
 ```
 
 ## Choosing your features
@@ -19,8 +19,8 @@ This crate exposes two kinds of data types. Each kind is enabled by activating i
 
 | Kind      | Features     | Type(s)                                  |
 | --------- | ------------- |------------------------------------------|
-| Booleans  | `booleans`    | Booleans                                 |
-| ShortInts | `shortints`   | Short unsigned integers                  |
+| Booleans  | `boolean`    | Booleans                                 |
+| ShortInts | `shortint`   | Short unsigned integers                  |
 
 
 ### Serialization.

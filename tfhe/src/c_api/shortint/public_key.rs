@@ -10,7 +10,7 @@ use super::{ShortintCiphertext, ShortintClientKey, ShortintServerKey};
 pub struct ShortintPublicKey(pub(in crate::c_api) shortint::public_key::PublicKey);
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_gen_public_key(
+pub unsafe extern "C" fn shortint_gen_public_key(
     client_key: *const ShortintClientKey,
     result: *mut *mut ShortintPublicKey,
 ) -> c_int {
@@ -32,7 +32,7 @@ pub unsafe extern "C" fn shortints_gen_public_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_public_key_encrypt(
+pub unsafe extern "C" fn shortint_public_key_encrypt(
     public_key: *const ShortintPublicKey,
     server_key: *const ShortintServerKey,
     value_to_encrypt: u64,
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn shortints_public_key_encrypt(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_serialize_public_key(
+pub unsafe extern "C" fn shortint_serialize_public_key(
     public_key: *const ShortintPublicKey,
     result: *mut Buffer,
 ) -> c_int {
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn shortints_serialize_public_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_deserialize_public_key(
+pub unsafe extern "C" fn shortint_deserialize_public_key(
     buffer_view: BufferView,
     result: *mut *mut ShortintPublicKey,
 ) -> c_int {

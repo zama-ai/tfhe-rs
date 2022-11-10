@@ -32,7 +32,7 @@ jobs:
         run: |
           make doc
 
-      - name: Clippy booleans
+      - name: Clippy boolean
         run: |
           make clippy_boolean
 
@@ -40,7 +40,7 @@ jobs:
         run: |
           make build_boolean
 
-      - name: Clippy shortints
+      - name: Clippy shortint
         run: |
           make clippy_shortint
 
@@ -48,7 +48,7 @@ jobs:
         run: |
           make build_shortint
 
-      - name: Clippy shortints and booleans
+      - name: Clippy shortint and boolean
         run: |
           make clippy
 

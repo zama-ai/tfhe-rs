@@ -3,15 +3,15 @@ use crate::c_api::utils::*;
 use bincode;
 use std::os::raw::c_int;
 
-use crate::shortint;
+use crate::boolean;
 
-use super::ShortintCiphertext;
-pub struct ShortintClientKey(pub(in crate::c_api) shortint::client_key::ClientKey);
+use super::BooleanCiphertext;
+pub struct BooleanClientKey(pub(in crate::c_api) boolean::client_key::ClientKey);
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_gen_client_key(
-    shortint_parameters: *const super::parameters::ShortintParameters,
-    result_client_key: *mut *mut ShortintClientKey,
+pub unsafe extern "C" fn boolean_gen_client_key(
+    boolean_parameters: *const super::parameters::BooleanParameters,
+    result_client_key: *mut *mut BooleanClientKey,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result_client_key).unwrap();
@@ -20,21 +20,21 @@ pub unsafe extern "C" fn shortints_gen_client_key(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result_client_key = std::ptr::null_mut();
 
-        let shortint_parameters = get_ref_checked(shortint_parameters).unwrap();
+        let boolean_parameters = get_ref_checked(boolean_parameters).unwrap();
 
-        let client_key = shortint::client_key::ClientKey::new(shortint_parameters.0.to_owned());
+        let client_key = boolean::client_key::ClientKey::new(&boolean_parameters.0);
 
-        let heap_allocated_client_key = Box::new(ShortintClientKey(client_key));
+        let heap_allocated_client_key = Box::new(BooleanClientKey(client_key));
 
         *result_client_key = Box::into_raw(heap_allocated_client_key);
     })
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_client_key_encrypt(
-    client_key: *const ShortintClientKey,
-    value_to_encrypt: u64,
-    result: *mut *mut ShortintCiphertext,
+pub unsafe extern "C" fn boolean_client_key_encrypt(
+    client_key: *const BooleanClientKey,
+    value_to_encrypt: bool,
+    result: *mut *mut BooleanCiphertext,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
@@ -46,17 +46,17 @@ pub unsafe extern "C" fn shortints_client_key_encrypt(
         let client_key = get_ref_checked(client_key).unwrap();
 
         let heap_allocated_ciphertext =
-            Box::new(ShortintCiphertext(client_key.0.encrypt(value_to_encrypt)));
+            Box::new(BooleanCiphertext(client_key.0.encrypt(value_to_encrypt)));
 
         *result = Box::into_raw(heap_allocated_ciphertext);
     })
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_client_key_decrypt(
-    client_key: *const ShortintClientKey,
-    ciphertext_to_decrypt: *const ShortintCiphertext,
-    result: *mut u64,
+pub unsafe extern "C" fn boolean_client_key_decrypt(
+    client_key: *const BooleanClientKey,
+    ciphertext_to_decrypt: *const BooleanCiphertext,
+    result: *mut bool,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
@@ -69,8 +69,8 @@ pub unsafe extern "C" fn shortints_client_key_decrypt(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_serialize_client_key(
-    client_key: *const ShortintClientKey,
+pub unsafe extern "C" fn boolean_serialize_client_key(
+    client_key: *const BooleanClientKey,
     result: *mut Buffer,
 ) -> c_int {
     catch_panic(|| {
@@ -85,9 +85,9 @@ pub unsafe extern "C" fn shortints_serialize_client_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_deserialize_client_key(
+pub unsafe extern "C" fn boolean_deserialize_client_key(
     buffer_view: BufferView,
-    result: *mut *mut ShortintClientKey,
+    result: *mut *mut BooleanClientKey,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
@@ -96,10 +96,10 @@ pub unsafe extern "C" fn shortints_deserialize_client_key(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result = std::ptr::null_mut();
 
-        let client_key: shortint::client_key::ClientKey =
+        let client_key: boolean::client_key::ClientKey =
             bincode::deserialize(buffer_view.into()).unwrap();
 
-        let heap_allocated_client_key = Box::new(ShortintClientKey(client_key));
+        let heap_allocated_client_key = Box::new(BooleanClientKey(client_key));
 
         *result = Box::into_raw(heap_allocated_client_key);
     })

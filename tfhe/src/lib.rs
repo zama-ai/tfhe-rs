@@ -7,12 +7,12 @@
 #[cfg(feature = "__c_api")]
 pub mod c_api;
 
-#[cfg(feature = "booleans")]
+#[cfg(feature = "boolean")]
 /// cbindgen:ignore
 pub mod boolean;
 /// cbindgen:ignore
 pub mod core_crypto;
-#[cfg(feature = "shortints")]
+#[cfg(feature = "shortint")]
 /// cbindgen:ignore
 pub mod shortint;
 
@@ -22,8 +22,8 @@ pub mod js_on_wasm_api;
 #[cfg(feature = "__wasm_api")]
 pub use js_on_wasm_api::*;
 
-#[cfg(any(feature = "booleans", feature = "shortints"))]
+#[cfg(any(feature = "boolean", feature = "shortint"))]
 pub(crate) mod seeders;
 
-#[cfg(all(doctest, feature = "shortints", feature = "booleans"))]
+#[cfg(all(doctest, feature = "shortint", feature = "boolean"))]
 mod test_user_docs;

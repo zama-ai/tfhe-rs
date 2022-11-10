@@ -26,18 +26,18 @@ void test_binary_boolean_function(BooleanClientKey *cks, BooleanServerKey *sks,
           bool expected = c_fun(left, right);
 
           if (left_trivial) {
-            int encrypt_left_ok = booleans_trivial_encrypt(left, &ct_left);
+            int encrypt_left_ok = boolean_trivial_encrypt(left, &ct_left);
             assert(encrypt_left_ok == 0);
           } else {
-            int encrypt_left_ok = booleans_client_key_encrypt(cks, left, &ct_left);
+            int encrypt_left_ok = boolean_client_key_encrypt(cks, left, &ct_left);
             assert(encrypt_left_ok == 0);
           }
 
           if (right_trivial) {
-            int encrypt_left_ok = booleans_trivial_encrypt(right, &ct_right);
+            int encrypt_left_ok = boolean_trivial_encrypt(right, &ct_right);
             assert(encrypt_left_ok == 0);
           } else {
-            int encrypt_right_ok = booleans_client_key_encrypt(cks, right, &ct_right);
+            int encrypt_right_ok = boolean_client_key_encrypt(cks, right, &ct_right);
             assert(encrypt_right_ok == 0);
           }
 
@@ -46,7 +46,7 @@ void test_binary_boolean_function(BooleanClientKey *cks, BooleanServerKey *sks,
 
           bool decrypted_result = false;
 
-          int decrypt_ok = booleans_client_key_decrypt(cks, ct_result, &decrypted_result);
+          int decrypt_ok = boolean_client_key_decrypt(cks, ct_result, &decrypted_result);
           assert(decrypt_ok == 0);
 
           assert(decrypted_result == expected);
@@ -78,18 +78,18 @@ void test_binary_boolean_function_assign(
           bool expected = c_fun(left, right);
 
           if (left_trivial) {
-            int encrypt_left_ok = booleans_trivial_encrypt(left, &ct_left_and_result);
+            int encrypt_left_ok = boolean_trivial_encrypt(left, &ct_left_and_result);
             assert(encrypt_left_ok == 0);
           } else {
-            int encrypt_left_ok = booleans_client_key_encrypt(cks, left, &ct_left_and_result);
+            int encrypt_left_ok = boolean_client_key_encrypt(cks, left, &ct_left_and_result);
             assert(encrypt_left_ok == 0);
           }
 
           if (right_trivial) {
-            int encrypt_left_ok = booleans_trivial_encrypt(right, &ct_right);
+            int encrypt_left_ok = boolean_trivial_encrypt(right, &ct_right);
             assert(encrypt_left_ok == 0);
           } else {
-            int encrypt_right_ok = booleans_client_key_encrypt(cks, right, &ct_right);
+            int encrypt_right_ok = boolean_client_key_encrypt(cks, right, &ct_right);
             assert(encrypt_right_ok == 0);
           }
 
@@ -98,7 +98,7 @@ void test_binary_boolean_function_assign(
 
           bool decrypted_result = false;
 
-          int decrypt_ok = booleans_client_key_decrypt(cks, ct_left_and_result, &decrypted_result);
+          int decrypt_ok = boolean_client_key_decrypt(cks, ct_left_and_result, &decrypted_result);
           assert(decrypt_ok == 0);
 
           assert(decrypted_result == expected);
@@ -126,7 +126,7 @@ void test_binary_boolean_function_scalar(BooleanClientKey *cks, BooleanServerKey
 
       bool expected = c_fun(left, right);
 
-      int encrypt_left_ok = booleans_client_key_encrypt(cks, left, &ct_left);
+      int encrypt_left_ok = boolean_client_key_encrypt(cks, left, &ct_left);
       assert(encrypt_left_ok == 0);
 
       int api_call_ok = api_fun(sks, ct_left, right, &ct_result);
@@ -134,7 +134,7 @@ void test_binary_boolean_function_scalar(BooleanClientKey *cks, BooleanServerKey
 
       bool decrypted_result = false;
 
-      int decrypt_ok = booleans_client_key_decrypt(cks, ct_result, &decrypted_result);
+      int decrypt_ok = boolean_client_key_decrypt(cks, ct_result, &decrypted_result);
       assert(decrypt_ok == 0);
 
       assert(decrypted_result == expected);
@@ -158,7 +158,7 @@ void test_binary_boolean_function_scalar_assign(BooleanClientKey *cks, BooleanSe
 
       bool expected = c_fun(left, right);
 
-      int encrypt_left_ok = booleans_client_key_encrypt(cks, left, &ct_left_and_result);
+      int encrypt_left_ok = boolean_client_key_encrypt(cks, left, &ct_left_and_result);
       assert(encrypt_left_ok == 0);
 
       int api_call_ok = api_fun(sks, ct_left_and_result, right);
@@ -166,7 +166,7 @@ void test_binary_boolean_function_scalar_assign(BooleanClientKey *cks, BooleanSe
 
       bool decrypted_result = false;
 
-      int decrypt_ok = booleans_client_key_decrypt(cks, ct_left_and_result, &decrypted_result);
+      int decrypt_ok = boolean_client_key_decrypt(cks, ct_left_and_result, &decrypted_result);
       assert(decrypt_ok == 0);
 
       assert(decrypted_result == expected);
@@ -188,19 +188,19 @@ void test_not(BooleanClientKey *cks, BooleanServerKey *sks) {
       bool expected = !in;
 
       if (in_trivial) {
-        int encrypt_in_ok = booleans_trivial_encrypt(in, &ct_in);
+        int encrypt_in_ok = boolean_trivial_encrypt(in, &ct_in);
         assert(encrypt_in_ok == 0);
       } else {
-        int encrypt_in_ok = booleans_client_key_encrypt(cks, in, &ct_in);
+        int encrypt_in_ok = boolean_client_key_encrypt(cks, in, &ct_in);
         assert(encrypt_in_ok == 0);
       }
 
-      int api_call_ok = booleans_server_key_not(sks, ct_in, &ct_result);
+      int api_call_ok = boolean_server_key_not(sks, ct_in, &ct_result);
       assert(api_call_ok == 0);
 
       bool decrypted_result = false;
 
-      int decrypt_ok = booleans_client_key_decrypt(cks, ct_result, &decrypted_result);
+      int decrypt_ok = boolean_client_key_decrypt(cks, ct_result, &decrypted_result);
       assert(decrypt_ok == 0);
 
       assert(decrypted_result == expected);
@@ -222,19 +222,19 @@ void test_not_assign(BooleanClientKey *cks, BooleanServerKey *sks) {
       bool expected = !in;
 
       if (in_trivial) {
-        int encrypt_in_ok = booleans_trivial_encrypt(in, &ct_in_and_result);
+        int encrypt_in_ok = boolean_trivial_encrypt(in, &ct_in_and_result);
         assert(encrypt_in_ok == 0);
       } else {
-        int encrypt_in_ok = booleans_client_key_encrypt(cks, in, &ct_in_and_result);
+        int encrypt_in_ok = boolean_client_key_encrypt(cks, in, &ct_in_and_result);
         assert(encrypt_in_ok == 0);
       }
 
-      int api_call_ok = booleans_server_key_not_assign(sks, ct_in_and_result);
+      int api_call_ok = boolean_server_key_not_assign(sks, ct_in_and_result);
       assert(api_call_ok == 0);
 
       bool decrypted_result = false;
 
-      int decrypt_ok = booleans_client_key_decrypt(cks, ct_in_and_result, &decrypted_result);
+      int decrypt_ok = boolean_client_key_decrypt(cks, ct_in_and_result, &decrypted_result);
       assert(decrypt_ok == 0);
 
       assert(decrypted_result == expected);
@@ -269,33 +269,33 @@ void test_mux(BooleanClientKey *cks, BooleanServerKey *sks) {
               }
 
               if (cond_trivial) {
-                int encrypt_cond_ok = booleans_trivial_encrypt(cond, &ct_cond);
+                int encrypt_cond_ok = boolean_trivial_encrypt(cond, &ct_cond);
                 assert(encrypt_cond_ok == 0);
               } else {
-                int encrypt_cond_ok = booleans_client_key_encrypt(cks, cond, &ct_cond);
+                int encrypt_cond_ok = boolean_client_key_encrypt(cks, cond, &ct_cond);
                 assert(encrypt_cond_ok == 0);
               }
               if (then_trivial) {
-                int encrypt_then_ok = booleans_trivial_encrypt(then, &ct_then);
+                int encrypt_then_ok = boolean_trivial_encrypt(then, &ct_then);
                 assert(encrypt_then_ok == 0);
               } else {
-                int encrypt_then_ok = booleans_client_key_encrypt(cks, then, &ct_then);
+                int encrypt_then_ok = boolean_client_key_encrypt(cks, then, &ct_then);
                 assert(encrypt_then_ok == 0);
               }
               if (else_trivial) {
-                int encrypt_else_ok = booleans_trivial_encrypt(else_, &ct_else);
+                int encrypt_else_ok = boolean_trivial_encrypt(else_, &ct_else);
                 assert(encrypt_else_ok == 0);
               } else {
-                int encrypt_else_ok = booleans_client_key_encrypt(cks, else_, &ct_else);
+                int encrypt_else_ok = boolean_client_key_encrypt(cks, else_, &ct_else);
                 assert(encrypt_else_ok == 0);
               }
 
-              int api_call_ok = booleans_server_key_mux(sks, ct_cond, ct_then, ct_else, &ct_result);
+              int api_call_ok = boolean_server_key_mux(sks, ct_cond, ct_then, ct_else, &ct_result);
               assert(api_call_ok == 0);
 
               bool decrypted_result = false;
 
-              int decrypt_ok = booleans_client_key_decrypt(cks, ct_result, &decrypted_result);
+              int decrypt_ok = boolean_client_key_decrypt(cks, ct_result, &decrypted_result);
               assert(decrypt_ok == 0);
 
               assert(decrypted_result == expected);
@@ -332,66 +332,62 @@ void test_server_key(void) {
   Buffer sks_ser_buffer = {.pointer = NULL, .length = 0};
   BooleanServerKey *deser_sks = NULL;
 
-  int gen_keys_ok = booleans_gen_keys_with_default_parameters(&cks, &sks);
+  int gen_keys_ok = boolean_gen_keys_with_default_parameters(&cks, &sks);
   assert(gen_keys_ok == 0);
 
-  int ser_cks_ok = booleans_serialize_client_key(cks, &cks_ser_buffer);
+  int ser_cks_ok = boolean_serialize_client_key(cks, &cks_ser_buffer);
   assert(ser_cks_ok == 0);
 
   BufferView deser_view = {.pointer = cks_ser_buffer.pointer, .length = cks_ser_buffer.length};
 
-  int deser_cks_ok = booleans_deserialize_client_key(deser_view, &deser_cks);
+  int deser_cks_ok = boolean_deserialize_client_key(deser_view, &deser_cks);
   assert(deser_cks_ok == 0);
 
-  int ser_sks_ok = booleans_serialize_server_key(sks, &sks_ser_buffer);
+  int ser_sks_ok = boolean_serialize_server_key(sks, &sks_ser_buffer);
   assert(ser_sks_ok == 0);
 
   deser_view.pointer = sks_ser_buffer.pointer;
   deser_view.length = sks_ser_buffer.length;
 
-  int deser_sks_ok = booleans_deserialize_server_key(deser_view, &deser_sks);
+  int deser_sks_ok = boolean_deserialize_server_key(deser_view, &deser_sks);
   assert(deser_sks_ok == 0);
 
-  test_binary_boolean_function(deser_cks, deser_sks, c_and, booleans_server_key_and);
-  test_binary_boolean_function(deser_cks, deser_sks, c_nand, booleans_server_key_nand);
-  test_binary_boolean_function(deser_cks, deser_sks, c_or, booleans_server_key_or);
-  test_binary_boolean_function(deser_cks, deser_sks, c_nor, booleans_server_key_nor);
-  test_binary_boolean_function(deser_cks, deser_sks, c_xor, booleans_server_key_xor);
-  test_binary_boolean_function(deser_cks, deser_sks, c_xnor, booleans_server_key_xnor);
+  test_binary_boolean_function(deser_cks, deser_sks, c_and, boolean_server_key_and);
+  test_binary_boolean_function(deser_cks, deser_sks, c_nand, boolean_server_key_nand);
+  test_binary_boolean_function(deser_cks, deser_sks, c_or, boolean_server_key_or);
+  test_binary_boolean_function(deser_cks, deser_sks, c_nor, boolean_server_key_nor);
+  test_binary_boolean_function(deser_cks, deser_sks, c_xor, boolean_server_key_xor);
+  test_binary_boolean_function(deser_cks, deser_sks, c_xnor, boolean_server_key_xnor);
   test_not(deser_cks, deser_sks);
   test_mux(deser_cks, deser_sks);
 
-  test_binary_boolean_function_assign(deser_cks, deser_sks, c_and, booleans_server_key_and_assign);
-  test_binary_boolean_function_assign(deser_cks, deser_sks, c_nand,
-                                      booleans_server_key_nand_assign);
-  test_binary_boolean_function_assign(deser_cks, deser_sks, c_or, booleans_server_key_or_assign);
-  test_binary_boolean_function_assign(deser_cks, deser_sks, c_nor, booleans_server_key_nor_assign);
-  test_binary_boolean_function_assign(deser_cks, deser_sks, c_xor, booleans_server_key_xor_assign);
-  test_binary_boolean_function_assign(deser_cks, deser_sks, c_xnor,
-                                      booleans_server_key_xnor_assign);
+  test_binary_boolean_function_assign(deser_cks, deser_sks, c_and, boolean_server_key_and_assign);
+  test_binary_boolean_function_assign(deser_cks, deser_sks, c_nand, boolean_server_key_nand_assign);
+  test_binary_boolean_function_assign(deser_cks, deser_sks, c_or, boolean_server_key_or_assign);
+  test_binary_boolean_function_assign(deser_cks, deser_sks, c_nor, boolean_server_key_nor_assign);
+  test_binary_boolean_function_assign(deser_cks, deser_sks, c_xor, boolean_server_key_xor_assign);
+  test_binary_boolean_function_assign(deser_cks, deser_sks, c_xnor, boolean_server_key_xnor_assign);
   test_not_assign(deser_cks, deser_sks);
 
-  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_and, booleans_server_key_and_scalar);
-  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_nand,
-                                      booleans_server_key_nand_scalar);
-  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_or, booleans_server_key_or_scalar);
-  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_nor, booleans_server_key_nor_scalar);
-  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_xor, booleans_server_key_xor_scalar);
-  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_xnor,
-                                      booleans_server_key_xnor_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_and, boolean_server_key_and_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_nand, boolean_server_key_nand_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_or, boolean_server_key_or_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_nor, boolean_server_key_nor_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_xor, boolean_server_key_xor_scalar);
+  test_binary_boolean_function_scalar(deser_cks, deser_sks, c_xnor, boolean_server_key_xnor_scalar);
 
   test_binary_boolean_function_scalar_assign(deser_cks, deser_sks, c_and,
-                                             booleans_server_key_and_scalar_assign);
+                                             boolean_server_key_and_scalar_assign);
   test_binary_boolean_function_scalar_assign(deser_cks, deser_sks, c_nand,
-                                             booleans_server_key_nand_scalar_assign);
+                                             boolean_server_key_nand_scalar_assign);
   test_binary_boolean_function_scalar_assign(deser_cks, deser_sks, c_or,
-                                             booleans_server_key_or_scalar_assign);
+                                             boolean_server_key_or_scalar_assign);
   test_binary_boolean_function_scalar_assign(deser_cks, deser_sks, c_nor,
-                                             booleans_server_key_nor_scalar_assign);
+                                             boolean_server_key_nor_scalar_assign);
   test_binary_boolean_function_scalar_assign(deser_cks, deser_sks, c_xor,
-                                             booleans_server_key_xor_scalar_assign);
+                                             boolean_server_key_xor_scalar_assign);
   test_binary_boolean_function_scalar_assign(deser_cks, deser_sks, c_xnor,
-                                             booleans_server_key_xnor_scalar_assign);
+                                             boolean_server_key_xnor_scalar_assign);
 
   destroy_boolean_client_key(cks);
   destroy_boolean_server_key(sks);

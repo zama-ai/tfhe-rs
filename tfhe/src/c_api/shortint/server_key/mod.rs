@@ -22,7 +22,7 @@ pub mod sub;
 pub struct ShortintServerKey(pub(in crate::c_api) shortint::server_key::ServerKey);
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_gen_server_key(
+pub unsafe extern "C" fn shortint_gen_server_key(
     client_key: *const super::ShortintClientKey,
     result_server_key: *mut *mut ShortintServerKey,
 ) -> c_int {
@@ -44,7 +44,7 @@ pub unsafe extern "C" fn shortints_gen_server_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_serialize_server_key(
+pub unsafe extern "C" fn shortint_serialize_server_key(
     server_key: *const ShortintServerKey,
     result: *mut Buffer,
 ) -> c_int {
@@ -60,7 +60,7 @@ pub unsafe extern "C" fn shortints_serialize_server_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortints_deserialize_server_key(
+pub unsafe extern "C" fn shortint_deserialize_server_key(
     buffer_view: BufferView,
     result: *mut *mut ShortintServerKey,
 ) -> c_int {

@@ -7,7 +7,7 @@ use crate::boolean;
 pub struct BooleanCiphertext(pub(in crate::c_api) boolean::ciphertext::Ciphertext);
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_serialize_ciphertext(
+pub unsafe extern "C" fn boolean_serialize_ciphertext(
     ciphertext: *const BooleanCiphertext,
     result: *mut Buffer,
 ) -> c_int {
@@ -23,7 +23,7 @@ pub unsafe extern "C" fn booleans_serialize_ciphertext(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn booleans_deserialize_ciphertext(
+pub unsafe extern "C" fn boolean_deserialize_ciphertext(
     buffer_view: BufferView,
     result: *mut *mut BooleanCiphertext,
 ) -> c_int {
