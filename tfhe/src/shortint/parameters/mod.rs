@@ -158,6 +158,8 @@ pub const DEFAULT_PARAMETERS: Parameters = PARAM_MESSAGE_2_CARRY_2;
 
 /// Nomenclature: PARAM_MESSAGE_X_CARRY_Y: the message (respectively carry) modulus is
 /// encoded over X (reps. Y) bits, i.e., message_modulus = 2^{X} (resp. carry_modulus = 2^{Y}).
+/// All parameter sets guarantee 128-bits of security and an error probability smaller than
+/// 2^{-40} for a PBS.
 pub const PARAM_MESSAGE_1_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(678),
     glwe_dimension: GlweDimension(5),

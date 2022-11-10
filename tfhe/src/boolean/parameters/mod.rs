@@ -76,7 +76,7 @@ impl BooleanParameters {
 /// Default parameter set.
 ///
 /// This parameter set ensures 128-bits of security, and a probability of error is upper-bounded by
-/// $2^{-25}$. The secret keys generated with this parameter set are uniform binary.
+/// $2^{-40}$. The secret keys generated with this parameter set are uniform binary.
 /// This parameter set allows to evaluate faster Boolean circuits than the `TFHE_LIB_PARAMETERS`
 /// one.
 pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
@@ -91,12 +91,11 @@ pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
     ks_level: DecompositionLevelCount(3),
 };
 
-/// Parameter set used in [TFHE library](https://tfhe.github.io/tfhe/) for 128-bits of security.
-///
-/// Details about this set are provided
-/// [here](https://github.com/tfhe/tfhe/blob/master/src/libtfhe/tfhe_gate_bootstrapping.cpp).
 /// The secret keys generated with this parameter set are uniform binary.
-/// This parameter set ensures a probability of error is upper-bounded by $2^{-165}$.
+/// This parameter set ensures a probability of error upper-bounded by $2^{-165}$ as the ones
+/// proposed into [TFHE library](https://tfhe.github.io/tfhe/) for for 128-bits of security.
+/// They are updated to the last security standards, so they differ from the original
+/// publication.
 pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
     lwe_dimension: LweDimension(830),
     glwe_dimension: GlweDimension(2),
