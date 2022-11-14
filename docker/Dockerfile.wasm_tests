@@ -1,0 +1,34 @@
+FROM ubuntu:22.04
+
+ENV TZ=Europe/Paris
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+ENV _TFHE_DOCKER_WORKDIR=/tfhe-wasm-tests/tfhe-rs/tfhe/
+ENV CARGO_TARGET_DIR=/root/tfhe-rs-target
+
+WORKDIR /tfhe-wasm-tests
+
+RUN sed -i 's|^deb http://archive|deb http://fr.archive|g' /etc/apt/sources.list
+
+RUN apt-get update && \
+    apt-get install -y \
+    build-essential \
+    curl \
+    git && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > install-rustup.sh && \
+    chmod +x install-rustup.sh && \
+    ./install-rustup.sh -y && \
+    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf > install-wasm-pack.sh && \
+    chmod +x install-wasm-pack.sh && \
+    . "$HOME/.cargo/env" && \
+    ./install-wasm-pack.sh -y && \
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh > install-node.sh && \
+    chmod +x install-node.sh && \
+    ./install-node.sh && \
+    . $HOME/.nvm/nvm.sh && \
+    bash -i -c 'nvm install node && nvm use node' && \
+    rustup target add wasm32-unknown-unknown
+
+COPY docker/run_node_tests.sh .

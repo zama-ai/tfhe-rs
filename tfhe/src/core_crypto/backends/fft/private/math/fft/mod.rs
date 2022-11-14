@@ -13,6 +13,8 @@ use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::prelude::PolynomialSize;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
+#[cfg(feature = "__wasm_api")]
+use concrete_fft::ordered::FftAlgo;
 use concrete_fft::unordered::{Method, Plan};
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
 use once_cell::sync::OnceCell;
@@ -21,6 +23,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem::{align_of, size_of, MaybeUninit};
 use std::sync::{Arc, RwLock};
+#[cfg(not(feature = "__wasm_api"))]
 use std::time::Duration;
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
@@ -161,7 +164,16 @@ impl Fft {
                 p.get_or_init(|| {
                     Arc::new((
                         Twisties::new(n / 2),
+                        #[cfg(not(feature = "__wasm_api"))]
                         Plan::new(n / 2, Method::Measure(Duration::from_millis(10))),
+                        #[cfg(feature = "__wasm_api")]
+                        Plan::new(
+                            n / 2,
+                            Method::UserProvided {
+                                base_algo: FftAlgo::Dif4,
+                                base_n: if n / 2 <= 512 { n / 2 } else { 512 },
+                            },
+                        ),
                     ))
                 })
                 .clone()

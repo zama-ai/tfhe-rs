@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::core_crypto::commons::numeric::Numeric;
 use crate::core_crypto::prelude::{CiphertextCount, LweDimension, LweSize};
 
-use crate::core_crypto::commons::crypto::lwe::LweList;
+use crate::core_crypto::commons::crypto::lwe::{LweCiphertext, LweList};
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, CompressionSeed, RandomGenerable, RandomGenerator, Uniform,
 };
@@ -208,6 +208,17 @@ impl<Cont> LweSeededList<Cont> {
             .map(|scalar| unsafe { std::mem::transmute(scalar) })
     }
 
+    pub fn ciphertext_iter<'this, Scalar, Gen>(
+        &'this self,
+    ) -> impl Iterator<Item = LweCiphertext<Vec<Scalar>>> + 'this
+    where
+        Scalar: Numeric + RandomGenerable<Uniform>,
+        Cont: AsRefSlice<Element = Scalar>,
+        Gen: ByteRandomGenerator + 'this,
+    {
+        LweSeededListCiphertextIterator::<'this, Gen, Cont>::new(self)
+    }
+
     /// Returns an iterator over seeded ciphertexts from the list.
     ///
     /// # Example
@@ -290,5 +301,53 @@ impl<Cont> LweSeededList<Cont> {
         let mut generator = RandomGenerator::<Gen>::new(self.compression_seed.seed);
 
         self.expand_into_with_existing_generator(output, &mut generator);
+    }
+}
+
+struct LweSeededListCiphertextIterator<'a, Gen: ByteRandomGenerator, Cont> {
+    current_idx: usize,
+    last_idx: usize,
+    generator: RandomGenerator<Gen>,
+    from_seeded_list: &'a LweSeededList<Cont>,
+}
+
+impl<'a, Gen: ByteRandomGenerator, Cont: AsRefSlice>
+    LweSeededListCiphertextIterator<'a, Gen, Cont>
+{
+    pub fn new(from_seeded_list: &'a LweSeededList<Cont>) -> Self {
+        Self {
+            current_idx: 0,
+            last_idx: from_seeded_list.count().0,
+            generator: RandomGenerator::<Gen>::new(from_seeded_list.compression_seed.seed),
+            from_seeded_list,
+        }
+    }
+}
+
+impl<
+        Gen: ByteRandomGenerator,
+        Scalar: Numeric + RandomGenerable<Uniform>,
+        Cont: AsRefSlice<Element = Scalar>,
+    > Iterator for LweSeededListCiphertextIterator<'_, Gen, Cont>
+{
+    type Item = LweCiphertext<Vec<Scalar>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_idx < self.last_idx {
+            let mut ciphertext = LweCiphertext::<Vec<Scalar>>::allocate(
+                Scalar::ZERO,
+                self.from_seeded_list.lwe_size(),
+            );
+
+            ciphertext.get_mut_body().0 =
+                self.from_seeded_list.tensor.as_container().as_slice()[self.current_idx];
+            self.generator
+                .fill_tensor_with_random_uniform(&mut ciphertext.get_mut_mask());
+
+            self.current_idx += 1;
+            Some(ciphertext)
+        } else {
+            None
+        }
     }
 }

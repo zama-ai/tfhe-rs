@@ -152,6 +152,25 @@ doc: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint --no-deps
 
+.PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
+build_nodejs_test_docker:
+	DOCKER_BUILDKIT=1 docker build -f docker/Dockerfile.wasm_tests -t tfhe-wasm-tests .
+
+.PHONY: test_nodejs_wasm_api_in_docker # Run tests for the nodejs on wasm API in a docker container
+test_nodejs_wasm_api_in_docker: build_nodejs_test_docker
+	if [[ -t 1 ]]; then RUN_FLAGS="-it"; else RUN_FLAGS="-i"; fi && \
+	docker run --rm "$${RUN_FLAGS}" \
+		-v "$$(pwd)":/tfhe-wasm-tests/tfhe-rs \
+		-v tfhe-rs-root-target-cache:/root/tfhe-rs-target \
+		-v tfhe-rs-pkg-cache:/tfhe-wasm-tests/tfhe-rs/tfhe/pkg \
+		-v tfhe-rs-root-cargo-registry-cache:/root/.cargo/registry \
+		-v tfhe-rs-root-cache:/root/.cache \
+		tfhe-wasm-tests /bin/bash -i -c '/tfhe-wasm-tests/run_node_tests.sh'
+
+.PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
+test_nodejs_wasm_api:
+	RUSTFLAGS="" ./docker/run_node_tests.sh
+
 .PHONY: help # Generate list of targets with descriptions
 help:
 	@grep '^.PHONY: .* #' Makefile | sed 's/\.PHONY: \(.*\) # \(.*\)/\1\t\2/' | expand -t30 | sort

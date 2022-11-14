@@ -36,7 +36,17 @@ impl ShortintEngine {
         // Convert into a variance for rlwe context
         let var_rlwe = Variance(cks.parameters.glwe_modular_std_dev.get_variance());
 
+        #[cfg(not(feature = "__wasm_api"))]
         let bootstrap_key: LweBootstrapKey64 = self.par_engine.generate_new_lwe_bootstrap_key(
+            &cks.lwe_secret_key_after_ks,
+            &cks.glwe_secret_key,
+            cks.parameters.pbs_base_log,
+            cks.parameters.pbs_level,
+            var_rlwe,
+        )?;
+
+        #[cfg(feature = "__wasm_api")]
+        let bootstrap_key: LweBootstrapKey64 = self.engine.generate_new_lwe_bootstrap_key(
             &cks.lwe_secret_key_after_ks,
             &cks.glwe_secret_key,
             cks.parameters.pbs_base_log,

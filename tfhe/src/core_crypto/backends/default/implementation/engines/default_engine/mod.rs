@@ -37,10 +37,23 @@ pub struct DefaultEngine {
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
     encryption_generator: ImplEncryptionRandomGenerator<ActivatedRandomGenerator>,
-    // /// A seeder that can be called to generate 128 bits seeds, useful to create new
-    // /// [`ImplEncryptionRandomGenerator`] to encrypt seeded types.
-    // seeder: ImplDeterministicSeeder<ActivatedRandomGenerator>,
+    /// A seeder that can be called to generate 128 bits seeds, useful to create new
+    /// [`ImplEncryptionRandomGenerator`] to encrypt seeded types.
+    seeder: ImplDeterministicSeeder<ActivatedRandomGenerator>,
 }
+
+impl DefaultEngine {
+    pub fn get_secret_generator(
+        &mut self,
+    ) -> &mut ImplSecretRandomGenerator<ActivatedRandomGenerator> {
+        &mut self.secret_generator
+    }
+
+    pub fn get_seedeer(&mut self) -> &mut ImplDeterministicSeeder<ActivatedRandomGenerator> {
+        &mut self.seeder
+    }
+}
+
 impl AbstractEngineSeal for DefaultEngine {}
 
 impl AbstractEngine for DefaultEngine {
@@ -62,7 +75,7 @@ impl AbstractEngine for DefaultEngine {
                 deterministic_seeder.seed(),
                 &mut deterministic_seeder,
             ),
-            // seeder: deterministic_seeder,
+            seeder: deterministic_seeder,
         })
     }
 }

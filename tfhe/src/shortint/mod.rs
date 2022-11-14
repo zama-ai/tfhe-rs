@@ -64,7 +64,7 @@ pub mod wopbs;
 pub use ciphertext::Ciphertext;
 pub use client_key::ClientKey;
 pub use parameters::Parameters;
-pub use public_key::PublicKey;
+pub use public_key::{CompressedPublicKey, PublicKey};
 pub use server_key::{CheckError, ServerKey};
 
 /// Generate a couple of client and server keys.

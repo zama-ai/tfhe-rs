@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::math::random::Seeder;
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(feature = "__wasm_api")))]
 use concrete_csprng::seeders::AppleSecureEnclaveSeeder;
 #[cfg(feature = "seeder_x86_64_rdseed")]
 use concrete_csprng::seeders::RdseedSeeder;
