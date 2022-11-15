@@ -1,12 +1,8 @@
 //! All the `ShortintEngine` method related to public side (encrypt / decrypt)
 use super::{EngineResult, ShortintEngine};
-use crate::core_crypto::backends::default::engines::ActivatedRandomGenerator;
 use crate::core_crypto::commons::crypto::encoding::PlaintextList;
-#[cfg(not(feature = "__wasm_api"))]
-use crate::core_crypto::commons::crypto::lwe::LweList;
 use crate::core_crypto::commons::crypto::lwe::LweSeededList;
 use crate::core_crypto::commons::math::random::CompressionSeed;
-#[cfg(feature = "__wasm_api")]
 use crate::core_crypto::commons::math::tensor::{AsMutTensor, AsRefTensor};
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
@@ -187,46 +183,22 @@ impl ShortintEngine {
             .trivially_encrypt_lwe_ciphertext(public_key.lwe_public_key.lwe_size(), &plain)?;
 
         // encryption
-        // For wasm we need to decompress the public key as we go because of memory constraints
-        #[cfg(feature = "__wasm_api")]
-        {
-            let ct_choice = self
-                .engine
-                .get_secret_generator()
-                .random_binary_tensor::<u64>(public_key.lwe_public_key.count().0);
+        let ct_choice = self
+            .engine
+            .get_secret_generator()
+            .random_binary_tensor::<u64>(public_key.lwe_public_key.count().0);
 
-            for (&chosen, public_encryption_of_zero) in ct_choice.as_container().iter().zip(
-                public_key
-                    .lwe_public_key
-                    .ciphertext_iter::<_, ActivatedRandomGenerator>(),
-            ) {
-                if chosen == 1 {
-                    encrypted_ct
-                        .0
-                        .as_mut_tensor()
-                        .update_with_wrapping_add(public_encryption_of_zero.as_tensor());
-                }
-            }
-        }
-        #[cfg(not(feature = "__wasm_api"))]
-        {
-            let mut decompressed_public_key = LwePublicKey64(LweList::allocate(
-                0u64,
-                public_key.lwe_public_key.lwe_size(),
-                public_key.lwe_public_key.count(),
-            ));
-
+        for (&chosen, public_encryption_of_zero) in ct_choice.as_container().iter().zip(
             public_key
                 .lwe_public_key
-                .clone()
-                .expand_into::<_, _, ActivatedRandomGenerator>(&mut decompressed_public_key.0);
-
-            // encryption
-            self.engine.discard_encrypt_lwe_ciphertext_with_public_key(
-                &decompressed_public_key,
-                &mut encrypted_ct,
-                &plain,
-            )?;
+                .ciphertext_iter::<_, ActivatedRandomGenerator>(),
+        ) {
+            if chosen == 1 {
+                encrypted_ct
+                    .0
+                    .as_mut_tensor()
+                    .update_with_wrapping_add(public_encryption_of_zero.as_tensor());
+            }
         }
 
         Ok(Ciphertext {

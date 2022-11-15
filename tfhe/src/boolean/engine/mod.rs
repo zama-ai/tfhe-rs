@@ -6,7 +6,6 @@ use bootstrapping::{BooleanServerKey, Bootstrapper, CpuBootstrapper};
 use std::cell::RefCell;
 pub mod bootstrapping;
 use crate::boolean::engine::bootstrapping::CpuBootstrapKey;
-use crate::core_crypto::backends::default::engines::ActivatedRandomGenerator;
 use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
 use crate::seeders::new_seeder;
 

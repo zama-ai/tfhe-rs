@@ -11,7 +11,6 @@ mod server_side;
 #[cfg(not(feature = "__wasm_api"))]
 mod wopbs;
 
-use crate::core_crypto::backends::default::engines::ActivatedRandomGenerator;
 use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
 
 thread_local! {

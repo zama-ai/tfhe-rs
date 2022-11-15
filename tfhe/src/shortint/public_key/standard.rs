@@ -1,4 +1,6 @@
 //! Module with the definition of the PublicKey.
+use super::CompressedPublicKey;
+use crate::core_crypto::commons::crypto::lwe::LweList;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
@@ -197,6 +199,27 @@ impl PublicKey {
                 .encrypt_native_crt_with_public_key(self, message, message_modulus)
                 .unwrap()
         })
+    }
+}
+
+impl From<CompressedPublicKey> for PublicKey {
+    fn from(compressed_public_key: CompressedPublicKey) -> Self {
+        let parameters = compressed_public_key.parameters;
+
+        let mut decompressed_public_key = LwePublicKey64(LweList::allocate(
+            0u64,
+            compressed_public_key.lwe_public_key.lwe_size(),
+            compressed_public_key.lwe_public_key.count(),
+        ));
+
+        compressed_public_key
+            .lwe_public_key
+            .expand_into::<_, _, ActivatedRandomGenerator>(&mut decompressed_public_key.0);
+
+        Self {
+            lwe_public_key: decompressed_public_key,
+            parameters,
+        }
     }
 }
 
