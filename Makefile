@@ -98,7 +98,7 @@ build_boolean_and_shortint: install_rs_build_toolchain
 
 .PHONY: build_c_api # Build the C API for boolean and shortint
 build_c_api: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api -p tfhe
 
 .PHONY: test_core_crypto # Run the tests of the core_crypto module
