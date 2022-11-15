@@ -57,6 +57,7 @@ impl Boolean {
     }
 
     #[wasm_bindgen]
+    #[allow(clippy::too_many_arguments)]
     pub fn new_boolean_parameters(
         lwe_dimension: usize,
         glwe_dimension: usize,
