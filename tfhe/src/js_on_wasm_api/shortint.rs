@@ -79,6 +79,7 @@ impl Shortint {
     }
 
     #[wasm_bindgen]
+    #[allow(clippy::too_many_arguments)]
     pub fn new_shortint_parameters(
         lwe_dimension: usize,
         glwe_dimension: usize,
