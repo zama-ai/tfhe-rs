@@ -15,6 +15,9 @@ pub struct BooleanClientKey(pub(crate) crate::boolean::client_key::ClientKey);
 pub struct BooleanPublicKey(pub(crate) crate::boolean::public_key::PublicKey);
 
 #[wasm_bindgen]
+pub struct BooleanServerKey(pub(crate) crate::boolean::server_key::ServerKey);
+
+#[wasm_bindgen]
 pub struct Boolean {}
 
 #[wasm_bindgen]
@@ -118,6 +121,13 @@ impl Boolean {
     }
 
     #[wasm_bindgen]
+    pub fn new_server_key(client_key: &BooleanClientKey) -> BooleanServerKey {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        BooleanServerKey(crate::boolean::server_key::ServerKey::new(&client_key.0))
+    }
+
+    #[wasm_bindgen]
     pub fn encrypt(client_key: &BooleanClientKey, message: bool) -> BooleanCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
         BooleanCiphertext(client_key.0.encrypt(message))
@@ -190,5 +200,20 @@ impl Boolean {
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
             .map(BooleanPublicKey)
+    }
+
+    #[wasm_bindgen]
+    pub fn serialize_boolean_server_key(server_key: &BooleanServerKey) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::serialize(&server_key.0)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+    }
+
+    #[wasm_bindgen]
+    pub fn deserialize_boolean_server_key(buffer: &[u8]) -> Result<BooleanServerKey, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::deserialize(buffer)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map(BooleanServerKey)
     }
 }
