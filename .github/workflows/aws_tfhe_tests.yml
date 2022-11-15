@@ -22,6 +22,9 @@ on:
       runner_name:
         description: "Action runner name"
         type: string
+      request_id:
+        description: 'Slab request ID'
+        type: string
 
 jobs:
   shortint-tests:
@@ -36,6 +39,7 @@ jobs:
           echo "ID: ${{ github.event.inputs.instance_id }}"
           echo "AMI: ${{ github.event.inputs.instance_image_id }}"
           echo "Type: ${{ github.event.inputs.instance_type }}"
+          echo "Request ID: ${{ github.event.inputs.request_id }}"
 
       - uses: actions/checkout@v2
 
