@@ -75,6 +75,12 @@ clippy_cuda: install_rs_check_toolchain
 		--features=$(TARGET_ARCH_FEATURE),cuda,boolean-c-api,shortint-c-api \
 		-p tfhe -- --no-deps -D warnings
 
+.PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint and the js wasm API
+clippy_js_wasm_api: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api \
+		-p tfhe -- --no-deps -D warnings
+
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --release \
