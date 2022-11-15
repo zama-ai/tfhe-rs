@@ -67,3 +67,10 @@ jobs:
       - name: Build Release c_api
         run: |
           make build_c_api
+
+      - name: wasm API Clippy
+        run: |
+          make clippy_js_wasm_api
+
+      # The wasm build check is a bit annoying to set-up here and is done during the tests in
+      # aws_tfhe_tests.yml
