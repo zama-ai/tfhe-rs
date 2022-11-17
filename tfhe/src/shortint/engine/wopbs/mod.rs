@@ -1,11 +1,14 @@
 //! # WARNING: this module is experimental.
+use crate::core_crypto::algorithms::lwe_encryption::allocate_and_trivially_encrypt_new_lwe_ciphertext;
+use crate::core_crypto::algorithms::lwe_linear_algebra::lwe_ciphertext_in_place_subtraction;
+use crate::core_crypto::entities::encoded::Encoded;
+use crate::core_crypto::entities::lwe_ciphertext::LweCiphertext;
+use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
+use crate::shortint::server_key::MaxDegree;
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{Ciphertext, ClientKey, Parameters, ServerKey};
-
-use crate::core_crypto::prelude::*;
-use crate::shortint::server_key::MaxDegree;
 
 impl ShortintEngine {
     // Creates a key when ONLY a wopbs is used.
@@ -149,7 +152,7 @@ impl ShortintEngine {
     pub(crate) fn extract_bits(
         &mut self,
         delta_log: DeltaLog,
-        lwe_in: &LweCiphertext64,
+        lwe_in: &LweCiphertext<u64>,
         wopbs_key: &WopbsKey,
         extracted_bit_count: ExtractedBitsCount,
     ) -> EngineResult<LweCiphertextVector64> {
@@ -165,8 +168,8 @@ impl ShortintEngine {
         )?;
 
         self.fft_engine.discard_extract_bits_lwe_ciphertext(
-            &mut output,
-            lwe_in,
+            &mut LweCiphertextVectorMutView64(output.0.as_mut_view()),
+            &lwe_in.as_old_ct_view(),
             &server_key.bootstrapping_key,
             &server_key.key_switching_key,
             extracted_bit_count,
@@ -245,7 +248,7 @@ impl ShortintEngine {
 
         let sks = &wopbs_key.wopbs_server_key;
         let ct_out = Ciphertext {
-            ct: ct_out,
+            ct: ct_out.into(),
             degree: Degree(sks.message_modulus.0 - 1),
             message_modulus: sks.message_modulus,
             carry_modulus: sks.carry_modulus,
@@ -290,20 +293,20 @@ impl ShortintEngine {
 
         // To make borrow checker happy
         let engine = &mut self.engine;
-        let zero_plaintext = engine.create_plaintext_from(&0_u64).unwrap();
-        let mut buffer_lwe_after_ks = engine
-            .trivially_encrypt_lwe_ciphertext(
-                wopbs_key
-                    .ksk_pbs_to_wopbs
-                    .output_lwe_dimension()
-                    .to_lwe_size(),
-                &zero_plaintext,
-            )
-            .unwrap();
+        let encoded_zero = Encoded(0);
+
+        let mut buffer_lwe_after_ks = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+            wopbs_key
+                .ksk_pbs_to_wopbs
+                .output_lwe_dimension()
+                .to_lwe_size(),
+            encoded_zero,
+        );
+
         // Compute a key switch
         engine.discard_keyswitch_lwe_ciphertext(
-            &mut buffer_lwe_after_ks,
-            &ct_clean.ct,
+            &mut buffer_lwe_after_ks.as_old_ct_mut_view(),
+            &ct_clean.ct.as_old_ct_view(),
             &wopbs_key.ksk_pbs_to_wopbs,
         )?;
 
@@ -329,8 +332,8 @@ impl ShortintEngine {
         let (buffers, engine, fftw_engine) = self.buffers_for_key(&wopbs_key.pbs_server_key);
         // Compute a key switch
         engine.discard_keyswitch_lwe_ciphertext(
-            &mut buffers.buffer_lwe_after_ks,
-            &ct_in.ct,
+            &mut LweCiphertextMutView64(buffers.buffer_lwe_after_ks.0.as_mut_view()),
+            &ct_in.ct.as_old_ct_view(),
             &wopbs_key.pbs_server_key.key_switching_key,
         )?;
 
@@ -339,13 +342,13 @@ impl ShortintEngine {
             .bootstrapping_key
             .output_lwe_dimension()
             .to_lwe_size();
-        let mut ct_out = engine.create_lwe_ciphertext_from(vec![0; out_lwe_size.0])?;
+        let mut ct_out = LweCiphertext::from_container(vec![0; out_lwe_size.0]);
 
         // Compute a bootstrap
         fftw_engine.discard_bootstrap_lwe_ciphertext(
-            &mut ct_out,
-            &buffers.buffer_lwe_after_ks,
-            &acc,
+            &mut ct_out.as_old_ct_mut_view(),
+            &LweCiphertextView64(buffers.buffer_lwe_after_ks.0.as_view()),
+            &GlweCiphertextView64(acc.0.as_view()),
             &wopbs_key.pbs_server_key.bootstrapping_key,
         )?;
         Ok(Ciphertext {
@@ -404,12 +407,13 @@ impl ShortintEngine {
         let delta_log = DeltaLog(64 - nb_bit_to_extract);
 
         // trick ( ct - delta/2 + delta/2^4  )
-        let lwe_size = ct_in.ct.lwe_dimension().to_lwe_size().0;
+        let lwe_size = ct_in.ct.lwe_size().0;
         let mut cont = vec![0u64; lwe_size];
         cont[lwe_size - 1] =
             (1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5));
-        let tmp = self.engine.create_lwe_ciphertext_from(cont)?;
-        self.engine.fuse_sub_lwe_ciphertext(&mut ct_in.ct, &tmp)?;
+        let tmp = LweCiphertext::from_container(cont);
+
+        lwe_ciphertext_in_place_subtraction(&mut ct_in.ct, &tmp);
 
         let ciphertext = self.extract_bits_circuit_bootstrapping(
             wopbs_key,

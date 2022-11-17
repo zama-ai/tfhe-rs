@@ -1,4 +1,6 @@
-use crate::core_crypto::algorithms::*;
+//! Module containing functions related to LWE ciphertext encryption and decryption
+
+use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::ByteRandomGenerator;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
@@ -8,11 +10,12 @@ use crate::core_crypto::entities::encoded::Encoded;
 use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextBase};
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKeyBase;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
+use crate::core_crypto::specification::parameters::LweSize;
 
 pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     lwe_secret_key: &LweSecretKeyBase<KeyCont>,
     output: &mut LweCiphertextBase<OutputCont>,
-    encoded: &Encoded<Scalar>,
+    encoded: Encoded<Scalar>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -36,7 +39,7 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 
 pub fn allocate_and_encrypt_new_lwe_ciphertext<Scalar, KeyCont, Gen>(
     lwe_secret_key: &LweSecretKeyBase<KeyCont>,
-    encoded: &Encoded<Scalar>,
+    encoded: Encoded<Scalar>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweCiphertext<Scalar>
@@ -54,6 +57,35 @@ where
         noise_parameters,
         generator,
     );
+
+    new_ct
+}
+
+pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
+    output: &mut LweCiphertextBase<OutputCont>,
+    encoded: Encoded<Scalar>,
+) where
+    Scalar: UnsignedTorus,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    output
+        .as_mut()
+        .iter_mut()
+        .for_each(|elt| *elt = Scalar::ZERO);
+
+    *output.get_mut_body().0 = encoded.0
+}
+
+pub fn allocate_and_trivially_encrypt_new_lwe_ciphertext<Scalar>(
+    lwe_size: LweSize,
+    encoded: Encoded<Scalar>,
+) -> LweCiphertext<Scalar>
+where
+    Scalar: UnsignedTorus,
+{
+    let mut new_ct = LweCiphertext::from_container(vec![Scalar::ZERO; lwe_size.0]);
+
+    *new_ct.get_mut_body().0 = encoded.0;
 
     new_ct
 }

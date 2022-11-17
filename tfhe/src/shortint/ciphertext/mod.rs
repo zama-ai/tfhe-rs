@@ -1,4 +1,5 @@
 //! Module with the definition of a short-integer ciphertext.
+use crate::core_crypto::entities::lwe_ciphertext::LweCiphertext;
 use crate::core_crypto::prelude::*;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -82,7 +83,7 @@ impl Degree {
 /// Internally, it uses a LWE ciphertext.
 #[derive(Clone)]
 pub struct Ciphertext {
-    pub ct: LweCiphertext64,
+    pub ct: LweCiphertext<u64>,
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
@@ -103,8 +104,10 @@ impl Serialize for Ciphertext {
     {
         let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
 
+        let old_ct: LweCiphertext64 = self.ct.clone().into();
+
         let data = ser_eng
-            .serialize(&self.ct)
+            .serialize(&old_ct)
             .map_err(serde::ser::Error::custom)?;
 
         SerializableCiphertext {
@@ -126,12 +129,12 @@ impl<'de> Deserialize<'de> for Ciphertext {
 
         let mut de_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
 
-        let ct = de_eng
+        let old_ct: LweCiphertext64 = de_eng
             .deserialize(thing.data.as_slice())
             .map_err(serde::de::Error::custom)?;
 
         Ok(Self {
-            ct,
+            ct: old_ct.into(),
             degree: thing.degree,
             message_modulus: thing.message_modulus,
             carry_modulus: thing.carry_modulus,
