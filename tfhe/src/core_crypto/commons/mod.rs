@@ -41,6 +41,9 @@ pub mod math;
 pub mod numeric;
 pub mod utils;
 
+// Refactor modules
+pub mod traits;
+
 #[doc(hidden)]
 #[cfg(test)]
 pub mod test_tools {
