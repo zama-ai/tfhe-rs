@@ -1,4 +1,8 @@
 use super::ShortintEngine;
+use crate::core_crypto::algorithms::lwe_encryption::{
+    allocate_and_trivially_encrypt_new_lwe_ciphertext, trivially_encrypt_lwe_ciphertext,
+};
+use crate::core_crypto::entities::encoded::Encoded;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::EngineResult;
@@ -106,16 +110,16 @@ impl ShortintEngine {
 
         // Compute a keyswitch
         engine.discard_keyswitch_lwe_ciphertext(
-            &mut buffers.buffer_lwe_after_ks,
-            &ct.ct,
+            &mut LweCiphertextMutView64(buffers.buffer_lwe_after_ks.0.as_mut_view()),
+            &ct.ct.as_old_ct_view(),
             &server_key.key_switching_key,
         )?;
 
         // Compute a bootstrap
         fft_engine.discard_bootstrap_lwe_ciphertext(
-            &mut ct.ct,
-            &buffers.buffer_lwe_after_ks,
-            &buffers.accumulator,
+            &mut ct.ct.as_old_ct_mut_view(),
+            &LweCiphertextView64(buffers.buffer_lwe_after_ks.0.as_view()),
+            &GlweCiphertextView64(buffers.accumulator.0.as_view()),
             &server_key.bootstrapping_key,
         )?;
         Ok(())
@@ -143,16 +147,16 @@ impl ShortintEngine {
 
         // Compute a key switch
         engine.discard_keyswitch_lwe_ciphertext(
-            &mut buffers.buffer_lwe_after_ks,
-            &ct.ct,
+            &mut LweCiphertextMutView64(buffers.buffer_lwe_after_ks.0.as_mut_view()),
+            &ct.ct.as_old_ct_view(),
             &server_key.key_switching_key,
         )?;
 
         // Compute a bootstrap
         fftw_engine.discard_bootstrap_lwe_ciphertext(
-            &mut ct.ct,
-            &buffers.buffer_lwe_after_ks,
-            acc,
+            &mut ct.ct.as_old_ct_mut_view(),
+            &LweCiphertextView64(buffers.buffer_lwe_after_ks.0.as_view()),
+            &GlweCiphertextView64(acc.0.as_view()),
             &server_key.bootstrapping_key,
         )?;
         Ok(())
@@ -369,12 +373,9 @@ impl ShortintEngine {
 
         let shifted_value = (modular_value as u64) * delta;
 
-        let plaintext = self.engine.create_plaintext_from(&shifted_value).unwrap();
+        let encoded = Encoded(shifted_value);
 
-        let ct = self
-            .engine
-            .trivially_encrypt_lwe_ciphertext(lwe_size, &plaintext)
-            .unwrap();
+        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded);
 
         let degree = Degree(modular_value);
 
@@ -392,11 +393,6 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
         value: u8,
     ) -> EngineResult<()> {
-        let lwe_size = server_key
-            .bootstrapping_key
-            .input_lwe_dimension()
-            .to_lwe_size();
-
         let modular_value = value as usize % server_key.message_modulus.0;
 
         let delta =
@@ -404,12 +400,10 @@ impl ShortintEngine {
 
         let shifted_value = (modular_value as u64) * delta;
 
-        let plaintext = self.engine.create_plaintext_from(&shifted_value).unwrap();
+        let encoded = Encoded(shifted_value);
 
-        ct.ct = self
-            .engine
-            .trivially_encrypt_lwe_ciphertext(lwe_size, &plaintext)
-            .unwrap();
+        trivially_encrypt_lwe_ciphertext(&mut ct.ct, encoded);
+
         ct.degree = Degree(modular_value);
         Ok(())
     }
