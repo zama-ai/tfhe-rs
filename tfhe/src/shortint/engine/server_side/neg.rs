@@ -1,4 +1,7 @@
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::algorithms::lwe_linear_algebra::{
+    lwe_ciphertext_in_place_encoded_addition, lwe_ciphertext_in_place_opposite,
+};
+use crate::core_crypto::entities::encoded::Encoded;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
@@ -48,14 +51,12 @@ impl ShortintEngine {
             (1_u64 << 63) / (_server_key.message_modulus.0 * _server_key.carry_modulus.0) as u64;
 
         //Scaling + 1 on the padding bit
-        let w = z * delta;
+        let w = Encoded(z * delta);
 
         // (0,Delta*z) - ct
-        self.engine.fuse_opp_lwe_ciphertext(&mut ct.ct)?;
+        lwe_ciphertext_in_place_opposite(&mut ct.ct);
 
-        let clear_w = self.engine.create_plaintext_from(&w)?;
-        self.engine
-            .fuse_add_lwe_ciphertext_plaintext(&mut ct.ct, &clear_w)?;
+        lwe_ciphertext_in_place_encoded_addition(&mut ct.ct, w);
 
         // Update the degree
         ct.degree = Degree(z as usize);

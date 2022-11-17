@@ -33,6 +33,18 @@ pub struct LweCiphertextBase<C: Container> {
     data: C,
 }
 
+impl<T, C: Container<Element = T>> AsRef<[T]> for LweCiphertextBase<C> {
+    fn as_ref(&self) -> &[T] {
+        self.data.as_ref()
+    }
+}
+
+impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphertextBase<C> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self.data.as_mut()
+    }
+}
+
 impl<Scalar, C: Container<Element = Scalar>> LweCiphertextBase<C> {
     pub fn from_container(container: C) -> Self {
         assert!(
@@ -51,6 +63,12 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertextBase<C> {
 
         (LweMask::from_container(mask), LweBody(body))
     }
+
+    pub fn get_body(&self) -> LweBody<&Scalar> {
+        let body = self.data.as_ref().last().unwrap();
+
+        LweBody(body)
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextBase<C> {
@@ -58,6 +76,12 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextBase<C> {
         let (body, mask) = self.data.as_mut().split_last_mut().unwrap();
 
         (LweMask::from_container(mask), LweBody(body))
+    }
+
+    pub fn get_mut_body(&mut self) -> LweBody<&mut Scalar> {
+        let body = self.data.as_mut().last_mut().unwrap();
+
+        LweBody(body)
     }
 }
 

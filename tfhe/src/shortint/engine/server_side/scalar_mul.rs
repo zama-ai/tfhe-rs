@@ -1,4 +1,5 @@
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::algorithms::lwe_linear_algebra::lwe_ciphertext_in_place_cleartext_multiplication;
+use crate::core_crypto::entities::cleartext::Cleartext;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
@@ -21,9 +22,8 @@ impl ShortintEngine {
         scalar: u8,
     ) -> EngineResult<()> {
         let scalar = u64::from(scalar);
-        let cleartext_scalar = self.engine.create_cleartext_from(&scalar).unwrap();
-        self.engine
-            .fuse_mul_lwe_ciphertext_cleartext(&mut ct.ct, &cleartext_scalar)?;
+        let cleartext_scalar = Cleartext(scalar);
+        lwe_ciphertext_in_place_cleartext_multiplication(&mut ct.ct, cleartext_scalar);
 
         ct.degree = Degree(ct.degree.0 * scalar as usize);
         Ok(())
