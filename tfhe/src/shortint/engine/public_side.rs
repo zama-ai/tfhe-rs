@@ -88,7 +88,7 @@ impl ShortintEngine {
         )?;
 
         Ok(Ciphertext {
-            ct: encrypted_ct,
+            ct: encrypted_ct.into(),
             degree: Degree(message_modulus.0 - 1),
             message_modulus,
             carry_modulus: CarryModulus(carry_modulus),
@@ -124,7 +124,7 @@ impl ShortintEngine {
         )?;
 
         Ok(Ciphertext {
-            ct: encrypted_ct,
+            ct: encrypted_ct.into(),
             degree: Degree(public_key.parameters.message_modulus.0 - 1),
             message_modulus: public_key.parameters.message_modulus,
             carry_modulus: public_key.parameters.carry_modulus,
@@ -159,7 +159,7 @@ impl ShortintEngine {
         )?;
 
         Ok(Ciphertext {
-            ct: encrypted_ct,
+            ct: encrypted_ct.into(),
             degree: Degree(message_modulus as usize - 1),
             message_modulus: MessageModulus(message_modulus as usize),
             carry_modulus: CarryModulus(carry_modulus),
@@ -192,7 +192,7 @@ impl ShortintEngine {
         )?;
 
         Ok(Ciphertext {
-            ct: encrypted_ct,
+            ct: encrypted_ct.into(),
             degree: Degree(
                 public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0 - 1,
             ),
