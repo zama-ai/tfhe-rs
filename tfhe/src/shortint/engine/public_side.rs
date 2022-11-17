@@ -19,9 +19,11 @@ impl ShortintEngine {
                 + 128,
         );
 
+        // TODO REFACTOR
+        // Remove the clone + into
         Ok(PublicKey {
             lwe_public_key: self.par_engine.generate_new_lwe_public_key(
-                &client_key.lwe_secret_key,
+                &client_key.lwe_secret_key.clone().into(),
                 Variance(client_key.parameters.lwe_modular_std_dev.get_variance()),
                 zero_encryption_count,
             )?,

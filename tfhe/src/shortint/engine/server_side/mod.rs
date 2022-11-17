@@ -36,8 +36,10 @@ impl ShortintEngine {
         // Convert into a variance for rlwe context
         let var_rlwe = Variance(cks.parameters.glwe_modular_std_dev.get_variance());
 
+        // TODO REFACTOR
+        // Remove the clone + into
         let bootstrap_key: LweBootstrapKey64 = self.par_engine.generate_new_lwe_bootstrap_key(
-            &cks.lwe_secret_key_after_ks,
+            &cks.lwe_secret_key_after_ks.clone().into(),
             &cks.glwe_secret_key,
             cks.parameters.pbs_base_log,
             cks.parameters.pbs_level,
@@ -53,9 +55,11 @@ impl ShortintEngine {
         let var_lwe = Variance(cks.parameters.lwe_modular_std_dev.get_variance());
 
         // Creation of the key switching key
+        // TODO REFACTOR
+        // Remove the clone + into
         let ksk = self.engine.generate_new_lwe_keyswitch_key(
-            &cks.lwe_secret_key,
-            &cks.lwe_secret_key_after_ks,
+            &cks.lwe_secret_key.clone().into(),
+            &cks.lwe_secret_key_after_ks.clone().into(),
             cks.parameters.ks_level,
             cks.parameters.ks_base_log,
             var_lwe,

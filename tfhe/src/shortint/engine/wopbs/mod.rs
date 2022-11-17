@@ -14,10 +14,12 @@ impl ShortintEngine {
         cks: &ClientKey,
         sks: &ServerKey,
     ) -> EngineResult<WopbsKey> {
+        // TODO REFACTOR
+        // Remove the clone + into
         let cbs_pfpksk = self
             .engine
             .generate_new_lwe_circuit_bootstrap_private_functional_packing_keyswitch_keys(
-                &cks.lwe_secret_key,
+                &cks.lwe_secret_key.clone().into(),
                 &cks.glwe_secret_key,
                 cks.parameters.pfks_base_log,
                 cks.parameters.pfks_level,
@@ -83,9 +85,10 @@ impl ShortintEngine {
         )?;
 
         //KSK to convert from input ciphertext key to the wopbs input one
-        //let var_lwe = Variance(cks.parameters.lwe_modular_std_dev.get_variance());
+        // TODO REFACTOR
+        // Remove the clone + into
         let ksk_pbs_large_to_wopbs_large = self.engine.generate_new_lwe_keyswitch_key(
-            &cks.lwe_secret_key,
+            &cks.lwe_secret_key.clone().into(),
             &large_lwe_secret_key,
             cks.parameters.ks_level,
             cks.parameters.ks_base_log,
@@ -94,10 +97,12 @@ impl ShortintEngine {
 
         //KSK large_wopbs_key -> small PBS key (used after the WoPBS computation to compute a
         // classical PBS. This allows compatibility between PBS and WoPBS
+        // TODO REFACTOR
+        // Remove the clone + into
         let var_lwe_pbs = Variance(cks.parameters.lwe_modular_std_dev.get_variance());
         let ksk_wopbs_large_to_pbs_small = self.engine.generate_new_lwe_keyswitch_key(
             &large_lwe_secret_key,
-            &cks.lwe_secret_key_after_ks,
+            &cks.lwe_secret_key_after_ks.clone().into(),
             cks.parameters.ks_level,
             cks.parameters.ks_base_log,
             var_lwe_pbs,

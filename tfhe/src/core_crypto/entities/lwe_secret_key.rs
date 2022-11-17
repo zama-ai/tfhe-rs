@@ -1,11 +1,24 @@
-use crate::core_crypto::commons::traits::Container;
+use crate::core_crypto::commons::traits::{Container, ContainerMut};
 use crate::core_crypto::prelude::LweDimension;
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct LweSecretKeyBase<C: Container> {
     data: C,
 }
 
-impl<C: Container> LweSecretKeyBase<C> {
+impl<T, C: Container<Element = T>> AsRef<[T]> for LweSecretKeyBase<C> {
+    fn as_ref(&self) -> &[T] {
+        self.data.as_ref()
+    }
+}
+
+impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweSecretKeyBase<C> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self.data.as_mut()
+    }
+}
+
+impl<Scalar, C: Container<Element = Scalar>> LweSecretKeyBase<C> {
     pub fn from_container(container: C) -> Self {
         LweSecretKeyBase { data: container }
     }

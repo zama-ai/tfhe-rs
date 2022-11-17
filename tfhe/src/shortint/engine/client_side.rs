@@ -1,5 +1,9 @@
 //! All the `ShortintEngine` method related to client side (encrypt / decrypt)
 use super::{EngineResult, ShortintEngine};
+use crate::core_crypto::algorithms::lwe_encryption::{
+    allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
+};
+use crate::core_crypto::entities::encoded::Encoded;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
@@ -23,9 +27,9 @@ impl ShortintEngine {
 
         // pack the keys in the client key set
         Ok(ClientKey {
-            lwe_secret_key: large_lwe_secret_key,
+            lwe_secret_key: large_lwe_secret_key.into(),
             glwe_secret_key,
-            lwe_secret_key_after_ks: small_lwe_secret_key,
+            lwe_secret_key_after_ks: small_lwe_secret_key.into(),
             parameters,
         })
     }
@@ -59,19 +63,18 @@ impl ShortintEngine {
         let m = message % message_modulus.0 as u64;
 
         let shifted_message = m * delta;
-        // encode the message
-        let plain: Plaintext64 = self.engine.create_plaintext_from(&shifted_message)?;
 
-        // convert into a variance
-        let var = Variance(client_key.parameters.lwe_modular_std_dev.get_variance());
+        let encoded = Encoded(shifted_message);
 
-        // encryption
-        let ct = self
-            .engine
-            .encrypt_lwe_ciphertext(&client_key.lwe_secret_key, &plain, var)?;
+        let new_ct = allocate_and_encrypt_new_lwe_ciphertext(
+            &client_key.lwe_secret_key,
+            &encoded,
+            client_key.parameters.lwe_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
 
         Ok(Ciphertext {
-            ct,
+            ct: new_ct.into(),
             degree: Degree(message_modulus.0 - 1),
             message_modulus,
             carry_modulus: CarryModulus(carry_modulus),
@@ -87,18 +90,18 @@ impl ShortintEngine {
             / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
                 as u64;
         let shifted_message = message * delta;
-        // encode the message
-        let plain: Plaintext64 = self.engine.create_plaintext_from(&shifted_message)?;
 
-        // convert into a variance
-        let var = Variance(client_key.parameters.lwe_modular_std_dev.get_variance());
+        let encoded = Encoded(shifted_message);
 
-        // encryption
-        let ct = self
-            .engine
-            .encrypt_lwe_ciphertext(&client_key.lwe_secret_key, &plain, var)?;
+        let new_ct = allocate_and_encrypt_new_lwe_ciphertext(
+            &client_key.lwe_secret_key,
+            &encoded,
+            client_key.parameters.lwe_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
+
         Ok(Ciphertext {
-            ct,
+            ct: new_ct.into(),
             degree: Degree(
                 client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0 - 1,
             ),
@@ -113,13 +116,10 @@ impl ShortintEngine {
         ct: &Ciphertext,
     ) -> EngineResult<u64> {
         // decryption
-        let decrypted = self
-            .engine
-            .decrypt_lwe_ciphertext(&client_key.lwe_secret_key, &ct.ct)?;
+        let decrypted_encoded =
+            decrypt_lwe_ciphertext(&client_key.lwe_secret_key, &ct.ct.as_refactor_ct_view());
 
-        let mut decrypted_u64: u64 = 0;
-        self.engine
-            .discard_retrieve_plaintext(&mut decrypted_u64, &decrypted)?;
+        let decrypted_u64: u64 = decrypted_encoded.0;
 
         let delta = (1_u64 << 63)
             / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
@@ -151,19 +151,18 @@ impl ShortintEngine {
             * 2;
 
         let shifted_message = message * delta;
-        // encode the message
-        let plain: Plaintext64 = self.engine.create_plaintext_from(&shifted_message)?;
 
-        // convert into a variance
-        let var = Variance(client_key.parameters.lwe_modular_std_dev.get_variance());
+        let encoded = Encoded(shifted_message);
 
-        // encryption
-        let ct = self
-            .engine
-            .encrypt_lwe_ciphertext(&client_key.lwe_secret_key, &plain, var)?;
+        let new_ct = allocate_and_encrypt_new_lwe_ciphertext(
+            &client_key.lwe_secret_key,
+            &encoded,
+            client_key.parameters.lwe_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
 
         Ok(Ciphertext {
-            ct,
+            ct: new_ct.into(),
             degree: Degree(client_key.parameters.message_modulus.0 - 1),
             message_modulus: client_key.parameters.message_modulus,
             carry_modulus: client_key.parameters.carry_modulus,
@@ -176,13 +175,10 @@ impl ShortintEngine {
         ct: &Ciphertext,
     ) -> EngineResult<u64> {
         // decryption
-        let decrypted = self
-            .engine
-            .decrypt_lwe_ciphertext(&client_key.lwe_secret_key, &ct.ct)?;
+        let decrypted_encoded =
+            decrypt_lwe_ciphertext(&client_key.lwe_secret_key, &ct.ct.as_refactor_ct_view());
 
-        let mut decrypted_u64: u64 = 0;
-        self.engine
-            .discard_retrieve_plaintext(&mut decrypted_u64, &decrypted)?;
+        let decrypted_u64: u64 = decrypted_encoded.0;
 
         let delta = ((1_u64 << 63)
             / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
@@ -215,21 +211,19 @@ impl ShortintEngine {
     ) -> EngineResult<Ciphertext> {
         let carry_modulus = 1;
         let m = (message % message_modulus as u64) as u128;
-        let shifted_message = m * (1 << 64) / message_modulus as u128;
-        // encode the message
-        let plain: Plaintext64 = self
-            .engine
-            .create_plaintext_from(&(shifted_message as u64))?;
+        let shifted_message = (m * (1 << 64) / message_modulus as u128) as u64;
 
-        // convert into a variance
-        let var = Variance(client_key.parameters.lwe_modular_std_dev.get_variance());
+        let encoded = Encoded(shifted_message);
 
-        // encryption
-        let ct = self
-            .engine
-            .encrypt_lwe_ciphertext(&client_key.lwe_secret_key, &plain, var)?;
+        let new_ct = allocate_and_encrypt_new_lwe_ciphertext(
+            &client_key.lwe_secret_key,
+            &encoded,
+            client_key.parameters.lwe_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
+
         Ok(Ciphertext {
-            ct,
+            ct: new_ct.into(),
             degree: Degree(message_modulus as usize - 1),
             message_modulus: MessageModulus(message_modulus as usize),
             carry_modulus: CarryModulus(carry_modulus),
@@ -243,13 +237,10 @@ impl ShortintEngine {
         basis: u64,
     ) -> EngineResult<u64> {
         // decryption
-        let decrypted = self
-            .engine
-            .decrypt_lwe_ciphertext(&client_key.lwe_secret_key, &ct.ct)?;
+        let decrypted_encoded =
+            decrypt_lwe_ciphertext(&client_key.lwe_secret_key, &ct.ct.as_refactor_ct_view());
 
-        let mut decrypted_u64: u64 = 0;
-        self.engine
-            .discard_retrieve_plaintext(&mut decrypted_u64, &decrypted)?;
+        let decrypted_u64: u64 = decrypted_encoded.0;
 
         let mut result = decrypted_u64 as u128 * basis as u128;
         result = result.wrapping_add((result & 1 << 63) << 1) / (1 << 64);

@@ -65,6 +65,16 @@ where
             *s = Self::generate_one(generator, distribution);
         });
     }
+
+    fn fill_slice<G: ByteRandomGenerator>(
+        generator: &mut RandomGenerator<G>,
+        distribution: D,
+        slice: &mut [Self],
+    ) {
+        slice.iter_mut().for_each(|s| {
+            *s = Self::generate_one(generator, distribution);
+        });
+    }
 }
 
 /// A marker trait for types representing distributions.
