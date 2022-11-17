@@ -168,6 +168,14 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         self.mask.fill_tensor_with_random_uniform(output)
     }
 
+    // Fills the slice with random uniform values, using the mask generator.
+    pub(crate) fn fill_slice_with_random_mask<Scalar>(&mut self, output: &mut [Scalar])
+    where
+        Scalar: RandomGenerable<Uniform>,
+    {
+        self.mask.fill_slice_with_random_uniform(output)
+    }
+
     // Sample a noise value, using the noise generator.
     pub(crate) fn random_noise<Scalar>(&mut self, std: impl DispersionParameter) -> Scalar
     where
