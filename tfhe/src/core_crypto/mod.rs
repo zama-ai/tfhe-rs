@@ -42,3 +42,7 @@ pub mod backends;
 pub mod commons;
 pub mod prelude;
 pub mod specification;
+
+// Modules part of the refactoring effort
+pub mod algorithms;
+pub mod entities;
