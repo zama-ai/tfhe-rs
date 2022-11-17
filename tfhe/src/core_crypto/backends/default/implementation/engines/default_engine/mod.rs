@@ -43,6 +43,14 @@ pub struct DefaultEngine {
 }
 impl AbstractEngineSeal for DefaultEngine {}
 
+impl DefaultEngine {
+    pub fn get_encryption_generator(
+        &mut self,
+    ) -> &mut ImplEncryptionRandomGenerator<ActivatedRandomGenerator> {
+        &mut self.encryption_generator
+    }
+}
+
 impl AbstractEngine for DefaultEngine {
     type EngineError = DefaultError;
 
