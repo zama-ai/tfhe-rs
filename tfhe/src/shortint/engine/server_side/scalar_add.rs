@@ -1,4 +1,5 @@
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::algorithms::lwe_linear_algebra::lwe_ciphertext_in_place_encoded_addition;
+use crate::core_crypto::entities::encoded::Encoded;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
@@ -21,9 +22,8 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         let delta = (1_u64 << 63) / (ct.message_modulus.0 * ct.carry_modulus.0) as u64;
         let shift_plaintext = u64::from(scalar) * delta;
-        let plaintext_scalar = self.engine.create_plaintext_from(&shift_plaintext).unwrap();
-        self.engine
-            .fuse_add_lwe_ciphertext_plaintext(&mut ct.ct, &plaintext_scalar)?;
+        let encoded_scalar = Encoded(shift_plaintext);
+        lwe_ciphertext_in_place_encoded_addition(&mut ct.ct, encoded_scalar);
 
         ct.degree = Degree(ct.degree.0 + scalar as usize);
         Ok(())
@@ -38,9 +38,8 @@ impl ShortintEngine {
         let delta =
             (1_u64 << 63) / (server_key.message_modulus.0 * server_key.carry_modulus.0) as u64;
         let shift_plaintext = u64::from(scalar) * delta;
-        let plaintext_scalar = self.engine.create_plaintext_from(&shift_plaintext).unwrap();
-        self.engine
-            .fuse_add_lwe_ciphertext_plaintext(&mut ct.ct, &plaintext_scalar)?;
+        let encoded_scalar = Encoded(shift_plaintext);
+        lwe_ciphertext_in_place_encoded_addition(&mut ct.ct, encoded_scalar);
 
         ct.degree = Degree(ct.degree.0 + scalar as usize);
         Ok(())
