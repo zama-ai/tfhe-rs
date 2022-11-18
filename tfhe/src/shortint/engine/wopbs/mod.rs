@@ -23,7 +23,7 @@ impl ShortintEngine {
             .engine
             .generate_new_lwe_circuit_bootstrap_private_functional_packing_keyswitch_keys(
                 &cks.lwe_secret_key.clone().into(),
-                &cks.glwe_secret_key,
+                &cks.glwe_secret_key.clone().into(),
                 cks.parameters.pfks_base_log,
                 cks.parameters.pfks_level,
                 Variance(cks.parameters.pfks_modular_std_dev.get_variance()),
