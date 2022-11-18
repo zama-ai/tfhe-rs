@@ -1,5 +1,6 @@
 //! Module with the definition of the ClientKey.
 
+use crate::core_crypto::entities::glwe_secret_key::GlweSecretKey;
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
@@ -20,7 +21,7 @@ use std::fmt::Debug;
 pub struct ClientKey {
     /// The actual encryption / decryption key
     pub(crate) lwe_secret_key: LweSecretKey<u64>,
-    pub(crate) glwe_secret_key: GlweSecretKey64,
+    pub(crate) glwe_secret_key: GlweSecretKey<u64>,
     /// Key used as the output of the keyswitch operation
     pub(crate) lwe_secret_key_after_ks: LweSecretKey<u64>,
     pub parameters: Parameters,
@@ -341,11 +342,13 @@ impl Serialize for ClientKey {
         let tmp_lwe_secret_key_after_ks: LweSecretKey64 =
             self.lwe_secret_key_after_ks.clone().into();
 
+        let tmp_glwe_secret_key: GlweSecretKey64 = self.glwe_secret_key.clone().into();
+
         let lwe_secret_key = ser_eng
             .serialize(&tmp_lwe_secret_key)
             .map_err(serde::ser::Error::custom)?;
         let glwe_secret_key = ser_eng
-            .serialize(&self.glwe_secret_key)
+            .serialize(&tmp_glwe_secret_key)
             .map_err(serde::ser::Error::custom)?;
         let lwe_secret_key_after_ks = ser_eng
             .serialize(&tmp_lwe_secret_key_after_ks)
@@ -379,11 +382,13 @@ impl<'de> Deserialize<'de> for ClientKey {
             .deserialize(thing.lwe_secret_key_after_ks.as_slice())
             .map_err(serde::de::Error::custom)?;
 
+        let tmp_glwe_secret_key: GlweSecretKey64 = de_eng
+            .deserialize(thing.glwe_secret_key.as_slice())
+            .map_err(serde::de::Error::custom)?;
+
         Ok(Self {
             lwe_secret_key: tmp_lwe_secret_key.into(),
-            glwe_secret_key: de_eng
-                .deserialize(thing.glwe_secret_key.as_slice())
-                .map_err(serde::de::Error::custom)?,
+            glwe_secret_key: tmp_glwe_secret_key.into(),
             lwe_secret_key_after_ks: tmp_lwe_secret_key_after_ks.into(),
             parameters: thing.parameters,
         })

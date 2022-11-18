@@ -252,6 +252,13 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::fill_tensor(self, UniformBinary, output);
     }
 
+    pub fn fill_slice_with_random_uniform_binary<Scalar>(&mut self, output: &mut [Scalar])
+    where
+        Scalar: RandomGenerable<UniformBinary>,
+    {
+        Scalar::fill_slice(self, UniformBinary, output);
+    }
+
     /// Generates a tensor of random binary values of a given size.
     ///
     /// # Example
