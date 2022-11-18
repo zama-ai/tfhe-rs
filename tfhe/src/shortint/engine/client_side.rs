@@ -1,10 +1,11 @@
 //! All the `ShortintEngine` method related to client side (encrypt / decrypt)
 use super::{EngineResult, ShortintEngine};
+use crate::core_crypto::algorithms::glwe_secret_key_generation::allocate_and_generate_new_binary_glwe_secret_key;
 use crate::core_crypto::algorithms::lwe_encryption::{
     allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
 };
+use crate::core_crypto::algorithms::lwe_secret_key_generation::allocate_and_generate_new_binary_lwe_secret_key;
 use crate::core_crypto::entities::encoded::Encoded;
-use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{Ciphertext, ClientKey, Parameters};
@@ -12,24 +13,25 @@ use crate::shortint::{Ciphertext, ClientKey, Parameters};
 impl ShortintEngine {
     pub fn new_client_key(&mut self, parameters: Parameters) -> EngineResult<ClientKey> {
         // generate the lwe secret key
-        let small_lwe_secret_key: LweSecretKey64 = self
-            .engine
-            .generate_new_lwe_secret_key(parameters.lwe_dimension)?;
+        let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            parameters.lwe_dimension,
+            self.engine.get_secret_generator(),
+        );
 
         // generate the rlwe secret key
-        let glwe_secret_key: GlweSecretKey64 = self
-            .engine
-            .generate_new_glwe_secret_key(parameters.glwe_dimension, parameters.polynomial_size)?;
+        let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+            parameters.glwe_dimension,
+            parameters.polynomial_size,
+            self.engine.get_secret_generator(),
+        );
 
-        let large_lwe_secret_key = self
-            .engine
-            .transform_glwe_secret_key_to_lwe_secret_key(glwe_secret_key.clone())?;
+        let large_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
 
         // pack the keys in the client key set
         Ok(ClientKey {
-            lwe_secret_key: large_lwe_secret_key.into(),
+            lwe_secret_key: large_lwe_secret_key,
             glwe_secret_key,
-            lwe_secret_key_after_ks: small_lwe_secret_key.into(),
+            lwe_secret_key_after_ks: small_lwe_secret_key,
             parameters,
         })
     }
