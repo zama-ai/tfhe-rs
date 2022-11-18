@@ -49,6 +49,12 @@ impl DefaultEngine {
     ) -> &mut ImplEncryptionRandomGenerator<ActivatedRandomGenerator> {
         &mut self.encryption_generator
     }
+
+    pub fn get_secret_generator(
+        &mut self,
+    ) -> &mut ImplSecretRandomGenerator<ActivatedRandomGenerator> {
+        &mut self.secret_generator
+    }
 }
 
 impl AbstractEngine for DefaultEngine {

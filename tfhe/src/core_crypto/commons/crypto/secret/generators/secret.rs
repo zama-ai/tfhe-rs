@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::math::random::{
-    ByteRandomGenerator, Gaussian, RandomGenerable, RandomGenerator, Seed,
+    ByteRandomGenerator, Gaussian, RandomGenerable, RandomGenerator, Seed, UniformBinary,
 };
 use crate::core_crypto::commons::math::tensor::Tensor;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
@@ -51,5 +51,12 @@ impl<G: ByteRandomGenerator> SecretRandomGenerator<G> {
     {
         self.0
             .random_gaussian_tensor(length, 0.0, Scalar::GAUSSIAN_KEY_LOG_STD.get_standard_dev())
+    }
+
+    pub(crate) fn fill_slice_with_random_uniform_binary<Scalar>(&mut self, slice: &mut [Scalar])
+    where
+        Scalar: RandomGenerable<UniformBinary>,
+    {
+        self.0.fill_slice_with_random_uniform_binary(slice);
     }
 }

@@ -44,7 +44,7 @@ impl ShortintEngine {
         // Remove the clone + into
         let bootstrap_key: LweBootstrapKey64 = self.par_engine.generate_new_lwe_bootstrap_key(
             &cks.lwe_secret_key_after_ks.clone().into(),
-            &cks.glwe_secret_key,
+            &cks.glwe_secret_key.clone().into(),
             cks.parameters.pbs_base_log,
             cks.parameters.pbs_level,
             var_rlwe,
