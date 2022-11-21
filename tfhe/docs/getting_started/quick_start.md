@@ -1,25 +1,21 @@
-# Quick start
+# Quick Start
 
-This library makes it possible to execute **homomorphic operations over encrypted data**, where the data are either Booleans or short integers (named shortints in the rest of this documentation). 
-It allows one to execute a circuit on an **untrusted server** because both circuit inputs and outputs are kept **private**.
-Data are indeed encrypted on the client side, before being sent to the server. On the server side every computation is performed on ciphertexts.
+This library makes it possible to execute **homomorphic operations over encrypted data**, where the data are either Booleans or short integers (named shortint in the rest of this documentation). It allows one to execute a circuit on an **untrusted server** because both circuit inputs and outputs are kept **private**. Data are indeed encrypted on the client side, before being sent to the server. On the server side, every computation is performed on ciphertexts.
 
-The server however has to know the circuit to be evaluated. At the end of the computation, the server returns the encryption of the result to the user. She can then decrypt it with her `secret key`.
+The server, however, has to know the circuit to be evaluated. At the end of the computation, the server returns the encryption of the result to the user. She can then decrypt it with her `secret key`.
 
+## General method to write an homomorphic circuit program
 
-## General method to write homomorphic circuit program
+The overall process to write an homomorphic program is the same for both Boolean and shortint types. In a nutshell, the basic steps for using the TFHE-rs library are the following:
 
-The overall process to write an homomorphic program is the same for both Boolean and short integers types.
-In a nutshell, the basic steps for using the TFHE-rs library are the following:
-- Choose a data type (Boolean or shortint)
-- Import the library
-- Create client and server keys
-- Encrypt data with the client key
-- Compute over encrypted data using the server key
-- Decrypt data with the client key
+* Choose a data type (Boolean or shortint)
+* Import the library
+* Create client and server keys
+* Encrypt data with the client key
+* Compute over encrypted data using the server key
+* Decrypt data with the client key
 
-
-### Boolean example
+### Boolean example.
 
 Here is an example to illustrate how the library can be used to evaluate a Boolean circuit:
 
@@ -47,9 +43,9 @@ fn main() {
 }
 ```
 
-### Shortint example
+### Shortint example.
 
-and here is a full example using shortints:
+And here is a full example using shortint:
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -75,6 +71,5 @@ fn main() {
     assert_eq!(output, (msg1 + msg2) % modulus as u64);
 }
 ```
-
 
 The library is pretty simple to use, and can evaluate **homomorphic circuits of arbitrary length**. The description of the algorithms can be found in the [TFHE](https://doi.org/10.1007/s00145-019-09319-x) paper (also available as [ePrint 2018/421](https://ia.cr/2018/421)).

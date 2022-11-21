@@ -1,17 +1,19 @@
-# Tutorial: Writing an homomorphic circuit using shortints
+# Tutorial
 
-# 1. Key Generation
+## Writing an homomorphic circuit using shortint
+
+## Key Generation
 
 `tfhe::shortint` provides 2 key types:
- - `ClientKey`
- - `ServerKey`
+
+* `ClientKey`
+* `ServerKey`
 
 The `ClientKey` is the key that encrypts and decrypts messages (integer values up to 8 bits here), thus this key is meant to be kept private and should never be shared. This key is created from parameter values that will dictate both the security and efficiency of computations. The parameters also set the maximum number of bits of message encrypted in a ciphertext.
 
 The `ServerKey` is the key that is used to actually do the FHE computations. It contains (among other things) a bootstrapping key and a keyswitching key. This key is created from a `ClientKey` that needs to be shared to the server, therefore it is not meant to be kept private. A user with a `ServerKey` can compute on the encrypted data sent by the owner of the associated `ClientKey`.
 
 To reflect that, computation/operation methods are tied to the `ServerKey` type.
-
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -22,8 +24,7 @@ fn main()  {
 }
 ```
 
-
-# 2. Encrypting values
+## Encrypting values
 
 Once the keys have been generated, the client key is used to encrypt data:
 
@@ -43,7 +44,7 @@ fn main() {
 }
 ```
 
-# 2 bis. Encrypting values using a public key
+## Encrypting values using a public key
 
 Once the keys have been generated, the client key is used to encrypt data:
 
@@ -64,11 +65,9 @@ fn main() {
 }
 ```
 
+## Computing and decrypting
 
-# 3. Computing and decrypting
-
-With our `server_key`, and encrypted values, we can now do an addition
-and then decrypt the result.
+With our `server_key` and encrypted values, we can now do an addition and then decrypt the result.
 
 ```rust
 use tfhe::shortint::prelude::*;
