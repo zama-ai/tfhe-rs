@@ -20,6 +20,9 @@ on:
       request_id:
         description: 'Slab request ID'
         type: string
+      matrix_item:
+        description: 'Build matrix item'
+        type: string
 
 env:
   CARGO_TERM_COLOR: always
