@@ -81,6 +81,9 @@ clippy_js_wasm_api: install_rs_check_toolchain
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api \
 		-p tfhe -- --no-deps -D warnings
 
+.PHONY: clippy_all # Run all non-CUDA clippy targets
+clippy_all: clippy clippy_c_api clippy_js_wasm_api
+
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --release \
