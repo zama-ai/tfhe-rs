@@ -1,19 +1,16 @@
-# Cryptographic parameters
+# Cryptographic Parameters
 
-All parameter sets provides at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equals to $$2^{-40}$$ when computing a programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../getting_started/security_and_cryptography.md) for more details about the encryption process).
-
+All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-40}$$ when computing a programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../getting\_started/security\_and\_cryptography.md) for more details about the encryption process).
 
 ## Parameters and message precision
 
-`shortint` comes with sets of parameters that permit to use the functionalities of the library securely and efficiently. Each parameter sets is associated to the message and carry precisions. Thus, each key pair is entangled to precision.
+`shortint` comes with sets of parameters that permit the use of the library functionalities securely and efficiently. Each parameter set is associated to the message and carry precisions. Thus, each key pair is entangled to precision.
 
 The user is allowed to choose which set of parameters to use when creating the pair of keys.
 
-The difference between the parameter sets is the total amount of space dedicated to the plaintext and how it is split between the message buffer and the carry buffer. The syntax chosen for the name of a parameter is:
-`PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}`. For example, the set of parameters for a message buffer of 5 bits and a carry buffer of 2 bits is `PARAM_MESSAGE_5_CARRY_2`.
+The difference between the parameter sets is the total amount of space dedicated to the plaintext and how it is split between the message buffer and the carry buffer. The syntax chosen for the name of a parameter is: `PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}`. For example, the set of parameters for a message buffer of 5 bits and a carry buffer of 2 bits is `PARAM_MESSAGE_5_CARRY_2`.
 
 In what follows, there is an example where keys are generated to have messages encoded over 3 bits i.e., computations are done modulus $$2^3 = 8$$), with 3 bits of carry.
-
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -33,21 +30,19 @@ fn main() {
 
 ## Impact of parameters on the operations
 
-As shown [here](../getting_started/benchmarks.md), the choice of the parameter set impacts the operations available and their efficiency.
+As shown [here](../getting\_started/benchmarks.md), the choice of the parameter set impacts the operations available and their efficiency.
 
-### Generic bi-variate functions
+### Generic bi-variate functions.
 
-The computations of bi-variate functions is based on a trick *concatenating* two ciphertexts into one. In the case where the carry buffer is not at least as large as the message one, this trick is not working anymore. Then, many bi-variate operations, such as comparisons cannot be correctly computed anymore. The only exception concerns the multiplication.
+The computations of bi-variate functions is based on a trick, _concatenating_ two ciphertexts into one. In the case where the carry buffer is not at least as large as the message one, this trick no longer works. Then, many bi-variate operations, such as comparisons cannot be correctly computed. The only exception concerns the multiplication.
 
-### Multiplication
+### Multiplication.
 
-In the case of the multiplication, two algorithms are implemented: the first one relies on the bi-variate function trick, where the other one is based on the [quarter square method](https://en.wikipedia.org/wiki/Multiplication_algorithm#Quarter_square_multiplication). In order to correctly compute a multiplication, the only requirement is to have at least one bit of carry (i.e., using parameter sets PARAM_MESSAGE_X_CARRY_Y with Y>=1). This method is in general slower than using the other one. Note that using the `smart` version of the multiplication automatically chooses which algorithm is used depending on the chosen parameters.
+In the case of the multiplication, two algorithms are implemented: the first one relies on the bi-variate function trick, where the other one is based on the [quarter square method](https://en.wikipedia.org/wiki/Multiplication\_algorithm#Quarter\_square\_multiplication). In order to correctly compute a multiplication, the only requirement is to have at least one bit of carry (i.e., using parameter sets PARAM\_MESSAGE\_X\_CARRY\_Y with Y>=1). This method is, in general, slower than using the other one. Note that using the `smart` version of the multiplication automatically chooses which algorithm is used depending on the chosen parameters.
 
 ## User-defined parameter sets
 
-Beyond the predefined parameter sets, this is possible to define new parameter sets.
-To do so, it is sufficient to use the function `unsecure_parameters()` or to manually fulfill the
-`Parameter` structure fields.
+Beyond the predefined parameter sets, it is possible to define new parameter sets. To do so, it is sufficient to use the function `unsecure_parameters()` or to manually fill the `Parameter` structure fields.
 
 For instance:
 
@@ -77,12 +72,3 @@ fn main() {
     };
 }
 ```
-
-
-
-
-
-
-
-
-
