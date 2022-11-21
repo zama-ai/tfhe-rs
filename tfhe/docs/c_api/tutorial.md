@@ -1,25 +1,26 @@
-# Tutorial: using the C API
+# Tutorial
+
+## Using the C API
 
 Welcome to this `TFHE-rs` C API tutorial!
 
 This library exposes a C binding to the `TFHE-rs` primitives to implement _Fully Homomorphic Encryption_ (FHE) programs.
 
-# First steps using `TFHE-rs` C API
+## First steps using `TFHE-rs` C API
 
-## Setting-up `TFHE-rs` C API for use in a C program.
+### Setting-up `TFHE-rs` C API for use in a C program.
 
- `TFHE-rs` C API can be built on a Unix x86_64 machine using the following command:
+`TFHE-rs` C API can be built on a Unix x86\_64 machine using the following command:
 
 ```shell
 RUSTFLAGS="-C target-cpu=native" cargo build --release --features=x86_64-unix,boolean-c-api,shortint-c-api -p tfhe
 ```
 
-All features are opt-in, but for simplicity here, the C API is enabled for booleans and shortints.
+All features are opt-in, but for simplicity here, the C API is enabled for boolean and shortint.
 
-The `tfhe.h` header as well as the static (.a) and dynamic (.so) `libtfhe` binaries can then be found  in "${REPO_ROOT}/target/release/"
+The `tfhe.h` header as well as the static (.a) and dynamic (.so) `libtfhe` binaries can then be found in "${REPO\_ROOT}/target/release/"
 
-The build system needs to be set-up so that the C or C++ program links against `TFHE-rs` C API 
-binaries.
+The build system needs to be set up so that the C or C++ program links against `TFHE-rs` C API binaries.
 
 Here is a minimal CMakeLists.txt allowing to do just that:
 
@@ -51,17 +52,14 @@ endif()
 target_compile_options(${EXECUTABLE_NAME} PRIVATE -Werror)
 ```
 
-## Commented code of a PBS doubling a 2 bits encrypted message using `TFHE-rs C API`
+### Commented code of a PBS doubling a 2 bits encrypted message using `TFHE-rs C API`.
 
-The steps required to perform the mutiplication by 2 of a 2 bits ciphertext 
-using a PBS are detailed.
-This is NOT the most efficient way of doing this operation, 
-but it allows to show the management required to run a PBS manually using the C API.
+The steps required to perform the mutiplication by 2 of a 2 bits ciphertext using a PBS are detailed. This is NOT the most efficient way of doing this operation, but it can help to show the management required to run a PBS manually using the C API.
 
 WARNING: The following example does not have proper memory management in the error case to make it easier to fit the code on this page.
 
-To run the example below, the above CMakeLists.txt and main.c files need to be in the same 
-directory. The commands to run are:
+To run the example below, the above CMakeLists.txt and main.c files need to be in the same directory. The commands to run are:
+
 ```shell
 # /!\ Be sure to update CMakeLists.txt to give the absolute path to the compiled tfhe library
 $ ls
@@ -169,6 +167,6 @@ int main(void)
 }
 ```
 
-# Audience
+## Audience
 
-Programmers wishing to use `TFHE-rs` but unable to use Rust (for various reasons) can use these bindings in their language of choice as long as it can interface with C code to bring `TFHE-rs` functionalities to said language.
+Programmers wishing to use `TFHE-rs` but who are unable to use Rust (for various reasons) can use these bindings in their language of choice, as long as it can interface with C code to bring `TFHE-rs` functionalities to said language.
