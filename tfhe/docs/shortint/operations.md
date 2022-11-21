@@ -1,54 +1,44 @@
-# How Shortint are represented
+# Operations
+
+## How shortint is represented
 
 In `shortint`, the encrypted data is stored in an LWE ciphertext.
 
-Conceptually, the message stored in an LWE ciphertext, is divided into
-a **carry buffer** and a **message buffer**.
+Conceptually, the message stored in an LWE ciphertext is divided into a **carry buffer** and a **message buffer**.
 
-![](../\_static/ciphertext-representation.svg)
+![](../\_static/ciphertext-representation.png)
 
 The message buffer is the space where the actual message is stored. This represents the modulus of the input messages (denoted by `MessageModulus` in the code). When doing computations on a ciphertext, the encrypted message can overflow the message modulus: the exceeding information is stored in the carry buffer. The size of the carry buffer is defined by another modulus, called `CarryModulus`.
 
 Together, the message modulus and the carry modulus form the plaintext space that is available in a ciphertext. This space cannot be overflowed, otherwise the computation may result in incorrect outputs.
 
-In order to ensure the computation correctness, we keep track of the maximum value encrypted in a
-ciphertext via an associated attribute called the **degree**. When the degree reaches a defined threshold, the carry buffer may be emptied to resume safely the computations. Therefore, in `shortint` the carry modulus is mainly considered as a means to do more computations.
+In order to ensure the correctness of the computation, we keep track of the maximum value encrypted in a ciphertext via an associated attribute called the **degree**. When the degree reaches a defined threshold, the carry buffer may be emptied to safely resume the computations. Therefore, in `shortint` the carry modulus is mainly considered as a means to do more computations.
 
-# Types of operations
+## Types of operations
 
 The operations available via a `ServerKey` may come in different variants:
 
-  - operations that take their inputs as encrypted values.
-  - scalar operations take at least one non-encrypted value as input.
+* operations that take their inputs as encrypted values.
+* scalar operations that take at least one non-encrypted value as input.
 
 For example, the addition has both variants:
 
-  - `ServerKey::unchecked_add` which takes two encrypted values and adds them.
-  - `ServerKey::unchecked_scalar_add` which takes an encrypted value and a clear value (the
-     so-called scalar) and adds them.
+* `ServerKey::unchecked_add` which takes two encrypted values and adds them.
+* `ServerKey::unchecked_scalar_add` which takes an encrypted value and a clear value (the so-called scalar) and adds them.
 
 Each operation may come in different 'flavors':
 
-  - `unchecked`: Always does the operation, without checking if the result may exceed the capacity of
-     the plaintext space. Using this operations might have an impact on the correctness of the
-    following operations;
-  - `checked`: Checks are done before computing the operation, returning an error if operation
-      cannot be done safely;
-  - `smart`: Always does the operation, if the operation cannot be computed safely, the smart operation
-             will clear the carry modulus to make the operation possible.
+* `unchecked`: Always does the operation, without checking if the result may exceed the capacity of the plaintext space. Using this operation might have an impact on the correctness of the following operations;
+* `checked`: Checks are done before computing the operation, returning an error if operation cannot be done safely;
+* `smart`: Always does the operation - if the operation cannot be computed safely, the smart operation will clear the carry modulus to make the operation possible.
 
-Not all operations have these 3 flavors, as some of them are implemented in a way
-that the operation is always possible without ever exceeding the plaintext space capacity.
+Not all operations have these 3 flavors, as some of them are implemented in a way that the operation is always possible without ever exceeding the plaintext space capacity.
 
+## How to use operation types
 
-# How to use operation types
+Let's try to do a circuit evaluation using the different flavours of operations we already introduced. For a very small circuit, the `unchecked` flavour may be enough to do the computation correctly. Otherwise, the `checked` and `smart` are the best options.
 
-Let's try to do a circuit evaluation using the different flavours of operations we already introduced.
-For a very small circuit, the `unchecked` flavour may be enough to do the computation correctly.
-Otherwise, the `checked` and `smart` are the best options.
-
-As an example, let's do a scalar multiplication, a subtraction and a multiplication.
-
+As an example, let's do a scalar multiplication, a subtraction, and a multiplication.
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -78,10 +68,9 @@ fn main() {
 }
 ```
 
-During this computation the carry buffer has been overflowed and as all the operations were `unchecked` the output
-may be incorrect.
+During this computation, the carry buffer has been overflowed and, as all the operations were `unchecked`, the output may be incorrect.
 
-If we redo this same circuit but using the `checked` flavour, a panic will occur.
+If we redo this same circuit with the `checked` flavour, a panic will occur.
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -123,12 +112,9 @@ fn main() {
 }
 ```
 
-Therefore, the `checked` flavour permits to manually manage the overflow of the carry buffer
-by raising an error if the correctness is not guaranteed.
+Therefore, the `checked` flavour permits manual management of the overflow of the carry buffer by raising an error if the correctness is not guaranteed.
 
-Lastly, using the `smart` flavour will output the correct result all the time. However, the
-computation may be slower
-as the carry buffer may be cleaned during the computations.
+Lastly, using the `smart` flavour will output the correct result all the time. However, the computation may be slower as the carry buffer may be cleaned during the computations.
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -157,40 +143,38 @@ fn main() {
     assert_eq!(output, ((msg1 * scalar as u64 - msg2) * msg2) % modulus as u64);
 }
 ```
-#List of available operations
+
+\#List of available operations
+
 {% hint style="warning" %}
-
-Currently, certain operations can only be used if the parameter set chosen is compatible with the
-bivariate programmable bootstrapping, meaning the carry buffer is larger or equal than the
-message buffer. These operations are marked with a star (*).
-
+Currently, certain operations can only be used if the parameter set chosen is compatible with the bivariate programmable bootstrapping, meaning the carry buffer is larger than or equal to the message buffer. These operations are marked with a star (\*).
 {% endhint %}
 
+The list of implemented operations for shortint is:
 
-The list of implemented operations for shortints is:
-- addition between two ciphertexts
-- addition between a ciphertext and an unencrypted scalar
-- comparisons `<`, `<=`, `>`, `>=`, `==` between a ciphertext and an unencrypted scalar
-- division of a ciphertext by an unencrypted scalar
-- LSB multiplication between two ciphertexts returning the result truncated to fit in the `message buffer`
-- multiplication of a ciphertext by an unencrypted scalar
-- bitwise shift `<<`, `>>`
-- subtraction of a ciphertext by another ciphertext
-- subtraction of a ciphertext by an unencrypted scalar
-- negation of a ciphertext
-- bitwise and, or and xor (*)
-- comparisons `<`, `<=`, `>`, `>=`, `==` between two ciphertexts (*)
-- division between two ciphertexts (*)
-- MSB multiplication between two ciphertexts returning the part overflowing the `message buffer` (*)
+* addition between two ciphertexts
+* addition between a ciphertext and an unencrypted scalar
+* comparisons `<`, `<=`, `>`, `>=`, `==` between a ciphertext and an unencrypted scalar
+* division of a ciphertext by an unencrypted scalar
+* LSB multiplication between two ciphertexts returning the result truncated to fit in the `message buffer`
+* multiplication of a ciphertext by an unencrypted scalar
+* bitwise shift `<<`, `>>`
+* subtraction of a ciphertext by another ciphertext
+* subtraction of a ciphertext by an unencrypted scalar
+* negation of a ciphertext
+* bitwise and, or and xor (\*)
+* comparisons `<`, `<=`, `>`, `>=`, `==` between two ciphertexts (\*)
+* division between two ciphertexts (\*)
+* MSB multiplication between two ciphertexts returning the part overflowing the `message buffer` (\*)
 
 In what follows, some simple code examples are given.
 
-## Public key encryption
-TFHE-rs supports both private and public key encryption methods. Note that the only difference
-between both lies into the encryption step: in this case, the encryption method is called using
-`public_key` instead of `client_key`.
+### Public key encryption.
 
-Here a small example on how to use public encryption:
+TFHE-rs supports both private and public key encryption methods. Note that the only difference between both lies into the encryption step: in this case, the encryption method is called using `public_key` instead of `client_key`.
+
+Here is a small example on how to use public encryption:
+
 ```rust
 use tfhe::boolean::prelude::*;
 
@@ -206,12 +190,11 @@ fn main() {
 }
 ```
 
-
-
 In what follows, all examples are related to private key encryption.
 
-## Arithmetic operations
-Classical arithmetic operations are supported by shortints:
+### Arithmetic operations.
+
+Classical arithmetic operations are supported by shortint:
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -238,15 +221,13 @@ fn main() {
 }
 ```
 
-
-
-### Bitwise operations
+#### bitwise operations
 
 Short homomorphic integer types support some bitwise operations.
 
 A simple example on how to use these operations:
-```rust
 
+```rust
 use tfhe::shortint::prelude::*;
 
 fn main() {
@@ -271,14 +252,13 @@ fn main() {
 }
 ```
 
-### Comparisons
+#### comparisons
 
 Short homomorphic integer types support comparison operations.
 
 A simple example on how to use these operations:
 
 ```rust
-
 use tfhe::shortint::prelude::*;
 
 fn main() {
@@ -303,14 +283,11 @@ fn main() {
 }
 ```
 
-### Univariate function evaluations
+#### univariate function evaluations
 
-A simple example on how to use this operation to homomorphically compute
-the hamming weight (i.e., the number of bit equals to one) of an encrypted
-number.
+A simple example on how to use this operation to homomorphically compute the hamming weight (i.e., the number of bits equal to one) of an encrypted number.
 
 ```rust
-
 use tfhe::shortint::prelude::*;
 
 fn main() {
@@ -337,17 +314,13 @@ fn main() {
 }
 ```
 
-### Bi-variate function evaluations
+#### bi-variate function evaluations
 
-Using the shortint types offers the possibility to evaluate bi-variate functions, i.e.,
-functions that takes two ciphertexts as input. This requires to choose a parameter set
-such that the carry buffer size is at least as large as the message one i.e.,
-PARAM_MESSAGE_X_CARRY_Y with X <= Y.
+Using the shortint types offers the possibility to evaluate bi-variate functions, i.e., functions that takes two ciphertexts as input. This requires choosing a parameter set such that the carry buffer size is at least as large as the message one i.e., PARAM\_MESSAGE\_X\_CARRY\_Y with X <= Y.
 
-In what follows, a simple code example:
+Here is a simple code example:
 
 ```rust
-
 use tfhe::shortint::prelude::*;
 
 fn main() {
@@ -374,5 +347,3 @@ fn main() {
     assert_eq!(output, (msg1.count_ones() as u64 + msg2.count_ones() as u64) % modulus);
 }
 ```
-
-

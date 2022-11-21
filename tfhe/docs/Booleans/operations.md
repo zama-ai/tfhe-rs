@@ -1,9 +1,6 @@
-# Operations and Examples
+# Operations
 
-In thfe::boolean, the available operations are mainly related to their equivalent Boolean gates,
-i.e., AND, OR,... In what follows, an example of a unary gate (NOT) and one about a binary gate 
-(XOR). The last one is about the ternary MUX gate are detailed, which gives the possibility to 
-homomorphically compute conditional statements of the form ``If..Then..Else``.
+In thfe::boolean, the available operations are mainly related to their equivalent Boolean gates (i.e., AND, OR... etc). What follows is an example of a unary gate (NOT) and one about a binary gate (XOR). The last one is about the ternary MUX gate, which gives the possibility to homomorphically compute conditional statements of the form `If..Then..Else`.
 
 ## The NOT unary gate
 
@@ -25,7 +22,6 @@ fn main() {
     assert_eq!(output, false);
 }
 ```
-
 
 ## Binary gates
 
@@ -49,10 +45,10 @@ fn main() {
 }
 ```
 
-
 ## The MUX ternary gate
-Let ``ct_1, ct_2, ct_3`` be three Boolean 
-ciphertexts. Then, the MUX gate (abbreviation of MUtipleXer) is equivalent to the operation: 
+
+Let `ct_1, ct_2, ct_3` be three Boolean ciphertexts. Then, the MUX gate (abbreviation of MUtipleXer) is equivalent to the operation:
+
 ```r
 if ct_1 {  
     return ct_2
@@ -61,7 +57,7 @@ if ct_1 {
 }
 ```
 
-This example show how to use the MUX ternary gate.
+This example shows how to use the MUX ternary gate:
 
 ```rust
 use tfhe::boolean::prelude::*;

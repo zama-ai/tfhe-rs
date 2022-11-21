@@ -1,22 +1,20 @@
-# Tutorial: a first boolean circuit
+# Tutorial
 
-This library is meant to be used both on the **server side** and on the **client side**.
-The usual use case would follow those steps:
+This library is meant to be used both on the **server side** and on the **client side**. The typical use case should follow the subsequent steps:
 
 1. On the **client side**, generate the `client` and `server keys`.
 2. Send the `server key` to the **server**.
 3. Then any number of times:
-   + On the **client side**, *encryption* of the input data with the `client key`.
-   + Transmit the encrypted input to the **server**.
-   + On the **server side**, *homomorphic computation* with the `server key`.
-   + Transmit the encrypted output to the **client**.
-   + On the **client side**, *decryption* of the output data with `client key`.
+   * On the **client side**, _encryption_ of the input data with the `client key`.
+   * Transmit the encrypted input to the **server**.
+   * On the **server side**, _homomorphic computation_ with the `server key`.
+   * Transmit the encrypted output to the **client**.
+   * On the **client side**, _decryption_ of the output data with the `client key`.
 
-## 1. Setup
+## Setup
 
-In the first step, the client creates two keys: the `client key` and the `server key`,
-with the
-`concrete_boolean::gen_keys` function:
+In the first step, the client creates two keys: the `client key` and the `server key`, with the `concrete_boolean::gen_keys` function:
+
 ```rust
 use tfhe::boolean::prelude::*;
 
@@ -28,17 +26,11 @@ fn main() {
 }
 ```
 
-In more details:
+* The `client_key` is of type `ClientKey`. It is **secret**, and must **never** be transmitted. This key will only be used to encrypt and decrypt data.
+* The `server_key` is of type `ServerKey`. It is a **public key**, and can be shared with any party. This key has to be sent to the server because it is required for homomorphic computation.
 
-+ The `client_key` is of type `ClientKey`. It is **secret**, and must **never** be transmitted.
-  This key will only be used to encrypt and decrypt data.
-+ The `server_key` is of type `ServerKey`. It is a **public key**, and can be shared with any
-  party.
-  This key has to be sent to the server because it is required for the homomorphic computation.
+Note that both the `client_key` and `server_key` implement the `Serialize` and `Deserialize` traits. This way you can use any compatible serializer to store/send the data. For instance, to store the `server_key` in a binary file, you can use the `bincode` library:
 
-Note that both the `client_key` and `server_key` implement the `Serialize` and `Deserialize` traits.
-This way you can use any compatible serializer to store/send the data. For instance, to store
-the `server_key` in a binary file, you can use the `bincode` library:
 ```rust
 use std::fs::File;
 use std::io::{Write, Read};
@@ -80,15 +72,10 @@ fn main() {
 }
 ```
 
-## 2. Encrypting Inputs
+## Encrypting Inputs
 
-Once the server key is available on the **server side**, it is possible to perform some
-homomorphic computations.
-The client simply needs to encrypt some data and send it to the server.
-Again, the `Ciphertext` type implements the `Serialize` and
-the `Deserialize` traits, so that any serializer and communication tool suiting your use case
-can be
-used:
+Once the server key is available on the **server side**, it is possible to perform some homomorphic computations. The client simply needs to encrypt some data and send it to the server. Again, the `Ciphertext` type implements the `Serialize` and the `Deserialize` traits, so that any serializer and communication tool suiting your use case can be employed:
+
 ```rust
 use tfhe::boolean::prelude::*;
 
@@ -112,15 +99,10 @@ fn main() {
 }
 ```
 
-## 2bis. Encrypting Inputs using public key
+## Encrypting Inputs using a public key
 
-Once the server key is available on the **server side**, it is possible to perform some
-homomorphic computations.
-The client simply needs to encrypt some data and send it to the server.
-Again, the `Ciphertext` type implements the `Serialize` and
-the `Deserialize` traits, so that any serializer and communication tool suiting your use case
-can be
-used:
+Once the server key is available on the **server side**, it is possible to perform some homomorphic computations. The client simply needs to encrypt some data and send it to the server. Again, the `Ciphertext` type implements the `Serialize` and the `Deserialize` traits, so that any serializer and communication tool suiting your use case can be utilized:
+
 ```rust
 use tfhe::boolean::prelude::*;
 
@@ -145,11 +127,9 @@ fn main() {
 }
 ```
 
+## Executing a Boolean circuit
 
-## Executing a Boolean Circuit
-
-Once the encrypted inputs are on the **server side**, the `server_key` can be used to
-homomorphically execute the desired boolean circuit:
+Once the encrypted inputs are on the **server side**, the `server_key` can be used to homomorphically execute the desired Boolean circuit:
 
 ```rust
 use std::fs::File;
@@ -191,8 +171,7 @@ fn main() {
 
 ## Decrypting the output
 
-Once the encrypted output is on the client side, the `client_key` can be used to
-decrypt it:
+Once the encrypted output is on the client side, the `client_key` can be used to decrypt it:
 
 ```rust
 use std::fs::File;
@@ -218,29 +197,3 @@ fn main() {
     assert_eq!(output, true);
 }
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
