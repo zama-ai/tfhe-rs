@@ -1,11 +1,7 @@
 //! All the `ShortintEngine` method related to client side (encrypt / decrypt)
 use super::{EngineResult, ShortintEngine};
-use crate::core_crypto::algorithms::glwe_secret_key_generation::allocate_and_generate_new_binary_glwe_secret_key;
-use crate::core_crypto::algorithms::lwe_encryption::{
-    allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
-};
-use crate::core_crypto::algorithms::lwe_secret_key_generation::allocate_and_generate_new_binary_lwe_secret_key;
-use crate::core_crypto::entities::plaintext::Plaintext;
+use crate::core_crypto::algorithms::*;
+use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{Ciphertext, ClientKey, Parameters};

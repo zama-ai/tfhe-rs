@@ -1,13 +1,10 @@
-use crate::core_crypto::algorithms::lwe_encryption::encrypt_lwe_ciphertext_list;
+use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
 use crate::core_crypto::commons::math::random::ByteRandomGenerator;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::lwe_ciphertext_list::LweCiphertextListBase;
-use crate::core_crypto::entities::lwe_keyswitch_key::{LweKeyswitchKey, LweKeyswitchKeyBase};
-use crate::core_crypto::entities::lwe_secret_key::LweSecretKeyBase;
-use crate::core_crypto::entities::plaintext_list::PlaintextList;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, PlaintextCount,
