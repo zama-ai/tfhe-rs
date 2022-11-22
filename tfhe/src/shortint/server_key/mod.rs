@@ -17,7 +17,7 @@ mod sub;
 #[cfg(test)]
 mod tests;
 
-use crate::core_crypto::entities::lwe_keyswitch_key::LweKeyswitchKey;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::client_key::ClientKey;
