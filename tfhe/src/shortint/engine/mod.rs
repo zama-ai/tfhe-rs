@@ -226,7 +226,7 @@ impl ShortintEngine {
                 .trivially_encrypt_lwe_ciphertext(
                     server_key
                         .key_switching_key
-                        .output_lwe_dimension()
+                        .output_key_lwe_dimension()
                         .to_lwe_size(),
                     &zero_plaintext,
                 )
