@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::plaintext::Plaintext;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::PlaintextCount;
 
 pub struct PlaintextListBase<C: Container> {
