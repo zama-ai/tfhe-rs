@@ -2,7 +2,8 @@ use super::ShortintEngine;
 use crate::core_crypto::algorithms::lwe_encryption::{
     allocate_and_trivially_encrypt_new_lwe_ciphertext, trivially_encrypt_lwe_ciphertext,
 };
-use crate::core_crypto::entities::encoded::Encoded;
+use crate::core_crypto::algorithms::lwe_keyswitch_key_generation::allocate_and_generate_new_binary_binary_lwe_keyswitch_key;
+use crate::core_crypto::entities::plaintext::Plaintext;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::EngineResult;
@@ -59,19 +60,18 @@ impl ShortintEngine {
         let var_lwe = Variance(cks.parameters.lwe_modular_std_dev.get_variance());
 
         // Creation of the key switching key
-        // TODO REFACTOR
-        // Remove the clone + into
-        let ksk = self.engine.generate_new_lwe_keyswitch_key(
-            &cks.lwe_secret_key.clone().into(),
-            &cks.lwe_secret_key_after_ks.clone().into(),
-            cks.parameters.ks_level,
+        let key_switching_key = allocate_and_generate_new_binary_binary_lwe_keyswitch_key(
+            &cks.lwe_secret_key,
+            &cks.lwe_secret_key_after_ks,
             cks.parameters.ks_base_log,
+            cks.parameters.ks_level,
             var_lwe,
-        )?;
+            self.engine.get_encryption_generator(),
+        );
 
         // Pack the keys in the server key set:
         Ok(ServerKey {
-            key_switching_key: ksk,
+            key_switching_key,
             bootstrapping_key: fourier_bsk,
             message_modulus: cks.parameters.message_modulus,
             carry_modulus: cks.parameters.carry_modulus,
@@ -112,7 +112,7 @@ impl ShortintEngine {
         engine.discard_keyswitch_lwe_ciphertext(
             &mut LweCiphertextMutView64(buffers.buffer_lwe_after_ks.0.as_mut_view()),
             &ct.ct.as_old_ct_view(),
-            &server_key.key_switching_key,
+            &server_key.key_switching_key.clone().into(),
         )?;
 
         // Compute a bootstrap
@@ -149,7 +149,7 @@ impl ShortintEngine {
         engine.discard_keyswitch_lwe_ciphertext(
             &mut LweCiphertextMutView64(buffers.buffer_lwe_after_ks.0.as_mut_view()),
             &ct.ct.as_old_ct_view(),
-            &server_key.key_switching_key,
+            &server_key.key_switching_key.clone().into(),
         )?;
 
         // Compute a bootstrap
@@ -373,7 +373,7 @@ impl ShortintEngine {
 
         let shifted_value = (modular_value as u64) * delta;
 
-        let encoded = Encoded(shifted_value);
+        let encoded = Plaintext(shifted_value);
 
         let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded);
 
@@ -400,7 +400,7 @@ impl ShortintEngine {
 
         let shifted_value = (modular_value as u64) * delta;
 
-        let encoded = Encoded(shifted_value);
+        let encoded = Plaintext(shifted_value);
 
         trivially_encrypt_lwe_ciphertext(&mut ct.ct, encoded);
 
