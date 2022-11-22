@@ -15,7 +15,7 @@ where
     Scalar: RandomGenerable<UniformBinary> + Numeric,
     Gen: ByteRandomGenerator,
 {
-    let mut lwe_secret_key = LweSecretKey::from_container(vec![Scalar::ZERO; lwe_dimension.0]);
+    let mut lwe_secret_key = LweSecretKey::new(Scalar::ZERO, lwe_dimension);
 
     generate_binary_lwe_secret_key(&mut lwe_secret_key, generator);
 

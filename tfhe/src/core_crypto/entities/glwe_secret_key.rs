@@ -23,6 +23,10 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GlweSecretKeyBase<C> {
 impl<Scalar, C: Container<Element = Scalar>> GlweSecretKeyBase<C> {
     pub fn from_container(container: C, polynomial_size: PolynomialSize) -> Self {
         assert!(
+            container.container_len() > 0,
+            "Got an empty container to create a GlweSecretKey"
+        );
+        assert!(
             container.container_len() % polynomial_size.0 == 0,
             "The provided container length is not valid. \
         It needs to be dividable by polynomial_size. \
@@ -49,6 +53,22 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKeyBase<C> {
 }
 
 pub type GlweSecretKey<Scalar> = GlweSecretKeyBase<Vec<Scalar>>;
+
+impl<Scalar> GlweSecretKey<Scalar>
+where
+    Scalar: Copy,
+{
+    pub fn new(
+        value: Scalar,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+    ) -> GlweSecretKey<Scalar> {
+        GlweSecretKey::from_container(
+            vec![value; glwe_dimension.0 * polynomial_size.0],
+            polynomial_size,
+        )
+    }
+}
 
 // TODO REFACTOR
 // Remove the back and forth conversions

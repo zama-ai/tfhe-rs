@@ -5,7 +5,7 @@ use crate::core_crypto::algorithms::lwe_encryption::{
     allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
 };
 use crate::core_crypto::algorithms::lwe_secret_key_generation::allocate_and_generate_new_binary_lwe_secret_key;
-use crate::core_crypto::entities::encoded::Encoded;
+use crate::core_crypto::entities::plaintext::Plaintext;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{Ciphertext, ClientKey, Parameters};
@@ -66,7 +66,7 @@ impl ShortintEngine {
 
         let shifted_message = m * delta;
 
-        let encoded = Encoded(shifted_message);
+        let encoded = Plaintext(shifted_message);
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &client_key.lwe_secret_key,
@@ -93,7 +93,7 @@ impl ShortintEngine {
                 as u64;
         let shifted_message = message * delta;
 
-        let encoded = Encoded(shifted_message);
+        let encoded = Plaintext(shifted_message);
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &client_key.lwe_secret_key,
@@ -153,7 +153,7 @@ impl ShortintEngine {
 
         let shifted_message = message * delta;
 
-        let encoded = Encoded(shifted_message);
+        let encoded = Plaintext(shifted_message);
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &client_key.lwe_secret_key,
@@ -213,7 +213,7 @@ impl ShortintEngine {
         let m = (message % message_modulus as u64) as u128;
         let shifted_message = (m * (1 << 64) / message_modulus as u128) as u64;
 
-        let encoded = Encoded(shifted_message);
+        let encoded = Plaintext(shifted_message);
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
             &client_key.lwe_secret_key,
