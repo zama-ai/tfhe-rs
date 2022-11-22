@@ -1,7 +1,5 @@
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::lwe_ciphertext::{
-    LweCiphertextCreationMetadata, LweCiphertextMutView, LweCiphertextView,
-};
+use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::{CiphertextCount, LweSize};
 
 #[derive(Clone, Debug, PartialEq)]

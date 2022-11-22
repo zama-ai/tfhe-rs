@@ -4,9 +4,7 @@
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::{Container, ContainerMut};
-use crate::core_crypto::entities::cleartext::Cleartext;
-use crate::core_crypto::entities::lwe_ciphertext::LweCiphertextBase;
-use crate::core_crypto::entities::plaintext::Plaintext;
+use crate::core_crypto::entities::*;
 
 pub fn lwe_ciphertext_in_place_addition<Scalar, LhsCont, RhsCont>(
     lhs: &mut LweCiphertextBase<LhsCont>,

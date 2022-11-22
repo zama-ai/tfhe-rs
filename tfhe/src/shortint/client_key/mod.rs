@@ -1,7 +1,6 @@
 //! Module with the definition of the ClientKey.
 
-use crate::core_crypto::entities::glwe_secret_key::GlweSecretKey;
-use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
