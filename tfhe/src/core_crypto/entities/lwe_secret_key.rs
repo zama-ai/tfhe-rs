@@ -20,6 +20,10 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweSecretKeyBase<C> {
 
 impl<Scalar, C: Container<Element = Scalar>> LweSecretKeyBase<C> {
     pub fn from_container(container: C) -> Self {
+        assert!(
+            container.container_len() > 0,
+            "Got an empty container to create an LweSecretKey"
+        );
         LweSecretKeyBase { data: container }
     }
 
@@ -29,6 +33,15 @@ impl<Scalar, C: Container<Element = Scalar>> LweSecretKeyBase<C> {
 }
 
 pub type LweSecretKey<Scalar> = LweSecretKeyBase<Vec<Scalar>>;
+
+impl<Scalar> LweSecretKey<Scalar>
+where
+    Scalar: Copy,
+{
+    pub fn new(fill_with: Scalar, lwe_dimension: LweDimension) -> LweSecretKey<Scalar> {
+        LweSecretKey::from_container(vec![fill_with; lwe_dimension.0])
+    }
+}
 
 // TODO REFACTOR
 // Remove the back and forth conversions

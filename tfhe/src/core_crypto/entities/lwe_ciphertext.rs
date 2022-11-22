@@ -1,5 +1,5 @@
-use crate::core_crypto::commons::traits::{Container, ContainerMut};
-use crate::core_crypto::prelude::{LweDimension, LweSize};
+use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::specification::parameters::{LweDimension, LweSize};
 
 pub struct LweBody<T>(pub T);
 pub struct LweMask<C: Container> {
@@ -46,7 +46,7 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphertextBase<C> {
 }
 
 impl<Scalar, C: Container<Element = Scalar>> LweCiphertextBase<C> {
-    pub fn from_container(container: C) -> Self {
+    pub fn from_container(container: C) -> LweCiphertextBase<C> {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create an LweCiphertext"
@@ -90,10 +90,20 @@ pub type LweCiphertextView<'data, Scalar> = LweCiphertextBase<&'data [Scalar]>;
 pub type LweCiphertextMutView<'data, Scalar> = LweCiphertextBase<&'data mut [Scalar]>;
 
 impl<Scalar: Copy> LweCiphertext<Scalar> {
-    pub fn new(fill_with: Scalar, lwe_size: LweSize) -> Self {
-        Self {
-            data: vec![fill_with; lwe_size.0],
-        }
+    pub fn new(fill_with: Scalar, lwe_size: LweSize) -> LweCiphertext<Scalar> {
+        LweCiphertext::from_container(vec![fill_with; lwe_size.0])
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct LweCiphertextCreationMetadata();
+
+impl<C: Container> CreateFrom<C> for LweCiphertextBase<C> {
+    type Metadata = LweCiphertextCreationMetadata;
+
+    #[inline]
+    fn create_from(from: C, _: Self::Metadata) -> LweCiphertextBase<C> {
+        LweCiphertextBase::from_container(from)
     }
 }
 

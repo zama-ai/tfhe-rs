@@ -1,7 +1,7 @@
 use crate::core_crypto::algorithms::lwe_linear_algebra::{
     lwe_ciphertext_in_place_encoded_addition, lwe_ciphertext_in_place_opposite,
 };
-use crate::core_crypto::entities::encoded::Encoded;
+use crate::core_crypto::entities::plaintext::Plaintext;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
@@ -51,7 +51,7 @@ impl ShortintEngine {
             (1_u64 << 63) / (_server_key.message_modulus.0 * _server_key.carry_modulus.0) as u64;
 
         //Scaling + 1 on the padding bit
-        let w = Encoded(z * delta);
+        let w = Plaintext(z * delta);
 
         // (0,Delta*z) - ct
         lwe_ciphertext_in_place_opposite(&mut ct.ct);

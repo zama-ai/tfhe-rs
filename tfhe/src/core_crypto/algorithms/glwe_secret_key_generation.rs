@@ -16,8 +16,7 @@ where
     Scalar: RandomGenerable<UniformBinary> + Numeric,
     Gen: ByteRandomGenerator,
 {
-    let mut glwe_secret_key =
-        GlweSecretKey::from_container(vec![Scalar::ZERO; glwe_dimension.0], polynomial_size);
+    let mut glwe_secret_key = GlweSecretKey::new(Scalar::ZERO, glwe_dimension, polynomial_size);
 
     generate_binary_glwe_secret_key(&mut glwe_secret_key, generator);
 
