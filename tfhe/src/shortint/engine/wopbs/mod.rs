@@ -32,7 +32,7 @@ impl ShortintEngine {
         let wopbs_key = WopbsKey {
             wopbs_server_key: sks_cpy.clone(),
             cbs_pfpksk,
-            ksk_pbs_to_wopbs: sks.key_switching_key.clone().into(),
+            ksk_pbs_to_wopbs: sks.key_switching_key.clone(),
             param: cks.parameters,
             pbs_server_key: sks_cpy,
         };
@@ -148,7 +148,7 @@ impl ShortintEngine {
             wopbs_server_key,
             pbs_server_key,
             cbs_pfpksk,
-            ksk_pbs_to_wopbs: ksk_pbs_large_to_wopbs_large.into(),
+            ksk_pbs_to_wopbs: ksk_pbs_large_to_wopbs_large,
             param: *parameters,
         };
         Ok(wopbs_key)
@@ -296,24 +296,20 @@ impl ShortintEngine {
         let acc = self.generate_accumulator(sks, |x| x)?;
         let ct_clean = self.programmable_bootstrap_keyswitch(sks, ct_in, &acc)?;
 
-        // To make borrow checker happy
-        let engine = &mut self.engine;
-        let encoded_zero = Plaintext(0);
-
-        let mut buffer_lwe_after_ks = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+        let mut buffer_lwe_after_ks = LweCiphertext::new(
+            0,
             wopbs_key
                 .ksk_pbs_to_wopbs
-                .output_lwe_dimension()
+                .output_key_lwe_dimension()
                 .to_lwe_size(),
-            encoded_zero,
         );
 
         // Compute a key switch
-        engine.discard_keyswitch_lwe_ciphertext(
-            &mut buffer_lwe_after_ks.as_old_ct_mut_view(),
-            &ct_clean.ct.as_old_ct_view(),
+        keyswitch_lwe_ciphertext(
             &wopbs_key.ksk_pbs_to_wopbs,
-        )?;
+            &ct_clean.ct,
+            &mut buffer_lwe_after_ks,
+        );
 
         Ok(Ciphertext {
             ct: buffer_lwe_after_ks,
@@ -334,13 +330,13 @@ impl ShortintEngine {
         // 2. PBS to remove the noise added by the previous KS
         //
         let acc = self.generate_accumulator(&wopbs_key.pbs_server_key, |x| x)?;
-        let (buffers, engine, fftw_engine) = self.buffers_for_key(&wopbs_key.pbs_server_key);
+        let (buffers, _, fftw_engine) = self.buffers_for_key(&wopbs_key.pbs_server_key);
         // Compute a key switch
-        engine.discard_keyswitch_lwe_ciphertext(
-            &mut LweCiphertextMutView64(buffers.buffer_lwe_after_ks.0.as_mut_view()),
-            &ct_in.ct.as_old_ct_view(),
-            &wopbs_key.pbs_server_key.key_switching_key.clone().into(),
-        )?;
+        keyswitch_lwe_ciphertext(
+            &wopbs_key.pbs_server_key.key_switching_key,
+            &ct_in.ct,
+            &mut buffers.buffer_lwe_after_ks.as_refactor_ct_mut_view(),
+        );
 
         let out_lwe_size = wopbs_key
             .pbs_server_key

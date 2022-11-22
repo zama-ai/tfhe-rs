@@ -103,14 +103,14 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
-        let (buffers, engine, fft_engine) = self.buffers_for_key(server_key);
+        let (buffers, _, fft_engine) = self.buffers_for_key(server_key);
 
         // Compute a keyswitch
-        engine.discard_keyswitch_lwe_ciphertext(
-            &mut LweCiphertextMutView64(buffers.buffer_lwe_after_ks.0.as_mut_view()),
-            &ct.ct.as_old_ct_view(),
-            &server_key.key_switching_key.clone().into(),
-        )?;
+        keyswitch_lwe_ciphertext(
+            &server_key.key_switching_key,
+            &ct.ct,
+            &mut buffers.buffer_lwe_after_ks.as_refactor_ct_mut_view(),
+        );
 
         // Compute a bootstrap
         fft_engine.discard_bootstrap_lwe_ciphertext(
@@ -140,14 +140,14 @@ impl ShortintEngine {
         acc: &GlweCiphertext64,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
-        let (buffers, engine, fftw_engine) = self.buffers_for_key(server_key);
+        let (buffers, _, fftw_engine) = self.buffers_for_key(server_key);
 
         // Compute a key switch
-        engine.discard_keyswitch_lwe_ciphertext(
-            &mut LweCiphertextMutView64(buffers.buffer_lwe_after_ks.0.as_mut_view()),
-            &ct.ct.as_old_ct_view(),
-            &server_key.key_switching_key.clone().into(),
-        )?;
+        keyswitch_lwe_ciphertext(
+            &server_key.key_switching_key,
+            &ct.ct,
+            &mut buffers.buffer_lwe_after_ks.as_refactor_ct_mut_view(),
+        );
 
         // Compute a bootstrap
         fftw_engine.discard_bootstrap_lwe_ciphertext(
