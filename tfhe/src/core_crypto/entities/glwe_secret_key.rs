@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::traits::{Container, ContainerMut};
-use crate::core_crypto::entities::lwe_secret_key::LweSecretKeyBase;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::{GlweDimension, PolynomialSize};
 
 #[derive(Clone, Debug, PartialEq)]

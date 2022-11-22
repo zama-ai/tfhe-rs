@@ -6,11 +6,7 @@ use crate::core_crypto::commons::math::random::ByteRandomGenerator;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::{Container, ContainerMut, *};
-use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextBase};
-use crate::core_crypto::entities::lwe_ciphertext_list::LweCiphertextListBase;
-use crate::core_crypto::entities::lwe_secret_key::LweSecretKeyBase;
-use crate::core_crypto::entities::plaintext::Plaintext;
-use crate::core_crypto::entities::plaintext_list::PlaintextListBase;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::LweSize;
 

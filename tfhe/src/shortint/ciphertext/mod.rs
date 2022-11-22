@@ -1,5 +1,5 @@
 //! Module with the definition of a short-integer ciphertext.
-use crate::core_crypto::entities::lwe_ciphertext::LweCiphertext;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::*;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

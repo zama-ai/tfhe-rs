@@ -4,7 +4,7 @@ use crate::core_crypto::commons::math::random::{
 };
 use crate::core_crypto::commons::numeric::Numeric;
 use crate::core_crypto::commons::traits::ContainerMut;
-use crate::core_crypto::entities::glwe_secret_key::{GlweSecretKey, GlweSecretKeyBase};
+use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::{GlweDimension, PolynomialSize};
 
 pub fn allocate_and_generate_new_binary_glwe_secret_key<Scalar, Gen>(
