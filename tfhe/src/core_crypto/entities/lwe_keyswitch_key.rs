@@ -1,4 +1,5 @@
-use crate::core_crypto::commons::traits::{Container, ContainerMut};
+use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, LweDimension, LweSize,
 };
@@ -68,9 +69,58 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKeyBase<C> {
     pub fn output_key_lwe_dimension(&self) -> LweDimension {
         self.output_lwe_size.to_lwe_dimension()
     }
+
+    pub fn input_key_element_encrypted_size(&self) -> usize {
+        // One ciphertext per level encrypted under the output key
+        self.decomp_level_count.0 * self.output_lwe_size.0
+    }
 }
 
 pub type LweKeyswitchKey<Scalar> = LweKeyswitchKeyBase<Vec<Scalar>>;
+
+impl<C: Container> ContiguousEntityContainer for LweKeyswitchKeyBase<C> {
+    type PODElement = C::Element;
+
+    type ElementViewMetadata = LweCiphertextListCreationMetadata;
+
+    type ElementView<'this> = LweCiphertextListView<'this, Self::PODElement>
+    where
+        Self: 'this;
+
+    type SelfViewMetadata = ();
+
+    // At the moment it does not make sense to return "sub" keyswitch keys. So we use a dummy
+    // placeholder type here.
+    type SelfView<'this> = DummyCreateFrom
+    where
+        Self: 'this;
+
+    fn get_element_view_creation_metadata(&self) -> Self::ElementViewMetadata {
+        LweCiphertextListCreationMetadata(self.output_key_lwe_dimension().to_lwe_size())
+    }
+
+    fn get_element_view_pod_size(&self) -> usize {
+        self.input_key_element_encrypted_size()
+    }
+
+    /// Unimplement for [`LweKeyswitchKeyBase`]. At the moment it does not make sense to
+    /// return "sub" keyswitch keys.
+    fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        unimplemented!("At the moment it does not make sense to return 'sub' keyswitch keys.")
+    }
+}
+
+impl<C: ContainerMut> ContiguousEntityContainerMut for LweKeyswitchKeyBase<C> {
+    type ElementMutView<'this> = LweCiphertextListMutView<'this, Self::PODElement>
+    where
+        Self: 'this;
+
+    // At the moment it does not make sense to return "sub" keyswitch keys. So we use a dummy
+    // placeholder type here.
+    type SelfMutView<'this> = DummyCreateFrom
+    where
+        Self: 'this;
+}
 
 impl<Scalar: Copy> LweKeyswitchKey<Scalar> {
     pub fn new(

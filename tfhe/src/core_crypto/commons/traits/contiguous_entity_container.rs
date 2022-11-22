@@ -15,6 +15,16 @@ type WrappingLendingIterator<'data, PODElement, WrappingType> = std::iter::Map<
     WrappingFunction<'data, PODElement, WrappingType>,
 >;
 
+// This is required as at the moment it's not possible to reverse a zip containing a repeat, though
+// it is perfectly legal to zip a reversed repeat
+type RevWrappingLendingIterator<'data, PODElement, WrappingType> = std::iter::Map<
+    std::iter::Zip<
+        std::iter::Rev<std::slice::Chunks<'data, PODElement>>,
+        std::iter::Repeat<<WrappingType as CreateFrom<&'data [PODElement]>>::Metadata>,
+    >,
+    WrappingFunction<'data, PODElement, WrappingType>,
+>;
+
 type WrappingFunctionMut<'data, PODElement, WrappingType> = fn(
     (
         &'data mut [PODElement],
@@ -25,6 +35,16 @@ type WrappingFunctionMut<'data, PODElement, WrappingType> = fn(
 type WrappingLendingIteratorMut<'data, PODElement, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::ChunksMut<'data, PODElement>,
+        std::iter::Repeat<<WrappingType as CreateFrom<&'data mut [PODElement]>>::Metadata>,
+    >,
+    WrappingFunctionMut<'data, PODElement, WrappingType>,
+>;
+
+// This is required as at the moment it's not possible to reverse a zip containing a repeat, though
+// it is perfectly legal to zip a reversed repeat
+type RevWrappingLendingIteratorMut<'data, PODElement, WrappingType> = std::iter::Map<
+    std::iter::Zip<
+        std::iter::Rev<std::slice::ChunksMut<'data, PODElement>>,
         std::iter::Repeat<<WrappingType as CreateFrom<&'data mut [PODElement]>>::Metadata>,
     >,
     WrappingFunctionMut<'data, PODElement, WrappingType>,
@@ -63,6 +83,16 @@ pub trait ContiguousEntityContainer: AsRef<[Self::PODElement]> {
         let element_view_pod_size = self.get_element_view_pod_size();
         self.as_ref()
             .chunks(element_view_pod_size)
+            .zip(std::iter::repeat(meta))
+            .map(|(elt, meta)| Self::ElementView::<'_>::create_from(elt, meta))
+    }
+
+    fn rev_iter(&self) -> RevWrappingLendingIterator<'_, Self::PODElement, Self::ElementView<'_>> {
+        let meta = self.get_element_view_creation_metadata();
+        let element_view_pod_size = self.get_element_view_pod_size();
+        self.as_ref()
+            .chunks(element_view_pod_size)
+            .rev()
             .zip(std::iter::repeat(meta))
             .map(|(elt, meta)| Self::ElementView::<'_>::create_from(elt, meta))
     }
@@ -113,6 +143,18 @@ pub trait ContiguousEntityContainerMut:
         let element_mut_view_pod_size = self.get_element_view_pod_size();
         self.as_mut()
             .chunks_mut(element_mut_view_pod_size)
+            .zip(std::iter::repeat(meta))
+            .map(|(elt, meta)| Self::ElementMutView::<'_>::create_from(elt, meta))
+    }
+
+    fn rev_iter_mut(
+        &mut self,
+    ) -> RevWrappingLendingIteratorMut<'_, Self::PODElement, Self::ElementMutView<'_>> {
+        let meta = self.get_element_view_creation_metadata();
+        let element_mut_view_pod_size = self.get_element_view_pod_size();
+        self.as_mut()
+            .chunks_mut(element_mut_view_pod_size)
+            .rev()
             .zip(std::iter::repeat(meta))
             .map(|(elt, meta)| Self::ElementMutView::<'_>::create_from(elt, meta))
     }
