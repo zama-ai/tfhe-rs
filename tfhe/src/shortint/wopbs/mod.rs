@@ -7,11 +7,10 @@
 //! In the case where a padding bit is defined, keys are generated so that there a compatible for
 //! both uses.
 
+use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ClientKey, Parameters, ServerKey};
-
-use crate::core_crypto::prelude::*;
-
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(test)]
@@ -24,7 +23,7 @@ pub struct WopbsKey {
     pub wopbs_server_key: ServerKey,
     pub pbs_server_key: ServerKey,
     pub cbs_pfpksk: LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64,
-    pub ksk_pbs_to_wopbs: LweKeyswitchKey64,
+    pub ksk_pbs_to_wopbs: LweKeyswitchKey<u64>,
     pub param: Parameters,
 }
 
@@ -398,8 +397,10 @@ impl Serialize for WopbsKey {
             .serialize(&self.cbs_pfpksk)
             .map_err(serde::ser::Error::custom)?;
 
+        let tmp_ksk_pbs_to_wopbs: LweKeyswitchKey64 = self.ksk_pbs_to_wopbs.clone().into();
+
         let ksk_pbs_to_wopbs = default_ser_eng
-            .serialize(&self.ksk_pbs_to_wopbs)
+            .serialize(&tmp_ksk_pbs_to_wopbs)
             .map_err(serde::ser::Error::custom)?;
 
         SerializableWopbsKey {
@@ -428,7 +429,7 @@ impl<'de> Deserialize<'de> for WopbsKey {
             .deserialize(thing.cbs_pfpksk.as_slice())
             .map_err(serde::de::Error::custom)?;
 
-        let ksk_pbs_to_wopbs = default_ser_eng
+        let tmp_ksk_pbs_to_wopbs: LweKeyswitchKey64 = default_ser_eng
             .deserialize(thing.ksk_pbs_to_wopbs.as_slice())
             .map_err(serde::de::Error::custom)?;
 
@@ -436,7 +437,7 @@ impl<'de> Deserialize<'de> for WopbsKey {
             wopbs_server_key: thing.wopbs_server_key,
             pbs_server_key: thing.pbs_server_key,
             cbs_pfpksk,
-            ksk_pbs_to_wopbs,
+            ksk_pbs_to_wopbs: tmp_ksk_pbs_to_wopbs.into(),
             param: thing.param,
         })
     }

@@ -69,6 +69,10 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertextBase<C> {
 
         LweBody(body)
     }
+
+    pub fn get_mask(&self) -> LweMask<&[Scalar]> {
+        LweMask::from_container(&self.as_ref()[0..=self.lwe_size().to_lwe_dimension().0])
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextBase<C> {
@@ -82,6 +86,11 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextBase<C> {
         let body = self.data.as_mut().last_mut().unwrap();
 
         LweBody(body)
+    }
+
+    pub fn get_mut_mask(&mut self) -> LweMask<&mut [Scalar]> {
+        let lwe_dimension = self.lwe_size().to_lwe_dimension();
+        LweMask::from_container(&mut self.as_mut()[0..=lwe_dimension.0])
     }
 }
 

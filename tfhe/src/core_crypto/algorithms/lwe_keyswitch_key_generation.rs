@@ -51,22 +51,12 @@ pub fn generate_binary_binary_lwe_keyswitch_key<
     let mut decomposition_plaintexts_buffer =
         PlaintextList::new(Scalar::ZERO, PlaintextCount(decomp_level_count.0));
 
-    // One ciphertext per level encrypted under the output key
-    let input_key_encryption_block_size =
-        decomp_level_count.0 * output_lwe_sk.lwe_dimension().to_lwe_size().0;
-
     // Iterate over the input key elements and the destination lwe_keyswitch_key memory
-    for (input_key_element, mut keyswitch_key_block) in input_lwe_sk.as_ref().iter().zip(
-        lwe_keyswitch_key
-            .as_mut()
-            .chunks_mut(input_key_encryption_block_size)
-            .map(|cont| {
-                LweCiphertextListBase::from_container(
-                    cont,
-                    output_lwe_sk.lwe_dimension().to_lwe_size(),
-                )
-            }),
-    ) {
+    for (input_key_element, mut keyswitch_key_block) in input_lwe_sk
+        .as_ref()
+        .iter()
+        .zip(lwe_keyswitch_key.iter_mut())
+    {
         // We fill the buffer with the powers of the key elmements
         for (level, message) in (1..=decomp_level_count.0)
             .map(DecompositionLevel)
