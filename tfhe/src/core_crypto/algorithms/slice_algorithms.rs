@@ -50,6 +50,24 @@ where
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs));
 }
 
+pub fn update_with_wrapping_sub_scalar_mul<Scalar>(
+    lhs: &mut [Scalar],
+    rhs: &[Scalar],
+    scalar: Scalar,
+) where
+    Scalar: UnsignedInteger,
+{
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+    lhs.iter_mut()
+        .zip(rhs.iter())
+        .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs.wrapping_mul(scalar)));
+}
+
 pub fn update_with_wrapping_opposite<Scalar>(slice: &mut [Scalar])
 where
     Scalar: UnsignedInteger,
