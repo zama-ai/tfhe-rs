@@ -17,6 +17,7 @@ mod sub;
 #[cfg(test)]
 mod tests;
 
+use crate::core_crypto::entities::lwe_keyswitch_key::LweKeyswitchKey;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::client_key::ClientKey;
@@ -53,7 +54,7 @@ impl std::error::Error for CheckError {}
 /// sends it to the server so it can compute homomorphic circuits.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ServerKey {
-    pub key_switching_key: LweKeyswitchKey64,
+    pub key_switching_key: LweKeyswitchKey<u64>,
     pub bootstrapping_key: FftFourierLweBootstrapKey64,
     // Size of the message buffer
     pub message_modulus: MessageModulus,
@@ -555,8 +556,10 @@ impl Serialize for ServerKey {
         let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
         let mut fft_ser_eng = FftSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
 
+        let tmp_ksk: LweKeyswitchKey64 = self.key_switching_key.clone().into();
+
         let key_switching_key = ser_eng
-            .serialize(&self.key_switching_key)
+            .serialize(&tmp_ksk)
             .map_err(serde::ser::Error::custom)?;
         let bootstrapping_key = fft_ser_eng
             .serialize(&self.bootstrapping_key)
@@ -583,10 +586,12 @@ impl<'de> Deserialize<'de> for ServerKey {
         let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
         let mut fft_ser_eng = FftSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
 
+        let tmp_ksk: LweKeyswitchKey64 = ser_eng
+            .deserialize(thing.key_switching_key.as_slice())
+            .map_err(serde::de::Error::custom)?;
+
         Ok(Self {
-            key_switching_key: ser_eng
-                .deserialize(thing.key_switching_key.as_slice())
-                .map_err(serde::de::Error::custom)?,
+            key_switching_key: tmp_ksk.into(),
             bootstrapping_key: fft_ser_eng
                 .deserialize(thing.bootstrapping_key.as_slice())
                 .map_err(serde::de::Error::custom)?,

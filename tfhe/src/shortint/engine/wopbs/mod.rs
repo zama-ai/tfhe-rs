@@ -1,8 +1,11 @@
 //! # WARNING: this module is experimental.
+use crate::core_crypto::algorithms::glwe_secret_key_generation::allocate_and_generate_new_binary_glwe_secret_key;
 use crate::core_crypto::algorithms::lwe_encryption::allocate_and_trivially_encrypt_new_lwe_ciphertext;
+use crate::core_crypto::algorithms::lwe_keyswitch_key_generation::allocate_and_generate_new_binary_binary_lwe_keyswitch_key;
 use crate::core_crypto::algorithms::lwe_linear_algebra::lwe_ciphertext_in_place_subtraction;
-use crate::core_crypto::entities::encoded::Encoded;
+use crate::core_crypto::algorithms::lwe_secret_key_generation::allocate_and_generate_new_binary_lwe_secret_key;
 use crate::core_crypto::entities::lwe_ciphertext::LweCiphertext;
+use crate::core_crypto::entities::plaintext::Plaintext;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
@@ -34,7 +37,7 @@ impl ShortintEngine {
         let wopbs_key = WopbsKey {
             wopbs_server_key: sks_cpy.clone(),
             cbs_pfpksk,
-            ksk_pbs_to_wopbs: sks.key_switching_key.clone(),
+            ksk_pbs_to_wopbs: sks.key_switching_key.clone().into(),
             param: cks.parameters,
             pbs_server_key: sks_cpy,
         };
@@ -49,24 +52,25 @@ impl ShortintEngine {
         parameters: &Parameters,
     ) -> EngineResult<WopbsKey> {
         //Independent client key generation dedicated to the WoPBS
-        let small_lwe_secret_key: LweSecretKey64 = self
-            .engine
-            .generate_new_lwe_secret_key(parameters.lwe_dimension)?;
+        let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            parameters.lwe_dimension,
+            self.engine.get_secret_generator(),
+        );
 
-        let glwe_secret_key: GlweSecretKey64 = self
-            .engine
-            .generate_new_glwe_secret_key(parameters.glwe_dimension, parameters.polynomial_size)?;
+        let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+            parameters.glwe_dimension,
+            parameters.polynomial_size,
+            self.engine.get_secret_generator(),
+        );
 
-        let large_lwe_secret_key = self
-            .engine
-            .transform_glwe_secret_key_to_lwe_secret_key(glwe_secret_key.clone())?;
+        let large_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
 
         //BSK dedicated to the WoPBS
         let var_rlwe = Variance(parameters.glwe_modular_std_dev.get_variance());
 
         let bootstrap_key: LweBootstrapKey64 = self.par_engine.generate_new_lwe_bootstrap_key(
-            &small_lwe_secret_key,
-            &glwe_secret_key,
+            &small_lwe_secret_key.clone().into(),
+            &glwe_secret_key.clone().into(),
             parameters.pbs_base_log,
             parameters.pbs_level,
             var_rlwe,
@@ -79,43 +83,49 @@ impl ShortintEngine {
         // Convert into a variance for lwe context
         let var_lwe = Variance(parameters.lwe_modular_std_dev.get_variance());
         //KSK encryption_key -> small WoPBS key (used in the 1st KS in the extract bit)
-        let ksk_wopbs_large_to_wopbs_small = self.engine.generate_new_lwe_keyswitch_key(
-            &large_lwe_secret_key,
-            &small_lwe_secret_key,
-            parameters.ks_level,
-            parameters.ks_base_log,
-            var_lwe,
-        )?;
+        let ksk_wopbs_large_to_wopbs_small =
+            allocate_and_generate_new_binary_binary_lwe_keyswitch_key(
+                &large_lwe_secret_key,
+                &small_lwe_secret_key,
+                parameters.ks_base_log,
+                parameters.ks_level,
+                var_lwe,
+                self.engine.get_encryption_generator(),
+            );
 
         //KSK to convert from input ciphertext key to the wopbs input one
         // TODO REFACTOR
         // Remove the clone + into
-        let ksk_pbs_large_to_wopbs_large = self.engine.generate_new_lwe_keyswitch_key(
-            &cks.lwe_secret_key.clone().into(),
-            &large_lwe_secret_key,
-            cks.parameters.ks_level,
-            cks.parameters.ks_base_log,
-            var_lwe,
-        )?;
+        let ksk_pbs_large_to_wopbs_large =
+            allocate_and_generate_new_binary_binary_lwe_keyswitch_key(
+                &cks.lwe_secret_key,
+                &large_lwe_secret_key,
+                cks.parameters.ks_base_log,
+                cks.parameters.ks_level,
+                var_lwe,
+                self.engine.get_encryption_generator(),
+            );
 
         //KSK large_wopbs_key -> small PBS key (used after the WoPBS computation to compute a
         // classical PBS. This allows compatibility between PBS and WoPBS
         // TODO REFACTOR
         // Remove the clone + into
         let var_lwe_pbs = Variance(cks.parameters.lwe_modular_std_dev.get_variance());
-        let ksk_wopbs_large_to_pbs_small = self.engine.generate_new_lwe_keyswitch_key(
-            &large_lwe_secret_key,
-            &cks.lwe_secret_key_after_ks.clone().into(),
-            cks.parameters.ks_level,
-            cks.parameters.ks_base_log,
-            var_lwe_pbs,
-        )?;
+        let ksk_wopbs_large_to_pbs_small =
+            allocate_and_generate_new_binary_binary_lwe_keyswitch_key(
+                &large_lwe_secret_key,
+                &cks.lwe_secret_key_after_ks,
+                cks.parameters.ks_base_log,
+                cks.parameters.ks_level,
+                var_lwe_pbs,
+                self.engine.get_encryption_generator(),
+            );
 
         let cbs_pfpksk = self
             .engine
             .generate_new_lwe_circuit_bootstrap_private_functional_packing_keyswitch_keys(
-                &large_lwe_secret_key,
-                &glwe_secret_key,
+                &large_lwe_secret_key.into(),
+                &glwe_secret_key.into(),
                 parameters.pfks_base_log,
                 parameters.pfks_level,
                 Variance(parameters.pfks_modular_std_dev.get_variance()),
@@ -143,7 +153,7 @@ impl ShortintEngine {
             wopbs_server_key,
             pbs_server_key,
             cbs_pfpksk,
-            ksk_pbs_to_wopbs: ksk_pbs_large_to_wopbs_large,
+            ksk_pbs_to_wopbs: ksk_pbs_large_to_wopbs_large.into(),
             param: *parameters,
         };
         Ok(wopbs_key)
@@ -160,7 +170,7 @@ impl ShortintEngine {
 
         let lwe_size = server_key
             .key_switching_key
-            .output_lwe_dimension()
+            .output_key_lwe_dimension()
             .to_lwe_size();
         let mut output = self.engine.create_lwe_ciphertext_vector_from(
             vec![0u64; lwe_size.0 * extracted_bit_count.0],
@@ -171,7 +181,7 @@ impl ShortintEngine {
             &mut LweCiphertextVectorMutView64(output.0.as_mut_view()),
             &lwe_in.as_old_ct_view(),
             &server_key.bootstrapping_key,
-            &server_key.key_switching_key,
+            &server_key.key_switching_key.clone().into(),
             extracted_bit_count,
             DeltaLog(delta_log.0),
         )?;
@@ -293,7 +303,7 @@ impl ShortintEngine {
 
         // To make borrow checker happy
         let engine = &mut self.engine;
-        let encoded_zero = Encoded(0);
+        let encoded_zero = Plaintext(0);
 
         let mut buffer_lwe_after_ks = allocate_and_trivially_encrypt_new_lwe_ciphertext(
             wopbs_key
@@ -334,7 +344,7 @@ impl ShortintEngine {
         engine.discard_keyswitch_lwe_ciphertext(
             &mut LweCiphertextMutView64(buffers.buffer_lwe_after_ks.0.as_mut_view()),
             &ct_in.ct.as_old_ct_view(),
-            &wopbs_key.pbs_server_key.key_switching_key,
+            &wopbs_key.pbs_server_key.key_switching_key.clone().into(),
         )?;
 
         let out_lwe_size = wopbs_key

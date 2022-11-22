@@ -5,17 +5,19 @@ use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGen
 use crate::core_crypto::commons::math::random::ByteRandomGenerator;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::traits::{Container, ContainerMut};
-use crate::core_crypto::entities::encoded::Encoded;
+use crate::core_crypto::commons::traits::{Container, ContainerMut, *};
 use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextBase};
+use crate::core_crypto::entities::lwe_ciphertext_list::LweCiphertextListBase;
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKeyBase;
+use crate::core_crypto::entities::plaintext::Plaintext;
+use crate::core_crypto::entities::plaintext_list::PlaintextListBase;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::LweSize;
 
 pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     lwe_secret_key: &LweSecretKeyBase<KeyCont>,
     output: &mut LweCiphertextBase<OutputCont>,
-    encoded: Encoded<Scalar>,
+    encoded: Plaintext<Scalar>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -39,7 +41,7 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 
 pub fn allocate_and_encrypt_new_lwe_ciphertext<Scalar, KeyCont, Gen>(
     lwe_secret_key: &LweSecretKeyBase<KeyCont>,
-    encoded: Encoded<Scalar>,
+    encoded: Plaintext<Scalar>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweCiphertext<Scalar>
@@ -63,7 +65,7 @@ where
 
 pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
     output: &mut LweCiphertextBase<OutputCont>,
-    encoded: Encoded<Scalar>,
+    encoded: Plaintext<Scalar>,
 ) where
     Scalar: UnsignedTorus,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -78,12 +80,12 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 
 pub fn allocate_and_trivially_encrypt_new_lwe_ciphertext<Scalar>(
     lwe_size: LweSize,
-    encoded: Encoded<Scalar>,
+    encoded: Plaintext<Scalar>,
 ) -> LweCiphertext<Scalar>
 where
     Scalar: UnsignedTorus,
 {
-    let mut new_ct = LweCiphertext::from_container(vec![Scalar::ZERO; lwe_size.0]);
+    let mut new_ct = LweCiphertext::new(Scalar::ZERO, lwe_size);
 
     *new_ct.get_mut_body().0 = encoded.0;
 
@@ -93,7 +95,7 @@ where
 pub fn decrypt_lwe_ciphertext<Scalar, KeyCont, InputCont>(
     lwe_secret_key: &LweSecretKeyBase<KeyCont>,
     lwe_ciphertext: &LweCiphertextBase<InputCont>,
-) -> Encoded<Scalar>
+) -> Plaintext<Scalar>
 where
     Scalar: UnsignedInteger,
     KeyCont: Container<Element = Scalar>,
@@ -101,8 +103,40 @@ where
 {
     let (mask, body) = lwe_ciphertext.get_mask_and_body();
 
-    Encoded(
+    Plaintext(
         body.0
             .wrapping_sub(wrapping_dot_product(mask.as_ref(), lwe_secret_key.as_ref())),
     )
+}
+
+pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
+    lwe_secret_key: &LweSecretKeyBase<KeyCont>,
+    output: &mut LweCiphertextListBase<OutputCont>,
+    encoded: &PlaintextListBase<InputCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        output.ciphertext_count().0 == encoded.plaintext_count().0,
+        "Mismatch between number of output cipertexts and input plaintexts. \
+        Got {:?} plaintexts, and {:?} ciphertext.",
+        encoded.plaintext_count(),
+        output.ciphertext_count()
+    );
+
+    for (encoded_plaintext_ref, mut ciphertext) in encoded.iter().zip(output.iter_mut()) {
+        encrypt_lwe_ciphertext(
+            lwe_secret_key,
+            &mut ciphertext,
+            encoded_plaintext_ref.into(),
+            noise_parameters,
+            generator,
+        )
+    }
 }
