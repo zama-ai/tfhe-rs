@@ -5,6 +5,7 @@ TARGET_ARCH_FEATURE:=$(shell ./scripts/get_arch_feature.sh)
 RS_BUILD_TOOLCHAIN:=$(shell \
 	( (echo $(TARGET_ARCH_FEATURE) | grep -q x86) && echo stable) || echo $(RS_CHECK_TOOLCHAIN))
 CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
+MIN_RUST_VERSION:=1.65
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the termianl and change them if required without forgetting the flags
 export RUSTFLAGS:=-C target-cpu=native
@@ -26,7 +27,10 @@ install_rs_check_toolchain:
 
 .PHONY: install_rs_build_toolchain # Install the toolchain used for builds
 install_rs_build_toolchain:
-	@rustup toolchain list | grep -q "$(RS_BUILD_TOOLCHAIN)" || \
+	@( rustup toolchain list | grep -q "$(RS_BUILD_TOOLCHAIN)" && \
+	./scripts/check_cargo_min_ver.sh \
+	--rust-toolchain "$(CARGO_RS_BUILD_TOOLCHAIN)" \
+	--min-rust-version "$(MIN_RUST_VERSION)" ) || \
 	rustup toolchain install --profile default "$(RS_BUILD_TOOLCHAIN)" || \
 	echo "Unable to install $(RS_BUILD_TOOLCHAIN) toolchain, check your rustup installation. \
 	Rustup can be downloaded at https://rustup.rs/"
