@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::{CiphertextCount, LweSize};
+use crate::core_crypto::specification::parameters::{LweCiphertextCount, LweSize};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LweCiphertextListBase<C: Container> {
@@ -26,7 +26,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertextListBase<C> {
             container.container_len() % lwe_size.0 == 0,
             "The provided container length is not valid. \
         It needs to be dividable by lwe_size. \
-        Got container length: {} and lwe_size: {lwe_size:?}",
+        Got container length: {} and lwe_size: {lwe_size:?}.",
             container.container_len()
         );
         LweCiphertextListBase {
@@ -39,8 +39,8 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertextListBase<C> {
         self.lwe_size
     }
 
-    pub fn ciphertext_count(&self) -> CiphertextCount {
-        CiphertextCount(self.data.container_len() / self.lwe_size.0)
+    pub fn lwe_ciphertext_count(&self) -> LweCiphertextCount {
+        LweCiphertextCount(self.data.container_len() / self.lwe_size.0)
     }
 }
 
@@ -52,7 +52,7 @@ impl<Scalar: Copy> LweCiphertextList<Scalar> {
     pub fn new(
         fill_with: Scalar,
         lwe_size: LweSize,
-        ciphertext_count: CiphertextCount,
+        ciphertext_count: LweCiphertextCount,
     ) -> LweCiphertextList<Scalar> {
         LweCiphertextList::from_container(
             vec![fill_with; lwe_size.0 * ciphertext_count.0],
