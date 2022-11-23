@@ -3,7 +3,7 @@
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::traits::{Container, ContainerMut};
+use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 pub fn lwe_ciphertext_in_place_addition<Scalar, LhsCont, RhsCont>(

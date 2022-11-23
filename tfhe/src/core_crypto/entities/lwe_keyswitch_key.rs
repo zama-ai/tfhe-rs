@@ -24,6 +24,13 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweKeyswitchKeyBase<C> {
     }
 }
 
+pub fn lwe_keyswitch_key_input_key_element_encrypted_size(
+    decomp_level_count: DecompositionLevelCount,
+    output_lwe_size: LweSize,
+) -> usize {
+    decomp_level_count.0 * output_lwe_size.0
+}
+
 impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKeyBase<C> {
     pub fn from_container(
         container: C,
@@ -38,9 +45,10 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKeyBase<C> {
         assert!(
             container.container_len() % (decomp_level_count.0 * output_lwe_size.0) == 0,
             "The provided container length is not valid. \
-        It needs to be dividable by decomp_level_count * output_lwe_size. \
-        Got container length: {} and decomp_level_count: {decomp_level_count:?} \
-        output_lwe_size: {output_lwe_size:?}",
+        It needs to be dividable by decomp_level_count * output_lwe_size: {}. \
+        Got container length: {} and decomp_level_count: {decomp_level_count:?}, \
+        output_lwe_size: {output_lwe_size:?}.",
+            decomp_level_count.0 * output_lwe_size.0,
             container.container_len()
         );
 
@@ -61,22 +69,51 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKeyBase<C> {
     }
 
     pub fn input_key_lwe_dimension(&self) -> LweDimension {
-        LweDimension(
-            self.data.container_len() / (self.output_lwe_size.0 * self.decomp_level_count.0),
-        )
+        LweDimension(self.data.container_len() / self.input_key_element_encrypted_size())
     }
 
     pub fn output_key_lwe_dimension(&self) -> LweDimension {
         self.output_lwe_size.to_lwe_dimension()
     }
 
+    pub fn output_lwe_size(&self) -> LweSize {
+        self.output_lwe_size
+    }
+
     pub fn input_key_element_encrypted_size(&self) -> usize {
         // One ciphertext per level encrypted under the output key
-        self.decomp_level_count.0 * self.output_lwe_size.0
+        lwe_keyswitch_key_input_key_element_encrypted_size(
+            self.decomp_level_count,
+            self.output_lwe_size,
+        )
     }
 }
 
 pub type LweKeyswitchKey<Scalar> = LweKeyswitchKeyBase<Vec<Scalar>>;
+
+impl<Scalar: Copy> LweKeyswitchKey<Scalar> {
+    pub fn new(
+        fill_with: Scalar,
+        decomp_base_log: DecompositionBaseLog,
+        decomp_level_count: DecompositionLevelCount,
+        input_key_lwe_dimension: LweDimension,
+        output_key_lwe_dimension: LweDimension,
+    ) -> LweKeyswitchKey<Scalar> {
+        LweKeyswitchKey::from_container(
+            vec![
+                fill_with;
+                input_key_lwe_dimension.0
+                    * lwe_keyswitch_key_input_key_element_encrypted_size(
+                        decomp_level_count,
+                        output_key_lwe_dimension.to_lwe_size()
+                    )
+            ],
+            decomp_base_log,
+            decomp_level_count,
+            output_key_lwe_dimension.to_lwe_size(),
+        )
+    }
+}
 
 impl<C: Container> ContiguousEntityContainer for LweKeyswitchKeyBase<C> {
     type PODElement = C::Element;
@@ -96,7 +133,7 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKeyBase<C> {
         Self: 'this;
 
     fn get_element_view_creation_metadata(&self) -> Self::ElementViewMetadata {
-        LweCiphertextListCreationMetadata(self.output_key_lwe_dimension().to_lwe_size())
+        LweCiphertextListCreationMetadata(self.output_lwe_size())
     }
 
     fn get_element_view_pod_size(&self) -> usize {
@@ -120,28 +157,6 @@ impl<C: ContainerMut> ContiguousEntityContainerMut for LweKeyswitchKeyBase<C> {
     type SelfMutView<'this> = DummyCreateFrom
     where
         Self: 'this;
-}
-
-impl<Scalar: Copy> LweKeyswitchKey<Scalar> {
-    pub fn new(
-        fill_with: Scalar,
-        decomp_base_log: DecompositionBaseLog,
-        decomp_level_count: DecompositionLevelCount,
-        input_key_lwe_dimension: LweDimension,
-        output_key_lwe_dimension: LweDimension,
-    ) -> LweKeyswitchKey<Scalar> {
-        LweKeyswitchKey::from_container(
-            vec![
-                fill_with;
-                decomp_level_count.0
-                    * output_key_lwe_dimension.to_lwe_size().0
-                    * input_key_lwe_dimension.0
-            ],
-            decomp_base_log,
-            decomp_level_count,
-            output_key_lwe_dimension.to_lwe_size(),
-        )
-    }
 }
 
 // TODO REFACTOR

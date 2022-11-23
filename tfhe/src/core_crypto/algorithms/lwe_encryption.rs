@@ -5,7 +5,7 @@ use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGen
 use crate::core_crypto::commons::math::random::ByteRandomGenerator;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::commons::traits::{Container, ContainerMut, *};
+use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::LweSize;
@@ -119,11 +119,11 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
     Gen: ByteRandomGenerator,
 {
     assert!(
-        output.ciphertext_count().0 == encoded.plaintext_count().0,
+        output.lwe_ciphertext_count().0 == encoded.plaintext_count().0,
         "Mismatch between number of output cipertexts and input plaintexts. \
         Got {:?} plaintexts, and {:?} ciphertext.",
         encoded.plaintext_count(),
-        output.ciphertext_count()
+        output.lwe_ciphertext_count()
     );
 
     for (encoded_plaintext_ref, mut ciphertext) in encoded.iter().zip(output.iter_mut()) {
