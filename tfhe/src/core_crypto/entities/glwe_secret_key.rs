@@ -1,4 +1,4 @@
-use crate::core_crypto::commons::traits::{Container, ContainerMut};
+use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::{GlweDimension, PolynomialSize};
 

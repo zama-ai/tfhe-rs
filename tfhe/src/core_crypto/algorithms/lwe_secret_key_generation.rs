@@ -3,7 +3,7 @@ use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, RandomGenerable, UniformBinary,
 };
 use crate::core_crypto::commons::numeric::Numeric;
-use crate::core_crypto::commons::traits::ContainerMut;
+use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::LweDimension;
 
