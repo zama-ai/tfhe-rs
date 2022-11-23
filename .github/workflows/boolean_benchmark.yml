@@ -71,7 +71,7 @@ jobs:
           COMMIT_DATE="$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})"
           COMMIT_HASH="$(git describe --tags --dirty)"
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
-          --schema tfhe_rs_benchmarks \
+          --database tfhe_rs_benchmarks \
           --hardware ${{ inputs.instance_type }} \
           --project-version ${COMMIT_HASH} \
           --branch ${{ github.ref_name }} \
