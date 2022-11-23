@@ -108,8 +108,6 @@ pub trait ContiguousEntityContainer: AsRef<[Self::PODElement]> {
 
         let (container_left, container_right) = self.as_ref().split_at(mid);
 
-        // The assumption is that if the Self object exists then it is valid and creating new
-        // views on it will succeed
         (
             Self::SelfView::<'_>::create_from(container_left, self_meta),
             Self::SelfView::<'_>::create_from(container_right, self_meta),
