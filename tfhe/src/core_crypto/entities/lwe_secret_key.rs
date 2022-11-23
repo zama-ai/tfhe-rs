@@ -1,4 +1,4 @@
-use crate::core_crypto::commons::traits::{Container, ContainerMut};
+use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::prelude::LweDimension;
 
 #[derive(Clone, Debug, PartialEq)]
