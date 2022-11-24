@@ -1,8 +1,6 @@
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, LweDimension, LweSize,
-};
+use crate::core_crypto::specification::parameters::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LweKeyswitchKeyBase<C: Container> {
@@ -132,7 +130,7 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKeyBase<C> {
     where
         Self: 'this;
 
-    fn get_element_view_creation_metadata(&self) -> Self::ElementViewMetadata {
+    fn get_element_view_creation_metadata(&self) -> LweCiphertextListCreationMetadata {
         LweCiphertextListCreationMetadata(self.output_lwe_size())
     }
 
@@ -142,8 +140,11 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKeyBase<C> {
 
     /// Unimplement for [`LweKeyswitchKeyBase`]. At the moment it does not make sense to
     /// return "sub" keyswitch keys.
-    fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        unimplemented!("At the moment it does not make sense to return 'sub' keyswitch keys.")
+    fn get_self_view_creation_metadata(&self) {
+        unimplemented!(
+            "This function is not supported for LweKeyswitchKey. \
+        At the moment it does not make sense to return 'sub' keyswitch keys."
+        )
     }
 }
 
