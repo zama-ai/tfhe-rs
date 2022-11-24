@@ -176,17 +176,19 @@ TFHE-rs supports both private and public key encryption methods. Note that the o
 Here is a small example on how to use public encryption:
 
 ```rust
-use tfhe::boolean::prelude::*;
+use tfhe::shortint::prelude::*;
 
 fn main() {
     // Generate the client key and the server key:
-    let (cks, mut sks) = gen_keys();
+    let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     let pks = PublicKey::new(&cks);
+
+    let msg = 2;
     // Encryption of one message:
-    let ct = pks.encrypt(true);
+    let ct = pks.encrypt(&sks, msg);
     // Decryption:
     let dec = cks.decrypt(&ct);
-    assert_eq!(true, dec);
+    assert_eq!(dec, msg);
 }
 ```
 
