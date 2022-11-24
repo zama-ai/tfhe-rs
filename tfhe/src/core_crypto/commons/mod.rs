@@ -179,51 +179,44 @@ pub mod test_tools {
 
     /// Returns a random plaintext count in [1;max].
     pub fn random_plaintext_count(max: usize) -> PlaintextCount {
-        assert_ne!(max, 0, "Max cannot be 0");
-        let mut rng = rand::thread_rng();
-        PlaintextCount((rng.gen::<usize>() % (max - 1)) + 1)
+        let max = std::cmp::max(2, max);
+        PlaintextCount(random_usize_between(1..max + 1))
     }
 
     /// Returns a random ciphertext count in [1;max].
     pub fn random_ciphertext_count(max: usize) -> CiphertextCount {
-        assert_ne!(max, 0, "Max cannot be 0");
-        let mut rng = rand::thread_rng();
-        CiphertextCount((rng.gen::<usize>() % (max - 1)) + 1)
+        let max = std::cmp::max(2, max);
+        CiphertextCount(random_usize_between(1..max + 1))
     }
 
     /// Returns a random LWE dimension in [1;max].
     pub fn random_lwe_dimension(max: usize) -> LweDimension {
-        assert_ne!(max, 0, "Max cannot be 0");
-        let mut rng = rand::thread_rng();
-        LweDimension((rng.gen::<usize>() % (max - 1)) + 1)
+        let max = std::cmp::max(2, max);
+        LweDimension(random_usize_between(1..max + 1))
     }
 
     /// Returns a random GLWE dimension in [1;max].
     pub fn random_glwe_dimension(max: usize) -> GlweDimension {
-        assert_ne!(max, 0, "Max cannot be 0");
-        let mut rng = rand::thread_rng();
-        GlweDimension((rng.gen::<usize>() % (max - 1)) + 1)
+        let max = std::cmp::max(2, max);
+        GlweDimension(random_usize_between(1..max + 1))
     }
 
     /// Returns a random polynomial size in [2;max].
     pub fn random_polynomial_size(max: usize) -> PolynomialSize {
-        assert_ne!(max, 0, "Max cannot be 0");
-        let mut rng = rand::thread_rng();
-        PolynomialSize((rng.gen::<usize>() % (max - 2)) + 2)
+        let max = std::cmp::max(3, max);
+        PolynomialSize(random_usize_between(2..max + 1))
     }
 
     /// Returns a random base log in [2;max].
     pub fn random_base_log(max: usize) -> DecompositionBaseLog {
-        assert_ne!(max, 0, "Max cannot be 0");
-        let mut rng = rand::thread_rng();
-        DecompositionBaseLog((rng.gen::<usize>() % (max - 2)) + 2)
+        let max = std::cmp::max(3, max);
+        DecompositionBaseLog(random_usize_between(2..max + 1))
     }
 
     /// Returns a random level count in [2;max].
     pub fn random_level_count(max: usize) -> DecompositionLevelCount {
-        assert_ne!(max, 0, "Max cannot be 0");
-        let mut rng = rand::thread_rng();
-        DecompositionLevelCount((rng.gen::<usize>() % (max - 2)) + 2)
+        let max = std::cmp::max(3, max);
+        DecompositionLevelCount(random_usize_between(2..max + 1))
     }
 
     pub fn random_i32_between(range: std::ops::Range<i32>) -> i32 {

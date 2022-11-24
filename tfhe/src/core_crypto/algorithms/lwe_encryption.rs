@@ -8,7 +8,7 @@ use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
-use crate::core_crypto::specification::parameters::LweSize;
+use crate::core_crypto::specification::parameters::*;
 
 pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     lwe_secret_key: &LweSecretKeyBase<KeyCont>,
@@ -22,6 +22,14 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    assert!(
+        output.lwe_size().to_lwe_dimension() == lwe_secret_key.lwe_dimension(),
+        "Mismatch between LweDimension of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output.lwe_size().to_lwe_dimension(),
+        lwe_secret_key.lwe_dimension()
+    );
+
     let (mut mask, body) = output.get_mut_mask_and_body();
 
     generator.fill_slice_with_random_mask(mask.as_mut());
@@ -97,6 +105,14 @@ where
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
 {
+    assert!(
+        lwe_ciphertext.lwe_size().to_lwe_dimension() == lwe_secret_key.lwe_dimension(),
+        "Mismatch between LweDimension of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        lwe_ciphertext.lwe_size().to_lwe_dimension(),
+        lwe_secret_key.lwe_dimension()
+    );
+
     let (mask, body) = lwe_ciphertext.get_mask_and_body();
 
     Plaintext(

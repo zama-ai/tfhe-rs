@@ -113,6 +113,17 @@ pub trait ContiguousEntityContainer: AsRef<[Self::PODElement]> {
             Self::SelfView::<'_>::create_from(container_right, self_meta),
         )
     }
+
+    fn get(&self, index: usize) -> Self::ElementView<'_> {
+        // index here is the number of ref_elements, we need to multiply by the size of a single
+        // element to know where to reference the underlying container
+
+        let start = index * self.get_element_view_pod_size();
+        let stop = start + self.get_element_view_pod_size();
+        let meta = self.get_element_view_creation_metadata();
+
+        Self::ElementView::<'_>::create_from(&self.as_ref()[start..stop], meta)
+    }
 }
 
 pub trait ContiguousEntityContainerMut:
@@ -170,5 +181,16 @@ pub trait ContiguousEntityContainerMut:
             Self::SelfMutView::<'_>::create_from(container_left, self_meta),
             Self::SelfMutView::<'_>::create_from(container_right, self_meta),
         )
+    }
+
+    fn get_mut(&mut self, index: usize) -> Self::ElementMutView<'_> {
+        // index here is the number of ref_elements, we need to multiply by the size of a single
+        // element to know where to reference the underlying container
+
+        let start = index * self.get_element_view_pod_size();
+        let stop = start + self.get_element_view_pod_size();
+        let meta = self.get_element_view_creation_metadata();
+
+        Self::ElementMutView::<'_>::create_from(&mut self.as_mut()[start..stop], meta)
     }
 }

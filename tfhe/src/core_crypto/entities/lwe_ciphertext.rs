@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::specification::parameters::{LweDimension, LweSize};
+use crate::core_crypto::specification::parameters::*;
 
 pub struct LweBody<T>(pub T);
 pub struct LweMask<C: Container> {
