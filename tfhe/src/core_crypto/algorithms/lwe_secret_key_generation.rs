@@ -5,7 +5,7 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::numeric::Numeric;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::LweDimension;
+use crate::core_crypto::specification::parameters::*;
 
 pub fn allocate_and_generate_new_binary_lwe_secret_key<Scalar, Gen>(
     lwe_dimension: LweDimension,
