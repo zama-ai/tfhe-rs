@@ -3,6 +3,7 @@ use crate::core_crypto::commons::math::random::{
     UniformWithZeros,
 };
 use crate::core_crypto::commons::math::tensor::{AsMutSlice, AsMutTensor, Tensor};
+use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{FloatingPoint, Numeric};
 use concrete_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 #[cfg(feature = "__commons_parallel")]
@@ -620,6 +621,27 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
                     *elem = g2;
                 }
             });
+    }
+
+    pub fn update_slice_with_wrapping_add_random_gaussian<Float, Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        mean: Float,
+        std: Float,
+    ) where
+        Scalar: UnsignedTorus,
+        Float: FloatingPoint,
+        (Scalar, Scalar): RandomGenerable<Gaussian<Float>>,
+    {
+        output.chunks_mut(2).for_each(|s| {
+            let (g1, g2) = <(Scalar, Scalar)>::generate_one(self, Gaussian { std, mean });
+            if let Some(elem) = s.get_mut(0) {
+                *elem = (*elem).wrapping_add(g1);
+            }
+            if let Some(elem) = s.get_mut(1) {
+                *elem = (*elem).wrapping_add(g2);
+            }
+        });
     }
 
     /// Generates a new tensor of floating point values, randomly sampled from a gaussian
