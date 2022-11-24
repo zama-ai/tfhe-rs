@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::{GlweDimension, PolynomialSize};
+use crate::core_crypto::specification::parameters::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GlweSecretKeyBase<C: Container> {
@@ -49,6 +49,10 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKeyBase<C> {
 
     pub fn into_lwe_secret_key(self) -> LweSecretKeyBase<C> {
         LweSecretKeyBase::from_container(self.data)
+    }
+
+    pub fn as_polynomial_list(&self) -> PolynomialListView<'_, C::Element> {
+        PolynomialListView::from_container(self.as_ref(), self.polynomial_size)
     }
 }
 

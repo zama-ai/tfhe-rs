@@ -44,7 +44,7 @@ pub fn lwe_ciphertext_in_place_cleartext_multiplication<Scalar, InCont>(
     Scalar: UnsignedInteger,
     InCont: ContainerMut<Element = Scalar>,
 {
-    update_with_scalar_wrapping_mul(lhs.as_mut(), rhs.0);
+    update_with_wrapping_scalar_mul(lhs.as_mut(), rhs.0);
 }
 
 pub fn lwe_ciphertext_in_place_subtraction<Scalar, LhsCont, RhsCont>(

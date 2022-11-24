@@ -77,7 +77,7 @@ where
         .for_each(|elt| *elt = (*elt).wrapping_neg());
 }
 
-pub fn update_with_scalar_wrapping_mul<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
+pub fn update_with_wrapping_scalar_mul<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
 where
     Scalar: UnsignedInteger,
 {

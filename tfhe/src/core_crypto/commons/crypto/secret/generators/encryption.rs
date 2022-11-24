@@ -4,6 +4,7 @@ use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, Gaussian, RandomGenerable, RandomGenerator, Seed, Seeder, Uniform,
 };
 use crate::core_crypto::commons::math::tensor::AsMutTensor;
+use crate::core_crypto::commons::math::torus::UnsignedTorus;
 
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::prelude::{
@@ -201,6 +202,22 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     {
         self.noise
             .fill_tensor_with_random_gaussian(output, 0., std.get_standard_dev());
+    }
+
+    // Adds noise on top of existing data for in place encryption
+    pub(crate) fn update_slice_with_wrapping_add_random_noise<Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        std: impl DispersionParameter,
+    ) where
+        Scalar: UnsignedTorus,
+        (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
+    {
+        self.noise.update_slice_with_wrapping_add_random_gaussian(
+            output,
+            0.,
+            std.get_standard_dev(),
+        );
     }
 }
 

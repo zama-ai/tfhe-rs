@@ -1,8 +1,7 @@
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::{LweCiphertextCount, LweSize};
+use crate::core_crypto::specification::parameters::*;
 
-#[derive(Clone, Debug, PartialEq)]
 pub struct LweCiphertextListBase<C: Container> {
     data: C,
     lwe_size: LweSize,

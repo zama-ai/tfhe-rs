@@ -6,9 +6,7 @@ use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
-use crate::core_crypto::specification::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, PlaintextCount,
-};
+use crate::core_crypto::specification::parameters::*;
 
 pub fn generate_binary_binary_lwe_keyswitch_key<
     Scalar,
