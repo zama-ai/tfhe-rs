@@ -8,13 +8,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::*;
 
-pub fn generate_binary_binary_lwe_keyswitch_key<
-    Scalar,
-    InputKeyCont,
-    OutputKeyCont,
-    KSKeyCont,
-    Gen,
->(
+pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont, Gen>(
     input_lwe_sk: &LweSecretKeyBase<InputKeyCont>,
     output_lwe_sk: &LweSecretKeyBase<OutputKeyCont>,
     lwe_keyswitch_key: &mut LweKeyswitchKeyBase<KSKeyCont>,
@@ -74,12 +68,7 @@ pub fn generate_binary_binary_lwe_keyswitch_key<
     }
 }
 
-pub fn allocate_and_generate_new_binary_binary_lwe_keyswitch_key<
-    Scalar,
-    InputKeyCont,
-    OutputKeyCont,
-    Gen,
->(
+pub fn allocate_and_generate_new_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     input_lwe_sk: &LweSecretKeyBase<InputKeyCont>,
     output_lwe_sk: &LweSecretKeyBase<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
@@ -101,7 +90,7 @@ where
         output_lwe_sk.lwe_dimension(),
     );
 
-    generate_binary_binary_lwe_keyswitch_key(
+    generate_lwe_keyswitch_key(
         input_lwe_sk,
         output_lwe_sk,
         &mut new_lwe_keyswitch_key,

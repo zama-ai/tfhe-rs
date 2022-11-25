@@ -51,7 +51,7 @@ impl ShortintEngine {
             self.fft_engine.convert_lwe_bootstrap_key(&bsk)?;
 
         // Creation of the key switching key
-        let key_switching_key = allocate_and_generate_new_binary_binary_lwe_keyswitch_key(
+        let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
             &cks.lwe_secret_key,
             &cks.lwe_secret_key_after_ks,
             cks.parameters.ks_base_log,
