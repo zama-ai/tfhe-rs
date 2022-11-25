@@ -7,6 +7,7 @@ use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
+use crate::core_crypto::specification::parameters::*;
 #[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 
@@ -71,6 +72,46 @@ pub fn generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCon
     }
 }
 
+pub fn allocate_and_generate_new_lwe_bootstrap_key<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    OutputCont,
+    Gen,
+>(
+    input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKeyBase<OutputKeyCont>,
+    decomp_base_log: DecompositionBaseLog,
+    decomp_level_count: DecompositionLevelCount,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) -> LweBootstrapKey<Scalar>
+where
+    Scalar: UnsignedTorus,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    let mut bsk = LweBootstrapKey::new(
+        Scalar::ZERO,
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        output_glwe_secret_key.polynomial_size(),
+        decomp_base_log,
+        decomp_level_count,
+        input_lwe_secret_key.lwe_dimension(),
+    );
+
+    generate_lwe_bootstrap_key(
+        input_lwe_secret_key,
+        output_glwe_secret_key,
+        &mut bsk,
+        noise_parameters,
+        generator,
+    );
+
+    bsk
+}
+
 #[cfg(feature = "__commons_parallel")]
 pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
     input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
@@ -131,6 +172,40 @@ pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Outpu
                 &mut generator,
             );
         })
+}
+
+pub fn par_allocate_and_generate_new_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
+    input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKeyBase<OutputKeyCont>,
+    decomp_base_log: DecompositionBaseLog,
+    decomp_level_count: DecompositionLevelCount,
+    noise_parameters: impl DispersionParameter + Sync,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) -> LweBootstrapKey<Scalar>
+where
+    Scalar: UnsignedTorus + Sync + Send,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar> + Sync,
+    Gen: ParallelByteRandomGenerator,
+{
+    let mut bsk = LweBootstrapKey::new(
+        Scalar::ZERO,
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        output_glwe_secret_key.polynomial_size(),
+        decomp_base_log,
+        decomp_level_count,
+        input_lwe_secret_key.lwe_dimension(),
+    );
+
+    par_generate_lwe_bootstrap_key(
+        input_lwe_secret_key,
+        output_glwe_secret_key,
+        &mut bsk,
+        noise_parameters,
+        generator,
+    );
+
+    bsk
 }
 
 #[cfg(test)]
