@@ -1,4 +1,6 @@
 use super::create_from::*;
+#[cfg(feature = "__commons_parallel")]
+use rayon::prelude::*;
 
 type WrappingFunction<'data, Element, WrappingType> = fn(
     (
@@ -11,6 +13,15 @@ type WrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::Chunks<'data, Element>,
         std::iter::Repeat<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
+    >,
+    WrappingFunction<'data, Element, WrappingType>,
+>;
+
+#[cfg(feature = "__commons_parallel")]
+type ParallelWrappingLendingIterator<'data, Element, WrappingType> = rayon::iter::Map<
+    rayon::iter::Zip<
+        rayon::slice::Chunks<'data, Element>,
+        rayon::iter::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
     >,
     WrappingFunction<'data, Element, WrappingType>,
 >;
@@ -36,6 +47,15 @@ type WrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::ChunksMut<'data, Element>,
         std::iter::Repeat<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
+    >,
+    WrappingFunctionMut<'data, Element, WrappingType>,
+>;
+
+#[cfg(feature = "__commons_parallel")]
+type ParallelWrappingLendingIteratorMut<'data, Element, WrappingType> = rayon::iter::Map<
+    rayon::iter::Zip<
+        rayon::slice::ChunksMut<'data, Element>,
+        rayon::iter::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
     >,
     WrappingFunctionMut<'data, Element, WrappingType>,
 >;
@@ -121,6 +141,24 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
 
         Self::EntityView::<'_>::create_from(&self.as_ref()[start..stop], meta)
     }
+
+    #[cfg(feature = "__commons_parallel")]
+    fn par_iter<'this>(
+        &'this self,
+    ) -> ParallelWrappingLendingIterator<'this, Self::Element, Self::EntityView<'this>>
+    where
+        Self::Element: Sync,
+        Self::EntityView<'this>: Send,
+        Self::EntityViewMetadata: Send,
+    {
+        let meta = self.get_entity_view_creation_metadata();
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let entity_count = self.as_ref().len() / entity_view_pod_size;
+        self.as_ref()
+            .par_chunks(entity_view_pod_size)
+            .zip(rayon::iter::repeatn(meta, entity_count))
+            .map(|(elt, meta)| Self::EntityView::<'this>::create_from(elt, meta))
+    }
 }
 
 pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self::Element]> {
@@ -187,5 +225,23 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let meta = self.get_entity_view_creation_metadata();
 
         Self::EntityMutView::<'_>::create_from(&mut self.as_mut()[start..stop], meta)
+    }
+
+    #[cfg(feature = "__commons_parallel")]
+    fn par_iter_mut<'this>(
+        &'this mut self,
+    ) -> ParallelWrappingLendingIteratorMut<'this, Self::Element, Self::EntityMutView<'this>>
+    where
+        Self::Element: Send + Sync,
+        Self::EntityMutView<'this>: Send,
+        Self::EntityViewMetadata: Send,
+    {
+        let meta = self.get_entity_view_creation_metadata();
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let entity_count = self.as_ref().len() / entity_view_pod_size;
+        self.as_mut()
+            .par_chunks_mut(entity_view_pod_size)
+            .zip(rayon::iter::repeatn(meta, entity_count))
+            .map(|(elt, meta)| Self::EntityMutView::<'this>::create_from(elt, meta))
     }
 }
