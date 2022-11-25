@@ -1,6 +1,7 @@
 pub mod ggsw_encryption;
 pub mod glwe_encryption;
 pub mod glwe_secret_key_generation;
+pub mod lwe_bootstrap_key_generation;
 pub mod lwe_ciphertext_keyswitch;
 pub mod lwe_encryption;
 pub mod lwe_keyswitch_key_generation;
@@ -14,6 +15,7 @@ pub mod slice_algorithms;
 pub use ggsw_encryption::*;
 pub use glwe_encryption::*;
 pub use glwe_secret_key_generation::*;
+pub use lwe_bootstrap_key_generation::*;
 pub use lwe_ciphertext_keyswitch::*;
 pub use lwe_encryption::*;
 pub use lwe_keyswitch_key_generation::*;
