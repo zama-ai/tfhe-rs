@@ -73,25 +73,25 @@ impl<C: Container> CreateFrom<C> for PolynomialListBase<C> {
 }
 
 impl<C: Container> ContiguousEntityContainer for PolynomialListBase<C> {
-    type PODElement = C::Element;
+    type Element = C::Element;
 
-    type ElementViewMetadata = PolynomialCreationMetadata;
+    type EntityViewMetadata = PolynomialCreationMetadata;
 
-    type ElementView<'this> = PolynomialView<'this, Self::PODElement>
+    type EntityView<'this> = PolynomialView<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = PolynomialListCreationMetadata;
 
-    type SelfView<'this> = PolynomialListView<'this, Self::PODElement>
+    type SelfView<'this> = PolynomialListView<'this, Self::Element>
     where
         Self: 'this;
 
-    fn get_element_view_creation_metadata(&self) -> Self::ElementViewMetadata {
+    fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
         PolynomialCreationMetadata()
     }
 
-    fn get_element_view_pod_size(&self) -> usize {
+    fn get_entity_view_pod_size(&self) -> usize {
         self.polynomial_size().0
     }
 
@@ -101,11 +101,11 @@ impl<C: Container> ContiguousEntityContainer for PolynomialListBase<C> {
 }
 
 impl<C: ContainerMut> ContiguousEntityContainerMut for PolynomialListBase<C> {
-    type ElementMutView<'this> = PolynomialMutView<'this, Self::PODElement>
+    type EntityMutView<'this> = PolynomialMutView<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = PolynomialListMutView<'this, Self::PODElement>
+    type SelfMutView<'this> = PolynomialListMutView<'this, Self::Element>
     where
         Self: 'this;
 }

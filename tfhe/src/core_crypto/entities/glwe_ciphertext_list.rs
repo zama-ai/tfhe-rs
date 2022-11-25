@@ -88,25 +88,25 @@ impl<C: Container> CreateFrom<C> for GlweCiphertextListBase<C> {
 }
 
 impl<C: Container> ContiguousEntityContainer for GlweCiphertextListBase<C> {
-    type PODElement = C::Element;
+    type Element = C::Element;
 
-    type ElementViewMetadata = GlweCiphertextCreationMetadata;
+    type EntityViewMetadata = GlweCiphertextCreationMetadata;
 
-    type ElementView<'this> = GlweCiphertextView<'this, Self::PODElement>
+    type EntityView<'this> = GlweCiphertextView<'this, Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = GlweCiphertextListCreationMetadata;
 
-    type SelfView<'this> = GlweCiphertextListView<'this, Self::PODElement>
+    type SelfView<'this> = GlweCiphertextListView<'this, Self::Element>
     where
         Self: 'this;
 
-    fn get_element_view_creation_metadata(&self) -> GlweCiphertextCreationMetadata {
+    fn get_entity_view_creation_metadata(&self) -> GlweCiphertextCreationMetadata {
         GlweCiphertextCreationMetadata(self.polynomial_size())
     }
 
-    fn get_element_view_pod_size(&self) -> usize {
+    fn get_entity_view_pod_size(&self) -> usize {
         glwe_ciphertext_size(self.polynomial_size(), self.glwe_size())
     }
 
@@ -116,11 +116,11 @@ impl<C: Container> ContiguousEntityContainer for GlweCiphertextListBase<C> {
 }
 
 impl<C: ContainerMut> ContiguousEntityContainerMut for GlweCiphertextListBase<C> {
-    type ElementMutView<'this> = GlweCiphertextMutView<'this, Self::PODElement>
+    type EntityMutView<'this> = GlweCiphertextMutView<'this, Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = GlweCiphertextListMutView<'this, Self::PODElement>
+    type SelfMutView<'this> = GlweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
 }

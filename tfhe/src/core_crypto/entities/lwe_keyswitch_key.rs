@@ -114,11 +114,11 @@ impl<Scalar: Copy> LweKeyswitchKey<Scalar> {
 }
 
 impl<C: Container> ContiguousEntityContainer for LweKeyswitchKeyBase<C> {
-    type PODElement = C::Element;
+    type Element = C::Element;
 
-    type ElementViewMetadata = LweCiphertextListCreationMetadata;
+    type EntityViewMetadata = LweCiphertextListCreationMetadata;
 
-    type ElementView<'this> = LweCiphertextListView<'this, Self::PODElement>
+    type EntityView<'this> = LweCiphertextListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -130,11 +130,11 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKeyBase<C> {
     where
         Self: 'this;
 
-    fn get_element_view_creation_metadata(&self) -> LweCiphertextListCreationMetadata {
+    fn get_entity_view_creation_metadata(&self) -> LweCiphertextListCreationMetadata {
         LweCiphertextListCreationMetadata(self.output_lwe_size())
     }
 
-    fn get_element_view_pod_size(&self) -> usize {
+    fn get_entity_view_pod_size(&self) -> usize {
         self.input_key_element_encrypted_size()
     }
 
@@ -149,7 +149,7 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKeyBase<C> {
 }
 
 impl<C: ContainerMut> ContiguousEntityContainerMut for LweKeyswitchKeyBase<C> {
-    type ElementMutView<'this> = LweCiphertextListMutView<'this, Self::PODElement>
+    type EntityMutView<'this> = LweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
 

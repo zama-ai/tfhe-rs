@@ -189,11 +189,11 @@ impl<C: Container> CreateFrom<C> for GgswLevelMatrix<C> {
 }
 
 impl<C: Container> ContiguousEntityContainer for GgswCiphertextBase<C> {
-    type PODElement = C::Element;
+    type Element = C::Element;
 
-    type ElementViewMetadata = GgswLevelMatrixCreationMetadata;
+    type EntityViewMetadata = GgswLevelMatrixCreationMetadata;
 
-    type ElementView<'this> = GgswLevelMatrix<&'this [Self::PODElement]>
+    type EntityView<'this> = GgswLevelMatrix<&'this [Self::Element]>
     where
         Self: 'this;
 
@@ -203,11 +203,11 @@ impl<C: Container> ContiguousEntityContainer for GgswCiphertextBase<C> {
     where
         Self: 'this;
 
-    fn get_element_view_creation_metadata(&self) -> Self::ElementViewMetadata {
+    fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
         GgswLevelMatrixCreationMetadata(self.glwe_size, self.polynomial_size)
     }
 
-    fn get_element_view_pod_size(&self) -> usize {
+    fn get_entity_view_pod_size(&self) -> usize {
         self.ggsw_level_matrix_size()
     }
 
@@ -222,7 +222,7 @@ impl<C: Container> ContiguousEntityContainer for GgswCiphertextBase<C> {
 }
 
 impl<C: ContainerMut> ContiguousEntityContainerMut for GgswCiphertextBase<C> {
-    type ElementMutView<'this> = GgswLevelMatrix<&'this mut [Self::PODElement]>
+    type EntityMutView<'this> = GgswLevelMatrix<&'this mut [Self::Element]>
     where
         Self: 'this;
 
