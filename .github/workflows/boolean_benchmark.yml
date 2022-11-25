@@ -64,7 +64,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo +nightly bench --bench boolean-bench --features=x86_64-unix,boolean,internal-keycache -p tfhe
+          RUSTFLAGS="-C target-cpu=native" cargo +nightly bench --bench boolean-bench --features=x86_64-unix,boolean,internal-keycache -p tfhe -- --measurement-time 20
 
       - name: Parse results
         run: |
