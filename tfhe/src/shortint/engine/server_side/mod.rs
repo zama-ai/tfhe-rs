@@ -35,26 +35,20 @@ impl ShortintEngine {
         cks: &ClientKey,
         max_degree: MaxDegree,
     ) -> EngineResult<ServerKey> {
-        // Convert into a variance for rlwe context
-        let var_rlwe = Variance(cks.parameters.glwe_modular_std_dev.get_variance());
-
-        // TODO REFACTOR
-        // Remove the clone + into
-        let bootstrap_key: LweBootstrapKey64 = self.par_engine.generate_new_lwe_bootstrap_key(
-            &cks.lwe_secret_key_after_ks.clone().into(),
-            &cks.glwe_secret_key.clone().into(),
+        let bootstrap_key: LweBootstrapKey<u64> = par_allocate_and_generate_new_lwe_bootstrap_key(
+            &cks.lwe_secret_key_after_ks,
+            &cks.glwe_secret_key,
             cks.parameters.pbs_base_log,
             cks.parameters.pbs_level,
-            var_rlwe,
-        )?;
+            cks.parameters.glwe_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
+
+        let bsk: LweBootstrapKey64 = bootstrap_key.into();
 
         // Creation of the bootstrapping key in the Fourier domain
-
         let fourier_bsk: FftFourierLweBootstrapKey64 =
-            self.fft_engine.convert_lwe_bootstrap_key(&bootstrap_key)?;
-
-        // Convert into a variance for lwe context
-        let var_lwe = Variance(cks.parameters.lwe_modular_std_dev.get_variance());
+            self.fft_engine.convert_lwe_bootstrap_key(&bsk)?;
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_binary_binary_lwe_keyswitch_key(
@@ -62,7 +56,7 @@ impl ShortintEngine {
             &cks.lwe_secret_key_after_ks,
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
-            var_lwe,
+            cks.parameters.lwe_modular_std_dev,
             self.engine.get_encryption_generator(),
         );
 
