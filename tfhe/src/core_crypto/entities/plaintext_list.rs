@@ -51,23 +51,23 @@ impl<C: Container> CreateFrom<C> for PlaintextListBase<C> {
 }
 
 impl<C: Container> ContiguousEntityContainer for PlaintextListBase<C> {
-    type PODElement = C::Element;
+    type Element = C::Element;
 
-    type ElementViewMetadata = ();
+    type EntityViewMetadata = ();
 
-    type ElementView<'this> = Plaintext<&'this Self::PODElement>
+    type EntityView<'this> = Plaintext<&'this Self::Element>
     where
         Self: 'this;
 
     type SelfViewMetadata = ();
 
-    type SelfView<'this> = PlaintextListBase<&'this [Self::PODElement]>
+    type SelfView<'this> = PlaintextListBase<&'this [Self::Element]>
     where
         Self: 'this;
 
-    fn get_element_view_creation_metadata(&self) -> Self::ElementViewMetadata {}
+    fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {}
 
-    fn get_element_view_pod_size(&self) -> usize {
+    fn get_entity_view_pod_size(&self) -> usize {
         1
     }
 
@@ -75,11 +75,11 @@ impl<C: Container> ContiguousEntityContainer for PlaintextListBase<C> {
 }
 
 impl<C: ContainerMut> ContiguousEntityContainerMut for PlaintextListBase<C> {
-    type ElementMutView<'this>= Plaintext<&'this mut  Self::PODElement>
+    type EntityMutView<'this>= Plaintext<&'this mut  Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this>= PlaintextListBase<&'this mut [Self::PODElement]>
+    type SelfMutView<'this>= PlaintextListBase<&'this mut [Self::Element]>
     where
         Self: 'this;
 }
