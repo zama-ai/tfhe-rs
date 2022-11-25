@@ -20,8 +20,6 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
-    // ck_dim_eq!(self.key_size() => output.glwe_size().to_glwe_dimension());
-
     assert!(
         output.polynomial_size() == glwe_secret_key.polynomial_size(),
         "Mismatch between polynomial sizes of output cipertexts and input secret key. \
@@ -128,11 +126,12 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 mod test {
     use crate::core_crypto::algorithms::encrypt_ggsw_ciphertext;
     use crate::core_crypto::commons::crypto::encoding::PlaintextList;
+    use crate::core_crypto::commons::crypto::ggsw::StandardGgswCiphertext;
     use crate::core_crypto::commons::crypto::secret::generators::{
         DeterministicSeeder, EncryptionRandomGenerator,
     };
     use crate::core_crypto::commons::crypto::secret::GlweSecretKey;
-    use crate::core_crypto::commons::math::random::Seeder;
+    use crate::core_crypto::commons::math::random::Seed;
     use crate::core_crypto::commons::math::tensor::*;
     use crate::core_crypto::commons::math::torus::UnsignedTorus;
     use crate::core_crypto::commons::test_tools;
@@ -141,8 +140,6 @@ mod test {
         DecompositionBaseLog, DecompositionLevelCount, LogStandardDev,
     };
     use concrete_csprng::generators::SoftwareRandomGenerator;
-
-    use crate::core_crypto::commons::crypto::ggsw::StandardGgswCiphertext;
 
     fn test_refactored_ggsw<T: UnsignedTorus>() {
         // random settings
@@ -163,12 +160,7 @@ mod test {
 
         for plaintext in plaintext_vector.plaintext_iter() {
             let main_seed = test_tools::random_seed();
-
-            // Use a deterministic seeder to get the seeds that will be used during the tests
-            let mut deterministic_seeder =
-                DeterministicSeeder::<SoftwareRandomGenerator>::new(main_seed);
-            let _ = deterministic_seeder.seed();
-            let mask_seed = deterministic_seeder.seed();
+            let mask_seed = Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
 
             let mut generator = EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(
                 mask_seed,
