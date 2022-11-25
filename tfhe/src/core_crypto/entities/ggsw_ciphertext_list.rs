@@ -77,6 +77,10 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextListBase<C> {
                 ),
         )
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
 }
 
 pub type GgswCiphertextList<Scalar> = GgswCiphertextListBase<Vec<Scalar>>;

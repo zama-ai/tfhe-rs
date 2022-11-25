@@ -52,6 +52,10 @@ impl<C: Container> LweBootstrapKeyBase<C> {
     pub fn as_ggsw_ciphertext_list(&self) -> &GgswCiphertextListBase<C> {
         &self.ggsw_list
     }
+
+    pub fn into_container(self) -> C {
+        self.ggsw_list.into_container()
+    }
 }
 
 impl<C: ContainerMut> LweBootstrapKeyBase<C> {
@@ -81,5 +85,27 @@ impl<Scalar: Copy> LweBootstrapKey<Scalar> {
                 GgswCiphertextCount(input_lwe_dimension.0),
             ),
         }
+    }
+}
+
+// TODO REFACTOR
+// Remove
+impl From<LweBootstrapKey<u64>> for crate::core_crypto::prelude::LweBootstrapKey64 {
+    fn from(bsk: LweBootstrapKey<u64>) -> Self {
+        use crate::core_crypto::commons::crypto::bootstrap::StandardBootstrapKey;
+        use crate::core_crypto::prelude::*;
+
+        let glwe_size = bsk.glwe_size();
+        let poly_size = bsk.polynomial_size();
+        let decomp_level = bsk.decomposition_level_count();
+        let decomp_base_log = bsk.decomposition_base_log();
+
+        LweBootstrapKey64(StandardBootstrapKey::from_container(
+            bsk.into_container(),
+            glwe_size,
+            poly_size,
+            decomp_level,
+            decomp_base_log,
+        ))
     }
 }
