@@ -3,10 +3,14 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::math::random::ByteRandomGenerator;
+#[cfg(feature = "__commons_parallel")]
+use crate::core_crypto::commons::math::random::ParallelByteRandomGenerator;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
+#[cfg(feature = "__commons_parallel")]
+use rayon::prelude::*;
 
 pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
@@ -16,9 +20,9 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
     Scalar: UnsignedTorus,
-    Gen: ByteRandomGenerator,
     KeyCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
 {
     assert!(
         output.polynomial_size() == glwe_secret_key.polynomial_size(),
@@ -83,6 +87,84 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
             );
         }
     }
+}
+
+#[cfg(feature = "__commons_parallel")]
+pub fn par_encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
+    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
+    output: &mut GgswCiphertextBase<OutputCont>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter + Sync,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus + Sync + Send,
+    KeyCont: Container<Element = Scalar> + Sync,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ParallelByteRandomGenerator,
+{
+    assert!(
+        output.polynomial_size() == glwe_secret_key.polynomial_size(),
+        "Mismatch between polynomial sizes of output cipertexts and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output.polynomial_size(),
+        glwe_secret_key.polynomial_size()
+    );
+
+    assert!(
+        output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
+        "Mismatch between GlweDimension of output cipertexts and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output.glwe_size().to_glwe_dimension(),
+        glwe_secret_key.glwe_dimension()
+    );
+
+    // Generators used to have same sequential and parallel key generation
+    let gen_iter = generator
+        .par_fork_ggsw_to_ggsw_levels::<Scalar>(
+            output.decomposition_level_count(),
+            output.glwe_size(),
+            output.polynomial_size(),
+        )
+        .expect("Failed to split generator into ggsw levels");
+
+    let output_glwe_size = output.glwe_size();
+    let output_polynomial_size = output.polynomial_size();
+    let decomp_base_log = output.decomposition_base_log();
+
+    output.par_iter_mut().zip(gen_iter).enumerate().for_each(
+        |(level_index, (mut level_matrix, mut generator))| {
+            let decomp_level = DecompositionLevel(level_index + 1);
+            let factor = encoded
+                .0
+                .wrapping_neg()
+                .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+
+            // We iterate over the rows of the level matrix, the last row needs special treatment
+            let gen_iter = generator
+                .par_fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
+                .expect("Failed to split generator into glwe");
+
+            let last_row_index = level_matrix.glwe_size().0 - 1;
+            let sk_poly_list = glwe_secret_key.as_polynomial_list();
+
+            level_matrix
+                .as_mut_glwe_list()
+                .par_iter_mut()
+                .enumerate()
+                .zip(gen_iter)
+                .for_each(|((row_index, mut row_as_glwe), mut generator)| {
+                    encrypt_ggsw_level_matrix_row(
+                        glwe_secret_key,
+                        (row_index, last_row_index),
+                        factor,
+                        &sk_poly_list,
+                        &mut row_as_glwe,
+                        noise_parameters,
+                        &mut generator,
+                    );
+                });
+        },
+    );
 }
 
 fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, InputCont, OutputCont, Gen>(
