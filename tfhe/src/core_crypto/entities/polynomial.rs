@@ -34,6 +34,20 @@ impl<Scalar, C: Container<Element = Scalar>> PolynomialBase<C> {
     pub fn degree(&self) -> usize {
         self.polynomial_size().0 - 1
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
+
+    pub fn as_view(&self) -> PolynomialView<'_, Scalar> {
+        PolynomialView::from_container(self.as_ref())
+    }
+}
+
+impl<Scalar, C: ContainerMut<Element = Scalar>> PolynomialBase<C> {
+    pub fn as_mut_view(&mut self) -> PolynomialMutView<'_, Scalar> {
+        PolynomialMutView::from_container(self.as_mut())
+    }
 }
 
 pub type Polynomial<Scalar> = PolynomialBase<Vec<Scalar>>;

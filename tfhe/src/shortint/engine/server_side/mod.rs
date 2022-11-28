@@ -1,6 +1,9 @@
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::math::tensor::{AsRefSlice, AsRefTensor};
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKey;
+use crate::core_crypto::fft_impl::math::fft::Fft;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::EngineResult;
@@ -44,11 +47,26 @@ impl ShortintEngine {
             self.engine.get_encryption_generator(),
         );
 
-        let bsk: LweBootstrapKey64 = bootstrap_key.into();
-
         // Creation of the bootstrapping key in the Fourier domain
-        let fourier_bsk: FftFourierLweBootstrapKey64 =
-            self.fft_engine.convert_lwe_bootstrap_key(&bsk)?;
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
+            bootstrap_key.input_lwe_dimension(),
+            bootstrap_key.polynomial_size(),
+            bootstrap_key.glwe_size(),
+            bootstrap_key.decomposition_base_log(),
+            bootstrap_key.decomposition_level_count(),
+        );
+
+        let fft = Fft::new(bootstrap_key.polynomial_size());
+        let fft = fft.as_view();
+        self.fft_engine.resize(
+            convert_standard_lwe_bootstrap_key_to_fourier_scratch(fft)
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+        let stack = self.fft_engine.stack();
+
+        // Conversion to fourier domain
+        convert_standard_lwe_bootstrap_key_to_fourier(&bootstrap_key, &mut fourier_bsk, fft, stack);
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
@@ -103,16 +121,34 @@ impl ShortintEngine {
         keyswitch_lwe_ciphertext(
             &server_key.key_switching_key,
             &ct.ct,
-            &mut buffers.buffer_lwe_after_ks.as_refactor_ct_mut_view(),
+            &mut buffers.buffer_lwe_after_ks,
         );
 
+        let fourier_bsk = &server_key.bootstrapping_key;
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+        fft_engine.resize(
+            programmable_bootstrap_lwe_ciphertext_scratch::<u64>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+        let stack = fft_engine.stack();
+
         // Compute a bootstrap
-        fft_engine.discard_bootstrap_lwe_ciphertext(
-            &mut ct.ct.as_old_ct_mut_view(),
-            &LweCiphertextView64(buffers.buffer_lwe_after_ks.0.as_view()),
-            &GlweCiphertextView64(buffers.accumulator.0.as_view()),
-            &server_key.bootstrapping_key,
-        )?;
+        programmable_bootstrap_lwe_ciphertext(
+            &buffers.buffer_lwe_after_ks,
+            &mut ct.ct,
+            &buffers.accumulator,
+            fourier_bsk,
+            fft,
+            stack,
+        );
+
         Ok(())
     }
 
@@ -134,22 +170,42 @@ impl ShortintEngine {
         acc: &GlweCiphertext64,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
-        let (buffers, _, fftw_engine) = self.buffers_for_key(server_key);
+        let (buffers, _, fft_engine) = self.buffers_for_key(server_key);
 
         // Compute a key switch
         keyswitch_lwe_ciphertext(
             &server_key.key_switching_key,
             &ct.ct,
-            &mut buffers.buffer_lwe_after_ks.as_refactor_ct_mut_view(),
+            &mut buffers.buffer_lwe_after_ks,
         );
 
+        let fourier_bsk = &server_key.bootstrapping_key;
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+        fft_engine.resize(
+            programmable_bootstrap_lwe_ciphertext_scratch::<u64>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+        let stack = fft_engine.stack();
+
         // Compute a bootstrap
-        fftw_engine.discard_bootstrap_lwe_ciphertext(
-            &mut ct.ct.as_old_ct_mut_view(),
-            &LweCiphertextView64(buffers.buffer_lwe_after_ks.0.as_view()),
-            &GlweCiphertextView64(acc.0.as_view()),
-            &server_key.bootstrapping_key,
-        )?;
+        programmable_bootstrap_lwe_ciphertext(
+            &buffers.buffer_lwe_after_ks,
+            &mut ct.ct,
+            &GlweCiphertextBase::from_container(
+                acc.0.as_tensor().as_slice(),
+                acc.polynomial_size(),
+            ),
+            fourier_bsk,
+            fft,
+            stack,
+        );
         Ok(())
     }
 

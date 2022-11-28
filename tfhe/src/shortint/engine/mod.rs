@@ -1,3 +1,4 @@
+use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::*;
 use crate::seeders::new_seeder;
 use crate::shortint::ServerKey;
@@ -20,16 +21,16 @@ thread_local! {
 
 /// Stores buffers associated to a ServerKey
 pub struct Buffers {
-    pub(crate) accumulator: GlweCiphertext64,
-    pub(crate) buffer_lwe_after_ks: LweCiphertext64,
+    pub(crate) accumulator: GlweCiphertext<u64>,
+    pub(crate) buffer_lwe_after_ks: LweCiphertext<u64>,
 }
 
 /// This allows to store and retrieve the `Buffers`
 /// corresponding to a `ServerKey` in a `BTreeMap`
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
 struct KeyId {
-    accumulator_dim: GlweSize,
     lwe_dim_after_pbs: usize,
+    // Also accumulator size
     glwe_size: GlweSize,
     poly_size: PolynomialSize,
 }
@@ -38,9 +39,8 @@ impl ServerKey {
     #[inline]
     fn key_id(&self) -> KeyId {
         KeyId {
-            accumulator_dim: self.bootstrapping_key.glwe_dimension().to_glwe_size(),
             lwe_dim_after_pbs: self.bootstrapping_key.output_lwe_dimension().0,
-            glwe_size: self.bootstrapping_key.glwe_dimension().to_glwe_size(),
+            glwe_size: self.bootstrapping_key.glwe_size(),
             poly_size: self.bootstrapping_key.polynomial_size(),
         }
     }
@@ -174,7 +174,7 @@ impl ShortintEngine {
         let accumulator_plaintext = engine.create_plaintext_vector_from(&accumulator_u64)?;
 
         let accumulator = engine.trivially_encrypt_glwe_ciphertext(
-            server_key.bootstrapping_key.glwe_dimension().to_glwe_size(),
+            server_key.bootstrapping_key.glwe_size(),
             &accumulator_plaintext,
         )?;
 
@@ -232,9 +232,14 @@ impl ShortintEngine {
                 )
                 .unwrap();
 
+            let polynomial_size = accumulator.polynomial_size();
+
             Buffers {
-                accumulator,
-                buffer_lwe_after_ks: buffer_lwe_after_pbs,
+                accumulator: GlweCiphertext::from_container(
+                    accumulator.0.into_container(),
+                    polynomial_size,
+                ),
+                buffer_lwe_after_ks: buffer_lwe_after_pbs.into(),
             }
         });
 
