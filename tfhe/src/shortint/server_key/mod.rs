@@ -18,6 +18,7 @@ mod sub;
 mod tests;
 
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::client_key::ClientKey;
@@ -55,7 +56,7 @@ impl std::error::Error for CheckError {}
 #[derive(Clone, Debug, PartialEq)]
 pub struct ServerKey {
     pub key_switching_key: LweKeyswitchKey<u64>,
-    pub bootstrapping_key: FftFourierLweBootstrapKey64,
+    pub bootstrapping_key: FourierLweBootstrapKeyOwned,
     // Size of the message buffer
     pub message_modulus: MessageModulus,
     // Size of the carry buffer
@@ -557,12 +558,13 @@ impl Serialize for ServerKey {
         let mut fft_ser_eng = FftSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
 
         let tmp_ksk: LweKeyswitchKey64 = self.key_switching_key.clone().into();
+        let tmp_bsk: FftFourierLweBootstrapKey64 = self.bootstrapping_key.clone().into();
 
         let key_switching_key = ser_eng
             .serialize(&tmp_ksk)
             .map_err(serde::ser::Error::custom)?;
         let bootstrapping_key = fft_ser_eng
-            .serialize(&self.bootstrapping_key)
+            .serialize(&tmp_bsk)
             .map_err(serde::ser::Error::custom)?;
 
         SerializableServerKey {
@@ -590,11 +592,13 @@ impl<'de> Deserialize<'de> for ServerKey {
             .deserialize(thing.key_switching_key.as_slice())
             .map_err(serde::de::Error::custom)?;
 
+        let tmp_bsk: FftFourierLweBootstrapKey64 = fft_ser_eng
+            .deserialize(thing.bootstrapping_key.as_slice())
+            .map_err(serde::de::Error::custom)?;
+
         Ok(Self {
             key_switching_key: tmp_ksk.into(),
-            bootstrapping_key: fft_ser_eng
-                .deserialize(thing.bootstrapping_key.as_slice())
-                .map_err(serde::de::Error::custom)?,
+            bootstrapping_key: tmp_bsk.into(),
             message_modulus: thing.message_modulus,
             carry_modulus: thing.carry_modulus,
             max_degree: thing.max_degree,
