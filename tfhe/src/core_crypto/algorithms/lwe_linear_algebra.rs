@@ -57,3 +57,16 @@ pub fn lwe_ciphertext_in_place_subtraction<Scalar, LhsCont, RhsCont>(
 {
     update_with_wrapping_sub(lhs.as_mut(), rhs.as_ref());
 }
+
+pub fn lwe_ciphertext_cleartext_multiplication<Scalar, InputCont, OutputCont>(
+    output: &mut LweCiphertextBase<OutputCont>,
+    lhs: &LweCiphertextBase<InputCont>,
+    rhs: Cleartext<Scalar>,
+) where
+    Scalar: UnsignedInteger,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    output.as_mut().copy_from_slice(lhs.as_ref());
+    lwe_ciphertext_in_place_cleartext_multiplication(output, rhs);
+}

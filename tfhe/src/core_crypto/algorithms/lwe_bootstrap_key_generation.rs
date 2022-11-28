@@ -72,13 +72,7 @@ pub fn generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCon
     }
 }
 
-pub fn allocate_and_generate_new_lwe_bootstrap_key<
-    Scalar,
-    InputKeyCont,
-    OutputKeyCont,
-    OutputCont,
-    Gen,
->(
+pub fn allocate_and_generate_new_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKeyBase<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
