@@ -39,7 +39,18 @@ impl<Scalar, C: Container<Element = Scalar>> PolynomialListBase<C> {
     }
 
     pub fn polynomial_count(&self) -> PolynomialCount {
-        PolynomialCount(self.data.container_len())
+        PolynomialCount(self.data.container_len() / self.polynomial_size.0)
+    }
+
+    pub fn as_view(&self) -> PolynomialListView<'_, Scalar> {
+        PolynomialListView::from_container(self.as_ref(), self.polynomial_size())
+    }
+}
+
+impl<Scalar, C: ContainerMut<Element = Scalar>> PolynomialListBase<C> {
+    pub fn as_mut_view(&mut self) -> PolynomialListMutView<'_, Scalar> {
+        let polynomial_size = self.polynomial_size();
+        PolynomialListMutView::from_container(self.as_mut(), polynomial_size)
     }
 }
 

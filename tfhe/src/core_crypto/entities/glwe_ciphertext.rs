@@ -180,6 +180,17 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextBase<C> {
             self.polynomial_size,
         )
     }
+
+    pub fn as_polynomial_list(&self) -> PolynomialListBase<&'_ [Scalar]> {
+        PolynomialListBase::from_container(self.as_ref(), self.polynomial_size)
+    }
+
+    pub fn as_view(&self) -> GlweCiphertextBase<&'_ [Scalar]> {
+        GlweCiphertextBase {
+            data: self.data.as_ref(),
+            polynomial_size: self.polynomial_size,
+        }
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> GlweCiphertextBase<C> {
@@ -216,6 +227,18 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> GlweCiphertextBase<C> {
             &mut self.as_mut()[0..glwe_ciphertext_mask_size(polynomial_size, glwe_dimension)],
             polynomial_size,
         )
+    }
+
+    pub fn as_mut_polynomial_list(&mut self) -> PolynomialListBase<&'_ mut [Scalar]> {
+        let polynomial_size = self.polynomial_size;
+        PolynomialListBase::from_container(self.as_mut(), polynomial_size)
+    }
+
+    pub fn as_mut_view(&mut self) -> GlweCiphertextBase<&'_ mut [Scalar]> {
+        GlweCiphertextBase {
+            data: self.data.as_mut(),
+            polynomial_size: self.polynomial_size,
+        }
     }
 }
 

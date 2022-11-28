@@ -82,6 +82,48 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextBase<C> {
         // GlweSize GlweCiphertext(glwe_size, polynomial_size) per level
         ggsw_level_matrix_size(self.glwe_size, self.polynomial_size)
     }
+
+    pub fn as_polynomial_list(&self) -> PolynomialListView<'_, Scalar> {
+        PolynomialListView::from_container(self.as_ref(), self.polynomial_size)
+    }
+
+    pub fn as_glwe_list(&self) -> GlweCiphertextListView<'_, Scalar> {
+        GlweCiphertextListView::from_container(self.as_ref(), self.polynomial_size, self.glwe_size)
+    }
+
+    pub fn as_view(&self) -> GgswCiphertextView<'_, Scalar> {
+        GgswCiphertextView::from_container(
+            self.as_ref(),
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.decomposition_base_log(),
+        )
+    }
+}
+
+impl<Scalar, C: ContainerMut<Element = Scalar>> GgswCiphertextBase<C> {
+    pub fn as_mut_polynomial_list(&mut self) -> PolynomialListMutView<'_, Scalar> {
+        let polynomial_size = self.polynomial_size;
+        PolynomialListMutView::from_container(self.as_mut(), polynomial_size)
+    }
+
+    pub fn as_mut_glwe_list(&mut self) -> GlweCiphertextListMutView<'_, Scalar> {
+        let polynomial_size = self.polynomial_size;
+        let glwe_size = self.glwe_size;
+        GlweCiphertextListMutView::from_container(self.as_mut(), polynomial_size, glwe_size)
+    }
+
+    pub fn as_mut_view(&mut self) -> GgswCiphertextMutView<'_, Scalar> {
+        let glwe_size = self.glwe_size();
+        let polynomial_size = self.polynomial_size();
+        let decomp_base_log = self.decomposition_base_log();
+        GgswCiphertextMutView::from_container(
+            self.as_mut(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+        )
+    }
 }
 
 pub type GgswCiphertext<Scalar> = GgswCiphertextBase<Vec<Scalar>>;

@@ -85,6 +85,29 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKeyBase<C> {
             self.output_lwe_size,
         )
     }
+
+    pub fn as_view(&self) -> LweKeyswitchKeyBase<&'_ [Scalar]> {
+        LweKeyswitchKeyBase::from_container(
+            self.as_ref(),
+            self.decomp_base_log,
+            self.decomp_level_count,
+            self.output_lwe_size,
+        )
+    }
+}
+
+impl<Scalar, C: ContainerMut<Element = Scalar>> LweKeyswitchKeyBase<C> {
+    pub fn as_mut_view(&mut self) -> LweKeyswitchKeyBase<&'_ mut [Scalar]> {
+        let decomp_base_log = self.decomp_base_log;
+        let decomp_level_count = self.decomp_level_count;
+        let output_lwe_size = self.output_lwe_size;
+        LweKeyswitchKeyBase::from_container(
+            self.as_mut(),
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+        )
+    }
 }
 
 pub type LweKeyswitchKey<Scalar> = LweKeyswitchKeyBase<Vec<Scalar>>;

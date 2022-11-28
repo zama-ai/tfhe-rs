@@ -56,11 +56,35 @@ impl<C: Container> LweBootstrapKeyBase<C> {
     pub fn into_container(self) -> C {
         self.ggsw_list.into_container()
     }
+
+    pub fn as_view(&self) -> LweBootstrapKeyBase<&'_ [C::Element]> {
+        LweBootstrapKeyBase::from_container(
+            self.as_ref(),
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.decomposition_base_log(),
+            self.decomposition_level_count(),
+        )
+    }
 }
 
 impl<C: ContainerMut> LweBootstrapKeyBase<C> {
     pub fn as_mut_ggsw_ciphertext_list(&mut self) -> &mut GgswCiphertextListBase<C> {
         &mut self.ggsw_list
+    }
+
+    pub fn as_mut_view(&mut self) -> LweBootstrapKeyBase<&'_ mut [C::Element]> {
+        let glwe_size = self.glwe_size();
+        let polynomial_size = self.polynomial_size();
+        let decomp_base_log = self.decomposition_base_log();
+        let decomp_level_count = self.decomposition_level_count();
+        LweBootstrapKeyBase::from_container(
+            self.as_mut(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+        )
     }
 }
 
@@ -106,6 +130,53 @@ impl From<LweBootstrapKey<u64>> for crate::core_crypto::prelude::LweBootstrapKey
             poly_size,
             decomp_level,
             decomp_base_log,
+        ))
+    }
+}
+
+impl From<crate::core_crypto::prelude::FftFourierLweBootstrapKey64>
+    for crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned
+{
+    fn from(old_bsk: crate::core_crypto::prelude::FftFourierLweBootstrapKey64) -> Self {
+        use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned;
+        let key_size = old_bsk.0.key_size();
+        let polynomial_size = old_bsk.0.polynomial_size();
+        let glwe_size = old_bsk.0.glwe_size();
+        let decomp_base_log = old_bsk.0.decomposition_base_log();
+        let decomp_level_count = old_bsk.0.decomposition_level_count();
+        FourierLweBootstrapKeyOwned::from_container(
+            old_bsk.0.data(),
+            key_size,
+            polynomial_size,
+            glwe_size,
+            decomp_base_log,
+            decomp_level_count,
+        )
+    }
+}
+
+impl From<crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned>
+    for crate::core_crypto::prelude::FftFourierLweBootstrapKey64
+{
+    fn from(
+        new_bsk: crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned,
+    ) -> Self {
+        use crate::core_crypto::backends::fft::private::crypto::bootstrap::FourierLweBootstrapKey;
+        use crate::core_crypto::prelude::FftFourierLweBootstrapKey64;
+
+        let key_size = new_bsk.key_size();
+        let polynomial_size = new_bsk.polynomial_size();
+        let glwe_size = new_bsk.glwe_size();
+        let decomp_base_log = new_bsk.decomposition_base_log();
+        let decom_level_count = new_bsk.decomposition_level_count();
+
+        FftFourierLweBootstrapKey64(FourierLweBootstrapKey::new(
+            new_bsk.data(),
+            key_size,
+            polynomial_size,
+            glwe_size,
+            decomp_base_log,
+            decom_level_count,
         ))
     }
 }

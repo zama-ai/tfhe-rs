@@ -73,6 +73,10 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertextBase<C> {
     pub fn get_mask(&self) -> LweMask<&[Scalar]> {
         LweMask::from_container(&self.as_ref()[0..=self.lwe_size().to_lwe_dimension().0])
     }
+
+    pub fn as_view(&self) -> LweCiphertextView<'_, Scalar> {
+        LweCiphertextView::from_container(self.as_ref())
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextBase<C> {
@@ -91,6 +95,10 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextBase<C> {
     pub fn get_mut_mask(&mut self) -> LweMask<&mut [Scalar]> {
         let lwe_dimension = self.lwe_size().to_lwe_dimension();
         LweMask::from_container(&mut self.as_mut()[0..=lwe_dimension.0])
+    }
+
+    pub fn as_mut_view(&mut self) -> LweCiphertextMutView<'_, Scalar> {
+        LweCiphertextMutView::from_container(self.as_mut())
     }
 }
 

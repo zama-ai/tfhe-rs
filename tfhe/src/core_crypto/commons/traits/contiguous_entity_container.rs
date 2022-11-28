@@ -12,7 +12,7 @@ type WrappingFunction<'data, Element, WrappingType> = fn(
 type WrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::Chunks<'data, Element>,
-        std::iter::Repeat<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
+        itertools::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
     >,
     WrappingFunction<'data, Element, WrappingType>,
 >;
@@ -22,16 +22,6 @@ type ParallelWrappingLendingIterator<'data, Element, WrappingType> = rayon::iter
     rayon::iter::Zip<
         rayon::slice::Chunks<'data, Element>,
         rayon::iter::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
-    >,
-    WrappingFunction<'data, Element, WrappingType>,
->;
-
-// This is required as at the moment it's not possible to reverse a zip containing a repeat, though
-// it is perfectly legal to zip a reversed repeat
-type RevWrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
-    std::iter::Zip<
-        std::iter::Rev<std::slice::Chunks<'data, Element>>,
-        std::iter::Repeat<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
     >,
     WrappingFunction<'data, Element, WrappingType>,
 >;
@@ -46,7 +36,7 @@ type WrappingFunctionMut<'data, Element, WrappingType> = fn(
 type WrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::ChunksMut<'data, Element>,
-        std::iter::Repeat<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
+        itertools::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
     >,
     WrappingFunctionMut<'data, Element, WrappingType>,
 >;
@@ -56,16 +46,6 @@ type ParallelWrappingLendingIteratorMut<'data, Element, WrappingType> = rayon::i
     rayon::iter::Zip<
         rayon::slice::ChunksMut<'data, Element>,
         rayon::iter::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
-    >,
-    WrappingFunctionMut<'data, Element, WrappingType>,
->;
-
-// This is required as at the moment it's not possible to reverse a zip containing a repeat, though
-// it is perfectly legal to zip a reversed repeat
-type RevWrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
-    std::iter::Zip<
-        std::iter::Rev<std::slice::ChunksMut<'data, Element>>,
-        std::iter::Repeat<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
     >,
     WrappingFunctionMut<'data, Element, WrappingType>,
 >;
@@ -98,19 +78,10 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
     fn iter(&self) -> WrappingLendingIterator<'_, Self::Element, Self::EntityView<'_>> {
         let meta = self.get_entity_view_creation_metadata();
         let entity_view_pod_size = self.get_entity_view_pod_size();
+        let entity_count = self.as_ref().len() / entity_view_pod_size;
         self.as_ref()
             .chunks(entity_view_pod_size)
-            .zip(std::iter::repeat(meta))
-            .map(|(elt, meta)| Self::EntityView::<'_>::create_from(elt, meta))
-    }
-
-    fn rev_iter(&self) -> RevWrappingLendingIterator<'_, Self::Element, Self::EntityView<'_>> {
-        let meta = self.get_entity_view_creation_metadata();
-        let element_view_pod_size = self.get_entity_view_pod_size();
-        self.as_ref()
-            .chunks(element_view_pod_size)
-            .rev()
-            .zip(std::iter::repeat(meta))
+            .zip(itertools::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::EntityView::<'_>::create_from(elt, meta))
     }
 
@@ -140,6 +111,24 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let meta = self.get_entity_view_creation_metadata();
 
         Self::EntityView::<'_>::create_from(&self.as_ref()[start..stop], meta)
+    }
+
+    fn chunks_exact(
+        &self,
+        chunk_size: usize,
+    ) -> WrappingLendingIterator<'_, Self::Element, Self::SelfView<'_>> {
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+
+        let entity_count = self.as_ref().len() / entity_view_pod_size;
+        assert!(entity_count % chunk_size == 0, "TODO Err message");
+
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
+
+        let meta = self.get_self_view_creation_metadata();
+        self.as_ref()
+            .chunks(pod_chunk_size)
+            .zip(itertools::repeat_n(meta, entity_count))
+            .map(|(elt, meta)| Self::SelfView::<'_>::create_from(elt, meta))
     }
 
     #[cfg(feature = "__commons_parallel")]
@@ -182,22 +171,11 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         &mut self,
     ) -> WrappingLendingIteratorMut<'_, Self::Element, Self::EntityMutView<'_>> {
         let meta = self.get_entity_view_creation_metadata();
-        let element_mut_view_pod_size = self.get_entity_view_pod_size();
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let entity_count = self.as_ref().len() / entity_view_pod_size;
         self.as_mut()
-            .chunks_mut(element_mut_view_pod_size)
-            .zip(std::iter::repeat(meta))
-            .map(|(elt, meta)| Self::EntityMutView::<'_>::create_from(elt, meta))
-    }
-
-    fn rev_iter_mut(
-        &mut self,
-    ) -> RevWrappingLendingIteratorMut<'_, Self::Element, Self::EntityMutView<'_>> {
-        let meta = self.get_entity_view_creation_metadata();
-        let element_mut_view_pod_size = self.get_entity_view_pod_size();
-        self.as_mut()
-            .chunks_mut(element_mut_view_pod_size)
-            .rev()
-            .zip(std::iter::repeat(meta))
+            .chunks_mut(entity_view_pod_size)
+            .zip(itertools::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::EntityMutView::<'_>::create_from(elt, meta))
     }
 
@@ -225,6 +203,24 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let meta = self.get_entity_view_creation_metadata();
 
         Self::EntityMutView::<'_>::create_from(&mut self.as_mut()[start..stop], meta)
+    }
+
+    fn chunks_exact_mut(
+        &mut self,
+        chunk_size: usize,
+    ) -> WrappingLendingIteratorMut<'_, Self::Element, Self::SelfMutView<'_>> {
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+
+        let entity_count = self.as_ref().len() / entity_view_pod_size;
+        assert!(entity_count % chunk_size == 0, "TODO Err message");
+
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
+
+        let meta = self.get_self_view_creation_metadata();
+        self.as_mut()
+            .chunks_mut(pod_chunk_size)
+            .zip(itertools::repeat_n(meta, entity_count))
+            .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
     }
 
     #[cfg(feature = "__commons_parallel")]
