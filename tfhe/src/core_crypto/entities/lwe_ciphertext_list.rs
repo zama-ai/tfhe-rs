@@ -41,6 +41,17 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertextListBase<C> {
     pub fn lwe_ciphertext_count(&self) -> LweCiphertextCount {
         LweCiphertextCount(self.data.container_len() / self.lwe_size.0)
     }
+
+    pub fn as_view(&self) -> LweCiphertextListView<'_, Scalar> {
+        LweCiphertextListView::from_container(self.as_ref(), self.lwe_size)
+    }
+}
+
+impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextListBase<C> {
+    pub fn as_mut_view(&mut self) -> LweCiphertextListMutView<'_, Scalar> {
+        let lwe_size = self.lwe_size;
+        LweCiphertextListMutView::from_container(self.as_mut(), lwe_size)
+    }
 }
 
 pub type LweCiphertextList<Scalar> = LweCiphertextListBase<Vec<Scalar>>;
