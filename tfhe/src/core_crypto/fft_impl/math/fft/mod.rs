@@ -3,14 +3,15 @@ use super::polynomial::{
     FourierPolynomialMutView, FourierPolynomialUninitMutView, FourierPolynomialView,
     PolynomialUninitMutView,
 };
-use crate::core_crypto::commons::math::polynomial::Polynomial;
-use crate::core_crypto::commons::math::tensor::Container;
-#[cfg(feature = "backend_fft_serialization")]
-use crate::core_crypto::commons::math::tensor::ContainerOwned;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
+use crate::core_crypto::commons::traits::Container;
+#[cfg(feature = "backend_fft_serialization")]
+use crate::core_crypto::commons::traits::ContainerOwned;
 use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::PolynomialSize;
+use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
 use concrete_fft::unordered::{Method, Plan};
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
@@ -25,9 +26,55 @@ use std::time::Duration;
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
 mod x86;
 
-pub type Twisties = crate::core_crypto::fft_impl::math::fft::Twisties;
+/// Twisting factors from the paper:
+/// [Fast and Error-Free Negacyclic Integer Convolution using Extended Fourier Transform][paper]
+///
+/// The real and imaginary parts form (the first `N/2`) `2N`-th roots of unity.
+///
+/// [paper]: https://eprint.iacr.org/2021/480
+#[derive(Clone, Debug, PartialEq)]
+pub struct Twisties {
+    // TODO remove pub(crate)
+    pub(crate) re: ABox<[f64]>,
+    pub(crate) im: ABox<[f64]>,
+}
 
-pub type TwistiesView<'a> = crate::core_crypto::fft_impl::math::fft::TwistiesView<'a>;
+/// View type for [`Twisties`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TwistiesView<'a> {
+    // TODO remove pub(crate)
+    pub(crate) re: &'a [f64],
+    pub(crate) im: &'a [f64],
+}
+
+impl Twisties {
+    pub fn as_view(&self) -> TwistiesView<'_> {
+        TwistiesView {
+            re: &self.re,
+            im: &self.im,
+        }
+    }
+}
+
+impl Twisties {
+    /// Creates a new [`Twisties`] containing the `2N`-th roots of unity with `n = N/2`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `n` is not a power of two.
+    pub fn new(n: usize) -> Self {
+        debug_assert!(n.is_power_of_two());
+        let mut re = avec![0.0; n].into_boxed_slice();
+        let mut im = avec![0.0; n].into_boxed_slice();
+
+        let unit = core::f64::consts::PI / (2.0 * n as f64);
+        for (i, (re, im)) in izip!(&mut *re, &mut *im).enumerate() {
+            (*im, *re) = (i as f64 * unit).sin_cos();
+        }
+
+        Twisties { re, im }
+    }
+}
 
 /// Negacyclic Fast Fourier Transform. See [`FftView`] for transform functions.
 ///
@@ -56,10 +103,8 @@ impl Fft {
 }
 
 type PlanMap = RwLock<HashMap<usize, Arc<OnceCell<Arc<(Twisties, Plan)>>>>>;
-use crate::core_crypto::fft_impl::math::fft::PLANS;
+pub(crate) static PLANS: OnceCell<PlanMap> = OnceCell::new();
 fn plans() -> &'static PlanMap {
-    // transmute as the types are the same just copied somewhere else
-    // unsafe { std::mem::transmute(PLANS.get_or_init(|| RwLock::new(HashMap::new()))) }
     PLANS.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
@@ -352,7 +397,7 @@ impl<'a> FftView<'a> {
     pub fn forward_as_torus<'out, Scalar: UnsignedTorus>(
         self,
         fourier: FourierPolynomialUninitMutView<'out>,
-        standard: Polynomial<&'_ [Scalar]>,
+        standard: PolynomialView<'_, Scalar>,
         stack: DynStack<'_>,
     ) -> FourierPolynomialMutView<'out> {
         // SAFETY: `convert_forward_torus` initializes the output slice that is passed to it
@@ -373,7 +418,7 @@ impl<'a> FftView<'a> {
     pub fn forward_as_integer<'out, Scalar: UnsignedTorus>(
         self,
         fourier: FourierPolynomialUninitMutView<'out>,
-        standard: Polynomial<&'_ [Scalar]>,
+        standard: PolynomialView<'_, Scalar>,
         stack: DynStack<'_>,
     ) -> FourierPolynomialMutView<'out> {
         // SAFETY: `convert_forward_integer` initializes the output slice that is passed to it
@@ -412,7 +457,7 @@ impl<'a> FftView<'a> {
     /// See [`Self::forward_as_torus`]
     pub fn add_backward_as_torus<'out, Scalar: UnsignedTorus>(
         self,
-        standard: Polynomial<&'out mut [Scalar]>,
+        standard: PolynomialMutView<'out, Scalar>,
         fourier: FourierPolynomialView<'_>,
         stack: DynStack<'_>,
     ) {
@@ -437,12 +482,12 @@ impl<'a> FftView<'a> {
     >(
         self,
         fourier: FourierPolynomialUninitMutView<'out>,
-        standard: Polynomial<&'_ [Scalar]>,
+        standard: PolynomialView<'_, Scalar>,
         conv_fn: F,
         stack: DynStack<'_>,
     ) -> FourierPolynomialMutView<'out> {
         let fourier = fourier.data;
-        let standard = standard.tensor.into_container();
+        let standard = standard.as_ref();
         let n = standard.len();
         debug_assert_eq!(n, 2 * fourier.len());
         let (standard_re, standard_im) = standard.split_at(n / 2);
@@ -461,13 +506,13 @@ impl<'a> FftView<'a> {
         F: Fn(&mut [MaybeUninit<Scalar>], &mut [MaybeUninit<Scalar>], &[c64], TwistiesView<'_>),
     >(
         self,
-        standard: PolynomialUninitMutView<'out, Scalar>,
+        mut standard: PolynomialUninitMutView<'out, Scalar>,
         fourier: FourierPolynomialView<'_>,
         conv_fn: F,
         stack: DynStack<'_>,
     ) {
         let fourier = fourier.data;
-        let standard = standard.tensor.into_container();
+        let standard = standard.as_mut();
         let n = standard.len();
         debug_assert_eq!(n, 2 * fourier.len());
         let (mut tmp, stack) =

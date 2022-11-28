@@ -53,7 +53,7 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
         let decomposition_iter = decomposer.decompose(input_mask_element);
         // loop over the number of levels in reverse (from highest to lowest)
         for (level_key_ciphertext, decomposed) in
-            keyswitch_key_block.rev_iter().zip(decomposition_iter)
+            keyswitch_key_block.iter().rev().zip(decomposition_iter)
         {
             update_with_wrapping_sub_scalar_mul(
                 output_lwe_ciphertext.as_mut(),
