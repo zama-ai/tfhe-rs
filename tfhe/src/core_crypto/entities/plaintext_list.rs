@@ -12,8 +12,8 @@ impl<T, C: Container<Element = T>> AsRef<[T]> for PlaintextListBase<C> {
     }
 }
 
-impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for PlaintextListBase<C> {
-    fn as_mut(&mut self) -> &mut [T] {
+impl<Scalar, C: ContainerMut<Element = Scalar>> AsMut<[Scalar]> for PlaintextListBase<C> {
+    fn as_mut(&mut self) -> &mut [Scalar] {
         self.data.as_mut()
     }
 }
@@ -25,6 +25,16 @@ impl<Scalar, C: Container<Element = Scalar>> PlaintextListBase<C> {
 
     pub fn plaintext_count(&self) -> PlaintextCount {
         PlaintextCount(self.data.container_len())
+    }
+
+    pub fn as_polynomial(&self) -> PolynomialView<'_, Scalar> {
+        PolynomialView::from_container(self.as_ref())
+    }
+}
+
+impl<Scalar, C: ContainerMut<Element = Scalar>> PlaintextListBase<C> {
+    pub fn as_mut_polynomial(&mut self) -> PolynomialMutView<'_, Scalar> {
+        PolynomialMutView::from_container(self.as_mut())
     }
 }
 

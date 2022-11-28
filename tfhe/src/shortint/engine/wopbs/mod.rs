@@ -1,6 +1,8 @@
 //! # WARNING: this module is experimental.
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKey;
+use crate::core_crypto::fft_impl::math::fft::Fft;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
@@ -61,19 +63,35 @@ impl ShortintEngine {
         let large_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
 
         //BSK dedicated to the WoPBS
-        let var_rlwe = Variance(parameters.glwe_modular_std_dev.get_variance());
-
-        let bootstrap_key: LweBootstrapKey64 = self.par_engine.generate_new_lwe_bootstrap_key(
-            &small_lwe_secret_key.clone().into(),
-            &glwe_secret_key.clone().into(),
+        let bootstrap_key: LweBootstrapKey<u64> = par_allocate_and_generate_new_lwe_bootstrap_key(
+            &small_lwe_secret_key,
+            &glwe_secret_key,
             parameters.pbs_base_log,
             parameters.pbs_level,
-            var_rlwe,
-        )?;
+            parameters.glwe_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
 
         // Creation of the bootstrapping key in the Fourier domain
-        let small_bsk: FftFourierLweBootstrapKey64 =
-            self.fft_engine.convert_lwe_bootstrap_key(&bootstrap_key)?;
+        let mut small_bsk = FourierLweBootstrapKey::new(
+            bootstrap_key.input_lwe_dimension(),
+            bootstrap_key.polynomial_size(),
+            bootstrap_key.glwe_size(),
+            bootstrap_key.decomposition_base_log(),
+            bootstrap_key.decomposition_level_count(),
+        );
+
+        let fft = Fft::new(bootstrap_key.polynomial_size());
+        let fft = fft.as_view();
+        self.fft_engine.resize(
+            convert_standard_lwe_bootstrap_key_to_fourier_scratch(fft)
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+        let stack = self.fft_engine.stack();
+
+        // Conversion to fourier domain
+        convert_standard_lwe_bootstrap_key_to_fourier(&bootstrap_key, &mut small_bsk, fft, stack);
 
         // Convert into a variance for lwe context
         let var_lwe = Variance(parameters.lwe_modular_std_dev.get_variance());
@@ -172,7 +190,7 @@ impl ShortintEngine {
         self.fft_engine.discard_extract_bits_lwe_ciphertext(
             &mut LweCiphertextVectorMutView64(output.0.as_mut_view()),
             &lwe_in.as_old_ct_view(),
-            &server_key.bootstrapping_key,
+            &server_key.bootstrapping_key.clone().into(),
             &server_key.key_switching_key.clone().into(),
             extracted_bit_count,
             DeltaLog(delta_log.0),
@@ -200,7 +218,7 @@ impl ShortintEngine {
             .discard_circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_vector(
                 &mut output_cbs_vp_ct,
                 extracted_bits,
-                &sks.bootstrapping_key,
+                &sks.bootstrapping_key.clone().into(),
                 lut,
                 wopbs_key.param.cbs_level,
                 wopbs_key.param.cbs_base_log,
@@ -332,7 +350,7 @@ impl ShortintEngine {
         keyswitch_lwe_ciphertext(
             &wopbs_key.pbs_server_key.key_switching_key,
             &ct_in.ct,
-            &mut buffers.buffer_lwe_after_ks.as_refactor_ct_mut_view(),
+            &mut buffers.buffer_lwe_after_ks,
         );
 
         let out_lwe_size = wopbs_key
@@ -345,9 +363,9 @@ impl ShortintEngine {
         // Compute a bootstrap
         fftw_engine.discard_bootstrap_lwe_ciphertext(
             &mut ct_out.as_old_ct_mut_view(),
-            &LweCiphertextView64(buffers.buffer_lwe_after_ks.0.as_view()),
+            &buffers.buffer_lwe_after_ks.as_old_ct_view(),
             &GlweCiphertextView64(acc.0.as_view()),
-            &wopbs_key.pbs_server_key.bootstrapping_key,
+            &wopbs_key.pbs_server_key.bootstrapping_key.clone().into(),
         )?;
         Ok(Ciphertext {
             ct: ct_out,
