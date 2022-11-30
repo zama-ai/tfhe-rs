@@ -53,6 +53,8 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix=""):
         for subdir in dire.iterdir():
             if walk_subdirs:
                 subdir = subdir.joinpath("new")
+                if not subdir.exists():
+                    continue
             elif subdir.name != "new":
                 continue
 
