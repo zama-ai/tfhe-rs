@@ -30,14 +30,17 @@ parser.add_argument('--name-suffix', dest='name_suffix', default='',
                     help='Suffix to append to each of the result test names')
 parser.add_argument('--append-results', dest='append_results', action='store_true',
                     help='Append parsed results to an existing file')
+parser.add_argument('--walk-subdirs', dest='walk_subdirs', action='store_true',
+                    help='Check for results in subdirectories')
 
 
-def recursive_parse(directory, name_suffix=""):
+def recursive_parse(directory, walk_subdirs=False, name_suffix=""):
     """
     Parse all the benchmark results in a directory. It will attempt to parse all the files having a
     .json extension at the top-level of this directory.
 
     :param directory: path to directory that contains raw results as :class:`pathlib.Path`
+    :param walk_subdirs: traverse results subdirectories if parameters changes for benchmark case.
     :param name_suffix: a :class:`str` suffix to apply to each test name found
 
     :return: :class:`list` of data points
@@ -48,7 +51,9 @@ def recursive_parse(directory, name_suffix=""):
         if dire.name in excluded_directories or not dire.is_dir():
             continue
         for subdir in dire.iterdir():
-            if subdir.name != "new":
+            if walk_subdirs:
+                subdir = subdir.joinpath("new")
+            elif subdir.name != "new":
                 continue
 
             test_name = parse_benchmark_file(subdir)
@@ -129,7 +134,8 @@ def check_mandatory_args(input_args):
 
     missing_args = list()
     for arg_name in vars(input_args):
-        if arg_name in ["results_dir", "output_file", "name_suffix", "append_results"]:
+        if arg_name in ["results_dir", "output_file", "name_suffix",
+                        "append_results", "walk_subdirs"]:
             continue
         if not getattr(input_args, arg_name):
             missing_args.append(arg_name)
@@ -145,7 +151,7 @@ if __name__ == "__main__":
     check_mandatory_args(args)
 
     print("Parsing benchmark results... ")
-    results = recursive_parse(pathlib.Path(args.results_dir), args.name_suffix)
+    results = recursive_parse(pathlib.Path(args.results_dir), args.walk_subdirs, args.name_suffix)
     print("Parsing results done")
 
     output_file = pathlib.Path(args.output_file)
