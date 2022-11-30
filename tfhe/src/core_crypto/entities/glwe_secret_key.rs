@@ -54,6 +54,10 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKeyBase<C> {
     pub fn as_polynomial_list(&self) -> PolynomialListView<'_, C::Element> {
         PolynomialListView::from_container(self.as_ref(), self.polynomial_size)
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
 }
 
 pub type GlweSecretKey<Scalar> = GlweSecretKeyBase<Vec<Scalar>>;
