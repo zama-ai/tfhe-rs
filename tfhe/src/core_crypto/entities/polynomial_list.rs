@@ -45,6 +45,10 @@ impl<Scalar, C: Container<Element = Scalar>> PolynomialListBase<C> {
     pub fn as_view(&self) -> PolynomialListView<'_, Scalar> {
         PolynomialListView::from_container(self.as_ref(), self.polynomial_size())
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> PolynomialListBase<C> {

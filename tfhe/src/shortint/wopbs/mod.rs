@@ -328,7 +328,7 @@ impl WopbsKey {
         delta_log: DeltaLog,
         ciphertext: &Ciphertext,
         num_bits_to_extract: usize,
-    ) -> LweCiphertextVector64 {
+    ) -> LweCiphertextList<u64> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .extract_bits(

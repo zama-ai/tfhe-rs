@@ -30,6 +30,10 @@ impl<Scalar, C: Container<Element = Scalar>> LweSecretKeyBase<C> {
     pub fn lwe_dimension(&self) -> LweDimension {
         LweDimension(self.data.container_len())
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
 }
 
 pub type LweSecretKey<Scalar> = LweSecretKeyBase<Vec<Scalar>>;
