@@ -77,6 +77,10 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertextBase<C> {
     pub fn as_view(&self) -> LweCiphertextView<'_, Scalar> {
         LweCiphertextView::from_container(self.as_ref())
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextBase<C> {

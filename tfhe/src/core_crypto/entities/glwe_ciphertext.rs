@@ -191,6 +191,10 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextBase<C> {
             polynomial_size: self.polynomial_size,
         }
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> GlweCiphertextBase<C> {

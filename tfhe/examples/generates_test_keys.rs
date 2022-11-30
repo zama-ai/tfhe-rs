@@ -1,12 +1,15 @@
-use tfhe::shortint::keycache::{FileStorage, NamedParam, PersistentStorage};
-
-use tfhe::shortint::parameters::ALL_PARAMETER_VEC;
-use tfhe::shortint::{gen_keys, ClientKey, ServerKey};
+use tfhe::shortint::keycache::{NamedParam, KEY_CACHE, KEY_CACHE_WOPBS};
+use tfhe::shortint::parameters::parameters_wopbs_message_carry::{
+    WOPBS_PARAM_MESSAGE_1_CARRY_1, WOPBS_PARAM_MESSAGE_2_CARRY_2, WOPBS_PARAM_MESSAGE_3_CARRY_3,
+    WOPBS_PARAM_MESSAGE_4_CARRY_4,
+};
+use tfhe::shortint::parameters::{
+    Parameters, ALL_PARAMETER_VEC, PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_3, PARAM_MESSAGE_4_CARRY_4,
+};
 
 fn client_server_keys() {
-    let file_storage = FileStorage::new("keys/shortint/client_server".to_string());
-
-    println!("Generating (ClientKey, ServerKey)");
+    println!("Generating shortint (ClientKey, ServerKey)");
     for (i, params) in ALL_PARAMETER_VEC.iter().copied().enumerate() {
         println!(
             "Generating [{} / {}] : {}",
@@ -15,17 +18,41 @@ fn client_server_keys() {
             params.name()
         );
 
-        let keys: Option<(ClientKey, ServerKey)> = file_storage.load(params);
+        let _ = KEY_CACHE.get_from_param(params);
+        // Clear keys as we go to avoid filling the RAM
+        KEY_CACHE.clear_in_memory_cache()
+    }
 
-        if keys.is_some() {
-            continue;
-        }
+    const WOPBS_PARAMS: [(Parameters, Parameters); 4] = [
+        (PARAM_MESSAGE_1_CARRY_1, WOPBS_PARAM_MESSAGE_1_CARRY_1),
+        (PARAM_MESSAGE_2_CARRY_2, WOPBS_PARAM_MESSAGE_2_CARRY_2),
+        (PARAM_MESSAGE_3_CARRY_3, WOPBS_PARAM_MESSAGE_3_CARRY_3),
+        (PARAM_MESSAGE_4_CARRY_4, WOPBS_PARAM_MESSAGE_4_CARRY_4),
+    ];
 
-        let client_server_keys = gen_keys(params);
-        file_storage.store(params, &client_server_keys);
+    println!("Generating woPBS keys");
+    for (i, (params_shortint, params_wopbs)) in WOPBS_PARAMS.iter().copied().enumerate() {
+        println!(
+            "Generating [{} / {}] : {}, {}",
+            i + 1,
+            WOPBS_PARAMS.len(),
+            params_shortint.name(),
+            params_wopbs.name(),
+        );
+
+        let _ = KEY_CACHE_WOPBS.get_from_param((params_shortint, params_wopbs));
+        // Clear keys as we go to avoid filling the RAM
+        KEY_CACHE_WOPBS.clear_in_memory_cache()
     }
 }
 
 fn main() {
+    let work_dir = std::env::current_dir().unwrap();
+    println!("work_dir: {}", std::env::current_dir().unwrap().display());
+    // Change workdir so that the location of the keycache matches the one for tests
+    let mut new_work_dir = work_dir;
+    new_work_dir.push("tfhe");
+    std::env::set_current_dir(new_work_dir).unwrap();
+
     client_server_keys()
 }

@@ -53,6 +53,10 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextListBase<C> {
             self.data.container_len() / glwe_ciphertext_size(self.polynomial_size, self.glwe_size),
         )
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
 }
 
 pub type GlweCiphertextList<Scalar> = GlweCiphertextListBase<Vec<Scalar>>;

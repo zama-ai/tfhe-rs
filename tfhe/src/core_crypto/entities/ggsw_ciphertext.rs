@@ -99,6 +99,10 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextBase<C> {
             self.decomposition_base_log(),
         )
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> GgswCiphertextBase<C> {

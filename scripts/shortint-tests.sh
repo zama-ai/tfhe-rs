@@ -50,6 +50,18 @@ cargo ${1:+"${1}"} nextest run \
     --test-threads "${n_threads}" \
     -E "${filter_expression}"
 
+filter_expression_wopbs='test(/^shortint::wopbs::.*$/)'
+
+# Run tests only no examples or benches for wopbs
+cargo ${1:+"${1}"} nextest run \
+    --tests \
+    --release \
+    --package tfhe \
+    --profile ci \
+    --features="${ARCH_FEATURE}",shortint,internal-keycache \
+    --test-threads "${n_threads}" \
+    -E "${filter_expression_wopbs}"
+
 cargo ${1:+"${1}"} test \
     --release \
     --package tfhe \

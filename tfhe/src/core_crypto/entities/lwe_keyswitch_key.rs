@@ -94,6 +94,10 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKeyBase<C> {
             self.output_lwe_size,
         )
     }
+
+    pub fn into_container(self) -> C {
+        self.data
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> LweKeyswitchKeyBase<C> {
