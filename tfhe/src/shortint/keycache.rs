@@ -8,7 +8,7 @@ use lazy_static::*;
 use serde::{Deserialize, Serialize};
 
 pub use utils::{
-    FileStorage, KeyCache as TKeyCache, NamedParam, PersistentStorage,
+    FileStorage, KeyCache as ImplKeyCache, NamedParam, PersistentStorage,
     SharedKey as GenericSharedKey,
 };
 
@@ -135,6 +135,11 @@ pub mod utils {
                 persistent_storage: storage,
                 memory_storage: RwLock::new(vec![]),
             }
+        }
+
+        pub fn clear_in_memory_cache(&self) {
+            let mut memory_storage = self.memory_storage.write().unwrap();
+            memory_storage.clear();
         }
     }
 
@@ -369,13 +374,13 @@ impl From<Parameters> for (ClientKey, ServerKey) {
 }
 
 pub struct Keycache {
-    inner: TKeyCache<Parameters, (ClientKey, ServerKey), FileStorage>,
+    inner: ImplKeyCache<Parameters, (ClientKey, ServerKey), FileStorage>,
 }
 
 impl Default for Keycache {
     fn default() -> Self {
         Self {
-            inner: TKeyCache::new(FileStorage::new(
+            inner: ImplKeyCache::new(FileStorage::new(
                 "../keys/shortint/client_server".to_string(),
             )),
         }
@@ -418,6 +423,10 @@ impl Keycache {
             inner: self.inner.get(param),
         }
     }
+
+    pub fn clear_in_memory_cache(&self) {
+        self.inner.clear_in_memory_cache();
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -449,13 +458,13 @@ impl NamedParam for WopbsParamPair {
 /// You should not create an instance yourself,
 /// but rather use the global variable defined: [KEY_CACHE_WOPBS]
 pub struct KeycacheWopbsV0 {
-    inner: TKeyCache<WopbsParamPair, WopbsKey, FileStorage>,
+    inner: ImplKeyCache<WopbsParamPair, WopbsKey, FileStorage>,
 }
 
 impl Default for KeycacheWopbsV0 {
     fn default() -> Self {
         Self {
-            inner: TKeyCache::new(FileStorage::new("../keys/shortint/wopbs_v0".to_string())),
+            inner: ImplKeyCache::new(FileStorage::new("../keys/shortint/wopbs_v0".to_string())),
         }
     }
 }
@@ -469,6 +478,10 @@ impl KeycacheWopbsV0 {
             inner: key.inner,
             wopbs: wk,
         }
+    }
+
+    pub fn clear_in_memory_cache(&self) {
+        self.inner.clear_in_memory_cache();
     }
 }
 
