@@ -11,7 +11,6 @@ use super::ggsw::{
 };
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::crypto::glwe::LwePrivateFunctionalPackingKeyswitchKeyList;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::traits::*;
@@ -217,7 +216,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     lwe_in: LweCiphertextBase<&[Scalar]>,
     mut ggsw_out: GgswCiphertextBase<&mut [Scalar]>,
     delta_log: DeltaLog,
-    fpksk_list: LwePrivateFunctionalPackingKeyswitchKeyList<&[Scalar]>,
+    pfpksk_list: LwePrivateFunctionalPackingKeyswitchKeyListBase<&[Scalar]>,
     fft: FftView<'_>,
     stack: DynStack<'_>,
 ) {
@@ -235,7 +234,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
         base_log_cbs.0
     );
 
-    let fpksk_input_lwe_key_dimension = fpksk_list.input_lwe_key_dimension();
+    let fpksk_input_lwe_key_dimension = pfpksk_list.input_lwe_key_dimension();
     let fourier_bsk_output_lwe_dimension = fourier_bsk.output_lwe_dimension();
 
     debug_assert!(
@@ -246,8 +245,8 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
         fpksk_input_lwe_key_dimension.0
     );
 
-    let fpksk_output_polynomial_size = fpksk_list.output_polynomial_size();
-    let fpksk_output_glwe_key_dimension = fpksk_list.output_glwe_key_dimension();
+    let fpksk_output_polynomial_size = pfpksk_list.output_polynomial_size();
+    let fpksk_output_glwe_key_dimension = pfpksk_list.output_glwe_key_dimension();
 
     debug_assert!(
         ggsw_out.polynomial_size() == fpksk_output_polynomial_size,
@@ -266,11 +265,11 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     );
 
     debug_assert!(
-        ggsw_out.glwe_size().0 == fpksk_list.fpksk_count().0,
+        ggsw_out.glwe_size().0 == pfpksk_list.lwe_pfpksk_count().0,
         "The input vector of fpksk needs to have {} (ggsw.glwe_size * \
         ggsw.decomposition_level_count) elements got {}",
         ggsw_out.glwe_size().0,
-        fpksk_list.fpksk_count().0,
+        pfpksk_list.lwe_pfpksk_count().0,
     );
 
     // Output for every bootstrapping
@@ -298,17 +297,12 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
             stack.rb_mut(),
         );
 
-        for pfksk in fpksk_list.fpksk_iter() {
+        for pfpksk in pfpksk_list.iter() {
             let mut glwe_out = out_pfksk_buffer_iter.next().unwrap();
-            let polynomial_size = glwe_out.polynomial_size();
-            pfksk.private_functional_keyswitch_ciphertext(
-                &mut crate::core_crypto::commons::crypto::glwe::GlweCiphertext::from_container(
-                    glwe_out.as_mut(),
-                    polynomial_size,
-                ),
-                &crate::core_crypto::commons::crypto::lwe::LweCiphertext::from_container(
-                    lwe_out_bs_buffer.as_ref(),
-                ),
+            private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext(
+                &pfpksk,
+                &mut glwe_out,
+                &lwe_out_bs_buffer,
             );
         }
     }
@@ -819,7 +813,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
     fourier_bsk: FourierLweBootstrapKeyView<'_>,
     mut lwe_list_out: LweCiphertextListBase<&mut [Scalar]>,
     lwe_list_in: LweCiphertextListBase<&[Scalar]>,
-    fpksk_list: LwePrivateFunctionalPackingKeyswitchKeyList<&[Scalar]>,
+    pfpksk_list: LwePrivateFunctionalPackingKeyswitchKeyListBase<&[Scalar]>,
     level_cbs: DecompositionLevelCount,
     base_log_cbs: DecompositionBaseLog,
     fft: FftView<'_>,
@@ -832,7 +826,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
             lwe_list_in.lwe_size(),
             big_lut_as_polynomial_list.polynomial_count(),
             fourier_bsk.output_lwe_dimension().to_lwe_size(),
-            fpksk_list.output_polynomial_size(),
+            pfpksk_list.output_polynomial_size(),
             fourier_bsk.glwe_size(),
             level_cbs,
             fft
@@ -850,9 +844,9 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         fourier_bsk.output_lwe_dimension().0
     );
 
-    let glwe_size = fpksk_list.output_glwe_key_dimension().to_glwe_size();
+    let glwe_size = pfpksk_list.output_glwe_key_dimension().to_glwe_size();
     let (mut ggsw_list_data, stack) = stack.make_aligned_with(
-        lwe_list_in.lwe_ciphertext_count().0 * fpksk_list.output_polynomial_size().0 / 2
+        lwe_list_in.lwe_ciphertext_count().0 * pfpksk_list.output_polynomial_size().0 / 2
             * glwe_size.0
             * glwe_size.0
             * level_cbs.0,
@@ -860,7 +854,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         |_| c64::default(),
     );
     let (mut ggsw_res_data, mut stack) = stack.make_aligned_with(
-        fpksk_list.output_polynomial_size().0 * glwe_size.0 * glwe_size.0 * level_cbs.0,
+        pfpksk_list.output_polynomial_size().0 * glwe_size.0 * glwe_size.0 * level_cbs.0,
         CACHELINE_ALIGN,
         |_| Scalar::ZERO,
     );
@@ -868,7 +862,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
     let mut ggsw_list = FourierGgswCiphertextListMutView::new(
         &mut ggsw_list_data,
         lwe_list_in.lwe_ciphertext_count().0,
-        fpksk_list.output_polynomial_size(),
+        pfpksk_list.output_polynomial_size(),
         glwe_size,
         base_log_cbs,
         level_cbs,
@@ -877,7 +871,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
     let mut ggsw_res = GgswCiphertextBase::from_container(
         &mut *ggsw_res_data,
         glwe_size,
-        fpksk_list.output_polynomial_size(),
+        pfpksk_list.output_polynomial_size(),
         base_log_cbs,
     );
 
@@ -887,7 +881,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
             lwe_in,
             ggsw_res.as_mut_view(),
             DeltaLog(Scalar::BITS - 1),
-            fpksk_list,
+            pfpksk_list,
             fft,
             stack.rb_mut(),
         );
