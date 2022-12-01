@@ -45,6 +45,109 @@ pub fn encrypt_glwe_ciphertext_in_place<Scalar, KeyCont, OutputCont, Gen>(
     );
 }
 
+pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
+    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
+    input_plaintext_list: &PlaintextListBase<InputCont>,
+    output_glwe_ciphertext: &mut GlweCiphertextBase<OutputCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        output_glwe_ciphertext.polynomial_size().0 == input_plaintext_list.plaintext_count().0,
+        "Mismatch between PolynomialSize of output cipertext PlaintextCount of input. \
+    Got {:?} in output, and {:?} in input.",
+        output_glwe_ciphertext.polynomial_size(),
+        input_plaintext_list.plaintext_count()
+    );
+    assert!(
+        output_glwe_ciphertext.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
+        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+        glwe_secret_key.glwe_dimension()
+    );
+    assert!(
+        output_glwe_ciphertext.polynomial_size() == glwe_secret_key.polynomial_size(),
+        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output_glwe_ciphertext.polynomial_size(),
+        glwe_secret_key.polynomial_size()
+    );
+
+    let (mut mask, mut body) = output_glwe_ciphertext.get_mut_mask_and_body();
+
+    generator.fill_slice_with_random_mask(mask.as_mut());
+
+    generator.fill_slice_with_random_noise(body.as_mut(), noise_parameters);
+
+    update_polynomial_with_wrapping_add(
+        &mut body.as_mut_polynomial(),
+        &input_plaintext_list.as_polynomial(),
+    );
+
+    update_polynomial_with_wrapping_add_multisum(
+        &mut body.as_mut_polynomial(),
+        &mask.as_polynomial_list(),
+        &glwe_secret_key.as_polynomial_list(),
+    );
+}
+
+pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>(
+    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
+    input_plaintext_list: &PlaintextListBase<InputCont>,
+    output_glwe_ciphertext_list: &mut GlweCiphertextListBase<OutputCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        output_glwe_ciphertext_list.polynomial_size().0
+            * output_glwe_ciphertext_list.glwe_ciphertext_count().0
+            == input_plaintext_list.plaintext_count().0,
+        "TODO error message",
+    );
+    assert!(
+        output_glwe_ciphertext_list.glwe_size().to_glwe_dimension()
+            == glwe_secret_key.glwe_dimension(),
+        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output_glwe_ciphertext_list.glwe_size().to_glwe_dimension(),
+        glwe_secret_key.glwe_dimension()
+    );
+    assert!(
+        output_glwe_ciphertext_list.polynomial_size() == glwe_secret_key.polynomial_size(),
+        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output_glwe_ciphertext_list.polynomial_size(),
+        glwe_secret_key.polynomial_size()
+    );
+
+    let polynomial_size = output_glwe_ciphertext_list.polynomial_size();
+    for (mut ciphertext, encoded) in output_glwe_ciphertext_list
+        .iter_mut()
+        .zip(input_plaintext_list.chunks_exact(polynomial_size.0))
+    {
+        encrypt_glwe_ciphertext(
+            glwe_secret_key,
+            &encoded,
+            &mut ciphertext,
+            noise_parameters,
+            generator,
+        );
+    }
+}
+
 pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
     glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
     input_glwe_ciphertext: &GlweCiphertextBase<InputCont>,
