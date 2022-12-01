@@ -623,6 +623,26 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
             });
     }
 
+    pub fn fill_slice_with_random_gaussian<Float, Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        mean: Float,
+        std: Float,
+    ) where
+        Float: FloatingPoint,
+        (Scalar, Scalar): RandomGenerable<Gaussian<Float>>,
+    {
+        output.chunks_mut(2).for_each(|s| {
+            let (g1, g2) = <(Scalar, Scalar)>::generate_one(self, Gaussian { std, mean });
+            if let Some(elem) = s.get_mut(0) {
+                *elem = g1;
+            }
+            if let Some(elem) = s.get_mut(1) {
+                *elem = g2;
+            }
+        });
+    }
+
     pub fn update_slice_with_wrapping_add_random_gaussian<Float, Scalar>(
         &mut self,
         output: &mut [Scalar],
