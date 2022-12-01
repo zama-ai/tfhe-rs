@@ -26,6 +26,7 @@ pub fn lwe_keyswitch_key_input_key_element_encrypted_size(
     decomp_level_count: DecompositionLevelCount,
     output_lwe_size: LweSize,
 ) -> usize {
+    // One ciphertext per level encrypted under the output key
     decomp_level_count.0 * output_lwe_size.0
 }
 
@@ -38,7 +39,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKeyBase<C> {
     ) -> Self {
         assert!(
             container.container_len() > 0,
-            "Got an empty container to create an LweSecretKey"
+            "Got an empty container to create an LweKeyswitchKey"
         );
         assert!(
             container.container_len() % (decomp_level_count.0 * output_lwe_size.0) == 0,
@@ -79,7 +80,6 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKeyBase<C> {
     }
 
     pub fn input_key_element_encrypted_size(&self) -> usize {
-        // One ciphertext per level encrypted under the output key
         lwe_keyswitch_key_input_key_element_encrypted_size(
             self.decomp_level_count,
             self.output_lwe_size,
