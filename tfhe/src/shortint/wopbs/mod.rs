@@ -22,7 +22,7 @@ pub struct WopbsKey {
     //Key for the private functional keyswitch
     pub wopbs_server_key: ServerKey,
     pub pbs_server_key: ServerKey,
-    pub cbs_pfpksk: LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64,
+    pub cbs_pfpksk: LwePrivateFunctionalPackingKeyswitchKeyList<u64>,
     pub ksk_pbs_to_wopbs: LweKeyswitchKey<u64>,
     pub param: Parameters,
 }
@@ -393,8 +393,11 @@ impl Serialize for WopbsKey {
         let mut default_ser_eng =
             DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
 
+        let tmp_cbs_pfpksk: LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64 =
+            self.cbs_pfpksk.clone().into();
+
         let cbs_pfpksk = default_ser_eng
-            .serialize(&self.cbs_pfpksk)
+            .serialize(&tmp_cbs_pfpksk)
             .map_err(serde::ser::Error::custom)?;
 
         let tmp_ksk_pbs_to_wopbs: LweKeyswitchKey64 = self.ksk_pbs_to_wopbs.clone().into();
@@ -425,9 +428,10 @@ impl<'de> Deserialize<'de> for WopbsKey {
         let mut default_ser_eng =
             DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
 
-        let cbs_pfpksk = default_ser_eng
-            .deserialize(thing.cbs_pfpksk.as_slice())
-            .map_err(serde::de::Error::custom)?;
+        let tmp_cbs_pfpksk: LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64 =
+            default_ser_eng
+                .deserialize(thing.cbs_pfpksk.as_slice())
+                .map_err(serde::de::Error::custom)?;
 
         let tmp_ksk_pbs_to_wopbs: LweKeyswitchKey64 = default_ser_eng
             .deserialize(thing.ksk_pbs_to_wopbs.as_slice())
@@ -436,7 +440,7 @@ impl<'de> Deserialize<'de> for WopbsKey {
         Ok(Self {
             wopbs_server_key: thing.wopbs_server_key,
             pbs_server_key: thing.pbs_server_key,
-            cbs_pfpksk,
+            cbs_pfpksk: tmp_cbs_pfpksk.into(),
             ksk_pbs_to_wopbs: tmp_ksk_pbs_to_wopbs.into(),
             param: thing.param,
         })

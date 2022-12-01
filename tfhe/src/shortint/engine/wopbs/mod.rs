@@ -17,17 +17,14 @@ impl ShortintEngine {
         cks: &ClientKey,
         sks: &ServerKey,
     ) -> EngineResult<WopbsKey> {
-        // TODO REFACTOR
-        // Remove the clone + into
-        let cbs_pfpksk = self
-            .engine
-            .generate_new_lwe_circuit_bootstrap_private_functional_packing_keyswitch_keys(
-                &cks.lwe_secret_key.clone().into(),
-                &cks.glwe_secret_key.clone().into(),
-                cks.parameters.pfks_base_log,
-                cks.parameters.pfks_level,
-                Variance(cks.parameters.pfks_modular_std_dev.get_variance()),
-            )?;
+        let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
+            &cks.lwe_secret_key,
+            &cks.glwe_secret_key,
+            cks.parameters.pfks_base_log,
+            cks.parameters.pfks_level,
+            cks.parameters.pfks_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
 
         let sks_cpy = sks.clone();
 
@@ -131,15 +128,14 @@ impl ShortintEngine {
             self.engine.get_encryption_generator(),
         );
 
-        let cbs_pfpksk = self
-            .engine
-            .generate_new_lwe_circuit_bootstrap_private_functional_packing_keyswitch_keys(
-                &large_lwe_secret_key.into(),
-                &glwe_secret_key.into(),
-                parameters.pfks_base_log,
-                parameters.pfks_level,
-                Variance(parameters.pfks_modular_std_dev.get_variance()),
-            )?;
+        let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
+            &large_lwe_secret_key,
+            &glwe_secret_key,
+            parameters.pfks_base_log,
+            parameters.pfks_level,
+            parameters.pfks_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
 
         let wopbs_server_key = ServerKey {
             key_switching_key: ksk_wopbs_large_to_wopbs_small,
@@ -264,7 +260,7 @@ impl ShortintEngine {
             &mut output_cbs_vp_ct,
             &lut,
             &sks.bootstrapping_key,
-            &wopbs_key.cbs_pfpksk.0,
+            &wopbs_key.cbs_pfpksk,
             wopbs_key.param.cbs_level,
             wopbs_key.param.cbs_base_log,
             fft,

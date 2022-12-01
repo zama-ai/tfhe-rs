@@ -1,8 +1,21 @@
 #![allow(deprecated)] // For MonomialDegree for now
+use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::math::polynomial::MonomialDegree;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+
+pub fn update_polynomial_with_wrapping_add<Scalar, OutputCont, InputCont>(
+    lhs: &mut PolynomialBase<OutputCont>,
+    rhs: &PolynomialBase<InputCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert!(lhs.polynomial_size() == rhs.polynomial_size());
+    update_with_wrapping_add(lhs.as_mut(), rhs.as_ref())
+}
 
 pub fn update_polynomial_with_wrapping_add_multisum<Scalar, OutputCont, InputCont1, InputCont2>(
     output: &mut PolynomialBase<OutputCont>,

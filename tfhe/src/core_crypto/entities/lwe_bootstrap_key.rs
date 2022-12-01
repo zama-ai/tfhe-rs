@@ -22,7 +22,7 @@ impl<C: ContainerMut> std::ops::DerefMut for LweBootstrapKeyBase<C> {
     }
 }
 
-impl<C: Container> LweBootstrapKeyBase<C> {
+impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKeyBase<C> {
     pub fn from_container(
         container: C,
         glwe_size: GlweSize,
@@ -57,7 +57,7 @@ impl<C: Container> LweBootstrapKeyBase<C> {
         self.ggsw_list.into_container()
     }
 
-    pub fn as_view(&self) -> LweBootstrapKeyBase<&'_ [C::Element]> {
+    pub fn as_view(&self) -> LweBootstrapKeyBase<&'_ [Scalar]> {
         LweBootstrapKeyBase::from_container(
             self.as_ref(),
             self.glwe_size(),
@@ -68,12 +68,12 @@ impl<C: Container> LweBootstrapKeyBase<C> {
     }
 }
 
-impl<C: ContainerMut> LweBootstrapKeyBase<C> {
+impl<Scalar, C: ContainerMut<Element = Scalar>> LweBootstrapKeyBase<C> {
     pub fn as_mut_ggsw_ciphertext_list(&mut self) -> &mut GgswCiphertextListBase<C> {
         &mut self.ggsw_list
     }
 
-    pub fn as_mut_view(&mut self) -> LweBootstrapKeyBase<&'_ mut [C::Element]> {
+    pub fn as_mut_view(&mut self) -> LweBootstrapKeyBase<&'_ mut [Scalar]> {
         let glwe_size = self.glwe_size();
         let polynomial_size = self.polynomial_size();
         let decomp_base_log = self.decomposition_base_log();

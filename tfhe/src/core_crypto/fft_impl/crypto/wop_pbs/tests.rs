@@ -1,6 +1,5 @@
 use super::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::crypto::glwe::LwePrivateFunctionalPackingKeyswitchKeyList;
 use crate::core_crypto::commons::crypto::secret::generators::{
     EncryptionRandomGenerator, SecretRandomGenerator,
 };
@@ -11,9 +10,9 @@ use crate::core_crypto::fft_impl::crypto::bootstrap::{
 };
 use crate::core_crypto::fft_impl::math::fft::Fft;
 use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, DeltaLog, ExtractedBitsCount,
-    FunctionalPackingKeyswitchKeyCount, GlweDimension, LogStandardDev, LweDimension, LweSize,
-    PlaintextCount, PolynomialCount, PolynomialSize, StandardDev,
+    DecompositionBaseLog, DecompositionLevelCount, DeltaLog, ExtractedBitsCount, GlweDimension,
+    LogStandardDev, LweDimension, LweSize, PlaintextCount, PolynomialCount, PolynomialSize,
+    StandardDev,
 };
 use concrete_csprng::generators::SoftwareRandomGenerator;
 use concrete_csprng::seeders::{Seeder, UnixSeeder};
@@ -237,24 +236,11 @@ fn test_circuit_bootstrapping_binary() {
     let lwe_sk_bs_output = glwe_sk.clone().into_lwe_secret_key();
 
     // Creation of all the pfksk for the circuit bootstrapping
-    let mut vec_pfksk = LwePrivateFunctionalPackingKeyswitchKeyList::allocate(
-        0u64,
-        level_pksk,
+    let vec_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
+        &lwe_sk_bs_output,
+        &glwe_sk,
         base_log_pksk,
-        lwe_sk_bs_output.lwe_dimension(),
-        glwe_sk.glwe_dimension(),
-        glwe_sk.polynomial_size(),
-        FunctionalPackingKeyswitchKeyCount(glwe_dimension.to_glwe_size().0),
-    );
-
-    vec_pfksk.par_fill_with_fpksk_for_circuit_bootstrap(
-        &crate::core_crypto::commons::crypto::secret::LweSecretKey::binary_from_container(
-            lwe_sk_bs_output.as_ref(),
-        ),
-        &crate::core_crypto::commons::crypto::secret::GlweSecretKey::binary_from_container(
-            glwe_sk.as_ref(),
-            glwe_sk.polynomial_size(),
-        ),
+        level_pksk,
         std,
         &mut encryption_generator,
     );
@@ -302,7 +288,7 @@ fn test_circuit_bootstrapping_binary() {
             lwe_in.as_view(),
             cbs_res.as_mut_view(),
             delta_log,
-            vec_pfksk.as_view(),
+            vec_pfpksk.as_view(),
             fft,
             stack,
         );
@@ -597,24 +583,11 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     );
 
     // Creation of all the pfksk for the circuit bootstrapping
-    let mut vec_fpksk = LwePrivateFunctionalPackingKeyswitchKeyList::allocate(
-        0u64,
-        level_pksk,
+    let vec_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
+        &lwe_big_sk,
+        &glwe_sk,
         base_log_pksk,
-        lwe_big_sk.lwe_dimension(),
-        glwe_sk.glwe_dimension(),
-        glwe_sk.polynomial_size(),
-        FunctionalPackingKeyswitchKeyCount(glwe_dimension.to_glwe_size().0),
-    );
-
-    vec_fpksk.par_fill_with_fpksk_for_circuit_bootstrap(
-        &crate::core_crypto::commons::crypto::secret::LweSecretKey::binary_from_container(
-            lwe_big_sk.as_ref(),
-        ),
-        &crate::core_crypto::commons::crypto::secret::GlweSecretKey::binary_from_container(
-            glwe_sk.as_ref(),
-            glwe_sk.polynomial_size(),
-        ),
+        level_pksk,
         std_small,
         &mut encryption_generator,
     );
@@ -732,7 +705,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
                 extracted_bits_lwe_list.lwe_size(),
                 lut_poly_list.polynomial_count(),
                 fourier_bsk.output_lwe_dimension().to_lwe_size(),
-                vec_fpksk.output_polynomial_size(),
+                vec_pfpksk.output_polynomial_size(),
                 fourier_bsk.glwe_size(),
                 level_cbs,
                 fft,
@@ -744,7 +717,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             fourier_bsk.as_view(),
             vertical_packing_lwe_list_out.as_mut_view(),
             extracted_bits_lwe_list.as_view(),
-            vec_fpksk.as_view(),
+            vec_pfpksk.as_view(),
             level_cbs,
             base_log_cbs,
             fft,

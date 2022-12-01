@@ -204,6 +204,18 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
             .fill_tensor_with_random_gaussian(output, 0., std.get_standard_dev());
     }
 
+    // Fills the input slice with random noise, using the noise generator.
+    pub(crate) fn fill_slice_with_random_noise<Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        std: impl DispersionParameter,
+    ) where
+        (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
+    {
+        self.noise
+            .fill_slice_with_random_gaussian(output, 0., std.get_standard_dev());
+    }
+
     // Adds noise on top of existing data for in place encryption
     pub(crate) fn update_slice_with_wrapping_add_random_noise<Scalar>(
         &mut self,
