@@ -1,8 +1,6 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::ByteRandomGenerator;
-#[cfg(feature = "__commons_parallel")]
-use crate::core_crypto::commons::math::random::ParallelByteRandomGenerator;
+use crate::core_crypto::commons::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -55,7 +53,6 @@ where
     pk
 }
 
-#[cfg(feature = "__commons_parallel")]
 pub fn par_generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output: &mut LwePublicKey<OutputKeyCont>,
@@ -80,7 +77,6 @@ pub fn par_generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     par_encrypt_lwe_ciphertext_list(lwe_secret_key, output, &zeros, noise_parameters, generator)
 }
 
-#[cfg(feature = "__commons_parallel")]
 pub fn par_allocate_and_generate_new_lwe_public_key<Scalar, InputKeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,

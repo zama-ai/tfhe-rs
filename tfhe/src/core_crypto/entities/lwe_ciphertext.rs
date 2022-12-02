@@ -1,7 +1,9 @@
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::specification::parameters::*;
 
+#[derive(Clone, Debug)]
 pub struct LweBody<T>(pub T);
+#[derive(Clone, Debug)]
 pub struct LweMask<C: Container> {
     data: C,
 }
