@@ -8,10 +8,10 @@ pub type AccumulatorCallback = Option<extern "C" fn(u64) -> u64>;
 pub type BivariateAccumulatorCallback = Option<extern "C" fn(u64, u64) -> u64>;
 
 pub struct ShortintPBSAccumulator(
-    pub(in crate::c_api) crate::core_crypto::prelude::GlweCiphertext64,
+    pub(in crate::c_api) crate::core_crypto::entities::GlweCiphertext<u64>,
 );
 pub struct ShortintBivariatePBSAccumulator(
-    pub(in crate::c_api) crate::core_crypto::prelude::GlweCiphertext64,
+    pub(in crate::c_api) crate::core_crypto::entities::GlweCiphertext<u64>,
 );
 
 #[no_mangle]

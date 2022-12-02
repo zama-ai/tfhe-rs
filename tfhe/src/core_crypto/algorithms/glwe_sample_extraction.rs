@@ -43,7 +43,7 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
         // We reverse the polynomial
         lwe_mask_poly.reverse();
         // We compute the opposite of the proper coefficients
-        update_with_wrapping_opposite(&mut lwe_mask_poly[0..opposite_count]);
+        update_slice_with_wrapping_opposite(&mut lwe_mask_poly[0..opposite_count]);
         // We rotate the polynomial properly
         lwe_mask_poly.rotate_left(opposite_count);
     }

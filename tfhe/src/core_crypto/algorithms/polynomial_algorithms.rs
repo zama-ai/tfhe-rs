@@ -14,7 +14,7 @@ pub fn update_polynomial_with_wrapping_add<Scalar, OutputCont, InputCont>(
     InputCont: Container<Element = Scalar>,
 {
     assert!(lhs.polynomial_size() == rhs.polynomial_size());
-    update_with_wrapping_add(lhs.as_mut(), rhs.as_ref())
+    update_slice_with_wrapping_add(lhs.as_mut(), rhs.as_ref())
 }
 
 pub fn update_polynomial_with_wrapping_add_multisum<Scalar, OutputCont, InputCont1, InputCont2>(
