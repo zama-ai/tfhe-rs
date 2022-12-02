@@ -13,8 +13,8 @@ use crate::core_crypto::specification::dispersion::DispersionParameter;
 use rayon::prelude::*;
 
 pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
-    output: &mut GgswCiphertextBase<OutputCont>,
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output: &mut GgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
@@ -91,8 +91,8 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 
 #[cfg(feature = "__commons_parallel")]
 pub fn par_encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
-    output: &mut GgswCiphertextBase<OutputCont>,
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output: &mut GgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
     noise_parameters: impl DispersionParameter + Sync,
     generator: &mut EncryptionRandomGenerator<Gen>,
@@ -168,11 +168,11 @@ pub fn par_encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 }
 
 fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, InputCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
     (row_index, last_row_index): (usize, usize),
     factor: Scalar,
-    sk_poly_list: &PolynomialListBase<InputCont>,
-    row_as_glwe: &mut GlweCiphertextBase<OutputCont>,
+    sk_poly_list: &PolynomialList<InputCont>,
+    row_as_glwe: &mut GlweCiphertext<OutputCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -217,7 +217,9 @@ mod test {
     use crate::core_crypto::commons::math::tensor::*;
     use crate::core_crypto::commons::math::torus::UnsignedTorus;
     use crate::core_crypto::commons::test_tools;
-    use crate::core_crypto::entities::{GgswCiphertext, GlweSecretKeyBase, Plaintext};
+    use crate::core_crypto::entities::{
+        GgswCiphertextOwned, GlweSecretKey as NewGlweSecretKey, Plaintext,
+    };
     use crate::core_crypto::prelude::{
         DecompositionBaseLog, DecompositionLevelCount, LogStandardDev,
     };
@@ -249,7 +251,7 @@ mod test {
                 &mut DeterministicSeeder::<SoftwareRandomGenerator>::new(main_seed),
             );
 
-            let mut refactored_ggsw = GgswCiphertext::new(
+            let mut refactored_ggsw = GgswCiphertextOwned::new(
                 T::ZERO,
                 dimension.to_glwe_size(),
                 polynomial_size,
@@ -258,7 +260,7 @@ mod test {
             );
 
             encrypt_ggsw_ciphertext(
-                &GlweSecretKeyBase::from_container(sk.as_tensor().as_slice(), polynomial_size),
+                &NewGlweSecretKey::from_container(sk.as_tensor().as_slice(), polynomial_size),
                 &mut refactored_ggsw,
                 Plaintext(plaintext.0),
                 noise_parameters,

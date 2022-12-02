@@ -55,7 +55,7 @@ impl std::error::Error for CheckError {}
 /// sends it to the server so it can compute homomorphic circuits.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ServerKey {
-    pub key_switching_key: LweKeyswitchKey<u64>,
+    pub key_switching_key: LweKeyswitchKeyOwned<u64>,
     pub bootstrapping_key: FourierLweBootstrapKeyOwned,
     // Size of the message buffer
     pub message_modulus: MessageModulus,
@@ -118,7 +118,7 @@ impl ServerKey {
     /// // 3^2 mod 4 = 1
     /// assert_eq!(dec, f(msg));
     /// ```
-    pub fn generate_accumulator<F>(&self, f: F) -> GlweCiphertext<u64>
+    pub fn generate_accumulator<F>(&self, f: F) -> GlweCiphertextOwned<u64>
     where
         F: Fn(u64) -> u64,
     {
@@ -152,7 +152,7 @@ impl ServerKey {
     /// // 3^2 mod 4 = 1
     /// assert_eq!(dec, f(msg, 0));
     /// ```
-    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> GlweCiphertext<u64>
+    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> GlweCiphertextOwned<u64>
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -245,7 +245,7 @@ impl ServerKey {
         &self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -258,7 +258,7 @@ impl ServerKey {
         &self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -293,7 +293,7 @@ impl ServerKey {
     pub fn keyswitch_programmable_bootstrap(
         &self,
         ct_in: &Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -305,7 +305,7 @@ impl ServerKey {
     pub fn keyswitch_programmable_bootstrap_assign(
         &self,
         ct_in: &mut Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine

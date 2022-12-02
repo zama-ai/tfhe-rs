@@ -184,7 +184,7 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
     /// domain.
     pub fn fill_with_forward_fourier<Scalar: UnsignedTorus>(
         mut self,
-        coef_bsk: LweBootstrapKeyBase<&'_ [Scalar]>,
+        coef_bsk: LweBootstrapKey<&'_ [Scalar]>,
         fft: FftView<'_>,
         mut stack: DynStack<'_>,
     ) {

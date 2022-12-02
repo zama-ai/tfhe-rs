@@ -80,7 +80,7 @@ impl ShortintEngine {
         let plain = Plaintext(shifted_message);
 
         // This allocates the required ct
-        let mut encrypted_ct = LweCiphertext::new(0u64, public_key.lwe_public_key.lwe_size());
+        let mut encrypted_ct = LweCiphertextOwned::new(0u64, public_key.lwe_public_key.lwe_size());
 
         encrypt_lwe_ciphertext_with_public_key(
             &public_key.lwe_public_key,
@@ -113,7 +113,7 @@ impl ShortintEngine {
         let plain = Plaintext(shifted_message);
 
         // This allocates the required ct
-        let mut encrypted_ct = LweCiphertext::new(0u64, public_key.lwe_public_key.lwe_size());
+        let mut encrypted_ct = LweCiphertextOwned::new(0u64, public_key.lwe_public_key.lwe_size());
 
         // encryption
         encrypt_lwe_ciphertext_with_public_key(
@@ -145,7 +145,7 @@ impl ShortintEngine {
         let plain = Plaintext(shifted_message as u64);
 
         // This allocates the required ct
-        let mut encrypted_ct = LweCiphertext::new(0u64, public_key.lwe_public_key.lwe_size());
+        let mut encrypted_ct = LweCiphertextOwned::new(0u64, public_key.lwe_public_key.lwe_size());
 
         encrypt_lwe_ciphertext_with_public_key(
             &public_key.lwe_public_key,
@@ -175,7 +175,7 @@ impl ShortintEngine {
         let plain = Plaintext(shifted_message);
 
         // This allocates the required ct
-        let mut encrypted_ct = LweCiphertext::new(0u64, public_key.lwe_public_key.lwe_size());
+        let mut encrypted_ct = LweCiphertextOwned::new(0u64, public_key.lwe_public_key.lwe_size());
 
         encrypt_lwe_ciphertext_with_public_key(
             &public_key.lwe_public_key,

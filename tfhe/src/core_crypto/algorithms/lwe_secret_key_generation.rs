@@ -10,12 +10,12 @@ use crate::core_crypto::specification::parameters::*;
 pub fn allocate_and_generate_new_binary_lwe_secret_key<Scalar, Gen>(
     lwe_dimension: LweDimension,
     generator: &mut SecretRandomGenerator<Gen>,
-) -> LweSecretKey<Scalar>
+) -> LweSecretKeyOwned<Scalar>
 where
     Scalar: RandomGenerable<UniformBinary> + Numeric,
     Gen: ByteRandomGenerator,
 {
-    let mut lwe_secret_key = LweSecretKey::new(Scalar::ZERO, lwe_dimension);
+    let mut lwe_secret_key = LweSecretKeyOwned::new(Scalar::ZERO, lwe_dimension);
 
     generate_binary_lwe_secret_key(&mut lwe_secret_key, generator);
 
@@ -23,7 +23,7 @@ where
 }
 
 pub fn generate_binary_lwe_secret_key<Scalar, InCont, Gen>(
-    lwe_secret_key: &mut LweSecretKeyBase<InCont>,
+    lwe_secret_key: &mut LweSecretKey<InCont>,
     generator: &mut SecretRandomGenerator<Gen>,
 ) where
     Scalar: RandomGenerable<UniformBinary>,

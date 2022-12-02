@@ -2,20 +2,20 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 
-pub struct GgswCiphertextBase<C: Container> {
+pub struct GgswCiphertext<C: Container> {
     data: C,
     polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
     decomp_base_log: DecompositionBaseLog,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]> for GgswCiphertextBase<C> {
+impl<T, C: Container<Element = T>> AsRef<[T]> for GgswCiphertext<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
-impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GgswCiphertextBase<C> {
+impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GgswCiphertext<C> {
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
     }
@@ -33,7 +33,7 @@ pub fn ggsw_level_matrix_size(glwe_size: GlweSize, polynomial_size: PolynomialSi
     glwe_size.0 * glwe_size.0 * polynomial_size.0
 }
 
-impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextBase<C> {
+impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     pub fn from_container(
         container: C,
         glwe_size: GlweSize,
@@ -54,7 +54,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextBase<C> {
             container.container_len()
         );
 
-        GgswCiphertextBase {
+        GgswCiphertext {
             data: container,
             polynomial_size,
             glwe_size,
@@ -105,7 +105,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextBase<C> {
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> GgswCiphertextBase<C> {
+impl<Scalar, C: ContainerMut<Element = Scalar>> GgswCiphertext<C> {
     pub fn as_mut_polynomial_list(&mut self) -> PolynomialListMutView<'_, Scalar> {
         let polynomial_size = self.polynomial_size;
         PolynomialListMutView::from_container(self.as_mut(), polynomial_size)
@@ -130,19 +130,19 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> GgswCiphertextBase<C> {
     }
 }
 
-pub type GgswCiphertext<Scalar> = GgswCiphertextBase<Vec<Scalar>>;
-pub type GgswCiphertextView<'data, Scalar> = GgswCiphertextBase<&'data [Scalar]>;
-pub type GgswCiphertextMutView<'data, Scalar> = GgswCiphertextBase<&'data mut [Scalar]>;
+pub type GgswCiphertextOwned<Scalar> = GgswCiphertext<Vec<Scalar>>;
+pub type GgswCiphertextView<'data, Scalar> = GgswCiphertext<&'data [Scalar]>;
+pub type GgswCiphertextMutView<'data, Scalar> = GgswCiphertext<&'data mut [Scalar]>;
 
-impl<Scalar: Copy> GgswCiphertext<Scalar> {
+impl<Scalar: Copy> GgswCiphertextOwned<Scalar> {
     pub fn new(
         fill_with: Scalar,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
-    ) -> GgswCiphertext<Scalar> {
-        GgswCiphertext::from_container(
+    ) -> GgswCiphertextOwned<Scalar> {
+        GgswCiphertextOwned::from_container(
             vec![fill_with; ggsw_ciphertext_size(glwe_size, polynomial_size, decomp_level_count)],
             glwe_size,
             polynomial_size,
@@ -158,13 +158,13 @@ pub struct GgswCiphertextCreationMetadata(
     pub DecompositionBaseLog,
 );
 
-impl<C: Container> CreateFrom<C> for GgswCiphertextBase<C> {
+impl<C: Container> CreateFrom<C> for GgswCiphertext<C> {
     type Metadata = GgswCiphertextCreationMetadata;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GgswCiphertextBase<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> GgswCiphertext<C> {
         let GgswCiphertextCreationMetadata(glwe_size, polynomial_size, decomp_base_log) = meta;
-        GgswCiphertextBase::from_container(from, glwe_size, polynomial_size, decomp_base_log)
+        GgswCiphertext::from_container(from, glwe_size, polynomial_size, decomp_base_log)
     }
 }
 
@@ -234,7 +234,7 @@ impl<C: Container> CreateFrom<C> for GgswLevelMatrix<C> {
     }
 }
 
-impl<C: Container> ContiguousEntityContainer for GgswCiphertextBase<C> {
+impl<C: Container> ContiguousEntityContainer for GgswCiphertext<C> {
     type Element = C::Element;
 
     type EntityViewMetadata = GgswLevelMatrixCreationMetadata;
@@ -267,7 +267,7 @@ impl<C: Container> ContiguousEntityContainer for GgswCiphertextBase<C> {
     }
 }
 
-impl<C: ContainerMut> ContiguousEntityContainerMut for GgswCiphertextBase<C> {
+impl<C: ContainerMut> ContiguousEntityContainerMut for GgswCiphertext<C> {
     type EntityMutView<'this> = GgswLevelMatrix<&'this mut [Self::Element]>
     where
         Self: 'this;

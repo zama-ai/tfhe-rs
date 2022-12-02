@@ -22,13 +22,13 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
     ScalarFunc,
     PolyCont,
 >(
-    input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<OutputKeyCont>,
-    lwe_pfpksk: &mut LwePrivateFunctionalPackingKeyswitchKeyBase<KSKeyCont>,
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    lwe_pfpksk: &mut LwePrivateFunctionalPackingKeyswitchKey<KSKeyCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
     f: ScalarFunc,
-    polynomial: &PolynomialBase<PolyCont>,
+    polynomial: &Polynomial<PolyCont>,
 ) where
     Scalar: UnsignedTorus,
     InputKeyCont: Container<Element = Scalar>,
@@ -52,7 +52,7 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
     );
 
     // We instantiate a buffer
-    let mut messages = PlaintextList::new(
+    let mut messages = PlaintextListOwned::new(
         Scalar::ZERO,
         PlaintextCount(
             lwe_pfpksk.decomposition_level_count().0 * lwe_pfpksk.output_polynomial_size().0,
@@ -123,13 +123,13 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
     ScalarFunc,
     PolyCont,
 >(
-    input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<OutputKeyCont>,
-    lwe_pfpksk: &mut LwePrivateFunctionalPackingKeyswitchKeyBase<KSKeyCont>,
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    lwe_pfpksk: &mut LwePrivateFunctionalPackingKeyswitchKey<KSKeyCont>,
     noise_parameters: impl DispersionParameter + Sync,
     generator: &mut EncryptionRandomGenerator<Gen>,
     f: ScalarFunc,
-    polynomial: &PolynomialBase<PolyCont>,
+    polynomial: &Polynomial<PolyCont>,
 ) where
     Scalar: UnsignedTorus + Sync + Send,
     InputKeyCont: Container<Element = Scalar>,
@@ -185,7 +185,7 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
         .for_each(
             |((&input_key_bit, mut keyswitch_key_block), mut loop_generator)| {
                 // We instantiate a buffer
-                let mut messages = PlaintextList::new(Scalar::ZERO, palintext_count);
+                let mut messages = PlaintextListOwned::new(Scalar::ZERO, palintext_count);
 
                 // We fill the buffer with the powers of the key bits
                 for (level, mut message) in (1..=decomp_level_count.0)

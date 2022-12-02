@@ -7,8 +7,8 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 
 pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
-    input_glwe: &GlweCiphertextBase<InputCont>,
-    output_lwe: &mut LweCiphertextBase<OutputCont>,
+    input_glwe: &GlweCiphertext<InputCont>,
+    output_lwe: &mut LweCiphertext<OutputCont>,
     n_th: MonomialDegree,
 ) where
     Scalar: UnsignedInteger,

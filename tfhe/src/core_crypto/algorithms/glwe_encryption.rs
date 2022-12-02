@@ -8,8 +8,8 @@ use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::*;
 
 pub fn encrypt_glwe_ciphertext_in_place<Scalar, KeyCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
-    output: &mut GlweCiphertextBase<OutputCont>,
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output: &mut GlweCiphertext<OutputCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -47,9 +47,9 @@ pub fn encrypt_glwe_ciphertext_in_place<Scalar, KeyCont, OutputCont, Gen>(
 }
 
 pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
-    input_plaintext_list: &PlaintextListBase<InputCont>,
-    output_glwe_ciphertext: &mut GlweCiphertextBase<OutputCont>,
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    input_plaintext_list: &PlaintextList<InputCont>,
+    output_glwe_ciphertext: &mut GlweCiphertext<OutputCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -100,9 +100,9 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 }
 
 pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>(
-    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
-    input_plaintext_list: &PlaintextListBase<InputCont>,
-    output_glwe_ciphertext_list: &mut GlweCiphertextListBase<OutputCont>,
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    input_plaintext_list: &PlaintextList<InputCont>,
+    output_glwe_ciphertext_list: &mut GlweCiphertextList<OutputCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -150,9 +150,9 @@ pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>
 }
 
 pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
-    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
-    input_glwe_ciphertext: &GlweCiphertextBase<InputCont>,
-    output_plaintext_list: &mut PlaintextListBase<OutputCont>,
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    input_glwe_ciphertext: &GlweCiphertext<InputCont>,
+    output_plaintext_list: &mut PlaintextList<OutputCont>,
 ) where
     Scalar: UnsignedTorus,
     KeyCont: Container<Element = Scalar>,
@@ -184,9 +184,9 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
 }
 
 pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
-    glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
-    input_glwe_ciphertext_list: &GlweCiphertextListBase<InputCont>,
-    output_plaintext_list: &mut PlaintextListBase<OutputCont>,
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    input_glwe_ciphertext_list: &GlweCiphertextList<InputCont>,
+    output_plaintext_list: &mut PlaintextList<OutputCont>,
 ) where
     Scalar: UnsignedTorus,
     KeyCont: Container<Element = Scalar>,
@@ -218,8 +218,8 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 }
 
 pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
-    output: &mut GlweCiphertextBase<OutputCont>,
-    encoded: &PlaintextListBase<InputCont>,
+    output: &mut GlweCiphertext<OutputCont>,
+    encoded: &PlaintextList<InputCont>,
 ) where
     Scalar: UnsignedTorus,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -238,15 +238,15 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 
 pub fn allocate_and_trivially_encrypt_new_glwe_ciphertext<Scalar, InputCont>(
     glwe_size: GlweSize,
-    encoded: &PlaintextListBase<InputCont>,
-) -> GlweCiphertext<Scalar>
+    encoded: &PlaintextList<InputCont>,
+) -> GlweCiphertextOwned<Scalar>
 where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
 {
     let polynomial_size = PolynomialSize(encoded.plaintext_count().0);
 
-    let mut new_ct = GlweCiphertext::new(Scalar::ZERO, polynomial_size, glwe_size);
+    let mut new_ct = GlweCiphertextOwned::new(Scalar::ZERO, polynomial_size, glwe_size);
 
     let mut body = new_ct.get_mut_body();
     body.as_mut().copy_from_slice(encoded.as_ref());

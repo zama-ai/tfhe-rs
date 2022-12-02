@@ -11,12 +11,13 @@ pub fn allocate_and_generate_new_binary_glwe_secret_key<Scalar, Gen>(
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
     generator: &mut SecretRandomGenerator<Gen>,
-) -> GlweSecretKey<Scalar>
+) -> GlweSecretKeyOwned<Scalar>
 where
     Scalar: RandomGenerable<UniformBinary> + Numeric,
     Gen: ByteRandomGenerator,
 {
-    let mut glwe_secret_key = GlweSecretKey::new(Scalar::ZERO, glwe_dimension, polynomial_size);
+    let mut glwe_secret_key =
+        GlweSecretKeyOwned::new(Scalar::ZERO, glwe_dimension, polynomial_size);
 
     generate_binary_glwe_secret_key(&mut glwe_secret_key, generator);
 
@@ -24,7 +25,7 @@ where
 }
 
 pub fn generate_binary_glwe_secret_key<Scalar, InCont, Gen>(
-    glwe_secret_key: &mut GlweSecretKeyBase<InCont>,
+    glwe_secret_key: &mut GlweSecretKey<InCont>,
     generator: &mut SecretRandomGenerator<Gen>,
 ) where
     Scalar: RandomGenerable<UniformBinary>,

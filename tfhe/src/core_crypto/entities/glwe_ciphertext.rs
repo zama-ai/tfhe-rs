@@ -106,25 +106,25 @@ pub fn glwe_ciphertext_mask_size(
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct GlweCiphertextBase<C: Container> {
+pub struct GlweCiphertext<C: Container> {
     data: C,
     polynomial_size: PolynomialSize,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]> for GlweCiphertextBase<C> {
+impl<T, C: Container<Element = T>> AsRef<[T]> for GlweCiphertext<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
-impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GlweCiphertextBase<C> {
+impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GlweCiphertext<C> {
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextBase<C> {
-    pub fn from_container(container: C, polynomial_size: PolynomialSize) -> GlweCiphertextBase<C> {
+impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
+    pub fn from_container(container: C, polynomial_size: PolynomialSize) -> GlweCiphertext<C> {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create a GlweCiphertext"
@@ -136,7 +136,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextBase<C> {
         Got container length: {} and polynomial_size: {polynomial_size:?}.",
             container.container_len()
         );
-        GlweCiphertextBase {
+        GlweCiphertext {
             data: container,
             polynomial_size,
         }
@@ -181,12 +181,12 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextBase<C> {
         )
     }
 
-    pub fn as_polynomial_list(&self) -> PolynomialListBase<&'_ [Scalar]> {
-        PolynomialListBase::from_container(self.as_ref(), self.polynomial_size)
+    pub fn as_polynomial_list(&self) -> PolynomialList<&'_ [Scalar]> {
+        PolynomialList::from_container(self.as_ref(), self.polynomial_size)
     }
 
-    pub fn as_view(&self) -> GlweCiphertextBase<&'_ [Scalar]> {
-        GlweCiphertextBase {
+    pub fn as_view(&self) -> GlweCiphertext<&'_ [Scalar]> {
+        GlweCiphertext {
             data: self.data.as_ref(),
             polynomial_size: self.polynomial_size,
         }
@@ -197,7 +197,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextBase<C> {
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> GlweCiphertextBase<C> {
+impl<Scalar, C: ContainerMut<Element = Scalar>> GlweCiphertext<C> {
     pub fn get_mut_mask_and_body(&mut self) -> (GlweMask<&mut [Scalar]>, GlweBody<&mut [Scalar]>) {
         let polynomial_size = self.polynomial_size();
         let glwe_dimension = self.glwe_size().to_glwe_dimension();
@@ -233,30 +233,30 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> GlweCiphertextBase<C> {
         )
     }
 
-    pub fn as_mut_polynomial_list(&mut self) -> PolynomialListBase<&'_ mut [Scalar]> {
+    pub fn as_mut_polynomial_list(&mut self) -> PolynomialList<&'_ mut [Scalar]> {
         let polynomial_size = self.polynomial_size;
-        PolynomialListBase::from_container(self.as_mut(), polynomial_size)
+        PolynomialList::from_container(self.as_mut(), polynomial_size)
     }
 
-    pub fn as_mut_view(&mut self) -> GlweCiphertextBase<&'_ mut [Scalar]> {
-        GlweCiphertextBase {
+    pub fn as_mut_view(&mut self) -> GlweCiphertext<&'_ mut [Scalar]> {
+        GlweCiphertext {
             data: self.data.as_mut(),
             polynomial_size: self.polynomial_size,
         }
     }
 }
 
-pub type GlweCiphertext<Scalar> = GlweCiphertextBase<Vec<Scalar>>;
-pub type GlweCiphertextView<'data, Scalar> = GlweCiphertextBase<&'data [Scalar]>;
-pub type GlweCiphertextMutView<'data, Scalar> = GlweCiphertextBase<&'data mut [Scalar]>;
+pub type GlweCiphertextOwned<Scalar> = GlweCiphertext<Vec<Scalar>>;
+pub type GlweCiphertextView<'data, Scalar> = GlweCiphertext<&'data [Scalar]>;
+pub type GlweCiphertextMutView<'data, Scalar> = GlweCiphertext<&'data mut [Scalar]>;
 
-impl<Scalar: Copy> GlweCiphertext<Scalar> {
+impl<Scalar: Copy> GlweCiphertextOwned<Scalar> {
     pub fn new(
         fill_with: Scalar,
         polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
-    ) -> GlweCiphertext<Scalar> {
-        GlweCiphertext::from_container(
+    ) -> GlweCiphertextOwned<Scalar> {
+        GlweCiphertextOwned::from_container(
             vec![fill_with; glwe_ciphertext_size(polynomial_size, glwe_size)],
             polynomial_size,
         )
@@ -266,12 +266,12 @@ impl<Scalar: Copy> GlweCiphertext<Scalar> {
 #[derive(Clone, Copy)]
 pub struct GlweCiphertextCreationMetadata(pub PolynomialSize);
 
-impl<C: Container> CreateFrom<C> for GlweCiphertextBase<C> {
+impl<C: Container> CreateFrom<C> for GlweCiphertext<C> {
     type Metadata = GlweCiphertextCreationMetadata;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GlweCiphertextBase<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> GlweCiphertext<C> {
         let GlweCiphertextCreationMetadata(polynomial_size) = meta;
-        GlweCiphertextBase::from_container(from, polynomial_size)
+        GlweCiphertext::from_container(from, polynomial_size)
     }
 }

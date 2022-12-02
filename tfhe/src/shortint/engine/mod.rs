@@ -27,8 +27,8 @@ thread_local! {
 
 /// Stores buffers associated to a ServerKey
 pub struct Buffers {
-    pub(crate) accumulator: GlweCiphertext<u64>,
-    pub(crate) buffer_lwe_after_ks: LweCiphertext<u64>,
+    pub(crate) accumulator: GlweCiphertextOwned<u64>,
+    pub(crate) buffer_lwe_after_ks: LweCiphertextOwned<u64>,
 }
 
 pub struct FftBuffers {
@@ -166,7 +166,7 @@ impl ShortintEngine {
     fn generate_accumulator_with_engine<F>(
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<GlweCiphertext<u64>>
+    ) -> EngineResult<GlweCiphertextOwned<u64>>
     where
         F: Fn(u64) -> u64,
     {
@@ -202,7 +202,7 @@ impl ShortintEngine {
         accumulator_u64.rotate_left(half_box_size);
 
         // Everywhere
-        let accumulator_plaintext = PlaintextList::from_container(accumulator_u64);
+        let accumulator_plaintext = PlaintextListOwned::from_container(accumulator_u64);
 
         let accumulator = allocate_and_trivially_encrypt_new_glwe_ciphertext(
             server_key.bootstrapping_key.glwe_size(),
@@ -215,7 +215,7 @@ impl ShortintEngine {
     fn generate_accumulator_bivariate_with_engine<F>(
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<GlweCiphertext<u64>>
+    ) -> EngineResult<GlweCiphertextOwned<u64>>
     where
         F: Fn(u64, u64) -> u64,
     {

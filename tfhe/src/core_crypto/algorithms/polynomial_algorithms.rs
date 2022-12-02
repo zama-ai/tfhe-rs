@@ -6,8 +6,8 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 pub fn update_polynomial_with_wrapping_add<Scalar, OutputCont, InputCont>(
-    lhs: &mut PolynomialBase<OutputCont>,
-    rhs: &PolynomialBase<InputCont>,
+    lhs: &mut Polynomial<OutputCont>,
+    rhs: &Polynomial<InputCont>,
 ) where
     Scalar: UnsignedInteger,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -18,9 +18,9 @@ pub fn update_polynomial_with_wrapping_add<Scalar, OutputCont, InputCont>(
 }
 
 pub fn update_polynomial_with_wrapping_add_multisum<Scalar, OutputCont, InputCont1, InputCont2>(
-    output: &mut PolynomialBase<OutputCont>,
-    poly_list_1: &PolynomialListBase<InputCont1>,
-    poly_list_2: &PolynomialListBase<InputCont2>,
+    output: &mut Polynomial<OutputCont>,
+    poly_list_1: &PolynomialList<InputCont1>,
+    poly_list_2: &PolynomialList<InputCont2>,
 ) where
     Scalar: UnsignedInteger,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -33,9 +33,9 @@ pub fn update_polynomial_with_wrapping_add_multisum<Scalar, OutputCont, InputCon
 }
 
 pub fn update_polynomial_with_wrapping_add_mul<Scalar, OutputCont, InputCont1, InputCont2>(
-    output: &mut PolynomialBase<OutputCont>,
-    lhs: &PolynomialBase<InputCont1>,
-    rhs: &PolynomialBase<InputCont2>,
+    output: &mut Polynomial<OutputCont>,
+    lhs: &Polynomial<InputCont1>,
+    rhs: &Polynomial<InputCont2>,
 ) where
     Scalar: UnsignedInteger,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -77,7 +77,7 @@ pub fn update_polynomial_with_wrapping_add_mul<Scalar, OutputCont, InputCont1, I
 }
 
 pub fn update_polynomial_with_wrapping_unit_monomial_div<Scalar, OutputCont>(
-    output: &mut PolynomialBase<OutputCont>,
+    output: &mut Polynomial<OutputCont>,
     monomial_degree: MonomialDegree,
 ) where
     Scalar: UnsignedInteger,
@@ -101,7 +101,7 @@ pub fn update_polynomial_with_wrapping_unit_monomial_div<Scalar, OutputCont>(
 }
 
 pub fn update_polynomial_with_wrapping_monic_monomial_mul<Scalar, OutputCont>(
-    output: &mut PolynomialBase<OutputCont>,
+    output: &mut Polynomial<OutputCont>,
     monomial_degree: MonomialDegree,
 ) where
     Scalar: UnsignedInteger,
@@ -124,9 +124,9 @@ pub fn update_polynomial_with_wrapping_monic_monomial_mul<Scalar, OutputCont>(
 }
 
 pub fn update_polynomial_with_wrapping_sub_multisum<Scalar, OutputCont, InputCont1, InputCont2>(
-    output: &mut PolynomialBase<OutputCont>,
-    poly_list_1: &PolynomialListBase<InputCont1>,
-    poly_list_2: &PolynomialListBase<InputCont2>,
+    output: &mut Polynomial<OutputCont>,
+    poly_list_1: &PolynomialList<InputCont1>,
+    poly_list_2: &PolynomialList<InputCont2>,
 ) where
     Scalar: UnsignedInteger,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -139,9 +139,9 @@ pub fn update_polynomial_with_wrapping_sub_multisum<Scalar, OutputCont, InputCon
 }
 
 pub fn update_polynomial_with_wrapping_sub_mul<Scalar, OutputCont, InputCont1, InputCont2>(
-    output: &mut PolynomialBase<OutputCont>,
-    lhs: &PolynomialBase<InputCont1>,
-    rhs: &PolynomialBase<InputCont2>,
+    output: &mut Polynomial<OutputCont>,
+    lhs: &Polynomial<InputCont1>,
+    rhs: &Polynomial<InputCont2>,
 ) where
     Scalar: UnsignedInteger,
     OutputCont: ContainerMut<Element = Scalar>,

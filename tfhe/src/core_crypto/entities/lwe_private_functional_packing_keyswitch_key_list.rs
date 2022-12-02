@@ -3,7 +3,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 
 #[derive(Clone, Copy, Debug)]
-pub struct LwePrivateFunctionalPackingKeyswitchKeyListBase<C: Container> {
+pub struct LwePrivateFunctionalPackingKeyswitchKeyList<C: Container> {
     data: C,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
@@ -12,16 +12,14 @@ pub struct LwePrivateFunctionalPackingKeyswitchKeyListBase<C: Container> {
     output_polynomial_size: PolynomialSize,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]>
-    for LwePrivateFunctionalPackingKeyswitchKeyListBase<C>
-{
+impl<T, C: Container<Element = T>> AsRef<[T]> for LwePrivateFunctionalPackingKeyswitchKeyList<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
 impl<T, C: ContainerMut<Element = T>> AsMut<[T]>
-    for LwePrivateFunctionalPackingKeyswitchKeyListBase<C>
+    for LwePrivateFunctionalPackingKeyswitchKeyList<C>
 {
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
@@ -42,7 +40,7 @@ pub fn lwe_pfpksk_size(
         )
 }
 
-impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKeyListBase<C> {
+impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKeyList<C> {
     pub fn from_container(
         container: C,
         decomp_base_log: DecompositionBaseLog,
@@ -50,7 +48,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
         input_lwe_size: LweSize,
         output_glwe_size: GlweSize,
         output_polynomial_size: PolynomialSize,
-    ) -> LwePrivateFunctionalPackingKeyswitchKeyListBase<C> {
+    ) -> LwePrivateFunctionalPackingKeyswitchKeyList<C> {
         assert!(
             container.container_len()
                 % lwe_pfpksk_size(
@@ -74,7 +72,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
             container.container_len()
         );
 
-        LwePrivateFunctionalPackingKeyswitchKeyListBase {
+        LwePrivateFunctionalPackingKeyswitchKeyList {
             data: container,
             decomp_base_log,
             decomp_level_count,
@@ -125,8 +123,8 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
         FunctionalPackingKeyswitchKeyCount(self.as_ref().container_len() / self.lwe_pfpksk_size())
     }
 
-    pub fn as_view(&self) -> LwePrivateFunctionalPackingKeyswitchKeyListBase<&'_ [Scalar]> {
-        LwePrivateFunctionalPackingKeyswitchKeyListBase::from_container(
+    pub fn as_view(&self) -> LwePrivateFunctionalPackingKeyswitchKeyList<&'_ [Scalar]> {
+        LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
             self.as_ref(),
             self.decomp_base_log,
             self.decomp_level_count,
@@ -141,17 +139,15 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKeyListBase<C> {
-    pub fn as_mut_view(
-        &mut self,
-    ) -> LwePrivateFunctionalPackingKeyswitchKeyListBase<&'_ mut [Scalar]> {
+impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKeyList<C> {
+    pub fn as_mut_view(&mut self) -> LwePrivateFunctionalPackingKeyswitchKeyList<&'_ mut [Scalar]> {
         let decomp_base_log = self.decomp_base_log;
         let decomp_level_count = self.decomp_level_count;
         let input_lwe_size = self.input_lwe_size;
         let output_glwe_size = self.output_glwe_size;
         let output_polynomial_size = self.output_polynomial_size;
 
-        LwePrivateFunctionalPackingKeyswitchKeyListBase::from_container(
+        LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
             self.as_mut(),
             decomp_base_log,
             decomp_level_count,
@@ -162,10 +158,10 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeysw
     }
 }
 
-pub type LwePrivateFunctionalPackingKeyswitchKeyList<Scalar> =
-    LwePrivateFunctionalPackingKeyswitchKeyListBase<Vec<Scalar>>;
+pub type LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar> =
+    LwePrivateFunctionalPackingKeyswitchKeyList<Vec<Scalar>>;
 
-impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyList<Scalar> {
+impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar> {
     pub fn new(
         fill_with: Scalar,
         decomp_base_log: DecompositionBaseLog,
@@ -174,8 +170,8 @@ impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyList<Scalar> {
         output_glwe_size: GlweSize,
         output_polynomial_size: PolynomialSize,
         pfpksk_count: FunctionalPackingKeyswitchKeyCount,
-    ) -> LwePrivateFunctionalPackingKeyswitchKeyList<Scalar> {
-        LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
+    ) -> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar> {
+        LwePrivateFunctionalPackingKeyswitchKeyListOwned::from_container(
             vec![
                 fill_with;
                 pfpksk_count.0
@@ -204,7 +200,7 @@ pub struct LwePrivateFunctionalPackingKeyswitchKeyListCreationMetadata(
     pub PolynomialSize,
 );
 
-impl<C: Container> CreateFrom<C> for LwePrivateFunctionalPackingKeyswitchKeyListBase<C> {
+impl<C: Container> CreateFrom<C> for LwePrivateFunctionalPackingKeyswitchKeyList<C> {
     type Metadata = LwePrivateFunctionalPackingKeyswitchKeyListCreationMetadata;
 
     fn create_from(from: C, meta: Self::Metadata) -> Self {
@@ -215,7 +211,7 @@ impl<C: Container> CreateFrom<C> for LwePrivateFunctionalPackingKeyswitchKeyList
             output_glwe_size,
             output_polynomial_size,
         ) = meta;
-        LwePrivateFunctionalPackingKeyswitchKeyListBase::from_container(
+        LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
             from,
             decomp_base_log,
             decomp_level_count,
@@ -226,20 +222,18 @@ impl<C: Container> CreateFrom<C> for LwePrivateFunctionalPackingKeyswitchKeyList
     }
 }
 
-impl<C: Container> ContiguousEntityContainer
-    for LwePrivateFunctionalPackingKeyswitchKeyListBase<C>
-{
+impl<C: Container> ContiguousEntityContainer for LwePrivateFunctionalPackingKeyswitchKeyList<C> {
     type Element = C::Element;
 
     type EntityViewMetadata = LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata;
 
-    type EntityView<'this> = LwePrivateFunctionalPackingKeyswitchKeyBase<&'this [Self::Element]>
+    type EntityView<'this> = LwePrivateFunctionalPackingKeyswitchKey<&'this [Self::Element]>
     where
         Self: 'this;
 
     type SelfViewMetadata = LwePrivateFunctionalPackingKeyswitchKeyListCreationMetadata;
 
-    type SelfView<'this> = LwePrivateFunctionalPackingKeyswitchKeyListBase<&'this [Self::Element]>
+    type SelfView<'this> = LwePrivateFunctionalPackingKeyswitchKeyList<&'this [Self::Element]>
     where
         Self: 'this;
 
@@ -268,23 +262,23 @@ impl<C: Container> ContiguousEntityContainer
 }
 
 impl<C: ContainerMut> ContiguousEntityContainerMut
-    for LwePrivateFunctionalPackingKeyswitchKeyListBase<C>
+    for LwePrivateFunctionalPackingKeyswitchKeyList<C>
 {
-    type EntityMutView<'this> = LwePrivateFunctionalPackingKeyswitchKeyBase<&'this mut [Self::Element]>
+    type EntityMutView<'this> = LwePrivateFunctionalPackingKeyswitchKey<&'this mut [Self::Element]>
     where
         Self: 'this;
 
-    type SelfMutView<'this> = LwePrivateFunctionalPackingKeyswitchKeyListBase<&'this mut [Self::Element]>
+    type SelfMutView<'this> = LwePrivateFunctionalPackingKeyswitchKeyList<&'this mut [Self::Element]>
     where
         Self: 'this;
 }
 
 // TODO REFACTOR
 // Remove
-impl From<LwePrivateFunctionalPackingKeyswitchKeyList<u64>>
+impl From<LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>>
     for crate::core_crypto::prelude::LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64
 {
-    fn from(new_key: LwePrivateFunctionalPackingKeyswitchKeyList<u64>) -> Self {
+    fn from(new_key: LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>) -> Self {
         use crate::core_crypto::commons::crypto::glwe::LwePrivateFunctionalPackingKeyswitchKeyList as PrivatePFPKSKList;
         use crate::core_crypto::prelude::LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64;
 
@@ -310,7 +304,7 @@ impl From<LwePrivateFunctionalPackingKeyswitchKeyList<u64>>
 }
 
 impl From<crate::core_crypto::prelude::LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64>
-    for LwePrivateFunctionalPackingKeyswitchKeyList<u64>
+    for LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>
 {
     fn from(
         old_key: crate::core_crypto::prelude::LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64,
@@ -321,7 +315,7 @@ impl From<crate::core_crypto::prelude::LweCircuitBootstrapPrivateFunctionalPacki
         let output_glwe_dimension = old_key.0.output_glwe_key_dimension();
         let output_polynomial_size = old_key.0.output_polynomial_size();
 
-        LwePrivateFunctionalPackingKeyswitchKeyListBase::from_container(
+        LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
             old_key.0.into_container(),
             decomp_base_log,
             decomp_size,

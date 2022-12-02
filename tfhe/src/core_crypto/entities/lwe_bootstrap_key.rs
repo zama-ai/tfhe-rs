@@ -4,34 +4,34 @@ use crate::core_crypto::specification::parameters::*;
 
 // An LweBootstrapKey is literally a GgswCiphertextList, so we wrap a GgswCiphetextList and use
 // Deref to have access to all the primitives of the GgswCiphertextList easily
-pub struct LweBootstrapKeyBase<C: Container> {
-    ggsw_list: GgswCiphertextListBase<C>,
+pub struct LweBootstrapKey<C: Container> {
+    ggsw_list: GgswCiphertextList<C>,
 }
 
-impl<C: Container> std::ops::Deref for LweBootstrapKeyBase<C> {
-    type Target = GgswCiphertextListBase<C>;
+impl<C: Container> std::ops::Deref for LweBootstrapKey<C> {
+    type Target = GgswCiphertextList<C>;
 
-    fn deref(&self) -> &GgswCiphertextListBase<C> {
+    fn deref(&self) -> &GgswCiphertextList<C> {
         &self.ggsw_list
     }
 }
 
-impl<C: ContainerMut> std::ops::DerefMut for LweBootstrapKeyBase<C> {
-    fn deref_mut(&mut self) -> &mut GgswCiphertextListBase<C> {
+impl<C: ContainerMut> std::ops::DerefMut for LweBootstrapKey<C> {
+    fn deref_mut(&mut self) -> &mut GgswCiphertextList<C> {
         &mut self.ggsw_list
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKeyBase<C> {
+impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
     pub fn from_container(
         container: C,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
-    ) -> LweBootstrapKeyBase<C> {
-        LweBootstrapKeyBase {
-            ggsw_list: GgswCiphertextListBase::from_container(
+    ) -> LweBootstrapKey<C> {
+        LweBootstrapKey {
+            ggsw_list: GgswCiphertextList::from_container(
                 container,
                 glwe_size,
                 polynomial_size,
@@ -53,8 +53,8 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKeyBase<C> {
         self.ggsw_list.into_container()
     }
 
-    pub fn as_view(&self) -> LweBootstrapKeyBase<&'_ [Scalar]> {
-        LweBootstrapKeyBase::from_container(
+    pub fn as_view(&self) -> LweBootstrapKey<&'_ [Scalar]> {
+        LweBootstrapKey::from_container(
             self.as_ref(),
             self.glwe_size(),
             self.polynomial_size(),
@@ -64,13 +64,13 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKeyBase<C> {
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> LweBootstrapKeyBase<C> {
-    pub fn as_mut_view(&mut self) -> LweBootstrapKeyBase<&'_ mut [Scalar]> {
+impl<Scalar, C: ContainerMut<Element = Scalar>> LweBootstrapKey<C> {
+    pub fn as_mut_view(&mut self) -> LweBootstrapKey<&'_ mut [Scalar]> {
         let glwe_size = self.glwe_size();
         let polynomial_size = self.polynomial_size();
         let decomp_base_log = self.decomposition_base_log();
         let decomp_level_count = self.decomposition_level_count();
-        LweBootstrapKeyBase::from_container(
+        LweBootstrapKey::from_container(
             self.as_mut(),
             glwe_size,
             polynomial_size,
@@ -80,9 +80,9 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweBootstrapKeyBase<C> {
     }
 }
 
-pub type LweBootstrapKey<Scalar> = LweBootstrapKeyBase<Vec<Scalar>>;
+pub type LweBootstrapKeyOwned<Scalar> = LweBootstrapKey<Vec<Scalar>>;
 
-impl<Scalar: Copy> LweBootstrapKey<Scalar> {
+impl<Scalar: Copy> LweBootstrapKeyOwned<Scalar> {
     pub fn new(
         fill_with: Scalar,
         glwe_size: GlweSize,
@@ -90,9 +90,9 @@ impl<Scalar: Copy> LweBootstrapKey<Scalar> {
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         input_lwe_dimension: LweDimension,
-    ) -> LweBootstrapKey<Scalar> {
-        LweBootstrapKey {
-            ggsw_list: GgswCiphertextListBase::new(
+    ) -> LweBootstrapKeyOwned<Scalar> {
+        LweBootstrapKeyOwned {
+            ggsw_list: GgswCiphertextList::new(
                 fill_with,
                 glwe_size,
                 polynomial_size,
@@ -106,8 +106,8 @@ impl<Scalar: Copy> LweBootstrapKey<Scalar> {
 
 // TODO REFACTOR
 // Remove
-impl From<LweBootstrapKey<u64>> for crate::core_crypto::prelude::LweBootstrapKey64 {
-    fn from(bsk: LweBootstrapKey<u64>) -> Self {
+impl From<LweBootstrapKeyOwned<u64>> for crate::core_crypto::prelude::LweBootstrapKey64 {
+    fn from(bsk: LweBootstrapKeyOwned<u64>) -> Self {
         use crate::core_crypto::commons::crypto::bootstrap::StandardBootstrapKey;
         use crate::core_crypto::prelude::*;
 

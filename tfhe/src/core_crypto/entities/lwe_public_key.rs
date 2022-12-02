@@ -5,32 +5,32 @@ use crate::core_crypto::specification::parameters::*;
 // An LwePublicKey is literally an LweCiphertextList, so we wrap an LweCiphertextList and use
 // Deref to have access to all the primitives of the LweCiphertextList easily
 #[derive(Clone, Debug, PartialEq)]
-pub struct LwePublicKeyBase<C: Container> {
-    lwe_list: LweCiphertextListBase<C>,
+pub struct LwePublicKey<C: Container> {
+    lwe_list: LweCiphertextList<C>,
 }
 
-impl<C: Container> std::ops::Deref for LwePublicKeyBase<C> {
-    type Target = LweCiphertextListBase<C>;
+impl<C: Container> std::ops::Deref for LwePublicKey<C> {
+    type Target = LweCiphertextList<C>;
 
-    fn deref(&self) -> &LweCiphertextListBase<C> {
+    fn deref(&self) -> &LweCiphertextList<C> {
         &self.lwe_list
     }
 }
 
-impl<C: ContainerMut> std::ops::DerefMut for LwePublicKeyBase<C> {
-    fn deref_mut(&mut self) -> &mut LweCiphertextListBase<C> {
+impl<C: ContainerMut> std::ops::DerefMut for LwePublicKey<C> {
+    fn deref_mut(&mut self) -> &mut LweCiphertextList<C> {
         &mut self.lwe_list
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> LwePublicKeyBase<C> {
-    pub fn from_container(container: C, lwe_size: LweSize) -> LwePublicKeyBase<C> {
+impl<Scalar, C: Container<Element = Scalar>> LwePublicKey<C> {
+    pub fn from_container(container: C, lwe_size: LweSize) -> LwePublicKey<C> {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create an LwePublicKey"
         );
-        LwePublicKeyBase {
-            lwe_list: LweCiphertextListBase::from_container(container, lwe_size),
+        LwePublicKey {
+            lwe_list: LweCiphertextList::from_container(container, lwe_size),
         }
     }
 
@@ -42,35 +42,35 @@ impl<Scalar, C: Container<Element = Scalar>> LwePublicKeyBase<C> {
         self.lwe_list.into_container()
     }
 
-    pub fn as_view(&self) -> LwePublicKeyBase<&'_ [Scalar]> {
-        LwePublicKeyBase::from_container(self.as_ref(), self.lwe_size())
+    pub fn as_view(&self) -> LwePublicKey<&'_ [Scalar]> {
+        LwePublicKey::from_container(self.as_ref(), self.lwe_size())
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> LwePublicKeyBase<C> {
-    pub fn as_mut_view(&mut self) -> LwePublicKeyBase<&'_ mut [Scalar]> {
+impl<Scalar, C: ContainerMut<Element = Scalar>> LwePublicKey<C> {
+    pub fn as_mut_view(&mut self) -> LwePublicKey<&'_ mut [Scalar]> {
         let lwe_size = self.lwe_size();
-        LwePublicKeyBase::from_container(self.as_mut(), lwe_size)
+        LwePublicKey::from_container(self.as_mut(), lwe_size)
     }
 }
 
-pub type LwePublicKey<Scalar> = LwePublicKeyBase<Vec<Scalar>>;
+pub type LwePublicKeyOwned<Scalar> = LwePublicKey<Vec<Scalar>>;
 
-impl<Scalar: Copy> LwePublicKey<Scalar> {
+impl<Scalar: Copy> LwePublicKeyOwned<Scalar> {
     pub fn new(
         fill_with: Scalar,
         lwe_size: LweSize,
         zero_encryption_count: LwePublicKeyZeroEncryptionCount,
-    ) -> LwePublicKey<Scalar> {
-        LwePublicKey::from_container(
+    ) -> LwePublicKeyOwned<Scalar> {
+        LwePublicKeyOwned::from_container(
             vec![fill_with; lwe_size.0 * zero_encryption_count.0],
             lwe_size,
         )
     }
 }
 
-impl From<LwePublicKey<u64>> for crate::core_crypto::prelude::LwePublicKey64 {
-    fn from(new_key: LwePublicKey<u64>) -> Self {
+impl From<LwePublicKeyOwned<u64>> for crate::core_crypto::prelude::LwePublicKey64 {
+    fn from(new_key: LwePublicKeyOwned<u64>) -> Self {
         use crate::core_crypto::commons::crypto::lwe::LweList as ImpLwePublicKey;
         use crate::core_crypto::prelude::LwePublicKey64;
 
@@ -82,9 +82,9 @@ impl From<LwePublicKey<u64>> for crate::core_crypto::prelude::LwePublicKey64 {
     }
 }
 
-impl From<crate::core_crypto::prelude::LwePublicKey64> for LwePublicKey<u64> {
+impl From<crate::core_crypto::prelude::LwePublicKey64> for LwePublicKeyOwned<u64> {
     fn from(old_key: crate::core_crypto::prelude::LwePublicKey64) -> Self {
         let lwe_size = old_key.0.lwe_size();
-        LwePublicKey::from_container(old_key.0.into_container(), lwe_size)
+        LwePublicKeyOwned::from_container(old_key.0.into_container(), lwe_size)
     }
 }

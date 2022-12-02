@@ -313,7 +313,7 @@ pub fn in_place_external_product_scratch<Scalar>(
 pub fn in_place_external_product<Scalar, InputGlweCont>(
     mut out: GlweCiphertextMutView<'_, Scalar>,
     ggsw: FourierGgswCiphertextView<'_>,
-    glwe: GlweCiphertextBase<InputGlweCont>,
+    glwe: GlweCiphertext<InputGlweCont>,
     fft: FftView<'_>,
     stack: DynStack<'_>,
 ) where

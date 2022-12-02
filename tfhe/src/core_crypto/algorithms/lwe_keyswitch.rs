@@ -5,9 +5,9 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
-    lwe_keyswitch_key: &LweKeyswitchKeyBase<KSKCont>,
-    input_lwe_ciphertext: &LweCiphertextBase<InputCont>,
-    output_lwe_ciphertext: &mut LweCiphertextBase<OutputCont>,
+    lwe_keyswitch_key: &LweKeyswitchKey<KSKCont>,
+    input_lwe_ciphertext: &LweCiphertext<InputCont>,
+    output_lwe_ciphertext: &mut LweCiphertext<OutputCont>,
 ) where
     Scalar: UnsignedInteger,
     KSKCont: Container<Element = Scalar>,

@@ -9,9 +9,9 @@ use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::*;
 
 pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont, Gen>(
-    input_lwe_sk: &LweSecretKeyBase<InputKeyCont>,
-    output_lwe_sk: &LweSecretKeyBase<OutputKeyCont>,
-    lwe_keyswitch_key: &mut LweKeyswitchKeyBase<KSKeyCont>,
+    input_lwe_sk: &LweSecretKey<InputKeyCont>,
+    output_lwe_sk: &LweSecretKey<OutputKeyCont>,
+    lwe_keyswitch_key: &mut LweKeyswitchKey<KSKeyCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -41,7 +41,7 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
 
     // The plaintexts used to encrypt a key element will be stored in this buffer
     let mut decomposition_plaintexts_buffer =
-        PlaintextList::new(Scalar::ZERO, PlaintextCount(decomp_level_count.0));
+        PlaintextListOwned::new(Scalar::ZERO, PlaintextCount(decomp_level_count.0));
 
     // Iterate over the input key elements and the destination lwe_keyswitch_key memory
     for (input_key_element, mut keyswitch_key_block) in input_lwe_sk
@@ -69,20 +69,20 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
 }
 
 pub fn allocate_and_generate_new_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
-    input_lwe_sk: &LweSecretKeyBase<InputKeyCont>,
-    output_lwe_sk: &LweSecretKeyBase<OutputKeyCont>,
+    input_lwe_sk: &LweSecretKey<InputKeyCont>,
+    output_lwe_sk: &LweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LweKeyswitchKey<Scalar>
+) -> LweKeyswitchKeyOwned<Scalar>
 where
     Scalar: UnsignedTorus,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut new_lwe_keyswitch_key = LweKeyswitchKey::new(
+    let mut new_lwe_keyswitch_key = LweKeyswitchKeyOwned::new(
         Scalar::ZERO,
         decomp_base_log,
         decomp_level_count,
