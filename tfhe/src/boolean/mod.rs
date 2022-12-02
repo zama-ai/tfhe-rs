@@ -18,7 +18,6 @@
 //! homomorphically.
 //!
 //! ```rust
-//! # #[cfg(not(feature = "cuda"))]
 //! # fn main() {
 //!
 //! use tfhe::boolean::gen_keys;
@@ -54,9 +53,6 @@
 //! let output_3 = client_key.decrypt(&ct_9);
 //! assert_eq!(output_3, true);
 //! # }
-//!
-//! # #[cfg(feature = "cuda")]
-//! # fn main() {}
 //! ```
 
 use crate::boolean::client_key::ClientKey;
@@ -114,15 +110,12 @@ pub(crate) fn random_integer() -> u32 {
 /// meant to be published (the client sends it to the server).
 ///
 /// ```rust
-/// # #[cfg(not(feature = "cuda"))]
 /// # fn main() {
 /// use tfhe::boolean::gen_keys;
 /// use tfhe::boolean::prelude::*;
 /// // generate the client key and the server key:
 /// let (cks, sks) = gen_keys();
 /// # }
-/// # #[cfg(feature = "cuda")]
-/// # fn main() {}
 /// ```
 pub fn gen_keys() -> (ClientKey, ServerKey) {
     // generate the client key

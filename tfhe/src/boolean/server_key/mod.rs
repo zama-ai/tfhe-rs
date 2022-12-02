@@ -13,13 +13,9 @@ use serde::{Deserialize, Serialize};
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
 use crate::boolean::engine::bootstrapping::CpuBootstrapKey;
-#[cfg(feature = "cuda")]
-use crate::boolean::engine::{bootstrapping::CudaBootstrapKey, CudaBooleanEngine};
 use crate::boolean::engine::{
     BinaryGatesAssignEngine, BinaryGatesEngine, CpuBooleanEngine, WithThreadLocalEngine,
 };
-#[cfg(feature = "cuda")]
-use std::sync::Arc;
 
 pub trait BinaryBooleanGates<L, R> {
     fn and(&self, ct_left: L, ct_right: R) -> Ciphertext;
@@ -51,11 +47,8 @@ trait DefaultImplementation {
 #[derive(Clone)]
 pub struct ServerKey {
     cpu_key: CpuBootstrapKey,
-    #[cfg(feature = "cuda")]
-    cuda_key: Arc<CudaBootstrapKey>,
 }
 
-#[cfg(not(feature = "cuda"))]
 mod implementation {
     use super::*;
 
@@ -68,22 +61,6 @@ mod implementation {
     impl DefaultImplementation for ServerKey {
         type Engine = CpuBooleanEngine;
         type BootsrapKey = CpuBootstrapKey;
-    }
-}
-
-#[cfg(feature = "cuda")]
-mod implementation {
-    use super::*;
-
-    impl RefFromServerKey for CudaBootstrapKey {
-        fn get_ref(server_key: &ServerKey) -> &Self {
-            &server_key.cuda_key
-        }
-    }
-
-    impl DefaultImplementation for ServerKey {
-        type Engine = CudaBooleanEngine;
-        type BootsrapKey = CudaBootstrapKey;
     }
 }
 
@@ -209,37 +186,15 @@ impl ServerKey {
         ct_then: &Ciphertext,
         ct_else: &Ciphertext,
     ) -> Ciphertext {
-        #[cfg(feature = "cuda")]
-        {
-            CudaBooleanEngine::with_thread_local_mut(|engine| {
-                engine.mux(ct_condition, ct_then, ct_else, &self.cuda_key)
-            })
-        }
-        #[cfg(not(feature = "cuda"))]
-        {
-            CpuBooleanEngine::with_thread_local_mut(|engine| {
-                engine.mux(ct_condition, ct_then, ct_else, &self.cpu_key)
-            })
-        }
+        CpuBooleanEngine::with_thread_local_mut(|engine| {
+            engine.mux(ct_condition, ct_then, ct_else, &self.cpu_key)
+        })
     }
 }
 
 impl From<CpuBootstrapKey> for ServerKey {
     fn from(cpu_key: CpuBootstrapKey) -> Self {
-        #[cfg(feature = "cuda")]
-        {
-            let cuda_key = CudaBooleanEngine::with_thread_local_mut(|engine| {
-                engine.create_server_key(&cpu_key)
-            });
-
-            let cuda_key = Arc::new(cuda_key);
-
-            Self { cpu_key, cuda_key }
-        }
-        #[cfg(not(feature = "cuda"))]
-        {
-            Self { cpu_key }
-        }
+        Self { cpu_key }
     }
 }
 

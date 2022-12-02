@@ -18,7 +18,6 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
-    /// # #[cfg(not(feature = "cuda"))]
     /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
@@ -36,8 +35,6 @@ impl PublicKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(false, dec);
     /// # }
-    /// # #[cfg(feature = "cuda")]
-    /// # fn main() {}
     /// ```
     pub fn encrypt(&self, message: bool) -> Ciphertext {
         CpuBooleanEngine::with_thread_local_mut(|engine| {
@@ -47,15 +44,9 @@ impl PublicKey {
 
     /// Allocates and generates a client key.
     ///
-    /// # Panic
-    ///
-    /// This will panic when the "cuda" feature is enabled and the parameters
-    /// uses a GlweDimension > 1 (as it is not yet supported by the cuda backend).
-    ///
     /// # Example
     ///
     /// ```rust
-    /// # #[cfg(not(feature = "cuda"))]
     /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
@@ -64,8 +55,6 @@ impl PublicKey {
     ///
     /// let pks = PublicKey::new(&cks);
     /// # }
-    /// # #[cfg(feature = "cuda")]
-    /// # fn main() {}
     /// ```
     pub fn new(client_key: &ClientKey) -> PublicKey {
         CpuBooleanEngine::with_thread_local_mut(|engine| engine.create_public_key(client_key))
