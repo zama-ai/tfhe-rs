@@ -4,7 +4,7 @@ use crate::core_crypto::specification::parameters::*;
 
 // An LwePublicKey is literally an LweCiphertextList, so we wrap an LweCiphertextList and use
 // Deref to have access to all the primitives of the LweCiphertextList easily
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LwePublicKey<C: Container> {
     lwe_list: LweCiphertextList<C>,
 }
