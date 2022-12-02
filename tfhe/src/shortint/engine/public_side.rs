@@ -2,7 +2,7 @@
 use super::{EngineResult, ShortintEngine};
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::specification::parameters::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{Ciphertext, ClientKey, PublicKey, ServerKey};

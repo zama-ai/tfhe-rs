@@ -8,7 +8,7 @@
 //! both uses.
 
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::specification::parameters::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ClientKey, Parameters, ServerKey};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -390,21 +390,10 @@ impl Serialize for WopbsKey {
     where
         S: Serializer,
     {
-        let mut default_ser_eng =
-            DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
+        let cbs_pfpksk = bincode::serialize(&self.cbs_pfpksk).map_err(serde::ser::Error::custom)?;
 
-        let tmp_cbs_pfpksk: LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64 =
-            self.cbs_pfpksk.clone().into();
-
-        let cbs_pfpksk = default_ser_eng
-            .serialize(&tmp_cbs_pfpksk)
-            .map_err(serde::ser::Error::custom)?;
-
-        let tmp_ksk_pbs_to_wopbs: LweKeyswitchKey64 = self.ksk_pbs_to_wopbs.clone().into();
-
-        let ksk_pbs_to_wopbs = default_ser_eng
-            .serialize(&tmp_ksk_pbs_to_wopbs)
-            .map_err(serde::ser::Error::custom)?;
+        let ksk_pbs_to_wopbs =
+            bincode::serialize(&self.ksk_pbs_to_wopbs).map_err(serde::ser::Error::custom)?;
 
         SerializableWopbsKey {
             wopbs_server_key: &self.wopbs_server_key,
@@ -425,23 +414,17 @@ impl<'de> Deserialize<'de> for WopbsKey {
         let thing =
             DeserializableWopbsKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
 
-        let mut default_ser_eng =
-            DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
+        let cbs_pfpksk =
+            bincode::deserialize(thing.cbs_pfpksk.as_slice()).map_err(serde::de::Error::custom)?;
 
-        let tmp_cbs_pfpksk: LweCircuitBootstrapPrivateFunctionalPackingKeyswitchKeys64 =
-            default_ser_eng
-                .deserialize(thing.cbs_pfpksk.as_slice())
-                .map_err(serde::de::Error::custom)?;
-
-        let tmp_ksk_pbs_to_wopbs: LweKeyswitchKey64 = default_ser_eng
-            .deserialize(thing.ksk_pbs_to_wopbs.as_slice())
+        let ksk_pbs_to_wopbs = bincode::deserialize(thing.ksk_pbs_to_wopbs.as_slice())
             .map_err(serde::de::Error::custom)?;
 
         Ok(Self {
             wopbs_server_key: thing.wopbs_server_key,
             pbs_server_key: thing.pbs_server_key,
-            cbs_pfpksk: tmp_cbs_pfpksk.into(),
-            ksk_pbs_to_wopbs: tmp_ksk_pbs_to_wopbs.into(),
+            cbs_pfpksk,
+            ksk_pbs_to_wopbs,
             param: thing.param,
         })
     }

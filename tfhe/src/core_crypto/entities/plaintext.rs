@@ -1,7 +1,7 @@
 use crate::core_crypto::commons::traits::*;
 
 /// A plaintext (encoded) value.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Plaintext<T>(pub T);
 
 impl<'data, T> CreateFrom<&'data [T]> for Plaintext<&'data T> {
