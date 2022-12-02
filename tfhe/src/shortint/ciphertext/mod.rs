@@ -1,9 +1,5 @@
 //! Module with the definition of a short-integer ciphertext.
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{
-    AbstractEngine, DefaultSerializationEngine, EntityDeserializationEngine,
-    EntitySerializationEngine, LweCiphertext64,
-};
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cmp;
@@ -105,13 +101,7 @@ impl Serialize for Ciphertext {
     where
         S: Serializer,
     {
-        let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
-
-        let old_ct: LweCiphertext64 = self.ct.clone().into();
-
-        let data = ser_eng
-            .serialize(&old_ct)
-            .map_err(serde::ser::Error::custom)?;
+        let data = bincode::serialize(&self.ct).map_err(serde::ser::Error::custom)?;
 
         SerializableCiphertext {
             data,
@@ -130,14 +120,10 @@ impl<'de> Deserialize<'de> for Ciphertext {
     {
         let thing = SerializableCiphertext::deserialize(deserializer)?;
 
-        let mut de_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
-
-        let old_ct: LweCiphertext64 = de_eng
-            .deserialize(thing.data.as_slice())
-            .map_err(serde::de::Error::custom)?;
+        let ct = bincode::deserialize(thing.data.as_slice()).map_err(serde::de::Error::custom)?;
 
         Ok(Self {
-            ct: old_ct.into(),
+            ct,
             degree: thing.degree,
             message_modulus: thing.message_modulus,
             carry_modulus: thing.carry_modulus,

@@ -2,8 +2,9 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::{
     EncryptionRandomGenerator, SecretRandomGenerator,
 };
+use crate::core_crypto::commons::math::random::Seeder;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{Seeder, *};
+use crate::core_crypto::specification::parameters::*;
 use crate::seeders::new_seeder;
 use crate::shortint::ServerKey;
 use core::mem::MaybeUninit;
@@ -109,7 +110,7 @@ pub struct ShortintEngine {
     /// A structure containing two CSPRNGs to generate material for encryption like public masks
     /// and secret errors.
     ///
-    /// The [`ImplEncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
+    /// The [`EncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
     pub(crate) encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,

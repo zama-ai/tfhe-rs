@@ -1,6 +1,5 @@
 //! Module with the definition of the PublicKey.
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, Parameters};
@@ -212,13 +211,8 @@ impl Serialize for PublicKey {
     where
         S: Serializer,
     {
-        let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
-
-        let tmp_public_key: LwePublicKey64 = self.lwe_public_key.clone().into();
-
-        let lwe_public_key = ser_eng
-            .serialize(&tmp_public_key)
-            .map_err(serde::ser::Error::custom)?;
+        let lwe_public_key =
+            bincode::serialize(&self.lwe_public_key).map_err(serde::ser::Error::custom)?;
 
         SerializablePublicKey {
             lwe_public_key,
@@ -235,14 +229,12 @@ impl<'de> Deserialize<'de> for PublicKey {
     {
         let thing =
             SerializablePublicKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-        let mut de_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
 
-        let tmp_public_key: LwePublicKey64 = de_eng
-            .deserialize(thing.lwe_public_key.as_slice())
+        let lwe_public_key = bincode::deserialize(thing.lwe_public_key.as_slice())
             .map_err(serde::de::Error::custom)?;
 
         Ok(Self {
-            lwe_public_key: tmp_public_key.into(),
+            lwe_public_key,
             parameters: thing.parameters,
         })
     }

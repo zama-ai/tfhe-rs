@@ -19,7 +19,6 @@ mod tests;
 
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned;
-use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
@@ -554,17 +553,9 @@ impl Serialize for ServerKey {
     where
         S: Serializer,
     {
-        let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
-        let mut fft_ser_eng = FftSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
-
-        let tmp_ksk: LweKeyswitchKey64 = self.key_switching_key.clone().into();
-        let tmp_bsk: FftFourierLweBootstrapKey64 = self.bootstrapping_key.clone().into();
-
-        let key_switching_key = ser_eng
-            .serialize(&tmp_ksk)
-            .map_err(serde::ser::Error::custom)?;
-        let bootstrapping_key = fft_ser_eng
-            .serialize(&tmp_bsk)
+        let key_switching_key =
+            bincode::serialize(&self.key_switching_key).map_err(serde::ser::Error::custom)?;
+        let bootstrapping_key = bincode::serialize(&self.bootstrapping_key.as_view())
             .map_err(serde::ser::Error::custom)?;
 
         SerializableServerKey {
@@ -585,20 +576,16 @@ impl<'de> Deserialize<'de> for ServerKey {
     {
         let thing =
             SerializableServerKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-        let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
-        let mut fft_ser_eng = FftSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
 
-        let tmp_ksk: LweKeyswitchKey64 = ser_eng
-            .deserialize(thing.key_switching_key.as_slice())
+        let key_switching_key = bincode::deserialize(thing.key_switching_key.as_slice())
             .map_err(serde::de::Error::custom)?;
 
-        let tmp_bsk: FftFourierLweBootstrapKey64 = fft_ser_eng
-            .deserialize(thing.bootstrapping_key.as_slice())
+        let bootstrapping_key = bincode::deserialize(thing.bootstrapping_key.as_slice())
             .map_err(serde::de::Error::custom)?;
 
         Ok(Self {
-            key_switching_key: tmp_ksk.into(),
-            bootstrapping_key: tmp_bsk.into(),
+            key_switching_key,
+            bootstrapping_key,
             message_modulus: thing.message_modulus,
             carry_modulus: thing.carry_modulus,
             max_degree: thing.max_degree,

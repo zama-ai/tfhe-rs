@@ -1,6 +1,6 @@
-pub use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, DispersionParameter, GlweDimension,
-    LweDimension, PolynomialSize, StandardDev,
+pub use crate::core_crypto::specification::dispersion::{DispersionParameter, StandardDev};
+pub use crate::core_crypto::specification::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::Parameters;

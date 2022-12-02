@@ -2,7 +2,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::specification::parameters::*;
 use std::ops::{Deref, DerefMut};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Polynomial<C: Container> {
     data: C,
 }

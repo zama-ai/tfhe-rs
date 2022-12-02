@@ -3,7 +3,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::math::fft::Fft;
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::specification::parameters::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::server_key::MaxDegree;
@@ -91,41 +91,34 @@ impl ShortintEngine {
         // Conversion to fourier domain
         convert_standard_lwe_bootstrap_key_to_fourier(&bootstrap_key, &mut small_bsk, fft, stack);
 
-        // Convert into a variance for lwe context
-        let var_lwe = Variance(parameters.lwe_modular_std_dev.get_variance());
         //KSK encryption_key -> small WoPBS key (used in the 1st KS in the extract bit)
         let ksk_wopbs_large_to_wopbs_small = allocate_and_generate_new_lwe_keyswitch_key(
             &large_lwe_secret_key,
             &small_lwe_secret_key,
             parameters.ks_base_log,
             parameters.ks_level,
-            var_lwe,
+            parameters.lwe_modular_std_dev,
             &mut self.encryption_generator,
         );
 
-        //KSK to convert from input ciphertext key to the wopbs input one
-        // TODO REFACTOR
-        // Remove the clone + into
+        // KSK to convert from input ciphertext key to the wopbs input one
         let ksk_pbs_large_to_wopbs_large = allocate_and_generate_new_lwe_keyswitch_key(
             &cks.lwe_secret_key,
             &large_lwe_secret_key,
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
-            var_lwe,
+            parameters.lwe_modular_std_dev,
             &mut self.encryption_generator,
         );
 
-        //KSK large_wopbs_key -> small PBS key (used after the WoPBS computation to compute a
+        // KSK large_wopbs_key -> small PBS key (used after the WoPBS computation to compute a
         // classical PBS. This allows compatibility between PBS and WoPBS
-        // TODO REFACTOR
-        // Remove the clone + into
-        let var_lwe_pbs = Variance(cks.parameters.lwe_modular_std_dev.get_variance());
         let ksk_wopbs_large_to_pbs_small = allocate_and_generate_new_lwe_keyswitch_key(
             &large_lwe_secret_key,
             &cks.lwe_secret_key_after_ks,
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
-            var_lwe_pbs,
+            cks.parameters.lwe_modular_std_dev,
             &mut self.encryption_generator,
         );
 
