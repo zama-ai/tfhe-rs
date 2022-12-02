@@ -2,6 +2,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 
+#[derive(Clone, Debug)]
 pub struct GgswCiphertextList<C: Container> {
     data: C,
     glwe_size: GlweSize,

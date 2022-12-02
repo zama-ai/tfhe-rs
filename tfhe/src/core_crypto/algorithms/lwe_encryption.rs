@@ -5,9 +5,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::{
     EncryptionRandomGenerator, SecretRandomGenerator,
 };
-use crate::core_crypto::commons::math::random::ByteRandomGenerator;
-#[cfg(feature = "__commons_parallel")]
-use crate::core_crypto::commons::math::random::ParallelByteRandomGenerator;
+use crate::core_crypto::commons::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::*;
@@ -162,7 +160,6 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
     }
 }
 
-#[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 pub fn par_encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
     lwe_secret_key: &LweSecretKey<KeyCont>,

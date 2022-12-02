@@ -6,10 +6,8 @@ use super::super::math::polynomial::{FourierPolynomialUninitMutView, FourierPoly
 use super::super::{as_mut_uninit, assume_init_mut};
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
-#[cfg(feature = "backend_fft_serialization")]
-use crate::core_crypto::commons::traits::ContainerOwned;
 use crate::core_crypto::commons::traits::{
-    Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
+    Container, ContainerOwned, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
@@ -26,12 +24,8 @@ use core::arch::x86::*;
 use core::arch::x86_64::*;
 
 /// A GGSW ciphertext in the Fourier domain.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "backend_fft_serialization",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(bound(deserialize = "C: ContainerOwned"))
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = "C: ContainerOwned"))]
 pub struct FourierGgswCiphertext<C: Container<Element = c64>> {
     fourier: FourierPolynomialList<C>,
     glwe_size: GlweSize,
