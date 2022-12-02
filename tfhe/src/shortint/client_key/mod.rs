@@ -19,10 +19,10 @@ use std::fmt::Debug;
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClientKey {
     /// The actual encryption / decryption key
-    pub(crate) lwe_secret_key: LweSecretKey<u64>,
-    pub(crate) glwe_secret_key: GlweSecretKey<u64>,
+    pub(crate) lwe_secret_key: LweSecretKeyOwned<u64>,
+    pub(crate) glwe_secret_key: GlweSecretKeyOwned<u64>,
     /// Key used as the output of the keyswitch operation
-    pub(crate) lwe_secret_key_after_ks: LweSecretKey<u64>,
+    pub(crate) lwe_secret_key_after_ks: LweSecretKeyOwned<u64>,
     pub parameters: Parameters,
 }
 

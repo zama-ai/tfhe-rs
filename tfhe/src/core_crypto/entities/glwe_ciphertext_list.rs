@@ -2,30 +2,30 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 
-pub struct GlweCiphertextListBase<C: Container> {
+pub struct GlweCiphertextList<C: Container> {
     data: C,
     polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]> for GlweCiphertextListBase<C> {
+impl<T, C: Container<Element = T>> AsRef<[T]> for GlweCiphertextList<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
-impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GlweCiphertextListBase<C> {
+impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GlweCiphertextList<C> {
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextListBase<C> {
+impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextList<C> {
     pub fn from_container(
         container: C,
         polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
-    ) -> GlweCiphertextListBase<C> {
+    ) -> GlweCiphertextList<C> {
         assert!(
             container.container_len() % glwe_ciphertext_size(polynomial_size, glwe_size) == 0,
             "The provided container length is not valid. \
@@ -33,7 +33,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextListBase<C> {
         Got container length: {}, polynomial_size: {polynomial_size:?} glwe_size: {glwe_size:?}.",
             container.container_len()
         );
-        GlweCiphertextListBase {
+        GlweCiphertextList {
             data: container,
             polynomial_size,
             glwe_size,
@@ -59,18 +59,18 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextListBase<C> {
     }
 }
 
-pub type GlweCiphertextList<Scalar> = GlweCiphertextListBase<Vec<Scalar>>;
-pub type GlweCiphertextListView<'data, Scalar> = GlweCiphertextListBase<&'data [Scalar]>;
-pub type GlweCiphertextListMutView<'data, Scalar> = GlweCiphertextListBase<&'data mut [Scalar]>;
+pub type GlweCiphertextListOwned<Scalar> = GlweCiphertextList<Vec<Scalar>>;
+pub type GlweCiphertextListView<'data, Scalar> = GlweCiphertextList<&'data [Scalar]>;
+pub type GlweCiphertextListMutView<'data, Scalar> = GlweCiphertextList<&'data mut [Scalar]>;
 
-impl<Scalar: Copy> GlweCiphertextList<Scalar> {
+impl<Scalar: Copy> GlweCiphertextListOwned<Scalar> {
     pub fn new(
         fill_with: Scalar,
         polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
         ciphertext_count: GlweCiphertextCount,
-    ) -> GlweCiphertextList<Scalar> {
-        GlweCiphertextList::from_container(
+    ) -> GlweCiphertextListOwned<Scalar> {
+        GlweCiphertextListOwned::from_container(
             vec![fill_with; glwe_ciphertext_size(polynomial_size, glwe_size) * ciphertext_count.0],
             polynomial_size,
             glwe_size,
@@ -81,17 +81,17 @@ impl<Scalar: Copy> GlweCiphertextList<Scalar> {
 #[derive(Clone, Copy)]
 pub struct GlweCiphertextListCreationMetadata(pub PolynomialSize, pub GlweSize);
 
-impl<C: Container> CreateFrom<C> for GlweCiphertextListBase<C> {
+impl<C: Container> CreateFrom<C> for GlweCiphertextList<C> {
     type Metadata = GlweCiphertextListCreationMetadata;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GlweCiphertextListBase<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> GlweCiphertextList<C> {
         let GlweCiphertextListCreationMetadata(polynomial_size, glwe_size) = meta;
-        GlweCiphertextListBase::from_container(from, polynomial_size, glwe_size)
+        GlweCiphertextList::from_container(from, polynomial_size, glwe_size)
     }
 }
 
-impl<C: Container> ContiguousEntityContainer for GlweCiphertextListBase<C> {
+impl<C: Container> ContiguousEntityContainer for GlweCiphertextList<C> {
     type Element = C::Element;
 
     type EntityViewMetadata = GlweCiphertextCreationMetadata;
@@ -119,7 +119,7 @@ impl<C: Container> ContiguousEntityContainer for GlweCiphertextListBase<C> {
     }
 }
 
-impl<C: ContainerMut> ContiguousEntityContainerMut for GlweCiphertextListBase<C> {
+impl<C: ContainerMut> ContiguousEntityContainerMut for GlweCiphertextList<C> {
     type EntityMutView<'this> = GlweCiphertextMutView<'this, Self::Element>
     where
         Self: 'this;

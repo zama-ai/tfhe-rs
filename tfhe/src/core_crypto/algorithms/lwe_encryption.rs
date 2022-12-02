@@ -16,8 +16,8 @@ use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::*;
 
 pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
-    lwe_secret_key: &LweSecretKeyBase<KeyCont>,
-    output: &mut LweCiphertextBase<OutputCont>,
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output: &mut LweCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
@@ -52,17 +52,18 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 }
 
 pub fn allocate_and_encrypt_new_lwe_ciphertext<Scalar, KeyCont, Gen>(
-    lwe_secret_key: &LweSecretKeyBase<KeyCont>,
+    lwe_secret_key: &LweSecretKey<KeyCont>,
     encoded: Plaintext<Scalar>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LweCiphertext<Scalar>
+) -> LweCiphertextOwned<Scalar>
 where
     Scalar: UnsignedTorus,
     KeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut new_ct = LweCiphertext::new(Scalar::ZERO, lwe_secret_key.lwe_dimension().to_lwe_size());
+    let mut new_ct =
+        LweCiphertextOwned::new(Scalar::ZERO, lwe_secret_key.lwe_dimension().to_lwe_size());
 
     encrypt_lwe_ciphertext(
         lwe_secret_key,
@@ -76,7 +77,7 @@ where
 }
 
 pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
-    output: &mut LweCiphertextBase<OutputCont>,
+    output: &mut LweCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
 ) where
     Scalar: UnsignedTorus,
@@ -93,11 +94,11 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 pub fn allocate_and_trivially_encrypt_new_lwe_ciphertext<Scalar>(
     lwe_size: LweSize,
     encoded: Plaintext<Scalar>,
-) -> LweCiphertext<Scalar>
+) -> LweCiphertextOwned<Scalar>
 where
     Scalar: UnsignedTorus,
 {
-    let mut new_ct = LweCiphertext::new(Scalar::ZERO, lwe_size);
+    let mut new_ct = LweCiphertextOwned::new(Scalar::ZERO, lwe_size);
 
     *new_ct.get_mut_body().0 = encoded.0;
 
@@ -105,8 +106,8 @@ where
 }
 
 pub fn decrypt_lwe_ciphertext<Scalar, KeyCont, InputCont>(
-    lwe_secret_key: &LweSecretKeyBase<KeyCont>,
-    lwe_ciphertext: &LweCiphertextBase<InputCont>,
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    lwe_ciphertext: &LweCiphertext<InputCont>,
 ) -> Plaintext<Scalar>
 where
     Scalar: UnsignedInteger,
@@ -130,9 +131,9 @@ where
 }
 
 pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
-    lwe_secret_key: &LweSecretKeyBase<KeyCont>,
-    output: &mut LweCiphertextListBase<OutputCont>,
-    encoded: &PlaintextListBase<InputCont>,
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output: &mut LweCiphertextList<OutputCont>,
+    encoded: &PlaintextList<InputCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -164,9 +165,9 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
 #[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 pub fn par_encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
-    lwe_secret_key: &LweSecretKeyBase<KeyCont>,
-    output: &mut LweCiphertextListBase<OutputCont>,
-    encoded: &PlaintextListBase<InputCont>,
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output: &mut LweCiphertextList<OutputCont>,
+    encoded: &PlaintextList<InputCont>,
     noise_parameters: impl DispersionParameter + Sync,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -204,8 +205,8 @@ pub fn par_encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, G
 }
 
 pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
-    lwe_public_key: &LwePublicKeyBase<KeyCont>,
-    output: &mut LweCiphertextBase<OutputCont>,
+    lwe_public_key: &LwePublicKey<KeyCont>,
+    output: &mut LweCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
     generator: &mut SecretRandomGenerator<Gen>,
 ) where

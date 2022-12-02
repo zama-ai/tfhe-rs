@@ -1,6 +1,6 @@
 use super::super::as_mut_uninit;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::PolynomialBase;
+use crate::core_crypto::entities::Polynomial;
 use concrete_fft::c64;
 
 //--------------------------------------------------------------------------------
@@ -25,8 +25,7 @@ pub type FourierPolynomialMutView<'a> = FourierPolynomial<&'a mut [c64]>;
 ///
 /// This is used for the Fourier transforms to avoid the cost of initializing the output buffer,
 /// which can be non negligible.
-pub type PolynomialUninitMutView<'a, Scalar> =
-    PolynomialBase<&'a mut [core::mem::MaybeUninit<Scalar>]>;
+pub type PolynomialUninitMutView<'a, Scalar> = Polynomial<&'a mut [core::mem::MaybeUninit<Scalar>]>;
 
 /// Polynomial in the Fourier domain, with possibly uninitialized coefficients.
 ///
@@ -57,7 +56,7 @@ impl<C: Container<Element = c64>> FourierPolynomial<C> {
     }
 }
 
-impl<'a, Scalar> PolynomialBase<&'a mut [Scalar]> {
+impl<'a, Scalar> Polynomial<&'a mut [Scalar]> {
     /// # Safety
     ///
     /// No uninitialized values must be written into the output buffer when the borrow ends

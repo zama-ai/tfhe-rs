@@ -2,25 +2,25 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 
-pub struct PlaintextListBase<C: Container> {
+pub struct PlaintextList<C: Container> {
     data: C,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]> for PlaintextListBase<C> {
+impl<T, C: Container<Element = T>> AsRef<[T]> for PlaintextList<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> AsMut<[Scalar]> for PlaintextListBase<C> {
+impl<Scalar, C: ContainerMut<Element = Scalar>> AsMut<[Scalar]> for PlaintextList<C> {
     fn as_mut(&mut self) -> &mut [Scalar] {
         self.data.as_mut()
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> PlaintextListBase<C> {
-    pub fn from_container(container: C) -> PlaintextListBase<C> {
-        PlaintextListBase { data: container }
+impl<Scalar, C: Container<Element = Scalar>> PlaintextList<C> {
+    pub fn from_container(container: C) -> PlaintextList<C> {
+        PlaintextList { data: container }
     }
 
     pub fn plaintext_count(&self) -> PlaintextCount {
@@ -40,7 +40,7 @@ impl<Scalar, C: Container<Element = Scalar>> PlaintextListBase<C> {
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> PlaintextListBase<C> {
+impl<Scalar, C: ContainerMut<Element = Scalar>> PlaintextList<C> {
     pub fn as_mut_polynomial(&mut self) -> PolynomialMutView<'_, Scalar> {
         PolynomialMutView::from_container(self.as_mut())
     }
@@ -50,29 +50,29 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> PlaintextListBase<C> {
     }
 }
 
-pub type PlaintextList<Scalar> = PlaintextListBase<Vec<Scalar>>;
-pub type PlaintextListView<'data, Scalar> = PlaintextListBase<&'data [Scalar]>;
-pub type PlaintextListMutView<'data, Scalar> = PlaintextListBase<&'data mut [Scalar]>;
+pub type PlaintextListOwned<Scalar> = PlaintextList<Vec<Scalar>>;
+pub type PlaintextListView<'data, Scalar> = PlaintextList<&'data [Scalar]>;
+pub type PlaintextListMutView<'data, Scalar> = PlaintextList<&'data mut [Scalar]>;
 
-impl<Scalar> PlaintextList<Scalar>
+impl<Scalar> PlaintextListOwned<Scalar>
 where
     Scalar: Copy,
 {
-    pub fn new(fill_with: Scalar, count: PlaintextCount) -> PlaintextList<Scalar> {
-        PlaintextList::from_container(vec![fill_with; count.0])
+    pub fn new(fill_with: Scalar, count: PlaintextCount) -> PlaintextListOwned<Scalar> {
+        PlaintextListOwned::from_container(vec![fill_with; count.0])
     }
 }
 
-impl<C: Container> CreateFrom<C> for PlaintextListBase<C> {
+impl<C: Container> CreateFrom<C> for PlaintextList<C> {
     type Metadata = ();
 
     #[inline]
-    fn create_from(from: C, _: Self::Metadata) -> PlaintextListBase<C> {
-        PlaintextListBase::from_container(from)
+    fn create_from(from: C, _: Self::Metadata) -> PlaintextList<C> {
+        PlaintextList::from_container(from)
     }
 }
 
-impl<C: Container> ContiguousEntityContainer for PlaintextListBase<C> {
+impl<C: Container> ContiguousEntityContainer for PlaintextList<C> {
     type Element = C::Element;
 
     type EntityViewMetadata = ();
@@ -83,7 +83,7 @@ impl<C: Container> ContiguousEntityContainer for PlaintextListBase<C> {
 
     type SelfViewMetadata = ();
 
-    type SelfView<'this> = PlaintextListBase<&'this [Self::Element]>
+    type SelfView<'this> = PlaintextList<&'this [Self::Element]>
     where
         Self: 'this;
 
@@ -96,12 +96,12 @@ impl<C: Container> ContiguousEntityContainer for PlaintextListBase<C> {
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {}
 }
 
-impl<C: ContainerMut> ContiguousEntityContainerMut for PlaintextListBase<C> {
+impl<C: ContainerMut> ContiguousEntityContainerMut for PlaintextList<C> {
     type EntityMutView<'this>= Plaintext<&'this mut  Self::Element>
     where
         Self: 'this;
 
-    type SelfMutView<'this>= PlaintextListBase<&'this mut [Self::Element]>
+    type SelfMutView<'this>= PlaintextList<&'this mut [Self::Element]>
     where
         Self: 'this;
 }

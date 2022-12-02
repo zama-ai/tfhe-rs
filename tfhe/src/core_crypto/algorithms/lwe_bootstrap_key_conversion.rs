@@ -8,7 +8,7 @@ use concrete_fft::c64;
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
 
 pub fn convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, OutputCont>(
-    input_bsk: &LweBootstrapKeyBase<InputCont>,
+    input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut FourierLweBootstrapKey<OutputCont>,
     fft: FftView<'_>,
     stack: DynStack<'_>,

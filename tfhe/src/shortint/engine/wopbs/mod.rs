@@ -60,14 +60,15 @@ impl ShortintEngine {
         let large_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
 
         //BSK dedicated to the WoPBS
-        let bootstrap_key: LweBootstrapKey<u64> = par_allocate_and_generate_new_lwe_bootstrap_key(
-            &small_lwe_secret_key,
-            &glwe_secret_key,
-            parameters.pbs_base_log,
-            parameters.pbs_level,
-            parameters.glwe_modular_std_dev,
-            &mut self.encryption_generator,
-        );
+        let bootstrap_key: LweBootstrapKeyOwned<u64> =
+            par_allocate_and_generate_new_lwe_bootstrap_key(
+                &small_lwe_secret_key,
+                &glwe_secret_key,
+                parameters.pbs_base_log,
+                parameters.pbs_level,
+                parameters.glwe_modular_std_dev,
+                &mut self.encryption_generator,
+            );
 
         // Creation of the bootstrapping key in the Fourier domain
         let mut small_bsk = FourierLweBootstrapKey::new(
@@ -168,10 +169,10 @@ impl ShortintEngine {
     pub(crate) fn extract_bits(
         &mut self,
         delta_log: DeltaLog,
-        lwe_in: &LweCiphertext<u64>,
+        lwe_in: &LweCiphertextOwned<u64>,
         wopbs_key: &WopbsKey,
         extracted_bit_count: ExtractedBitsCount,
-    ) -> EngineResult<LweCiphertextList<u64>> {
+    ) -> EngineResult<LweCiphertextListOwned<u64>> {
         let server_key = &wopbs_key.wopbs_server_key;
 
         let lwe_size = server_key
@@ -180,7 +181,7 @@ impl ShortintEngine {
             .to_lwe_size();
 
         let mut output =
-            LweCiphertextList::new(0u64, lwe_size, LweCiphertextCount(extracted_bit_count.0));
+            LweCiphertextListOwned::new(0u64, lwe_size, LweCiphertextCount(extracted_bit_count.0));
 
         let bsk = &server_key.bootstrapping_key;
         let ksk = &server_key.key_switching_key;
@@ -222,13 +223,13 @@ impl ShortintEngine {
         extracted_bits: &LweCiphertextListView<'_, u64>,
         lut: &PlaintextListView<'_, u64>,
         count: LweCiphertextCount,
-    ) -> EngineResult<LweCiphertextList<u64>> {
+    ) -> EngineResult<LweCiphertextListOwned<u64>> {
         let sks = &wopbs_key.wopbs_server_key;
         let fourier_bsk = &sks.bootstrapping_key;
 
         let output_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
 
-        let mut output_cbs_vp_ct = LweCiphertextList::new(0u64, output_lwe_size, count);
+        let mut output_cbs_vp_ct = LweCiphertextListOwned::new(0u64, output_lwe_size, count);
 
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
@@ -278,7 +279,7 @@ impl ShortintEngine {
         let extracted_bits =
             self.extract_bits(delta_log, &ct_in.ct, wopbs_key, nb_bit_to_extract)?;
 
-        let plaintext_lut = PlaintextListBase::from_container(lut);
+        let plaintext_lut = PlaintextList::from_container(lut);
 
         let ciphertext_list = self.circuit_bootstrap_with_bits(
             wopbs_key,
@@ -289,7 +290,7 @@ impl ShortintEngine {
 
         // Here the output list contains a single ciphertext, we can consume the container to
         // convert it to a single ciphertext
-        let ciphertext = LweCiphertext::from_container(ciphertext_list.into_container());
+        let ciphertext = LweCiphertextOwned::from_container(ciphertext_list.into_container());
 
         let sks = &wopbs_key.wopbs_server_key;
         let ct_out = Ciphertext {
@@ -336,7 +337,7 @@ impl ShortintEngine {
         let acc = self.generate_accumulator(sks, |x| x)?;
         let ct_clean = self.programmable_bootstrap_keyswitch(sks, ct_in, &acc)?;
 
-        let mut buffer_lwe_after_ks = LweCiphertext::new(
+        let mut buffer_lwe_after_ks = LweCiphertextOwned::new(
             0,
             wopbs_key
                 .ksk_pbs_to_wopbs
@@ -381,7 +382,7 @@ impl ShortintEngine {
         let fourier_bsk = &wopbs_key.pbs_server_key.bootstrapping_key;
 
         let out_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
-        let mut ct_out = LweCiphertext::new(0, out_lwe_size);
+        let mut ct_out = LweCiphertextOwned::new(0, out_lwe_size);
 
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
@@ -466,7 +467,7 @@ impl ShortintEngine {
         let mut cont = vec![0u64; lwe_size];
         cont[lwe_size - 1] =
             (1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5));
-        let tmp = LweCiphertext::from_container(cont);
+        let tmp = LweCiphertextOwned::from_container(cont);
 
         lwe_ciphertext_in_place_subtraction(&mut ct_in.ct, &tmp);
 
@@ -488,8 +489,8 @@ impl ShortintEngine {
         &mut self,
         wopbs_key: &WopbsKey,
         vec_lut: Vec<Vec<u64>>,
-        extracted_bits_blocks: Vec<LweCiphertextList<u64>>,
-    ) -> Vec<LweCiphertext<u64>> {
+        extracted_bits_blocks: Vec<LweCiphertextListOwned<u64>>,
+    ) -> Vec<LweCiphertextOwned<u64>> {
         let lwe_size = extracted_bits_blocks[0].lwe_size();
 
         let mut all_datas = vec![];
@@ -518,7 +519,7 @@ impl ShortintEngine {
         let output_container = output_list.into_container();
         let lwes: Vec<_> = output_container
             .chunks_exact(output_container.len() / vec_lut.len())
-            .map(|s| LweCiphertext::from_container(s.to_vec()))
+            .map(|s| LweCiphertextOwned::from_container(s.to_vec()))
             .collect();
 
         assert_eq!(lwes.len(), vec_lut.len());
