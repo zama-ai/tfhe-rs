@@ -3,7 +3,7 @@ use dyn_stack::{GlobalMemBuffer, ReborrowMut};
 use super::super::polynomial::FourierPolynomial;
 use super::*;
 use crate::core_crypto::commons::test_tools::new_random_generator;
-use crate::core_crypto::entities::PolynomialBase;
+use crate::core_crypto::entities::Polynomial;
 use aligned_vec::avec;
 
 fn abs_diff<Scalar: UnsignedTorus>(a: Scalar, b: Scalar) -> Scalar {
@@ -22,9 +22,9 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         let fft = Fft::new(PolynomialSize(size));
         let fft = fft.as_view();
 
-        let mut poly = PolynomialBase::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
+        let mut poly = Polynomial::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
         let mut roundtrip =
-            PolynomialBase::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
+            Polynomial::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
         let mut fourier = FourierPolynomial {
             data: avec![c64::default(); size / 2].into_boxed_slice(),
         };
@@ -90,14 +90,14 @@ fn test_product<Scalar: UnsignedTorus>() {
             let fft = fft.as_view();
 
             let mut poly0 =
-                PolynomialBase::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
+                Polynomial::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
             let mut poly1 =
-                PolynomialBase::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
+                Polynomial::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
 
             let mut convolution_from_fft =
-                PolynomialBase::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
+                Polynomial::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
             let mut convolution_from_naive =
-                PolynomialBase::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
+                Polynomial::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
 
             let mut fourier0 = FourierPolynomial {
                 data: avec![c64::default(); size / 2].into_boxed_slice(),

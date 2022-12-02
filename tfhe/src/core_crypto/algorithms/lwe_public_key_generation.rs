@@ -10,8 +10,8 @@ use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::*;
 
 pub fn generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
-    lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
-    output: &mut LwePublicKeyBase<OutputKeyCont>,
+    lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output: &mut LwePublicKey<OutputKeyCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -25,7 +25,7 @@ pub fn generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
         "TODO error message"
     );
 
-    let zeros = PlaintextList::new(
+    let zeros = PlaintextListOwned::new(
         Scalar::ZERO,
         PlaintextCount(output.zero_encryption_count().0),
     );
@@ -34,17 +34,17 @@ pub fn generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
 }
 
 pub fn allocate_and_generate_new_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
-    lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
+    lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LwePublicKey<Scalar>
+) -> LwePublicKeyOwned<Scalar>
 where
     Scalar: UnsignedTorus,
     InputKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut pk = LwePublicKey::new(
+    let mut pk = LwePublicKeyOwned::new(
         Scalar::ZERO,
         lwe_secret_key.lwe_dimension().to_lwe_size(),
         zero_encryption_count,
@@ -57,8 +57,8 @@ where
 
 #[cfg(feature = "__commons_parallel")]
 pub fn par_generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
-    lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
-    output: &mut LwePublicKeyBase<OutputKeyCont>,
+    lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output: &mut LwePublicKey<OutputKeyCont>,
     noise_parameters: impl DispersionParameter + Sync,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -72,7 +72,7 @@ pub fn par_generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
         "TODO error message"
     );
 
-    let zeros = PlaintextList::new(
+    let zeros = PlaintextListOwned::new(
         Scalar::ZERO,
         PlaintextCount(output.zero_encryption_count().0),
     );
@@ -82,17 +82,17 @@ pub fn par_generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
 
 #[cfg(feature = "__commons_parallel")]
 pub fn par_allocate_and_generate_new_lwe_public_key<Scalar, InputKeyCont, Gen>(
-    lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
+    lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,
     noise_parameters: impl DispersionParameter + Sync,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LwePublicKey<Scalar>
+) -> LwePublicKeyOwned<Scalar>
 where
     Scalar: UnsignedTorus + Sync + Send,
     InputKeyCont: Container<Element = Scalar> + Sync,
     Gen: ParallelByteRandomGenerator,
 {
-    let mut pk = LwePublicKey::new(
+    let mut pk = LwePublicKeyOwned::new(
         Scalar::ZERO,
         lwe_secret_key.lwe_dimension().to_lwe_size(),
         zero_encryption_count,

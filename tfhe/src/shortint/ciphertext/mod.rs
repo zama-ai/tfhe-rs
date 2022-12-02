@@ -86,7 +86,7 @@ impl Degree {
 /// Internally, it uses a LWE ciphertext.
 #[derive(Clone)]
 pub struct Ciphertext {
-    pub ct: LweCiphertext<u64>,
+    pub ct: LweCiphertextOwned<u64>,
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
