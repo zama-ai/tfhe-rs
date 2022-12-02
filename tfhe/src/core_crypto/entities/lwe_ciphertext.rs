@@ -29,29 +29,29 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweMask<C> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct LweCiphertextBase<C: Container> {
+pub struct LweCiphertext<C: Container> {
     data: C,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]> for LweCiphertextBase<C> {
+impl<T, C: Container<Element = T>> AsRef<[T]> for LweCiphertext<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
-impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphertextBase<C> {
+impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphertext<C> {
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> LweCiphertextBase<C> {
-    pub fn from_container(container: C) -> LweCiphertextBase<C> {
+impl<Scalar, C: Container<Element = Scalar>> LweCiphertext<C> {
+    pub fn from_container(container: C) -> LweCiphertext<C> {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create an LweCiphertext"
         );
-        LweCiphertextBase { data: container }
+        LweCiphertext { data: container }
     }
 
     pub fn lwe_size(&self) -> LweSize {
@@ -83,7 +83,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertextBase<C> {
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextBase<C> {
+impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertext<C> {
     pub fn get_mut_mask_and_body(&mut self) -> (LweMask<&mut [Scalar]>, LweBody<&mut Scalar>) {
         let (body, mask) = self.data.as_mut().split_last_mut().unwrap();
 
@@ -106,32 +106,32 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextBase<C> {
     }
 }
 
-pub type LweCiphertext<Scalar> = LweCiphertextBase<Vec<Scalar>>;
-pub type LweCiphertextView<'data, Scalar> = LweCiphertextBase<&'data [Scalar]>;
-pub type LweCiphertextMutView<'data, Scalar> = LweCiphertextBase<&'data mut [Scalar]>;
+pub type LweCiphertextOwned<Scalar> = LweCiphertext<Vec<Scalar>>;
+pub type LweCiphertextView<'data, Scalar> = LweCiphertext<&'data [Scalar]>;
+pub type LweCiphertextMutView<'data, Scalar> = LweCiphertext<&'data mut [Scalar]>;
 
-impl<Scalar: Copy> LweCiphertext<Scalar> {
-    pub fn new(fill_with: Scalar, lwe_size: LweSize) -> LweCiphertext<Scalar> {
-        LweCiphertext::from_container(vec![fill_with; lwe_size.0])
+impl<Scalar: Copy> LweCiphertextOwned<Scalar> {
+    pub fn new(fill_with: Scalar, lwe_size: LweSize) -> LweCiphertextOwned<Scalar> {
+        LweCiphertextOwned::from_container(vec![fill_with; lwe_size.0])
     }
 }
 
 #[derive(Clone, Copy)]
 pub struct LweCiphertextCreationMetadata();
 
-impl<C: Container> CreateFrom<C> for LweCiphertextBase<C> {
+impl<C: Container> CreateFrom<C> for LweCiphertext<C> {
     type Metadata = LweCiphertextCreationMetadata;
 
     #[inline]
-    fn create_from(from: C, _: Self::Metadata) -> LweCiphertextBase<C> {
-        LweCiphertextBase::from_container(from)
+    fn create_from(from: C, _: Self::Metadata) -> LweCiphertext<C> {
+        LweCiphertext::from_container(from)
     }
 }
 
 // TODO REFACTOR remove compat layer
 // Remove the back and forth conversions
-impl From<LweCiphertext<u64>> for crate::core_crypto::prelude::LweCiphertext64 {
-    fn from(new_lwe_ciphertext: LweCiphertext<u64>) -> Self {
+impl From<LweCiphertextOwned<u64>> for crate::core_crypto::prelude::LweCiphertext64 {
+    fn from(new_lwe_ciphertext: LweCiphertextOwned<u64>) -> Self {
         use crate::core_crypto::commons::crypto::lwe::LweCiphertext as PrivateLweCiphertext;
         use crate::core_crypto::prelude::LweCiphertext64;
         LweCiphertext64(PrivateLweCiphertext::from_container(
@@ -140,9 +140,9 @@ impl From<LweCiphertext<u64>> for crate::core_crypto::prelude::LweCiphertext64 {
     }
 }
 
-impl From<crate::core_crypto::prelude::LweCiphertext64> for LweCiphertext<u64> {
+impl From<crate::core_crypto::prelude::LweCiphertext64> for LweCiphertextOwned<u64> {
     fn from(old_lwe_ciphertext: crate::core_crypto::prelude::LweCiphertext64) -> Self {
-        LweCiphertext::<u64>::from_container(old_lwe_ciphertext.0.tensor.into_container())
+        LweCiphertextOwned::<u64>::from_container(old_lwe_ciphertext.0.tensor.into_container())
     }
 }
 
@@ -156,7 +156,7 @@ impl crate::core_crypto::prelude::LweCiphertext64 {
     }
 }
 
-impl<C: Container<Element = u64>> LweCiphertextBase<C> {
+impl<C: Container<Element = u64>> LweCiphertext<C> {
     pub fn as_old_ct_view(&self) -> crate::core_crypto::prelude::LweCiphertextView64 {
         use crate::core_crypto::commons::crypto::lwe::LweCiphertext as PrivateLweCiphertext;
         use crate::core_crypto::prelude::LweCiphertextView64;
@@ -164,7 +164,7 @@ impl<C: Container<Element = u64>> LweCiphertextBase<C> {
     }
 }
 
-impl<C: ContainerMut<Element = u64>> LweCiphertextBase<C> {
+impl<C: ContainerMut<Element = u64>> LweCiphertext<C> {
     pub fn as_old_ct_mut_view(&mut self) -> crate::core_crypto::prelude::LweCiphertextMutView64 {
         use crate::core_crypto::commons::crypto::lwe::LweCiphertext as PrivateLweCiphertext;
         use crate::core_crypto::prelude::LweCiphertextMutView64;

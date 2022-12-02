@@ -7,8 +7,8 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 pub fn lwe_ciphertext_in_place_addition<Scalar, LhsCont, RhsCont>(
-    lhs: &mut LweCiphertextBase<LhsCont>,
-    rhs: &LweCiphertextBase<RhsCont>,
+    lhs: &mut LweCiphertext<LhsCont>,
+    rhs: &LweCiphertext<RhsCont>,
 ) where
     Scalar: UnsignedInteger,
     LhsCont: ContainerMut<Element = Scalar>,
@@ -18,7 +18,7 @@ pub fn lwe_ciphertext_in_place_addition<Scalar, LhsCont, RhsCont>(
 }
 
 pub fn lwe_ciphertext_in_place_encoded_addition<Scalar, InCont>(
-    lhs: &mut LweCiphertextBase<InCont>,
+    lhs: &mut LweCiphertext<InCont>,
     rhs: Plaintext<Scalar>,
 ) where
     Scalar: UnsignedInteger,
@@ -29,7 +29,7 @@ pub fn lwe_ciphertext_in_place_encoded_addition<Scalar, InCont>(
     *body.0 = (*body.0).wrapping_add(rhs.0);
 }
 
-pub fn lwe_ciphertext_in_place_opposite<Scalar, InCont>(ct: &mut LweCiphertextBase<InCont>)
+pub fn lwe_ciphertext_in_place_opposite<Scalar, InCont>(ct: &mut LweCiphertext<InCont>)
 where
     Scalar: UnsignedInteger,
     InCont: ContainerMut<Element = Scalar>,
@@ -38,7 +38,7 @@ where
 }
 
 pub fn lwe_ciphertext_in_place_cleartext_multiplication<Scalar, InCont>(
-    lhs: &mut LweCiphertextBase<InCont>,
+    lhs: &mut LweCiphertext<InCont>,
     rhs: Cleartext<Scalar>,
 ) where
     Scalar: UnsignedInteger,
@@ -48,8 +48,8 @@ pub fn lwe_ciphertext_in_place_cleartext_multiplication<Scalar, InCont>(
 }
 
 pub fn lwe_ciphertext_in_place_subtraction<Scalar, LhsCont, RhsCont>(
-    lhs: &mut LweCiphertextBase<LhsCont>,
-    rhs: &LweCiphertextBase<RhsCont>,
+    lhs: &mut LweCiphertext<LhsCont>,
+    rhs: &LweCiphertext<RhsCont>,
 ) where
     Scalar: UnsignedInteger,
     LhsCont: ContainerMut<Element = Scalar>,
@@ -59,8 +59,8 @@ pub fn lwe_ciphertext_in_place_subtraction<Scalar, LhsCont, RhsCont>(
 }
 
 pub fn lwe_ciphertext_cleartext_multiplication<Scalar, InputCont, OutputCont>(
-    output: &mut LweCiphertextBase<OutputCont>,
-    lhs: &LweCiphertextBase<InputCont>,
+    output: &mut LweCiphertext<OutputCont>,
+    lhs: &LweCiphertext<InputCont>,
     rhs: Cleartext<Scalar>,
 ) where
     Scalar: UnsignedInteger,

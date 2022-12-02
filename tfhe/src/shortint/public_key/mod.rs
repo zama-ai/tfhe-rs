@@ -11,7 +11,7 @@ use std::fmt::Debug;
 /// A structure containing a public key.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PublicKey {
-    pub(crate) lwe_public_key: LwePublicKey<u64>,
+    pub(crate) lwe_public_key: LwePublicKeyOwned<u64>,
     pub parameters: Parameters,
 }
 

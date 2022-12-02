@@ -22,8 +22,8 @@ pub struct WopbsKey {
     //Key for the private functional keyswitch
     pub wopbs_server_key: ServerKey,
     pub pbs_server_key: ServerKey,
-    pub cbs_pfpksk: LwePrivateFunctionalPackingKeyswitchKeyList<u64>,
-    pub ksk_pbs_to_wopbs: LweKeyswitchKey<u64>,
+    pub cbs_pfpksk: LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
+    pub ksk_pbs_to_wopbs: LweKeyswitchKeyOwned<u64>,
     pub param: Parameters,
 }
 
@@ -328,7 +328,7 @@ impl WopbsKey {
         delta_log: DeltaLog,
         ciphertext: &Ciphertext,
         num_bits_to_extract: usize,
-    ) -> LweCiphertextList<u64> {
+    ) -> LweCiphertextListOwned<u64> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .extract_bits(
@@ -347,8 +347,8 @@ impl WopbsKey {
     pub fn circuit_bootstrapping_vertical_packing(
         &self,
         vec_lut: Vec<Vec<u64>>,
-        extracted_bits_blocks: Vec<LweCiphertextList<u64>>,
-    ) -> Vec<LweCiphertext<u64>> {
+        extracted_bits_blocks: Vec<LweCiphertextListOwned<u64>>,
+    ) -> Vec<LweCiphertextOwned<u64>> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.circuit_bootstrapping_vertical_packing(self, vec_lut, extracted_bits_blocks)
         })
