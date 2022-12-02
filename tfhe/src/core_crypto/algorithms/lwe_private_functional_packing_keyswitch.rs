@@ -51,7 +51,7 @@ pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
         // We compute the multiplication of a ciphertext from the private functional
         // keyswitching key with a piece of the decomposition and subtract it to the buffer
         for (level_key_cipher, decomposed) in keyswitch_key_block.iter().rev().zip(decomp) {
-            update_with_wrapping_sub_scalar_mul(
+            update_slice_with_wrapping_sub_scalar_mul(
                 output_glwe_ciphertext.as_mut(),
                 level_key_cipher.as_ref(),
                 decomposed.value(),
@@ -94,6 +94,6 @@ pub fn private_functional_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphere
                     MonomialDegree(degree),
                 )
             });
-        update_with_wrapping_add(output.as_mut(), buffer.as_ref());
+        update_slice_with_wrapping_add(output.as_mut(), buffer.as_ref());
     }
 }

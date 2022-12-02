@@ -324,7 +324,10 @@ fn test_circuit_bootstrapping_binary() {
 
                 let multiplying_factor = 0u64.wrapping_sub(value);
 
-                update_with_wrapping_scalar_mul(expected_decryption.as_mut(), multiplying_factor);
+                update_slice_with_wrapping_scalar_mul(
+                    expected_decryption.as_mut(),
+                    multiplying_factor,
+                );
 
                 let decomposer =
                     SignedDecomposer::new(base_log_cbs, DecompositionLevelCount(current_level));

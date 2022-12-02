@@ -12,13 +12,13 @@ impl<C: Container> std::ops::Deref for LweBootstrapKeyBase<C> {
     type Target = GgswCiphertextListBase<C>;
 
     fn deref(&self) -> &GgswCiphertextListBase<C> {
-        self.as_ggsw_ciphertext_list()
+        &self.ggsw_list
     }
 }
 
 impl<C: ContainerMut> std::ops::DerefMut for LweBootstrapKeyBase<C> {
     fn deref_mut(&mut self) -> &mut GgswCiphertextListBase<C> {
-        self.as_mut_ggsw_ciphertext_list()
+        &mut self.ggsw_list
     }
 }
 
@@ -49,10 +49,6 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKeyBase<C> {
         LweDimension(self.glwe_size().to_glwe_dimension().0 * self.polynomial_size().0)
     }
 
-    pub fn as_ggsw_ciphertext_list(&self) -> &GgswCiphertextListBase<C> {
-        &self.ggsw_list
-    }
-
     pub fn into_container(self) -> C {
         self.ggsw_list.into_container()
     }
@@ -69,10 +65,6 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKeyBase<C> {
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> LweBootstrapKeyBase<C> {
-    pub fn as_mut_ggsw_ciphertext_list(&mut self) -> &mut GgswCiphertextListBase<C> {
-        &mut self.ggsw_list
-    }
-
     pub fn as_mut_view(&mut self) -> LweBootstrapKeyBase<&'_ mut [Scalar]> {
         let glwe_size = self.glwe_size();
         let polynomial_size = self.polynomial_size();

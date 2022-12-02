@@ -34,11 +34,19 @@ impl<Scalar, C: Container<Element = Scalar>> PlaintextListBase<C> {
     pub fn into_container(self) -> C {
         self.data
     }
+
+    pub fn as_view(&self) -> PlaintextListView<'_, Scalar> {
+        PlaintextListView::from_container(self.as_ref())
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> PlaintextListBase<C> {
     pub fn as_mut_polynomial(&mut self) -> PolynomialMutView<'_, Scalar> {
         PolynomialMutView::from_container(self.as_mut())
+    }
+
+    pub fn as_mut_view(&mut self) -> PlaintextListMutView<'_, Scalar> {
+        PlaintextListMutView::from_container(self.as_mut())
     }
 }
 

@@ -5,6 +5,7 @@ use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
+use crate::core_crypto::specification::parameters::*;
 
 pub fn encrypt_glwe_ciphertext_in_place<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKeyBase<KeyCont>,
@@ -214,4 +215,41 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
     {
         decrypt_glwe_ciphertext(glwe_secret_key, &ciphertext, &mut output_sublist);
     }
+}
+
+pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
+    output: &mut GlweCiphertextBase<OutputCont>,
+    encoded: &PlaintextListBase<InputCont>,
+) where
+    Scalar: UnsignedTorus,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert!(
+        output.polynomial_size().0 == encoded.plaintext_count().0,
+        "TODO Error message"
+    );
+
+    let (mut mask, mut body) = output.get_mut_mask_and_body();
+
+    mask.as_mut().fill(Scalar::ZERO);
+    body.as_mut().copy_from_slice(encoded.as_ref());
+}
+
+pub fn allocate_and_trivially_encrypt_new_glwe_ciphertext<Scalar, InputCont>(
+    glwe_size: GlweSize,
+    encoded: &PlaintextListBase<InputCont>,
+) -> GlweCiphertext<Scalar>
+where
+    Scalar: UnsignedTorus,
+    InputCont: Container<Element = Scalar>,
+{
+    let polynomial_size = PolynomialSize(encoded.plaintext_count().0);
+
+    let mut new_ct = GlweCiphertext::new(Scalar::ZERO, polynomial_size, glwe_size);
+
+    let mut body = new_ct.get_mut_body();
+    body.as_mut().copy_from_slice(encoded.as_ref());
+
+    new_ct
 }

@@ -1,4 +1,5 @@
 //! Module with the definition of the PublicKey.
+use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
@@ -10,7 +11,7 @@ use std::fmt::Debug;
 /// A structure containing a public key.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PublicKey {
-    pub(crate) lwe_public_key: LwePublicKey64,
+    pub(crate) lwe_public_key: LwePublicKey<u64>,
     pub parameters: Parameters,
 }
 
@@ -213,8 +214,10 @@ impl Serialize for PublicKey {
     {
         let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
 
+        let tmp_public_key: LwePublicKey64 = self.lwe_public_key.clone().into();
+
         let lwe_public_key = ser_eng
-            .serialize(&self.lwe_public_key)
+            .serialize(&tmp_public_key)
             .map_err(serde::ser::Error::custom)?;
 
         SerializablePublicKey {
@@ -234,10 +237,12 @@ impl<'de> Deserialize<'de> for PublicKey {
             SerializablePublicKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
         let mut de_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
 
+        let tmp_public_key: LwePublicKey64 = de_eng
+            .deserialize(thing.lwe_public_key.as_slice())
+            .map_err(serde::de::Error::custom)?;
+
         Ok(Self {
-            lwe_public_key: de_eng
-                .deserialize(thing.lwe_public_key.as_slice())
-                .map_err(serde::de::Error::custom)?,
+            lwe_public_key: tmp_public_key.into(),
             parameters: thing.parameters,
         })
     }

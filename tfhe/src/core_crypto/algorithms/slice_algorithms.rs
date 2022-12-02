@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 
-pub fn wrapping_dot_product<Scalar>(lhs: &[Scalar], rhs: &[Scalar]) -> Scalar
+pub fn slice_wrapping_dot_product<Scalar>(lhs: &[Scalar], rhs: &[Scalar]) -> Scalar
 where
     Scalar: UnsignedInteger,
 {
@@ -18,7 +18,7 @@ where
         })
 }
 
-pub fn update_with_wrapping_add<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
+pub fn update_slice_with_wrapping_add<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
 where
     Scalar: UnsignedInteger,
 {
@@ -34,7 +34,7 @@ where
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs));
 }
 
-pub fn update_with_wrapping_add_scalar_mul<Scalar>(
+pub fn update_slice_with_wrapping_add_scalar_mul<Scalar>(
     lhs: &mut [Scalar],
     rhs: &[Scalar],
     scalar: Scalar,
@@ -52,7 +52,7 @@ pub fn update_with_wrapping_add_scalar_mul<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs.wrapping_mul(scalar)));
 }
 
-pub fn update_with_wrapping_sub<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
+pub fn update_slice_with_wrapping_sub<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
 where
     Scalar: UnsignedInteger,
 {
@@ -68,7 +68,7 @@ where
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs));
 }
 
-pub fn update_with_wrapping_sub_scalar_mul<Scalar>(
+pub fn update_slice_with_wrapping_sub_scalar_mul<Scalar>(
     lhs: &mut [Scalar],
     rhs: &[Scalar],
     scalar: Scalar,
@@ -86,7 +86,7 @@ pub fn update_with_wrapping_sub_scalar_mul<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs.wrapping_mul(scalar)));
 }
 
-pub fn update_with_wrapping_opposite<Scalar>(slice: &mut [Scalar])
+pub fn update_slice_with_wrapping_opposite<Scalar>(slice: &mut [Scalar])
 where
     Scalar: UnsignedInteger,
 {
@@ -95,7 +95,7 @@ where
         .for_each(|elt| *elt = (*elt).wrapping_neg());
 }
 
-pub fn update_with_wrapping_scalar_mul<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
+pub fn update_slice_with_wrapping_scalar_mul<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
 where
     Scalar: UnsignedInteger,
 {

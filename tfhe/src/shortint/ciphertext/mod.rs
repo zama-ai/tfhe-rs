@@ -1,6 +1,9 @@
 //! Module with the definition of a short-integer ciphertext.
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::prelude::{
+    AbstractEngine, DefaultSerializationEngine, EntityDeserializationEngine,
+    EntitySerializationEngine, LweCiphertext64,
+};
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cmp;

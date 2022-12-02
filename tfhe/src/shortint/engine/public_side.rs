@@ -1,5 +1,7 @@
 //! All the `ShortintEngine` method related to client side (encrypt / decrypt)
 use super::{EngineResult, ShortintEngine};
+use crate::core_crypto::algorithms::*;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
@@ -19,14 +21,17 @@ impl ShortintEngine {
                 + 128,
         );
 
+        let lwe_public_key = par_allocate_and_generate_new_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_key.parameters.glwe_modular_std_dev,
+            &mut self.encryption_generator,
+        );
+
         // TODO REFACTOR
         // Remove the clone + into
         Ok(PublicKey {
-            lwe_public_key: self.par_engine.generate_new_lwe_public_key(
-                &client_key.lwe_secret_key.clone().into(),
-                Variance(client_key.parameters.lwe_modular_std_dev.get_variance()),
-                zero_encryption_count,
-            )?,
+            lwe_public_key,
             parameters: client_key.parameters.to_owned(),
         })
     }
@@ -72,23 +77,20 @@ impl ShortintEngine {
 
         let shifted_message = m * delta;
         // encode the message
-        let plain: Plaintext64 = self.engine.create_plaintext_from(&shifted_message)?;
+        let plain = Plaintext(shifted_message);
 
         // This allocates the required ct
-        let mut encrypted_ct = self.engine.trivially_encrypt_lwe_ciphertext(
-            public_key.lwe_public_key.lwe_dimension().to_lwe_size(),
-            &plain,
-        )?;
+        let mut encrypted_ct = LweCiphertext::new(0u64, public_key.lwe_public_key.lwe_size());
 
-        // encryption
-        self.engine.discard_encrypt_lwe_ciphertext_with_public_key(
+        encrypt_lwe_ciphertext_with_public_key(
             &public_key.lwe_public_key,
             &mut encrypted_ct,
-            &plain,
-        )?;
+            plain,
+            &mut self.secret_generator,
+        );
 
         Ok(Ciphertext {
-            ct: encrypted_ct.into(),
+            ct: encrypted_ct,
             degree: Degree(message_modulus.0 - 1),
             message_modulus,
             carry_modulus: CarryModulus(carry_modulus),
@@ -108,23 +110,21 @@ impl ShortintEngine {
 
         let shifted_message = message * delta;
         // encode the message
-        let plain: Plaintext64 = self.engine.create_plaintext_from(&shifted_message)?;
+        let plain = Plaintext(shifted_message);
 
         // This allocates the required ct
-        let mut encrypted_ct = self.engine.trivially_encrypt_lwe_ciphertext(
-            public_key.lwe_public_key.lwe_dimension().to_lwe_size(),
-            &plain,
-        )?;
+        let mut encrypted_ct = LweCiphertext::new(0u64, public_key.lwe_public_key.lwe_size());
 
         // encryption
-        self.engine.discard_encrypt_lwe_ciphertext_with_public_key(
+        encrypt_lwe_ciphertext_with_public_key(
             &public_key.lwe_public_key,
             &mut encrypted_ct,
-            &plain,
-        )?;
+            plain,
+            &mut self.secret_generator,
+        );
 
         Ok(Ciphertext {
-            ct: encrypted_ct.into(),
+            ct: encrypted_ct,
             degree: Degree(public_key.parameters.message_modulus.0 - 1),
             message_modulus: public_key.parameters.message_modulus,
             carry_modulus: public_key.parameters.carry_modulus,
@@ -141,25 +141,21 @@ impl ShortintEngine {
         let m = (message % message_modulus as u64) as u128;
         let shifted_message = m * (1 << 64) / message_modulus as u128;
         // encode the message
-        let plain: Plaintext64 = self
-            .engine
-            .create_plaintext_from(&(shifted_message as u64))?;
+
+        let plain = Plaintext(shifted_message as u64);
 
         // This allocates the required ct
-        let mut encrypted_ct = self.engine.trivially_encrypt_lwe_ciphertext(
-            public_key.lwe_public_key.lwe_dimension().to_lwe_size(),
-            &plain,
-        )?;
+        let mut encrypted_ct = LweCiphertext::new(0u64, public_key.lwe_public_key.lwe_size());
 
-        // encryption
-        self.engine.discard_encrypt_lwe_ciphertext_with_public_key(
+        encrypt_lwe_ciphertext_with_public_key(
             &public_key.lwe_public_key,
             &mut encrypted_ct,
-            &plain,
-        )?;
+            plain,
+            &mut self.secret_generator,
+        );
 
         Ok(Ciphertext {
-            ct: encrypted_ct.into(),
+            ct: encrypted_ct,
             degree: Degree(message_modulus as usize - 1),
             message_modulus: MessageModulus(message_modulus as usize),
             carry_modulus: CarryModulus(carry_modulus),
@@ -176,23 +172,20 @@ impl ShortintEngine {
                 as u64;
         let shifted_message = message * delta;
         // encode the message
-        let plain: Plaintext64 = self.engine.create_plaintext_from(&shifted_message)?;
+        let plain = Plaintext(shifted_message);
 
         // This allocates the required ct
-        let mut encrypted_ct = self.engine.trivially_encrypt_lwe_ciphertext(
-            public_key.lwe_public_key.lwe_dimension().to_lwe_size(),
-            &plain,
-        )?;
+        let mut encrypted_ct = LweCiphertext::new(0u64, public_key.lwe_public_key.lwe_size());
 
-        // encryption
-        self.engine.discard_encrypt_lwe_ciphertext_with_public_key(
+        encrypt_lwe_ciphertext_with_public_key(
             &public_key.lwe_public_key,
             &mut encrypted_ct,
-            &plain,
-        )?;
+            plain,
+            &mut self.secret_generator,
+        );
 
         Ok(Ciphertext {
-            ct: encrypted_ct.into(),
+            ct: encrypted_ct,
             degree: Degree(
                 public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0 - 1,
             ),

@@ -1,7 +1,13 @@
+use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::crypto::secret::generators::{
+    EncryptionRandomGenerator, SecretRandomGenerator,
+};
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::prelude::{Seeder, *};
 use crate::seeders::new_seeder;
 use crate::shortint::ServerKey;
+use core::mem::MaybeUninit;
+use dyn_stack::DynStack;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
@@ -23,6 +29,30 @@ thread_local! {
 pub struct Buffers {
     pub(crate) accumulator: GlweCiphertext<u64>,
     pub(crate) buffer_lwe_after_ks: LweCiphertext<u64>,
+}
+
+pub struct FftBuffers {
+    memory: Vec<MaybeUninit<u8>>,
+}
+
+impl FftBuffers {
+    pub fn new() -> Self {
+        FftBuffers { memory: Vec::new() }
+    }
+
+    pub fn resize(&mut self, capacity: usize) {
+        self.memory.resize_with(capacity, MaybeUninit::uninit);
+    }
+
+    pub fn stack(&mut self) -> DynStack<'_> {
+        DynStack::new(&mut self.memory)
+    }
+}
+
+impl Default for FftBuffers {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// This allows to store and retrieve the `Buffers`
@@ -74,9 +104,16 @@ pub(crate) type EngineResult<T> = Result<T, EngineError>;
 ///
 /// This structs actually implements the logics into its methods.
 pub struct ShortintEngine {
-    pub(crate) engine: DefaultEngine,
-    pub(crate) fft_engine: FftEngine,
-    pub(crate) par_engine: DefaultParallelEngine,
+    /// A structure containing a single CSPRNG to generate secret key coefficients.
+    pub(crate) secret_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
+    /// A structure containing two CSPRNGs to generate material for encryption like public masks
+    /// and secret errors.
+    ///
+    /// The [`ImplEncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
+    /// generate mask coefficients and one privately seeded used to generate errors during
+    /// encryption.
+    pub(crate) encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    pub(crate) fft_buffers: FftBuffers,
     buffers: BTreeMap<KeyId, Buffers>,
 }
 
@@ -111,31 +148,25 @@ impl ShortintEngine {
         let mut deterministic_seeder =
             DeterministicSeeder::<ActivatedRandomGenerator>::new(root_seeder.seed());
 
-        let default_engine_seeder = Box::new(DeterministicSeeder::<ActivatedRandomGenerator>::new(
-            deterministic_seeder.seed(),
-        ));
-        let default_parallel_engine_seeder = Box::new(DeterministicSeeder::<
-            ActivatedRandomGenerator,
-        >::new(deterministic_seeder.seed()));
-
-        let engine =
-            DefaultEngine::new(default_engine_seeder).expect("Failed to create a DefaultEngine");
-        let par_engine = DefaultParallelEngine::new(default_parallel_engine_seeder)
-            .expect("Failed to create a DefaultParallelEngine");
-        let fft_engine = FftEngine::new(()).unwrap();
+        // Note that the operands are evaluated from left to right for Rust Struct expressions
+        // See: https://doc.rust-lang.org/stable/reference/expressions.html?highlight=left#evaluation-order-of-operands
+        // So parameters is moved in seeder after the calls to seed and the potential calls when it
+        // is passed as_mut in EncryptionRandomGenerator::new
         Self {
-            engine,
-            fft_engine,
-            par_engine,
+            secret_generator: SecretRandomGenerator::new(deterministic_seeder.seed()),
+            encryption_generator: EncryptionRandomGenerator::new(
+                deterministic_seeder.seed(),
+                &mut deterministic_seeder,
+            ),
+            fft_buffers: Default::default(),
             buffers: Default::default(),
         }
     }
 
     fn generate_accumulator_with_engine<F>(
-        engine: &mut DefaultEngine,
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<GlweCiphertext64>
+    ) -> EngineResult<GlweCiphertext<u64>>
     where
         F: Fn(u64) -> u64,
     {
@@ -171,21 +202,20 @@ impl ShortintEngine {
         accumulator_u64.rotate_left(half_box_size);
 
         // Everywhere
-        let accumulator_plaintext = engine.create_plaintext_vector_from(&accumulator_u64)?;
+        let accumulator_plaintext = PlaintextList::from_container(accumulator_u64);
 
-        let accumulator = engine.trivially_encrypt_glwe_ciphertext(
+        let accumulator = allocate_and_trivially_encrypt_new_glwe_ciphertext(
             server_key.bootstrapping_key.glwe_size(),
             &accumulator_plaintext,
-        )?;
+        );
 
         Ok(accumulator)
     }
 
     fn generate_accumulator_bivariate_with_engine<F>(
-        engine: &mut DefaultEngine,
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<GlweCiphertext64>
+    ) -> EngineResult<GlweCiphertext<u64>>
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -196,7 +226,7 @@ impl ShortintEngine {
 
             f(lhs, rhs)
         };
-        ShortintEngine::generate_accumulator_with_engine(engine, server_key, wrapped_f)
+        ShortintEngine::generate_accumulator_with_engine(server_key, wrapped_f)
     }
 
     /// Returns the `Buffers` for the given `ServerKey`
@@ -206,43 +236,32 @@ impl ShortintEngine {
     /// This also `&mut CoreEngine` to simply borrow checking for the caller
     /// (since returned buffers are borrowed from `self`, using the `self.engine`
     /// wouldn't be possible after calling `buffers_for_key`)
-    pub fn buffers_for_key(
-        &mut self,
-        server_key: &ServerKey,
-    ) -> (&mut Buffers, &mut DefaultEngine, &mut FftEngine) {
+    pub fn buffers_for_key(&mut self, server_key: &ServerKey) -> (&mut Buffers, &mut FftBuffers) {
         let key = server_key.key_id();
         // To make borrow checker happy
-        let engine = &mut self.engine;
         let buffers_map = &mut self.buffers;
         let buffers = buffers_map.entry(key).or_insert_with(|| {
-            let accumulator = Self::generate_accumulator_with_engine(engine, server_key, |n| {
+            let accumulator = Self::generate_accumulator_with_engine(server_key, |n| {
                 n % server_key.message_modulus.0 as u64
             })
             .unwrap();
 
             // Allocate the buffer for the output of the PBS
-            let zero_plaintext = engine.create_plaintext_from(&0_u64).unwrap();
-            let buffer_lwe_after_pbs = engine
-                .trivially_encrypt_lwe_ciphertext(
-                    server_key
-                        .key_switching_key
-                        .output_key_lwe_dimension()
-                        .to_lwe_size(),
-                    &zero_plaintext,
-                )
-                .unwrap();
-
-            let polynomial_size = accumulator.polynomial_size();
+            let zero_plaintext = Plaintext(0_u64);
+            let buffer_lwe_after_ks = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+                server_key
+                    .key_switching_key
+                    .output_key_lwe_dimension()
+                    .to_lwe_size(),
+                zero_plaintext,
+            );
 
             Buffers {
-                accumulator: GlweCiphertext::from_container(
-                    accumulator.0.into_container(),
-                    polynomial_size,
-                ),
-                buffer_lwe_after_ks: buffer_lwe_after_pbs.into(),
+                accumulator,
+                buffer_lwe_after_ks,
             }
         });
 
-        (buffers, engine, &mut self.fft_engine)
+        (buffers, &mut self.fft_buffers)
     }
 }

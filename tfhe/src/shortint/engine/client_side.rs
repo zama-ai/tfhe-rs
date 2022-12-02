@@ -11,14 +11,14 @@ impl ShortintEngine {
         // generate the lwe secret key
         let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             parameters.lwe_dimension,
-            self.engine.get_secret_generator(),
+            &mut self.secret_generator,
         );
 
         // generate the rlwe secret key
         let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
             parameters.glwe_dimension,
             parameters.polynomial_size,
-            self.engine.get_secret_generator(),
+            &mut self.secret_generator,
         );
 
         let large_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
@@ -68,7 +68,7 @@ impl ShortintEngine {
             &client_key.lwe_secret_key,
             encoded,
             client_key.parameters.lwe_modular_std_dev,
-            self.engine.get_encryption_generator(),
+            &mut self.encryption_generator,
         );
 
         Ok(Ciphertext {
@@ -95,7 +95,7 @@ impl ShortintEngine {
             &client_key.lwe_secret_key,
             encoded,
             client_key.parameters.lwe_modular_std_dev,
-            self.engine.get_encryption_generator(),
+            &mut self.encryption_generator,
         );
 
         Ok(Ciphertext {
@@ -155,7 +155,7 @@ impl ShortintEngine {
             &client_key.lwe_secret_key,
             encoded,
             client_key.parameters.lwe_modular_std_dev,
-            self.engine.get_encryption_generator(),
+            &mut self.encryption_generator,
         );
 
         Ok(Ciphertext {
@@ -215,7 +215,7 @@ impl ShortintEngine {
             &client_key.lwe_secret_key,
             encoded,
             client_key.parameters.lwe_modular_std_dev,
-            self.engine.get_encryption_generator(),
+            &mut self.encryption_generator,
         );
 
         Ok(Ciphertext {
