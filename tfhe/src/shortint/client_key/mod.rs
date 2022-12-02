@@ -1,7 +1,6 @@
 //! Module with the definition of the ClientKey.
 
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, Parameters};
@@ -333,25 +332,12 @@ impl Serialize for ClientKey {
     where
         S: Serializer,
     {
-        let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
-
-        // TODO REFACTOR
-        // Remove the clone + into and serialize properly when we want to change the key caches
-        let tmp_lwe_secret_key: LweSecretKey64 = self.lwe_secret_key.clone().into();
-        let tmp_lwe_secret_key_after_ks: LweSecretKey64 =
-            self.lwe_secret_key_after_ks.clone().into();
-
-        let tmp_glwe_secret_key: GlweSecretKey64 = self.glwe_secret_key.clone().into();
-
-        let lwe_secret_key = ser_eng
-            .serialize(&tmp_lwe_secret_key)
-            .map_err(serde::ser::Error::custom)?;
-        let glwe_secret_key = ser_eng
-            .serialize(&tmp_glwe_secret_key)
-            .map_err(serde::ser::Error::custom)?;
-        let lwe_secret_key_after_ks = ser_eng
-            .serialize(&tmp_lwe_secret_key_after_ks)
-            .map_err(serde::ser::Error::custom)?;
+        let lwe_secret_key =
+            bincode::serialize(&self.lwe_secret_key).map_err(serde::ser::Error::custom)?;
+        let glwe_secret_key =
+            bincode::serialize(&self.glwe_secret_key).map_err(serde::ser::Error::custom)?;
+        let lwe_secret_key_after_ks =
+            bincode::serialize(&self.lwe_secret_key_after_ks).map_err(serde::ser::Error::custom)?;
 
         SerializableClientKey {
             lwe_secret_key,
@@ -370,25 +356,19 @@ impl<'de> Deserialize<'de> for ClientKey {
     {
         let thing =
             SerializableClientKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-        let mut de_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
 
-        // TODO REFACTOR
-        // Remove the clone + into and serialize properly when we want to change the key caches
-        let tmp_lwe_secret_key: LweSecretKey64 = de_eng
-            .deserialize(thing.lwe_secret_key.as_slice())
+        let lwe_secret_key = bincode::deserialize(thing.lwe_secret_key.as_slice())
             .map_err(serde::de::Error::custom)?;
-        let tmp_lwe_secret_key_after_ks: LweSecretKey64 = de_eng
-            .deserialize(thing.lwe_secret_key_after_ks.as_slice())
-            .map_err(serde::de::Error::custom)?;
-
-        let tmp_glwe_secret_key: GlweSecretKey64 = de_eng
-            .deserialize(thing.glwe_secret_key.as_slice())
+        let lwe_secret_key_after_ks =
+            bincode::deserialize(thing.lwe_secret_key_after_ks.as_slice())
+                .map_err(serde::de::Error::custom)?;
+        let glwe_secret_key = bincode::deserialize(thing.glwe_secret_key.as_slice())
             .map_err(serde::de::Error::custom)?;
 
         Ok(Self {
-            lwe_secret_key: tmp_lwe_secret_key.into(),
-            glwe_secret_key: tmp_glwe_secret_key.into(),
-            lwe_secret_key_after_ks: tmp_lwe_secret_key_after_ks.into(),
+            lwe_secret_key,
+            glwe_secret_key,
+            lwe_secret_key_after_ks,
             parameters: thing.parameters,
         })
     }
