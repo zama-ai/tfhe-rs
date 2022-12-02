@@ -13,7 +13,7 @@ use concrete_cuda::cuda_bind::cuda_get_number_of_gpus;
 // A finer access to streams could allow for more overlapping of computations
 // on a given device. We'll probably want to support it in the future, in an AdvancedCudaEngine
 // for example.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct CudaEngine {
     streams: Vec<CudaStream>,
     max_shared_memory: usize,
