@@ -9,9 +9,9 @@ use concrete_fft::c64;
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
 
 pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccCont, KeyCont>(
-    input: &LweCiphertextBase<InputCont>,
-    output: &mut LweCiphertextBase<OutputCont>,
-    accumulator: &GlweCiphertextBase<AccCont>,
+    input: &LweCiphertext<InputCont>,
+    output: &mut LweCiphertext<OutputCont>,
+    accumulator: &GlweCiphertext<AccCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
     fft: FftView<'_>,
     stack: DynStack<'_>,

@@ -36,14 +36,15 @@ impl ShortintEngine {
         cks: &ClientKey,
         max_degree: MaxDegree,
     ) -> EngineResult<ServerKey> {
-        let bootstrap_key: LweBootstrapKey<u64> = par_allocate_and_generate_new_lwe_bootstrap_key(
-            &cks.lwe_secret_key_after_ks,
-            &cks.glwe_secret_key,
-            cks.parameters.pbs_base_log,
-            cks.parameters.pbs_level,
-            cks.parameters.glwe_modular_std_dev,
-            &mut self.encryption_generator,
-        );
+        let bootstrap_key: LweBootstrapKeyOwned<u64> =
+            par_allocate_and_generate_new_lwe_bootstrap_key(
+                &cks.lwe_secret_key_after_ks,
+                &cks.glwe_secret_key,
+                cks.parameters.pbs_base_log,
+                cks.parameters.pbs_level,
+                cks.parameters.glwe_modular_std_dev,
+                &mut self.encryption_generator,
+            );
 
         // Creation of the bootstrapping key in the Fourier domain
         let mut fourier_bsk = FourierLweBootstrapKey::new(
@@ -90,7 +91,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<GlweCiphertext<u64>>
+    ) -> EngineResult<GlweCiphertextOwned<u64>>
     where
         F: Fn(u64) -> u64,
     {
@@ -154,7 +155,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         ct: &Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct.clone();
         self.programmable_bootstrap_keyswitch_assign(server_key, &mut ct_res, acc)?;
@@ -165,7 +166,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         ct: &mut Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
         let (buffers, fft_buffers) = self.buffers_for_key(server_key);
@@ -209,7 +210,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct_left.clone();
         self.programmable_bootstrap_keyswitch_bivariate_assign(
@@ -226,7 +227,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<()> {
         let modulus = (ct_right.degree.0 + 1) as u64;
 
@@ -246,7 +247,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<GlweCiphertext<u64>>
+    ) -> EngineResult<GlweCiphertextOwned<u64>>
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -302,7 +303,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &mut Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct_left.clone();
         self.smart_bivariate_pbs_assign(server_key, &mut ct_res, ct_right, acc)?;
@@ -315,7 +316,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
@@ -331,7 +332,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        acc: &GlweCiphertext<u64>,
+        acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<()> {
         let modulus = (ct_right.degree.0 + 1) as u64;
 

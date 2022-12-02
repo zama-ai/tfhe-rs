@@ -2,7 +2,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 
-pub struct GgswCiphertextListBase<C: Container> {
+pub struct GgswCiphertextList<C: Container> {
     data: C,
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
@@ -10,26 +10,26 @@ pub struct GgswCiphertextListBase<C: Container> {
     decomp_level_count: DecompositionLevelCount,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]> for GgswCiphertextListBase<C> {
+impl<T, C: Container<Element = T>> AsRef<[T]> for GgswCiphertextList<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
-impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GgswCiphertextListBase<C> {
+impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GgswCiphertextList<C> {
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextListBase<C> {
+impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextList<C> {
     pub fn from_container(
         container: C,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
-    ) -> GgswCiphertextListBase<C> {
+    ) -> GgswCiphertextList<C> {
         assert!(
             container.container_len()
                 % (decomp_level_count.0 * glwe_size.0 * glwe_size.0 * polynomial_size.0)
@@ -42,7 +42,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextListBase<C> {
             container.container_len()
         );
 
-        GgswCiphertextListBase {
+        GgswCiphertextList {
             data: container,
             glwe_size,
             polynomial_size,
@@ -83,11 +83,11 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextListBase<C> {
     }
 }
 
-pub type GgswCiphertextList<Scalar> = GgswCiphertextListBase<Vec<Scalar>>;
-pub type GgswCiphertextListView<'data, Scalar> = GgswCiphertextListBase<&'data [Scalar]>;
-pub type GgswCiphertextListMutView<'data, Scalar> = GgswCiphertextListBase<&'data mut [Scalar]>;
+pub type GgswCiphertextListOwned<Scalar> = GgswCiphertextList<Vec<Scalar>>;
+pub type GgswCiphertextListView<'data, Scalar> = GgswCiphertextList<&'data [Scalar]>;
+pub type GgswCiphertextListMutView<'data, Scalar> = GgswCiphertextList<&'data mut [Scalar]>;
 
-impl<Scalar: Copy> GgswCiphertextList<Scalar> {
+impl<Scalar: Copy> GgswCiphertextListOwned<Scalar> {
     pub fn new(
         fill_with: Scalar,
         glwe_size: GlweSize,
@@ -95,8 +95,8 @@ impl<Scalar: Copy> GgswCiphertextList<Scalar> {
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         ciphertext_count: GgswCiphertextCount,
-    ) -> GgswCiphertextList<Scalar> {
-        GgswCiphertextListBase::from_container(
+    ) -> GgswCiphertextListOwned<Scalar> {
+        GgswCiphertextList::from_container(
             vec![
                 fill_with;
                 ciphertext_count.0
@@ -118,18 +118,18 @@ pub struct GgswCiphertextListCreationMetadata(
     pub DecompositionLevelCount,
 );
 
-impl<C: Container> CreateFrom<C> for GgswCiphertextListBase<C> {
+impl<C: Container> CreateFrom<C> for GgswCiphertextList<C> {
     type Metadata = GgswCiphertextListCreationMetadata;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GgswCiphertextListBase<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> GgswCiphertextList<C> {
         let GgswCiphertextListCreationMetadata(
             glwe_size,
             polynomial_size,
             decomp_base_log,
             decomp_level_count,
         ) = meta;
-        GgswCiphertextListBase::from_container(
+        GgswCiphertextList::from_container(
             from,
             glwe_size,
             polynomial_size,
@@ -139,7 +139,7 @@ impl<C: Container> CreateFrom<C> for GgswCiphertextListBase<C> {
     }
 }
 
-impl<C: Container> ContiguousEntityContainer for GgswCiphertextListBase<C> {
+impl<C: Container> ContiguousEntityContainer for GgswCiphertextList<C> {
     type Element = C::Element;
 
     type EntityViewMetadata = GgswCiphertextCreationMetadata;
@@ -176,7 +176,7 @@ impl<C: Container> ContiguousEntityContainer for GgswCiphertextListBase<C> {
     }
 }
 
-impl<C: ContainerMut> ContiguousEntityContainerMut for GgswCiphertextListBase<C> {
+impl<C: ContainerMut> ContiguousEntityContainerMut for GgswCiphertextList<C> {
     type EntityMutView<'this> = GgswCiphertextMutView<'this, Self::Element>
     where
         Self: 'this;

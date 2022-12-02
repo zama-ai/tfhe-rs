@@ -26,20 +26,20 @@ pub fn allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     GlweKeyCont,
     Gen,
 >(
-    input_lwe_secret_key: &LweSecretKeyBase<LweKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<GlweKeyCont>,
+    input_lwe_secret_key: &LweSecretKey<LweKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LwePrivateFunctionalPackingKeyswitchKeyList<Scalar>
+) -> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar>
 where
     Scalar: UnsignedTorus,
     LweKeyCont: Container<Element = Scalar>,
     GlweKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyList::new(
+    let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyListOwned::new(
         Scalar::ZERO,
         decomp_base_log,
         decomp_level_count,
@@ -69,9 +69,9 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
     GlweKeyCont,
     Gen,
 >(
-    output_cbs_pfpksk_list: &mut LwePrivateFunctionalPackingKeyswitchKeyListBase<OutputCont>,
-    input_lwe_secret_key: &LweSecretKeyBase<LweKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<GlweKeyCont>,
+    output_cbs_pfpksk_list: &mut LwePrivateFunctionalPackingKeyswitchKeyList<OutputCont>,
+    input_lwe_secret_key: &LweSecretKey<LweKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -102,7 +102,7 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
         )
         .unwrap();
 
-    let mut last_polynomial_as_list = PolynomialList::new(
+    let mut last_polynomial_as_list = PolynomialListOwned::new(
         Scalar::ZERO,
         output_glwe_secret_key.polynomial_size(),
         PolynomialCount(1),
@@ -141,20 +141,20 @@ pub fn par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     GlweKeyCont,
     Gen,
 >(
-    input_lwe_secret_key: &LweSecretKeyBase<LweKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<GlweKeyCont>,
+    input_lwe_secret_key: &LweSecretKey<LweKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter + Sync,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LwePrivateFunctionalPackingKeyswitchKeyList<Scalar>
+) -> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar>
 where
     Scalar: UnsignedTorus + Sync + Send,
     LweKeyCont: Container<Element = Scalar> + Sync,
     GlweKeyCont: Container<Element = Scalar> + Sync,
     Gen: ParallelByteRandomGenerator,
 {
-    let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyList::new(
+    let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyListOwned::new(
         Scalar::ZERO,
         decomp_base_log,
         decomp_level_count,
@@ -185,9 +185,9 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
     GlweKeyCont,
     Gen,
 >(
-    output_cbs_pfpksk_list: &mut LwePrivateFunctionalPackingKeyswitchKeyListBase<OutputCont>,
-    input_lwe_secret_key: &LweSecretKeyBase<LweKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<GlweKeyCont>,
+    output_cbs_pfpksk_list: &mut LwePrivateFunctionalPackingKeyswitchKeyList<OutputCont>,
+    input_lwe_secret_key: &LweSecretKey<LweKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
     noise_parameters: impl DispersionParameter + Sync,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -218,7 +218,7 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
         )
         .unwrap();
 
-    let mut last_polynomial_as_list = PolynomialList::new(
+    let mut last_polynomial_as_list = PolynomialListOwned::new(
         Scalar::ZERO,
         output_glwe_secret_key.polynomial_size(),
         PolynomialCount(1),
@@ -254,10 +254,10 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
 
 #[allow(clippy::too_many_arguments)]
 pub fn extract_bits_from_lwe_ciphertext<Scalar, InputCont, OutputCont, BskCont, KSKCont>(
-    lwe_in: &LweCiphertextBase<InputCont>,
-    lwe_list_out: &mut LweCiphertextListBase<OutputCont>,
+    lwe_in: &LweCiphertext<InputCont>,
+    lwe_list_out: &mut LweCiphertextList<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<BskCont>,
-    ksk: &LweKeyswitchKeyBase<KSKCont>,
+    ksk: &LweKeyswitchKey<KSKCont>,
     delta_log: DeltaLog,
     number_of_bits_to_extract: ExtractedBitsCount,
     fft: FftView<'_>,
@@ -307,11 +307,11 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list<
     BskCont,
     PFPKSKCont,
 >(
-    lwe_list_in: &LweCiphertextListBase<InputCont>,
-    lwe_list_out: &mut LweCiphertextListBase<OutputCont>,
-    big_lut_as_polynomial_list: &PolynomialListBase<LutCont>,
+    lwe_list_in: &LweCiphertextList<InputCont>,
+    lwe_list_out: &mut LweCiphertextList<OutputCont>,
+    big_lut_as_polynomial_list: &PolynomialList<LutCont>,
     fourier_bsk: &FourierLweBootstrapKey<BskCont>,
-    pfpksk_list: &LwePrivateFunctionalPackingKeyswitchKeyListBase<PFPKSKCont>,
+    pfpksk_list: &LwePrivateFunctionalPackingKeyswitchKeyList<PFPKSKCont>,
     level_cbs: DecompositionLevelCount,
     base_log_cbs: DecompositionBaseLog,
     fft: FftView<'_>,

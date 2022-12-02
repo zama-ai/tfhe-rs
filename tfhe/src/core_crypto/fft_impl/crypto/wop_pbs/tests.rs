@@ -47,15 +47,15 @@ pub fn test_extract_bits() {
         EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), &mut seeder);
 
     // allocation and generation of the key in coef domain:
-    let glwe_sk: GlweSecretKey<u64> = allocate_and_generate_new_binary_glwe_secret_key(
+    let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
         glwe_dimension,
         polynomial_size,
         &mut secret_generator,
     );
-    let lwe_small_sk: LweSecretKey<u64> =
+    let lwe_small_sk: LweSecretKeyOwned<u64> =
         allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
 
-    let std_bsk: LweBootstrapKey<u64> = allocate_and_generate_new_lwe_bootstrap_key(
+    let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
         &lwe_small_sk,
         &glwe_sk,
         base_log_bsk,
@@ -120,7 +120,7 @@ pub fn test_extract_bits() {
         // Encryption
         let message = Plaintext(val << delta_log.0);
         println!("{:?}", message);
-        let mut lwe_in = LweCiphertext::new(0u64, lwe_big_sk.lwe_dimension().to_lwe_size());
+        let mut lwe_in = LweCiphertextOwned::new(0u64, lwe_big_sk.lwe_dimension().to_lwe_size());
         encrypt_lwe_ciphertext(
             &lwe_big_sk,
             &mut lwe_in,
@@ -133,7 +133,7 @@ pub fn test_extract_bits() {
         // Extract all the bits
         let number_values_to_extract = ExtractedBitsCount(64 - delta_log.0);
 
-        let mut lwe_out_list = LweCiphertextList::new(
+        let mut lwe_out_list = LweCiphertextListOwned::new(
             0u64,
             ksk_lwe_big_to_small.output_lwe_size(),
             LweCiphertextCount(number_values_to_extract.0),
@@ -198,16 +198,16 @@ fn test_circuit_bootstrapping_binary() {
         EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), &mut seeder);
 
     // Create GLWE and LWE secret key
-    let glwe_sk: GlweSecretKey<u64> = allocate_and_generate_new_binary_glwe_secret_key(
+    let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
         glwe_dimension,
         polynomial_size,
         &mut secret_generator,
     );
-    let lwe_sk: LweSecretKey<u64> =
+    let lwe_sk: LweSecretKeyOwned<u64> =
         allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
 
     // Allocation and generation of the bootstrap key in standard domain:
-    let std_bsk: LweBootstrapKey<u64> = allocate_and_generate_new_lwe_bootstrap_key(
+    let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
         &lwe_sk,
         &glwe_sk,
         base_log_bsk,
@@ -254,7 +254,7 @@ fn test_circuit_bootstrapping_binary() {
         let value: u64 = test_tools::random_uint_between(0..2u64);
         // Encryption of an LWE with the value 'message'
         let message = Plaintext((value) << delta_log.0);
-        let mut lwe_in = LweCiphertext::new(0u64, lwe_dimension.to_lwe_size());
+        let mut lwe_in = LweCiphertextOwned::new(0u64, lwe_dimension.to_lwe_size());
         encrypt_lwe_ciphertext(
             &lwe_sk,
             &mut lwe_in,
@@ -263,7 +263,7 @@ fn test_circuit_bootstrapping_binary() {
             &mut encryption_generator,
         );
 
-        let mut cbs_res = GgswCiphertext::new(
+        let mut cbs_res = GgswCiphertextOwned::new(
             0u64,
             glwe_dimension.to_glwe_size(),
             polynomial_size,
@@ -297,7 +297,7 @@ fn test_circuit_bootstrapping_binary() {
 
         //print the key to check if the RLWE in the GGSW seem to be well created
         println!("RLWE secret key:\n{:?}", glwe_sk);
-        let mut decrypted = PlaintextList::new(
+        let mut decrypted = PlaintextListOwned::new(
             0_u64,
             PlaintextCount(polynomial_size.0 * level_count_cbs.0 * glwe_size.0),
         );
@@ -314,7 +314,7 @@ fn test_circuit_bootstrapping_binary() {
                 .zip(glwe_sk.as_polynomial_list().iter())
             {
                 let current_level = level_idx + 1;
-                let mut expected_decryption = PlaintextList::new(
+                let mut expected_decryption = PlaintextListOwned::new(
                     0u64,
                     PlaintextCount(original_polynomial_from_glwe_sk.polynomial_size().0),
                 );
@@ -338,7 +338,7 @@ fn test_circuit_bootstrapping_binary() {
                     .for_each(|coeff| *coeff >>= 64 - base_log_cbs.0 * current_level);
 
                 let mut decoded_glwe =
-                    PlaintextListBase::from_container(decrypted_glwe.as_ref().to_vec());
+                    PlaintextList::from_container(decrypted_glwe.as_ref().to_vec());
 
                 decoded_glwe.as_mut().iter_mut().for_each(|coeff| {
                     *coeff = decomposer.closest_representable(*coeff)
@@ -354,7 +354,7 @@ fn test_circuit_bootstrapping_binary() {
                 .unwrap();
 
             let mut last_decoded_glwe =
-                PlaintextListBase::from_container(last_decrypted_glwe.as_ref().to_vec());
+                PlaintextList::from_container(last_decrypted_glwe.as_ref().to_vec());
 
             let decomposer = SignedDecomposer::new(base_log_cbs, level_count_cbs);
 
@@ -364,7 +364,7 @@ fn test_circuit_bootstrapping_binary() {
             });
 
             let mut expected_decryption =
-                PlaintextList::new(0u64, last_decoded_glwe.plaintext_count());
+                PlaintextListOwned::new(0u64, last_decoded_glwe.plaintext_count());
 
             *expected_decryption.as_mut().first_mut().unwrap() = value;
 
@@ -393,7 +393,7 @@ pub fn test_cmux_tree() {
     let delta_log = 60;
 
     // Allocation and generation of the key in coef domain:
-    let glwe_sk: GlweSecretKey<u64> = allocate_and_generate_new_binary_glwe_secret_key(
+    let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
         glwe_dimension,
         polynomial_size,
         &mut secret_generator,
@@ -403,7 +403,7 @@ pub fn test_cmux_tree() {
     // Creation of the 'big' lut
     // lut = [[0...0][1...1][2...2] ...] where [X...X] is a lut
     // The values in the lut are taken mod 2 ^ {64 - delta_log} and shifted by delta_log to the left
-    let mut lut = PolynomialList::new(0u64, polynomial_size, PolynomialCount(1 << nb_ggsw));
+    let mut lut = PolynomialListOwned::new(0u64, polynomial_size, PolynomialCount(1 << nb_ggsw));
     for (i, mut polynomial) in lut.iter_mut().enumerate() {
         polynomial
             .as_mut()
@@ -450,7 +450,7 @@ pub fn test_cmux_tree() {
         for (&single_bit_msg, mut fourier_ggsw) in
             izip!(vec_message.iter(), ggsw_list.as_mut_view().into_ggsw_iter())
         {
-            let mut ggsw = GgswCiphertext::new(
+            let mut ggsw = GgswCiphertextOwned::new(
                 0_u64,
                 glwe_dimension.to_glwe_size(),
                 polynomial_size,
@@ -472,7 +472,7 @@ pub fn test_cmux_tree() {
                 .fill_with_forward_fourier(ggsw.as_view(), fft, stack);
         }
 
-        let mut result_cmux_tree = GlweCiphertext::new(0_u64, polynomial_size, glwe_size);
+        let mut result_cmux_tree = GlweCiphertextOwned::new(0_u64, polynomial_size, glwe_size);
         let mut mem = GlobalMemBuffer::new(
             cmux_tree_memory_optimized_scratch::<u64>(polynomial_size, glwe_size, nb_ggsw, fft)
                 .unwrap(),
@@ -485,7 +485,7 @@ pub fn test_cmux_tree() {
             DynStack::new(&mut mem),
         );
         let mut decrypted_result =
-            PlaintextList::new(0u64, PlaintextCount(glwe_sk.polynomial_size().0));
+            PlaintextListOwned::new(0u64, PlaintextCount(glwe_sk.polynomial_size().0));
         decrypt_glwe_ciphertext(&glwe_sk, &result_cmux_tree, &mut decrypted_result);
 
         let decoded_result = decomposer
@@ -537,18 +537,18 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), &mut seeder);
 
     //create GLWE and LWE secret key
-    let glwe_sk: GlweSecretKey<u64> = allocate_and_generate_new_binary_glwe_secret_key(
+    let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
         glwe_dimension,
         polynomial_size,
         &mut secret_generator,
     );
-    let lwe_small_sk: LweSecretKey<u64> =
+    let lwe_small_sk: LweSecretKeyOwned<u64> =
         allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
 
     let lwe_big_sk = glwe_sk.clone().into_lwe_secret_key();
 
     // allocation and generation of the key in coef domain:
-    let std_bsk: LweBootstrapKey<u64> = allocate_and_generate_new_lwe_bootstrap_key(
+    let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
         &lwe_small_sk,
         &glwe_sk,
         base_log_bsk,
@@ -616,7 +616,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
 
         let message = Plaintext(cleartext << delta_log.0);
         let mut lwe_in =
-            LweCiphertext::new(0u64, LweSize(glwe_dimension.0 * polynomial_size.0 + 1));
+            LweCiphertextOwned::new(0u64, LweSize(glwe_dimension.0 * polynomial_size.0 + 1));
         encrypt_lwe_ciphertext(
             &lwe_big_sk,
             &mut lwe_in,
@@ -625,7 +625,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             &mut encryption_generator,
         );
 
-        let mut extracted_bits_lwe_list = LweCiphertextList::new(
+        let mut extracted_bits_lwe_list = LweCiphertextListOwned::new(
             0u64,
             ksk_lwe_big_to_small.output_lwe_size(),
             LweCiphertextCount(number_of_values_to_extract.0),
@@ -677,10 +677,10 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             }
 
             // Here we have a single lut, so store it directly in the polynomial list
-            PolynomialList::from_container(lut, PolynomialSize(lut_size))
+            PolynomialListOwned::from_container(lut, PolynomialSize(lut_size))
         } else {
             // Test with a big lut, triggering an actual cmux tree
-            let mut lut_poly_list = PolynomialList::new(
+            let mut lut_poly_list = PolynomialListOwned::new(
                 0u64,
                 polynomial_size,
                 PolynomialCount(1 << number_of_bits_in_input_lwe),
@@ -694,7 +694,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         };
 
         // We need as many output ciphertexts as we have input luts
-        let mut vertical_packing_lwe_list_out = LweCiphertextList::new(
+        let mut vertical_packing_lwe_list_out = LweCiphertextListOwned::new(
             0u64,
             LweDimension(polynomial_size.0 * glwe_dimension.0).to_lwe_size(),
             LweCiphertextCount(number_of_luts_and_output_vp_ciphertexts),

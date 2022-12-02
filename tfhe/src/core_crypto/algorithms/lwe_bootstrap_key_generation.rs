@@ -12,9 +12,9 @@ use crate::core_crypto::specification::parameters::*;
 use rayon::prelude::*;
 
 pub fn generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
-    input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<OutputKeyCont>,
-    output: &mut LweBootstrapKeyBase<OutputCont>,
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    output: &mut LweBootstrapKey<OutputCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -73,20 +73,20 @@ pub fn generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCon
 }
 
 pub fn allocate_and_generate_new_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
-    input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<OutputKeyCont>,
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LweBootstrapKey<Scalar>
+) -> LweBootstrapKeyOwned<Scalar>
 where
     Scalar: UnsignedTorus,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut bsk = LweBootstrapKey::new(
+    let mut bsk = LweBootstrapKeyOwned::new(
         Scalar::ZERO,
         output_glwe_secret_key.glwe_dimension().to_glwe_size(),
         output_glwe_secret_key.polynomial_size(),
@@ -108,9 +108,9 @@ where
 
 #[cfg(feature = "__commons_parallel")]
 pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
-    input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<OutputKeyCont>,
-    output: &mut LweBootstrapKeyBase<OutputCont>,
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    output: &mut LweBootstrapKey<OutputCont>,
     noise_parameters: impl DispersionParameter + Sync,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -169,20 +169,20 @@ pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Outpu
 }
 
 pub fn par_allocate_and_generate_new_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
-    input_lwe_secret_key: &LweSecretKeyBase<InputKeyCont>,
-    output_glwe_secret_key: &GlweSecretKeyBase<OutputKeyCont>,
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter + Sync,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LweBootstrapKey<Scalar>
+) -> LweBootstrapKeyOwned<Scalar>
 where
     Scalar: UnsignedTorus + Sync + Send,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: Container<Element = Scalar> + Sync,
     Gen: ParallelByteRandomGenerator,
 {
-    let mut bsk = LweBootstrapKey::new(
+    let mut bsk = LweBootstrapKeyOwned::new(
         Scalar::ZERO,
         output_glwe_secret_key.glwe_dimension().to_glwe_size(),
         output_glwe_secret_key.polynomial_size(),
@@ -214,7 +214,9 @@ mod test {
     use crate::core_crypto::commons::math::tensor::*;
     use crate::core_crypto::commons::math::torus::UnsignedTorus;
     use crate::core_crypto::commons::test_tools::new_secret_random_generator;
-    use crate::core_crypto::entities::{GlweSecretKeyBase, LweBootstrapKey, LweSecretKeyBase};
+    use crate::core_crypto::entities::{
+        GlweSecretKey as NewGlweSecretKey, LweBootstrapKeyOwned, LweSecretKey as NewLweSecretKey,
+    };
     use crate::core_crypto::prelude::{
         DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
         StandardDev,
@@ -269,7 +271,7 @@ mod test {
                 &mut encryption_generator,
             );
 
-            let mut refactored_bsk = LweBootstrapKey::new(
+            let mut refactored_bsk = LweBootstrapKeyOwned::new(
                 T::ZERO,
                 glwe_dim.to_glwe_size(),
                 poly_size,
@@ -287,8 +289,8 @@ mod test {
                 );
 
             generate_lwe_bootstrap_key(
-                &LweSecretKeyBase::from_container(lwe_sk.as_tensor().as_slice()),
-                &GlweSecretKeyBase::from_container(glwe_sk.as_tensor().as_slice(), poly_size),
+                &NewLweSecretKey::from_container(lwe_sk.as_tensor().as_slice()),
+                &NewGlweSecretKey::from_container(glwe_sk.as_tensor().as_slice(), poly_size),
                 &mut refactored_bsk,
                 StandardDev::from_standard_dev(10.),
                 &mut encryption_generator,
@@ -323,7 +325,7 @@ mod parallel_test {
     use crate::core_crypto::commons::math::random::Seed;
     use crate::core_crypto::commons::math::torus::UnsignedTorus;
     use crate::core_crypto::commons::test_tools::new_secret_random_generator;
-    use crate::core_crypto::entities::LweBootstrapKey;
+    use crate::core_crypto::entities::LweBootstrapKeyOwned;
     use crate::core_crypto::prelude::{
         DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
         StandardDev,
@@ -358,7 +360,7 @@ mod parallel_test {
                 &mut secret_generator,
             );
 
-            let mut parallel_bsk = LweBootstrapKey::new(
+            let mut parallel_bsk = LweBootstrapKeyOwned::new(
                 T::ZERO,
                 glwe_dim.to_glwe_size(),
                 poly_size,
@@ -383,7 +385,7 @@ mod parallel_test {
                 &mut encryption_generator,
             );
 
-            let mut sequential_bsk = LweBootstrapKey::new(
+            let mut sequential_bsk = LweBootstrapKeyOwned::new(
                 T::ZERO,
                 glwe_dim.to_glwe_size(),
                 poly_size,
