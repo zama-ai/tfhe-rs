@@ -5,6 +5,3 @@ pub mod default;
 
 #[cfg(feature = "backend_fft")]
 pub mod fft;
-
-#[cfg(feature = "backend_cuda")]
-pub mod cuda;
