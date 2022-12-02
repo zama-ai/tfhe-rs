@@ -51,7 +51,6 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// # #[cfg(not(feature = "cuda"))]
     /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
@@ -65,8 +64,6 @@ impl ClientKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(true, dec);
     /// # }
-    /// # #[cfg(feature = "cuda")]
-    /// # fn main() {}
     /// ```
     pub fn encrypt(&self, message: bool) -> Ciphertext {
         CpuBooleanEngine::with_thread_local_mut(|engine| engine.encrypt(message, self))
@@ -77,7 +74,6 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// # #[cfg(not(feature = "cuda"))]
     /// # fn main() {
     /// use tfhe::boolean::prelude::*;
     ///
@@ -91,8 +87,6 @@ impl ClientKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(true, dec);
     /// # }
-    /// # #[cfg(feature = "cuda")]
-    /// # fn main() {}
     /// ```
     pub fn decrypt(&self, ct: &Ciphertext) -> bool {
         CpuBooleanEngine::with_thread_local_mut(|engine| engine.decrypt(ct, self))
@@ -100,15 +94,9 @@ impl ClientKey {
 
     /// Allocates and generates a client key.
     ///
-    /// # Panic
-    ///
-    /// This will panic when the "cuda" feature is enabled and the parameters
-    /// uses a GlweDimension > 1 (as it is not yet supported by the cuda backend).
-    ///
     /// # Example
     ///
     /// ```rust
-    /// # #[cfg(not(feature = "cuda"))]
     /// # fn main() {
     /// use tfhe::boolean::client_key::ClientKey;
     /// use tfhe::boolean::parameters::TFHE_LIB_PARAMETERS;
@@ -117,22 +105,8 @@ impl ClientKey {
     /// // Generate the client key:
     /// let cks = ClientKey::new(&TFHE_LIB_PARAMETERS);
     /// # }
-    /// # #[cfg(feature = "cuda")]
-    /// # fn main() {
-    /// use tfhe::boolean::client_key::ClientKey;
-    /// use tfhe::boolean::parameters::GPU_DEFAULT_PARAMETERS;
-    /// use tfhe::boolean::prelude::*;
-    ///
-    /// // Generate the client key:
-    /// let cks = ClientKey::new(&GPU_DEFAULT_PARAMETERS);}
     /// ```
     pub fn new(parameter_set: &BooleanParameters) -> ClientKey {
-        #[cfg(feature = "cuda")]
-        {
-            if parameter_set.glwe_dimension.0 > 1 {
-                panic!("the cuda backend does not support support GlweSize greater than one");
-            }
-        }
         CpuBooleanEngine::with_thread_local_mut(|engine| engine.create_client_key(*parameter_set))
     }
 }

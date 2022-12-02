@@ -1,11 +1,6 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::core_crypto::prelude::{LweCiphertext32, LweSize};
 mod cpu;
-#[cfg(feature = "cuda")]
-mod cuda;
-
-#[cfg(feature = "cuda")]
-pub(crate) use cuda::{CudaBootstrapKey, CudaBootstrapper};
 
 pub(crate) use cpu::{CpuBootstrapKey, CpuBootstrapper};
 

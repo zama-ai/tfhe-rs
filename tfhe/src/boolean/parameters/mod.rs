@@ -107,18 +107,3 @@ pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
     ks_base_log: DecompositionBaseLog(5),
     ks_level: DecompositionLevelCount(3),
 };
-
-/// This parameter set ensures a probability of error upper-bounded by $2^{-40}$ and 128-bit
-/// security.
-/// They are GPU-compliant.
-pub const GPU_DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(686),
-    glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000019703241702943194),
-    glwe_modular_std_dev: StandardDev(0.00000004053919869756513),
-    pbs_base_log: DecompositionBaseLog(6),
-    pbs_level: DecompositionLevelCount(3),
-    ks_base_log: DecompositionBaseLog(2),
-    ks_level: DecompositionLevelCount(6),
-};

@@ -44,15 +44,8 @@ fn bench_gates(c: &mut Criterion, params: BooleanParameters, parameter_name: &st
     c.bench_function(&id, |b| b.iter(|| black_box(sks.mux(&ct1, &ct2, &ct3))));
 }
 
-#[cfg(not(feature = "cuda"))]
 fn bench_default_parameters(c: &mut Criterion) {
     bench_gates(c, DEFAULT_PARAMETERS, "DEFAULT_PARAMETERS");
-}
-
-#[cfg(feature = "cuda")]
-fn bench_default_parameters(_: &mut Criterion) {
-    let _ = DEFAULT_PARAMETERS; // to avoid unused import warnings
-    println!("DEFAULT_PARAMETERS not benched as they are not compatible with the cuda feature.");
 }
 
 fn bench_tfhe_lib_parameters(c: &mut Criterion) {

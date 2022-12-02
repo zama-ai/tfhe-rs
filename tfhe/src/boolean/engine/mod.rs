@@ -10,9 +10,6 @@ use crate::core_crypto::backends::default::engines::ActivatedRandomGenerator;
 use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
 use crate::seeders::new_seeder;
 
-#[cfg(feature = "cuda")]
-use bootstrapping::{CudaBootstrapKey, CudaBootstrapper};
-
 pub(crate) trait BinaryGatesEngine<L, R, K> {
     fn and(&mut self, ct_left: L, ct_right: R, server_key: &K) -> Ciphertext;
     fn nand(&mut self, ct_left: L, ct_right: R, server_key: &K) -> Ciphertext;
@@ -40,15 +37,11 @@ pub(crate) trait WithThreadLocalEngine {
 }
 
 pub(crate) type CpuBooleanEngine = BooleanEngine<CpuBootstrapper>;
-#[cfg(feature = "cuda")]
-pub(crate) type CudaBooleanEngine = BooleanEngine<CudaBootstrapper>;
 
 // All our thread local engines
 // that our exposed types will use internally to implement their methods
 thread_local! {
     static CPU_ENGINE: RefCell<BooleanEngine<CpuBootstrapper>> = RefCell::new(BooleanEngine::<_>::new());
-    #[cfg(feature = "cuda")]
-    static CUDA_ENGINE: RefCell<BooleanEngine<CudaBootstrapper>> = RefCell::new(BooleanEngine::<_>::new());
 }
 
 impl WithThreadLocalEngine for CpuBooleanEngine {
@@ -60,16 +53,6 @@ impl WithThreadLocalEngine for CpuBooleanEngine {
     }
 }
 
-#[cfg(feature = "cuda")]
-impl WithThreadLocalEngine for CudaBooleanEngine {
-    fn with_thread_local_mut<R, F>(func: F) -> R
-    where
-        F: FnOnce(&mut Self) -> R,
-    {
-        CUDA_ENGINE.with(|engine_cell| func(&mut engine_cell.borrow_mut()))
-    }
-}
-
 pub(crate) struct BooleanEngine<B> {
     pub(crate) engine: DefaultEngine,
     bootstrapper: B,
@@ -78,15 +61,6 @@ pub(crate) struct BooleanEngine<B> {
 impl BooleanEngine<CpuBootstrapper> {
     pub fn create_server_key(&mut self, cks: &ClientKey) -> CpuBootstrapKey {
         let server_key = self.bootstrapper.new_server_key(cks).unwrap();
-
-        server_key
-    }
-}
-
-#[cfg(feature = "cuda")]
-impl BooleanEngine<CudaBootstrapper> {
-    pub fn create_server_key(&mut self, cpu_key: &CpuBootstrapKey) -> CudaBootstrapKey {
-        let server_key = self.bootstrapper.new_serverk_key(cpu_key).unwrap();
 
         server_key
     }

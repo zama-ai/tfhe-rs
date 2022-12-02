@@ -30,7 +30,6 @@ cbindgen = { version = "0.24.3", optional = true }
 
 [dependencies]
 concrete-csprng = { version = "0.2.1" }
-concrete-cuda = { version = "0.1.1", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
 serde = { version = "1.0", optional = true }
 rayon = { version = "1.5.0", optional = true }
@@ -73,7 +72,6 @@ __wasm_api = [
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
 
-cuda = ["backend_cuda"]
 nightly-avx512 = ["backend_fft_nightly_avx512"]
 
 # A pure-rust CPU backend.
@@ -107,9 +105,6 @@ backend_default_generator_aarch64_aes = [
 # Enable the serialization engine in the default backend.
 backend_default_serialization = ["bincode", "__commons_serialization"]
 
-# A GPU backend, relying on Cuda acceleration
-backend_cuda = ["concrete-cuda"]
-
 # Private features
 __profiling = []
 __private_docs = []
@@ -137,9 +132,6 @@ x86_64 = [
     "seeder_x86_64_rdseed",
 ]
 x86_64-unix = ["x86_64", "seeder_unix"]
-
-# CUDA builds are Unix only at the moment
-x86_64-unix-cuda = ["x86_64-unix", "cuda"]
 
 aarch64 = [
     "minimal_core_crypto_features",
