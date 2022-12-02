@@ -4,10 +4,8 @@ use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
-#[cfg(feature = "backend_fft_serialization")]
-use crate::core_crypto::commons::traits::ContainerOwned;
 use crate::core_crypto::commons::traits::{
-    Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
+    Container, ContainerOwned, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
@@ -19,12 +17,8 @@ use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
 use dyn_stack::{DynStack, ReborrowMut, SizeOverflow, StackReq};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "backend_fft_serialization",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(bound(deserialize = "C: ContainerOwned"))
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = "C: ContainerOwned"))]
 pub struct FourierLweBootstrapKey<C: Container<Element = c64>> {
     fourier: FourierPolynomialList<C>,
     key_size: LweDimension,

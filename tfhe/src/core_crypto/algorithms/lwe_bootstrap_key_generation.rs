@@ -1,14 +1,11 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::ByteRandomGenerator;
-#[cfg(feature = "__commons_parallel")]
-use crate::core_crypto::commons::math::random::ParallelByteRandomGenerator;
+use crate::core_crypto::commons::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::*;
-#[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 
 pub fn generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
@@ -106,7 +103,6 @@ where
     bsk
 }
 
-#[cfg(feature = "__commons_parallel")]
 pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
@@ -311,7 +307,6 @@ mod test {
     }
 }
 
-#[cfg(feature = "__commons_parallel")]
 #[cfg(test)]
 mod parallel_test {
     use crate::core_crypto::algorithms::{
