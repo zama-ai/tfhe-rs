@@ -55,7 +55,7 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
         for (level_key_ciphertext, decomposed) in
             keyswitch_key_block.iter().rev().zip(decomposition_iter)
         {
-            update_with_wrapping_sub_scalar_mul(
+            update_slice_with_wrapping_sub_scalar_mul(
                 output_lwe_ciphertext.as_mut(),
                 level_key_ciphertext.as_ref(),
                 decomposed.value(),
