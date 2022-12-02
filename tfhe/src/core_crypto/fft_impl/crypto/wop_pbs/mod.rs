@@ -880,7 +880,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
             lwe_in,
             ggsw_res.as_mut_view(),
             DeltaLog(Scalar::BITS - 1),
-            pfpksk_list,
+            pfpksk_list.as_view(),
             fft,
             stack.rb_mut(),
         );

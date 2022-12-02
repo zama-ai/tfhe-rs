@@ -2,14 +2,11 @@ use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
-use crate::core_crypto::commons::math::random::ByteRandomGenerator;
-#[cfg(feature = "__commons_parallel")]
-use crate::core_crypto::commons::math::random::ParallelByteRandomGenerator;
+use crate::core_crypto::commons::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
-#[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 
 pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
@@ -89,7 +86,6 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     }
 }
 
-#[cfg(feature = "__commons_parallel")]
 pub fn par_encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut GgswCiphertext<OutputCont>,

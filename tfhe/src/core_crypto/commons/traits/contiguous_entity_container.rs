@@ -1,5 +1,4 @@
 use super::create_from::*;
-#[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 
 type WrappingFunction<'data, Element, WrappingType> = fn(
@@ -17,7 +16,6 @@ type WrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
     WrappingFunction<'data, Element, WrappingType>,
 >;
 
-#[cfg(feature = "__commons_parallel")]
 type ParallelWrappingLendingIterator<'data, Element, WrappingType> = rayon::iter::Map<
     rayon::iter::Zip<
         rayon::slice::Chunks<'data, Element>,
@@ -41,7 +39,6 @@ type WrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
     WrappingFunctionMut<'data, Element, WrappingType>,
 >;
 
-#[cfg(feature = "__commons_parallel")]
 type ParallelWrappingLendingIteratorMut<'data, Element, WrappingType> = rayon::iter::Map<
     rayon::iter::Zip<
         rayon::slice::ChunksMut<'data, Element>,
@@ -131,7 +128,6 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
             .map(|(elt, meta)| Self::SelfView::<'_>::create_from(elt, meta))
     }
 
-    #[cfg(feature = "__commons_parallel")]
     fn par_iter<'this>(
         &'this self,
     ) -> ParallelWrappingLendingIterator<'this, Self::Element, Self::EntityView<'this>>
@@ -223,7 +219,6 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
             .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
     }
 
-    #[cfg(feature = "__commons_parallel")]
     fn par_iter_mut<'this>(
         &'this mut self,
     ) -> ParallelWrappingLendingIteratorMut<'this, Self::Element, Self::EntityMutView<'this>>

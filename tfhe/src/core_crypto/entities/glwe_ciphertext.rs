@@ -2,6 +2,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 
+#[derive(Clone, Debug)]
 pub struct GlweBody<C: Container> {
     data: C,
 }
@@ -30,6 +31,7 @@ impl<C: ContainerMut> GlweBody<C> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct GlweMask<C: Container> {
     data: C,
     polynomial_size: PolynomialSize,

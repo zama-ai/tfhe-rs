@@ -5,9 +5,7 @@ use super::polynomial::{
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
-use crate::core_crypto::commons::traits::Container;
-#[cfg(feature = "backend_fft_serialization")]
-use crate::core_crypto::commons::traits::ContainerOwned;
+use crate::core_crypto::commons::traits::{Container, ContainerOwned};
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::PolynomialSize;
@@ -347,8 +345,6 @@ impl<'a> FftView<'a> {
     }
 
     /// Serializes data in the Fourier domain.
-    #[cfg(feature = "backend_fft_serialization")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "backend_fft_serialization")))]
     pub fn serialize_fourier_buffer<S: serde::Serializer>(
         self,
         serializer: S,
@@ -358,8 +354,6 @@ impl<'a> FftView<'a> {
     }
 
     /// Deserializes data in the Fourier domain
-    #[cfg(feature = "backend_fft_serialization")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "backend_fft_serialization")))]
     pub fn deserialize_fourier_buffer<'de, D: serde::Deserializer<'de>>(
         self,
         deserializer: D,
@@ -530,7 +524,6 @@ pub struct FourierPolynomialList<C: Container<Element = c64>> {
     pub polynomial_size: PolynomialSize,
 }
 
-#[cfg(feature = "backend_fft_serialization")]
 impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         fn serialize_impl<S: serde::Serializer>(
@@ -580,7 +573,6 @@ impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> 
     }
 }
 
-#[cfg(feature = "backend_fft_serialization")]
 impl<'de, C: ContainerOwned<Element = c64>> serde::Deserialize<'de> for FourierPolynomialList<C> {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         use std::marker::PhantomData;

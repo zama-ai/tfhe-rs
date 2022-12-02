@@ -2,15 +2,12 @@ use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
-use crate::core_crypto::commons::math::random::ByteRandomGenerator;
-#[cfg(feature = "__commons_parallel")]
-use crate::core_crypto::commons::math::random::ParallelByteRandomGenerator;
+use crate::core_crypto::commons::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::*;
-#[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 
 pub fn generate_lwe_private_functional_packing_keyswitch_key<
@@ -113,7 +110,6 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
     }
 }
 
-#[cfg(feature = "__commons_parallel")]
 pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
     Scalar,
     InputKeyCont,

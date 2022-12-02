@@ -1,8 +1,6 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::ByteRandomGenerator;
-#[cfg(feature = "__commons_parallel")]
-use crate::core_crypto::commons::math::random::ParallelByteRandomGenerator;
+use crate::core_crypto::commons::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::traits::*;
@@ -17,7 +15,6 @@ use crate::core_crypto::specification::dispersion::DispersionParameter;
 use crate::core_crypto::specification::parameters::*;
 use concrete_fft::c64;
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
-#[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 
 pub fn allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
@@ -134,7 +131,6 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
     }
 }
 
-#[cfg(feature = "__commons_parallel")]
 pub fn par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
     LweKeyCont,
@@ -177,7 +173,6 @@ where
     cbs_pfpksk_list
 }
 
-#[cfg(feature = "__commons_parallel")]
 pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
     OutputCont,

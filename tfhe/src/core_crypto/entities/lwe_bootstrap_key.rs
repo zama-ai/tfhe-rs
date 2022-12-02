@@ -4,6 +4,7 @@ use crate::core_crypto::specification::parameters::*;
 
 // An LweBootstrapKey is literally a GgswCiphertextList, so we wrap a GgswCiphetextList and use
 // Deref to have access to all the primitives of the GgswCiphertextList easily
+#[derive(Clone, Debug)]
 pub struct LweBootstrapKey<C: Container> {
     ggsw_list: GgswCiphertextList<C>,
 }
