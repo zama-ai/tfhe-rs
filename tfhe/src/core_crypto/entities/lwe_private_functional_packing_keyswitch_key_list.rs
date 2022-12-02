@@ -2,7 +2,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct LwePrivateFunctionalPackingKeyswitchKeyList<C: Container> {
     data: C,
     decomp_base_log: DecompositionBaseLog,
