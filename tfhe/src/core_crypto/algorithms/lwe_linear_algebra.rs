@@ -14,7 +14,7 @@ pub fn lwe_ciphertext_in_place_addition<Scalar, LhsCont, RhsCont>(
     LhsCont: ContainerMut<Element = Scalar>,
     RhsCont: Container<Element = Scalar>,
 {
-    update_with_wrapping_add(lhs.as_mut(), rhs.as_ref());
+    update_slice_with_wrapping_add(lhs.as_mut(), rhs.as_ref());
 }
 
 pub fn lwe_ciphertext_in_place_encoded_addition<Scalar, InCont>(
@@ -34,7 +34,7 @@ where
     Scalar: UnsignedInteger,
     InCont: ContainerMut<Element = Scalar>,
 {
-    update_with_wrapping_opposite(ct.as_mut());
+    update_slice_with_wrapping_opposite(ct.as_mut());
 }
 
 pub fn lwe_ciphertext_in_place_cleartext_multiplication<Scalar, InCont>(
@@ -44,7 +44,7 @@ pub fn lwe_ciphertext_in_place_cleartext_multiplication<Scalar, InCont>(
     Scalar: UnsignedInteger,
     InCont: ContainerMut<Element = Scalar>,
 {
-    update_with_wrapping_scalar_mul(lhs.as_mut(), rhs.0);
+    update_slice_with_wrapping_scalar_mul(lhs.as_mut(), rhs.0);
 }
 
 pub fn lwe_ciphertext_in_place_subtraction<Scalar, LhsCont, RhsCont>(
@@ -55,7 +55,7 @@ pub fn lwe_ciphertext_in_place_subtraction<Scalar, LhsCont, RhsCont>(
     LhsCont: ContainerMut<Element = Scalar>,
     RhsCont: Container<Element = Scalar>,
 {
-    update_with_wrapping_sub(lhs.as_mut(), rhs.as_ref());
+    update_slice_with_wrapping_sub(lhs.as_mut(), rhs.as_ref());
 }
 
 pub fn lwe_ciphertext_cleartext_multiplication<Scalar, InputCont, OutputCont>(
