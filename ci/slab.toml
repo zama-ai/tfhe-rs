@@ -3,13 +3,6 @@ region = "eu-west-3"
 image_id = "ami-04deffe45b5b236fd"
 instance_type = "c6i.8xlarge"
 
-[profile.gpu]
-region = "us-east-1"
-image_id = "ami-0ae662beb44082155"
-instance_type = "p3.2xlarge"
-subnet_id = "subnet-8123c9e7"
-security_group = "sg-0466d33ced960ba35"
-
 [profile.bench]
 region = "eu-west-3"
 image_id = "ami-04deffe45b5b236fd"
@@ -19,11 +12,6 @@ instance_type = "m6i.metal"
 workflow = "aws_tfhe_tests.yml"
 profile = "cpu-big"
 check_run_name = "Shortint CPU AWS Tests"
-
-[command.gpu_test]
-workflow = "aws_tfhe_tests_w_gpu.yml"
-profile = "gpu"
-check_run_name = "AWS tests GPU (Slab)"
 
 [command.shortint_bench]
 workflow = "shortint_benchmark.yml"

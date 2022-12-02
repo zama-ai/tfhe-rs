@@ -73,19 +73,13 @@ clippy_c_api: install_rs_check_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy_cuda # Run clippy lints enabling the boolean, shortint, cuda and c API features
-clippy_cuda: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),cuda,boolean-c-api,shortint-c-api \
-		-p tfhe -- --no-deps -D warnings
-
 .PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint and the js wasm API
 clippy_js_wasm_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy_all # Run all non-CUDA clippy targets
+.PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy clippy_c_api clippy_js_wasm_api
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
@@ -119,20 +113,10 @@ test_core_crypto: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
 		--features=$(TARGET_ARCH_FEATURE) -p tfhe -- core_crypto::
 
-.PHONY: test_core_crypto_cuda # Run the tests of the core_crypto module with cuda enabled
-test_core_crypto_cuda: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
-		--features=$(TARGET_ARCH_FEATURE),cuda -p tfhe -- core_crypto::backends::cuda::
-
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
 		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
-
-.PHONY: test_boolean_cuda # Run the tests of the boolean module with cuda enabled
-test_boolean_cuda: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean,cuda -p tfhe -- boolean::
 
 .PHONY: test_c_api # Run the tests for the C API
 test_c_api: install_rs_build_toolchain
