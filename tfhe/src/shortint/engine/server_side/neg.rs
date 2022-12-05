@@ -54,7 +54,7 @@ impl ShortintEngine {
         // (0,Delta*z) - ct
         lwe_ciphertext_in_place_opposite(&mut ct.ct);
 
-        lwe_ciphertext_in_place_encoded_addition(&mut ct.ct, w);
+        lwe_ciphertext_in_place_plaintext_addition(&mut ct.ct, w);
 
         // Update the degree
         ct.degree = Degree(z as usize);

@@ -31,7 +31,7 @@ pub fn generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     encrypt_lwe_ciphertext_list(lwe_secret_key, output, &zeros, noise_parameters, generator)
 }
 
-pub fn allocate_and_generate_new_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
+pub fn allocate_and_generate_new_lwe_public_key<Scalar, InputKeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,
     noise_parameters: impl DispersionParameter,

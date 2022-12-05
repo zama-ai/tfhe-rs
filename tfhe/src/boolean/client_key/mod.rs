@@ -6,7 +6,7 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::engine::{CpuBooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanParameters;
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::entities::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Debug, Formatter};
 
@@ -20,8 +20,8 @@ use std::fmt::{Debug, Formatter};
 /// * `parameters` - the cryptographic parameter set.
 #[derive(Clone)]
 pub struct ClientKey {
-    pub(crate) lwe_secret_key: LweSecretKey32,
-    pub(crate) glwe_secret_key: GlweSecretKey32,
+    pub(crate) lwe_secret_key: LweSecretKeyOwned<u32>,
+    pub(crate) glwe_secret_key: GlweSecretKeyOwned<u32>,
     pub(crate) parameters: BooleanParameters,
 }
 
@@ -123,14 +123,10 @@ impl Serialize for ClientKey {
     where
         S: Serializer,
     {
-        let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
-
-        let lwe_secret_key = ser_eng
-            .serialize(&self.lwe_secret_key)
-            .map_err(serde::ser::Error::custom)?;
-        let glwe_secret_key = ser_eng
-            .serialize(&self.glwe_secret_key)
-            .map_err(serde::ser::Error::custom)?;
+        let lwe_secret_key =
+            bincode::serialize(&self.lwe_secret_key).map_err(serde::ser::Error::custom)?;
+        let glwe_secret_key =
+            bincode::serialize(&self.glwe_secret_key).map_err(serde::ser::Error::custom)?;
 
         SerializableClientKey {
             lwe_secret_key,
@@ -148,14 +144,11 @@ impl<'de> Deserialize<'de> for ClientKey {
     {
         let thing =
             SerializableClientKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-        let mut de_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
 
         Ok(Self {
-            lwe_secret_key: de_eng
-                .deserialize(thing.lwe_secret_key.as_slice())
+            lwe_secret_key: bincode::deserialize(thing.lwe_secret_key.as_slice())
                 .map_err(serde::de::Error::custom)?,
-            glwe_secret_key: de_eng
-                .deserialize(thing.glwe_secret_key.as_slice())
+            glwe_secret_key: bincode::deserialize(thing.glwe_secret_key.as_slice())
                 .map_err(serde::de::Error::custom)?,
             parameters: thing.parameters,
         })

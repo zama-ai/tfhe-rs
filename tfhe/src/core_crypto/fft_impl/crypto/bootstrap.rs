@@ -21,7 +21,7 @@ use dyn_stack::{DynStack, ReborrowMut, SizeOverflow, StackReq};
 #[serde(bound(deserialize = "C: ContainerOwned"))]
 pub struct FourierLweBootstrapKey<C: Container<Element = c64>> {
     fourier: FourierPolynomialList<C>,
-    key_size: LweDimension,
+    input_lwe_dimension: LweDimension,
     glwe_size: GlweSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
@@ -33,7 +33,7 @@ pub type FourierLweBootstrapKeyMutView<'a> = FourierLweBootstrapKey<&'a mut [c64
 impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     pub fn from_container(
         data: C,
-        key_size: LweDimension,
+        input_lwe_dimension: LweDimension,
         polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
         decomposition_base_log: DecompositionBaseLog,
@@ -42,7 +42,7 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
         assert_eq!(polynomial_size.0 % 2, 0);
         assert_eq!(
             data.container_len(),
-            key_size.0 * polynomial_size.0 / 2
+            input_lwe_dimension.0 * polynomial_size.0 / 2
                 * decomposition_level_count.0
                 * glwe_size.0
                 * glwe_size.0
@@ -52,7 +52,7 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
                 data,
                 polynomial_size,
             },
-            key_size,
+            input_lwe_dimension,
             glwe_size,
             decomposition_base_log,
             decomposition_level_count,
@@ -66,7 +66,7 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     {
         self.fourier
             .data
-            .split_into(self.key_size.0)
+            .split_into(self.input_lwe_dimension.0)
             .map(move |slice| {
                 FourierGgswCiphertext::new(
                     slice,
@@ -78,8 +78,8 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
             })
     }
 
-    pub fn key_size(&self) -> LweDimension {
-        self.key_size
+    pub fn input_lwe_dimension(&self) -> LweDimension {
+        self.input_lwe_dimension
     }
 
     pub fn polynomial_size(&self) -> PolynomialSize {
@@ -112,7 +112,7 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
                 data: self.fourier.data.as_ref(),
                 polynomial_size: self.fourier.polynomial_size,
             },
-            key_size: self.key_size,
+            input_lwe_dimension: self.input_lwe_dimension,
             glwe_size: self.glwe_size,
             decomposition_base_log: self.decomposition_base_log,
             decomposition_level_count: self.decomposition_level_count,
@@ -128,7 +128,7 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
                 data: self.fourier.data.as_mut(),
                 polynomial_size: self.fourier.polynomial_size,
             },
-            key_size: self.key_size,
+            input_lwe_dimension: self.input_lwe_dimension,
             glwe_size: self.glwe_size,
             decomposition_base_log: self.decomposition_base_log,
             decomposition_level_count: self.decomposition_level_count,
@@ -140,7 +140,7 @@ pub type FourierLweBootstrapKeyOwned = FourierLweBootstrapKey<ABox<[c64]>>;
 
 impl FourierLweBootstrapKey<ABox<[c64]>> {
     pub fn new(
-        key_size: LweDimension,
+        input_lwe_dimension: LweDimension,
         polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
         decomposition_base_log: DecompositionBaseLog,
@@ -149,7 +149,7 @@ impl FourierLweBootstrapKey<ABox<[c64]>> {
         let boxed = avec![
             c64::default();
             polynomial_size.0
-                * key_size.0
+                * input_lwe_dimension.0
                 * decomposition_level_count.0
                 * glwe_size.0
                 * glwe_size.0
@@ -159,7 +159,7 @@ impl FourierLweBootstrapKey<ABox<[c64]>> {
 
         FourierLweBootstrapKey::from_container(
             boxed,
-            key_size,
+            input_lwe_dimension,
             polynomial_size,
             glwe_size,
             decomposition_base_log,

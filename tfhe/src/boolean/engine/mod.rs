@@ -1,11 +1,12 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::parameters::BooleanParameters;
 use crate::boolean::{ClientKey, PublicKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
+use crate::core_crypto::algorithms::*;
+use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::*;
-use bootstrapping::{BooleanServerKey, Bootstrapper, CpuBootstrapper};
 use std::cell::RefCell;
 pub mod bootstrapping;
-use crate::boolean::engine::bootstrapping::CpuBootstrapKey;
+use crate::boolean::engine::bootstrapping::{CpuBootstrapKey, CpuBootstrapper};
 use crate::core_crypto::backends::default::engines::ActivatedRandomGenerator;
 use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
 use crate::seeders::new_seeder;
@@ -36,12 +37,12 @@ pub(crate) trait WithThreadLocalEngine {
         F: FnOnce(&mut Self) -> R;
 }
 
-pub(crate) type CpuBooleanEngine = BooleanEngine<CpuBootstrapper>;
+pub(crate) type CpuBooleanEngine = BooleanEngine;
 
 // All our thread local engines
 // that our exposed types will use internally to implement their methods
 thread_local! {
-    static CPU_ENGINE: RefCell<BooleanEngine<CpuBootstrapper>> = RefCell::new(BooleanEngine::<_>::new());
+    static CPU_ENGINE: RefCell<BooleanEngine> = RefCell::new(BooleanEngine::new());
 }
 
 impl WithThreadLocalEngine for CpuBooleanEngine {
@@ -53,12 +54,12 @@ impl WithThreadLocalEngine for CpuBooleanEngine {
     }
 }
 
-pub(crate) struct BooleanEngine<B> {
+pub(crate) struct BooleanEngine {
     pub(crate) engine: DefaultEngine,
-    bootstrapper: B,
+    bootstrapper: CpuBootstrapper,
 }
 
-impl BooleanEngine<CpuBootstrapper> {
+impl BooleanEngine {
     pub fn create_server_key(&mut self, cks: &ClientKey) -> CpuBootstrapKey {
         let server_key = self.bootstrapper.new_server_key(cks).unwrap();
 
@@ -69,19 +70,20 @@ impl BooleanEngine<CpuBootstrapper> {
 // We have q = 2^32 so log2q = 32
 const LOG2_Q_32: usize = 32;
 
-impl<B> BooleanEngine<B> {
+impl BooleanEngine {
     pub fn create_client_key(&mut self, parameters: BooleanParameters) -> ClientKey {
         // generate the lwe secret key
-        let lwe_secret_key: LweSecretKey32 = self
-            .engine
-            .generate_new_lwe_secret_key(parameters.lwe_dimension)
-            .unwrap();
+        let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            parameters.lwe_dimension,
+            self.engine.get_secret_generator(),
+        );
 
-        // generate the rlwe secret key
-        let glwe_secret_key: GlweSecretKey32 = self
-            .engine
-            .generate_new_glwe_secret_key(parameters.glwe_dimension, parameters.polynomial_size)
-            .unwrap();
+        // generate the glwe secret key
+        let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+            parameters.glwe_dimension,
+            parameters.polynomial_size,
+            self.engine.get_secret_generator(),
+        );
 
         ClientKey {
             lwe_secret_key,
@@ -98,15 +100,15 @@ impl<B> BooleanEngine<B> {
             client_parameters.lwe_dimension.to_lwe_size().0 * LOG2_Q_32 + 128,
         );
 
+        let lwe_public_key: LwePublicKeyOwned<u32> = par_allocate_and_generate_new_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_key.parameters.lwe_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
+
         PublicKey {
-            lwe_public_key: self
-                .engine
-                .generate_new_lwe_public_key(
-                    &client_key.lwe_secret_key,
-                    Variance(client_key.parameters.lwe_modular_std_dev.get_variance()),
-                    zero_encryption_count,
-                )
-                .unwrap(),
+            lwe_public_key,
             parameters: client_key.parameters.to_owned(),
         }
     }
@@ -117,47 +119,42 @@ impl<B> BooleanEngine<B> {
 
     pub fn encrypt(&mut self, message: bool, cks: &ClientKey) -> Ciphertext {
         // encode the boolean message
-        let plain: Plaintext32 = if message {
-            self.engine.create_plaintext_from(&PLAINTEXT_TRUE).unwrap()
+        let plain: Plaintext<u32> = if message {
+            Plaintext(PLAINTEXT_TRUE)
         } else {
-            self.engine.create_plaintext_from(&PLAINTEXT_FALSE).unwrap()
+            Plaintext(PLAINTEXT_FALSE)
         };
 
-        // convert into a variance
-        let var = Variance(cks.parameters.lwe_modular_std_dev.get_variance());
-
         // encryption
-        let ct = self
-            .engine
-            .encrypt_lwe_ciphertext(&cks.lwe_secret_key, &plain, var)
-            .unwrap();
+        let ct = allocate_and_encrypt_new_lwe_ciphertext(
+            &cks.lwe_secret_key,
+            plain,
+            cks.parameters.lwe_modular_std_dev,
+            self.engine.get_encryption_generator(),
+        );
 
         Ciphertext::Encrypted(ct)
     }
 
     pub fn encrypt_with_public_key(&mut self, message: bool, pks: &PublicKey) -> Ciphertext {
         // encode the boolean message
-        let plain: Plaintext32 = if message {
-            self.engine.create_plaintext_from(&PLAINTEXT_TRUE).unwrap()
+        let plain: Plaintext<u32> = if message {
+            Plaintext(PLAINTEXT_TRUE)
         } else {
-            self.engine.create_plaintext_from(&PLAINTEXT_FALSE).unwrap()
+            Plaintext(PLAINTEXT_FALSE)
         };
 
-        let mut underlying_ciphertext = self
-            .engine
-            .create_lwe_ciphertext_from(vec![0u32; pks.parameters.lwe_dimension.to_lwe_size().0])
-            .unwrap();
+        let mut output = LweCiphertext::new(0u32, pks.parameters.lwe_dimension.to_lwe_size());
 
         // encryption
-        self.engine
-            .discard_encrypt_lwe_ciphertext_with_public_key(
-                &pks.lwe_public_key,
-                &mut underlying_ciphertext,
-                &plain,
-            )
-            .unwrap();
+        encrypt_lwe_ciphertext_with_public_key(
+            &pks.lwe_public_key,
+            &mut output,
+            plain,
+            self.engine.get_secret_generator(),
+        );
 
-        Ciphertext::Encrypted(underlying_ciphertext)
+        Ciphertext::Encrypted(output)
     }
 
     pub fn decrypt(&mut self, ct: &Ciphertext, cks: &ClientKey) -> bool {
@@ -165,16 +162,10 @@ impl<B> BooleanEngine<B> {
             Ciphertext::Trivial(b) => *b,
             Ciphertext::Encrypted(ciphertext) => {
                 // decryption
-                let decrypted = self
-                    .engine
-                    .decrypt_lwe_ciphertext(&cks.lwe_secret_key, ciphertext)
-                    .unwrap();
+                let decrypted = decrypt_lwe_ciphertext(&cks.lwe_secret_key, ciphertext);
 
                 // cast as a u32
-                let mut decrypted_u32: u32 = 0;
-                self.engine
-                    .discard_retrieve_plaintext(&mut decrypted_u32, &decrypted)
-                    .unwrap();
+                let decrypted_u32 = decrypted.0;
 
                 // return
                 decrypted_u32 < (1 << 31)
@@ -188,7 +179,7 @@ impl<B> BooleanEngine<B> {
             Ciphertext::Encrypted(ct_ct) => {
                 // Compute the linear combination for NOT: -ct
                 let mut ct_res = ct_ct.clone();
-                self.engine.fuse_opp_lwe_ciphertext(&mut ct_res).unwrap(); // compute the negation
+                lwe_ciphertext_in_place_opposite(&mut ct_res);
 
                 // Output the result:
                 Ciphertext::Encrypted(ct_res)
@@ -200,16 +191,13 @@ impl<B> BooleanEngine<B> {
         match ct {
             Ciphertext::Trivial(message) => *message = !*message,
             Ciphertext::Encrypted(ct_ct) => {
-                self.engine.fuse_opp_lwe_ciphertext(ct_ct).unwrap(); // compute the negation
+                lwe_ciphertext_in_place_opposite(ct_ct); // compute the negation
             }
         }
     }
 }
 
-impl<B> BooleanEngine<B>
-where
-    B: Bootstrapper,
-{
+impl BooleanEngine {
     pub fn new() -> Self {
         let root_seeder = new_seeder();
 
@@ -236,20 +224,24 @@ where
     fn convert_into_lwe_ciphertext_32(
         &mut self,
         ct: &Ciphertext,
-        server_key: &B::ServerKey,
-    ) -> LweCiphertext32 {
+        server_key: &CpuBootstrapKey,
+    ) -> LweCiphertextOwned<u32> {
         match ct {
             Ciphertext::Encrypted(ct_ct) => ct_ct.clone(),
             Ciphertext::Trivial(message) => {
                 // encode the boolean message
-                let plain: Plaintext32 = if *message {
-                    self.engine.create_plaintext_from(&PLAINTEXT_TRUE).unwrap()
+                let plain: Plaintext<u32> = if *message {
+                    Plaintext(PLAINTEXT_TRUE)
                 } else {
-                    self.engine.create_plaintext_from(&PLAINTEXT_FALSE).unwrap()
+                    Plaintext(PLAINTEXT_FALSE)
                 };
-                self.engine
-                    .trivially_encrypt_lwe_ciphertext(server_key.lwe_size(), &plain)
-                    .unwrap()
+                allocate_and_trivially_encrypt_new_lwe_ciphertext(
+                    server_key
+                        .bootstrapping_key
+                        .input_lwe_dimension()
+                        .to_lwe_size(),
+                    plain,
+                )
             }
         }
     }
@@ -259,7 +251,7 @@ where
         ct_condition: &Ciphertext,
         ct_then: &Ciphertext,
         ct_else: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         // In theory MUX gate = (ct_condition AND ct_then) + (!ct_condition AND ct_else)
 
@@ -299,36 +291,30 @@ where
                 let ct_then_ct = self.convert_into_lwe_ciphertext_32(ct_then, server_key);
                 let ct_else_ct = self.convert_into_lwe_ciphertext_32(ct_else, server_key);
 
-                let mut buffer_lwe_before_pbs_o = self
-                    .engine
-                    .create_lwe_ciphertext_from(vec![0u32; server_key.lwe_size().0])
-                    .unwrap();
+                let mut buffer_lwe_before_pbs_o = LweCiphertext::new(
+                    0u32,
+                    server_key
+                        .bootstrapping_key
+                        .input_lwe_dimension()
+                        .to_lwe_size(),
+                );
+
                 let buffer_lwe_before_pbs = &mut buffer_lwe_before_pbs_o;
                 let bootstrapper = &mut self.bootstrapper;
 
                 // Compute the linear combination for first AND: ct_condition + ct_then +
                 // (0,...,0,-1/8)
-                self.engine
-                    .discard_add_lwe_ciphertext(buffer_lwe_before_pbs, ct_condition_ct, &ct_then_ct)
-                    .unwrap(); // ct_condition + ct_then
-                let cst = self.engine.create_plaintext_from(&PLAINTEXT_FALSE).unwrap();
-                self.engine
-                    .fuse_add_lwe_ciphertext_plaintext(buffer_lwe_before_pbs, &cst)
-                    .unwrap(); //
-                               // - 1/8
+                lwe_ciphertext_addition(buffer_lwe_before_pbs, ct_condition_ct, &ct_then_ct);
+                let cst = Plaintext(PLAINTEXT_FALSE);
+                lwe_ciphertext_in_place_plaintext_addition(buffer_lwe_before_pbs, cst); // - 1/8
 
                 // Compute the linear combination for second AND: - ct_condition + ct_else +
                 // (0,...,0,-1/8)
                 let mut ct_temp_2 = ct_condition_ct.clone(); // ct_condition
-                self.engine.fuse_opp_lwe_ciphertext(&mut ct_temp_2).unwrap(); // compute the negation
-                self.engine
-                    .fuse_add_lwe_ciphertext(&mut ct_temp_2, &ct_else_ct)
-                    .unwrap(); // + ct_else
-                let cst = self.engine.create_plaintext_from(&PLAINTEXT_FALSE).unwrap();
-                self.engine
-                    .fuse_add_lwe_ciphertext_plaintext(&mut ct_temp_2, &cst)
-                    .unwrap(); //
-                               // - 1/8
+                lwe_ciphertext_in_place_opposite(&mut ct_temp_2); // compute the negation
+                lwe_ciphertext_in_place_addition(&mut ct_temp_2, &ct_else_ct); // + ct_else
+                let cst = Plaintext(PLAINTEXT_FALSE);
+                lwe_ciphertext_in_place_plaintext_addition(&mut ct_temp_2, cst); // - 1/8
 
                 // Compute the first programmable bootstrapping with fixed test polynomial:
                 let mut ct_pbs_1 = bootstrapper
@@ -339,13 +325,9 @@ where
 
                 // Compute the linear combination to add the two results:
                 // buffer_lwe_pbs + ct_pbs_2 + (0,...,0, +1/8)
-                self.engine
-                    .fuse_add_lwe_ciphertext(&mut ct_pbs_1, &ct_pbs_2)
-                    .unwrap(); // + buffer_lwe_pbs
-                let cst = self.engine.create_plaintext_from(&PLAINTEXT_TRUE).unwrap();
-                self.engine
-                    .fuse_add_lwe_ciphertext_plaintext(&mut ct_pbs_1, &cst)
-                    .unwrap(); // + 1/8
+                lwe_ciphertext_in_place_addition(&mut ct_pbs_1, &ct_pbs_2); // + buffer_lwe_pbs
+                let cst = Plaintext(PLAINTEXT_TRUE);
+                lwe_ciphertext_in_place_plaintext_addition(&mut ct_pbs_1, cst); // + 1/8
 
                 let ct_ks = bootstrapper.keyswitch(&ct_pbs_1, server_key).unwrap();
 
@@ -356,15 +338,12 @@ where
     }
 }
 
-impl<B> BinaryGatesEngine<&Ciphertext, &Ciphertext, B::ServerKey> for BooleanEngine<B>
-where
-    B: Bootstrapper,
-{
+impl BinaryGatesEngine<&Ciphertext, &Ciphertext, CpuBootstrapKey> for BooleanEngine {
     fn and(
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -377,21 +356,22 @@ where
                 self.and(*message_left, ct_right, server_key)
             }
             (Ciphertext::Encrypted(ct_left_ct), Ciphertext::Encrypted(ct_right_ct)) => {
-                let mut buffer_lwe_before_pbs = self
-                    .engine
-                    .create_lwe_ciphertext_from(vec![0u32; server_key.lwe_size().0])
-                    .unwrap();
+                let mut buffer_lwe_before_pbs = LweCiphertext::new(
+                    0u32,
+                    server_key
+                        .bootstrapping_key
+                        .input_lwe_dimension()
+                        .to_lwe_size(),
+                );
+
                 let bootstrapper = &mut self.bootstrapper;
 
                 // compute the linear combination for AND: ct_left + ct_right + (0,...,0,-1/8)
-                self.engine
-                    .discard_add_lwe_ciphertext(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct)
-                    .unwrap(); // ct_left + ct_right
-                let cst = self.engine.create_plaintext_from(&PLAINTEXT_FALSE).unwrap();
-                self.engine
-                    .fuse_add_lwe_ciphertext_plaintext(&mut buffer_lwe_before_pbs, &cst)
-                    .unwrap(); //
-                               // - 1/8
+                // ct_left + ct_right
+                lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
+                let cst = Plaintext(PLAINTEXT_FALSE);
+                // - 1/8
+                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -405,7 +385,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -418,23 +398,22 @@ where
                 self.nand(*message_left, ct_right, server_key)
             }
             (Ciphertext::Encrypted(ct_left_ct), Ciphertext::Encrypted(ct_right_ct)) => {
-                let mut buffer_lwe_before_pbs = self
-                    .engine
-                    .create_lwe_ciphertext_from(vec![0u32; server_key.lwe_size().0])
-                    .unwrap();
+                let mut buffer_lwe_before_pbs = LweCiphertext::new(
+                    0u32,
+                    server_key
+                        .bootstrapping_key
+                        .input_lwe_dimension()
+                        .to_lwe_size(),
+                );
                 let bootstrapper = &mut self.bootstrapper;
 
                 // Compute the linear combination for NAND: - ct_left - ct_right + (0,...,0,1/8)
-                self.engine
-                    .discard_add_lwe_ciphertext(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct)
-                    .unwrap(); // ct_left + ct_right
-                self.engine
-                    .fuse_opp_lwe_ciphertext(&mut buffer_lwe_before_pbs)
-                    .unwrap(); // compute the negation
-                let cst = self.engine.create_plaintext_from(&PLAINTEXT_TRUE).unwrap();
-                self.engine
-                    .fuse_add_lwe_ciphertext_plaintext(&mut buffer_lwe_before_pbs, &cst)
-                    .unwrap(); // + 1/8
+                // ct_left + ct_right
+                lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
+                lwe_ciphertext_in_place_opposite(&mut buffer_lwe_before_pbs);
+                let cst = Plaintext(PLAINTEXT_TRUE);
+                // + 1/8
+                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -448,7 +427,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -461,24 +440,23 @@ where
                 self.nor(*message_left, ct_right, server_key)
             }
             (Ciphertext::Encrypted(ct_left_ct), Ciphertext::Encrypted(ct_right_ct)) => {
-                let mut buffer_lwe_before_pbs = self
-                    .engine
-                    .create_lwe_ciphertext_from(vec![0u32; server_key.lwe_size().0])
-                    .unwrap();
+                let mut buffer_lwe_before_pbs = LweCiphertext::new(
+                    0u32,
+                    server_key
+                        .bootstrapping_key
+                        .input_lwe_dimension()
+                        .to_lwe_size(),
+                );
                 let bootstrapper = &mut self.bootstrapper;
 
                 // Compute the linear combination for NOR: - ct_left - ct_right + (0,...,0,-1/8)
-                self.engine
-                    .discard_add_lwe_ciphertext(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct)
-                    .unwrap(); // ct_left + ct_right
-                self.engine
-                    .fuse_opp_lwe_ciphertext(&mut buffer_lwe_before_pbs)
-                    .unwrap(); // compute the negation
-                let cst = self.engine.create_plaintext_from(&PLAINTEXT_FALSE).unwrap();
-                self.engine
-                    .fuse_add_lwe_ciphertext_plaintext(&mut buffer_lwe_before_pbs, &cst)
-                    .unwrap(); //
-                               // - 1/8
+                // ct_left + ct_right
+                lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
+                // compute the negation
+                lwe_ciphertext_in_place_opposite(&mut buffer_lwe_before_pbs);
+                let cst = Plaintext(PLAINTEXT_FALSE);
+                // - 1/8
+                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -492,7 +470,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -505,20 +483,21 @@ where
                 self.or(*message_left, ct_right, server_key)
             }
             (Ciphertext::Encrypted(ct_left_ct), Ciphertext::Encrypted(ct_right_ct)) => {
-                let mut buffer_lwe_before_pbs = self
-                    .engine
-                    .create_lwe_ciphertext_from(vec![0u32; server_key.lwe_size().0])
-                    .unwrap();
+                let mut buffer_lwe_before_pbs = LweCiphertext::new(
+                    0u32,
+                    server_key
+                        .bootstrapping_key
+                        .input_lwe_dimension()
+                        .to_lwe_size(),
+                );
                 let bootstrapper = &mut self.bootstrapper;
 
                 // Compute the linear combination for OR: ct_left + ct_right + (0,...,0,+1/8)
-                self.engine
-                    .discard_add_lwe_ciphertext(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct)
-                    .unwrap(); // ct_left + ct_right
-                let cst = self.engine.create_plaintext_from(&PLAINTEXT_TRUE).unwrap();
-                self.engine
-                    .fuse_add_lwe_ciphertext_plaintext(&mut buffer_lwe_before_pbs, &cst)
-                    .unwrap(); // + 1/8
+                // ct_left + ct_right
+                lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
+                let cst = Plaintext(PLAINTEXT_TRUE);
+                // + 1/8
+                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -532,7 +511,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -545,24 +524,27 @@ where
                 self.xor(*message_left, ct_right, server_key)
             }
             (Ciphertext::Encrypted(ct_left_ct), Ciphertext::Encrypted(ct_right_ct)) => {
-                let mut buffer_lwe_before_pbs = self
-                    .engine
-                    .create_lwe_ciphertext_from(vec![0u32; server_key.lwe_size().0])
-                    .unwrap();
+                let mut buffer_lwe_before_pbs = LweCiphertext::new(
+                    0u32,
+                    server_key
+                        .bootstrapping_key
+                        .input_lwe_dimension()
+                        .to_lwe_size(),
+                );
                 let bootstrapper = &mut self.bootstrapper;
 
                 // Compute the linear combination for XOR: 2*(ct_left + ct_right) + (0,...,0,1/4)
-                self.engine
-                    .discard_add_lwe_ciphertext(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct)
-                    .unwrap(); // ct_left + ct_right
-                let cst_add = self.engine.create_plaintext_from(&PLAINTEXT_TRUE).unwrap();
-                self.engine
-                    .fuse_add_lwe_ciphertext_plaintext(&mut buffer_lwe_before_pbs, &cst_add)
-                    .unwrap(); // + 1/8
-                let cst_mul = self.engine.create_cleartext_from(&2u32).unwrap();
-                self.engine
-                    .fuse_mul_lwe_ciphertext_cleartext(&mut buffer_lwe_before_pbs, &cst_mul)
-                    .unwrap(); //* 2
+                // ct_left + ct_right
+                lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
+                let cst_add = Plaintext(PLAINTEXT_TRUE);
+                // + 1/8
+                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst_add);
+                let cst_mul = Cleartext(2u32);
+                //* 2
+                lwe_ciphertext_in_place_cleartext_multiplication(
+                    &mut buffer_lwe_before_pbs,
+                    cst_mul,
+                );
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -576,7 +558,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -589,27 +571,29 @@ where
                 self.xnor(*message_left, ct_right, server_key)
             }
             (Ciphertext::Encrypted(ct_left_ct), Ciphertext::Encrypted(ct_right_ct)) => {
-                let mut buffer_lwe_before_pbs = self
-                    .engine
-                    .create_lwe_ciphertext_from(vec![0u32; server_key.lwe_size().0])
-                    .unwrap();
+                let mut buffer_lwe_before_pbs = LweCiphertext::new(
+                    0u32,
+                    server_key
+                        .bootstrapping_key
+                        .input_lwe_dimension()
+                        .to_lwe_size(),
+                );
                 let bootstrapper = &mut self.bootstrapper;
 
                 // Compute the linear combination for XNOR: 2*(-ct_left - ct_right + (0,...,0,-1/8))
-                self.engine
-                    .discard_add_lwe_ciphertext(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct)
-                    .unwrap(); // ct_left + ct_right
-                let cst_add = self.engine.create_plaintext_from(&PLAINTEXT_TRUE).unwrap();
-                self.engine
-                    .fuse_add_lwe_ciphertext_plaintext(&mut buffer_lwe_before_pbs, &cst_add)
-                    .unwrap(); // + 1/8
-                self.engine
-                    .fuse_opp_lwe_ciphertext(&mut buffer_lwe_before_pbs)
-                    .unwrap(); // compute the negation
-                let cst_mul = self.engine.create_cleartext_from(&2u32).unwrap();
-                self.engine
-                    .fuse_mul_lwe_ciphertext_cleartext(&mut buffer_lwe_before_pbs, &cst_mul)
-                    .unwrap(); //* 2
+                // ct_left + ct_right
+                lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
+                let cst_add = Plaintext(PLAINTEXT_TRUE);
+                // + 1/8
+                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst_add);
+                // compute the negation
+                lwe_ciphertext_in_place_opposite(&mut buffer_lwe_before_pbs);
+                let cst_mul = Cleartext(2u32);
+                //* 2
+                lwe_ciphertext_in_place_cleartext_multiplication(
+                    &mut buffer_lwe_before_pbs,
+                    cst_mul,
+                );
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -620,15 +604,12 @@ where
     }
 }
 
-impl<B> BinaryGatesAssignEngine<&mut Ciphertext, &Ciphertext, B::ServerKey> for BooleanEngine<B>
-where
-    B: Bootstrapper,
-{
+impl BinaryGatesAssignEngine<&mut Ciphertext, &Ciphertext, CpuBootstrapKey> for BooleanEngine {
     fn and_assign(
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.and(&ct_left_clone, ct_right, server_key);
@@ -638,7 +619,7 @@ where
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.nand(&ct_left_clone, ct_right, server_key);
@@ -648,7 +629,7 @@ where
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.nor(&ct_left_clone, ct_right, server_key);
@@ -658,7 +639,7 @@ where
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.or(&ct_left_clone, ct_right, server_key);
@@ -668,7 +649,7 @@ where
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.xor(&ct_left_clone, ct_right, server_key);
@@ -678,92 +659,143 @@ where
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.xnor(&ct_left_clone, ct_right, server_key);
     }
 }
 
-impl<B> BinaryGatesAssignEngine<&mut Ciphertext, bool, B::ServerKey> for BooleanEngine<B>
-where
-    B: Bootstrapper,
-{
-    fn and_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &B::ServerKey) {
+impl BinaryGatesAssignEngine<&mut Ciphertext, bool, CpuBootstrapKey> for BooleanEngine {
+    fn and_assign(
+        &mut self,
+        ct_left: &mut Ciphertext,
+        ct_right: bool,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.and(&ct_left_clone, ct_right, server_key);
     }
 
-    fn nand_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &B::ServerKey) {
+    fn nand_assign(
+        &mut self,
+        ct_left: &mut Ciphertext,
+        ct_right: bool,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.nand(&ct_left_clone, ct_right, server_key);
     }
 
-    fn nor_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &B::ServerKey) {
+    fn nor_assign(
+        &mut self,
+        ct_left: &mut Ciphertext,
+        ct_right: bool,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.nor(&ct_left_clone, ct_right, server_key);
     }
 
-    fn or_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &B::ServerKey) {
+    fn or_assign(
+        &mut self,
+        ct_left: &mut Ciphertext,
+        ct_right: bool,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.or(&ct_left_clone, ct_right, server_key);
     }
 
-    fn xor_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &B::ServerKey) {
+    fn xor_assign(
+        &mut self,
+        ct_left: &mut Ciphertext,
+        ct_right: bool,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.xor(&ct_left_clone, ct_right, server_key);
     }
 
-    fn xnor_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &B::ServerKey) {
+    fn xnor_assign(
+        &mut self,
+        ct_left: &mut Ciphertext,
+        ct_right: bool,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.xnor(&ct_left_clone, ct_right, server_key);
     }
 }
 
-impl<B> BinaryGatesAssignEngine<bool, &mut Ciphertext, B::ServerKey> for BooleanEngine<B>
-where
-    B: Bootstrapper,
-{
-    fn and_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &B::ServerKey) {
+impl BinaryGatesAssignEngine<bool, &mut Ciphertext, CpuBootstrapKey> for BooleanEngine {
+    fn and_assign(
+        &mut self,
+        ct_left: bool,
+        ct_right: &mut Ciphertext,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.and(ct_left, &ct_right_clone, server_key);
     }
 
-    fn nand_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &B::ServerKey) {
+    fn nand_assign(
+        &mut self,
+        ct_left: bool,
+        ct_right: &mut Ciphertext,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.nand(ct_left, &ct_right_clone, server_key);
     }
 
-    fn nor_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &B::ServerKey) {
+    fn nor_assign(
+        &mut self,
+        ct_left: bool,
+        ct_right: &mut Ciphertext,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.nor(ct_left, &ct_right_clone, server_key);
     }
 
-    fn or_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &B::ServerKey) {
+    fn or_assign(
+        &mut self,
+        ct_left: bool,
+        ct_right: &mut Ciphertext,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.or(ct_left, &ct_right_clone, server_key);
     }
 
-    fn xor_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &B::ServerKey) {
+    fn xor_assign(
+        &mut self,
+        ct_left: bool,
+        ct_right: &mut Ciphertext,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.xor(ct_left, &ct_right_clone, server_key);
     }
 
-    fn xnor_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &B::ServerKey) {
+    fn xnor_assign(
+        &mut self,
+        ct_left: bool,
+        ct_right: &mut Ciphertext,
+        server_key: &CpuBootstrapKey,
+    ) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.xnor(ct_left, &ct_right_clone, server_key);
     }
 }
 
-impl<B> BinaryGatesEngine<&Ciphertext, bool, B::ServerKey> for BooleanEngine<B>
-where
-    B: Bootstrapper,
-{
+impl BinaryGatesEngine<&Ciphertext, bool, CpuBootstrapKey> for BooleanEngine {
     fn and(
         &mut self,
         ct_left: &Ciphertext,
         ct_right: bool,
-        _server_key: &B::ServerKey,
+        _server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         if ct_right {
             // ct AND true = ct
@@ -778,7 +810,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: bool,
-        _server_key: &B::ServerKey,
+        _server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         if ct_right {
             // NOT (ct AND true) = NOT(ct)
@@ -793,7 +825,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: bool,
-        _server_key: &B::ServerKey,
+        _server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         if ct_right {
             // NOT (ct OR true) = NOT(true) = false
@@ -808,7 +840,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: bool,
-        _server_key: &B::ServerKey,
+        _server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         if ct_right {
             // ct OR true = true
@@ -823,7 +855,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: bool,
-        _server_key: &B::ServerKey,
+        _server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         if ct_right {
             // ct XOR true = NOT(ct)
@@ -838,7 +870,7 @@ where
         &mut self,
         ct_left: &Ciphertext,
         ct_right: bool,
-        _server_key: &B::ServerKey,
+        _server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         if ct_right {
             // NOT(ct XOR true) = NOT(NOT(ct)) = ct
@@ -850,15 +882,12 @@ where
     }
 }
 
-impl<B> BinaryGatesEngine<bool, &Ciphertext, B::ServerKey> for BooleanEngine<B>
-where
-    B: Bootstrapper,
-{
+impl BinaryGatesEngine<bool, &Ciphertext, CpuBootstrapKey> for BooleanEngine {
     fn and(
         &mut self,
         ct_left: bool,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         self.and(ct_right, ct_left, server_key)
     }
@@ -867,7 +896,7 @@ where
         &mut self,
         ct_left: bool,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         self.nand(ct_right, ct_left, server_key)
     }
@@ -876,7 +905,7 @@ where
         &mut self,
         ct_left: bool,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         self.nor(ct_right, ct_left, server_key)
     }
@@ -885,7 +914,7 @@ where
         &mut self,
         ct_left: bool,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         self.or(ct_right, ct_left, server_key)
     }
@@ -894,7 +923,7 @@ where
         &mut self,
         ct_left: bool,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         self.xor(ct_right, ct_left, server_key)
     }
@@ -903,7 +932,7 @@ where
         &mut self,
         ct_left: bool,
         ct_right: &Ciphertext,
-        server_key: &B::ServerKey,
+        server_key: &CpuBootstrapKey,
     ) -> Ciphertext {
         self.xnor(ct_right, ct_left, server_key)
     }

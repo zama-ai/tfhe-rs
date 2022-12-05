@@ -98,9 +98,9 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         lwe_in.lwe_size().0,
     );
     debug_assert!(
-        ksk.output_key_lwe_dimension() == fourier_bsk.key_size(),
+        ksk.output_key_lwe_dimension() == fourier_bsk.input_lwe_dimension(),
         "ksk needs to have an output LWE dimension of {}, got {}",
-        fourier_bsk.key_size().0,
+        fourier_bsk.input_lwe_dimension().0,
         ksk.output_key_lwe_dimension().0,
     );
 

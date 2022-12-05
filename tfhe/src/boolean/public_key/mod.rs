@@ -2,13 +2,13 @@ use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
 use crate::boolean::engine::{CpuBooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanParameters;
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::entities::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// A structure containing a public key.
 #[derive(Clone)]
 pub struct PublicKey {
-    pub(crate) lwe_public_key: LwePublicKey32,
+    pub(crate) lwe_public_key: LwePublicKeyOwned<u32>,
     pub(crate) parameters: BooleanParameters,
 }
 
@@ -72,11 +72,8 @@ impl Serialize for PublicKey {
     where
         S: Serializer,
     {
-        let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
-
-        let lwe_public_key = ser_eng
-            .serialize(&self.lwe_public_key)
-            .map_err(serde::ser::Error::custom)?;
+        let lwe_public_key =
+            bincode::serialize(&self.lwe_public_key).map_err(serde::ser::Error::custom)?;
 
         SerializablePublicKey {
             lwe_public_key,
@@ -93,11 +90,9 @@ impl<'de> Deserialize<'de> for PublicKey {
     {
         let thing =
             SerializablePublicKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-        let mut de_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
 
         Ok(Self {
-            lwe_public_key: de_eng
-                .deserialize(thing.lwe_public_key.as_slice())
+            lwe_public_key: bincode::deserialize(thing.lwe_public_key.as_slice())
                 .map_err(serde::de::Error::custom)?,
             parameters: thing.parameters,
         })
