@@ -109,7 +109,7 @@ pub unsafe extern "C" fn boolean_trivial_encrypt(
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let heap_allocated_result = Box::new(BooleanCiphertext(
-            boolean::engine::CpuBooleanEngine::with_thread_local_mut(|engine| {
+            boolean::engine::BooleanEngine::with_thread_local_mut(|engine| {
                 engine.trivial_encrypt(message)
             }),
         ));
