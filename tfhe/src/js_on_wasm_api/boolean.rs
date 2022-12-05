@@ -103,7 +103,7 @@ impl Boolean {
         ));
 
         let mut tmp_boolean_engine =
-            crate::boolean::engine::CpuBooleanEngine::new_from_seeder(constant_seeder);
+            crate::boolean::engine::BooleanEngine::new_from_seeder(constant_seeder);
 
         BooleanClientKey(tmp_boolean_engine.create_client_key(parameters.0.to_owned()))
     }
