@@ -28,8 +28,6 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
-        // TODO REFACTOR
-        // Remove the clone + into
         Ok(PublicKey {
             lwe_public_key,
             parameters: client_key.parameters.to_owned(),

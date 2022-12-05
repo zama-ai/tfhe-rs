@@ -1,18 +1,16 @@
-#[cfg(feature = "__commons_parallel")]
-use crate::core_crypto::commons::math::random::ParallelByteRandomGenerator;
 use crate::core_crypto::commons::math::random::{
-    ByteRandomGenerator, Gaussian, RandomGenerable, RandomGenerator, Seed, Seeder, Uniform,
+    ByteRandomGenerator, Gaussian, ParallelByteRandomGenerator, RandomGenerable, RandomGenerator,
+    Seed, Seeder, Uniform,
 };
-use crate::core_crypto::commons::math::tensor::AsMutTensor;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::prelude::{
-    DecompositionLevelCount, DispersionParameter, FunctionalPackingKeyswitchKeyCount,
-    GlweDimension, GlweSize, LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
+use crate::core_crypto::specification::dispersion::DispersionParameter;
+use crate::core_crypto::specification::parameters::{
+    DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweDimension, GlweSize,
+    LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
 };
 use concrete_csprng::generators::ForkError;
-#[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 
 /// A random number generator which can be used to encrypt messages.
@@ -158,17 +156,6 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
             .map(|(mask, noise)| EncryptionRandomGenerator { mask, noise }))
     }
 
-    // Fills the tensor with random uniform values, using the mask generator.
-    pub(crate) fn fill_tensor_with_random_mask<Scalar, Tensorable>(
-        &mut self,
-        output: &mut Tensorable,
-    ) where
-        Scalar: RandomGenerable<Uniform>,
-        Tensorable: AsMutTensor<Element = Scalar>,
-    {
-        self.mask.fill_tensor_with_random_uniform(output)
-    }
-
     // Fills the slice with random uniform values, using the mask generator.
     pub(crate) fn fill_slice_with_random_mask<Scalar>(&mut self, output: &mut [Scalar])
     where
@@ -189,19 +176,6 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
                 mean: 0.,
             },
         )
-    }
-
-    // Fills the input tensor with random noise, using the noise generator.
-    pub(crate) fn fill_tensor_with_random_noise<Scalar, Tensorable>(
-        &mut self,
-        output: &mut Tensorable,
-        std: impl DispersionParameter,
-    ) where
-        (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
-        Tensorable: AsMutTensor<Element = Scalar>,
-    {
-        self.noise
-            .fill_tensor_with_random_gaussian(output, 0., std.get_standard_dev());
     }
 
     // Fills the input slice with random noise, using the noise generator.
@@ -233,7 +207,6 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 }
 
-#[cfg(feature = "__commons_parallel")]
 impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
     // Forks the generator into a parallel iterator, when splitting a bootstrap key into ggsw ct.
     pub(crate) fn par_fork_bsk_to_ggsw<T: UnsignedInteger>(
@@ -453,16 +426,15 @@ fn noise_bytes_per_pfpksk(
     lwe_size.0 * noise_bytes_per_pfpksk_chunk(level, poly_size)
 }
 
-#[cfg(all(test, feature = "__commons_parallel"))]
+#[cfg(test)]
 mod test {
-    use crate::core_crypto::commons::crypto::bootstrap::StandardBootstrapKey;
-    use crate::core_crypto::commons::crypto::secret::{GlweSecretKey, LweSecretKey};
+    use crate::core_crypto::algorithms::*;
     use crate::core_crypto::commons::test_tools::{
         new_encryption_random_generator, new_secret_random_generator,
     };
-    use crate::core_crypto::prelude::{
+    use crate::core_crypto::specification::dispersion::Variance;
+    use crate::core_crypto::specification::parameters::{
         DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
-        Variance,
     };
 
     #[test]
@@ -483,20 +455,22 @@ mod test {
         };
         let mut enc_generator = new_encryption_random_generator();
         let mut sec_generator = new_secret_random_generator();
-        let mut bsk = StandardBootstrapKey::allocate(
-            0u32,
-            params.glwe_size,
-            params.poly_size,
-            params.dec_level_count,
-            params.dec_base_log,
+        let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key::<u64, _>(
             params.lwe_dim,
+            &mut sec_generator,
         );
-        let lwe_sk = LweSecretKey::generate_binary(params.lwe_dim, &mut sec_generator);
-        let glwe_sk = GlweSecretKey::generate_binary(
+        let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
             params.glwe_size.to_glwe_dimension(),
             params.poly_size,
             &mut sec_generator,
         );
-        bsk.par_fill_with_new_key(&lwe_sk, &glwe_sk, Variance(0.), &mut enc_generator);
+        let _bsk = par_allocate_and_generate_new_lwe_bootstrap_key(
+            &lwe_sk,
+            &glwe_sk,
+            params.dec_base_log,
+            params.dec_level_count,
+            Variance(0.),
+            &mut enc_generator,
+        );
     }
 }

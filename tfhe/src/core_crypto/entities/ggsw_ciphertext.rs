@@ -258,7 +258,7 @@ impl<C: Container> ContiguousEntityContainer for GgswCiphertext<C> {
         self.ggsw_level_matrix_size()
     }
 
-    /// Unimplement for [`GgswCiphertextBase`]. At the moment it does not make sense to
+    /// Unimplement for [`GgswCiphertext`]. At the moment it does not make sense to
     /// return "sub" GgswCiphertext.
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
         unimplemented!(

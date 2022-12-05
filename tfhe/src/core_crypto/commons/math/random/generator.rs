@@ -2,22 +2,19 @@ use crate::core_crypto::commons::math::random::{
     Gaussian, RandomGenerable, Uniform, UniformBinary, UniformLsb, UniformMsb, UniformTernary,
     UniformWithZeros,
 };
-use crate::core_crypto::commons::math::tensor::{AsMutSlice, AsMutTensor, Tensor};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::{FloatingPoint, Numeric};
+use crate::core_crypto::commons::numeric::FloatingPoint;
 use concrete_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
-#[cfg(feature = "__commons_parallel")]
 use rayon::prelude::*;
 use std::convert::TryInto;
 
-#[cfg(feature = "__commons_parallel")]
-pub use concrete_csprng::generators::ParallelRandomGenerator as ParallelByteRandomGenerator;
-pub use concrete_csprng::generators::RandomGenerator as ByteRandomGenerator;
+pub use concrete_csprng::generators::{
+    ParallelRandomGenerator as ParallelByteRandomGenerator, RandomGenerator as ByteRandomGenerator,
+};
 pub use concrete_csprng::seeders::{Seed, Seeder};
 
 /// Module to proxy the serialization for `concrete-csprng::Seed` to avoid adding serde as a
 /// dependency to `concrete-csprng`
-#[cfg(feature = "__commons_serialization")]
 pub mod serialization_proxy {
     pub(crate) use concrete_csprng::seeders::Seed;
     pub(crate) use serde::{Deserialize, Serialize};
@@ -31,13 +28,11 @@ pub mod serialization_proxy {
     pub(crate) struct SeedSerdeDef(pub u128);
 }
 
-#[cfg(feature = "__commons_serialization")]
 pub(crate) use serialization_proxy::*;
 
-#[cfg_attr(feature = "__commons_serialization", derive(Serialize, Deserialize))]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct CompressionSeed {
-    #[cfg_attr(feature = "__commons_serialization", serde(with = "SeedSerdeDef"))]
+    #[serde(with = "SeedSerdeDef")]
     pub seed: Seed,
 }
 
@@ -163,56 +158,11 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, Uniform)
     }
 
-    /// Fills an `AsMutTensor` value with random uniform values.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut tensor = Tensor::allocate(1000. as u32, 100);
-    /// generator.fill_tensor_with_random_uniform(&mut tensor);
-    /// ```
-    pub fn fill_tensor_with_random_uniform<Scalar, Tensorable>(&mut self, output: &mut Tensorable)
-    where
-        Scalar: RandomGenerable<Uniform>,
-        Tensorable: AsMutTensor<Element = Scalar>,
-    {
-        Scalar::fill_tensor(self, Uniform, output);
-    }
-
     pub fn fill_slice_with_random_uniform<Scalar>(&mut self, output: &mut [Scalar])
     where
         Scalar: RandomGenerable<Uniform>,
     {
         Scalar::fill_slice(self, Uniform, output);
-    }
-
-    /// Generates a tensor of random uniform values of a given size.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let t: Tensor<Vec<u64>> = generator.random_uniform_tensor(10);
-    /// assert_eq!(t.len(), 10);
-    /// let first_val = t.get_element(0);
-    /// for i in 1..10 {
-    ///     assert_ne!(first_val, t.get_element(i));
-    /// }
-    /// ```
-    pub fn random_uniform_tensor<Scalar: RandomGenerable<Uniform>>(
-        &mut self,
-        size: usize,
-    ) -> Tensor<Vec<Scalar>> {
-        Scalar::generate_tensor(self, Uniform, size)
     }
 
     /// Generates a random uniform binary value.
@@ -230,54 +180,11 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, UniformBinary)
     }
 
-    /// Fills an `AsMutTensor` value with random binary values.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut tensor = Tensor::allocate(1u32, 100);
-    /// generator.fill_tensor_with_random_uniform_binary(&mut tensor);
-    /// ```
-    pub fn fill_tensor_with_random_uniform_binary<Scalar, Tensorable>(
-        &mut self,
-        output: &mut Tensorable,
-    ) where
-        Scalar: RandomGenerable<UniformBinary>,
-        Tensorable: AsMutTensor<Element = Scalar>,
-    {
-        Scalar::fill_tensor(self, UniformBinary, output);
-    }
-
     pub fn fill_slice_with_random_uniform_binary<Scalar>(&mut self, output: &mut [Scalar])
     where
         Scalar: RandomGenerable<UniformBinary>,
     {
         Scalar::fill_slice(self, UniformBinary, output);
-    }
-
-    /// Generates a tensor of random binary values of a given size.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let t: Tensor<Vec<u32>> = generator.random_uniform_binary_tensor(10);
-    /// assert_eq!(t.len(), 10);
-    /// ```
-    pub fn random_uniform_binary_tensor<Scalar: RandomGenerable<UniformBinary>>(
-        &mut self,
-        size: usize,
-    ) -> Tensor<Vec<Scalar>> {
-        Scalar::generate_tensor(self, UniformBinary, size)
     }
 
     /// Generates a random uniform ternary value.
@@ -293,49 +200,6 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// ```
     pub fn random_uniform_ternary<Scalar: RandomGenerable<UniformTernary>>(&mut self) -> Scalar {
         Scalar::generate_one(self, UniformTernary)
-    }
-
-    /// Fills an `AsMutTensor` value with random ternary values.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut tensor = Tensor::allocate(1u32, 100);
-    /// generator.fill_tensor_with_random_uniform_ternary(&mut tensor);
-    /// ```
-    pub fn fill_tensor_with_random_uniform_ternary<Scalar, Tensorable>(
-        &mut self,
-        output: &mut Tensorable,
-    ) where
-        Scalar: RandomGenerable<UniformTernary>,
-        Tensorable: AsMutTensor<Element = Scalar>,
-    {
-        Scalar::fill_tensor(self, UniformTernary, output);
-    }
-
-    /// Generates a tensor of random ternary values of a given size.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let t: Tensor<Vec<u32>> = generator.random_uniform_ternary_tensor(10);
-    /// assert_eq!(t.len(), 10);
-    /// ```
-    pub fn random_uniform_ternary_tensor<Scalar: RandomGenerable<UniformTernary>>(
-        &mut self,
-        size: usize,
-    ) -> Tensor<Vec<Scalar>> {
-        Scalar::generate_tensor(self, UniformTernary, size)
     }
 
     /// Generates an unsigned integer whose n least significant bits are uniformly random, and the
@@ -358,55 +222,6 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, UniformLsb { n })
     }
 
-    /// Fills an `AsMutTensor` value with random values whose n lsbs are sampled uniformly.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut tensor = Tensor::allocate(0 as u8, 100);
-    /// generator.fill_tensor_with_random_uniform_n_lsb(&mut tensor, 3);
-    /// ```
-    pub fn fill_tensor_with_random_uniform_n_lsb<Scalar, Tensorable>(
-        &mut self,
-        output: &mut Tensorable,
-        n: usize,
-    ) where
-        Scalar: RandomGenerable<UniformLsb>,
-        Tensorable: AsMutTensor<Element = Scalar>,
-    {
-        Scalar::fill_tensor(self, UniformLsb { n }, output);
-    }
-
-    /// Generates a tensor of random uniform values, whose n lsbs are sampled uniformly.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let t: Tensor<Vec<u64>> = generator.random_uniform_n_lsb_tensor(10, 55);
-    /// assert_eq!(t.len(), 10);
-    /// let first_val = t.get_element(0);
-    /// for i in 1..10 {
-    ///     assert_ne!(first_val, t.get_element(i));
-    /// }
-    /// ```
-    pub fn random_uniform_n_lsb_tensor<Scalar: RandomGenerable<UniformLsb>>(
-        &mut self,
-        size: usize,
-        n: usize,
-    ) -> Tensor<Vec<Scalar>> {
-        Scalar::generate_tensor(self, UniformLsb { n }, size)
-    }
-
     /// Generates an unsigned integer whose n most significant bits are uniformly random, and the
     /// other bits are zero.
     ///
@@ -425,55 +240,6 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         n: usize,
     ) -> Scalar {
         Scalar::generate_one(self, UniformMsb { n })
-    }
-
-    /// Fills an `AsMutTensor` value with values whose n msbs are random.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut tensor = Tensor::allocate(8 as u8, 100);
-    /// generator.fill_tensor_with_random_uniform_n_msb(&mut tensor, 5);
-    /// ```
-    pub fn fill_tensor_with_random_uniform_n_msb<Scalar, Tensorable>(
-        &mut self,
-        output: &mut Tensorable,
-        n: usize,
-    ) where
-        Scalar: RandomGenerable<UniformMsb>,
-        Tensorable: AsMutTensor<Element = Scalar>,
-    {
-        Scalar::fill_tensor(self, UniformMsb { n }, output)
-    }
-
-    /// Generates a tensor of random uniform values, whose n msbs are sampled uniformly.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let t: Tensor<Vec<u64>> = generator.random_uniform_n_msb_tensor(10, 55);
-    /// assert_eq!(t.len(), 10);
-    /// let first_val = t.get_element(0);
-    /// for i in 1..10 {
-    ///     assert_ne!(first_val, t.get_element(i));
-    /// }
-    /// ```
-    pub fn random_uniform_n_msb_tensor<Scalar: RandomGenerable<UniformMsb>>(
-        &mut self,
-        size: usize,
-        n: usize,
-    ) -> Tensor<Vec<Scalar>> {
-        Scalar::generate_tensor(self, UniformMsb { n }, size)
     }
 
     /// Generates a random uniform unsigned integer with probability `1-prob_zero`, and a zero value
@@ -499,60 +265,6 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         prob_zero: f32,
     ) -> Scalar {
         Scalar::generate_one(self, UniformWithZeros { prob_zero })
-    }
-
-    /// Fills an `AsMutTensor` value with random values uniform with probability `prob` and zero
-    /// with probability `1-prob`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut tensor = Tensor::allocate(10 as u8, 100);
-    /// generator.fill_tensor_with_random_uniform_with_zeros(&mut tensor, 0.5);
-    /// ```
-    pub fn fill_tensor_with_random_uniform_with_zeros<Scalar, Tensorable>(
-        &mut self,
-        output: &mut Tensorable,
-        prob_zero: f32,
-    ) where
-        Scalar: RandomGenerable<UniformWithZeros>,
-        Tensorable: AsMutTensor<Element = Scalar>,
-    {
-        output.as_mut_tensor().iter_mut().for_each(|s| {
-            *s = self.random_uniform_with_zeros(prob_zero);
-        });
-    }
-
-    /// Generates a tensor of a given size, whose coefficients are random uniform with probability
-    /// `1-prob_zero`, and zero with probability `prob_zero`.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let t: Tensor<Vec<u64>> = generator.random_uniform_with_zeros_tensor(10, 0.);
-    /// assert_eq!(t.len(), 10);
-    /// t.iter().for_each(|a| assert_ne!(*a, 0));
-    /// let t: Tensor<Vec<u64>> = generator.random_uniform_with_zeros_tensor(10, 1.);
-    /// t.iter().for_each(|a| assert_eq!(*a, 0));
-    /// ```
-    pub fn random_uniform_with_zeros_tensor<Scalar: RandomGenerable<UniformWithZeros>>(
-        &mut self,
-        size: usize,
-        prob_zero: f32,
-    ) -> Tensor<Vec<Scalar>> {
-        (0..size)
-            .map(|_| self.random_uniform_with_zeros(prob_zero))
-            .collect()
     }
 
     /// Generates two floating point values drawn from a gaussian distribution with input mean and
@@ -582,45 +294,6 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         (Scalar, Scalar): RandomGenerable<Gaussian<Float>>,
     {
         <(Scalar, Scalar)>::generate_one(self, Gaussian { std, mean })
-    }
-
-    /// Fills an `AsMutTensor` value with random gaussian values.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut tensor = Tensor::allocate(1000. as f32, 100);
-    /// generator.fill_tensor_with_random_gaussian(&mut tensor, 0., 1.);
-    /// tensor.iter().for_each(|t| assert_ne!(*t, 1000.));
-    /// ```
-    pub fn fill_tensor_with_random_gaussian<Float, Scalar, Tensorable>(
-        &mut self,
-        output: &mut Tensorable,
-        mean: Float,
-        std: Float,
-    ) where
-        Float: FloatingPoint,
-        (Scalar, Scalar): RandomGenerable<Gaussian<Float>>,
-        Tensorable: AsMutTensor<Element = Scalar>,
-    {
-        output
-            .as_mut_tensor()
-            .as_mut_slice()
-            .chunks_mut(2)
-            .for_each(|s| {
-                let (g1, g2) = <(Scalar, Scalar)>::generate_one(self, Gaussian { std, mean });
-                if let Some(elem) = s.get_mut(0) {
-                    *elem = g1;
-                }
-                if let Some(elem) = s.get_mut(1) {
-                    *elem = g2;
-                }
-            });
     }
 
     pub fn fill_slice_with_random_gaussian<Float, Scalar>(
@@ -663,50 +336,14 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
             }
         });
     }
-
-    /// Generates a new tensor of floating point values, randomly sampled from a gaussian
-    /// distribution:
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use concrete_csprng::generators::SoftwareRandomGenerator;
-    /// use concrete_csprng::seeders::Seed;
-    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
-    /// use tfhe::core_crypto::commons::math::tensor::Tensor;
-    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let tensor: Tensor<Vec<f32>> = generator.random_gaussian_tensor(10_000, 0. as f32, 1. as f32);
-    /// assert_eq!(tensor.len(), 10_000);
-    /// tensor.iter().for_each(|a| assert!((*a).abs() <= 6.));
-    /// ```
-    pub fn random_gaussian_tensor<Float, Scalar>(
-        &mut self,
-        size: usize,
-        mean: Float,
-        std: Float,
-    ) -> Tensor<Vec<Scalar>>
-    where
-        Float: FloatingPoint,
-        (Scalar, Scalar): RandomGenerable<Gaussian<Float>>,
-        Scalar: Numeric,
-    {
-        let mut tensor = Tensor::allocate(Scalar::ZERO, size);
-        self.fill_tensor_with_random_gaussian(&mut tensor, mean, std);
-        tensor
-    }
 }
 
-#[cfg(feature = "__commons_parallel")]
 impl<G: ParallelByteRandomGenerator> RandomGenerator<G> {
     /// Tries to fork the current generator into `n_child` generator bounded to `bytes_per_child`,
     /// as a parallel iterator.
     ///
     /// If `n_child*bytes_per_child` exceeds the bound of the current generator, the method
     /// returns `None`.
-    ///
-    /// # Notes
-    ///
-    /// This method necessitates the "__commons_parallel" feature to be used.
     ///
     /// # Example
     ///

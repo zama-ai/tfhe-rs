@@ -99,7 +99,8 @@ impl Shortint {
         carry_modulus: usize,
     ) -> ShortintParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
-        use crate::core_crypto::prelude::*;
+        use crate::core_crypto::specification::dispersion::*;
+        use crate::core_crypto::specification::parameters::*;
         ShortintParameters(crate::shortint::Parameters {
             lwe_dimension: LweDimension(lwe_dimension),
             glwe_dimension: GlweDimension(glwe_dimension),
@@ -131,12 +132,12 @@ impl Shortint {
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
 
-        let constant_seeder = Box::new(js_wasm_seeder::ConstantSeeder::new(
+        let mut constant_seeder = Box::new(js_wasm_seeder::ConstantSeeder::new(
             crate::core_crypto::commons::math::random::Seed(seed),
         ));
 
         let mut tmp_shortint_engine =
-            crate::shortint::engine::ShortintEngine::new_from_seeder(constant_seeder);
+            crate::shortint::engine::ShortintEngine::new_from_seeder(constant_seeder.as_mut());
 
         tmp_shortint_engine
             .new_client_key(parameters.0.to_owned())

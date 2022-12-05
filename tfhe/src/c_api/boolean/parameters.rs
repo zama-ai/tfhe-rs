@@ -1,7 +1,7 @@
 use crate::c_api::utils::*;
-use crate::core_crypto::prelude::{
+use crate::core_crypto::specification::dispersion::StandardDev;
+use crate::core_crypto::specification::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
-    StandardDev,
 };
 use std::os::raw::c_int;
 

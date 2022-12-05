@@ -1,8 +1,5 @@
 #![cfg_attr(feature = "__wasm_api", allow(dead_code))]
-#![cfg_attr(
-    feature = "backend_fft_nightly_avx512",
-    feature(stdsimd, avx512_target_feature)
-)]
+#![cfg_attr(feature = "nightly-avx512", feature(stdsimd, avx512_target_feature))]
 
 #[cfg(feature = "__c_api")]
 pub mod c_api;

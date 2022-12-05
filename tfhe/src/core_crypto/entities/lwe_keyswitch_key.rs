@@ -165,7 +165,7 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKey<C> {
         self.input_key_element_encrypted_size()
     }
 
-    /// Unimplement for [`LweKeyswitchKeyBase`]. At the moment it does not make sense to
+    /// Unimplement for [`LweKeyswitchKey`]. At the moment it does not make sense to
     /// return "sub" keyswitch keys.
     fn get_self_view_creation_metadata(&self) {
         unimplemented!(
@@ -185,34 +185,4 @@ impl<C: ContainerMut> ContiguousEntityContainerMut for LweKeyswitchKey<C> {
     type SelfMutView<'this> = DummyCreateFrom
     where
         Self: 'this;
-}
-
-// TODO REFACTOR
-// Remove the back and forth conversions
-impl From<LweKeyswitchKeyOwned<u64>> for crate::core_crypto::prelude::LweKeyswitchKey64 {
-    fn from(new_lwe_keyswitch_key: LweKeyswitchKeyOwned<u64>) -> Self {
-        use crate::core_crypto::commons::crypto::lwe::LweKeyswitchKey as PrivateLweKeyswitchKey;
-        use crate::core_crypto::prelude::LweKeyswitchKey64;
-        LweKeyswitchKey64(PrivateLweKeyswitchKey::from_container(
-            new_lwe_keyswitch_key.data,
-            new_lwe_keyswitch_key.decomp_base_log,
-            new_lwe_keyswitch_key.decomp_level_count,
-            new_lwe_keyswitch_key.output_lwe_size.to_lwe_dimension(),
-        ))
-    }
-}
-
-impl From<crate::core_crypto::prelude::LweKeyswitchKey64> for LweKeyswitchKeyOwned<u64> {
-    fn from(old_lwe_keyswitch_key: crate::core_crypto::prelude::LweKeyswitchKey64) -> Self {
-        use crate::core_crypto::commons::math::tensor::IntoTensor;
-        let decomp_base_log = old_lwe_keyswitch_key.0.decomposition_base_log();
-        let decomp_level_count = old_lwe_keyswitch_key.0.decomposition_levels_count();
-        let output_lwe_size = old_lwe_keyswitch_key.0.after_key_size().to_lwe_size();
-        LweKeyswitchKeyOwned::<u64>::from_container(
-            old_lwe_keyswitch_key.0.into_tensor().into_container(),
-            decomp_base_log,
-            decomp_level_count,
-            output_lwe_size,
-        )
-    }
 }

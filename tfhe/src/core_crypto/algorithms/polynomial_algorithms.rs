@@ -1,9 +1,9 @@
 #![allow(deprecated)] // For MonomialDegree for now
 use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::math::polynomial::MonomialDegree;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::specification::parameters::MonomialDegree;
 
 pub fn update_polynomial_with_wrapping_add<Scalar, OutputCont, InputCont>(
     lhs: &mut Polynomial<OutputCont>,

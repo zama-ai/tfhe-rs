@@ -11,7 +11,7 @@ use crate::core_crypto::commons::traits::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{
+use crate::core_crypto::specification::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
 };
 use aligned_vec::CACHELINE_ALIGN;
@@ -452,7 +452,7 @@ fn collect_next_term<'a, Scalar: UnsignedTorus>(
 ///  - if `is_output_uninit` is false, `output_fourier` must not hold any uninitialized values.
 ///  - `is_x86_feature_detected!("avx512f")` must be true.
 #[cfg(all(
-    feature = "backend_fft_nightly_avx512",
+    feature = "nightly-avx512",
     any(target_arch = "x86_64", target_arch = "x86")
 ))]
 #[target_feature(enable = "avx512f")]
@@ -614,7 +614,7 @@ unsafe fn update_with_fmadd(
     #[allow(clippy::type_complexity)]
     let ptr_fn = || -> unsafe fn(&mut [MaybeUninit<c64>], &[c64], &[c64], bool) {
         #[cfg(all(
-            feature = "backend_fft_nightly_avx512",
+            feature = "nightly-avx512",
             any(target_arch = "x86_64", target_arch = "x86")
         ))]
         if is_x86_feature_detected!("avx512f") {
