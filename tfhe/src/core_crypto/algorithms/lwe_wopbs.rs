@@ -1,5 +1,5 @@
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;

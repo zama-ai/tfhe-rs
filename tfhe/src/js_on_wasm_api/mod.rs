@@ -9,8 +9,7 @@ pub mod boolean;
 pub use boolean::*;
 
 pub(self) mod js_wasm_seeder {
-    use crate::core_crypto::commons::math::random::Seed;
-    use crate::core_crypto::prelude::Seeder;
+    use crate::core_crypto::commons::math::random::{Seed, Seeder};
 
     const SEED_BYTES_COUNT: usize = 16;
 

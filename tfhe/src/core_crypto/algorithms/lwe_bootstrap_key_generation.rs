@@ -1,5 +1,5 @@
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
@@ -199,131 +199,20 @@ where
 }
 
 #[cfg(test)]
-mod test {
-    use crate::core_crypto::algorithms::generate_lwe_bootstrap_key;
-    use crate::core_crypto::commons::crypto::bootstrap::StandardBootstrapKey;
-    use crate::core_crypto::commons::crypto::secret::generators::{
-        DeterministicSeeder, EncryptionRandomGenerator,
-    };
-    use crate::core_crypto::commons::crypto::secret::{GlweSecretKey, LweSecretKey};
-    use crate::core_crypto::commons::math::random::Seed;
-    use crate::core_crypto::commons::math::tensor::*;
-    use crate::core_crypto::commons::math::torus::UnsignedTorus;
-    use crate::core_crypto::commons::test_tools::new_secret_random_generator;
-    use crate::core_crypto::entities::{
-        GlweSecretKey as NewGlweSecretKey, LweBootstrapKeyOwned, LweSecretKey as NewLweSecretKey,
-    };
-    use crate::core_crypto::prelude::{
-        DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
-        StandardDev,
-    };
-    use concrete_csprng::generators::SoftwareRandomGenerator;
-
-    fn test_refactored_bsk_equivalence<T: UnsignedTorus + Send + Sync>() {
-        for _ in 0..10 {
-            let lwe_dim =
-                LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
-            let glwe_dim =
-                GlweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
-            let poly_size = PolynomialSize(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
-            let level = DecompositionLevelCount(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
-            let base_log = DecompositionBaseLog(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
-            let mask_seed = Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
-            let deterministic_seeder_seed =
-                Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
-
-            let mut secret_generator = new_secret_random_generator();
-            let lwe_sk = LweSecretKey::generate_binary(lwe_dim, &mut secret_generator);
-            let glwe_sk =
-                GlweSecretKey::generate_binary(glwe_dim, poly_size, &mut secret_generator);
-
-            let mut bsk = StandardBootstrapKey::allocate(
-                T::ZERO,
-                glwe_dim.to_glwe_size(),
-                poly_size,
-                level,
-                base_log,
-                lwe_dim,
-            );
-
-            let mut encryption_generator =
-                EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(
-                    mask_seed,
-                    &mut DeterministicSeeder::<SoftwareRandomGenerator>::new(
-                        deterministic_seeder_seed,
-                    ),
-                );
-
-            bsk.fill_with_new_key(
-                &lwe_sk,
-                &glwe_sk,
-                StandardDev::from_standard_dev(10.),
-                &mut encryption_generator,
-            );
-
-            let mut refactored_bsk = LweBootstrapKeyOwned::new(
-                T::ZERO,
-                glwe_dim.to_glwe_size(),
-                poly_size,
-                base_log,
-                level,
-                lwe_dim,
-            );
-
-            let mut encryption_generator =
-                EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(
-                    mask_seed,
-                    &mut DeterministicSeeder::<SoftwareRandomGenerator>::new(
-                        deterministic_seeder_seed,
-                    ),
-                );
-
-            generate_lwe_bootstrap_key(
-                &NewLweSecretKey::from_container(lwe_sk.as_tensor().as_slice()),
-                &NewGlweSecretKey::from_container(glwe_sk.as_tensor().as_slice(), poly_size),
-                &mut refactored_bsk,
-                StandardDev::from_standard_dev(10.),
-                &mut encryption_generator,
-            );
-
-            assert_eq!(bsk.as_tensor().as_slice(), refactored_bsk.as_ref());
-        }
-    }
-
-    #[test]
-    fn test_refactored_bsk_u32() {
-        test_refactored_bsk_equivalence::<u32>()
-    }
-
-    #[test]
-    fn test_refactored_bsk_u64() {
-        test_refactored_bsk_equivalence::<u64>()
-    }
-}
-
-#[cfg(test)]
 mod parallel_test {
     use crate::core_crypto::algorithms::{
         allocate_and_generate_new_binary_glwe_secret_key,
         allocate_and_generate_new_binary_lwe_secret_key, generate_lwe_bootstrap_key,
         par_generate_lwe_bootstrap_key,
     };
-    use crate::core_crypto::commons::crypto::secret::generators::{
-        DeterministicSeeder, EncryptionRandomGenerator,
-    };
+    use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
     use crate::core_crypto::commons::math::random::Seed;
     use crate::core_crypto::commons::math::torus::UnsignedTorus;
     use crate::core_crypto::commons::test_tools::new_secret_random_generator;
     use crate::core_crypto::entities::LweBootstrapKeyOwned;
-    use crate::core_crypto::prelude::{
+    use crate::core_crypto::specification::dispersion::StandardDev;
+    use crate::core_crypto::specification::parameters::{
         DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
-        StandardDev,
     };
     use concrete_csprng::generators::SoftwareRandomGenerator;
 
