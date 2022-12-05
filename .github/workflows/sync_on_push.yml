@@ -1,0 +1,30 @@
+# Sync repos
+name: Sync repos
+
+on:
+  push:
+    branches:
+      - 'main'
+  workflow_dispatch:
+
+jobs:
+  sync-repo:
+    if: ${{ github.repository == 'zama-ai/tfhe-rs' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Save repo
+        uses: actions/upload-artifact@v3
+        with:
+          name: repo-archive
+          path: '.'
+      - name: git-sync
+        uses: wei/git-sync@v3
+        with:
+          source_repo: "zama-ai/tfhe-rs"
+          source_branch: "main"
+          destination_repo: ${{ secrets.SYNC_DEST_REPO }}
+          destination_branch: "main"
