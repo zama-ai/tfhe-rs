@@ -1,5 +1,5 @@
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
-use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::ByteRandomGenerator;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
@@ -116,7 +116,13 @@ pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>
         output_glwe_ciphertext_list.polynomial_size().0
             * output_glwe_ciphertext_list.glwe_ciphertext_count().0
             == input_plaintext_list.plaintext_count().0,
-        "TODO error message",
+        "Mismatch between required number of plaintexts: {} ({:?} * {:?}) and input \
+        PlaintextCount: {:?}",
+        output_glwe_ciphertext_list.polynomial_size().0
+            * output_glwe_ciphertext_list.glwe_ciphertext_count().0,
+        output_glwe_ciphertext_list.polynomial_size(),
+        output_glwe_ciphertext_list.glwe_ciphertext_count(),
+        input_plaintext_list.plaintext_count()
     );
     assert!(
         output_glwe_ciphertext_list.glwe_size().to_glwe_dimension()
@@ -161,15 +167,21 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
 {
     assert!(
         output_plaintext_list.plaintext_count().0 == input_glwe_ciphertext.polynomial_size().0,
-        "TODO Error message"
+        "Mismatched output PlaintextCount {:?} and input PolynomialSize {:?}",
+        output_plaintext_list.plaintext_count(),
+        input_glwe_ciphertext.polynomial_size()
     );
     assert!(
         glwe_secret_key.glwe_dimension() == input_glwe_ciphertext.glwe_size().to_glwe_dimension(),
-        "TODO Error message"
+        "Mismatched GlweDimension between glwe_secret_key {:?} and input_glwe_ciphertext {:?}",
+        glwe_secret_key.glwe_dimension(),
+        input_glwe_ciphertext.glwe_size().to_glwe_dimension()
     );
     assert!(
         glwe_secret_key.polynomial_size() == input_glwe_ciphertext.polynomial_size(),
-        "TODO Error message"
+        "Mismatched PolynomialSize between glwe_secret_key {:?} and input_glwe_ciphertext {:?}",
+        glwe_secret_key.polynomial_size(),
+        input_glwe_ciphertext.polynomial_size()
     );
 
     let (mask, body) = input_glwe_ciphertext.get_mask_and_body();
@@ -197,16 +209,26 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
         output_plaintext_list.plaintext_count().0
             == input_glwe_ciphertext_list.polynomial_size().0
                 * input_glwe_ciphertext_list.glwe_ciphertext_count().0,
-        "TODO Error message"
+        "Mismatched output PlaintextCount {:?} and input PolynomialSize ({:?}) * \
+        GlweCiphertextCount ({:?}) = {:?}",
+        output_plaintext_list.plaintext_count(),
+        input_glwe_ciphertext_list.polynomial_size(),
+        input_glwe_ciphertext_list.glwe_ciphertext_count(),
+        input_glwe_ciphertext_list.polynomial_size().0
+            * input_glwe_ciphertext_list.glwe_ciphertext_count().0
     );
     assert!(
         glwe_secret_key.glwe_dimension()
             == input_glwe_ciphertext_list.glwe_size().to_glwe_dimension(),
-        "TODO Error message"
+        "Mismatched GlweDimension between glwe_secret_key {:?} and input_glwe_ciphertext_list {:?}",
+        glwe_secret_key.glwe_dimension(),
+        input_glwe_ciphertext_list.glwe_size().to_glwe_dimension()
     );
     assert!(
         glwe_secret_key.polynomial_size() == input_glwe_ciphertext_list.polynomial_size(),
-        "TODO Error message"
+        "Mismatched PolynomialSize between glwe_secret_key {:?} and input_glwe_ciphertext_list {:?}",
+        glwe_secret_key.polynomial_size(),
+        input_glwe_ciphertext_list.polynomial_size()
     );
 
     for (ciphertext, mut output_sublist) in input_glwe_ciphertext_list

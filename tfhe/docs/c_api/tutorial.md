@@ -16,6 +16,12 @@ This library exposes a C binding to the `TFHE-rs` primitives to implement _Fully
 RUSTFLAGS="-C target-cpu=native" cargo build --release --features=x86_64-unix,boolean-c-api,shortint-c-api -p tfhe
 ```
 
+or on a Unix aarch64 machine using the following command
+
+```shell
+RUSTFLAGS="-C target-cpu=native" cargo build --release --features=aarch64-unix,boolean-c-api,shortint-c-api -p tfhe
+```
+
 All features are opt-in, but for simplicity here, the C API is enabled for boolean and shortint.
 
 The `tfhe.h` header as well as the static (.a) and dynamic (.so) `libtfhe` binaries can then be found in "${REPO\_ROOT}/target/release/"

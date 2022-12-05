@@ -1,6 +1,8 @@
 pub use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
+use crate::core_crypto::specification::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount,
+};
 use dyn_stack::{DynArray, DynStack};
 use std::iter::Map;
 use std::slice::IterMut;

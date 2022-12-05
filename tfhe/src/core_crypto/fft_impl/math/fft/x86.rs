@@ -85,7 +85,7 @@ pub unsafe fn mm256_cvtpd_epi64(x: __m256d) -> __m256i {
 /// # Safety
 ///
 ///  - `is_x86_feature_detected!("avx2")` must be true.
-#[cfg(feature = "backend_fft_nightly_avx512")]
+#[cfg(feature = "nightly-avx512")]
 #[inline(always)]
 pub unsafe fn mm512_cvtpd_epi64(x: __m512d) -> __m512i {
     // reinterpret the bits as u64 values
@@ -171,7 +171,7 @@ pub unsafe fn mm256_cvtepi64_pd(x: __m256i) -> __m256d {
 /// # Safety
 ///
 ///  - `is_x86_feature_detected!("avx512dq")` must be true.
-#[cfg(feature = "backend_fft_nightly_avx512")]
+#[cfg(feature = "nightly-avx512")]
 #[target_feature(enable = "avx512dq")]
 #[inline]
 pub unsafe fn mm512_cvtepi64_pd(x: __m512i) -> __m512d {
@@ -193,7 +193,7 @@ pub unsafe fn mm512_cvtepi64_pd(x: __m512i) -> __m512d {
 /// # Safety
 ///
 ///  - `is_x86_feature_detected!("avx512f")` must be true.
-#[cfg(feature = "backend_fft_nightly_avx512")]
+#[cfg(feature = "nightly-avx512")]
 #[target_feature(enable = "avx512f")]
 pub unsafe fn convert_forward_integer_u32_avx512f(
     out: &mut [MaybeUninit<c64>],
@@ -262,7 +262,7 @@ pub unsafe fn convert_forward_integer_u32_avx512f(
 ///
 ///  - `is_x86_feature_detected!("avx512f")` must be true.
 ///  - `is_x86_feature_detected!("avx512dq")` must be true.
-#[cfg(feature = "backend_fft_nightly_avx512")]
+#[cfg(feature = "nightly-avx512")]
 #[target_feature(enable = "avx512f,avx512dq")]
 pub unsafe fn convert_forward_integer_u64_avx512f_avx512dq(
     out: &mut [MaybeUninit<c64>],
@@ -470,7 +470,7 @@ pub unsafe fn convert_forward_integer_u64_avx2_fma(
 ///  - `w_re.add(i)`, `w_im.add(i)`, and `inp.add(i)` must point to an array of at least 8
 ///  elements.
 ///  - `is_x86_feature_detected!("avx512f")` must be true.
-#[cfg(feature = "backend_fft_nightly_avx512")]
+#[cfg(feature = "nightly-avx512")]
 #[inline(always)]
 pub unsafe fn convert_torus_prologue_avx512f(
     normalization: __m512d,
@@ -525,7 +525,7 @@ pub unsafe fn convert_torus_prologue_avx512f(
 ///
 ///  - Same preconditions as [`convert_add_backward_torus`].
 ///  - `is_x86_feature_detected!("avx512f")` must be true.
-#[cfg(feature = "backend_fft_nightly_avx512")]
+#[cfg(feature = "nightly-avx512")]
 #[target_feature(enable = "avx512f")]
 pub unsafe fn convert_add_backward_torus_u32_avx512f(
     out_re: &mut [MaybeUninit<u32>],
@@ -579,7 +579,7 @@ pub unsafe fn convert_add_backward_torus_u32_avx512f(
 ///
 ///  - Same preconditions as [`convert_add_backward_torus`].
 ///  - `is_x86_feature_detected!("avx512f")` must be true.
-#[cfg(feature = "backend_fft_nightly_avx512")]
+#[cfg(feature = "nightly-avx512")]
 #[target_feature(enable = "avx512f")]
 pub unsafe fn convert_add_backward_torus_u64_avx512f(
     out_re: &mut [MaybeUninit<u64>],
@@ -805,7 +805,7 @@ pub fn convert_forward_integer_u32(
     // this is a function that returns a function pointer to the right simd function
     #[allow(clippy::type_complexity)]
     let ptr_fn = || -> unsafe fn(&mut [MaybeUninit<c64>], &[u32], &[u32], TwistiesView<'_>) {
-        #[cfg(feature = "backend_fft_nightly_avx512")]
+        #[cfg(feature = "nightly-avx512")]
         if is_x86_feature_detected!("avx512f") {
             return convert_forward_integer_u32_avx512f;
         }
@@ -834,7 +834,7 @@ pub fn convert_forward_integer_u64(
     #[allow(clippy::type_complexity)]
     // this is a function that returns a function pointer to the right simd function
     let ptr_fn = || -> unsafe fn(&mut [MaybeUninit<c64>], &[u64], &[u64], TwistiesView<'_>) {
-        #[cfg(feature = "backend_fft_nightly_avx512")]
+        #[cfg(feature = "nightly-avx512")]
         if is_x86_feature_detected!("avx512f") & is_x86_feature_detected!("avx512dq") {
             return convert_forward_integer_u64_avx512f_avx512dq;
         }
@@ -862,8 +862,6 @@ pub fn convert_forward_integer_u64(
 /// # Safety
 ///
 /// - `out_re` and `out_im` must not hold any uninitialized values.
-// TODO: revert when backwards as torus intrisics are fixed
-#[allow(dead_code)]
 pub fn convert_add_backward_torus_u32(
     out_re: &mut [MaybeUninit<u32>],
     out_im: &mut [MaybeUninit<u32>],
@@ -878,7 +876,7 @@ pub fn convert_add_backward_torus_u32(
         &[c64],
         TwistiesView<'_>,
     ) {
-        #[cfg(feature = "backend_fft_nightly_avx512")]
+        #[cfg(feature = "nightly-avx512")]
         if is_x86_feature_detected!("avx512f") {
             return convert_add_backward_torus_u32_avx512f;
         }
@@ -906,8 +904,6 @@ pub fn convert_add_backward_torus_u32(
 /// # Safety
 ///
 /// - `out_re` and `out_im` must not hold any uninitialized values.
-// TODO: revert when backwards as torus intrisics are fixed
-#[allow(dead_code)]
 pub fn convert_add_backward_torus_u64(
     out_re: &mut [MaybeUninit<u64>],
     out_im: &mut [MaybeUninit<u64>],
@@ -922,7 +918,7 @@ pub fn convert_add_backward_torus_u64(
         &[c64],
         TwistiesView<'_>,
     ) {
-        #[cfg(feature = "backend_fft_nightly_avx512")]
+        #[cfg(feature = "nightly-avx512")]
         if is_x86_feature_detected!("avx512f") {
             return convert_add_backward_torus_u64_avx512f;
         }
@@ -1022,7 +1018,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "backend_fft_nightly_avx512")]
+    #[cfg(feature = "nightly-avx512")]
     #[test]
     fn add_backward_torus_avx512() {
         let n = 1024;
