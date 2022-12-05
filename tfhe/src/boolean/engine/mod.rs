@@ -3,12 +3,14 @@ use crate::boolean::parameters::BooleanParameters;
 use crate::boolean::{ClientKey, PublicKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::*;
 use std::cell::RefCell;
 pub mod bootstrapping;
-use crate::boolean::engine::bootstrapping::{BootstrapKey, Bootstrapper};
-use crate::core_crypto::backends::default::engines::ActivatedRandomGenerator;
-use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
+use crate::boolean::engine::bootstrapping::{Bootstrapper, ServerKey};
+use crate::core_crypto::commons::generators::{
+    DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
+};
+use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
+use crate::core_crypto::specification::parameters::*;
 use crate::seeders::new_seeder;
 
 pub(crate) trait BinaryGatesEngine<L, R, K> {
@@ -43,25 +45,25 @@ thread_local! {
     static BOOLEAN_ENGINE: RefCell<BooleanEngine> = RefCell::new(BooleanEngine::new());
 }
 
+pub struct BooleanEngine {
+    /// A structure containing a single CSPRNG to generate secret key coefficients.
+    secret_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
+    /// A structure containing two CSPRNGs to generate material for encryption like public masks
+    /// and secret errors.
+    ///
+    /// The [`EncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
+    /// generate mask coefficients and one privately seeded used to generate errors during
+    /// encryption.
+    encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    bootstrapper: Bootstrapper,
+}
+
 impl WithThreadLocalEngine for BooleanEngine {
     fn with_thread_local_mut<R, F>(func: F) -> R
     where
         F: FnOnce(&mut Self) -> R,
     {
         BOOLEAN_ENGINE.with(|engine_cell| func(&mut engine_cell.borrow_mut()))
-    }
-}
-
-pub struct BooleanEngine {
-    pub(crate) engine: DefaultEngine,
-    bootstrapper: Bootstrapper,
-}
-
-impl BooleanEngine {
-    pub fn create_server_key(&mut self, cks: &ClientKey) -> BootstrapKey {
-        let server_key = self.bootstrapper.new_server_key(cks).unwrap();
-
-        server_key
     }
 }
 
@@ -73,14 +75,14 @@ impl BooleanEngine {
         // generate the lwe secret key
         let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             parameters.lwe_dimension,
-            self.engine.get_secret_generator(),
+            &mut self.secret_generator,
         );
 
         // generate the glwe secret key
         let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
             parameters.glwe_dimension,
             parameters.polynomial_size,
-            self.engine.get_secret_generator(),
+            &mut self.secret_generator,
         );
 
         ClientKey {
@@ -88,6 +90,12 @@ impl BooleanEngine {
             glwe_secret_key,
             parameters,
         }
+    }
+
+    pub fn create_server_key(&mut self, cks: &ClientKey) -> ServerKey {
+        let server_key = self.bootstrapper.new_server_key(cks).unwrap();
+
+        server_key
     }
 
     pub fn create_public_key(&mut self, client_key: &ClientKey) -> PublicKey {
@@ -102,7 +110,7 @@ impl BooleanEngine {
             &client_key.lwe_secret_key,
             zero_encryption_count,
             client_key.parameters.lwe_modular_std_dev,
-            self.engine.get_encryption_generator(),
+            &mut self.encryption_generator,
         );
 
         PublicKey {
@@ -128,7 +136,7 @@ impl BooleanEngine {
             &cks.lwe_secret_key,
             plain,
             cks.parameters.lwe_modular_std_dev,
-            self.engine.get_encryption_generator(),
+            &mut self.encryption_generator,
         );
 
         Ciphertext::Encrypted(ct)
@@ -149,7 +157,7 @@ impl BooleanEngine {
             &pks.lwe_public_key,
             &mut output,
             plain,
-            self.engine.get_secret_generator(),
+            &mut self.secret_generator,
         );
 
         Ciphertext::Encrypted(output)
@@ -203,24 +211,24 @@ impl Default for BooleanEngine {
 
 impl BooleanEngine {
     pub fn new() -> Self {
-        let root_seeder = new_seeder();
+        let mut root_seeder = new_seeder();
 
-        Self::new_from_seeder(root_seeder)
+        Self::new_from_seeder(root_seeder.as_mut())
     }
 
-    pub fn new_from_seeder(mut root_seeder: Box<dyn Seeder>) -> Self {
+    pub fn new_from_seeder(root_seeder: &mut dyn Seeder) -> Self {
         let mut deterministic_seeder =
             DeterministicSeeder::<ActivatedRandomGenerator>::new(root_seeder.seed());
 
-        let default_engine_seeder = Box::new(DeterministicSeeder::<ActivatedRandomGenerator>::new(
-            deterministic_seeder.seed(),
-        ));
-
-        let engine =
-            DefaultEngine::new(default_engine_seeder).expect("Failed to create a DefaultEngine");
+        // Note that the operands are evaluated from left to right for Rust Struct expressions
+        // See: https://doc.rust-lang.org/stable/reference/expressions.html?highlight=left#evaluation-order-of-operands
         Self {
-            engine,
-            bootstrapper: Default::default(),
+            secret_generator: SecretRandomGenerator::<_>::new(deterministic_seeder.seed()),
+            encryption_generator: EncryptionRandomGenerator::<_>::new(
+                deterministic_seeder.seed(),
+                &mut deterministic_seeder,
+            ),
+            bootstrapper: Bootstrapper::new(&mut deterministic_seeder),
         }
     }
 
@@ -228,7 +236,7 @@ impl BooleanEngine {
     fn convert_into_lwe_ciphertext_32(
         &mut self,
         ct: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> LweCiphertextOwned<u32> {
         match ct {
             Ciphertext::Encrypted(ct_ct) => ct_ct.clone(),
@@ -255,7 +263,7 @@ impl BooleanEngine {
         ct_condition: &Ciphertext,
         ct_then: &Ciphertext,
         ct_else: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Ciphertext {
         // In theory MUX gate = (ct_condition AND ct_then) + (!ct_condition AND ct_else)
 
@@ -342,12 +350,12 @@ impl BooleanEngine {
     }
 }
 
-impl BinaryGatesEngine<&Ciphertext, &Ciphertext, BootstrapKey> for BooleanEngine {
+impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
     fn and(
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -389,7 +397,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, BootstrapKey> for BooleanEngine
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -431,7 +439,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, BootstrapKey> for BooleanEngine
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -474,7 +482,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, BootstrapKey> for BooleanEngine
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -515,7 +523,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, BootstrapKey> for BooleanEngine
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -562,7 +570,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, BootstrapKey> for BooleanEngine
         &mut self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Ciphertext {
         match (ct_left, ct_right) {
             (Ciphertext::Trivial(message_left), Ciphertext::Trivial(message_right)) => {
@@ -608,12 +616,12 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, BootstrapKey> for BooleanEngine
     }
 }
 
-impl BinaryGatesAssignEngine<&mut Ciphertext, &Ciphertext, BootstrapKey> for BooleanEngine {
+impl BinaryGatesAssignEngine<&mut Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
     fn and_assign(
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.and(&ct_left_clone, ct_right, server_key);
@@ -623,7 +631,7 @@ impl BinaryGatesAssignEngine<&mut Ciphertext, &Ciphertext, BootstrapKey> for Boo
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.nand(&ct_left_clone, ct_right, server_key);
@@ -633,7 +641,7 @@ impl BinaryGatesAssignEngine<&mut Ciphertext, &Ciphertext, BootstrapKey> for Boo
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.nor(&ct_left_clone, ct_right, server_key);
@@ -643,7 +651,7 @@ impl BinaryGatesAssignEngine<&mut Ciphertext, &Ciphertext, BootstrapKey> for Boo
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.or(&ct_left_clone, ct_right, server_key);
@@ -653,7 +661,7 @@ impl BinaryGatesAssignEngine<&mut Ciphertext, &Ciphertext, BootstrapKey> for Boo
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.xor(&ct_left_clone, ct_right, server_key);
@@ -663,84 +671,79 @@ impl BinaryGatesAssignEngine<&mut Ciphertext, &Ciphertext, BootstrapKey> for Boo
         &mut self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.xnor(&ct_left_clone, ct_right, server_key);
     }
 }
 
-impl BinaryGatesAssignEngine<&mut Ciphertext, bool, BootstrapKey> for BooleanEngine {
-    fn and_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &BootstrapKey) {
+impl BinaryGatesAssignEngine<&mut Ciphertext, bool, ServerKey> for BooleanEngine {
+    fn and_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &ServerKey) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.and(&ct_left_clone, ct_right, server_key);
     }
 
-    fn nand_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &BootstrapKey) {
+    fn nand_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &ServerKey) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.nand(&ct_left_clone, ct_right, server_key);
     }
 
-    fn nor_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &BootstrapKey) {
+    fn nor_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &ServerKey) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.nor(&ct_left_clone, ct_right, server_key);
     }
 
-    fn or_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &BootstrapKey) {
+    fn or_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &ServerKey) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.or(&ct_left_clone, ct_right, server_key);
     }
 
-    fn xor_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &BootstrapKey) {
+    fn xor_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &ServerKey) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.xor(&ct_left_clone, ct_right, server_key);
     }
 
-    fn xnor_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &BootstrapKey) {
+    fn xnor_assign(&mut self, ct_left: &mut Ciphertext, ct_right: bool, server_key: &ServerKey) {
         let ct_left_clone = ct_left.clone();
         *ct_left = self.xnor(&ct_left_clone, ct_right, server_key);
     }
 }
 
-impl BinaryGatesAssignEngine<bool, &mut Ciphertext, BootstrapKey> for BooleanEngine {
-    fn and_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &BootstrapKey) {
+impl BinaryGatesAssignEngine<bool, &mut Ciphertext, ServerKey> for BooleanEngine {
+    fn and_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &ServerKey) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.and(ct_left, &ct_right_clone, server_key);
     }
 
-    fn nand_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &BootstrapKey) {
+    fn nand_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &ServerKey) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.nand(ct_left, &ct_right_clone, server_key);
     }
 
-    fn nor_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &BootstrapKey) {
+    fn nor_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &ServerKey) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.nor(ct_left, &ct_right_clone, server_key);
     }
 
-    fn or_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &BootstrapKey) {
+    fn or_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &ServerKey) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.or(ct_left, &ct_right_clone, server_key);
     }
 
-    fn xor_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &BootstrapKey) {
+    fn xor_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &ServerKey) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.xor(ct_left, &ct_right_clone, server_key);
     }
 
-    fn xnor_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &BootstrapKey) {
+    fn xnor_assign(&mut self, ct_left: bool, ct_right: &mut Ciphertext, server_key: &ServerKey) {
         let ct_right_clone = ct_right.clone();
         *ct_right = self.xnor(ct_left, &ct_right_clone, server_key);
     }
 }
 
-impl BinaryGatesEngine<&Ciphertext, bool, BootstrapKey> for BooleanEngine {
-    fn and(
-        &mut self,
-        ct_left: &Ciphertext,
-        ct_right: bool,
-        _server_key: &BootstrapKey,
-    ) -> Ciphertext {
+impl BinaryGatesEngine<&Ciphertext, bool, ServerKey> for BooleanEngine {
+    fn and(&mut self, ct_left: &Ciphertext, ct_right: bool, _server_key: &ServerKey) -> Ciphertext {
         if ct_right {
             // ct AND true = ct
             ct_left.clone()
@@ -754,7 +757,7 @@ impl BinaryGatesEngine<&Ciphertext, bool, BootstrapKey> for BooleanEngine {
         &mut self,
         ct_left: &Ciphertext,
         ct_right: bool,
-        _server_key: &BootstrapKey,
+        _server_key: &ServerKey,
     ) -> Ciphertext {
         if ct_right {
             // NOT (ct AND true) = NOT(ct)
@@ -765,12 +768,7 @@ impl BinaryGatesEngine<&Ciphertext, bool, BootstrapKey> for BooleanEngine {
         }
     }
 
-    fn nor(
-        &mut self,
-        ct_left: &Ciphertext,
-        ct_right: bool,
-        _server_key: &BootstrapKey,
-    ) -> Ciphertext {
+    fn nor(&mut self, ct_left: &Ciphertext, ct_right: bool, _server_key: &ServerKey) -> Ciphertext {
         if ct_right {
             // NOT (ct OR true) = NOT(true) = false
             self.trivial_encrypt(false)
@@ -780,12 +778,7 @@ impl BinaryGatesEngine<&Ciphertext, bool, BootstrapKey> for BooleanEngine {
         }
     }
 
-    fn or(
-        &mut self,
-        ct_left: &Ciphertext,
-        ct_right: bool,
-        _server_key: &BootstrapKey,
-    ) -> Ciphertext {
+    fn or(&mut self, ct_left: &Ciphertext, ct_right: bool, _server_key: &ServerKey) -> Ciphertext {
         if ct_right {
             // ct OR true = true
             self.trivial_encrypt(true)
@@ -795,12 +788,7 @@ impl BinaryGatesEngine<&Ciphertext, bool, BootstrapKey> for BooleanEngine {
         }
     }
 
-    fn xor(
-        &mut self,
-        ct_left: &Ciphertext,
-        ct_right: bool,
-        _server_key: &BootstrapKey,
-    ) -> Ciphertext {
+    fn xor(&mut self, ct_left: &Ciphertext, ct_right: bool, _server_key: &ServerKey) -> Ciphertext {
         if ct_right {
             // ct XOR true = NOT(ct)
             self.not(ct_left)
@@ -814,7 +802,7 @@ impl BinaryGatesEngine<&Ciphertext, bool, BootstrapKey> for BooleanEngine {
         &mut self,
         ct_left: &Ciphertext,
         ct_right: bool,
-        _server_key: &BootstrapKey,
+        _server_key: &ServerKey,
     ) -> Ciphertext {
         if ct_right {
             // NOT(ct XOR true) = NOT(NOT(ct)) = ct
@@ -826,58 +814,28 @@ impl BinaryGatesEngine<&Ciphertext, bool, BootstrapKey> for BooleanEngine {
     }
 }
 
-impl BinaryGatesEngine<bool, &Ciphertext, BootstrapKey> for BooleanEngine {
-    fn and(
-        &mut self,
-        ct_left: bool,
-        ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
-    ) -> Ciphertext {
+impl BinaryGatesEngine<bool, &Ciphertext, ServerKey> for BooleanEngine {
+    fn and(&mut self, ct_left: bool, ct_right: &Ciphertext, server_key: &ServerKey) -> Ciphertext {
         self.and(ct_right, ct_left, server_key)
     }
 
-    fn nand(
-        &mut self,
-        ct_left: bool,
-        ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
-    ) -> Ciphertext {
+    fn nand(&mut self, ct_left: bool, ct_right: &Ciphertext, server_key: &ServerKey) -> Ciphertext {
         self.nand(ct_right, ct_left, server_key)
     }
 
-    fn nor(
-        &mut self,
-        ct_left: bool,
-        ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
-    ) -> Ciphertext {
+    fn nor(&mut self, ct_left: bool, ct_right: &Ciphertext, server_key: &ServerKey) -> Ciphertext {
         self.nor(ct_right, ct_left, server_key)
     }
 
-    fn or(
-        &mut self,
-        ct_left: bool,
-        ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
-    ) -> Ciphertext {
+    fn or(&mut self, ct_left: bool, ct_right: &Ciphertext, server_key: &ServerKey) -> Ciphertext {
         self.or(ct_right, ct_left, server_key)
     }
 
-    fn xor(
-        &mut self,
-        ct_left: bool,
-        ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
-    ) -> Ciphertext {
+    fn xor(&mut self, ct_left: bool, ct_right: &Ciphertext, server_key: &ServerKey) -> Ciphertext {
         self.xor(ct_right, ct_left, server_key)
     }
 
-    fn xnor(
-        &mut self,
-        ct_left: bool,
-        ct_right: &Ciphertext,
-        server_key: &BootstrapKey,
-    ) -> Ciphertext {
+    fn xnor(&mut self, ct_left: bool, ct_right: &Ciphertext, server_key: &ServerKey) -> Ciphertext {
         self.xnor(ct_right, ct_left, server_key)
     }
 }

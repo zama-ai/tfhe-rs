@@ -68,23 +68,3 @@ impl<Scalar: Copy> LwePublicKeyOwned<Scalar> {
         )
     }
 }
-
-impl From<LwePublicKeyOwned<u64>> for crate::core_crypto::prelude::LwePublicKey64 {
-    fn from(new_key: LwePublicKeyOwned<u64>) -> Self {
-        use crate::core_crypto::commons::crypto::lwe::LweList as ImpLwePublicKey;
-        use crate::core_crypto::prelude::LwePublicKey64;
-
-        let lwe_size = new_key.lwe_size();
-        LwePublicKey64(ImpLwePublicKey::from_container(
-            new_key.into_container(),
-            lwe_size,
-        ))
-    }
-}
-
-impl From<crate::core_crypto::prelude::LwePublicKey64> for LwePublicKeyOwned<u64> {
-    fn from(old_key: crate::core_crypto::prelude::LwePublicKey64) -> Self {
-        let lwe_size = old_key.0.lwe_size();
-        LwePublicKeyOwned::from_container(old_key.0.into_container(), lwe_size)
-    }
-}

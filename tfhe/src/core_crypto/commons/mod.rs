@@ -36,7 +36,7 @@ macro_rules! modular_distance {
     };
 }
 
-pub mod crypto;
+pub mod generators;
 pub mod math;
 pub mod numeric;
 pub mod utils;
@@ -49,16 +49,17 @@ pub mod traits;
 pub mod test_tools {
     use rand::Rng;
 
-    use crate::core_crypto::commons::crypto::secret::generators::{
+    use crate::core_crypto::commons::generators::{
         EncryptionRandomGenerator, SecretRandomGenerator,
     };
     use crate::core_crypto::commons::math::random::{RandomGenerable, RandomGenerator, Uniform};
-    use crate::core_crypto::commons::math::tensor::{AsRefSlice, AsRefTensor};
     use crate::core_crypto::commons::math::torus::UnsignedTorus;
     use crate::core_crypto::commons::numeric::UnsignedInteger;
-    use crate::core_crypto::prelude::{
-        CiphertextCount, DecompositionBaseLog, DecompositionLevelCount, DispersionParameter,
-        GlweDimension, LweDimension, PlaintextCount, PolynomialSize,
+    use crate::core_crypto::commons::traits::*;
+    use crate::core_crypto::specification::dispersion::DispersionParameter;
+    use crate::core_crypto::specification::parameters::{
+        CiphertextCount, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
+        LweDimension, PlaintextCount, PolynomialSize,
     };
     use concrete_csprng::generators::SoftwareRandomGenerator;
     use concrete_csprng::seeders::{Seed, Seeder};
@@ -114,11 +115,11 @@ pub mod test_tools {
         second: &Second,
         dist: impl DispersionParameter,
     ) where
-        First: AsRefTensor<Element = Element>,
-        Second: AsRefTensor<Element = Element>,
+        First: Container<Element = Element>,
+        Second: Container<Element = Element>,
         Element: UnsignedTorus,
     {
-        for (x, y) in first.as_tensor().iter().zip(second.as_tensor().iter()) {
+        for (x, y) in first.as_ref().iter().zip(second.as_ref().iter()) {
             println!("{:?}, {:?}", *x, *y);
             println!("{}", dist.get_standard_dev());
             let distance: f64 = modular_distance(*x, *y).cast_into();
@@ -137,25 +138,25 @@ pub mod test_tools {
         second: &Second,
         dist: impl DispersionParameter,
     ) where
-        First: AsRefTensor<Element = Element>,
-        Second: AsRefTensor<Element = Element>,
+        First: Container<Element = Element>,
+        Second: Container<Element = Element>,
         Element: UnsignedTorus,
     {
-        use crate::core_crypto::commons::math::tensor::Tensor;
         use rand::distributions::{Distribution, Normal};
 
         let std_dev = dist.get_standard_dev();
         let confidence = 0.95;
-        let n_slots = first.as_tensor().len();
+        let n_slots = first.container_len();
 
         // allocate 2 slices: one for the error samples obtained, the second for fresh samples
         // according to the std_dev computed
-        let mut sdk_samples = Tensor::allocate(0.0_f64, n_slots);
+        let mut sdk_samples = vec![0.0_f64; n_slots];
 
         // recover the errors from each ciphertexts
-        sdk_samples.fill_with_two(first.as_tensor(), second.as_tensor(), |a, b| {
-            torus_modular_distance(*a, *b)
-        });
+        sdk_samples
+            .iter_mut()
+            .zip(first.as_ref().iter().zip(second.as_ref().iter()))
+            .for_each(|(out, (&lhs, &rhs))| *out = torus_modular_distance(lhs, rhs));
 
         // fill the theoretical sample vector according to std_dev using the rand crate
         let mut theoretical_samples: Vec<f64> = Vec::with_capacity(n_slots);

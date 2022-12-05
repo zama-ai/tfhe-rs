@@ -1,10 +1,12 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::{ClientKey, PLAINTEXT_TRUE};
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::math::fft::Fft;
-use crate::core_crypto::prelude::*;
-use crate::seeders::new_seeder;
+use core::mem::MaybeUninit;
+use dyn_stack::DynStack;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::error::Error;
 
@@ -25,7 +27,7 @@ impl Memory {
     ///   written
     fn as_buffers(
         &mut self,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> (GlweCiphertextView<'_, u32>, LweCiphertextMutView<'_, u32>) {
         let num_elem_in_accumulator = server_key.bootstrapping_key.glwe_size().0
             * server_key.bootstrapping_key.polynomial_size().0;
@@ -78,24 +80,56 @@ impl Memory {
 /// * `bootstrapping_key` - a public key, used to perform the bootstrapping operation.
 /// * `key_switching_key` - a public key, used to perform the key-switching operation.
 #[derive(Clone)]
-pub struct BootstrapKey {
-    pub(crate) standard_bootstraping_key: LweBootstrapKeyOwned<u32>,
+pub struct ServerKey {
     pub(crate) bootstrapping_key: FourierLweBootstrapKeyOwned,
     pub(crate) key_switching_key: LweKeyswitchKeyOwned<u32>,
+}
+
+#[derive(Default)]
+pub struct FftBuffers {
+    memory: Vec<MaybeUninit<u8>>,
+}
+
+impl FftBuffers {
+    pub fn new() -> Self {
+        FftBuffers { memory: Vec::new() }
+    }
+
+    pub fn resize(&mut self, capacity: usize) {
+        self.memory.resize_with(capacity, MaybeUninit::uninit);
+    }
+
+    pub fn stack(&mut self) -> DynStack<'_> {
+        DynStack::new(&mut self.memory)
+    }
 }
 
 /// Performs ciphertext bootstraps on the CPU
 pub(crate) struct Bootstrapper {
     memory: Memory,
-    engine: DefaultEngine,
-    fourier_engine: FftEngine,
+    /// A structure containing two CSPRNGs to generate material for encryption like public masks
+    /// and secret errors.
+    ///
+    /// The [`EncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
+    /// generate mask coefficients and one privately seeded used to generate errors during
+    /// encryption.
+    pub(crate) encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    pub(crate) fft_buffers: FftBuffers,
 }
 
 impl Bootstrapper {
+    pub fn new(seeder: &mut dyn Seeder) -> Self {
+        Bootstrapper {
+            memory: Default::default(),
+            encryption_generator: EncryptionRandomGenerator::<_>::new(seeder.seed(), seeder),
+            fft_buffers: Default::default(),
+        }
+    }
+
     pub(crate) fn new_server_key(
         &mut self,
         cks: &ClientKey,
-    ) -> Result<BootstrapKey, Box<dyn std::error::Error>> {
+    ) -> Result<ServerKey, Box<dyn std::error::Error>> {
         let standard_bootstraping_key: LweBootstrapKeyOwned<u32> =
             par_allocate_and_generate_new_lwe_bootstrap_key(
                 &cks.lwe_secret_key,
@@ -103,7 +137,7 @@ impl Bootstrapper {
                 cks.parameters.pbs_base_log,
                 cks.parameters.pbs_level,
                 cks.parameters.glwe_modular_std_dev,
-                self.engine.get_encryption_generator(),
+                &mut self.encryption_generator,
             );
 
         // creation of the bootstrapping key in the Fourier domain
@@ -117,12 +151,12 @@ impl Bootstrapper {
 
         let fft = Fft::new(standard_bootstraping_key.polynomial_size());
         let fft = fft.as_view();
-        self.fourier_engine.resize(
+        self.fft_buffers.resize(
             convert_standard_lwe_bootstrap_key_to_fourier_scratch(fft)
                 .unwrap()
                 .unaligned_bytes_required(),
         );
-        let stack = self.fourier_engine.stack();
+        let stack = self.fft_buffers.stack();
 
         // Conversion to fourier domain
         convert_standard_lwe_bootstrap_key_to_fourier(
@@ -142,11 +176,10 @@ impl Bootstrapper {
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
             cks.parameters.lwe_modular_std_dev,
-            self.engine.get_encryption_generator(),
+            &mut self.encryption_generator,
         );
 
-        Ok(BootstrapKey {
-            standard_bootstraping_key,
+        Ok(ServerKey {
             bootstrapping_key: fourier_bsk,
             key_switching_key: ksk,
         })
@@ -155,7 +188,7 @@ impl Bootstrapper {
     pub(crate) fn bootstrap(
         &mut self,
         input: &LweCiphertextOwned<u32>,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Result<LweCiphertextOwned<u32>, Box<dyn Error>> {
         let (accumulator, mut buffer_after_pbs) = self.memory.as_buffers(server_key);
 
@@ -164,7 +197,7 @@ impl Bootstrapper {
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
 
-        self.fourier_engine.resize(
+        self.fft_buffers.resize(
             programmable_bootstrap_lwe_ciphertext_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
@@ -173,7 +206,7 @@ impl Bootstrapper {
             .unwrap()
             .unaligned_bytes_required(),
         );
-        let stack = self.fourier_engine.stack();
+        let stack = self.fft_buffers.stack();
 
         programmable_bootstrap_lwe_ciphertext(
             input,
@@ -192,7 +225,7 @@ impl Bootstrapper {
     pub(crate) fn keyswitch(
         &mut self,
         input: &LweCiphertextOwned<u32>,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Result<LweCiphertextOwned<u32>, Box<dyn Error>> {
         // Allocate the output of the KS
         let mut output = LweCiphertext::new(
@@ -211,7 +244,7 @@ impl Bootstrapper {
     pub(crate) fn bootstrap_keyswitch(
         &mut self,
         mut ciphertext: LweCiphertextOwned<u32>,
-        server_key: &BootstrapKey,
+        server_key: &ServerKey,
     ) -> Result<Ciphertext, Box<dyn Error>> {
         let (accumulator, mut buffer_lwe_after_pbs) = self.memory.as_buffers(server_key);
 
@@ -220,7 +253,7 @@ impl Bootstrapper {
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
 
-        self.fourier_engine.resize(
+        self.fft_buffers.resize(
             programmable_bootstrap_lwe_ciphertext_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
@@ -229,7 +262,7 @@ impl Bootstrapper {
             .unwrap()
             .unaligned_bytes_required(),
         );
-        let stack = self.fourier_engine.stack();
+        let stack = self.fft_buffers.stack();
 
         // Compute a bootstrap
         programmable_bootstrap_lwe_ciphertext(
@@ -252,45 +285,31 @@ impl Bootstrapper {
     }
 }
 
-impl Default for Bootstrapper {
-    fn default() -> Self {
-        let engine =
-            DefaultEngine::new(new_seeder()).expect("Unexpectedly failed to create a core engine");
-
-        let fourier_engine = FftEngine::new(()).unwrap();
-        Self {
-            memory: Default::default(),
-            engine,
-            fourier_engine,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize)]
 struct SerializableServerKey {
-    pub standard_bootstraping_key: Vec<u8>,
+    pub bootstrapping_key: Vec<u8>,
     pub key_switching_key: Vec<u8>,
 }
 
-impl Serialize for BootstrapKey {
+impl Serialize for ServerKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         let key_switching_key =
             bincode::serialize(&self.key_switching_key).map_err(serde::ser::Error::custom)?;
-        let standard_bootstraping_key = bincode::serialize(&self.standard_bootstraping_key)
-            .map_err(serde::ser::Error::custom)?;
+        let bootstrapping_key =
+            bincode::serialize(&self.bootstrapping_key).map_err(serde::ser::Error::custom)?;
 
         SerializableServerKey {
             key_switching_key,
-            standard_bootstraping_key,
+            bootstrapping_key,
         }
         .serialize(serializer)
     }
 }
 
-impl<'de> Deserialize<'de> for BootstrapKey {
+impl<'de> Deserialize<'de> for ServerKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -300,41 +319,12 @@ impl<'de> Deserialize<'de> for BootstrapKey {
 
         let key_switching_key = bincode::deserialize(thing.key_switching_key.as_slice())
             .map_err(serde::de::Error::custom)?;
-        let standard_bootstraping_key: LweBootstrapKeyOwned<u32> =
-            bincode::deserialize(thing.standard_bootstraping_key.as_slice())
-                .map_err(serde::de::Error::custom)?;
-
-        let mut fft_engine = FftEngine::new(()).map_err(serde::de::Error::custom)?;
-
-        let fft = Fft::new(standard_bootstraping_key.polynomial_size());
-        let fft = fft.as_view();
-        fft_engine.resize(
-            convert_standard_lwe_bootstrap_key_to_fourier_scratch(fft)
-                .unwrap()
-                .unaligned_bytes_required(),
-        );
-        let stack = fft_engine.stack();
-
-        let mut fourier_bsk = FourierLweBootstrapKey::new(
-            standard_bootstraping_key.input_lwe_dimension(),
-            standard_bootstraping_key.polynomial_size(),
-            standard_bootstraping_key.glwe_size(),
-            standard_bootstraping_key.decomposition_base_log(),
-            standard_bootstraping_key.decomposition_level_count(),
-        );
-
-        // Conversion to fourier domain
-        convert_standard_lwe_bootstrap_key_to_fourier(
-            &standard_bootstraping_key,
-            &mut fourier_bsk,
-            fft,
-            stack,
-        );
+        let bootstrapping_key = bincode::deserialize(thing.bootstrapping_key.as_slice())
+            .map_err(serde::de::Error::custom)?;
 
         Ok(Self {
-            standard_bootstraping_key,
+            bootstrapping_key,
             key_switching_key,
-            bootstrapping_key: fourier_bsk,
         })
     }
 }
