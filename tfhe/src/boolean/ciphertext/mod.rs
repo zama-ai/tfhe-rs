@@ -2,7 +2,7 @@
 //!
 //! This module implements the ciphertext structure containing an encryption of a Boolean message.
 
-use crate::core_crypto::prelude::*;
+use crate::core_crypto::entities::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// A structure containing a ciphertext, meant to encrypt a Boolean message.
@@ -10,7 +10,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// It is used to evaluate a Boolean circuits homomorphically.
 #[derive(Clone, Debug)]
 pub enum Ciphertext {
-    Encrypted(LweCiphertext32),
+    Encrypted(LweCiphertextOwned<u32>),
     Trivial(bool),
 }
 
@@ -25,11 +25,9 @@ impl Serialize for Ciphertext {
     where
         S: Serializer,
     {
-        let mut ser_eng = DefaultSerializationEngine::new(()).map_err(serde::ser::Error::custom)?;
-
         match self {
             Ciphertext::Encrypted(lwe) => {
-                let ciphertext = ser_eng.serialize(lwe).map_err(serde::ser::Error::custom)?;
+                let ciphertext = bincode::serialize(lwe).map_err(serde::ser::Error::custom)?;
                 SerializableCiphertext::Encrypted(ciphertext)
             }
             Ciphertext::Trivial(b) => SerializableCiphertext::Trivial(*b),
@@ -45,13 +43,10 @@ impl<'de> Deserialize<'de> for Ciphertext {
     {
         let thing = SerializableCiphertext::deserialize(deserializer)?;
 
-        let mut de_eng = DefaultSerializationEngine::new(()).map_err(serde::de::Error::custom)?;
-
         Ok(match thing {
             SerializableCiphertext::Encrypted(data) => {
-                let lwe = de_eng
-                    .deserialize(data.as_slice())
-                    .map_err(serde::de::Error::custom)?;
+                let lwe =
+                    bincode::deserialize(data.as_slice()).map_err(serde::de::Error::custom)?;
                 Self::Encrypted(lwe)
             }
             SerializableCiphertext::Trivial(b) => Self::Trivial(b),
