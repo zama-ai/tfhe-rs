@@ -12,9 +12,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
-use crate::boolean::engine::bootstrapping::CpuBootstrapKey;
+use crate::boolean::engine::bootstrapping::BootstrapKey;
 use crate::boolean::engine::{
-    BinaryGatesAssignEngine, BinaryGatesEngine, CpuBooleanEngine, WithThreadLocalEngine,
+    BinaryGatesAssignEngine, BinaryGatesEngine, BooleanEngine, WithThreadLocalEngine,
 };
 
 pub trait BinaryBooleanGates<L, R> {
@@ -46,21 +46,21 @@ trait DefaultImplementation {
 
 #[derive(Clone)]
 pub struct ServerKey {
-    cpu_key: CpuBootstrapKey,
+    cpu_key: BootstrapKey,
 }
 
 mod implementation {
     use super::*;
 
-    impl RefFromServerKey for CpuBootstrapKey {
+    impl RefFromServerKey for BootstrapKey {
         fn get_ref(server_key: &ServerKey) -> &Self {
             &server_key.cpu_key
         }
     }
 
     impl DefaultImplementation for ServerKey {
-        type Engine = CpuBooleanEngine;
-        type BootsrapKey = CpuBootstrapKey;
+        type Engine = BooleanEngine;
+        type BootsrapKey = BootstrapKey;
     }
 }
 
@@ -162,8 +162,7 @@ where
 
 impl ServerKey {
     pub fn new(cks: &ClientKey) -> Self {
-        let cpu_key =
-            CpuBooleanEngine::with_thread_local_mut(|engine| engine.create_server_key(cks));
+        let cpu_key = BooleanEngine::with_thread_local_mut(|engine| engine.create_server_key(cks));
 
         Self::from(cpu_key)
     }
@@ -173,11 +172,11 @@ impl ServerKey {
     }
 
     pub fn not(&self, ct: &Ciphertext) -> Ciphertext {
-        CpuBooleanEngine::with_thread_local_mut(|engine| engine.not(ct))
+        BooleanEngine::with_thread_local_mut(|engine| engine.not(ct))
     }
 
     pub fn not_assign(&self, ct: &mut Ciphertext) {
-        CpuBooleanEngine::with_thread_local_mut(|engine| engine.not_assign(ct))
+        BooleanEngine::with_thread_local_mut(|engine| engine.not_assign(ct))
     }
 
     pub fn mux(
@@ -186,14 +185,14 @@ impl ServerKey {
         ct_then: &Ciphertext,
         ct_else: &Ciphertext,
     ) -> Ciphertext {
-        CpuBooleanEngine::with_thread_local_mut(|engine| {
+        BooleanEngine::with_thread_local_mut(|engine| {
             engine.mux(ct_condition, ct_then, ct_else, &self.cpu_key)
         })
     }
 }
 
-impl From<CpuBootstrapKey> for ServerKey {
-    fn from(cpu_key: CpuBootstrapKey) -> Self {
+impl From<BootstrapKey> for ServerKey {
+    fn from(cpu_key: BootstrapKey) -> Self {
         Self { cpu_key }
     }
 }
@@ -212,7 +211,7 @@ impl<'de> Deserialize<'de> for ServerKey {
     where
         D: serde::Deserializer<'de>,
     {
-        let cpu_key = CpuBootstrapKey::deserialize(deserializer)?;
+        let cpu_key = BootstrapKey::deserialize(deserializer)?;
 
         Ok(Self::from(cpu_key))
     }
