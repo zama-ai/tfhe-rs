@@ -17,7 +17,20 @@ pub fn lwe_ciphertext_in_place_addition<Scalar, LhsCont, RhsCont>(
     update_slice_with_wrapping_add(lhs.as_mut(), rhs.as_ref());
 }
 
-pub fn lwe_ciphertext_in_place_encoded_addition<Scalar, InCont>(
+pub fn lwe_ciphertext_addition<Scalar, OutputCont, LhsCont, RhsCont>(
+    output: &mut LweCiphertext<OutputCont>,
+    lhs: &LweCiphertext<LhsCont>,
+    rhs: &LweCiphertext<RhsCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    LhsCont: Container<Element = Scalar>,
+    RhsCont: Container<Element = Scalar>,
+{
+    slice_wrapping_add(output.as_mut(), lhs.as_ref(), rhs.as_ref());
+}
+
+pub fn lwe_ciphertext_in_place_plaintext_addition<Scalar, InCont>(
     lhs: &mut LweCiphertext<InCont>,
     rhs: Plaintext<Scalar>,
 ) where
