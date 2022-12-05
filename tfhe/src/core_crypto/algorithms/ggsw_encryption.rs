@@ -1,6 +1,6 @@
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::crypto::secret::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
@@ -197,100 +197,5 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, InputCont, OutputCont, Gen>(
         body.as_mut()[0] = factor.wrapping_neg();
 
         encrypt_glwe_ciphertext_in_place(glwe_secret_key, row_as_glwe, noise_parameters, generator);
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::core_crypto::algorithms::encrypt_ggsw_ciphertext;
-    use crate::core_crypto::commons::crypto::encoding::PlaintextList;
-    use crate::core_crypto::commons::crypto::ggsw::StandardGgswCiphertext;
-    use crate::core_crypto::commons::crypto::secret::generators::{
-        DeterministicSeeder, EncryptionRandomGenerator,
-    };
-    use crate::core_crypto::commons::crypto::secret::GlweSecretKey;
-    use crate::core_crypto::commons::math::random::Seed;
-    use crate::core_crypto::commons::math::tensor::*;
-    use crate::core_crypto::commons::math::torus::UnsignedTorus;
-    use crate::core_crypto::commons::test_tools;
-    use crate::core_crypto::entities::{
-        GgswCiphertextOwned, GlweSecretKey as NewGlweSecretKey, Plaintext,
-    };
-    use crate::core_crypto::prelude::{
-        DecompositionBaseLog, DecompositionLevelCount, LogStandardDev,
-    };
-    use concrete_csprng::generators::SoftwareRandomGenerator;
-
-    fn test_refactored_ggsw<T: UnsignedTorus>() {
-        // random settings
-        let nb_ct = test_tools::random_ciphertext_count(10);
-        let dimension = test_tools::random_glwe_dimension(5);
-        let polynomial_size = test_tools::random_polynomial_size(200);
-        let noise_parameters = LogStandardDev::from_log_standard_dev(-50.);
-        let decomp_level = DecompositionLevelCount(3);
-        let decomp_base_log = DecompositionBaseLog(7);
-        let mut secret_generator = test_tools::new_secret_random_generator();
-
-        // generates a secret key
-        let sk = GlweSecretKey::generate_binary(dimension, polynomial_size, &mut secret_generator);
-
-        // generates random plaintexts
-        let plaintext_vector =
-            PlaintextList::from_tensor(secret_generator.random_uniform_tensor::<T>(nb_ct.0));
-
-        for plaintext in plaintext_vector.plaintext_iter() {
-            let main_seed = test_tools::random_seed();
-            let mask_seed = Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
-
-            let mut generator = EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(
-                mask_seed,
-                &mut DeterministicSeeder::<SoftwareRandomGenerator>::new(main_seed),
-            );
-
-            let mut refactored_ggsw = GgswCiphertextOwned::new(
-                T::ZERO,
-                dimension.to_glwe_size(),
-                polynomial_size,
-                decomp_base_log,
-                decomp_level,
-            );
-
-            encrypt_ggsw_ciphertext(
-                &NewGlweSecretKey::from_container(sk.as_tensor().as_slice(), polynomial_size),
-                &mut refactored_ggsw,
-                Plaintext(plaintext.0),
-                noise_parameters,
-                &mut generator,
-            );
-
-            // control encryption
-            let mut ggsw = StandardGgswCiphertext::allocate(
-                T::ZERO,
-                polynomial_size,
-                dimension.to_glwe_size(),
-                decomp_level,
-                decomp_base_log,
-            );
-
-            // Recreate a generator with the known mask seed
-            let mut generator = EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(
-                mask_seed,
-                &mut DeterministicSeeder::<SoftwareRandomGenerator>::new(main_seed),
-            );
-
-            sk.encrypt_constant_ggsw(&mut ggsw, plaintext, noise_parameters, &mut generator);
-
-            assert_eq!(refactored_ggsw.as_ref(), ggsw.as_tensor().as_slice());
-        }
-    }
-
-    #[test]
-    fn test_refactored_ggsw_u32() {
-        test_refactored_ggsw::<u32>()
-    }
-
-    #[test]
-    fn test_refactored_ggsw_u64() {
-        test_refactored_ggsw::<u64>()
     }
 }

@@ -1,8 +1,8 @@
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::crypto::secret::generators::{
-    EncryptionRandomGenerator, SecretRandomGenerator,
+use crate::core_crypto::commons::generators::{
+    DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
 };
-use crate::core_crypto::commons::math::random::Seeder;
+use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 use crate::seeders::new_seeder;
@@ -19,9 +19,6 @@ mod server_side;
 #[cfg(not(feature = "__wasm_api"))]
 mod wopbs;
 
-use crate::core_crypto::backends::default::engines::ActivatedRandomGenerator;
-use crate::core_crypto::commons::crypto::secret::generators::DeterministicSeeder;
-
 thread_local! {
     static LOCAL_ENGINE: RefCell<ShortintEngine> = RefCell::new(ShortintEngine::new());
 }
@@ -32,6 +29,7 @@ pub struct Buffers {
     pub(crate) buffer_lwe_after_ks: LweCiphertextOwned<u64>,
 }
 
+#[derive(Default)]
 pub struct FftBuffers {
     memory: Vec<MaybeUninit<u8>>,
 }
@@ -47,12 +45,6 @@ impl FftBuffers {
 
     pub fn stack(&mut self) -> DynStack<'_> {
         DynStack::new(&mut self.memory)
-    }
-}
-
-impl Default for FftBuffers {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -106,15 +98,15 @@ pub(crate) type EngineResult<T> = Result<T, EngineError>;
 /// This structs actually implements the logics into its methods.
 pub struct ShortintEngine {
     /// A structure containing a single CSPRNG to generate secret key coefficients.
-    pub(crate) secret_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
+    secret_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
     /// A structure containing two CSPRNGs to generate material for encryption like public masks
     /// and secret errors.
     ///
     /// The [`EncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
-    pub(crate) encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
-    pub(crate) fft_buffers: FftBuffers,
+    encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    fft_buffers: FftBuffers,
     buffers: BTreeMap<KeyId, Buffers>,
 }
 
@@ -140,19 +132,17 @@ impl ShortintEngine {
     ///
     /// This will panic if the `CoreEngine` failed to create.
     pub fn new() -> Self {
-        let root_seeder = new_seeder();
+        let mut root_seeder = new_seeder();
 
-        Self::new_from_seeder(root_seeder)
+        Self::new_from_seeder(root_seeder.as_mut())
     }
 
-    pub fn new_from_seeder(mut root_seeder: Box<dyn Seeder>) -> Self {
+    pub fn new_from_seeder(root_seeder: &mut dyn Seeder) -> Self {
         let mut deterministic_seeder =
             DeterministicSeeder::<ActivatedRandomGenerator>::new(root_seeder.seed());
 
         // Note that the operands are evaluated from left to right for Rust Struct expressions
         // See: https://doc.rust-lang.org/stable/reference/expressions.html?highlight=left#evaluation-order-of-operands
-        // So parameters is moved in seeder after the calls to seed and the potential calls when it
-        // is passed as_mut in EncryptionRandomGenerator::new
         Self {
             secret_generator: SecretRandomGenerator::new(deterministic_seeder.seed()),
             encryption_generator: EncryptionRandomGenerator::new(

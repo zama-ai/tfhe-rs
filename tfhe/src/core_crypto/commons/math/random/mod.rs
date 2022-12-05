@@ -13,9 +13,9 @@
 //! implementations of this trait, for different distributions. Note, though, that instead of
 //! using the [`RandomGenerable`] methods, you should use the various methods exposed by
 //! [`RandomGenerator`] instead.
-use crate::core_crypto::commons::math::tensor::{AsMutTensor, Tensor};
 use crate::core_crypto::commons::numeric::FloatingPoint;
 
+pub use activated_random_generator::ActivatedRandomGenerator;
 pub use gaussian::*;
 pub use generator::*;
 pub use uniform::*;
@@ -28,6 +28,7 @@ pub use uniform_with_zeros::*;
 #[cfg(test)]
 mod tests;
 
+mod activated_random_generator;
 mod gaussian;
 mod generator;
 mod uniform;
@@ -45,26 +46,6 @@ where
         generator: &mut RandomGenerator<G>,
         distribution: D,
     ) -> Self;
-    fn generate_tensor<G: ByteRandomGenerator>(
-        generator: &mut RandomGenerator<G>,
-        distribution: D,
-        size: usize,
-    ) -> Tensor<Vec<Self>> {
-        (0..size)
-            .map(|_| Self::generate_one(generator, distribution))
-            .collect()
-    }
-    fn fill_tensor<Tens, G: ByteRandomGenerator>(
-        generator: &mut RandomGenerator<G>,
-        distribution: D,
-        tensor: &mut Tens,
-    ) where
-        Tens: AsMutTensor<Element = Self>,
-    {
-        tensor.as_mut_tensor().iter_mut().for_each(|s| {
-            *s = Self::generate_one(generator, distribution);
-        });
-    }
 
     fn fill_slice<G: ByteRandomGenerator>(
         generator: &mut RandomGenerator<G>,

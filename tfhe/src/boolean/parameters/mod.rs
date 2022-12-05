@@ -18,9 +18,9 @@
 //! This is an unsafe operation as failing to properly fix the parameters will potentially result
 //! with an incorrect and/or insecure computation.
 
-pub use crate::core_crypto::prelude::{
+pub use crate::core_crypto::specification::dispersion::StandardDev;
+pub use crate::core_crypto::specification::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
-    StandardDev,
 };
 use serde::{Deserialize, Serialize};
 

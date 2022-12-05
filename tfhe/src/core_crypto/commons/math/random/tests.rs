@@ -1,8 +1,6 @@
-use crate::core_crypto::prelude::LogStandardDev;
-
-use crate::core_crypto::commons::math::tensor::Tensor;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::test_tools::*;
+use crate::core_crypto::specification::dispersion::LogStandardDev;
 
 fn test_normal_random<T: UnsignedTorus>() {
     //! test if the normal random generation with std_dev is below 3*std_dev (99.7%)
@@ -14,12 +12,15 @@ fn test_normal_random<T: UnsignedTorus>() {
     let mut generator = new_random_generator();
 
     // generates normal random
-    let mut samples_int = Tensor::allocate(T::ZERO, k);
-    generator.fill_tensor_with_random_gaussian(&mut samples_int, mean, std_dev);
+    let mut samples_int = vec![T::ZERO; k];
+    generator.fill_slice_with_random_gaussian(&mut samples_int, mean, std_dev);
 
     // converts into float
-    let mut samples_float = Tensor::allocate(0f64, k);
-    samples_float.fill_with_one(&samples_int, |a| a.into_torus());
+    let mut samples_float = vec![0f64; k];
+    samples_float
+        .iter_mut()
+        .zip(samples_int.iter())
+        .for_each(|(out, &elt)| *out = elt.into_torus());
     for x in samples_float.iter_mut() {
         if *x > 0.5 {
             *x = 1. - *x;
@@ -66,9 +67,9 @@ fn test_distribution<T: UnsignedTorus>() {
     let mut generator = new_random_generator();
 
     // generates normal random
-    let first = Tensor::allocate(T::ZERO, k);
-    let mut second = Tensor::allocate(T::ZERO, k);
-    generator.fill_tensor_with_random_gaussian(&mut second, mean, std_dev);
+    let first = vec![T::ZERO; k];
+    let mut second = vec![T::ZERO; k];
+    generator.fill_slice_with_random_gaussian(&mut second, mean, std_dev);
 
     assert_noise_distribution(&first, &second, LogStandardDev(-5.));
 }

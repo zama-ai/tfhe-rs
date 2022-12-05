@@ -9,7 +9,7 @@ use crate::core_crypto::commons::traits::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{
+use crate::core_crypto::specification::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LutCountLog, LweDimension,
     ModulusSwitchOffset, MonomialDegree, PolynomialSize,
 };

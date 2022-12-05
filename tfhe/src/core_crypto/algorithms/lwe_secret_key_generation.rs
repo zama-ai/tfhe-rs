@@ -1,4 +1,4 @@
-use crate::core_crypto::commons::crypto::secret::generators::SecretRandomGenerator;
+use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, RandomGenerable, UniformBinary,
 };

@@ -21,9 +21,5 @@
 //! This module contains structures that wrap unsigned integer parameters like the ciphertext
 //! dimension or the polynomial degree.
 
-pub mod engines;
-pub mod entities;
-
 pub mod dispersion;
-pub mod key_kinds;
 pub mod parameters;

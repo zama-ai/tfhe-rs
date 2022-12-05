@@ -8,11 +8,9 @@
 #[cfg(test)]
 mod tests;
 
-use serde::{Deserialize, Serialize};
-
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
-use crate::boolean::engine::bootstrapping::BootstrapKey;
+pub use crate::boolean::engine::bootstrapping::ServerKey;
 use crate::boolean::engine::{
     BinaryGatesAssignEngine, BinaryGatesEngine, BooleanEngine, WithThreadLocalEngine,
 };
@@ -35,136 +33,103 @@ pub trait BinaryBooleanGatesAssign<L, R> {
     fn xnor_assign(&self, ct_left: L, ct_right: R);
 }
 
-trait RefFromServerKey {
-    fn get_ref(server_key: &ServerKey) -> &Self;
-}
-
 trait DefaultImplementation {
     type Engine: WithThreadLocalEngine;
-    type BootsrapKey: RefFromServerKey;
-}
-
-#[derive(Clone)]
-pub struct ServerKey {
-    cpu_key: BootstrapKey,
 }
 
 mod implementation {
     use super::*;
 
-    impl RefFromServerKey for BootstrapKey {
-        fn get_ref(server_key: &ServerKey) -> &Self {
-            &server_key.cpu_key
-        }
-    }
-
     impl DefaultImplementation for ServerKey {
         type Engine = BooleanEngine;
-        type BootsrapKey = BootstrapKey;
     }
 }
 
 impl<Lhs, Rhs> BinaryBooleanGates<Lhs, Rhs> for ServerKey
 where
-    <ServerKey as DefaultImplementation>::Engine:
-        BinaryGatesEngine<Lhs, Rhs, <ServerKey as DefaultImplementation>::BootsrapKey>,
+    <ServerKey as DefaultImplementation>::Engine: BinaryGatesEngine<Lhs, Rhs, ServerKey>,
 {
     fn and(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.and(ct_left, ct_right, bootstrap_key)
+            engine.and(ct_left, ct_right, self)
         })
     }
 
     fn nand(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.nand(ct_left, ct_right, bootstrap_key)
+            engine.nand(ct_left, ct_right, self)
         })
     }
 
     fn nor(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.nor(ct_left, ct_right, bootstrap_key)
+            engine.nor(ct_left, ct_right, self)
         })
     }
 
     fn or(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.or(ct_left, ct_right, bootstrap_key)
+            engine.or(ct_left, ct_right, self)
         })
     }
 
     fn xor(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.xor(ct_left, ct_right, bootstrap_key)
+            engine.xor(ct_left, ct_right, self)
         })
     }
 
     fn xnor(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.xnor(ct_left, ct_right, bootstrap_key)
+            engine.xnor(ct_left, ct_right, self)
         })
     }
 }
 
 impl<Lhs, Rhs> BinaryBooleanGatesAssign<Lhs, Rhs> for ServerKey
 where
-    <ServerKey as DefaultImplementation>::Engine:
-        BinaryGatesAssignEngine<Lhs, Rhs, <ServerKey as DefaultImplementation>::BootsrapKey>,
+    <ServerKey as DefaultImplementation>::Engine: BinaryGatesAssignEngine<Lhs, Rhs, ServerKey>,
 {
     fn and_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.and_assign(ct_left, ct_right, bootstrap_key)
+            engine.and_assign(ct_left, ct_right, self)
         })
     }
 
     fn nand_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.nand_assign(ct_left, ct_right, bootstrap_key)
+            engine.nand_assign(ct_left, ct_right, self)
         })
     }
 
     fn nor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.nor_assign(ct_left, ct_right, bootstrap_key)
+            engine.nor_assign(ct_left, ct_right, self)
         })
     }
 
     fn or_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.or_assign(ct_left, ct_right, bootstrap_key)
+            engine.or_assign(ct_left, ct_right, self)
         })
     }
 
     fn xor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.xor_assign(ct_left, ct_right, bootstrap_key)
+            engine.xor_assign(ct_left, ct_right, self)
         })
     }
 
     fn xnor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        let bootstrap_key = <ServerKey as DefaultImplementation>::BootsrapKey::get_ref(self);
         <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.xnor_assign(ct_left, ct_right, bootstrap_key)
+            engine.xnor_assign(ct_left, ct_right, self)
         })
     }
 }
 
 impl ServerKey {
     pub fn new(cks: &ClientKey) -> Self {
-        let cpu_key = BooleanEngine::with_thread_local_mut(|engine| engine.create_server_key(cks));
-
-        Self::from(cpu_key)
+        BooleanEngine::with_thread_local_mut(|engine| engine.create_server_key(cks))
     }
 
     pub fn trivial_encrypt(&self, message: bool) -> Ciphertext {
@@ -186,33 +151,7 @@ impl ServerKey {
         ct_else: &Ciphertext,
     ) -> Ciphertext {
         BooleanEngine::with_thread_local_mut(|engine| {
-            engine.mux(ct_condition, ct_then, ct_else, &self.cpu_key)
+            engine.mux(ct_condition, ct_then, ct_else, self)
         })
-    }
-}
-
-impl From<BootstrapKey> for ServerKey {
-    fn from(cpu_key: BootstrapKey) -> Self {
-        Self { cpu_key }
-    }
-}
-
-impl Serialize for ServerKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.cpu_key.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for ServerKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let cpu_key = BootstrapKey::deserialize(deserializer)?;
-
-        Ok(Self::from(cpu_key))
     }
 }
