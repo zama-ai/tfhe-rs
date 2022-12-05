@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::prelude::LweDimension;
+use crate::core_crypto::specification::parameters::LweDimension;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LweSecretKey<C: Container> {
@@ -44,23 +44,5 @@ where
 {
     pub fn new(fill_with: Scalar, lwe_dimension: LweDimension) -> LweSecretKeyOwned<Scalar> {
         LweSecretKeyOwned::from_container(vec![fill_with; lwe_dimension.0])
-    }
-}
-
-// TODO REFACTOR
-// Remove the back and forth conversions
-impl From<LweSecretKeyOwned<u64>> for crate::core_crypto::prelude::LweSecretKey64 {
-    fn from(new_lwe_secret_key: LweSecretKeyOwned<u64>) -> Self {
-        use crate::core_crypto::commons::crypto::secret::LweSecretKey as PrivateLweSecretKey;
-        use crate::core_crypto::prelude::LweSecretKey64;
-        LweSecretKey64(PrivateLweSecretKey::binary_from_container(
-            new_lwe_secret_key.data,
-        ))
-    }
-}
-
-impl From<crate::core_crypto::prelude::LweSecretKey64> for LweSecretKeyOwned<u64> {
-    fn from(old_lwe_secret_key: crate::core_crypto::prelude::LweSecretKey64) -> Self {
-        LweSecretKeyOwned::<u64>::from_container(old_lwe_secret_key.0.tensor.into_container())
     }
 }

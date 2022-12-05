@@ -13,7 +13,6 @@
 //! which makes if possible to use any of those representations generically when noise must be
 //! defined.
 
-#[cfg(feature = "__commons_serialization")]
 use serde::{Deserialize, Serialize};
 
 /// A trait for types representing distribution parameters, for a given unsigned integer type.
@@ -45,7 +44,7 @@ pub trait DispersionParameter: Copy {
 /// # Example:
 ///
 /// ```
-/// use tfhe::core_crypto::prelude::{DispersionParameter, LogStandardDev};
+/// use tfhe::core_crypto::specification::dispersion::{DispersionParameter, LogStandardDev};
 /// let params = LogStandardDev::from_log_standard_dev(-25.);
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));
 /// assert_eq!(params.get_log_standard_dev(), -25.);
@@ -99,7 +98,7 @@ impl DispersionParameter for LogStandardDev {
 /// # Example:
 ///
 /// ```
-/// use tfhe::core_crypto::prelude::{DispersionParameter, StandardDev};
+/// use tfhe::core_crypto::specification::dispersion::{DispersionParameter, StandardDev};
 /// let params = StandardDev::from_standard_dev(2_f64.powf(-25.));
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));
 /// assert_eq!(params.get_log_standard_dev(), -25.);
@@ -111,8 +110,7 @@ impl DispersionParameter for LogStandardDev {
 ///     2_f64.powf(32. - 25.).powi(2)
 /// );
 /// ```
-#[cfg_attr(feature = "__commons_serialization", derive(Serialize, Deserialize))]
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct StandardDev(pub f64);
 
 impl StandardDev {
@@ -151,7 +149,7 @@ impl DispersionParameter for StandardDev {
 /// # Example:
 ///
 /// ```
-/// use tfhe::core_crypto::prelude::{DispersionParameter, Variance};
+/// use tfhe::core_crypto::specification::dispersion::{DispersionParameter, Variance};
 /// let params = Variance::from_variance(2_f64.powi(-50));
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));
 /// assert_eq!(params.get_log_standard_dev(), -25.);

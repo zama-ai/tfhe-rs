@@ -8,7 +8,7 @@ use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::traits::{Container, ContainerOwned};
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::PolynomialSize;
+use crate::core_crypto::specification::parameters::PolynomialSize;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
 use concrete_fft::unordered::{Method, Plan};
@@ -32,17 +32,15 @@ mod x86;
 /// [paper]: https://eprint.iacr.org/2021/480
 #[derive(Clone, Debug, PartialEq)]
 pub struct Twisties {
-    // TODO remove pub(crate)
-    pub(crate) re: ABox<[f64]>,
-    pub(crate) im: ABox<[f64]>,
+    re: ABox<[f64]>,
+    im: ABox<[f64]>,
 }
 
 /// View type for [`Twisties`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TwistiesView<'a> {
-    // TODO remove pub(crate)
-    pub(crate) re: &'a [f64],
-    pub(crate) im: &'a [f64],
+    re: &'a [f64],
+    im: &'a [f64],
 }
 
 impl Twisties {
@@ -531,7 +529,7 @@ impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> 
             polynomial_size: PolynomialSize,
             serializer: S,
         ) -> Result<S::Ok, S::Error> {
-            use crate::core_crypto::commons::math::tensor::Split;
+            use crate::core_crypto::commons::traits::Split;
 
             pub struct SingleFourierPolynomial<'a> {
                 fft: FftView<'a>,
@@ -591,7 +589,7 @@ impl<'de, C: ContainerOwned<Element = c64>> serde::Deserialize<'de> for FourierP
                 self,
                 mut seq: A,
             ) -> Result<Self::Value, A::Error> {
-                use crate::core_crypto::commons::math::tensor::Split;
+                use crate::core_crypto::commons::traits::Split;
 
                 let str = "sequence of two fields and Fourier polynomials";
                 let polynomial_size = match seq.next_element::<PolynomialSize>()? {
