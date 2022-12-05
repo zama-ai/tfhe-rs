@@ -18,6 +18,29 @@ where
         })
 }
 
+pub fn slice_wrapping_add<Scalar>(output: &mut [Scalar], lhs: &[Scalar], rhs: &[Scalar])
+where
+    Scalar: UnsignedInteger,
+{
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+    assert!(
+        output.len() == lhs.len(),
+        "output (len: {}) and rhs (lhs: {}) must have the same length",
+        output.len(),
+        lhs.len()
+    );
+
+    output
+        .iter_mut()
+        .zip(lhs.iter().zip(rhs.iter()))
+        .for_each(|(out, (&lhs, &rhs))| *out = lhs.wrapping_add(rhs));
+}
+
 pub fn update_slice_with_wrapping_add<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
 where
     Scalar: UnsignedInteger,

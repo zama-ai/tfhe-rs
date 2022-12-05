@@ -131,7 +131,6 @@ impl From<crate::core_crypto::prelude::FftFourierLweBootstrapKey64>
     for crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned
 {
     fn from(old_bsk: crate::core_crypto::prelude::FftFourierLweBootstrapKey64) -> Self {
-        use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned;
         let key_size = old_bsk.0.key_size();
         let polynomial_size = old_bsk.0.polynomial_size();
         let glwe_size = old_bsk.0.glwe_size();
@@ -157,7 +156,7 @@ impl From<crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKe
         use crate::core_crypto::backends::fft::private::crypto::bootstrap::FourierLweBootstrapKey;
         use crate::core_crypto::prelude::FftFourierLweBootstrapKey64;
 
-        let key_size = new_bsk.key_size();
+        let key_size = new_bsk.input_lwe_dimension();
         let polynomial_size = new_bsk.polynomial_size();
         let glwe_size = new_bsk.glwe_size();
         let decomp_base_log = new_bsk.decomposition_base_log();
