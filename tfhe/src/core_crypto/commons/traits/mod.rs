@@ -8,4 +8,4 @@ pub use create_from::*;
 // Convenience re-exports
 pub use super::math::random::{ByteRandomGenerator, ParallelByteRandomGenerator, Seeder};
 pub use super::math::torus::UnsignedTorus;
-pub use super::numeric::{CastInto, Numeric, UnsignedInteger};
+pub use super::numeric::*;

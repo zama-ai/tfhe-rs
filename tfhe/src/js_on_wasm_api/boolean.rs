@@ -73,8 +73,8 @@ impl Boolean {
         ks_level: usize,
     ) -> BooleanParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
-        use crate::core_crypto::specification::dispersion::*;
-        use crate::core_crypto::specification::parameters::*;
+        use crate::core_crypto::commons::dispersion::*;
+        use crate::core_crypto::commons::parameters::*;
         BooleanParameters(crate::boolean::parameters::BooleanParameters {
             lwe_dimension: LweDimension(lwe_dimension),
             glwe_dimension: GlweDimension(glwe_dimension),

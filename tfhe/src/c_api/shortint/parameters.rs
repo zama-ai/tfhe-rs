@@ -1,6 +1,6 @@
 use crate::c_api::utils::*;
-pub use crate::core_crypto::specification::dispersion::StandardDev;
-pub use crate::core_crypto::specification::parameters::{
+pub use crate::core_crypto::commons::dispersion::StandardDev;
+pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use std::os::raw::c_int;
