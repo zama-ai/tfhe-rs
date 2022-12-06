@@ -68,7 +68,9 @@ pub fn par_generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
 {
     assert!(
         lwe_secret_key.lwe_dimension() == output.lwe_size().to_lwe_dimension(),
-        "TODO error message"
+        "Mismatch LweDimension between lwe_secret_key {:?} and public key {:?}",
+        lwe_secret_key.lwe_dimension(),
+        output.lwe_size().to_lwe_dimension()
     );
 
     let zeros = PlaintextListOwned::new(
