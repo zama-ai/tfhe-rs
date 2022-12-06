@@ -379,7 +379,7 @@ impl ShortintEngine {
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
         fft_buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_scratch::<u64>(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
                 fft,
@@ -390,7 +390,7 @@ impl ShortintEngine {
         let stack = fft_buffers.stack();
 
         // Compute a bootstrap
-        programmable_bootstrap_lwe_ciphertext(
+        programmable_bootstrap_lwe_ciphertext_mem_optimized(
             &buffers.buffer_lwe_after_ks,
             &mut ct_out,
             &acc,
