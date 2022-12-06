@@ -1,7 +1,5 @@
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::random::ByteRandomGenerator;
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::dispersion::DispersionParameter;

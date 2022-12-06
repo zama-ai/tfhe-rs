@@ -1,8 +1,6 @@
-use crate::core_crypto::commons::numeric::{CastInto, Numeric};
-
-use crate::core_crypto::commons::math::torus::{FromTorus, UnsignedTorus};
-
 use super::*;
+use crate::core_crypto::commons::math::torus::{FromTorus, UnsignedTorus};
+use crate::core_crypto::commons::numeric::{CastInto, Numeric};
 
 /// A distribution type representing random sampling of floating point numbers, following a
 /// gaussian distribution.
