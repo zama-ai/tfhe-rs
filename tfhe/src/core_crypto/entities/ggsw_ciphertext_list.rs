@@ -2,6 +2,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+/// A contiguous list containing [`GgswCiphertext`].
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GgswCiphertextList<C: Container> {
     data: C,
@@ -24,6 +25,56 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GgswCiphertextList<C> {
 }
 
 impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextList<C> {
+    /// Create a [`GgswCiphertextList`] from an existing container.
+    ///
+    /// # Note
+    ///
+    /// This docstring exhibits all [`GgswCiphertextList`] primitives usage.
+    ///
+    /// ```
+    /// use tfhe::core_crypto::prelude::*;
+    ///
+    /// // Define parameters for GgswCiphertextList creation
+    /// let glwe_size = GlweSize(2);
+    /// let polynomial_size = PolynomialSize(1024);
+    /// let decomp_base_log = DecompositionBaseLog(8);
+    /// let decomp_level_count = DecompositionLevelCount(16);
+    /// let ciphertext_count = GgswCiphertextCount(2);
+    ///
+    /// // Create a new GgswCiphertextList
+    /// let ggsw_list = GgswCiphertextList::new(
+    ///     0u64,
+    ///     glwe_size,
+    ///     polynomial_size,
+    ///     decomp_base_log,
+    ///     decomp_level_count,
+    ///     ciphertext_count,
+    /// );
+    ///
+    /// assert_eq!(ggsw_list.glwe_size(), glwe_size);
+    /// assert_eq!(ggsw_list.polynomial_size(), polynomial_size);
+    /// assert_eq!(ggsw_list.decomposition_base_log(), decomp_base_log);
+    /// assert_eq!(ggsw_list.decomposition_level_count(), decomp_level_count);
+    /// assert_eq!(ggsw_list.ggsw_ciphertext_count(), ciphertext_count);
+    ///
+    /// // Demonstrate how to recover the allocated container
+    /// let underlying_container: Vec<u64> = ggsw_list.into_container();
+    ///
+    /// // Recreate a list using from_container
+    /// let ggsw_list = GgswCiphertextList::from_container(
+    ///     underlying_container,
+    ///     glwe_size,
+    ///     polynomial_size,
+    ///     decomp_base_log,
+    ///     decomp_level_count,
+    /// );
+    ///
+    /// assert_eq!(ggsw_list.glwe_size(), glwe_size);
+    /// assert_eq!(ggsw_list.polynomial_size(), polynomial_size);
+    /// assert_eq!(ggsw_list.decomposition_base_log(), decomp_base_log);
+    /// assert_eq!(ggsw_list.decomposition_level_count(), decomp_level_count);
+    /// assert_eq!(ggsw_list.ggsw_ciphertext_count(), ciphertext_count);
+    /// ```
     pub fn from_container(
         container: C,
         glwe_size: GlweSize,
@@ -52,22 +103,37 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextList<C> {
         }
     }
 
+    /// Returns the [`GlweSize`] of the [`GgswCiphertext`] stored in the list.
+    ///
+    /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn glwe_size(&self) -> GlweSize {
         self.glwe_size
     }
 
+    /// Returns the [`PolynomialSize`] of the [`GgswCiphertext`] in the list.
+    ///
+    /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn polynomial_size(&self) -> PolynomialSize {
         self.polynomial_size
     }
 
+    /// Returns the [`DecompositionBaseLog`] of the [`GgswCiphertext`] in the list.
+    ///
+    /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
         self.decomp_base_log
     }
 
+    /// Returns the [`DecompositionLevelCount`] of the [`GgswCiphertext`] in the list.
+    ///
+    /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
         self.decomp_level_count
     }
 
+    /// Returns the [`GgswCiphertextCount`] of the [`GgswCiphertextList`].
+    ///
+    /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn ggsw_ciphertext_count(&self) -> GgswCiphertextCount {
         GgswCiphertextCount(
             self.data.container_len()
@@ -79,6 +145,9 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextList<C> {
         )
     }
 
+    /// Consumes the entity and return its underlying container.
+    ///
+    /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn into_container(self) -> C {
         self.data
     }
@@ -89,6 +158,9 @@ pub type GgswCiphertextListView<'data, Scalar> = GgswCiphertextList<&'data [Scal
 pub type GgswCiphertextListMutView<'data, Scalar> = GgswCiphertextList<&'data mut [Scalar]>;
 
 impl<Scalar: Copy> GgswCiphertextListOwned<Scalar> {
+    /// Creates a new [`GgswCiphertextList`].
+    ///
+    /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn new(
         fill_with: Scalar,
         glwe_size: GlweSize,
