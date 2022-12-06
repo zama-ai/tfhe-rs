@@ -1,9 +1,9 @@
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::dispersion::DispersionParameter;
-use crate::core_crypto::specification::parameters::*;
 use rayon::prelude::*;
 
 pub fn generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
@@ -203,15 +203,15 @@ mod parallel_test {
         allocate_and_generate_new_binary_lwe_secret_key, generate_lwe_bootstrap_key,
         par_generate_lwe_bootstrap_key,
     };
+    use crate::core_crypto::commons::dispersion::StandardDev;
     use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
     use crate::core_crypto::commons::math::random::Seed;
     use crate::core_crypto::commons::math::torus::UnsignedTorus;
-    use crate::core_crypto::commons::test_tools::new_secret_random_generator;
-    use crate::core_crypto::entities::LweBootstrapKeyOwned;
-    use crate::core_crypto::specification::dispersion::StandardDev;
-    use crate::core_crypto::specification::parameters::{
+    use crate::core_crypto::commons::parameters::{
         DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
     };
+    use crate::core_crypto::commons::test_tools::new_secret_random_generator;
+    use crate::core_crypto::entities::LweBootstrapKeyOwned;
     use concrete_csprng::generators::SoftwareRandomGenerator;
 
     fn test_refactored_bsk_parallel_gen_equivalence<T: UnsignedTorus + Send + Sync>() {

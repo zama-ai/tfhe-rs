@@ -1,8 +1,6 @@
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::specification::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount,
-};
+use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
 
 /// An iterator that yields the terms of the signed decomposition of an integer.
 ///
@@ -63,9 +61,7 @@ where
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-    /// use tfhe::core_crypto::specification::parameters::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let val = 1_340_987_234_u32;
@@ -84,9 +80,7 @@ where
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-    /// use tfhe::core_crypto::specification::parameters::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let val = 1_340_987_234_u32;

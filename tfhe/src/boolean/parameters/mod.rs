@@ -18,8 +18,8 @@
 //! This is an unsafe operation as failing to properly fix the parameters will potentially result
 //! with an incorrect and/or insecure computation.
 
-pub use crate::core_crypto::specification::dispersion::StandardDev;
-pub use crate::core_crypto::specification::parameters::{
+pub use crate::core_crypto::commons::dispersion::StandardDev;
+pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use serde::{Deserialize, Serialize};

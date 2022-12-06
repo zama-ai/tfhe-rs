@@ -1,5 +1,7 @@
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKey;
@@ -8,8 +10,6 @@ use crate::core_crypto::fft_impl::crypto::wop_pbs::{
     extract_bits, extract_bits_scratch,
 };
 use crate::core_crypto::fft_impl::math::fft::FftView;
-use crate::core_crypto::specification::dispersion::DispersionParameter;
-use crate::core_crypto::specification::parameters::*;
 use concrete_fft::c64;
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
 use rayon::prelude::*;

@@ -1,10 +1,10 @@
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::dispersion::DispersionParameter;
 use rayon::prelude::*;
 
 pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
