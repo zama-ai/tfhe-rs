@@ -30,7 +30,7 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweMask<C> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LweCiphertext<C: Container> {
     data: C,
 }
