@@ -1,4 +1,3 @@
-#![allow(deprecated)]
 use serde::{Deserialize, Serialize};
 
 /// The number plaintexts in a plaintext list.
@@ -132,7 +131,6 @@ pub struct PolynomialCount(pub usize);
 ///
 /// Assuming a monomial $aX^N$, this returns the $N$ value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[deprecated(note = "MonomialDegree is not used anymore in the API. You should not use it.")]
 pub struct MonomialDegree(pub usize);
 
 /// The index of a monomial in a polynomial.
