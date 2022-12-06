@@ -10,11 +10,11 @@
 //! This library is geared towards people who already know their way around FHE. It gives the user
 //! freedom of choice over a breadth of parameters, which can lead to less than 128 bits of security
 //! if chosen incorrectly
-pub mod commons;
-
-// Modules part of the refactoring effort
 pub mod algorithms;
+pub mod commons;
 pub mod entities;
+pub mod prelude;
+
 // TODO REFACTOR
 // For now this module is not refactored, it contains high performance code and will be refactored
 // at a later stage. It is self contained, allowing to put it in its own module in the meantime.
