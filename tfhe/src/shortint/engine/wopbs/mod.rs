@@ -223,6 +223,7 @@ impl ShortintEngine {
         let output_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
 
         let mut output_cbs_vp_ct = LweCiphertextListOwned::new(0u64, output_lwe_size, count);
+        let lut = PolynomialListView::from_container(lut.as_ref(), fourier_bsk.polynomial_size());
 
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
@@ -231,7 +232,7 @@ impl ShortintEngine {
                 extracted_bits.lwe_ciphertext_count(),
                 output_cbs_vp_ct.lwe_ciphertext_count(),
                 extracted_bits.lwe_size(),
-                PolynomialCount(lut.plaintext_count().0),
+                lut.polynomial_count(),
                 fourier_bsk.output_lwe_dimension().to_lwe_size(),
                 wopbs_key.cbs_pfpksk.output_polynomial_size(),
                 fourier_bsk.glwe_size(),
@@ -241,8 +242,6 @@ impl ShortintEngine {
             .unwrap()
             .unaligned_bytes_required(),
         );
-
-        let lut = PolynomialListView::from_container(lut.as_ref(), fourier_bsk.polynomial_size());
 
         let stack = self.fft_buffers.stack();
 
