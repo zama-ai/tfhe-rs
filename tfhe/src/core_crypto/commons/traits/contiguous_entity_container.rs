@@ -117,7 +117,11 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let entity_view_pod_size = self.get_entity_view_pod_size();
 
         let entity_count = self.as_ref().len() / entity_view_pod_size;
-        assert!(entity_count % chunk_size == 0, "TODO Err message");
+        assert!(
+            entity_count % chunk_size == 0,
+            "The current container has {entity_count} entities, which is not dividable by the \
+            requested chunk_size: {chunk_size}, preventing chunks_exact from returning an iterator."
+        );
 
         let pod_chunk_size = entity_view_pod_size * chunk_size;
 
@@ -208,7 +212,12 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let entity_view_pod_size = self.get_entity_view_pod_size();
 
         let entity_count = self.as_ref().len() / entity_view_pod_size;
-        assert!(entity_count % chunk_size == 0, "TODO Err message");
+        assert!(
+            entity_count % chunk_size == 0,
+            "The current container has {entity_count} entities, which is not dividable by the \
+            requested chunk_size: {chunk_size}, preventing chunks_exact_mut from returning an \
+            iterator."
+        );
 
         let pod_chunk_size = entity_view_pod_size * chunk_size;
 
