@@ -7,7 +7,7 @@ use super::super::{as_mut_uninit, assume_init_mut};
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::traits::{
-    Container, ContainerOwned, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
+    Container, ContiguousEntityContainer, ContiguousEntityContainerMut, IntoContainerOwned, Split,
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
@@ -25,7 +25,7 @@ use core::arch::x86_64::*;
 
 /// A GGSW ciphertext in the Fourier domain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(bound(deserialize = "C: ContainerOwned"))]
+#[serde(bound(deserialize = "C: IntoContainerOwned"))]
 pub struct FourierGgswCiphertext<C: Container<Element = c64>> {
     fourier: FourierPolynomialList<C>,
     glwe_size: GlweSize,

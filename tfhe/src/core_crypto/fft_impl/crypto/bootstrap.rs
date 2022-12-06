@@ -5,7 +5,7 @@ use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::traits::{
-    Container, ContainerOwned, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
+    Container, ContiguousEntityContainer, ContiguousEntityContainerMut, IntoContainerOwned, Split,
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
@@ -18,7 +18,7 @@ use concrete_fft::c64;
 use dyn_stack::{DynStack, ReborrowMut, SizeOverflow, StackReq};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(bound(deserialize = "C: ContainerOwned"))]
+#[serde(bound(deserialize = "C: IntoContainerOwned"))]
 pub struct FourierLweBootstrapKey<C: Container<Element = c64>> {
     fourier: FourierPolynomialList<C>,
     input_lwe_dimension: LweDimension,
