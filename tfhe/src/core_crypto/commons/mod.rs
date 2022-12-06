@@ -53,8 +53,6 @@ pub mod test_tools {
         EncryptionRandomGenerator, SecretRandomGenerator,
     };
     use crate::core_crypto::commons::math::random::{RandomGenerable, RandomGenerator, Uniform};
-    use crate::core_crypto::commons::math::torus::UnsignedTorus;
-    use crate::core_crypto::commons::numeric::UnsignedInteger;
     use crate::core_crypto::commons::traits::*;
     use crate::core_crypto::specification::dispersion::DispersionParameter;
     use crate::core_crypto::specification::parameters::{
