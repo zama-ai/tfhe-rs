@@ -1,6 +1,6 @@
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::*;
 
 // An LweBootstrapKey is literally a GgswCiphertextList, so we wrap a GgswCiphetextList and use
 // Deref to have access to all the primitives of the GgswCiphertextList easily

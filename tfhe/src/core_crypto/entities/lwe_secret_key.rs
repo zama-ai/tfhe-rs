@@ -1,5 +1,5 @@
+use crate::core_crypto::commons::parameters::LweDimension;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::specification::parameters::LweDimension;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LweSecretKey<C: Container> {

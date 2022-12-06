@@ -12,10 +12,10 @@ use super::ggsw::{
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::numeric::CastInto;
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::*;
 
 use concrete_fft::c64;
 

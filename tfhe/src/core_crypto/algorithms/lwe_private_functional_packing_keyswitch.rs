@@ -2,9 +2,9 @@
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::*;
 
 pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
     Scalar,

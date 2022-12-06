@@ -7,8 +7,8 @@
 //! In the case where a padding bit is defined, keys are generated so that there a compatible for
 //! both uses.
 
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ClientKey, Parameters, ServerKey};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

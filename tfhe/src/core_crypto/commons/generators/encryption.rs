@@ -1,11 +1,11 @@
+use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, Gaussian, ParallelByteRandomGenerator, RandomGenerable, RandomGenerator,
     Seed, Seeder, Uniform,
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-use crate::core_crypto::specification::dispersion::DispersionParameter;
-use crate::core_crypto::specification::parameters::{
+use crate::core_crypto::commons::parameters::{
     DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweDimension, GlweSize,
     LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
 };
@@ -428,12 +428,12 @@ fn noise_bytes_per_pfpksk(
 #[cfg(test)]
 mod test {
     use crate::core_crypto::algorithms::*;
+    use crate::core_crypto::commons::dispersion::Variance;
+    use crate::core_crypto::commons::parameters::{
+        DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
+    };
     use crate::core_crypto::commons::test_tools::{
         new_encryption_random_generator, new_secret_random_generator,
-    };
-    use crate::core_crypto::specification::dispersion::Variance;
-    use crate::core_crypto::specification::parameters::{
-        DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
     };
 
     #[test]
