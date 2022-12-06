@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
-use crate::core_crypto::specification::parameters::DecompositionBaseLog;
+use crate::core_crypto::commons::parameters::DecompositionBaseLog;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -44,9 +44,7 @@ where
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-    /// use tfhe::core_crypto::specification::parameters::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let output = decomposer.decompose(2u32.pow(19)).next().unwrap();
@@ -65,9 +63,7 @@ where
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-    /// use tfhe::core_crypto::specification::parameters::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let output = decomposer.decompose(2u32.pow(19)).next().unwrap();
@@ -85,9 +81,7 @@ where
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
-    /// use tfhe::core_crypto::specification::parameters::{
-    ///     DecompositionBaseLog, DecompositionLevelCount,
-    /// };
+    /// use tfhe::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
     /// let output = decomposer.decompose(2u32.pow(19)).next().unwrap();

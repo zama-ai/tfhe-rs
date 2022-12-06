@@ -1,9 +1,9 @@
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
+use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::dispersion::DispersionParameter;
-use crate::core_crypto::specification::parameters::*;
 
 pub fn encrypt_glwe_ciphertext_in_place<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,

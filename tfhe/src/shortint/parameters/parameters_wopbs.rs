@@ -1,5 +1,5 @@
-pub use crate::core_crypto::specification::dispersion::{DispersionParameter, StandardDev};
-pub use crate::core_crypto::specification::parameters::{
+pub use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
+pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use crate::shortint::parameters::{CarryModulus, MessageModulus};

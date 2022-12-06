@@ -10,7 +10,7 @@ use crate::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
 };
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
-use crate::core_crypto::specification::parameters::*;
+use crate::core_crypto::commons::parameters::*;
 use crate::seeders::new_seeder;
 
 pub(crate) trait BinaryGatesEngine<L, R, K> {

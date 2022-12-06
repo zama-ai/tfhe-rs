@@ -1,5 +1,5 @@
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::specification::parameters::*;
 
 #[derive(Clone, Debug)]
 pub struct LweBody<T>(pub T);

@@ -1,10 +1,10 @@
 use crate::core_crypto::commons::fft_buffers::FftBuffers;
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::{bootstrap_scratch, FourierLweBootstrapKey};
 use crate::core_crypto::fft_impl::crypto::ggsw::cmux_scratch;
 use crate::core_crypto::fft_impl::math::fft::{Fft, FftView};
-use crate::core_crypto::specification::parameters::*;
 use aligned_vec::CACHELINE_ALIGN;
 use concrete_fft::c64;
 use dyn_stack::{DynStack, SizeOverflow, StackReq};

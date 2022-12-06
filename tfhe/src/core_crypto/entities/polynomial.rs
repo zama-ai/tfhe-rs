@@ -1,5 +1,5 @@
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::specification::parameters::*;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

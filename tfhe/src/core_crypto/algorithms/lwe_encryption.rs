@@ -2,11 +2,11 @@
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::dispersion::DispersionParameter;
-use crate::core_crypto::specification::parameters::*;
 
 pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     lwe_secret_key: &LweSecretKey<KeyCont>,

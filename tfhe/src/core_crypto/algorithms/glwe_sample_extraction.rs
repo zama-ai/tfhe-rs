@@ -1,9 +1,9 @@
 #![allow(deprecated)] // For MonomialDegree for the time being
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
+use crate::core_crypto::commons::parameters::{MonomialDegree, *};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::{MonomialDegree, *};
 
 pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     input_glwe: &GlweCiphertext<InputCont>,
