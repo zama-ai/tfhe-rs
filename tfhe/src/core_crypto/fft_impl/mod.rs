@@ -1,5 +1,3 @@
-#![allow(deprecated)] // For the time being
-
 pub use concrete_fft::c64;
 use core::mem::MaybeUninit;
 
