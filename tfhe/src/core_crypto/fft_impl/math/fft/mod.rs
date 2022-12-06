@@ -5,10 +5,10 @@ use super::polynomial::{
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
+use crate::core_crypto::commons::parameters::PolynomialSize;
 use crate::core_crypto::commons::traits::{Container, IntoContainerOwned};
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::PolynomialSize;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
 use concrete_fft::unordered::{Method, Plan};

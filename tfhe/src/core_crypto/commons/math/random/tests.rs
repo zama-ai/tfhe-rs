@@ -1,6 +1,6 @@
+use crate::core_crypto::commons::dispersion::LogStandardDev;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::test_tools::*;
-use crate::core_crypto::specification::dispersion::LogStandardDev;
 
 fn test_normal_random<T: UnsignedTorus>() {
     //! test if the normal random generation with std_dev is below 3*std_dev (99.7%)

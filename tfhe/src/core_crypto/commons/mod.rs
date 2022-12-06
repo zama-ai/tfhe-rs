@@ -1,4 +1,11 @@
 #![allow(dead_code, deprecated)] // For the time being
+//! # Dispersion
+//! This module contains the functions used to compute the variance, standard
+//! deviation, etc.
+//!
+//! # Parameters
+//! This module contains structures that wrap unsigned integer parameters like the ciphertext
+//! dimension or the polynomial degree.
 
 #[allow(unused_macros)]
 macro_rules! assert_delta {
@@ -36,10 +43,12 @@ macro_rules! modular_distance {
     };
 }
 
+pub mod dispersion;
 pub mod fft_buffers;
 pub mod generators;
 pub mod math;
 pub mod numeric;
+pub mod parameters;
 pub mod utils;
 
 // Refactor modules
@@ -50,16 +59,16 @@ pub mod traits;
 pub mod test_tools {
     use rand::Rng;
 
+    use crate::core_crypto::commons::dispersion::DispersionParameter;
     use crate::core_crypto::commons::generators::{
         EncryptionRandomGenerator, SecretRandomGenerator,
     };
     use crate::core_crypto::commons::math::random::{RandomGenerable, RandomGenerator, Uniform};
-    use crate::core_crypto::commons::traits::*;
-    use crate::core_crypto::specification::dispersion::DispersionParameter;
-    use crate::core_crypto::specification::parameters::{
+    use crate::core_crypto::commons::parameters::{
         CiphertextCount, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
         LweDimension, PlaintextCount, PolynomialSize,
     };
+    use crate::core_crypto::commons::traits::*;
     use concrete_csprng::generators::SoftwareRandomGenerator;
     use concrete_csprng::seeders::{Seed, Seeder};
 

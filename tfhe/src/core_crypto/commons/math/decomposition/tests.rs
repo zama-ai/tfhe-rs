@@ -2,10 +2,8 @@ use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::math::random::{RandomGenerable, Uniform};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{Numeric, SignedInteger, UnsignedInteger};
+use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
 use crate::core_crypto::commons::test_tools::{any_uint, any_usize, random_usize_between};
-use crate::core_crypto::specification::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount,
-};
 use std::fmt::Debug;
 
 // Returns a random decomposition valid for the size of the T type.

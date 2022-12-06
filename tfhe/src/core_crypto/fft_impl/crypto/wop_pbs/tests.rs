@@ -1,17 +1,17 @@
 use super::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
+use crate::core_crypto::commons::dispersion::{LogStandardDev, StandardDev};
 use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, DeltaLog, ExtractedBitsCount, GlweDimension,
+    LweDimension, LweSize, PlaintextCount, PolynomialCount, PolynomialSize,
+};
 use crate::core_crypto::commons::test_tools;
 use crate::core_crypto::fft_impl::crypto::bootstrap::{
     fill_with_forward_fourier_scratch, FourierLweBootstrapKey,
 };
 use crate::core_crypto::fft_impl::math::fft::Fft;
-use crate::core_crypto::specification::dispersion::{LogStandardDev, StandardDev};
-use crate::core_crypto::specification::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, DeltaLog, ExtractedBitsCount, GlweDimension,
-    LweDimension, LweSize, PlaintextCount, PolynomialCount, PolynomialSize,
-};
 use concrete_csprng::generators::SoftwareRandomGenerator;
 use concrete_csprng::seeders::{Seeder, UnixSeeder};
 use concrete_fft::c64;
