@@ -1,4 +1,5 @@
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::fft_buffers::FftBuffers;
 use crate::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
 };
@@ -7,8 +8,6 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::*;
 use crate::seeders::new_seeder;
 use crate::shortint::ServerKey;
-use core::mem::MaybeUninit;
-use dyn_stack::DynStack;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
@@ -27,25 +26,6 @@ thread_local! {
 pub struct Buffers {
     pub(crate) accumulator: GlweCiphertextOwned<u64>,
     pub(crate) buffer_lwe_after_ks: LweCiphertextOwned<u64>,
-}
-
-#[derive(Default)]
-pub struct FftBuffers {
-    memory: Vec<MaybeUninit<u8>>,
-}
-
-impl FftBuffers {
-    pub fn new() -> Self {
-        FftBuffers { memory: Vec::new() }
-    }
-
-    pub fn resize(&mut self, capacity: usize) {
-        self.memory.resize_with(capacity, MaybeUninit::uninit);
-    }
-
-    pub fn stack(&mut self) -> DynStack<'_> {
-        DynStack::new(&mut self.memory)
-    }
 }
 
 /// This allows to store and retrieve the `Buffers`

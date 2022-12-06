@@ -1,12 +1,11 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::{ClientKey, PLAINTEXT_TRUE};
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::fft_buffers::FftBuffers;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::math::fft::Fft;
-use core::mem::MaybeUninit;
-use dyn_stack::DynStack;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::error::Error;
 
@@ -83,25 +82,6 @@ impl Memory {
 pub struct ServerKey {
     pub(crate) bootstrapping_key: FourierLweBootstrapKeyOwned,
     pub(crate) key_switching_key: LweKeyswitchKeyOwned<u32>,
-}
-
-#[derive(Default)]
-pub struct FftBuffers {
-    memory: Vec<MaybeUninit<u8>>,
-}
-
-impl FftBuffers {
-    pub fn new() -> Self {
-        FftBuffers { memory: Vec::new() }
-    }
-
-    pub fn resize(&mut self, capacity: usize) {
-        self.memory.resize_with(capacity, MaybeUninit::uninit);
-    }
-
-    pub fn stack(&mut self) -> DynStack<'_> {
-        DynStack::new(&mut self.memory)
-    }
 }
 
 /// Performs ciphertext bootstraps on the CPU
@@ -198,7 +178,7 @@ impl Bootstrapper {
         let fft = fft.as_view();
 
         self.fft_buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_scratch::<u64>(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
                 fft,
@@ -208,7 +188,7 @@ impl Bootstrapper {
         );
         let stack = self.fft_buffers.stack();
 
-        programmable_bootstrap_lwe_ciphertext(
+        programmable_bootstrap_lwe_ciphertext_mem_optimized(
             input,
             &mut buffer_after_pbs,
             &accumulator,
@@ -254,7 +234,7 @@ impl Bootstrapper {
         let fft = fft.as_view();
 
         self.fft_buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_scratch::<u64>(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
                 fft,
@@ -265,7 +245,7 @@ impl Bootstrapper {
         let stack = self.fft_buffers.stack();
 
         // Compute a bootstrap
-        programmable_bootstrap_lwe_ciphertext(
+        programmable_bootstrap_lwe_ciphertext_mem_optimized(
             &ciphertext,
             &mut buffer_lwe_after_pbs,
             &accumulator,
