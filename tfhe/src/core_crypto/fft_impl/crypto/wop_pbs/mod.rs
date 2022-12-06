@@ -266,8 +266,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
 
     debug_assert!(
         ggsw_out.glwe_size().0 == pfpksk_list.lwe_pfpksk_count().0,
-        "The input vector of fpksk needs to have {} (ggsw.glwe_size * \
-        ggsw.decomposition_level_count) elements got {}",
+        "The input vector of pfpksk_list needs to have {} ggsw.glwe_size elements got {}",
         ggsw_out.glwe_size().0,
         pfpksk_list.lwe_pfpksk_count().0,
     );

@@ -248,8 +248,10 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     InputCont: Container<Element = Scalar>,
 {
     assert!(
-        output.polynomial_size().0 == encoded.plaintext_count().0,
-        "TODO Error message"
+        encoded.plaintext_count().0 == output.polynomial_size().0,
+        "Mismatched input PlaintextCount {:?} and output PolynomialSize {:?}",
+        encoded.plaintext_count(),
+        output.polynomial_size()
     );
 
     let (mut mask, mut body) = output.get_mut_mask_and_body();

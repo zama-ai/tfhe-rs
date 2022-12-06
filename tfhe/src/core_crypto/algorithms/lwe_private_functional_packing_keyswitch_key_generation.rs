@@ -37,15 +37,24 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
 {
     assert!(
         input_lwe_secret_key.lwe_dimension() == lwe_pfpksk.input_lwe_key_dimension(),
-        "TODO error message"
+        "Mismatched LweDimension between input_lwe_secret_key {:?} and lwe_pfpksk input dimension \
+        {:?}.",
+        input_lwe_secret_key.lwe_dimension(),
+        lwe_pfpksk.input_lwe_key_dimension()
     );
     assert!(
         output_glwe_secret_key.glwe_dimension() == lwe_pfpksk.output_glwe_key_dimension(),
-        "TODO error message"
+        "Mismatched GlweDimension between output_glwe_secret_key {:?} and lwe_pfpksk output \
+        dimension {:?}.",
+        output_glwe_secret_key.glwe_dimension(),
+        lwe_pfpksk.output_glwe_key_dimension()
     );
     assert!(
         output_glwe_secret_key.polynomial_size() == lwe_pfpksk.output_polynomial_size(),
-        "TODO error message"
+        "Mismatched PolynomialSize between output_glwe_secret_key {:?} and lwe_pfpksk output \
+        polynomial size {:?}.",
+        output_glwe_secret_key.polynomial_size(),
+        lwe_pfpksk.output_polynomial_size()
     );
 
     // We instantiate a buffer
@@ -137,15 +146,24 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
 {
     assert!(
         input_lwe_secret_key.lwe_dimension() == lwe_pfpksk.input_lwe_key_dimension(),
-        "TODO error message"
+        "Mismatched LweDimension between input_lwe_secret_key {:?} and lwe_pfpksk input dimension \
+        {:?}.",
+        input_lwe_secret_key.lwe_dimension(),
+        lwe_pfpksk.input_lwe_key_dimension()
     );
     assert!(
         output_glwe_secret_key.glwe_dimension() == lwe_pfpksk.output_glwe_key_dimension(),
-        "TODO error message"
+        "Mismatched GlweDimension between output_glwe_secret_key {:?} and lwe_pfpksk output \
+        dimension {:?}.",
+        output_glwe_secret_key.glwe_dimension(),
+        lwe_pfpksk.output_glwe_key_dimension()
     );
     assert!(
         output_glwe_secret_key.polynomial_size() == lwe_pfpksk.output_polynomial_size(),
-        "TODO error message"
+        "Mismatched PolynomialSize between output_glwe_secret_key {:?} and lwe_pfpksk output \
+        polynomial size {:?}.",
+        output_glwe_secret_key.polynomial_size(),
+        lwe_pfpksk.output_polynomial_size()
     );
 
     // We retrieve decomposition arguments
