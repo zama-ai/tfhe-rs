@@ -1,4 +1,3 @@
-#![deny(rustdoc::broken_intra_doc_links)]
 //! Welcome to the tfhe.rs `core_crypto` module documentation!
 //!
 //! This library contains a set of low-level primitives which can be used to implement *Fully
