@@ -1,4 +1,3 @@
-#![deny(rustdoc::broken_intra_doc_links)]
 #![allow(clippy::missing_safety_doc)]
 #[cfg(feature = "boolean-c-api")]
 pub mod boolean;
