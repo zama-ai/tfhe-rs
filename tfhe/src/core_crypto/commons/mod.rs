@@ -150,7 +150,7 @@ pub mod test_tools {
         Second: Container<Element = Element>,
         Element: UnsignedTorus,
     {
-        use rand::distributions::{Distribution, Normal};
+        use rand_distr::Distribution;
 
         let std_dev = dist.get_standard_dev();
         let confidence = 0.95;
@@ -168,7 +168,7 @@ pub mod test_tools {
 
         // fill the theoretical sample vector according to std_dev using the rand crate
         let mut theoretical_samples: Vec<f64> = Vec::with_capacity(n_slots);
-        let normal = Normal::new(0.0, std_dev);
+        let normal = rand_distr::Normal::new(0.0, std_dev).unwrap();
         for _i in 0..n_slots {
             theoretical_samples.push(normal.sample(&mut rand::thread_rng()));
         }
