@@ -1,4 +1,4 @@
-#![allow(dead_code, deprecated)] // For the time being
+#![allow(dead_code)]
 //! # Dispersion
 //! This module contains the functions used to compute the variance, standard
 //! deviation, etc.
