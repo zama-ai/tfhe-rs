@@ -1022,7 +1022,7 @@ pub fn blind_rotate<Scalar: UnsignedTorus + CastInto<usize>>(
         ct_1.as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
-                update_polynomial_with_wrapping_unit_monomial_div(&mut poly, monomial_degree)
+                update_polynomial_with_wrapping_monic_monomial_div(&mut poly, monomial_degree)
             });
         monomial_degree.0 <<= 1;
         cmux(ct_0, ct_1, ggsw, fft, stack);

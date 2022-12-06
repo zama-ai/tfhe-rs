@@ -233,7 +233,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         lut.as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
-                update_polynomial_with_wrapping_unit_monomial_div(
+                update_polynomial_with_wrapping_monic_monomial_div(
                     &mut poly,
                     MonomialDegree(monomial_degree),
                 )
