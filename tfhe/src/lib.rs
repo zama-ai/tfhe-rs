@@ -1,5 +1,6 @@
 #![cfg_attr(feature = "__wasm_api", allow(dead_code))]
 #![cfg_attr(feature = "nightly-avx512", feature(stdsimd, avx512_target_feature))]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 #[cfg(feature = "__c_api")]
 pub mod c_api;
