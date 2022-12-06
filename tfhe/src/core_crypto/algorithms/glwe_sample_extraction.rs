@@ -1,4 +1,3 @@
-#![allow(deprecated)] // For MonomialDegree for the time being
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{MonomialDegree, *};
