@@ -1,4 +1,3 @@
-#![allow(deprecated)] // For MonomialDegree for now
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
