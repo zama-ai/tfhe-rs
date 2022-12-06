@@ -11,7 +11,6 @@ use super::ggsw::{
 };
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
@@ -162,7 +161,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
 
         // Add q/4 to center the error while computing a negacyclic LUT
         let out_ks_body = lwe_out_ks_buffer.get_mut_body().0;
-        *out_ks_body = out_ks_body.wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
+        *out_ks_body = (*out_ks_body).wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
 
         // Fill lut for the current bit (equivalent to trivial encryption as mask is 0s)
         // The LUT is filled with -alpha in each coefficient where alpha = delta*2^{bit_idx-1}
@@ -187,11 +186,11 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         // extracted bit was 0 and 1 in the other case
         let out_pbs_body = lwe_out_pbs_buffer.get_mut_body().0;
 
-        *out_pbs_body = out_pbs_body.wrapping_add(Scalar::ONE << (delta_log.0 + bit_idx - 1));
+        *out_pbs_body = (*out_pbs_body).wrapping_add(Scalar::ONE << (delta_log.0 + bit_idx - 1));
 
         // Remove the extracted bit from the initial LWE to get a 0 at the extracted bit location.
         izip!(lwe_in_buffer.as_mut(), lwe_out_pbs_buffer.as_ref())
-            .for_each(|(out, inp)| *out = out.wrapping_sub(*inp));
+            .for_each(|(out, inp)| *out = (*out).wrapping_sub(*inp));
     }
 }
 
@@ -357,9 +356,8 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
 
     // Add q/4 to center the error while computing a negacyclic LUT
     let shift_buffer_body = lwe_left_shift_buffer.get_mut_body();
-    *shift_buffer_body.0 = shift_buffer_body
-        .0
-        .wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
+    *shift_buffer_body.0 =
+        (*shift_buffer_body.0).wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
 
     let (mut pbs_accumulator_data, stack) = stack.make_aligned_with(
         polynomial_size.0 * fourier_bsk.glwe_size().0,
@@ -391,8 +389,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     // Add alpha where alpha = 2^{log(q) - 1 - base_log * level}
     // To end up with an encryption of 0 if the message bit was 0 and 1 in the other case
     let out_body = lwe_out.get_mut_body();
-    *out_body.0 = out_body
-        .0
+    *out_body.0 = (*out_body.0)
         .wrapping_add(Scalar::ONE << (ciphertext_n_bits - 1 - base_log_cbs.0 * level_count_cbs.0));
 }
 
@@ -709,7 +706,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
                 if t_fill[j] == 2 {
                     let (diff_data, stack) = stack.rb_mut().collect_aligned(
                         CACHELINE_ALIGN,
-                        izip!(t1_j.as_ref(), t0_j.as_ref()).map(|(a, b)| a.wrapping_sub(*b)),
+                        izip!(t1_j.as_ref(), t0_j.as_ref()).map(|(&a, &b)| a.wrapping_sub(b)),
                     );
                     let diff = GlweCiphertext::from_container(&*diff_data, polynomial_size);
 
