@@ -1,4 +1,3 @@
-#![deny(rustdoc::broken_intra_doc_links)]
 //! Welcome the the tfhe.rs `boolean` module documentation!
 //!
 //! # Description
