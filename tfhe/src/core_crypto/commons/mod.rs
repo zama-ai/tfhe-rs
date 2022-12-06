@@ -36,6 +36,7 @@ macro_rules! modular_distance {
     };
 }
 
+pub mod fft_buffers;
 pub mod generators;
 pub mod math;
 pub mod numeric;
