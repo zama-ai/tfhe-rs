@@ -15,7 +15,8 @@ exclude = ["/docs/", "/c_api_tests/", "/CMakeLists.txt"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dev-dependencies]
-rand = "0.7"
+rand = "0.8.5"
+rand_distr = "0.4.3"
 kolmogorov_smirnov = "1.1.0"
 paste = "1.0.7"
 lazy_static = { version = "1.4.0" }
