@@ -143,6 +143,12 @@ doc: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint --no-deps
 
+.PHONY: pcc # pcc stands for pre commit checks
+pcc: check_fmt doc clippy_all
+
+.PHONY: conformance # Automatically fix problems that can be fixed
+conformance: fmt
+
 .PHONY: help # Generate list of targets with descriptions
 help:
 	@grep '^.PHONY: .* #' Makefile | sed 's/\.PHONY: \(.*\) # \(.*\)/\1\t\2/' | expand -t30 | sort
