@@ -333,7 +333,6 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list<
     )
 }
 
-// TODO big_lut_polynomial_count looks wrong
 #[allow(clippy::too_many_arguments)]
 pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_scracth<Scalar>(
     lwe_list_in_count: LweCiphertextCount,

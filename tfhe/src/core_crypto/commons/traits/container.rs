@@ -48,13 +48,11 @@ impl<T> Container for aligned_vec::AVec<T> {
 
 impl<T> ContainerMut for aligned_vec::AVec<T> {}
 
-// TODO REFACTOR
-// Rework the fft traits
-pub trait ContainerOwned: Container + AsMut<[Self::Element]> {
+pub trait IntoContainerOwned: Container + AsMut<[Self::Element]> {
     fn collect<I: Iterator<Item = Self::Element>>(iter: I) -> Self;
 }
 
-impl<T> ContainerOwned for aligned_vec::ABox<[T]> {
+impl<T> IntoContainerOwned for aligned_vec::ABox<[T]> {
     fn collect<I: Iterator<Item = Self::Element>>(iter: I) -> Self {
         aligned_vec::AVec::<T, _>::from_iter(0, iter).into_boxed_slice()
     }

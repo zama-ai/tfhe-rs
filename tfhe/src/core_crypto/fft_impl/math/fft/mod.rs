@@ -5,7 +5,7 @@ use super::polynomial::{
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
-use crate::core_crypto::commons::traits::{Container, ContainerOwned};
+use crate::core_crypto::commons::traits::{Container, IntoContainerOwned};
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::specification::parameters::PolynomialSize;
@@ -571,12 +571,14 @@ impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> 
     }
 }
 
-impl<'de, C: ContainerOwned<Element = c64>> serde::Deserialize<'de> for FourierPolynomialList<C> {
+impl<'de, C: IntoContainerOwned<Element = c64>> serde::Deserialize<'de>
+    for FourierPolynomialList<C>
+{
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         use std::marker::PhantomData;
-        struct SeqVisitor<C: ContainerOwned<Element = c64>>(PhantomData<fn() -> C>);
+        struct SeqVisitor<C: IntoContainerOwned<Element = c64>>(PhantomData<fn() -> C>);
 
-        impl<'de, C: ContainerOwned<Element = c64>> serde::de::Visitor<'de> for SeqVisitor<C> {
+        impl<'de, C: IntoContainerOwned<Element = c64>> serde::de::Visitor<'de> for SeqVisitor<C> {
             type Value = FourierPolynomialList<C>;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
