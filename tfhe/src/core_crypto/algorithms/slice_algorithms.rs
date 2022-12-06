@@ -1,5 +1,18 @@
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 
+/// Computes a dot product between two slices containing unsigned integers, wrapping
+/// around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned integer
+/// capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let second = vec![255u8, 255, 255, 1, 2, 3];
+/// let dot_product = slice_wrapping_dot_product(&first, &second);
+/// assert_eq!(dot_product, 26);
+/// ```
 pub fn slice_wrapping_dot_product<Scalar>(lhs: &[Scalar], rhs: &[Scalar]) -> Scalar
 where
     Scalar: UnsignedInteger,
@@ -18,6 +31,20 @@ where
         })
 }
 
+/// Adds a slice containing unsigned integers to another one element-wise, wrapping
+/// around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned integer
+/// capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let second = vec![255u8, 255, 255, 1, 2, 3];
+/// let mut add = vec![0_u8; 6];
+/// slice_wrapping_add(&mut add, &first, &second);
+/// assert_eq!(&add, &[0u8, 1, 2, 5, 7, 9]);
+/// ```
 pub fn slice_wrapping_add<Scalar>(output: &mut [Scalar], lhs: &[Scalar], rhs: &[Scalar])
 where
     Scalar: UnsignedInteger,
@@ -41,6 +68,19 @@ where
         .for_each(|(out, (&lhs, &rhs))| *out = lhs.wrapping_add(rhs));
 }
 
+/// Adds a slice containing unsigned integers to another one element-wise and in place, wrapping
+/// around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned integer
+/// capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let second = vec![255u8, 255, 255, 1, 2, 3];
+/// update_slice_with_wrapping_add(&mut first, &second);
+/// assert_eq!(&first, &[0u8, 1, 2, 5, 7, 9]);
+/// ```
 pub fn update_slice_with_wrapping_add<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
 where
     Scalar: UnsignedInteger,
@@ -57,6 +97,21 @@ where
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs));
 }
 
+/// Adds a slice containing unsigned integers to another one mutiplied by a scalar, element-wise and
+/// in place, wrapping around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the
+/// unsigned integer capacity. Let *a*,*b* be two slices, let *c* be a scalar, this computes:
+/// *a <- a+bc*
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let second = vec![255u8, 255, 255, 1, 2, 3];
+/// let scalar = 4u8;
+/// update_slice_with_wrapping_add_scalar_mul(&mut first, &second, scalar);
+/// assert_eq!(&first, &[253u8, 254, 255, 8, 13, 18]);
+/// ```
 pub fn update_slice_with_wrapping_add_scalar_mul<Scalar>(
     lhs: &mut [Scalar],
     rhs: &[Scalar],
@@ -75,6 +130,19 @@ pub fn update_slice_with_wrapping_add_scalar_mul<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs.wrapping_mul(scalar)));
 }
 
+/// Subtracts a slice containing unsigned integers to another one, element-wise and in place,
+/// wrapping around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned
+/// integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let second = vec![255u8, 255, 255, 1, 2, 3];
+/// update_slice_with_wrapping_sub(&mut first, &second);
+/// assert_eq!(&first, &[2u8, 3, 4, 3, 3, 3]);
+/// ```
 pub fn update_slice_with_wrapping_sub<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
 where
     Scalar: UnsignedInteger,
@@ -91,6 +159,20 @@ where
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs));
 }
 
+/// Subtracts a slice containing unsigned integers to another one mutiplied by a scalar,
+/// element-wise and in place, wrapping around (similar to computing modulo $$2^{n\_bits}$$) when
+/// exceeding the unsigned integer capacity. Let *a*,*b* be two slices, let *c* be a scalar, this
+/// computes: *a <- a-bc*
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let second = vec![255u8, 255, 255, 1, 2, 3];
+/// let scalar = 4u8;
+/// update_slice_with_wrapping_sub_scalar_mul(&mut first, &second, scalar);
+/// assert_eq!(&first, &[5u8, 6, 7, 0, 253, 250]);
 pub fn update_slice_with_wrapping_sub_scalar_mul<Scalar>(
     lhs: &mut [Scalar],
     rhs: &[Scalar],
@@ -109,6 +191,18 @@ pub fn update_slice_with_wrapping_sub_scalar_mul<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs.wrapping_mul(scalar)));
 }
 
+/// Computes the opposite of a slice containing unsigned integers, element-wise and in place,
+/// wrapping around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned
+/// integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// update_slice_with_wrapping_opposite(&mut first);
+/// assert_eq!(&first, &[255u8, 254, 253, 252, 251, 250]);
+/// ```
 pub fn update_slice_with_wrapping_opposite<Scalar>(slice: &mut [Scalar])
 where
     Scalar: UnsignedInteger,
@@ -118,6 +212,19 @@ where
         .for_each(|elt| *elt = (*elt).wrapping_neg());
 }
 
+/// Multiplies a slice containing unsigned integers by a scalar, element-wise and in place, wrapping
+/// around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned integer
+/// capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let scalar = 252;
+/// update_slice_with_wrapping_scalar_mul(&mut first, scalar);
+/// assert_eq!(&first, &[252, 248, 244, 240, 236, 232]);
+/// ```
 pub fn update_slice_with_wrapping_scalar_mul<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
 where
     Scalar: UnsignedInteger,
