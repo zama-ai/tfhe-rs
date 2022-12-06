@@ -6,14 +6,14 @@ use super::super::math::polynomial::{FourierPolynomialUninitMutView, FourierPoly
 use super::super::{as_mut_uninit, assume_init_mut};
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
+use crate::core_crypto::commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
+};
 use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, IntoContainerOwned, Split,
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
-};
 use aligned_vec::CACHELINE_ALIGN;
 use concrete_fft::c64;
 use dyn_stack::{DynStack, ReborrowMut, SizeOverflow, StackReq};

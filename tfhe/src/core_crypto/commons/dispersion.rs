@@ -44,7 +44,7 @@ pub trait DispersionParameter: Copy {
 /// # Example:
 ///
 /// ```
-/// use tfhe::core_crypto::specification::dispersion::{DispersionParameter, LogStandardDev};
+/// use tfhe::core_crypto::commons::dispersion::{DispersionParameter, LogStandardDev};
 /// let params = LogStandardDev::from_log_standard_dev(-25.);
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));
 /// assert_eq!(params.get_log_standard_dev(), -25.);
@@ -98,7 +98,7 @@ impl DispersionParameter for LogStandardDev {
 /// # Example:
 ///
 /// ```
-/// use tfhe::core_crypto::specification::dispersion::{DispersionParameter, StandardDev};
+/// use tfhe::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
 /// let params = StandardDev::from_standard_dev(2_f64.powf(-25.));
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));
 /// assert_eq!(params.get_log_standard_dev(), -25.);
@@ -149,7 +149,7 @@ impl DispersionParameter for StandardDev {
 /// # Example:
 ///
 /// ```
-/// use tfhe::core_crypto::specification::dispersion::{DispersionParameter, Variance};
+/// use tfhe::core_crypto::commons::dispersion::{DispersionParameter, Variance};
 /// let params = Variance::from_variance(2_f64.powi(-50));
 /// assert_eq!(params.get_standard_dev(), 2_f64.powf(-25.));
 /// assert_eq!(params.get_log_standard_dev(), -25.);

@@ -11,7 +11,6 @@
 //! freedom of choice over a breadth of parameters, which can lead to less than 128 bits of security
 //! if chosen incorrectly
 pub mod commons;
-pub mod specification;
 
 // Modules part of the refactoring effort
 pub mod algorithms;

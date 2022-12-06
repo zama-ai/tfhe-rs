@@ -12,11 +12,11 @@
 //! traits which allow to go back and forth between an unsigned integer representation and a
 //! floating point representation.
 
+use crate::core_crypto::commons::dispersion::LogStandardDev;
 use crate::core_crypto::commons::math::random::{
     Gaussian, RandomGenerable, Uniform, UniformBinary, UniformTernary,
 };
 pub use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint, Numeric, UnsignedInteger};
-use crate::core_crypto::specification::dispersion::LogStandardDev;
 use std::fmt::{Debug, Display};
 
 /// A trait that converts a torus element in unsigned integer representation to the closest

@@ -1,6 +1,6 @@
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::specification::parameters::*;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct GgswCiphertextList<C: Container> {

@@ -4,8 +4,8 @@
 //! homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter
 //! sets.
 
-pub use crate::core_crypto::specification::dispersion::{DispersionParameter, StandardDev};
-pub use crate::core_crypto::specification::parameters::{
+pub use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
+pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use serde::{Deserialize, Serialize};
