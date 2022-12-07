@@ -185,7 +185,7 @@ impl BooleanEngine {
             Ciphertext::Encrypted(ct_ct) => {
                 // Compute the linear combination for NOT: -ct
                 let mut ct_res = ct_ct.clone();
-                lwe_ciphertext_in_place_opposite(&mut ct_res);
+                lwe_ciphertext_opposite_assign(&mut ct_res);
 
                 // Output the result:
                 Ciphertext::Encrypted(ct_res)
@@ -197,7 +197,7 @@ impl BooleanEngine {
         match ct {
             Ciphertext::Trivial(message) => *message = !*message,
             Ciphertext::Encrypted(ct_ct) => {
-                lwe_ciphertext_in_place_opposite(ct_ct); // compute the negation
+                lwe_ciphertext_opposite_assign(ct_ct); // compute the negation
             }
         }
     }
@@ -318,15 +318,15 @@ impl BooleanEngine {
                 // (0,...,0,-1/8)
                 lwe_ciphertext_addition(buffer_lwe_before_pbs, ct_condition_ct, &ct_then_ct);
                 let cst = Plaintext(PLAINTEXT_FALSE);
-                lwe_ciphertext_in_place_plaintext_addition(buffer_lwe_before_pbs, cst); // - 1/8
+                lwe_ciphertext_plaintext_addition_assign(buffer_lwe_before_pbs, cst); // - 1/8
 
                 // Compute the linear combination for second AND: - ct_condition + ct_else +
                 // (0,...,0,-1/8)
                 let mut ct_temp_2 = ct_condition_ct.clone(); // ct_condition
-                lwe_ciphertext_in_place_opposite(&mut ct_temp_2); // compute the negation
-                lwe_ciphertext_in_place_addition(&mut ct_temp_2, &ct_else_ct); // + ct_else
+                lwe_ciphertext_opposite_assign(&mut ct_temp_2); // compute the negation
+                lwe_ciphertext_addition_assign(&mut ct_temp_2, &ct_else_ct); // + ct_else
                 let cst = Plaintext(PLAINTEXT_FALSE);
-                lwe_ciphertext_in_place_plaintext_addition(&mut ct_temp_2, cst); // - 1/8
+                lwe_ciphertext_plaintext_addition_assign(&mut ct_temp_2, cst); // - 1/8
 
                 // Compute the first programmable bootstrapping with fixed test polynomial:
                 let mut ct_pbs_1 = bootstrapper
@@ -337,9 +337,9 @@ impl BooleanEngine {
 
                 // Compute the linear combination to add the two results:
                 // buffer_lwe_pbs + ct_pbs_2 + (0,...,0, +1/8)
-                lwe_ciphertext_in_place_addition(&mut ct_pbs_1, &ct_pbs_2); // + buffer_lwe_pbs
+                lwe_ciphertext_addition_assign(&mut ct_pbs_1, &ct_pbs_2); // + buffer_lwe_pbs
                 let cst = Plaintext(PLAINTEXT_TRUE);
-                lwe_ciphertext_in_place_plaintext_addition(&mut ct_pbs_1, cst); // + 1/8
+                lwe_ciphertext_plaintext_addition_assign(&mut ct_pbs_1, cst); // + 1/8
 
                 let ct_ks = bootstrapper.keyswitch(&ct_pbs_1, server_key).unwrap();
 
@@ -383,7 +383,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
                 let cst = Plaintext(PLAINTEXT_FALSE);
                 // - 1/8
-                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst);
+                lwe_ciphertext_plaintext_addition_assign(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -422,10 +422,10 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 // Compute the linear combination for NAND: - ct_left - ct_right + (0,...,0,1/8)
                 // ct_left + ct_right
                 lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
-                lwe_ciphertext_in_place_opposite(&mut buffer_lwe_before_pbs);
+                lwe_ciphertext_opposite_assign(&mut buffer_lwe_before_pbs);
                 let cst = Plaintext(PLAINTEXT_TRUE);
                 // + 1/8
-                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst);
+                lwe_ciphertext_plaintext_addition_assign(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -465,10 +465,10 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 // ct_left + ct_right
                 lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
                 // compute the negation
-                lwe_ciphertext_in_place_opposite(&mut buffer_lwe_before_pbs);
+                lwe_ciphertext_opposite_assign(&mut buffer_lwe_before_pbs);
                 let cst = Plaintext(PLAINTEXT_FALSE);
                 // - 1/8
-                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst);
+                lwe_ciphertext_plaintext_addition_assign(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -509,7 +509,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
                 let cst = Plaintext(PLAINTEXT_TRUE);
                 // + 1/8
-                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst);
+                lwe_ciphertext_plaintext_addition_assign(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -550,13 +550,10 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
                 let cst_add = Plaintext(PLAINTEXT_TRUE);
                 // + 1/8
-                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst_add);
+                lwe_ciphertext_plaintext_addition_assign(&mut buffer_lwe_before_pbs, cst_add);
                 let cst_mul = Cleartext(2u32);
                 //* 2
-                lwe_ciphertext_in_place_cleartext_multiplication(
-                    &mut buffer_lwe_before_pbs,
-                    cst_mul,
-                );
+                lwe_ciphertext_cleartext_multiplication_assign(&mut buffer_lwe_before_pbs, cst_mul);
 
                 // compute the bootstrap and the key switch
                 bootstrapper
@@ -597,15 +594,12 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_addition(&mut buffer_lwe_before_pbs, ct_left_ct, ct_right_ct);
                 let cst_add = Plaintext(PLAINTEXT_TRUE);
                 // + 1/8
-                lwe_ciphertext_in_place_plaintext_addition(&mut buffer_lwe_before_pbs, cst_add);
+                lwe_ciphertext_plaintext_addition_assign(&mut buffer_lwe_before_pbs, cst_add);
                 // compute the negation
-                lwe_ciphertext_in_place_opposite(&mut buffer_lwe_before_pbs);
+                lwe_ciphertext_opposite_assign(&mut buffer_lwe_before_pbs);
                 let cst_mul = Cleartext(2u32);
                 //* 2
-                lwe_ciphertext_in_place_cleartext_multiplication(
-                    &mut buffer_lwe_before_pbs,
-                    cst_mul,
-                );
+                lwe_ciphertext_cleartext_multiplication_assign(&mut buffer_lwe_before_pbs, cst_mul);
 
                 // compute the bootstrap and the key switch
                 bootstrapper

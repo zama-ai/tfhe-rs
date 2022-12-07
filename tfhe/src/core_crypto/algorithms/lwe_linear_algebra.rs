@@ -6,7 +6,7 @@ use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
-pub fn lwe_ciphertext_in_place_addition<Scalar, LhsCont, RhsCont>(
+pub fn lwe_ciphertext_addition_assign<Scalar, LhsCont, RhsCont>(
     lhs: &mut LweCiphertext<LhsCont>,
     rhs: &LweCiphertext<RhsCont>,
 ) where
@@ -30,7 +30,7 @@ pub fn lwe_ciphertext_addition<Scalar, OutputCont, LhsCont, RhsCont>(
     slice_wrapping_add(output.as_mut(), lhs.as_ref(), rhs.as_ref());
 }
 
-pub fn lwe_ciphertext_in_place_plaintext_addition<Scalar, InCont>(
+pub fn lwe_ciphertext_plaintext_addition_assign<Scalar, InCont>(
     lhs: &mut LweCiphertext<InCont>,
     rhs: Plaintext<Scalar>,
 ) where
@@ -42,7 +42,7 @@ pub fn lwe_ciphertext_in_place_plaintext_addition<Scalar, InCont>(
     *body.0 = (*body.0).wrapping_add(rhs.0);
 }
 
-pub fn lwe_ciphertext_in_place_opposite<Scalar, InCont>(ct: &mut LweCiphertext<InCont>)
+pub fn lwe_ciphertext_opposite_assign<Scalar, InCont>(ct: &mut LweCiphertext<InCont>)
 where
     Scalar: UnsignedInteger,
     InCont: ContainerMut<Element = Scalar>,
@@ -50,7 +50,7 @@ where
     slice_wrapping_opposite_assign(ct.as_mut());
 }
 
-pub fn lwe_ciphertext_in_place_cleartext_multiplication<Scalar, InCont>(
+pub fn lwe_ciphertext_cleartext_multiplication_assign<Scalar, InCont>(
     lhs: &mut LweCiphertext<InCont>,
     rhs: Cleartext<Scalar>,
 ) where
@@ -60,7 +60,7 @@ pub fn lwe_ciphertext_in_place_cleartext_multiplication<Scalar, InCont>(
     slice_wrapping_scalar_mul_assign(lhs.as_mut(), rhs.0);
 }
 
-pub fn lwe_ciphertext_in_place_subtraction<Scalar, LhsCont, RhsCont>(
+pub fn lwe_ciphertext_subtraction_assign<Scalar, LhsCont, RhsCont>(
     lhs: &mut LweCiphertext<LhsCont>,
     rhs: &LweCiphertext<RhsCont>,
 ) where
@@ -81,5 +81,5 @@ pub fn lwe_ciphertext_cleartext_multiplication<Scalar, InputCont, OutputCont>(
     OutputCont: ContainerMut<Element = Scalar>,
 {
     output.as_mut().copy_from_slice(lhs.as_ref());
-    lwe_ciphertext_in_place_cleartext_multiplication(output, rhs);
+    lwe_ciphertext_cleartext_multiplication_assign(output, rhs);
 }

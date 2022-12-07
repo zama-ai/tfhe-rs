@@ -461,7 +461,7 @@ impl ShortintEngine {
             (1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5));
         let tmp = LweCiphertextOwned::from_container(cont);
 
-        lwe_ciphertext_in_place_subtraction(&mut ct_in.ct, &tmp);
+        lwe_ciphertext_subtraction_assign(&mut ct_in.ct, &tmp);
 
         let ciphertext = self.extract_bits_circuit_bootstrapping(
             wopbs_key,
