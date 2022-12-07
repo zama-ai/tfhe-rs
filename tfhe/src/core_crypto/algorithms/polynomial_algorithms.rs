@@ -1,5 +1,6 @@
 //! Module providing algorithms to perform computations on polynomials modulo $X^{N} + 1$.
 
+use crate::core_crypto::algorithms::misc::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::MonomialDegree;
@@ -327,6 +328,164 @@ pub fn polynomial_wrapping_sub_mul_assign<Scalar, OutputCont, InputCont1, InputC
     }
 }
 
+/// Fills the ouptut polynomial, with the result of the product of two polynomials, reduced modulo
+/// $(X^{N} + 1)$ with the schoolbook algorithm Complexity: $O(N^{2})$
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::commons::parameters::*;
+/// use tfhe::core_crypto::entities::*;
+/// let lhs = Polynomial::from_container(vec![4_u8, 5, 0]);
+/// let rhs = Polynomial::from_container(vec![7_u8, 9, 0]);
+/// let mut output = Polynomial::new(2u8, PolynomialSize(3));
+/// polynomial_wrapping_mul(&mut output, &lhs, &rhs);
+/// assert_eq!(output.as_ref(), &[28, 71, 45]);
+/// ```
+pub fn polynomial_wrapping_mul<Scalar, OutputCont, LhsCont, RhsCont>(
+    output: &mut Polynomial<OutputCont>,
+    lhs: &Polynomial<LhsCont>,
+    rhs: &Polynomial<RhsCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    LhsCont: Container<Element = Scalar>,
+    RhsCont: Container<Element = Scalar>,
+{
+    output.as_mut().fill(Scalar::ZERO);
+    polynomial_wrapping_add_mul_assign(output, lhs, rhs);
+}
+
+/// Fills the output polynomial, with the result of the product of two polynomials, reduced modulo
+/// $(X^{N} + 1)$ with the Karatsuba algorithm Complexity: $O(N^{1.58})$
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::commons::parameters::*;
+/// use tfhe::core_crypto::entities::*;
+/// let lhs = Polynomial::from_container(vec![1_u32; 128]);
+/// let rhs = Polynomial::from_container(vec![2_u32; 128]);
+/// let mut res_kara = Polynomial::new(0u32, PolynomialSize(128));
+/// let mut res_mul = Polynomial::new(0u32, PolynomialSize(128));
+/// polynomial_karatsuba_wrapping_mul(&mut res_kara, &lhs, &rhs);
+/// polynomial_wrapping_mul(&mut res_mul, &lhs, &rhs);
+/// assert_eq!(res_kara, res_mul);
+/// ```
+pub fn polynomial_karatsuba_wrapping_mul<Scalar, OutputCont, LhsCont, RhsCont>(
+    output: &mut Polynomial<OutputCont>,
+    p: &Polynomial<LhsCont>,
+    q: &Polynomial<RhsCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    LhsCont: Container<Element = Scalar>,
+    RhsCont: Container<Element = Scalar>,
+{
+    // check same dimensions
+    assert!(
+        output.polynomial_size() == p.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input lhs polynomial {:?}.",
+        output.polynomial_size(),
+        p.polynomial_size(),
+    );
+    assert!(
+        output.polynomial_size() == q.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input rhs polynomial {:?}.",
+        output.polynomial_size(),
+        q.polynomial_size(),
+    );
+
+    let poly_size = output.polynomial_size().0;
+
+    // check dimensions are a power of 2
+    assert!(is_power_of_two::<u32>(poly_size.try_into().unwrap()));
+
+    // allocate slices for the rec
+    let mut a0 = vec![Scalar::ZERO; poly_size];
+    let mut a1 = vec![Scalar::ZERO; poly_size];
+    let mut a2 = vec![Scalar::ZERO; poly_size];
+    let mut input_a2_p = vec![Scalar::ZERO; poly_size / 2];
+    let mut input_a2_q = vec![Scalar::ZERO; poly_size / 2];
+
+    // prepare for splitting
+    let bottom = 0..(poly_size / 2);
+    let top = (poly_size / 2)..poly_size;
+
+    // induction
+    induction_karatsuba(&mut a0, &p[bottom.clone()], &q[bottom.clone()]);
+    induction_karatsuba(&mut a1, &p[top.clone()], &q[top.clone()]);
+    slice_wrapping_add(&mut input_a2_p, &p[bottom.clone()], &p[top.clone()]);
+    slice_wrapping_add(&mut input_a2_q, &q[bottom.clone()], &q[top.clone()]);
+    induction_karatsuba(&mut a2, &input_a2_p, &input_a2_q);
+
+    // rebuild the result
+    let output: &mut [Scalar] = output.as_mut();
+    slice_wrapping_sub(output, &a0, &a1);
+    slice_wrapping_sub_assign(&mut output[bottom.clone()], &a2[top.clone()]);
+    slice_wrapping_add_assign(&mut output[bottom.clone()], &a0[top.clone()]);
+    slice_wrapping_add_assign(&mut output[bottom.clone()], &a1[top.clone()]);
+    slice_wrapping_add_assign(&mut output[top.clone()], &a2[bottom.clone()]);
+    slice_wrapping_sub_assign(&mut output[top.clone()], &a0[bottom.clone()]);
+    slice_wrapping_sub_assign(&mut output[top], &a1[bottom]);
+}
+
+/// Compute the induction for the karatsuba algorithm.
+fn induction_karatsuba<Scalar>(res: &mut [Scalar], p: &[Scalar], q: &[Scalar])
+where
+    Scalar: UnsignedInteger,
+{
+    // stop the induction when polynomials have KARATUSBA_STOP elements
+    const KARATUSBA_STOP: usize = 32;
+    if p.len() == KARATUSBA_STOP {
+        // schoolbook algorithm
+        for (lhs_degree, &lhs_elt) in p.iter().enumerate() {
+            for (rhs_degree, &rhs_elt) in q.iter().enumerate() {
+                res[lhs_degree + rhs_degree] =
+                    res[lhs_degree + rhs_degree].wrapping_add(lhs_elt.wrapping_mul(rhs_elt))
+            }
+        }
+    } else {
+        let poly_size = res.len();
+
+        // allocate slices for the rec
+        let mut a0 = vec![Scalar::ZERO; poly_size / 2];
+        let mut a1 = vec![Scalar::ZERO; poly_size / 2];
+        let mut a2 = vec![Scalar::ZERO; poly_size / 2];
+        let mut input_a2_p = vec![Scalar::ZERO; poly_size / 4];
+        let mut input_a2_q = vec![Scalar::ZERO; poly_size / 4];
+
+        // prepare for splitting
+        let bottom = 0..(poly_size / 4);
+        let top = (poly_size / 4)..(poly_size / 2);
+
+        // rec
+        induction_karatsuba(&mut a0, &p[bottom.clone()], &q[bottom.clone()]);
+        induction_karatsuba(&mut a1, &p[top.clone()], &q[top.clone()]);
+        slice_wrapping_add(&mut input_a2_p, &p[bottom.clone()], &p[top.clone()]);
+        slice_wrapping_add(&mut input_a2_q, &q[bottom], &q[top]);
+        induction_karatsuba(&mut a2, &input_a2_p, &input_a2_q);
+
+        // rebuild the result
+        slice_wrapping_sub(&mut res[(poly_size / 4)..(3 * poly_size / 4)], &a2, &a0);
+        slice_wrapping_sub_assign(&mut res[(poly_size / 4)..(3 * poly_size / 4)], &a1);
+        slice_wrapping_add_assign(&mut res[0..(poly_size / 2)], &a0);
+        slice_wrapping_add_assign(&mut res[(poly_size / 2)..poly_size], &a1);
+    }
+}
+
 #[cfg(test)]
 mod test {
     use rand::Rng;
@@ -382,6 +541,43 @@ mod test {
         assert_eq!(&poly, &ground_truth);
     }
 
+    /// test if we have the same result when using schoolbook or karatsuba
+    /// for random polynomial multiplication
+    fn test_multiply_karatsuba<T: UnsignedTorus>() {
+        // 50 times the test
+        for _i in 0..50 {
+            // random source
+            let mut rng = rand::thread_rng();
+
+            // random settings settings
+            let polynomial_log = (rng.gen::<usize>() % 7) + 6;
+            let polynomial_size = PolynomialSize(1 << polynomial_log);
+            let mut generator = new_random_generator();
+
+            // generates two random Torus polynomials
+            let mut poly_1 = Polynomial::new(T::ZERO, polynomial_size);
+            generator.fill_slice_with_random_uniform::<T>(poly_1.as_mut());
+            let poly_1 = poly_1;
+
+            let mut poly_2 = Polynomial::new(T::ZERO, polynomial_size);
+            generator.fill_slice_with_random_uniform::<T>(poly_2.as_mut());
+            let poly_2 = poly_2;
+
+            // copy this polynomial
+            let mut sb_mul = Polynomial::new(T::ZERO, polynomial_size);
+            let mut ka_mul = Polynomial::new(T::ZERO, polynomial_size);
+
+            // compute the schoolbook
+            polynomial_wrapping_mul(&mut sb_mul, &poly_1, &poly_2);
+
+            // compute the karatsuba
+            polynomial_karatsuba_wrapping_mul(&mut ka_mul, &poly_1, &poly_2);
+
+            // test
+            assert_eq!(&sb_mul, &ka_mul);
+        }
+    }
+
     #[test]
     pub fn test_multiply_divide_unit_monomial_u32() {
         test_multiply_divide_unit_monomial::<u32>()
@@ -390,5 +586,15 @@ mod test {
     #[test]
     pub fn test_multiply_divide_unit_monomial_u64() {
         test_multiply_divide_unit_monomial::<u64>()
+    }
+
+    #[test]
+    pub fn test_multiply_karatsuba_u32() {
+        test_multiply_karatsuba::<u32>()
+    }
+
+    #[test]
+    pub fn test_multiply_karatsuba_u64() {
+        test_multiply_karatsuba::<u64>()
     }
 }
