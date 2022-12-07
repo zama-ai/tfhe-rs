@@ -32,10 +32,7 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
     );
 
     // Clear the output ciphertext, as it will get updated gradually
-    output_lwe_ciphertext
-        .as_mut()
-        .iter_mut()
-        .for_each(|elt| *elt = Scalar::ZERO);
+    output_lwe_ciphertext.as_mut().fill(Scalar::ZERO);
 
     // Copy the input body to the output ciphertext
     *output_lwe_ciphertext.get_mut_body().0 = *input_lwe_ciphertext.get_body().0;
@@ -55,7 +52,7 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
         for (level_key_ciphertext, decomposed) in
             keyswitch_key_block.iter().rev().zip(decomposition_iter)
         {
-            update_slice_with_wrapping_sub_scalar_mul(
+            slice_wrapping_sub_scalar_mul_assign(
                 output_lwe_ciphertext.as_mut(),
                 level_key_ciphertext.as_ref(),
                 decomposed.value(),

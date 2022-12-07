@@ -233,7 +233,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         lut.as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
-                update_polynomial_with_wrapping_monic_monomial_div(
+                polynomial_wrapping_monic_monomial_div_assign(
                     &mut poly,
                     MonomialDegree(monomial_degree),
                 )
@@ -254,7 +254,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
 
                 // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
                 for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
-                    update_polynomial_with_wrapping_monic_monomial_mul(
+                    polynomial_wrapping_monic_monomial_mul_assign(
                         &mut poly,
                         MonomialDegree(pbs_modulus_switch(
                             *lwe_mask_element,
