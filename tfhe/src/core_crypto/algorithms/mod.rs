@@ -14,6 +14,7 @@ pub mod lwe_programmable_bootstrapping;
 pub mod lwe_public_key_generation;
 pub mod lwe_secret_key_generation;
 pub mod lwe_wopbs;
+pub mod misc;
 pub mod polynomial_algorithms;
 pub mod slice_algorithms;
 
@@ -35,3 +36,4 @@ pub use lwe_programmable_bootstrapping::*;
 pub use lwe_public_key_generation::*;
 pub use lwe_secret_key_generation::*;
 pub use lwe_wopbs::*;
+pub use misc::*;

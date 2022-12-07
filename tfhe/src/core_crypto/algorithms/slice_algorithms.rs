@@ -145,6 +145,46 @@ pub fn slice_wrapping_add_scalar_mul_assign<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs.wrapping_mul(scalar)));
 }
 
+/// Subtracts a slice containing unsigned integers to another one element-wise.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let second = vec![255u8, 255, 255, 1, 2, 3];
+/// let mut add = vec![0_u8; 6];
+/// slice_wrapping_sub(&mut add, &first, &second);
+/// assert_eq!(&add, &[2, 3, 4, 3, 3, 3]);
+/// ```
+pub fn slice_wrapping_sub<Scalar>(output: &mut [Scalar], lhs: &[Scalar], rhs: &[Scalar])
+where
+    Scalar: UnsignedInteger,
+{
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+    assert!(
+        output.len() == lhs.len(),
+        "output (len: {}) and rhs (lhs: {}) must have the same length",
+        output.len(),
+        lhs.len()
+    );
+
+    output
+        .iter_mut()
+        .zip(lhs.iter().zip(rhs.iter()))
+        .for_each(|(out, (&lhs, &rhs))| *out = lhs.wrapping_sub(rhs));
+}
+
 /// Subtracts a slice containing unsigned integers to another one, element-wise and in place.
 ///
 /// # Note
