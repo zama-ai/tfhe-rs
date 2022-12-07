@@ -1,3 +1,4 @@
+/// A trait to manipulate various immutable container types transparently.
 pub trait Container: AsRef<[Self::Element]> {
     type Element;
 
@@ -6,6 +7,7 @@ pub trait Container: AsRef<[Self::Element]> {
     }
 }
 
+/// A trait to manipulate various mutable container types transparently.
 pub trait ContainerMut: Container + AsMut<[<Self as Container>::Element]> {}
 
 impl<T> Container for [T] {
