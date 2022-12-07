@@ -194,7 +194,7 @@ impl<C: Container> ContiguousEntityContainer for LwePrivateFunctionalPackingKeys
         self.input_key_element_encrypted_size()
     }
 
-    /// Unimplement for [`LwePrivateFunctionalPackingKeyswitchKey`]. At the moment it does not
+    /// Unimplemented for [`LwePrivateFunctionalPackingKeyswitchKey`]. At the moment it does not
     /// make sense to return "sub" packing keyswitch keys.
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
         unimplemented!(

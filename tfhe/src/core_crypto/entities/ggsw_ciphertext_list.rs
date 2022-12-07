@@ -2,7 +2,8 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
-/// A contiguous list containing [`GgswCiphertext`] entities.
+/// A contiguous list containing
+/// [`GGSW Ciphertexts`](`crate::core_crypto::entities::GgswCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GgswCiphertextList<C: Container> {
     data: C,
@@ -29,7 +30,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextList<C> {
     ///
     /// # Note
     ///
-    /// This docstring exhibits all [`GgswCiphertextList`] primitives usage.
+    /// This docstring exhibits [`GgswCiphertextList`] primitives usage.
     ///
     /// ```
     /// use tfhe::core_crypto::prelude::*;
@@ -38,7 +39,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextList<C> {
     /// let glwe_size = GlweSize(2);
     /// let polynomial_size = PolynomialSize(1024);
     /// let decomp_base_log = DecompositionBaseLog(8);
-    /// let decomp_level_count = DecompositionLevelCount(16);
+    /// let decomp_level_count = DecompositionLevelCount(3);
     /// let ciphertext_count = GgswCiphertextCount(2);
     ///
     /// // Create a new GgswCiphertextList
