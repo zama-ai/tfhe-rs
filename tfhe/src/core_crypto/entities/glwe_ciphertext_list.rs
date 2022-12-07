@@ -2,6 +2,8 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+/// A contiguous list containing
+/// [`GLWE Ciphertexts`](`crate::core_crypto::entities::GlweCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GlweCiphertextList<C: Container> {
     data: C,
@@ -22,16 +24,48 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GlweCiphertextList<C> {
 }
 
 impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextList<C> {
+    /// Create a [`GlweCiphertextList`] from an existing container.
+    ///
+    /// # Note
+    ///
+    /// This docstring exhibits [`GlweCiphertextList`] primitives usage.
+    ///
+    /// ```
+    /// use tfhe::core_crypto::prelude::*;
+    ///
+    /// // Define parameters for GlweCiphertextList creation
+    /// let glwe_size = GlweSize(2);
+    /// let polynomial_size = PolynomialSize(1024);
+    /// let ciphertext_count = GlweCiphertextCount(2);
+    ///
+    /// // Create a new GlweCiphertextList
+    /// let glwe_list = GlweCiphertextList::new(0u64, glwe_size, polynomial_size, ciphertext_count);
+    ///
+    /// assert_eq!(glwe_list.glwe_size(), glwe_size);
+    /// assert_eq!(glwe_list.polynomial_size(), polynomial_size);
+    /// assert_eq!(glwe_list.glwe_ciphertext_count(), ciphertext_count);
+    ///
+    /// // Demonstrate how to recover the allocated container
+    /// let underlying_container: Vec<u64> = glwe_list.into_container();
+    ///
+    /// // Recreate a list using from_container
+    /// let glwe_list =
+    ///     GlweCiphertextList::from_container(underlying_container, glwe_size, polynomial_size);
+    ///
+    /// assert_eq!(glwe_list.glwe_size(), glwe_size);
+    /// assert_eq!(glwe_list.polynomial_size(), polynomial_size);
+    /// assert_eq!(glwe_list.glwe_ciphertext_count(), ciphertext_count);
+    /// ```
     pub fn from_container(
         container: C,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
     ) -> GlweCiphertextList<C> {
         assert!(
-            container.container_len() % glwe_ciphertext_size(polynomial_size, glwe_size) == 0,
+            container.container_len() % glwe_ciphertext_size(glwe_size, polynomial_size) == 0,
             "The provided container length is not valid. \
-        It needs to be dividable by polynomial_size * glwe_size. \
-        Got container length: {}, polynomial_size: {polynomial_size:?} glwe_size: {glwe_size:?}.",
+        It needs to be dividable by glwe_size * polynomial_size. \
+        Got container length: {}, glwe_size: {glwe_size:?}, polynomial_size: {polynomial_size:?}.",
             container.container_len()
         );
         GlweCiphertextList {
@@ -41,55 +75,72 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextList<C> {
         }
     }
 
-    pub fn polynomial_size(&self) -> PolynomialSize {
-        self.polynomial_size
-    }
-
+    /// Returns the [`GlweSize`] of the [`GlweCiphertext`] stored in the list.
+    ///
+    /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn glwe_size(&self) -> GlweSize {
         self.glwe_size
     }
 
+    /// Returns the [`PolynomialSize`] of the [`GlweCiphertext`] stored in the list.
+    ///
+    /// See [`GlweCiphertextList::from_container`] for usage.
+    pub fn polynomial_size(&self) -> PolynomialSize {
+        self.polynomial_size
+    }
+
+    /// Returns the [`GlweCiphertextCount`] of the [`GlweCiphertextList`].
+    ///
+    /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn glwe_ciphertext_count(&self) -> GlweCiphertextCount {
         GlweCiphertextCount(
-            self.data.container_len() / glwe_ciphertext_size(self.polynomial_size, self.glwe_size),
+            self.data.container_len() / glwe_ciphertext_size(self.glwe_size, self.polynomial_size),
         )
     }
 
     /// Consumes the entity and return its underlying container.
+    ///
+    /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn into_container(self) -> C {
         self.data
     }
 }
 
+/// A [`GlweCiphertextList`] owning the memory for its own storage.
 pub type GlweCiphertextListOwned<Scalar> = GlweCiphertextList<Vec<Scalar>>;
+/// A [`GlweCiphertextList`] immutably borrowing memory for its own storage.
 pub type GlweCiphertextListView<'data, Scalar> = GlweCiphertextList<&'data [Scalar]>;
+/// A [`GlweCiphertextList`] mutably borrowing memory for its own storage.
 pub type GlweCiphertextListMutView<'data, Scalar> = GlweCiphertextList<&'data mut [Scalar]>;
 
 impl<Scalar: Copy> GlweCiphertextListOwned<Scalar> {
+    /// Allocate memory and create a new owned [`GlweCiphertextList`].
+    ///
+    /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn new(
         fill_with: Scalar,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
         ciphertext_count: GlweCiphertextCount,
     ) -> GlweCiphertextListOwned<Scalar> {
         GlweCiphertextListOwned::from_container(
-            vec![fill_with; glwe_ciphertext_size(polynomial_size, glwe_size) * ciphertext_count.0],
-            polynomial_size,
+            vec![fill_with; glwe_ciphertext_size(glwe_size, polynomial_size) * ciphertext_count.0],
             glwe_size,
+            polynomial_size,
         )
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct GlweCiphertextListCreationMetadata(pub PolynomialSize, pub GlweSize);
+pub struct GlweCiphertextListCreationMetadata(pub GlweSize, pub PolynomialSize);
 
 impl<C: Container> CreateFrom<C> for GlweCiphertextList<C> {
     type Metadata = GlweCiphertextListCreationMetadata;
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> GlweCiphertextList<C> {
-        let GlweCiphertextListCreationMetadata(polynomial_size, glwe_size) = meta;
-        GlweCiphertextList::from_container(from, polynomial_size, glwe_size)
+        let GlweCiphertextListCreationMetadata(glwe_size, polynomial_size) = meta;
+        GlweCiphertextList::from_container(from, glwe_size, polynomial_size)
     }
 }
 
@@ -113,11 +164,11 @@ impl<C: Container> ContiguousEntityContainer for GlweCiphertextList<C> {
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
-        glwe_ciphertext_size(self.polynomial_size(), self.glwe_size())
+        glwe_ciphertext_size(self.glwe_size(), self.polynomial_size())
     }
 
     fn get_self_view_creation_metadata(&self) -> GlweCiphertextListCreationMetadata {
-        GlweCiphertextListCreationMetadata(self.polynomial_size(), self.glwe_size())
+        GlweCiphertextListCreationMetadata(self.glwe_size(), self.polynomial_size())
     }
 }
 
