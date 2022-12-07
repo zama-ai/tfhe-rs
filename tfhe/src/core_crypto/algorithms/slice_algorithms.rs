@@ -1,8 +1,13 @@
+//! Module providing algorithms to perform computations on raw slices.
+
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 
-/// Computes a dot product between two slices containing unsigned integers, wrapping
-/// around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned integer
-/// capacity.
+/// Computes a dot product between two slices containing unsigned integers.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -31,9 +36,12 @@ where
         })
 }
 
-/// Adds a slice containing unsigned integers to another one element-wise, wrapping
-/// around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned integer
-/// capacity.
+/// Adds a slice containing unsigned integers to another one element-wise.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -68,9 +76,12 @@ where
         .for_each(|(out, (&lhs, &rhs))| *out = lhs.wrapping_add(rhs));
 }
 
-/// Adds a slice containing unsigned integers to another one element-wise and in place, wrapping
-/// around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned integer
-/// capacity.
+/// Adds a slice containing unsigned integers to another one element-wise and in place.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -78,10 +89,10 @@ where
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
-/// update_slice_with_wrapping_add(&mut first, &second);
+/// slice_wrapping_add_assign(&mut first, &second);
 /// assert_eq!(&first, &[0u8, 1, 2, 5, 7, 9]);
 /// ```
-pub fn update_slice_with_wrapping_add<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
+pub fn slice_wrapping_add_assign<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
 where
     Scalar: UnsignedInteger,
 {
@@ -97,10 +108,14 @@ where
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs));
 }
 
-/// Adds a slice containing unsigned integers to another one mutiplied by a scalar, element-wise and
-/// in place, wrapping around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the
-/// unsigned integer capacity. Let *a*,*b* be two slices, let *c* be a scalar, this computes:
-/// *a <- a+bc*
+/// Adds a slice containing unsigned integers to another one mutiplied by a scalar.
+///
+/// Let *a*,*b* be two slices, let *c* be a scalar, this computes: *a <- a+bc*
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -109,10 +124,10 @@ where
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
 /// let scalar = 4u8;
-/// update_slice_with_wrapping_add_scalar_mul(&mut first, &second, scalar);
+/// slice_wrapping_add_scalar_mul_assign(&mut first, &second, scalar);
 /// assert_eq!(&first, &[253u8, 254, 255, 8, 13, 18]);
 /// ```
-pub fn update_slice_with_wrapping_add_scalar_mul<Scalar>(
+pub fn slice_wrapping_add_scalar_mul_assign<Scalar>(
     lhs: &mut [Scalar],
     rhs: &[Scalar],
     scalar: Scalar,
@@ -130,9 +145,12 @@ pub fn update_slice_with_wrapping_add_scalar_mul<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs.wrapping_mul(scalar)));
 }
 
-/// Subtracts a slice containing unsigned integers to another one, element-wise and in place,
-/// wrapping around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned
-/// integer capacity.
+/// Subtracts a slice containing unsigned integers to another one, element-wise and in place.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -140,10 +158,10 @@ pub fn update_slice_with_wrapping_add_scalar_mul<Scalar>(
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
-/// update_slice_with_wrapping_sub(&mut first, &second);
+/// slice_wrapping_sub_assign(&mut first, &second);
 /// assert_eq!(&first, &[2u8, 3, 4, 3, 3, 3]);
 /// ```
-pub fn update_slice_with_wrapping_sub<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
+pub fn slice_wrapping_sub_assign<Scalar>(lhs: &mut [Scalar], rhs: &[Scalar])
 where
     Scalar: UnsignedInteger,
 {
@@ -160,9 +178,14 @@ where
 }
 
 /// Subtracts a slice containing unsigned integers to another one mutiplied by a scalar,
-/// element-wise and in place, wrapping around (similar to computing modulo $$2^{n\_bits}$$) when
-/// exceeding the unsigned integer capacity. Let *a*,*b* be two slices, let *c* be a scalar, this
-/// computes: *a <- a-bc*
+/// element-wise and in place.
+///
+/// Let *a*,*b* be two slices, let *c* be a scalar, this computes: *a <- a-bc*
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -171,9 +194,9 @@ where
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let second = vec![255u8, 255, 255, 1, 2, 3];
 /// let scalar = 4u8;
-/// update_slice_with_wrapping_sub_scalar_mul(&mut first, &second, scalar);
+/// slice_wrapping_sub_scalar_mul_assign(&mut first, &second, scalar);
 /// assert_eq!(&first, &[5u8, 6, 7, 0, 253, 250]);
-pub fn update_slice_with_wrapping_sub_scalar_mul<Scalar>(
+pub fn slice_wrapping_sub_scalar_mul_assign<Scalar>(
     lhs: &mut [Scalar],
     rhs: &[Scalar],
     scalar: Scalar,
@@ -191,19 +214,22 @@ pub fn update_slice_with_wrapping_sub_scalar_mul<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs.wrapping_mul(scalar)));
 }
 
-/// Computes the opposite of a slice containing unsigned integers, element-wise and in place,
-/// wrapping around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned
-/// integer capacity.
+/// Computes the opposite of a slice containing unsigned integers, element-wise and in place.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
 /// ```
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
-/// update_slice_with_wrapping_opposite(&mut first);
+/// slice_wrapping_opposite_assign(&mut first);
 /// assert_eq!(&first, &[255u8, 254, 253, 252, 251, 250]);
 /// ```
-pub fn update_slice_with_wrapping_opposite<Scalar>(slice: &mut [Scalar])
+pub fn slice_wrapping_opposite_assign<Scalar>(slice: &mut [Scalar])
 where
     Scalar: UnsignedInteger,
 {
@@ -212,9 +238,12 @@ where
         .for_each(|elt| *elt = (*elt).wrapping_neg());
 }
 
-/// Multiplies a slice containing unsigned integers by a scalar, element-wise and in place, wrapping
-/// around (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned integer
-/// capacity.
+/// Multiplies a slice containing unsigned integers by a scalar, element-wise and in place.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -222,10 +251,10 @@ where
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
 /// let scalar = 252;
-/// update_slice_with_wrapping_scalar_mul(&mut first, scalar);
+/// slice_wrapping_scalar_mul_assign(&mut first, scalar);
 /// assert_eq!(&first, &[252, 248, 244, 240, 236, 232]);
 /// ```
-pub fn update_slice_with_wrapping_scalar_mul<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
+pub fn slice_wrapping_scalar_mul_assign<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
 where
     Scalar: UnsignedInteger,
 {
