@@ -1,11 +1,17 @@
+//! Module providing algorithms to perform computations on polynomials modulo $X^{N} + 1$.
+
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
-/// Adds a polynomial with unsinged integers coefficients to another one in place, wrapping around
-/// (similar to computing modulo $$2^{n\_bits}$$) when exceeding the unsigned integer capacity.
+/// Adds a polynomial to the output polynomial.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -14,10 +20,10 @@ use crate::core_crypto::entities::*;
 /// use tfhe::core_crypto::entities::*;
 /// let mut first = Polynomial::from_container(vec![1u8, 2, 3, 4, 5, 6]);
 /// let second = Polynomial::from_container(vec![255u8, 255, 255, 1, 2, 3]);
-/// update_polynomial_with_wrapping_add(&mut first, &second);
+/// polynomial_wrapping_add_assign(&mut first, &second);
 /// assert_eq!(first.as_ref(), &[0u8, 1, 2, 5, 7, 9]);
 /// ```
-pub fn update_polynomial_with_wrapping_add<Scalar, OutputCont, InputCont>(
+pub fn polynomial_wrapping_add_assign<Scalar, OutputCont, InputCont>(
     lhs: &mut Polynomial<OutputCont>,
     rhs: &Polynomial<InputCont>,
 ) where
@@ -26,17 +32,22 @@ pub fn update_polynomial_with_wrapping_add<Scalar, OutputCont, InputCont>(
     InputCont: Container<Element = Scalar>,
 {
     assert_eq!(lhs.polynomial_size(), rhs.polynomial_size());
-    update_slice_with_wrapping_add(lhs.as_mut(), rhs.as_ref())
+    slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref())
 }
 
-/// Adds the sum of the element-wise product between two lists of unsigned integer polynomial to the
-/// output polynomial.
+/// Adds the sum of the element-wise product between two lists of polynomials to the output
+/// polynomial.
 ///
 /// I.e., if the output polynomial is $C(X)$, for a collection of polynomials $(P\_i(X)))\_i$
 /// and another collection of polynomials $(B\_i(X))\_i$ we perform the operation:
 /// $$
 /// C(X) := C(X) + \sum\_i P\_i(X) \times B\_i(X) mod (X^{N} + 1)
 /// $$
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -47,10 +58,10 @@ pub fn update_polynomial_with_wrapping_add<Scalar, OutputCont, InputCont>(
 /// let poly_list = PolynomialList::from_container(vec![100_u8, 20, 3, 4, 5, 6], PolynomialSize(3));
 /// let bin_poly_list = PolynomialList::from_container(vec![0, 1, 1, 1, 0, 0], PolynomialSize(3));
 /// let mut output = Polynomial::new(250, PolynomialSize(3));
-/// update_polynomial_with_wrapping_add_multisum(&mut output, &poly_list, &bin_poly_list);
+/// polynomial_wrapping_add_multisum_assign(&mut output, &poly_list, &bin_poly_list);
 /// assert_eq!(output.as_ref(), &[231, 96, 120]);
 /// ```
-pub fn update_polynomial_with_wrapping_add_multisum<Scalar, OutputCont, InputCont1, InputCont2>(
+pub fn polynomial_wrapping_add_multisum_assign<Scalar, OutputCont, InputCont1, InputCont2>(
     output: &mut Polynomial<OutputCont>,
     poly_list_1: &PolynomialList<InputCont1>,
     poly_list_2: &PolynomialList<InputCont2>,
@@ -61,12 +72,17 @@ pub fn update_polynomial_with_wrapping_add_multisum<Scalar, OutputCont, InputCon
     InputCont2: Container<Element = Scalar>,
 {
     for (poly_1, poly_2) in poly_list_1.iter().zip(poly_list_2.iter()) {
-        update_polynomial_with_wrapping_add_mul(output, &poly_1, &poly_2);
+        polynomial_wrapping_add_mul_assign(output, &poly_1, &poly_2);
     }
 }
 
-/// Adds the result of the product between two integer polynomials, reduced modulo $(X^{N}+1)$,
-/// to the output polynomial.
+/// Adds the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
+/// output polynomial.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -76,10 +92,10 @@ pub fn update_polynomial_with_wrapping_add_multisum<Scalar, OutputCont, InputCon
 /// let poly_1 = Polynomial::from_container(vec![1_u8, 2, 3]);
 /// let poly_2 = Polynomial::from_container(vec![0, 1, 1]);
 /// let mut res = Polynomial::from_container(vec![1, 0, 253]);
-/// update_polynomial_with_wrapping_add_mul(&mut res, &poly_1, &poly_2);
+/// polynomial_wrapping_add_mul_assign(&mut res, &poly_1, &poly_2);
 /// assert_eq!(res.as_ref(), &[252, 254, 0]);
 /// ```
-pub fn update_polynomial_with_wrapping_add_mul<Scalar, OutputCont, InputCont1, InputCont2>(
+pub fn polynomial_wrapping_add_mul_assign<Scalar, OutputCont, InputCont1, InputCont2>(
     output: &mut Polynomial<OutputCont>,
     lhs: &Polynomial<InputCont1>,
     rhs: &Polynomial<InputCont2>,
@@ -126,6 +142,11 @@ pub fn update_polynomial_with_wrapping_add_mul<Scalar, OutputCont, InputCont1, I
 /// Divides (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
 /// $X^{degree}$.
 ///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
 /// # Examples
 ///
 /// ```
@@ -133,10 +154,10 @@ pub fn update_polynomial_with_wrapping_add_mul<Scalar, OutputCont, InputCont1, I
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
 /// let mut poly = Polynomial::from_container(vec![1u8, 2, 3]);
-/// update_polynomial_with_wrapping_monic_monomial_div(&mut poly, MonomialDegree(2));
+/// polynomial_wrapping_monic_monomial_div_assign(&mut poly, MonomialDegree(2));
 /// assert_eq!(poly.as_ref(), &[3, 255, 254]);
 /// ```
-pub fn update_polynomial_with_wrapping_monic_monomial_div<Scalar, OutputCont>(
+pub fn polynomial_wrapping_monic_monomial_div_assign<Scalar, OutputCont>(
     output: &mut Polynomial<OutputCont>,
     monomial_degree: MonomialDegree,
 ) where
@@ -163,6 +184,11 @@ pub fn update_polynomial_with_wrapping_monic_monomial_div<Scalar, OutputCont>(
 /// Multiplies (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
 /// $X^{degree}$.
 ///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
 /// # Examples
 ///
 /// ```
@@ -170,10 +196,10 @@ pub fn update_polynomial_with_wrapping_monic_monomial_div<Scalar, OutputCont>(
 /// use tfhe::core_crypto::commons::parameters::*;
 /// use tfhe::core_crypto::entities::*;
 /// let mut poly = Polynomial::from_container(vec![1u8, 2, 3]);
-/// update_polynomial_with_wrapping_monic_monomial_mul(&mut poly, MonomialDegree(2));
+/// polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(2));
 /// assert_eq!(poly.as_ref(), &[254, 253, 1]);
 /// ```
-pub fn update_polynomial_with_wrapping_monic_monomial_mul<Scalar, OutputCont>(
+pub fn polynomial_wrapping_monic_monomial_mul_assign<Scalar, OutputCont>(
     output: &mut Polynomial<OutputCont>,
     monomial_degree: MonomialDegree,
 ) where
@@ -196,14 +222,19 @@ pub fn update_polynomial_with_wrapping_monic_monomial_mul<Scalar, OutputCont>(
         .for_each(|a| *a = a.wrapping_neg());
 }
 
-/// Subtracts the sum of the element-wise product between two lists of integer polynomials,
-/// to the output polynomial.
+/// Subtracts the sum of the element-wise product between two lists of polynomials, to the output
+/// polynomial.
 ///
 /// I.e., if the output polynomial is $C(X)$, for two lists of polynomials $(P\_i(X)))\_i$ and
 /// $(B\_i(X))\_i$ we perform the operation:
 /// $$
 /// C(X) := C(X) + \sum\_i P\_i(X) \times B\_i(X) mod (X^{N} + 1)
 /// $$
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -215,10 +246,10 @@ pub fn update_polynomial_with_wrapping_monic_monomial_mul<Scalar, OutputCont>(
 ///     PolynomialList::from_container(vec![100 as u8, 20, 3, 4, 5, 6], PolynomialSize(3));
 /// let bin_poly_list = PolynomialList::from_container(vec![0, 1, 1, 1, 0, 0], PolynomialSize(3));
 /// let mut output = Polynomial::new(250 as u8, PolynomialSize(3));
-/// update_polynomial_with_wrapping_sub_multisum(&mut output, &poly_list, &bin_poly_list);
+/// polynomial_wrapping_sub_multisum_assign(&mut output, &poly_list, &bin_poly_list);
 /// assert_eq!(output.as_ref(), &[13, 148, 124]);
 /// ```
-pub fn update_polynomial_with_wrapping_sub_multisum<Scalar, OutputCont, InputCont1, InputCont2>(
+pub fn polynomial_wrapping_sub_multisum_assign<Scalar, OutputCont, InputCont1, InputCont2>(
     output: &mut Polynomial<OutputCont>,
     poly_list_1: &PolynomialList<InputCont1>,
     poly_list_2: &PolynomialList<InputCont2>,
@@ -229,12 +260,17 @@ pub fn update_polynomial_with_wrapping_sub_multisum<Scalar, OutputCont, InputCon
     InputCont2: Container<Element = Scalar>,
 {
     for (poly_1, poly_2) in poly_list_1.iter().zip(poly_list_2.iter()) {
-        update_polynomial_with_wrapping_sub_mul(output, &poly_1, &poly_2);
+        polynomial_wrapping_sub_mul_assign(output, &poly_1, &poly_2);
     }
 }
 
-/// Subtracts the result of the product between two integer polynomials, reduced modulo $(X^{N}+1)$,
-/// to the output polynomial.
+/// Subtracts the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
+/// output polynomial.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
 ///
 /// # Example
 ///
@@ -244,10 +280,10 @@ pub fn update_polynomial_with_wrapping_sub_multisum<Scalar, OutputCont, InputCon
 /// let poly_1 = Polynomial::from_container(vec![1_u8, 2, 3]);
 /// let poly_2 = Polynomial::from_container(vec![0, 1, 1]);
 /// let mut res = Polynomial::from_container(vec![255, 255, 1]);
-/// update_polynomial_with_wrapping_sub_mul(&mut res, &poly_1, &poly_2);
+/// polynomial_wrapping_sub_mul_assign(&mut res, &poly_1, &poly_2);
 /// assert_eq!(res.as_ref(), &[4, 1, 254]);
 /// ```
-pub fn update_polynomial_with_wrapping_sub_mul<Scalar, OutputCont, InputCont1, InputCont2>(
+pub fn polynomial_wrapping_sub_mul_assign<Scalar, OutputCont, InputCont1, InputCont2>(
     output: &mut Polynomial<OutputCont>,
     lhs: &Polynomial<InputCont1>,
     rhs: &Polynomial<InputCont2>,
@@ -321,8 +357,8 @@ mod test {
         r %= polynomial_size;
 
         // multiply by X^r and then divides by X^r
-        update_polynomial_with_wrapping_monic_monomial_mul(&mut poly, MonomialDegree(r));
-        update_polynomial_with_wrapping_monic_monomial_div(&mut poly, MonomialDegree(r));
+        polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(r));
+        polynomial_wrapping_monic_monomial_div_assign(&mut poly, MonomialDegree(r));
 
         // test
         assert_eq!(&poly, &ground_truth);
@@ -332,15 +368,15 @@ mod test {
         r_big = r_big % polynomial_size + 2048;
 
         // multiply by X^r_big and then divides by X^r_big
-        update_polynomial_with_wrapping_monic_monomial_mul(&mut poly, MonomialDegree(r_big));
-        update_polynomial_with_wrapping_monic_monomial_div(&mut poly, MonomialDegree(r_big));
+        polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(r_big));
+        polynomial_wrapping_monic_monomial_div_assign(&mut poly, MonomialDegree(r_big));
 
         // test
         assert_eq!(&poly, &ground_truth);
 
         // divides by X^r_big and then multiply by X^r_big
-        update_polynomial_with_wrapping_monic_monomial_mul(&mut poly, MonomialDegree(r_big));
-        update_polynomial_with_wrapping_monic_monomial_div(&mut poly, MonomialDegree(r_big));
+        polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(r_big));
+        polynomial_wrapping_monic_monomial_div_assign(&mut poly, MonomialDegree(r_big));
 
         // test
         assert_eq!(&poly, &ground_truth);
