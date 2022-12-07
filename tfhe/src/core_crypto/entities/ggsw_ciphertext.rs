@@ -227,7 +227,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     /// // Demonstrate how to recover the allocated container
     /// let underlying_container: Vec<u64> = ggsw.into_container();
     ///
-    /// // Recreate a list using from_container
+    /// // Recreate a ciphertext using from_container
     /// let ggsw = GgswCiphertext::from_container(
     ///     underlying_container,
     ///     glwe_size,
@@ -316,7 +316,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
 
     /// Interprets the [`GgswCiphertext`] as a [`GlweCiphertextList`].
     pub fn as_glwe_list(&self) -> GlweCiphertextListView<'_, Scalar> {
-        GlweCiphertextListView::from_container(self.as_ref(), self.polynomial_size, self.glwe_size)
+        GlweCiphertextListView::from_container(self.as_ref(), self.glwe_size, self.polynomial_size)
     }
 
     /// Returns a view of the [`GgswCiphertext`]. This is useful if an algorithm takes a view by
@@ -349,7 +349,7 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> GgswCiphertext<C> {
     pub fn as_mut_glwe_list(&mut self) -> GlweCiphertextListMutView<'_, Scalar> {
         let polynomial_size = self.polynomial_size;
         let glwe_size = self.glwe_size;
-        GlweCiphertextListMutView::from_container(self.as_mut(), polynomial_size, glwe_size)
+        GlweCiphertextListMutView::from_container(self.as_mut(), glwe_size, polynomial_size)
     }
 
     /// Mutable variant of [`GgswCiphertext::as_view`].
@@ -478,8 +478,8 @@ impl<C: Container> GgswLevelMatrix<C> {
     pub fn as_glwe_list(&self) -> GlweCiphertextListView<'_, C::Element> {
         GlweCiphertextListView::from_container(
             self.data.as_ref(),
-            self.polynomial_size,
             self.glwe_size,
+            self.polynomial_size,
         )
     }
 }
@@ -489,8 +489,8 @@ impl<C: ContainerMut> GgswLevelMatrix<C> {
     pub fn as_mut_glwe_list(&mut self) -> GlweCiphertextListMutView<'_, C::Element> {
         GlweCiphertextListMutView::from_container(
             self.data.as_mut(),
-            self.polynomial_size,
             self.glwe_size,
+            self.polynomial_size,
         )
     }
 }

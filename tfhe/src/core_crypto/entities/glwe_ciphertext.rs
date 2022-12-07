@@ -96,8 +96,8 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GlweBody<C> {
     }
 }
 
-pub fn glwe_ciphertext_size(polynomial_size: PolynomialSize, glwe_size: GlweSize) -> usize {
-    polynomial_size.0 * glwe_size.0
+pub fn glwe_ciphertext_size(glwe_size: GlweSize, polynomial_size: PolynomialSize) -> usize {
+    glwe_size.0 * polynomial_size.0
 }
 
 pub fn glwe_ciphertext_mask_size(
@@ -256,11 +256,11 @@ pub type GlweCiphertextMutView<'data, Scalar> = GlweCiphertext<&'data mut [Scala
 impl<Scalar: Copy> GlweCiphertextOwned<Scalar> {
     pub fn new(
         fill_with: Scalar,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
     ) -> GlweCiphertextOwned<Scalar> {
         GlweCiphertextOwned::from_container(
-            vec![fill_with; glwe_ciphertext_size(polynomial_size, glwe_size)],
+            vec![fill_with; glwe_ciphertext_size(glwe_size, polynomial_size)],
             polynomial_size,
         )
     }

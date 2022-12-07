@@ -269,7 +269,7 @@ where
 {
     let polynomial_size = PolynomialSize(encoded.plaintext_count().0);
 
-    let mut new_ct = GlweCiphertextOwned::new(Scalar::ZERO, polynomial_size, glwe_size);
+    let mut new_ct = GlweCiphertextOwned::new(Scalar::ZERO, glwe_size, polynomial_size);
 
     let mut body = new_ct.get_mut_body();
     body.as_mut().copy_from_slice(encoded.as_ref());
