@@ -85,6 +85,7 @@ pub struct PolynomialCreationMetadata();
 impl<C: Container> CreateFrom<C> for Polynomial<C> {
     type Metadata = PolynomialCreationMetadata;
 
+    #[inline]
     fn create_from(from: C, _: Self::Metadata) -> Polynomial<C> {
         Polynomial::from_container(from)
     }

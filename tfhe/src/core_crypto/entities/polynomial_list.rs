@@ -83,6 +83,7 @@ pub struct PolynomialListCreationMetadata(pub PolynomialSize);
 impl<C: Container> CreateFrom<C> for PolynomialList<C> {
     type Metadata = PolynomialListCreationMetadata;
 
+    #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> PolynomialList<C> {
         let PolynomialListCreationMetadata(polynomial_size) = meta;
         PolynomialList::from_container(from, polynomial_size)

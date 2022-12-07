@@ -166,7 +166,7 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKey<C> {
         self.input_key_element_encrypted_size()
     }
 
-    /// Unimplement for [`LweKeyswitchKey`]. At the moment it does not make sense to
+    /// Unimplemented for [`LweKeyswitchKey`]. At the moment it does not make sense to
     /// return "sub" keyswitch keys.
     fn get_self_view_creation_metadata(&self) {
         unimplemented!(
