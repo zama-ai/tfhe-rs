@@ -50,6 +50,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
         LweDimension(self.glwe_size().to_glwe_dimension().0 * self.polynomial_size().0)
     }
 
+    /// Consumes the entity and return its underlying container.
     pub fn into_container(self) -> C {
         self.ggsw_list.into_container()
     }
