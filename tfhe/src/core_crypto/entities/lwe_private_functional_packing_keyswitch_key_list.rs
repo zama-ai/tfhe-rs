@@ -204,6 +204,7 @@ pub struct LwePrivateFunctionalPackingKeyswitchKeyListCreationMetadata(
 impl<C: Container> CreateFrom<C> for LwePrivateFunctionalPackingKeyswitchKeyList<C> {
     type Metadata = LwePrivateFunctionalPackingKeyswitchKeyListCreationMetadata;
 
+    #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
         let LwePrivateFunctionalPackingKeyswitchKeyListCreationMetadata(
             decomp_base_log,
