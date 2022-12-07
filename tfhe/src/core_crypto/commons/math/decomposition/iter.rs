@@ -12,8 +12,6 @@ pub struct SignedDecompositionIter<T>
 where
     T: UnsignedInteger,
 {
-    // The value being decomposed
-    input: T,
     // The base log of the decomposition
     base_log: usize,
     // The number of levels of the decomposition
@@ -39,7 +37,6 @@ where
         level: DecompositionLevelCount,
     ) -> SignedDecompositionIter<T> {
         SignedDecompositionIter {
-            input,
             base_log: base_log.0,
             level_count: level.0,
             state: input >> (T::BITS - base_log.0 * level.0),
