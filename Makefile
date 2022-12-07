@@ -143,8 +143,13 @@ doc: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint --no-deps
 
+.PHONY: check_compile_tests # Build tests in debug without running them
+check_compile_tests:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
+		--features=$(TARGET_ARCH_FEATURE),shortint,boolean,internal-keycache -p tfhe
+
 .PHONY: pcc # pcc stands for pre commit checks
-pcc: check_fmt doc clippy_all
+pcc: check_fmt doc clippy_all check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fmt
