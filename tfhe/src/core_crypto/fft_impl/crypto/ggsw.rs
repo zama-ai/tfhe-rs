@@ -37,8 +37,8 @@ pub struct FourierGgswCiphertext<C: Container<Element = c64>> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FourierGgswLevelMatrix<C: Container<Element = c64>> {
     data: C,
-    polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
     row_count: usize,
     decomposition_level: DecompositionLevel,
 }
@@ -47,8 +47,8 @@ pub struct FourierGgswLevelMatrix<C: Container<Element = c64>> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FourierGgswLevelRow<C: Container<Element = c64>> {
     data: C,
-    polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
     decomposition_level: DecompositionLevel,
 }
 
@@ -62,8 +62,8 @@ pub type FourierGgswLevelRowMutView<'a> = FourierGgswLevelRow<&'a mut [c64]>;
 impl<C: Container<Element = c64>> FourierGgswCiphertext<C> {
     pub fn new(
         data: C,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
     ) -> Self {
@@ -138,8 +138,8 @@ impl<C: Container<Element = c64>> FourierGgswCiphertext<C> {
 impl<C: Container<Element = c64>> FourierGgswLevelMatrix<C> {
     pub fn new(
         data: C,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
         row_count: usize,
         decomposition_level: DecompositionLevel,
     ) -> Self {
@@ -196,8 +196,8 @@ impl<C: Container<Element = c64>> FourierGgswLevelMatrix<C> {
 impl<C: Container<Element = c64>> FourierGgswLevelRow<C> {
     pub fn new(
         data: C,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
         decomposition_level: DecompositionLevel,
     ) -> Self {
         assert_eq!(polynomial_size.0 % 2, 0);
@@ -237,8 +237,8 @@ impl<'a> FourierGgswCiphertextView<'a> {
             .map(move |(i, slice)| {
                 FourierGgswLevelMatrixView::new(
                     slice,
-                    self.fourier.polynomial_size,
                     self.glwe_size,
+                    self.fourier.polynomial_size,
                     self.glwe_size.0,
                     DecompositionLevel(i + 1),
                 )

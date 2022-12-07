@@ -337,8 +337,8 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_scracth<Sc
     lwe_in_size: LweSize,
     big_lut_polynomial_count: PolynomialCount,
     bsk_output_lwe_size: LweSize,
-    fpksk_output_polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    fpksk_output_polynomial_size: PolynomialSize,
     level_cbs: DecompositionLevelCount,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
@@ -348,8 +348,8 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_scracth<Sc
         lwe_in_size,
         big_lut_polynomial_count,
         bsk_output_lwe_size,
-        fpksk_output_polynomial_size,
         glwe_size,
+        fpksk_output_polynomial_size,
         level_cbs,
         fft,
     )

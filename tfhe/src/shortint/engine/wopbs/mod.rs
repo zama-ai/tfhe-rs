@@ -73,8 +73,8 @@ impl ShortintEngine {
         // Creation of the bootstrapping key in the Fourier domain
         let mut small_bsk = FourierLweBootstrapKey::new(
             bootstrap_key.input_lwe_dimension(),
-            bootstrap_key.polynomial_size(),
             bootstrap_key.glwe_size(),
+            bootstrap_key.polynomial_size(),
             bootstrap_key.decomposition_base_log(),
             bootstrap_key.decomposition_level_count(),
         );
@@ -234,8 +234,8 @@ impl ShortintEngine {
                 extracted_bits.lwe_size(),
                 lut.polynomial_count(),
                 fourier_bsk.output_lwe_dimension().to_lwe_size(),
-                wopbs_key.cbs_pfpksk.output_polynomial_size(),
                 fourier_bsk.glwe_size(),
+                wopbs_key.cbs_pfpksk.output_polynomial_size(),
                 wopbs_key.param.cbs_level,
                 fft,
             )
