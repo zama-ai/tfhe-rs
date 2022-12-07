@@ -1,5 +1,4 @@
-#![allow(clippy::excessive_precision)]
-//! Welcome to the tfhe.rs `shortint` module documentation!
+//! Welcome to the TFHE-rs `shortint` module documentation!
 //!
 //! # Description
 //!
