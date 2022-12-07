@@ -52,9 +52,9 @@ impl ShortintEngine {
         let w = Plaintext(z * delta);
 
         // (0,Delta*z) - ct
-        lwe_ciphertext_in_place_opposite(&mut ct.ct);
+        lwe_ciphertext_opposite_assign(&mut ct.ct);
 
-        lwe_ciphertext_in_place_plaintext_addition(&mut ct.ct, w);
+        lwe_ciphertext_plaintext_addition_assign(&mut ct.ct, w);
 
         // Update the degree
         ct.degree = Degree(z as usize);
