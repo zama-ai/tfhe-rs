@@ -47,31 +47,40 @@ type ParallelWrappingLendingIteratorMut<'data, Element, WrappingType> = rayon::i
     WrappingFunctionMut<'data, Element, WrappingType>,
 >;
 
+/// A trait to generically implement standard slice algorithms for contiguous entity containers.
+///
+/// Performance using contiguous containers can be dramatically better than "vec of vecs"
+/// counterparts.
 pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
-    /// Plain Old Data type used to store data, e.g. u8/u16/u32/u64
+    /// Plain Old Data type used to store data, e.g. u8/u16/u32/u64.
     type Element;
 
-    /// Concrete type of the metadata used to create an ElementView
+    /// Concrete type of the metadata used to create a [`Self::EntityView`].
     type EntityViewMetadata: Clone + Copy;
 
-    /// Entity stored in container that can be a complex type (like an LWE ciphertext) using a
-    /// reference to a container of Plain Old Data (e.g. u32/u64) to store its data
+    /// Entity stored in the container that can be a complex type (like an
+    /// [`LweCiphertext`](crate::core_crypto::entities::LweCiphertext)) using a reference to a
+    /// container of [`Self::Element`] (e.g. u32/u64) to store its data.
     type EntityView<'this>: CreateFrom<&'this [Self::Element], Metadata = Self::EntityViewMetadata>
     where
         Self: 'this;
 
-    /// Concrete type of the metadata used to create a view from the container from Self
+    /// Concrete type of the metadata used to create a [`Self::SelfView`].
     type SelfViewMetadata: Clone + Copy;
 
+    /// Concrete immutable view type of the current container type, used to create sub containers.
     type SelfView<'this>: CreateFrom<&'this [Self::Element], Metadata = Self::SelfViewMetadata>
     where
         Self: 'this;
 
-    /// Function providing relevant metadata to convert Element slices to wrapper/complex types
+    /// Provide relevant metadata to convert [`Self::Element`] slices to wrapper/complex types.
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata;
 
+    /// Provide the size of a single [`Self::EntityView`].
     fn get_entity_view_pod_size(&self) -> usize;
 
+    /// Return an iterator borrowing immutably from the current contiguous container which returns
+    /// [`Self::EntityView`] entities.
     fn iter(&self) -> WrappingLendingIterator<'_, Self::Element, Self::EntityView<'_>> {
         let meta = self.get_entity_view_creation_metadata();
         let entity_view_pod_size = self.get_entity_view_pod_size();
@@ -82,6 +91,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
             .map(|(elt, meta)| Self::EntityView::<'_>::create_from(elt, meta))
     }
 
+    /// Provide relevant metadata to create a container of the same type as [`Self`].
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata;
 
     fn split_at(&self, mid: usize) -> (Self::SelfView<'_>, Self::SelfView<'_>) {
@@ -151,7 +161,10 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
 }
 
 pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self::Element]> {
-    /// The assumption here is that views and mut views use the same metadata to be created
+    /// Mutable entity stored in the container that can be a complex type (like an LWE ciphertext)
+    /// using a reference to a container of Plain Old Data (e.g. u32/u64) to store its data.
+    ///
+    /// The assumption here is that views and mut views use the same metadata to be created.
     type EntityMutView<'this>: CreateFrom<
         &'this mut [Self::Element],
         Metadata = Self::EntityViewMetadata,
@@ -159,7 +172,9 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
     where
         Self: 'this;
 
-    /// The assumption here is that views and mut views use the same metadata to be created
+    /// Concrete mutable view type of the current container type, used to create sub containers.
+    ///
+    /// The assumption here is that views and mut views use the same metadata to be created.
     type SelfMutView<'this>: CreateFrom<
         &'this mut [Self::Element],
         Metadata = Self::SelfViewMetadata,
@@ -167,6 +182,8 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
     where
         Self: 'this;
 
+    /// Return an iterator borrowing mutably from the current contiguous container which returns
+    /// [`Self::EntityMutView`] entities.
     fn iter_mut(
         &mut self,
     ) -> WrappingLendingIteratorMut<'_, Self::Element, Self::EntityMutView<'_>> {
