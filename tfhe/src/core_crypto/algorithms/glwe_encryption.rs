@@ -35,7 +35,10 @@ pub fn encrypt_glwe_ciphertext_in_place<Scalar, KeyCont, OutputCont, Gen>(
 
     generator.fill_slice_with_random_mask(mask.as_mut());
 
-    generator.update_slice_with_wrapping_add_random_noise(body.as_mut(), noise_parameters);
+    generator.update_unsigned_torus_slice_with_wrapping_add_random_noise(
+        body.as_mut(),
+        noise_parameters,
+    );
 
     polynomial_wrapping_add_multisum_assign(
         &mut body.as_mut_polynomial(),
