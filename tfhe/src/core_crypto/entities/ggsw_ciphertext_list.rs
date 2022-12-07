@@ -2,7 +2,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
-/// A contiguous list containing [`GgswCiphertext`].
+/// A contiguous list containing [`GgswCiphertext`] entities.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GgswCiphertextList<C: Container> {
     data: C,
@@ -153,12 +153,15 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextList<C> {
     }
 }
 
+/// A [`GgswCiphertextList`] owning the memory for its own storage.
 pub type GgswCiphertextListOwned<Scalar> = GgswCiphertextList<Vec<Scalar>>;
+/// A [`GgswCiphertextList`] immutably borrowing memory for its own storage.
 pub type GgswCiphertextListView<'data, Scalar> = GgswCiphertextList<&'data [Scalar]>;
+/// A [`GgswCiphertextList`] mutably borrowing memory for its own storage.
 pub type GgswCiphertextListMutView<'data, Scalar> = GgswCiphertextList<&'data mut [Scalar]>;
 
 impl<Scalar: Copy> GgswCiphertextListOwned<Scalar> {
-    /// Creates a new [`GgswCiphertextList`].
+    /// Allocate memory and create a new owned [`GgswCiphertextList`].
     ///
     /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn new(
@@ -183,6 +186,7 @@ impl<Scalar: Copy> GgswCiphertextListOwned<Scalar> {
     }
 }
 
+/// Metadata used in the [`CreateFrom`] implementation to create [`GgswCiphertextList`] entities.
 #[derive(Clone, Copy)]
 pub struct GgswCiphertextListCreationMetadata(
     pub GlweSize,

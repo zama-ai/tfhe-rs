@@ -38,6 +38,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePublicKey<C> {
         LwePublicKeyZeroEncryptionCount(self.lwe_ciphertext_count().0)
     }
 
+    /// Consumes the entity and return its underlying container.
     pub fn into_container(self) -> C {
         self.lwe_list.into_container()
     }

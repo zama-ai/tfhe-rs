@@ -55,6 +55,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
         PolynomialListView::from_container(self.as_ref(), self.polynomial_size)
     }
 
+    /// Consumes the entity and return its underlying container.
     pub fn into_container(self) -> C {
         self.data
     }
