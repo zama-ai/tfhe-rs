@@ -131,6 +131,7 @@ impl<Scalar: Copy> GlweCiphertextListOwned<Scalar> {
     }
 }
 
+/// Metadata used in the [`CreateFrom`] implementation to create [`GlweCiphertextList`] entities.
 #[derive(Clone, Copy)]
 pub struct GlweCiphertextListCreationMetadata(pub GlweSize, pub PolynomialSize);
 
