@@ -190,7 +190,7 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
     }
 }
 
-/// Returns the required memory for [`FourierLweBootstrapKeyView::blind_rotate`].
+/// Returns the required memory for [`FourierLweBootstrapKeyView::blind_rotate_assign`].
 pub fn blind_rotate_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
@@ -213,7 +213,7 @@ pub fn bootstrap_scratch<Scalar>(
 
 impl<'a> FourierLweBootstrapKeyView<'a> {
     // CastInto required for PBS modulus switch which returns a usize
-    pub fn blind_rotate<Scalar: UnsignedTorus + CastInto<usize>>(
+    pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
         self,
         mut lut: GlweCiphertextMutView<'_, Scalar>,
         lwe: &[Scalar],
@@ -289,7 +289,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
             &mut *local_accumulator_data,
             accumulator.polynomial_size(),
         );
-        self.blind_rotate(local_accumulator.as_mut_view(), lwe_in, fft, stack);
+        self.blind_rotate_assign(local_accumulator.as_mut_view(), lwe_in, fft, stack);
         extract_lwe_sample_from_glwe_ciphertext(
             &local_accumulator,
             &mut LweCiphertextMutView::from_container(&mut *lwe_out),

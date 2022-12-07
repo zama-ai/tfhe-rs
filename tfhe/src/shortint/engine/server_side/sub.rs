@@ -46,7 +46,7 @@ impl ShortintEngine {
     ) -> EngineResult<u64> {
         let (neg_right, z) = self.unchecked_neg_with_z(server_key, ct_right)?;
 
-        lwe_ciphertext_in_place_addition(&mut ct_left.ct, &neg_right.ct);
+        lwe_ciphertext_addition_assign(&mut ct_left.ct, &neg_right.ct);
 
         ct_left.degree = Degree(ct_left.degree.0 + z as usize);
 

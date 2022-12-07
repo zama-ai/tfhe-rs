@@ -186,7 +186,7 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 
         slice_wrapping_scalar_mul_assign(body.as_mut(), factor);
 
-        encrypt_glwe_ciphertext_in_place(glwe_secret_key, row_as_glwe, noise_parameters, generator);
+        encrypt_glwe_ciphertext_assign(glwe_secret_key, row_as_glwe, noise_parameters, generator);
     } else {
         // The last row needs a slightly different treatment
         let mut body = row_as_glwe.get_mut_body();
@@ -194,6 +194,6 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, InputCont, OutputCont, Gen>(
         body.as_mut().fill(Scalar::ZERO);
         body.as_mut()[0] = factor.wrapping_neg();
 
-        encrypt_glwe_ciphertext_in_place(glwe_secret_key, row_as_glwe, noise_parameters, generator);
+        encrypt_glwe_ciphertext_assign(glwe_secret_key, row_as_glwe, noise_parameters, generator);
     }
 }

@@ -6,8 +6,8 @@ use dyn_stack::{DynStack, ReborrowMut, SizeOverflow, StackReq};
 use super::super::math::fft::{FftView, FourierPolynomialList};
 use super::bootstrap::{bootstrap_scratch, FourierLweBootstrapKeyView};
 use super::ggsw::{
-    cmux, cmux_scratch, fill_with_forward_fourier_scratch, in_place_external_product,
-    in_place_external_product_scratch, FourierGgswCiphertext,
+    add_external_product_assign, add_external_product_assign_scratch, cmux, cmux_scratch,
+    fill_with_forward_fourier_scratch, FourierGgswCiphertext,
 };
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::*;
@@ -627,7 +627,7 @@ pub fn cmux_tree_memory_optimized_scratch<Scalar>(
         t_scratch,                             // t_1
         StackReq::try_new::<usize>(nb_layer)?, // t_fill
         t_scratch,                             // diff
-        in_place_external_product_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
+        add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
     ])
 }
 
@@ -724,7 +724,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
                         };
 
                         output.as_mut().copy_from_slice(t0_j.as_ref());
-                        in_place_external_product(output, ggsw, diff, fft, stack);
+                        add_external_product_assign(output, ggsw, diff, fft, stack);
                         t_fill[j + 1] += 1;
                         t_fill[j] = 0;
 
@@ -734,7 +734,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
                     } else {
                         let mut output = output_glwe.as_mut_view();
                         output.as_mut().copy_from_slice(t0_j.as_ref());
-                        in_place_external_product(output, ggsw, diff, fft, stack);
+                        add_external_product_assign(output, ggsw, diff, fft, stack);
                     }
                 } else {
                     break;
@@ -922,7 +922,7 @@ pub fn vertical_packing_scratch<Scalar>(
         // cmux_tree_lut_res
         StackReq::try_new_aligned::<Scalar>(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN)?,
         StackReq::try_any_of([
-            blind_rotate_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
+            blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
             cmux_tree_memory_optimized_scratch::<Scalar>(
                 polynomial_size,
                 glwe_size,
@@ -983,7 +983,7 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
         fft,
         stack.rb_mut(),
     );
-    blind_rotate(
+    blind_rotate_assign(
         cmux_tree_lut_res.as_mut_view(),
         br_ggsw,
         fft,
@@ -994,7 +994,7 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
     extract_lwe_sample_from_glwe_ciphertext(&cmux_tree_lut_res, &mut lwe_out, MonomialDegree(0))
 }
 
-pub fn blind_rotate_scratch<Scalar>(
+pub fn blind_rotate_assign_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
@@ -1005,7 +1005,7 @@ pub fn blind_rotate_scratch<Scalar>(
     ])
 }
 
-pub fn blind_rotate<Scalar: UnsignedTorus + CastInto<usize>>(
+pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
     mut lut: GlweCiphertext<&mut [Scalar]>,
     ggsw_list: FourierGgswCiphertextListView<'_>,
     fft: FftView<'_>,
