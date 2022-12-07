@@ -116,6 +116,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
         )
     }
 
+    /// Consumes the entity and return its underlying container.
     pub fn into_container(self) -> C {
         self.data
     }

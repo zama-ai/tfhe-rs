@@ -194,6 +194,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
         }
     }
 
+    /// Consumes the entity and return its underlying container.
     pub fn into_container(self) -> C {
         self.data
     }
