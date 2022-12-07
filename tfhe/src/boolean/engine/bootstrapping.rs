@@ -123,8 +123,8 @@ impl Bootstrapper {
         // creation of the bootstrapping key in the Fourier domain
         let mut fourier_bsk = FourierLweBootstrapKey::new(
             standard_bootstraping_key.input_lwe_dimension(),
-            standard_bootstraping_key.polynomial_size(),
             standard_bootstraping_key.glwe_size(),
+            standard_bootstraping_key.polynomial_size(),
             standard_bootstraping_key.decomposition_base_log(),
             standard_bootstraping_key.decomposition_level_count(),
         );
