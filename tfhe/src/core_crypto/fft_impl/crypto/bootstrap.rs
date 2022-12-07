@@ -34,8 +34,8 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     pub fn from_container(
         data: C,
         input_lwe_dimension: LweDimension,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
     ) -> Self {
@@ -70,8 +70,8 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
             .map(move |slice| {
                 FourierGgswCiphertext::new(
                     slice,
-                    self.fourier.polynomial_size,
                     self.glwe_size,
+                    self.fourier.polynomial_size,
                     self.decomposition_base_log,
                     self.decomposition_level_count,
                 )
@@ -141,8 +141,8 @@ pub type FourierLweBootstrapKeyOwned = FourierLweBootstrapKey<ABox<[c64]>>;
 impl FourierLweBootstrapKey<ABox<[c64]>> {
     pub fn new(
         input_lwe_dimension: LweDimension,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
     ) -> FourierLweBootstrapKey<ABox<[c64]>> {
@@ -160,8 +160,8 @@ impl FourierLweBootstrapKey<ABox<[c64]>> {
         FourierLweBootstrapKey::from_container(
             boxed,
             input_lwe_dimension,
-            polynomial_size,
             glwe_size,
+            polynomial_size,
             decomposition_base_log,
             decomposition_level_count,
         )

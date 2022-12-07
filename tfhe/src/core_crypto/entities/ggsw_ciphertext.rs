@@ -157,8 +157,8 @@ use crate::core_crypto::entities::*;
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GgswCiphertext<C: Container> {
     data: C,
-    polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
     decomp_base_log: DecompositionBaseLog,
 }
 
@@ -266,8 +266,8 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
 
         GgswCiphertext {
             data: container,
-            polynomial_size,
             glwe_size,
+            polynomial_size,
             decomp_base_log,
         }
     }
