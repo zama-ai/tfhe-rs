@@ -7,8 +7,8 @@ use crate::core_crypto::entities::*;
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GlweCiphertextList<C: Container> {
     data: C,
-    polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
 }
 
 impl<T, C: Container<Element = T>> AsRef<[T]> for GlweCiphertextList<C> {
@@ -70,8 +70,8 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextList<C> {
         );
         GlweCiphertextList {
             data: container,
-            polynomial_size,
             glwe_size,
+            polynomial_size,
         }
     }
 
