@@ -362,9 +362,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![1000u32; 100];
-    /// generator.update_unsigned_torus_slice_with_wrapping_add_random_gaussian(&mut vec, 0., 1.);
+    /// generator.unsigned_torus_slice_wrapping_add_random_gaussian_assign(&mut vec, 0., 1.);
     /// ```
-    pub fn update_unsigned_torus_slice_with_wrapping_add_random_gaussian<Float, Scalar>(
+    pub fn unsigned_torus_slice_wrapping_add_random_gaussian_assign<Float, Scalar>(
         &mut self,
         output: &mut [Scalar],
         mean: Float,
