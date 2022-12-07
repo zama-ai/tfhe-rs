@@ -44,7 +44,6 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Forks the generator, when splitting a bootstrap key into ggsw ct.
-    #[allow(dead_code)]
     pub(crate) fn fork_bsk_to_ggsw<T: UnsignedInteger>(
         &mut self,
         lwe_dimension: LweDimension,
