@@ -21,7 +21,8 @@ pub struct EncryptionRandomGenerator<G: ByteRandomGenerator> {
 }
 
 impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
-    /// Creates a new encryption, optionally seeding it with the given value.
+    /// Creates a new [`EncryptionRandomGenerator`], using the provided [`Seed`] to seed the public
+    /// mask generator and using the provided [`Seeder`] to privately seed the noise generator.
     // S is ?Sized to allow Box<dyn Seeder> to be passed.
     pub fn new<S: Seeder + ?Sized>(seed: Seed, seeder: &mut S) -> EncryptionRandomGenerator<G> {
         EncryptionRandomGenerator {
@@ -190,7 +191,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Adds noise on top of existing data for in place encryption
-    pub(crate) fn update_slice_with_wrapping_add_random_noise<Scalar>(
+    pub(crate) fn update_unsigned_torus_slice_with_wrapping_add_random_noise<Scalar>(
         &mut self,
         output: &mut [Scalar],
         std: impl DispersionParameter,
@@ -198,11 +199,12 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         Scalar: UnsignedTorus,
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
     {
-        self.noise.update_slice_with_wrapping_add_random_gaussian(
-            output,
-            0.,
-            std.get_standard_dev(),
-        );
+        self.noise
+            .update_unsigned_torus_slice_with_wrapping_add_random_gaussian(
+                output,
+                0.,
+                std.get_standard_dev(),
+            );
     }
 }
 
