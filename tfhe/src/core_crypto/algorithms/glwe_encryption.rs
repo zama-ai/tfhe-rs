@@ -37,7 +37,7 @@ pub fn encrypt_glwe_ciphertext_in_place<Scalar, KeyCont, OutputCont, Gen>(
 
     generator.update_slice_with_wrapping_add_random_noise(body.as_mut(), noise_parameters);
 
-    update_polynomial_with_wrapping_add_multisum(
+    polynomial_wrapping_add_multisum_assign(
         &mut body.as_mut_polynomial(),
         &mask.as_polynomial_list(),
         &glwe_secret_key.as_polynomial_list(),
@@ -85,12 +85,12 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 
     generator.fill_slice_with_random_noise(body.as_mut(), noise_parameters);
 
-    update_polynomial_with_wrapping_add(
+    polynomial_wrapping_add_assign(
         &mut body.as_mut_polynomial(),
         &input_plaintext_list.as_polynomial(),
     );
 
-    update_polynomial_with_wrapping_add_multisum(
+    polynomial_wrapping_add_multisum_assign(
         &mut body.as_mut_polynomial(),
         &mask.as_polynomial_list(),
         &glwe_secret_key.as_polynomial_list(),
@@ -186,7 +186,7 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
     output_plaintext_list
         .as_mut()
         .copy_from_slice(body.as_ref());
-    update_polynomial_with_wrapping_sub_multisum(
+    polynomial_wrapping_sub_multisum_assign(
         &mut output_plaintext_list.as_mut_polynomial(),
         &mask.as_polynomial_list(),
         &glwe_secret_key.as_polynomial_list(),
