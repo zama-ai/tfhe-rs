@@ -187,7 +187,7 @@ impl<C: Container> ContiguousEntityContainer for LwePrivateFunctionalPackingKeys
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        GlweCiphertextListCreationMetadata(self.output_polynomial_size, self.output_glwe_size)
+        GlweCiphertextListCreationMetadata(self.output_glwe_size, self.output_polynomial_size)
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
