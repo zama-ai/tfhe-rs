@@ -2,7 +2,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
-/// A GGSW Ciphertext.
+/// A [`GGSW Ciphertext`](`GgswCiphertext`).
 ///
 /// # Formal Definition
 ///
