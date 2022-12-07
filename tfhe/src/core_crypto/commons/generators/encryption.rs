@@ -190,7 +190,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Adds noise on top of existing data for in place encryption
-    pub(crate) fn update_unsigned_torus_slice_with_wrapping_add_random_noise<Scalar>(
+    pub(crate) fn unsigned_torus_slice_wrapping_add_random_noise_assign<Scalar>(
         &mut self,
         output: &mut [Scalar],
         std: impl DispersionParameter,
@@ -199,7 +199,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
     {
         self.noise
-            .update_unsigned_torus_slice_with_wrapping_add_random_gaussian(
+            .unsigned_torus_slice_wrapping_add_random_gaussian_assign(
                 output,
                 0.,
                 std.get_standard_dev(),
