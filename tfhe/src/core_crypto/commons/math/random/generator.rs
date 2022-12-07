@@ -158,6 +158,18 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, Uniform)
     }
 
+    /// Fills a slice with random uniform values.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let mut vec = vec![1u32; 100];
+    /// generator.fill_slice_with_random_uniform(&mut vec);
+    /// ```
     pub fn fill_slice_with_random_uniform<Scalar>(&mut self, output: &mut [Scalar])
     where
         Scalar: RandomGenerable<Uniform>,
@@ -180,6 +192,18 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, UniformBinary)
     }
 
+    /// Fills a slice with random uniform binary values.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let mut vec = vec![2u32; 100];
+    /// generator.fill_slice_with_random_uniform_binary(&mut vec);
+    /// ```
     pub fn fill_slice_with_random_uniform_binary<Scalar>(&mut self, output: &mut [Scalar])
     where
         Scalar: RandomGenerable<UniformBinary>,
@@ -296,6 +320,18 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         <(Scalar, Scalar)>::generate_one(self, Gaussian { std, mean })
     }
 
+    /// Fills a slice with random gaussian values.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let mut vec = vec![1000f32; 100];
+    /// generator.fill_slice_with_random_gaussian(&mut vec, 0., 1.);
+    /// ```
     pub fn fill_slice_with_random_gaussian<Float, Scalar>(
         &mut self,
         output: &mut [Scalar],
@@ -316,7 +352,19 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         });
     }
 
-    pub fn update_slice_with_wrapping_add_random_gaussian<Float, Scalar>(
+    /// Adds a random gaussian value to each element in a slice.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let mut vec = vec![1000u32; 100];
+    /// generator.update_unsigned_torus_slice_with_wrapping_add_random_gaussian(&mut vec, 0., 1.);
+    /// ```
+    pub fn update_unsigned_torus_slice_with_wrapping_add_random_gaussian<Float, Scalar>(
         &mut self,
         output: &mut [Scalar],
         mean: Float,
