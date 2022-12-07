@@ -184,7 +184,7 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, InputCont, OutputCont, Gen>(
         let mut body = row_as_glwe.get_mut_body();
         body.as_mut().copy_from_slice(sk_poly.as_ref());
 
-        update_slice_with_wrapping_scalar_mul(body.as_mut(), factor);
+        slice_wrapping_scalar_mul_assign(body.as_mut(), factor);
 
         encrypt_glwe_ciphertext_in_place(glwe_secret_key, row_as_glwe, noise_parameters, generator);
     } else {
