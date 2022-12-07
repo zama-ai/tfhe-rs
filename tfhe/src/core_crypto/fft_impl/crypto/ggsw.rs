@@ -279,8 +279,8 @@ impl<'a> FourierGgswCiphertextMutView<'a> {
     }
 }
 
-/// Returns the required memory for [`in_place_external_product`].
-pub fn in_place_external_product_scratch<Scalar>(
+/// Returns the required memory for [`add_external_product_assign`].
+pub fn add_external_product_assign_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
@@ -304,7 +304,7 @@ pub fn in_place_external_product_scratch<Scalar>(
 
 /// Performs the external product of `ggsw` and `glwe`, and adds the result to `out`.
 #[cfg_attr(__profiling, inline(never))]
-pub fn in_place_external_product<Scalar, InputGlweCont>(
+pub fn add_external_product_assign<Scalar, InputGlweCont>(
     mut out: GlweCiphertextMutView<'_, Scalar>,
     ggsw: FourierGgswCiphertextView<'_>,
     glwe: GlweCiphertext<InputGlweCont>,
@@ -645,7 +645,7 @@ pub fn cmux_scratch<Scalar>(
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    in_place_external_product_scratch::<Scalar>(glwe_size, polynomial_size, fft)
+    add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)
 }
 
 /// This cmux mutates both ct1 and ct0. The result is in ct0 after the method was called.
@@ -659,5 +659,5 @@ pub fn cmux<Scalar: UnsignedTorus>(
     izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
         *c1 = c1.wrapping_sub(*c0);
     });
-    in_place_external_product(ct0, ggsw, ct1, fft, stack);
+    add_external_product_assign(ct0, ggsw, ct1, fft, stack);
 }

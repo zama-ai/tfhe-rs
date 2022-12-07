@@ -3,13 +3,12 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::{bootstrap_scratch, FourierLweBootstrapKey};
-use crate::core_crypto::fft_impl::crypto::ggsw::cmux_scratch;
+use crate::core_crypto::fft_impl::crypto::wop_pbs::blind_rotate_assign_scratch;
 use crate::core_crypto::fft_impl::math::fft::{Fft, FftView};
-use aligned_vec::CACHELINE_ALIGN;
 use concrete_fft::c64;
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
 
-pub fn blind_rotate<Scalar, InputCont, OutputCont, KeyCont>(
+pub fn blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     input: &LweCiphertext<InputCont>,
     lut: &mut GlweCiphertext<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
@@ -26,7 +25,7 @@ pub fn blind_rotate<Scalar, InputCont, OutputCont, KeyCont>(
     let fft = fft.as_view();
 
     fft_buffers.resize(
-        blind_rotate_mem_optimized_scratch::<Scalar>(
+        blind_rotate_assign_mem_optimized_scratch::<Scalar>(
             fourier_bsk.glwe_size(),
             fourier_bsk.polynomial_size(),
             fft,
@@ -37,10 +36,10 @@ pub fn blind_rotate<Scalar, InputCont, OutputCont, KeyCont>(
 
     let stack = fft_buffers.stack();
 
-    blind_rotate_mem_optimized(input, lut, fourier_bsk, fft, stack);
+    blind_rotate_assign_mem_optimized(input, lut, fourier_bsk, fft, stack);
 }
 
-pub fn blind_rotate_mem_optimized<Scalar, InputCont, OutputCont, KeyCont>(
+pub fn blind_rotate_assign_mem_optimized<Scalar, InputCont, OutputCont, KeyCont>(
     input: &LweCiphertext<InputCont>,
     lut: &mut GlweCiphertext<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
@@ -55,17 +54,16 @@ pub fn blind_rotate_mem_optimized<Scalar, InputCont, OutputCont, KeyCont>(
 {
     fourier_bsk
         .as_view()
-        .blind_rotate(lut.as_mut_view(), input.as_ref(), fft, stack);
+        .blind_rotate_assign(lut.as_mut_view(), input.as_ref(), fft, stack);
 }
 
-/// Returns the required memory for [`blind_rotate_mem_optimized`].
-pub fn blind_rotate_mem_optimized_scratch<Scalar>(
+/// Returns the required memory for [`blind_rotate_assign_mem_optimized`].
+pub fn blind_rotate_assign_mem_optimized_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?
-        .try_and(cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)?)
+    blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)
 }
 
 pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccCont, KeyCont>(

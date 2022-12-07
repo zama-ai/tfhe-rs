@@ -25,7 +25,7 @@ impl ShortintEngine {
         let shift_plaintext = neg_scalar * delta;
         let encoded_scalar = Plaintext(shift_plaintext);
 
-        lwe_ciphertext_in_place_plaintext_addition(&mut ct.ct, encoded_scalar);
+        lwe_ciphertext_plaintext_addition_assign(&mut ct.ct, encoded_scalar);
 
         ct.degree = Degree(ct.degree.0 + neg_scalar as usize);
         Ok(())
