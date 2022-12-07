@@ -20,22 +20,19 @@ macro_rules! implement_gaussian {
                 Gaussian { std, mean }: Gaussian<$T>,
             ) -> Self {
                 let output: ($T, $T);
-                let mut uniform_rand = vec![0 as $S; 2];
+                let mut uniform_rand_bytes_u = [0u8; std::mem::size_of::<$S>()];
+                let mut uniform_rand_bytes_v = [0u8; std::mem::size_of::<$S>()];
                 loop {
-                    let n_bytes = (<$S as Numeric>::BITS * 2) / 8;
-                    let uniform_rand_bytes = unsafe {
-                        std::slice::from_raw_parts_mut(
-                            uniform_rand.as_mut_ptr() as *mut u8,
-                            n_bytes,
-                        )
-                    };
-                    uniform_rand_bytes
+                    uniform_rand_bytes_u
+                        .iter_mut()
+                        .for_each(|a| *a = generator.generate_next());
+                    uniform_rand_bytes_v
                         .iter_mut()
                         .for_each(|a| *a = generator.generate_next());
                     let size = <$T>::BITS as i32;
-                    let mut u: $T = uniform_rand[0].cast_into();
+                    let mut u: $T = <$S>::from_le_bytes(uniform_rand_bytes_u).cast_into();
                     u *= <$T>::TWO.powi(-size + 1);
-                    let mut v: $T = uniform_rand[1].cast_into();
+                    let mut v: $T = <$S>::from_le_bytes(uniform_rand_bytes_v).cast_into();
                     v *= <$T>::TWO.powi(-size + 1);
                     let s = u.powi(2) + v.powi(2);
                     if (s > <$T>::ZERO && s < <$T>::ONE) {
