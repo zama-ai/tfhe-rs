@@ -1,3 +1,4 @@
+#![allow(clippy::excessive_precision)]
 //! Module with the definition of parameters for short-integers.
 //!
 //! This module provides the structure containing the cryptographic parameters required for the
