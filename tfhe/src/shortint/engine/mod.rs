@@ -49,7 +49,7 @@ impl ServerKey {
     }
 }
 
-/// Simple wrapper around `std::error::Error` to be able to
+/// Simple wrapper around [`std::error::Error`] to be able to
 /// forward all the possible `EngineError` type from [`core_cryto`](crate::core_crypto)
 #[allow(dead_code)]
 #[derive(Debug)]
