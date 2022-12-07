@@ -197,12 +197,12 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
 pub fn circuit_bootstrap_boolean_scratch<Scalar>(
     lwe_in_size: LweSize,
     bsk_output_lwe_size: LweSize,
-    polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     StackReq::try_new_aligned::<Scalar>(bsk_output_lwe_size.0, CACHELINE_ALIGN)?.try_and(
-        homomorphic_shift_boolean_scratch::<Scalar>(lwe_in_size, polynomial_size, glwe_size, fft)?,
+        homomorphic_shift_boolean_scratch::<Scalar>(lwe_in_size, glwe_size, polynomial_size, fft)?,
     )
 }
 
@@ -308,8 +308,8 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
 
 pub fn homomorphic_shift_boolean_scratch<Scalar>(
     lwe_in_size: LweSize,
-    polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     let align = CACHELINE_ALIGN;
@@ -396,18 +396,18 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct GlweCiphertextList<C: Container> {
     data: C,
-    count: usize,
-    polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    count: usize,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct FourierGgswCiphertextList<C: Container<Element = c64>> {
     fourier: FourierPolynomialList<C>,
-    count: usize,
     glwe_size: GlweSize,
     decomposition_level_count: DecompositionLevelCount,
     decomposition_base_log: DecompositionBaseLog,
+    count: usize,
 }
 
 pub type FourierGgswCiphertextListView<'a> = FourierGgswCiphertextList<&'a [c64]>;
@@ -419,8 +419,8 @@ impl<C: Container> GlweCiphertextList<C> {
     pub fn new(
         data: C,
         count: usize,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
     ) -> Self {
         assert_eq!(
             data.container_len(),
@@ -485,8 +485,8 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
     pub fn new(
         data: C,
         count: usize,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
     ) -> Self {
@@ -570,8 +570,8 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
         self.fourier.data.split_into(self.count).map(move |slice| {
             FourierGgswCiphertext::new(
                 slice,
-                self.fourier.polynomial_size,
                 self.glwe_size,
+                self.fourier.polynomial_size,
                 self.decomposition_base_log,
                 self.decomposition_level_count,
             )
@@ -594,16 +594,16 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
             Self::new(
                 left,
                 mid,
-                polynomial_size,
                 glwe_size,
+                polynomial_size,
                 decomposition_base_log,
                 decomposition_level_count,
             ),
             Self::new(
                 right,
                 self.count - mid,
-                polynomial_size,
                 glwe_size,
+                polynomial_size,
                 decomposition_base_log,
                 decomposition_level_count,
             ),
@@ -612,8 +612,8 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
 }
 
 pub fn cmux_tree_memory_optimized_scratch<Scalar>(
-    polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
     nb_layer: usize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
@@ -643,12 +643,12 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
     debug_assert!(lut_per_layer.polynomial_count().0 == 1 << ggsw_list.count());
 
     if ggsw_list.count() > 0 {
-        let polynomial_size = ggsw_list.polynomial_size();
         let glwe_size = output_glwe.glwe_size();
+        let polynomial_size = ggsw_list.polynomial_size();
         let nb_layer = ggsw_list.count();
 
         debug_assert!(stack.can_hold(
-            cmux_tree_memory_optimized_scratch::<Scalar>(polynomial_size, glwe_size, nb_layer, fft)
+            cmux_tree_memory_optimized_scratch::<Scalar>(glwe_size, polynomial_size, nb_layer, fft)
                 .unwrap()
         ));
 
@@ -668,9 +668,9 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
         );
 
         let mut t_0 =
-            GlweCiphertextList::new(t_0_data.as_mut(), nb_layer, polynomial_size, glwe_size);
+            GlweCiphertextList::new(t_0_data.as_mut(), nb_layer, glwe_size, polynomial_size);
         let mut t_1 =
-            GlweCiphertextList::new(t_1_data.as_mut(), nb_layer, polynomial_size, glwe_size);
+            GlweCiphertextList::new(t_1_data.as_mut(), nb_layer, glwe_size, polynomial_size);
 
         let (mut t_fill, mut stack) = stack.make_with(nb_layer, |_| 0_usize);
 
@@ -756,8 +756,8 @@ pub fn circuit_bootstrap_boolean_vertical_packing_scratch<Scalar>(
     lwe_in_size: LweSize,
     big_lut_polynomial_count: PolynomialCount,
     bsk_output_lwe_size: LweSize,
-    fpksk_output_polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
+    fpksk_output_polynomial_size: PolynomialSize,
     level_cbs: DecompositionLevelCount,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
@@ -781,8 +781,8 @@ pub fn circuit_bootstrap_boolean_vertical_packing_scratch<Scalar>(
             circuit_bootstrap_boolean_scratch::<Scalar>(
                 lwe_in_size,
                 bsk_output_lwe_size,
-                fpksk_output_polynomial_size,
                 glwe_size,
+                fpksk_output_polynomial_size,
                 fft,
             )?,
             fill_with_forward_fourier_scratch(fft)?,
@@ -821,8 +821,8 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
             lwe_list_in.lwe_size(),
             big_lut_as_polynomial_list.polynomial_count(),
             fourier_bsk.output_lwe_dimension().to_lwe_size(),
-            pfpksk_list.output_polynomial_size(),
             fourier_bsk.glwe_size(),
+            pfpksk_list.output_polynomial_size(),
             level_cbs,
             fft
         )
@@ -857,8 +857,8 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
     let mut ggsw_list = FourierGgswCiphertextListMutView::new(
         &mut ggsw_list_data,
         lwe_list_in.lwe_ciphertext_count().0,
-        pfpksk_list.output_polynomial_size(),
         glwe_size,
+        pfpksk_list.output_polynomial_size(),
         base_log_cbs,
         level_cbs,
     );
@@ -924,8 +924,8 @@ pub fn vertical_packing_scratch<Scalar>(
         StackReq::try_any_of([
             blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
             cmux_tree_memory_optimized_scratch::<Scalar>(
-                polynomial_size,
                 glwe_size,
+                polynomial_size,
                 log_number_of_luts_for_cmux_tree,
                 fft,
             )?,

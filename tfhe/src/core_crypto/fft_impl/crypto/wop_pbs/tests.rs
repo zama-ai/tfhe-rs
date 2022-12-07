@@ -64,8 +64,8 @@ pub fn test_extract_bits() {
 
     let mut fourier_bsk = FourierLweBootstrapKey::new(
         lwe_dimension,
-        polynomial_size,
         glwe_dimension.to_glwe_size(),
+        polynomial_size,
         base_log_bsk,
         level_bsk,
     );
@@ -216,8 +216,8 @@ fn test_circuit_bootstrapping_binary() {
 
     let mut fourier_bsk = FourierLweBootstrapKey::new(
         lwe_dimension,
-        polynomial_size,
         glwe_dimension.to_glwe_size(),
+        polynomial_size,
         base_log_bsk,
         level_bsk,
     );
@@ -273,8 +273,8 @@ fn test_circuit_bootstrapping_binary() {
             circuit_bootstrap_boolean_scratch::<u64>(
                 lwe_in.lwe_size(),
                 fourier_bsk.output_lwe_dimension().to_lwe_size(),
-                polynomial_size,
                 glwe_dimension.to_glwe_size(),
+                polynomial_size,
                 fft,
             )
             .unwrap(),
@@ -437,8 +437,8 @@ pub fn test_cmux_tree() {
                 nb_ggsw * polynomial_size.0 / 2 * glwe_size.0 * glwe_size.0 * level.0
             ],
             nb_ggsw,
-            polynomial_size,
             glwe_size,
+            polynomial_size,
             base_log,
             level,
         );
@@ -467,9 +467,9 @@ pub fn test_cmux_tree() {
                 .fill_with_forward_fourier(ggsw.as_view(), fft, stack);
         }
 
-        let mut result_cmux_tree = GlweCiphertextOwned::new(0_u64, polynomial_size, glwe_size);
+        let mut result_cmux_tree = GlweCiphertextOwned::new(0_u64, glwe_size, polynomial_size);
         let mut mem = GlobalMemBuffer::new(
-            cmux_tree_memory_optimized_scratch::<u64>(polynomial_size, glwe_size, nb_ggsw, fft)
+            cmux_tree_memory_optimized_scratch::<u64>(glwe_size, polynomial_size, nb_ggsw, fft)
                 .unwrap(),
         );
         cmux_tree_memory_optimized(
@@ -555,8 +555,8 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     // allocation for the bootstrapping key
     let mut fourier_bsk = FourierLweBootstrapKey::new(
         lwe_dimension,
-        polynomial_size,
         glwe_dimension.to_glwe_size(),
+        polynomial_size,
         base_log_bsk,
         level_bsk,
     );
@@ -703,8 +703,8 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
                 extracted_bits_lwe_list.lwe_size(),
                 lut_poly_list.polynomial_count(),
                 fourier_bsk.output_lwe_dimension().to_lwe_size(),
-                vec_pfpksk.output_polynomial_size(),
                 fourier_bsk.glwe_size(),
+                vec_pfpksk.output_polynomial_size(),
                 level_cbs,
                 fft,
             )
