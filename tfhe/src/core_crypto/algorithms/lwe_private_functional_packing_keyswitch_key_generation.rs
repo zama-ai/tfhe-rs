@@ -94,7 +94,7 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
             .map(DecompositionLevel)
             .zip(messages.chunks_exact_mut(polynomial_size.0))
         {
-            update_slice_with_wrapping_add_scalar_mul(
+            slice_wrapping_add_scalar_mul_assign(
                 message.as_mut(),
                 polynomial.as_ref(),
                 DecompositionTerm::new(
@@ -204,7 +204,7 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
                     .map(DecompositionLevel)
                     .zip(messages.chunks_exact_mut(polynomial_size.0))
                 {
-                    update_slice_with_wrapping_add_scalar_mul(
+                    slice_wrapping_add_scalar_mul_assign(
                         message.as_mut(),
                         polynomial.as_ref(),
                         DecompositionTerm::new(
