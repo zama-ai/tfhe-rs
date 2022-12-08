@@ -28,53 +28,25 @@ jobs:
         run: |
           echo "rs-toolchain=$(make rs_toolchain)" >> "${GITHUB_OUTPUT}"
 
-      - name: Check format
+      - name: Run pcc checks
         run: |
-          make check_fmt
-
-      - name: Build doc
-        run: |
-          make doc
-
-      - name: Build tests without running them
-        run: |
-          make check_compile_tests
-
-      - name: Clippy boolean
-        run: |
-          make clippy_boolean
+          make pcc
 
       - name: Build Release boolean
         run: |
           make build_boolean
 
-      - name: Clippy shortint
-        run: |
-          make clippy_shortint
-
       - name: Build Release shortint
         run: |
           make build_shortint
-
-      - name: Clippy shortint and boolean
-        run: |
-          make clippy
 
       - name: Build Release shortint and boolean
         run: |
           make build_boolean_and_shortint
 
-      - name: C API Clippy
-        run: |
-          make clippy_c_api
-
       - name: Build Release c_api
         run: |
           make build_c_api
-
-      - name: wasm API Clippy
-        run: |
-          make clippy_js_wasm_api
 
       # The wasm build check is a bit annoying to set-up here and is done during the tests in
       # aws_tfhe_tests.yml

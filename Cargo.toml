@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["tfhe"]
+members = ["tfhe", "tasks"]
 
 [profile.bench]
 lto = "fat"
