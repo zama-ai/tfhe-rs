@@ -32,6 +32,20 @@ pub fn lwe_pfpksk_input_key_element_encrypted_size(
     decomp_level_count.0 * output_glwe_size.0 * output_polynomial_size.0
 }
 
+pub fn lwe_pfpksk_size(
+    input_lwe_size: LweSize,
+    decomp_level_count: DecompositionLevelCount,
+    output_glwe_size: GlweSize,
+    output_polynomial_size: PolynomialSize,
+) -> usize {
+    input_lwe_size.0
+        * lwe_pfpksk_input_key_element_encrypted_size(
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+        )
+}
+
 impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKey<C> {
     pub fn from_container(
         container: C,
@@ -154,12 +168,12 @@ impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> {
         LwePrivateFunctionalPackingKeyswitchKeyOwned::from_container(
             vec![
                 fill_with;
-                input_key_lwe_dimension.to_lwe_size().0
-                    * lwe_pfpksk_input_key_element_encrypted_size(
-                        decomp_level_count,
-                        output_glwe_size,
-                        output_polynomial_size
-                    )
+                lwe_pfpksk_size(
+                    input_key_lwe_dimension.to_lwe_size(),
+                    decomp_level_count,
+                    output_glwe_size,
+                    output_polynomial_size
+                )
             ],
             decomp_base_log,
             decomp_level_count,
