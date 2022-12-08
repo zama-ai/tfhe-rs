@@ -7,6 +7,51 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
 
+/// ```
+/// use tfhe::core_crypto::commons::generators::EncryptionRandomGenerator;
+/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
+/// use tfhe::core_crypto::prelude::*;
+/// use tfhe::seeders::new_seeder;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for GgswCiphertext creation
+/// let glwe_size = GlweSize(2);
+/// let polynomial_size = PolynomialSize(1024);
+/// let decomp_base_log = DecompositionBaseLog(8);
+/// let decomp_level_count = DecompositionLevelCount(3);
+/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+///
+/// // Create the GlweSecretKey
+/// let glwe_secret_key = GlweSecretKey::new(0u64, glwe_size.to_glwe_dimension(), polynomial_size);
+///
+/// // Create the plaintext
+/// let encoded_msg = 3u64 << 60;
+/// let plaintext = Plaintext(encoded_msg);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let mut seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+///
+/// // Create a new GgswCiphertext
+/// let mut ggsw = GgswCiphertext::new(
+///     0u64,
+///     glwe_size,
+///     polynomial_size,
+///     decomp_base_log,
+///     decomp_level_count,
+/// );
+///
+/// encrypt_ggsw_ciphertext(
+///     &glwe_secret_key,
+///     &mut ggsw,
+///     plaintext,
+///     glwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+/// ```
 pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut GgswCiphertext<OutputCont>,
