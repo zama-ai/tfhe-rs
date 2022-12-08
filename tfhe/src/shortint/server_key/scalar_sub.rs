@@ -5,7 +5,7 @@ use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
-    /// Computes homomorphically a subtraction of a ciphertext by a scalar.
+    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// The result is returned in a _new_ ciphertext.
     ///
@@ -35,7 +35,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a subtraction of a ciphertext by a scalar.
+    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// The result it stored in the given ciphertext.
     ///
@@ -64,7 +64,7 @@ impl ServerKey {
         })
     }
 
-    /// Verifies if a scalar can be subtracted to the ciphertext.
+    /// Verify if a scalar can be subtracted to the ciphertext.
     ///
     /// # Example
     ///
@@ -88,7 +88,7 @@ impl ServerKey {
         final_degree <= self.max_degree.0
     }
 
-    /// Computes homomorphically a subtraction of a ciphertext by a scalar.
+    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// If the operation is possible, the result is returned in a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -128,7 +128,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a subtraction of a ciphertext by a scalar.
+    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// If the operation is possible, the result is stored _in_ the input ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned and the ciphertext is not modified.
@@ -166,7 +166,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a subtraction of a ciphertext by a scalar.
+    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// The result is returned in a _new_ ciphertext.
     ///
@@ -203,7 +203,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a subtraction of a ciphertext by a scalar.
+    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// The result is _stored_ in the `ct` ciphertext.
     ///

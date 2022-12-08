@@ -78,7 +78,7 @@ impl ServerKey {
         })
     }
 
-    /// Verifies if a ciphertext can be negated.
+    /// Verify if a ciphertext can be negated.
     ///
     /// # Example
     ///
@@ -109,7 +109,7 @@ impl ServerKey {
         counter <= self.max_degree.0
     }
 
-    /// Computes homomorphically a negation of a ciphertext.
+    /// Compute homomorphically a negation of a ciphertext.
     ///
     /// If the operation can be performed, the result is returned a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -145,7 +145,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a negation of a ciphertext.
+    /// Compute homomorphically a negation of a ciphertext.
     ///
     /// If the operation is possible, the result is stored _in_ the input ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned and the ciphertext is not .
@@ -182,7 +182,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a negation of a ciphertext.
+    /// Compute homomorphically a negation of a ciphertext.
     ///
     /// This checks that the negation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -211,7 +211,7 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.smart_neg(self, ct).unwrap())
     }
 
-    /// Computes homomorphically a negation of a ciphertext.
+    /// Compute homomorphically a negation of a ciphertext.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.

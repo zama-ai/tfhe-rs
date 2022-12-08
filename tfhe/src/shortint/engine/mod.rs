@@ -101,7 +101,7 @@ impl ShortintEngine {
         LOCAL_ENGINE.with(|engine_cell| func(&mut engine_cell.borrow_mut()))
     }
 
-    /// Creates a new shortint engine
+    /// Create a new shortint engine
     ///
     /// Creating a `ShortintEngine` should not be needed, as each
     /// rust thread gets its own `thread_local` engine created automatically,
@@ -200,7 +200,7 @@ impl ShortintEngine {
         ShortintEngine::generate_accumulator_with_engine(server_key, wrapped_f)
     }
 
-    /// Returns the `Buffers` for the given `ServerKey`
+    /// Return the `Buffers` for the given `ServerKey`
     ///
     /// Takes care creating the buffers if they do not exists for the given key
     ///

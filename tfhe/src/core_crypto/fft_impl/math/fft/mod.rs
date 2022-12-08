@@ -53,7 +53,7 @@ impl Twisties {
 }
 
 impl Twisties {
-    /// Creates a new [`Twisties`] containing the `2N`-th roots of unity with `n = N/2`.
+    /// Create a new [`Twisties`] containing the `2N`-th roots of unity with `n = N/2`.
     ///
     /// # Panics
     ///
@@ -104,7 +104,7 @@ fn plans() -> &'static PlanMap {
     PLANS.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
-/// Returns the input slice, cast to the same type.
+/// Return the input slice, cast to the same type.
 ///
 /// This is useful when the fact that `From` and `To` are the same type cannot be proven in the
 /// type system, but is known to be true at runtime.
@@ -124,7 +124,7 @@ fn id_mut<From: 'static, To: 'static>(slice: &mut [From]) -> &mut [To] {
     unsafe { core::slice::from_raw_parts_mut(ptr as *mut To, len) }
 }
 
-/// Returns the input slice, cast to the same type.
+/// Return the input slice, cast to the same type.
 ///
 /// This is useful when the fact that `From` and `To` are the same type cannot be proven in the
 /// type system, but is known to be true at runtime.
@@ -337,7 +337,7 @@ fn convert_add_backward_torus<Scalar: UnsignedTorus>(
 }
 
 impl<'a> FftView<'a> {
-    /// Returns the polynomial size that this FFT was made for.
+    /// Return the polynomial size that this FFT was made for.
     pub fn polynomial_size(self) -> PolynomialSize {
         PolynomialSize(2 * self.plan.fft_size())
     }
@@ -360,12 +360,12 @@ impl<'a> FftView<'a> {
         self.plan.deserialize_fourier_buffer(deserializer, buf)
     }
 
-    /// Returns the memory required for a forward negacyclic FFT.
+    /// Return the memory required for a forward negacyclic FFT.
     pub fn forward_scratch(self) -> Result<StackReq, SizeOverflow> {
         self.plan.fft_scratch()
     }
 
-    /// Returns the memory required for a backward negacyclic FFT.
+    /// Return the memory required for a backward negacyclic FFT.
     pub fn backward_scratch(self) -> Result<StackReq, SizeOverflow> {
         self.plan
             .fft_scratch()?
@@ -375,7 +375,7 @@ impl<'a> FftView<'a> {
             )?)
     }
 
-    /// Performs a negacyclic real FFT of `standard`, viewed as torus elements, and stores the
+    /// Perform a negacyclic real FFT of `standard`, viewed as torus elements, and stores the
     /// result in `fourier`.
     ///
     /// # Note
@@ -396,7 +396,7 @@ impl<'a> FftView<'a> {
         unsafe { self.forward_with_conv(fourier, standard, convert_forward_torus, stack) }
     }
 
-    /// Performs a negacyclic real FFT of `standard`, viewed as integers, and stores the result in
+    /// Perform a negacyclic real FFT of `standard`, viewed as integers, and stores the result in
     /// `fourier`.
     ///
     /// # Note
@@ -417,7 +417,7 @@ impl<'a> FftView<'a> {
         unsafe { self.forward_with_conv(fourier, standard, convert_forward_integer, stack) }
     }
 
-    /// Performs an inverse negacyclic real FFT of `fourier` and stores the result in `standard`,
+    /// Perform an inverse negacyclic real FFT of `fourier` and stores the result in `standard`,
     /// viewed as torus elements.
     ///
     /// # Note
@@ -437,7 +437,7 @@ impl<'a> FftView<'a> {
         unsafe { self.backward_with_conv(standard, fourier, convert_backward_torus, stack) }
     }
 
-    /// Performs an inverse negacyclic real FFT of `fourier` and adds the result to `standard`,
+    /// Perform an inverse negacyclic real FFT of `fourier` and adds the result to `standard`,
     /// viewed as torus elements.
     ///
     /// # Note

@@ -33,14 +33,14 @@ impl<C: Container> GlweBody<C> {
         GlweBody { data: container }
     }
 
-    /// Returns the [`PolynomialSize`] of the [`GlweBody`].
+    /// Return the [`PolynomialSize`] of the [`GlweBody`].
     ///
     /// See [`GlweBody::from_container`] for usage.
     pub fn polynomial_size(&self) -> PolynomialSize {
         PolynomialSize(self.data.container_len())
     }
 
-    /// Interprets the [`GlweBody`] as a [`Polynomial`].
+    /// Interpret the [`GlweBody`] as a [`Polynomial`].
     pub fn as_polynomial(&self) -> PolynomialView<'_, C::Element> {
         PolynomialView::from_container(self.as_ref())
     }
@@ -93,21 +93,21 @@ impl<C: Container> GlweMask<C> {
         }
     }
 
-    /// Returns the [`GlweDimension`] of the [`GlweMask`].
+    /// Return the [`GlweDimension`] of the [`GlweMask`].
     ///
     /// See [`GlweMask::from_container`] for usage.
     pub fn glwe_dimension(&self) -> GlweDimension {
         GlweDimension(self.data.container_len() / self.polynomial_size.0)
     }
 
-    /// Returns the [`PolynomialSize`] of the [`GlweMask`].
+    /// Return the [`PolynomialSize`] of the [`GlweMask`].
     ///
     /// See [`GlweMask::from_container`] for usage.
     pub fn polynomial_size(&self) -> PolynomialSize {
         self.polynomial_size
     }
 
-    /// Interprets the [`GlweMask`] as a [`PolynomialList`].
+    /// Interpret the [`GlweMask`] as a [`PolynomialList`].
     pub fn as_polynomial_list(&self) -> PolynomialListView<'_, C::Element> {
         PolynomialListView::from_container(self.as_ref(), self.polynomial_size)
     }
@@ -145,13 +145,13 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GlweBody<C> {
     }
 }
 
-/// Returns the number of elements in a [`GlweCiphertext`] given a [`GlweSize`] and
+/// Return the number of elements in a [`GlweCiphertext`] given a [`GlweSize`] and
 /// [`PolynomialSize`].
 pub fn glwe_ciphertext_size(glwe_size: GlweSize, polynomial_size: PolynomialSize) -> usize {
     glwe_size.0 * polynomial_size.0
 }
 
-/// Returns the number of elements in a [`GlweMask`] given a [`GlweDimension`] and
+/// Return the number of elements in a [`GlweMask`] given a [`GlweDimension`] and
 /// [`PolynomialSize`].
 pub fn glwe_ciphertext_mask_size(
     glwe_dimension: GlweDimension,
@@ -252,21 +252,21 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
         }
     }
 
-    /// Returns the [`GlweSize`] of the [`GlweCiphertext`].
+    /// Return the [`GlweSize`] of the [`GlweCiphertext`].
     ///
     /// See [`GlweCiphertext::from_container`] for usage.
     pub fn glwe_size(&self) -> GlweSize {
         GlweSize(self.as_ref().container_len() / self.polynomial_size.0)
     }
 
-    /// Returns the [`PolynomialSize`] of the [`GlweCiphertext`].
+    /// Return the [`PolynomialSize`] of the [`GlweCiphertext`].
     ///
     /// See [`GlweCiphertext::from_container`] for usage.
     pub fn polynomial_size(&self) -> PolynomialSize {
         self.polynomial_size
     }
 
-    /// Returns immutable views to the [`GlweMask`] and [`GlweBody`] of a [`GlweCiphertext`].
+    /// Return immutable views to the [`GlweMask`] and [`GlweBody`] of a [`GlweCiphertext`].
     pub fn get_mask_and_body(&self) -> (GlweMask<&[Scalar]>, GlweBody<&[Scalar]>) {
         let (mask, body) = self.data.as_ref().split_at(glwe_ciphertext_mask_size(
             self.glwe_size().to_glwe_dimension(),
@@ -279,7 +279,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
         )
     }
 
-    /// Returns an immutable view to the [`GlweBody`] of a [`GlweCiphertext`].
+    /// Return an immutable view to the [`GlweBody`] of a [`GlweCiphertext`].
     pub fn get_body(&self) -> GlweBody<&[Scalar]> {
         let body = &self.data.as_ref()[glwe_ciphertext_mask_size(
             self.glwe_size().to_glwe_dimension(),
@@ -289,7 +289,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
         GlweBody::from_container(body)
     }
 
-    /// Returns an immutable view to the [`GlweMask`] of a [`GlweCiphertext`].
+    /// Return an immutable view to the [`GlweMask`] of a [`GlweCiphertext`].
     pub fn get_mask(&self) -> GlweMask<&[Scalar]> {
         GlweMask::from_container(
             &self.as_ref()[0..glwe_ciphertext_mask_size(
@@ -300,12 +300,12 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
         )
     }
 
-    /// Interprets the [`GlweCiphertext`] as a [`PolynomialList`].
+    /// Interpret the [`GlweCiphertext`] as a [`PolynomialList`].
     pub fn as_polynomial_list(&self) -> PolynomialList<&'_ [Scalar]> {
         PolynomialList::from_container(self.as_ref(), self.polynomial_size)
     }
 
-    /// Returns a view of the [`GlweCiphertext`]. This is useful if an algorithm takes a view by
+    /// Return a view of the [`GlweCiphertext`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> GlweCiphertext<&'_ [Scalar]> {
         GlweCiphertext {
@@ -314,7 +314,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
         }
     }
 
-    /// Consumes the entity and return its underlying container.
+    /// Consume the entity and return its underlying container.
     pub fn into_container(self) -> C {
         self.data
     }

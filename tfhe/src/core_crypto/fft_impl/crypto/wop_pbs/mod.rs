@@ -631,7 +631,7 @@ pub fn cmux_tree_memory_optimized_scratch<Scalar>(
     ])
 }
 
-/// Performs a tree of cmux in a way that limits the total allocated memory to avoid issues for
+/// Perform a tree of cmux in a way that limits the total allocated memory to avoid issues for
 /// bigger trees.
 pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
     mut output_glwe: GlweCiphertext<&mut [Scalar]>,

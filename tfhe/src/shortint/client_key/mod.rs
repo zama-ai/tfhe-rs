@@ -26,7 +26,7 @@ pub struct ClientKey {
 }
 
 impl ClientKey {
-    /// Generates a client key.
+    /// Generate a client key.
     ///
     /// # Example
     ///
@@ -41,7 +41,7 @@ impl ClientKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_client_key(parameters).unwrap())
     }
 
-    /// Encrypts a small integer message using the client key.
+    /// Encrypt a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus
     ///
@@ -72,7 +72,7 @@ impl ClientKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.encrypt(self, message).unwrap())
     }
 
-    /// Encrypts a small integer message using the client key with a specific message modulus
+    /// Encrypt a small integer message using the client key with a specific message modulus
     ///
     /// # Example
     ///
@@ -104,7 +104,7 @@ impl ClientKey {
         })
     }
 
-    /// Encrypts an integer without reducing the input message modulus the message space
+    /// Encrypt an integer without reducing the input message modulus the message space
     ///
     /// # Example
     ///
@@ -130,7 +130,7 @@ impl ClientKey {
         })
     }
 
-    /// Decrypts a ciphertext encrypting an integer message and carries using the client key.
+    /// Decrypt a ciphertext encrypting an integer message and carries using the client key.
     ///
     /// # Example
     ///
@@ -155,7 +155,7 @@ impl ClientKey {
         })
     }
 
-    /// Decrypts a ciphertext encrypting a message using the client key.
+    /// Decrypt a ciphertext encrypting a message using the client key.
     ///
     /// # Example
     ///
@@ -178,7 +178,7 @@ impl ClientKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.decrypt(self, ct).unwrap())
     }
 
-    /// Encrypts a small integer message using the client key without padding bit.
+    /// Encrypt a small integer message using the client key without padding bit.
     ///
     /// The input message is reduced to the encrypted message space modulus
     ///
@@ -203,7 +203,7 @@ impl ClientKey {
         })
     }
 
-    /// Decrypts a ciphertext encrypting an integer message and carries using the client key,
+    /// Decrypt a ciphertext encrypting an integer message and carries using the client key,
     /// where the ciphertext is assumed to not have any padding bit.
     ///
     /// # Example
@@ -232,7 +232,7 @@ impl ClientKey {
         })
     }
 
-    /// Decrypts a ciphertext encrypting an integer message using the client key,
+    /// Decrypt a ciphertext encrypting an integer message using the client key,
     /// where the ciphertext is assumed to not have any padding bit.
     ///
     /// # Example
@@ -259,7 +259,7 @@ impl ClientKey {
         })
     }
 
-    /// Encrypts a small integer message using the client key without padding bit with some modulus.
+    /// Encrypt a small integer message using the client key without padding bit with some modulus.
     ///
     /// The input message is reduced to the encrypted message space modulus
     ///
@@ -289,7 +289,7 @@ impl ClientKey {
         })
     }
 
-    /// Decrypts a ciphertext encrypting an integer message using the client key,
+    /// Decrypt a ciphertext encrypting an integer message using the client key,
     /// where the ciphertext is assumed to not have any padding bit and is related to some modulus.
     ///
     /// # Example

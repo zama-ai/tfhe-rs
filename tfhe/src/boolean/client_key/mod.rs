@@ -46,7 +46,7 @@ impl Debug for ClientKey {
 }
 
 impl ClientKey {
-    /// Encrypts a Boolean message using the client key.
+    /// Encrypt a Boolean message using the client key.
     ///
     /// # Example
     ///
@@ -69,7 +69,7 @@ impl ClientKey {
         BooleanEngine::with_thread_local_mut(|engine| engine.encrypt(message, self))
     }
 
-    /// Decrypts a ciphertext encrypting a Boolean message using the client key.
+    /// Decrypt a ciphertext encrypting a Boolean message using the client key.
     ///
     /// # Example
     ///
@@ -92,7 +92,7 @@ impl ClientKey {
         BooleanEngine::with_thread_local_mut(|engine| engine.decrypt(ct, self))
     }
 
-    /// Allocates and generates a client key.
+    /// Allocate and generate a client key.
     ///
     /// # Example
     ///

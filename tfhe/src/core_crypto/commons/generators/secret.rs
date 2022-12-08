@@ -6,12 +6,12 @@ use crate::core_crypto::commons::math::random::{
 pub struct SecretRandomGenerator<G: ByteRandomGenerator>(RandomGenerator<G>);
 
 impl<G: ByteRandomGenerator> SecretRandomGenerator<G> {
-    /// Creates a new generator, optionally seeding it with the given value.
+    /// Create a new generator, optionally seeding it with the given value.
     pub fn new(seed: Seed) -> SecretRandomGenerator<G> {
         SecretRandomGenerator(RandomGenerator::new(seed))
     }
 
-    /// Returns the number of remaining bytes, if the generator is bounded.
+    /// Return the number of remaining bytes, if the generator is bounded.
     pub fn remaining_bytes(&self) -> Option<usize> {
         self.0.remaining_bytes()
     }
