@@ -11,7 +11,7 @@ pub struct LweMask<C: Container> {
 
 /// A convenience structure to easily manipulate the mask of an [`LweCiphertext`].
 impl<C: Container> LweMask<C> {
-    /// Create a [`LweMask`] from an existing container.
+    /// Create an [`LweMask`] from an existing container.
     ///
     /// # Note
     ///
@@ -91,7 +91,7 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphertext<C> {
 }
 
 impl<Scalar, C: Container<Element = Scalar>> LweCiphertext<C> {
-    /// Create a [`LweCiphertext`] from an existing container.
+    /// Create an [`LweCiphertext`] from an existing container.
     ///
     /// # Note
     ///
@@ -137,21 +137,21 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertext<C> {
         LweSize(self.data.container_len())
     }
 
-    /// Return immutable views to the [`LweMask`] and [`LweBody`] of a [`LweCiphertext`].
+    /// Return immutable views to the [`LweMask`] and [`LweBody`] of an [`LweCiphertext`].
     pub fn get_mask_and_body(&self) -> (LweMask<&[Scalar]>, LweBody<&Scalar>) {
         let (body, mask) = self.data.as_ref().split_last().unwrap();
 
         (LweMask::from_container(mask), LweBody(body))
     }
 
-    /// Return an immutable view to the [`LweBody`] of a [`LweCiphertext`].
+    /// Return an immutable view to the [`LweBody`] of an [`LweCiphertext`].
     pub fn get_body(&self) -> LweBody<&Scalar> {
         let body = self.data.as_ref().last().unwrap();
 
         LweBody(body)
     }
 
-    /// Return an immutable view to the [`LweMask`] of a [`LweCiphertext`].
+    /// Return an immutable view to the [`LweMask`] of an [`LweCiphertext`].
     pub fn get_mask(&self) -> LweMask<&[Scalar]> {
         LweMask::from_container(&self.as_ref()[0..=self.lwe_size().to_lwe_dimension().0])
     }
@@ -197,11 +197,11 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertext<C> {
     }
 }
 
-/// A [`LweCiphertext`] owning the memory for its own storage.
+/// An [`LweCiphertext`] owning the memory for its own storage.
 pub type LweCiphertextOwned<Scalar> = LweCiphertext<Vec<Scalar>>;
-/// A [`LweCiphertext`] immutably borrowing memory for its own storage.
+/// An [`LweCiphertext`] immutably borrowing memory for its own storage.
 pub type LweCiphertextView<'data, Scalar> = LweCiphertext<&'data [Scalar]>;
-/// A [`LweCiphertext`] mutably borrowing memory for its own storage.
+/// An [`LweCiphertext`] mutably borrowing memory for its own storage.
 pub type LweCiphertextMutView<'data, Scalar> = LweCiphertext<&'data mut [Scalar]>;
 
 impl<Scalar: Copy> LweCiphertextOwned<Scalar> {

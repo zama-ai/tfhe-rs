@@ -62,7 +62,7 @@ impl<C: ContainerMut> std::ops::DerefMut for LweBootstrapKey<C> {
 }
 
 impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
-    /// Create a [`LweBootstrapKey`] from an existing container.
+    /// Create an [`LweBootstrapKey`] from an existing container.
     ///
     /// # Note
     ///

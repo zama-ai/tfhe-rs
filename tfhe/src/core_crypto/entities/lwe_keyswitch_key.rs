@@ -54,11 +54,11 @@ pub fn lwe_keyswitch_key_input_key_element_encrypted_size(
 }
 
 impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
-    /// Create a [`LweKeyswitchKey`] from an existing container.
+    /// Create an [`LweKeyswitchKey`] from an existing container.
     ///
     /// # Note
     ///
-    /// This function only wraps a container in the appropriate type. If you want to generate a
+    /// This function only wraps a container in the appropriate type. If you want to generate an
     /// [`LweKeyswitchKey`] you need to call
     /// [`crate::core_crypto::algorithms::generate_lwe_keyswitch_key`] using this key as output.
     ///
@@ -219,7 +219,7 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweKeyswitchKey<C> {
     }
 }
 
-/// A [`LweKeyswitchKey`] owning the memory for its own storage.
+/// An [`LweKeyswitchKey`] owning the memory for its own storage.
 pub type LweKeyswitchKeyOwned<Scalar> = LweKeyswitchKey<Vec<Scalar>>;
 
 impl<Scalar: Copy> LweKeyswitchKeyOwned<Scalar> {
@@ -228,7 +228,7 @@ impl<Scalar: Copy> LweKeyswitchKeyOwned<Scalar> {
     /// # Note
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
-    /// type. If you want to generate a [`LweKeyswitchKey`] you need to call
+    /// type. If you want to generate an [`LweKeyswitchKey`] you need to call
     /// [`crate::core_crypto::algorithms::generate_lwe_keyswitch_key`] using this key as output.
     ///
     /// See [`LweKeyswitchKey::from_container`] for usage.
