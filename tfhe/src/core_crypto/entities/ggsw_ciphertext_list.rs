@@ -3,7 +3,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A contiguous list containing
-/// [`GGSW Ciphertexts`](`crate::core_crypto::entities::GgswCiphertext`).
+/// [`GGSW ciphertexts`](`crate::core_crypto::entities::GgswCiphertext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GgswCiphertextList<C: Container> {
     data: C,
