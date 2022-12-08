@@ -383,10 +383,11 @@ impl<Scalar: Copy> GgswCiphertextOwned<Scalar> {
     ///
     /// # Note
     ///
-    /// This function allocates an empty vector and wraps it in the appropriate type. If you want to
-    /// encrypt data you need to use [`crate::core_crypto::algorithms::encrypt_ggsw_ciphertext`]
-    /// or its parallel counterpart [`crate::core_crypto::algorithms::par_encrypt_ggsw_ciphertext`]
-    /// using this ciphertext as output.
+    /// This function allocates a vector of the appropriate size and wraps it in the appropriate
+    /// type. If you want to encrypt data you need to use
+    /// [`crate::core_crypto::algorithms::encrypt_ggsw_ciphertext`] or its parallel counterpart
+    /// [`crate::core_crypto::algorithms::par_encrypt_ggsw_ciphertext`] using this ciphertext as
+    /// output.
     ///
     /// See [`GgswCiphertext::from_container`] for usage.
     pub fn new(

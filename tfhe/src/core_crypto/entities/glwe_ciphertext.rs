@@ -322,6 +322,8 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
     }
 
     /// Consume the entity and return its underlying container.
+    ///
+    /// See [`GlweCiphertext::from_container`] for usage.
     pub fn into_container(self) -> C {
         self.data
     }
@@ -393,9 +395,10 @@ impl<Scalar: Copy> GlweCiphertextOwned<Scalar> {
     ///
     /// # Note
     ///
-    /// This function allocates an empty vector and wraps it in the appropriate type. If you want to
-    /// encrypt data you need to use [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`]
-    /// using this ciphertext as output.
+    /// This function allocates a vector of the appropriate size and wraps it in the appropriate
+    /// type. If you want to encrypt data you need to use
+    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] using this ciphertext as
+    /// output.
     ///
     ///
     /// See [`GlweCiphertext::from_container`] for usage.
