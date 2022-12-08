@@ -40,7 +40,7 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
     // We instantiate a decomposer
     let decomposer = SignedDecomposer::new(
         lwe_keyswitch_key.decomposition_base_log(),
-        lwe_keyswitch_key.decomposition_levels_count(),
+        lwe_keyswitch_key.decomposition_level_count(),
     );
 
     for (keyswitch_key_block, &input_mask_element) in lwe_keyswitch_key

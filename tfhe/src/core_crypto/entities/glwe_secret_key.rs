@@ -116,6 +116,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
     }
 }
 
+/// A [`GlweSecretKey`] owning the memory for its own storage.
 pub type GlweSecretKeyOwned<Scalar> = GlweSecretKey<Vec<Scalar>>;
 
 impl<Scalar> GlweSecretKeyOwned<Scalar>
