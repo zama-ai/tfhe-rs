@@ -7,7 +7,7 @@ fn assert_same_len(a: (usize, Option<usize>), b: (usize, Option<usize>)) {
     debug_assert_eq!(a.0, b.0);
 }
 
-/// Returns a Zip iterator, but checks that the two components have the same length.
+/// Return a Zip iterator, but checks that the two components have the same length.
 pub trait ZipChecked: IntoIterator + Sized {
     #[inline]
     fn zip_checked<B: IntoIterator>(

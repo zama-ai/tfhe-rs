@@ -174,7 +174,7 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GgswCiphertext<C> {
     }
 }
 
-/// Returns the number of elements in a [`GgswCiphertext`] given a [`GlweSize`], [`PolynomialSize`]
+/// Return the number of elements in a [`GgswCiphertext`] given a [`GlweSize`], [`PolynomialSize`]
 /// and [`DecompositionLevelCount`].
 pub fn ggsw_ciphertext_size(
     glwe_size: GlweSize,
@@ -184,7 +184,7 @@ pub fn ggsw_ciphertext_size(
     decomp_level_count.0 * ggsw_level_matrix_size(glwe_size, polynomial_size)
 }
 
-/// Returns the number of elements in a [`GgswLevelMatrix`] given a [`GlweSize`] and
+/// Return the number of elements in a [`GgswLevelMatrix`] given a [`GlweSize`] and
 /// [`PolynomialSize`].
 pub fn ggsw_level_matrix_size(glwe_size: GlweSize, polynomial_size: PolynomialSize) -> usize {
     glwe_size.0 * glwe_size.0 * polynomial_size.0
@@ -272,35 +272,35 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
         }
     }
 
-    /// Returns the [`PolynomialSize`] of the [`GgswCiphertext`].
+    /// Return the [`PolynomialSize`] of the [`GgswCiphertext`].
     ///
     /// See [`GgswCiphertext::from_container`] for usage.
     pub fn polynomial_size(&self) -> PolynomialSize {
         self.polynomial_size
     }
 
-    /// Returns the [`GlweSize`] of the [`GgswCiphertext`].
+    /// Return the [`GlweSize`] of the [`GgswCiphertext`].
     ///
     /// See [`GgswCiphertext::from_container`] for usage.
     pub fn glwe_size(&self) -> GlweSize {
         self.glwe_size
     }
 
-    /// Returns the [`DecompositionBaseLog`] of the [`GgswCiphertext`].
+    /// Return the [`DecompositionBaseLog`] of the [`GgswCiphertext`].
     ///
     /// See [`GgswCiphertext::from_container`] for usage.
     pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
         self.decomp_base_log
     }
 
-    /// Returns the [`DecompositionLevelCount`] of the [`GgswCiphertext`].
+    /// Return the [`DecompositionLevelCount`] of the [`GgswCiphertext`].
     ///
     /// See [`GgswCiphertext::from_container`] for usage.
     pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
         DecompositionLevelCount(self.data.container_len() / self.ggsw_level_matrix_size())
     }
 
-    /// Returns the size in number of elements of a single [`GgswLevelMatrix`] of the current
+    /// Return the size in number of elements of a single [`GgswLevelMatrix`] of the current
     /// [`GgswCiphertext`].
     ///
     /// See [`GgswCiphertext::from_container`] for usage.
@@ -309,17 +309,17 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
         ggsw_level_matrix_size(self.glwe_size, self.polynomial_size)
     }
 
-    /// Interprets the [`GgswCiphertext`] as a [`PolynomialList`].
+    /// Interpret the [`GgswCiphertext`] as a [`PolynomialList`].
     pub fn as_polynomial_list(&self) -> PolynomialListView<'_, Scalar> {
         PolynomialListView::from_container(self.as_ref(), self.polynomial_size)
     }
 
-    /// Interprets the [`GgswCiphertext`] as a [`GlweCiphertextList`].
+    /// Interpret the [`GgswCiphertext`] as a [`GlweCiphertextList`].
     pub fn as_glwe_list(&self) -> GlweCiphertextListView<'_, Scalar> {
         GlweCiphertextListView::from_container(self.as_ref(), self.glwe_size, self.polynomial_size)
     }
 
-    /// Returns a view of the [`GgswCiphertext`]. This is useful if an algorithm takes a view by
+    /// Return a view of the [`GgswCiphertext`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> GgswCiphertextView<'_, Scalar> {
         GgswCiphertextView::from_container(
@@ -330,7 +330,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
         )
     }
 
-    /// Consumes the entity and return its underlying container.
+    /// Consume the entity and return its underlying container.
     ///
     /// See [`GgswCiphertext::from_container`] for usage.
     pub fn into_container(self) -> C {
@@ -474,7 +474,7 @@ impl<C: Container> GgswLevelMatrix<C> {
         self.polynomial_size
     }
 
-    /// Interprets the [`GgswLevelMatrix`] as a [`GlweCiphertextList`].
+    /// Interpret the [`GgswLevelMatrix`] as a [`GlweCiphertextList`].
     pub fn as_glwe_list(&self) -> GlweCiphertextListView<'_, C::Element> {
         GlweCiphertextListView::from_container(
             self.data.as_ref(),

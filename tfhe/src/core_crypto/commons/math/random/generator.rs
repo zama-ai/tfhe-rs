@@ -78,7 +78,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         self.0.next_byte().unwrap()
     }
 
-    /// Generates a new generator, optionally seeding it with the given value.
+    /// Generate a new generator, optionally seeding it with the given value.
     ///
     /// # Example
     ///
@@ -92,7 +92,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         RandomGenerator(G::new(seed))
     }
 
-    /// Returns the number of bytes that can still be generated, if the generator is bounded.
+    /// Return the number of bytes that can still be generated, if the generator is bounded.
     ///
     /// # Example
     ///
@@ -132,7 +132,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
             .map(|iter| iter.map(Self))
     }
 
-    /// Generates a random uniform unsigned integer.
+    /// Generate a random uniform unsigned integer.
     ///
     /// # Example
     ///
@@ -158,7 +158,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, Uniform)
     }
 
-    /// Fills a slice with random uniform values.
+    /// Fill a slice with random uniform values.
     ///
     /// # Example
     ///
@@ -177,7 +177,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::fill_slice(self, Uniform, output);
     }
 
-    /// Generates a random uniform binary value.
+    /// Generate a random uniform binary value.
     ///
     /// # Example
     ///
@@ -192,7 +192,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, UniformBinary)
     }
 
-    /// Fills a slice with random uniform binary values.
+    /// Fill a slice with random uniform binary values.
     ///
     /// # Example
     ///
@@ -211,7 +211,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::fill_slice(self, UniformBinary, output);
     }
 
-    /// Generates a random uniform ternary value.
+    /// Generate a random uniform ternary value.
     ///
     /// # Example
     ///
@@ -226,7 +226,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, UniformTernary)
     }
 
-    /// Generates an unsigned integer whose n least significant bits are uniformly random, and the
+    /// Generate an unsigned integer whose n least significant bits are uniformly random, and the
     /// other bits are zero.
     ///
     /// # Example
@@ -246,7 +246,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, UniformLsb { n })
     }
 
-    /// Generates an unsigned integer whose n most significant bits are uniformly random, and the
+    /// Generate an unsigned integer whose n most significant bits are uniformly random, and the
     /// other bits are zero.
     ///
     /// # Example
@@ -266,7 +266,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, UniformMsb { n })
     }
 
-    /// Generates a random uniform unsigned integer with probability `1-prob_zero`, and a zero value
+    /// Generate a random uniform unsigned integer with probability `1-prob_zero`, and a zero value
     /// with probability `prob_zero`.
     ///
     /// # Example
@@ -291,7 +291,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, UniformWithZeros { prob_zero })
     }
 
-    /// Generates two floating point values drawn from a gaussian distribution with input mean and
+    /// Generate two floating point values drawn from a gaussian distribution with input mean and
     /// standard deviation.
     ///
     /// # Example
@@ -320,7 +320,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         <(Scalar, Scalar)>::generate_one(self, Gaussian { std, mean })
     }
 
-    /// Fills a slice with random gaussian values.
+    /// Fill a slice with random gaussian values.
     ///
     /// # Example
     ///
@@ -352,7 +352,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         });
     }
 
-    /// Adds a random gaussian value to each element in a slice.
+    /// Add a random gaussian value to each element in a slice.
     ///
     /// # Example
     ///

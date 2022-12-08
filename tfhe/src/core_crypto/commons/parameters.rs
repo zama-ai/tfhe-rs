@@ -51,7 +51,7 @@ pub struct GgswCiphertextCount(pub usize);
 pub struct LweSize(pub usize);
 
 impl LweSize {
-    /// Returns the associated [`LweDimension`].
+    /// Return the associated [`LweDimension`].
     pub fn to_lwe_dimension(&self) -> LweDimension {
         LweDimension(self.0 - 1)
     }
@@ -62,7 +62,7 @@ impl LweSize {
 pub struct LweDimension(pub usize);
 
 impl LweDimension {
-    /// Returns the associated [`LweSize`].
+    /// Return the associated [`LweSize`].
     pub fn to_lwe_size(&self) -> LweSize {
         LweSize(self.0 + 1)
     }
@@ -78,7 +78,7 @@ pub struct LwePublicKeyZeroEncryptionCount(pub usize);
 pub struct GlweSize(pub usize);
 
 impl GlweSize {
-    /// Returns the associated [`GlweDimension`].
+    /// Return the associated [`GlweDimension`].
     pub fn to_glwe_dimension(&self) -> GlweDimension {
         GlweDimension(self.0 - 1)
     }
@@ -89,7 +89,7 @@ impl GlweSize {
 pub struct GlweDimension(pub usize);
 
 impl GlweDimension {
-    /// Returns the associated [`GlweSize`].
+    /// Return the associated [`GlweSize`].
     pub fn to_glwe_size(&self) -> GlweSize {
         GlweSize(self.0 + 1)
     }
@@ -102,7 +102,7 @@ impl GlweDimension {
 pub struct PolynomialSize(pub usize);
 
 impl PolynomialSize {
-    /// Returns the associated [`PolynomialSizeLog`].
+    /// Return the associated [`PolynomialSizeLog`].
     pub fn log2(&self) -> PolynomialSizeLog {
         PolynomialSizeLog((self.0 as f64).log2().ceil() as usize)
     }
@@ -115,7 +115,7 @@ impl PolynomialSize {
 pub struct PolynomialSizeLog(pub usize);
 
 impl PolynomialSizeLog {
-    /// Returns the associated [`PolynomialSizeLog`].
+    /// Return the associated [`PolynomialSizeLog`].
     pub fn to_polynomial_size(&self) -> PolynomialSize {
         PolynomialSize(1 << self.0)
     }

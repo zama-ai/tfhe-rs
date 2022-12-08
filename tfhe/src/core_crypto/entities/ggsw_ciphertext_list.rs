@@ -104,35 +104,35 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextList<C> {
         }
     }
 
-    /// Returns the [`GlweSize`] of the [`GgswCiphertext`] stored in the list.
+    /// Return the [`GlweSize`] of the [`GgswCiphertext`] stored in the list.
     ///
     /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn glwe_size(&self) -> GlweSize {
         self.glwe_size
     }
 
-    /// Returns the [`PolynomialSize`] of the [`GgswCiphertext`] in the list.
+    /// Return the [`PolynomialSize`] of the [`GgswCiphertext`] in the list.
     ///
     /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn polynomial_size(&self) -> PolynomialSize {
         self.polynomial_size
     }
 
-    /// Returns the [`DecompositionBaseLog`] of the [`GgswCiphertext`] in the list.
+    /// Return the [`DecompositionBaseLog`] of the [`GgswCiphertext`] in the list.
     ///
     /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
         self.decomp_base_log
     }
 
-    /// Returns the [`DecompositionLevelCount`] of the [`GgswCiphertext`] in the list.
+    /// Return the [`DecompositionLevelCount`] of the [`GgswCiphertext`] in the list.
     ///
     /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
         self.decomp_level_count
     }
 
-    /// Returns the [`GgswCiphertextCount`] of the [`GgswCiphertextList`].
+    /// Return the [`GgswCiphertextCount`] of the [`GgswCiphertextList`].
     ///
     /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn ggsw_ciphertext_count(&self) -> GgswCiphertextCount {
@@ -146,7 +146,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertextList<C> {
         )
     }
 
-    /// Consumes the entity and return its underlying container.
+    /// Consume the entity and return its underlying container.
     ///
     /// See [`GgswCiphertextList::from_container`] for usage.
     pub fn into_container(self) -> C {

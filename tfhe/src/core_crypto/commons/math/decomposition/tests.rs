@@ -6,7 +6,7 @@ use crate::core_crypto::commons::parameters::{DecompositionBaseLog, Decompositio
 use crate::core_crypto::commons::test_tools::{any_uint, any_usize, random_usize_between};
 use std::fmt::Debug;
 
-// Returns a random decomposition valid for the size of the T type.
+// Return a random decomposition valid for the size of the T type.
 fn random_decomp<T: UnsignedInteger>() -> SignedDecomposer<T> {
     let mut base_log;
     let mut level_count;

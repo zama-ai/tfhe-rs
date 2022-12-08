@@ -80,7 +80,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertext<C> {
         LweCiphertextView::from_container(self.as_ref())
     }
 
-    /// Consumes the entity and return its underlying container.
+    /// Consume the entity and return its underlying container.
     pub fn into_container(self) -> C {
         self.data
     }

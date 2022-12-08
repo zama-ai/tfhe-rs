@@ -35,7 +35,7 @@ where
         }
     }
 
-    /// Turns this term into a summand.
+    /// Turn this term into a summand.
     ///
     /// If our member represents one $\tilde{\theta}\_i$ of the decomposition, this method returns
     /// $\tilde{\theta}\_i\frac{q}{B^i}$.
@@ -55,7 +55,7 @@ where
         self.value << shift
     }
 
-    /// Returns the value of the term.
+    /// Return the value of the term.
     ///
     /// If our member represents one $\tilde{\theta}\_i$, this returns its actual value.
     ///
@@ -73,7 +73,7 @@ where
         self.value
     }
 
-    /// Returns the level of the term.
+    /// Return the level of the term.
     ///
     /// If our member represents one $\tilde{\theta}\_i$, this returns the value of $i$.
     ///

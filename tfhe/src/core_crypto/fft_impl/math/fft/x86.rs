@@ -18,7 +18,7 @@ use super::super::super::c64;
 use super::TwistiesView;
 use std::mem::MaybeUninit;
 
-/// Converts a vector of f64 values to a vector of i64 values.
+/// Convert a vector of f64 values to a vector of i64 values.
 /// See `f64_to_i64_bit_twiddles` in `fft/tests.rs` for the scalar version.
 ///
 /// # Safety
@@ -79,7 +79,7 @@ pub unsafe fn mm256_cvtpd_epi64(x: __m256d) -> __m256i {
     _mm256_blendv_epi8(value_if_non_subnormal, value_if_subnormal, is_subnormal)
 }
 
-/// Converts a vector of f64 values to a vector of i64 values.
+/// Convert a vector of f64 values to a vector of i64 values.
 /// See `f64_to_i64_bit_twiddles` in `fft/tests.rs` for the scalar version.
 ///
 /// # Safety
@@ -141,7 +141,7 @@ pub unsafe fn mm512_cvtpd_epi64(x: __m512d) -> __m512i {
     _mm512_mask_blend_epi64(is_subnormal, value_if_non_subnormal, value_if_subnormal)
 }
 
-/// Converts a vector of i64 values to a vector of f64 values. Not sure how it works.
+/// Convert a vector of i64 values to a vector of f64 values. Not sure how it works.
 /// Ported from <https://stackoverflow.com/a/41148578>.
 ///
 /// # Safety
@@ -166,7 +166,7 @@ pub unsafe fn mm256_cvtepi64_pd(x: __m256i) -> __m256d {
     _mm256_add_pd(f, _mm256_castsi256_pd(x_lo))
 }
 
-/// Converts a vector of i64 values to a vector of f64 values.
+/// Convert a vector of i64 values to a vector of f64 values.
 ///
 /// # Safety
 ///
@@ -460,7 +460,7 @@ pub unsafe fn convert_forward_integer_u64_avx2_fma(
     }
 }
 
-/// Performs common work for `u32` and `u64`, used by the backward torus transformation.
+/// Perform common work for `u32` and `u64`, used by the backward torus transformation.
 ///
 /// This deinterleaves two vectors of c64 values into two vectors of real part and imaginary part,
 /// then rounds to the nearest integer.
@@ -627,7 +627,7 @@ pub unsafe fn convert_add_backward_torus_u64_avx512f(
     }
 }
 
-/// Performs common work for `u32` and `u64`, used by the backward torus transformation.
+/// Perform common work for `u32` and `u64`, used by the backward torus transformation.
 ///
 /// This deinterleaves two vectors of c64 values into two vectors of real part and imaginary part,
 /// then rounds to the nearest integer.
