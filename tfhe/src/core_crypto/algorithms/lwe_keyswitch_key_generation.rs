@@ -35,7 +35,7 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
     );
 
     let decomp_base_log = lwe_keyswitch_key.decomposition_base_log();
-    let decomp_level_count = lwe_keyswitch_key.decomposition_levels_count();
+    let decomp_level_count = lwe_keyswitch_key.decomposition_level_count();
 
     // The plaintexts used to encrypt a key element will be stored in this buffer
     let mut decomposition_plaintexts_buffer =
