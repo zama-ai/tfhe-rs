@@ -39,6 +39,8 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextList<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for GlweCiphertextList creation
     /// let glwe_size = GlweSize(2);
     /// let polynomial_size = PolynomialSize(1024);

@@ -18,6 +18,8 @@ impl<C: Container> GlweBody<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for GlweBody creation
     /// let polynomial_size = PolynomialSize(1024);
     ///
@@ -70,6 +72,8 @@ impl<C: Container> GlweMask<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for GlweMask creation
     /// let glwe_dimension = GlweDimension(1);
     /// let polynomial_size = PolynomialSize(1024);
@@ -222,6 +226,8 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for GlweCiphertext creation
     /// let glwe_size = GlweSize(2);
     /// let polynomial_size = PolynomialSize(1024);
