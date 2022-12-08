@@ -57,7 +57,7 @@ pub fn blind_rotate_assign_mem_optimized<Scalar, InputCont, OutputCont, KeyCont>
         .blind_rotate_assign(lut.as_mut_view(), input.as_ref(), fft, stack);
 }
 
-/// Returns the required memory for [`blind_rotate_assign_mem_optimized`].
+/// Return the required memory for [`blind_rotate_assign_mem_optimized`].
 pub fn blind_rotate_assign_mem_optimized_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
@@ -136,7 +136,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
     );
 }
 
-/// Returns the required memory for [`programmable_bootstrap_lwe_ciphertext_mem_optimized`].
+/// Return the required memory for [`programmable_bootstrap_lwe_ciphertext_mem_optimized`].
 pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,

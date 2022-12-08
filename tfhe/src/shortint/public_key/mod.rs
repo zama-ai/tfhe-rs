@@ -15,7 +15,7 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
-    /// Generates a public key.
+    /// Generate a public key.
     ///
     /// # Example
     ///
@@ -33,7 +33,7 @@ impl PublicKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key).unwrap())
     }
 
-    /// Encrypts a small integer message using the client key.
+    /// Encrypt a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus
     ///
@@ -73,7 +73,7 @@ impl PublicKey {
         })
     }
 
-    /// Encrypts a small integer message using the client key with a specific message modulus
+    /// Encrypt a small integer message using the client key with a specific message modulus
     ///
     /// # Example
     ///
@@ -107,7 +107,7 @@ impl PublicKey {
         })
     }
 
-    /// Encrypts an integer without reducing the input message modulus the message space
+    /// Encrypt an integer without reducing the input message modulus the message space
     ///
     /// # Example
     ///
@@ -137,7 +137,7 @@ impl PublicKey {
         })
     }
 
-    /// Encrypts a small integer message using the client key without padding bit.
+    /// Encrypt a small integer message using the client key without padding bit.
     ///
     /// The input message is reduced to the encrypted message space modulus
     ///
@@ -167,7 +167,7 @@ impl PublicKey {
         })
     }
 
-    /// Encrypts a small integer message using the client key without padding bit with some modulus.
+    /// Encrypt a small integer message using the client key without padding bit with some modulus.
     ///
     /// The input message is reduced to the encrypted message space modulus
     ///

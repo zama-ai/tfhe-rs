@@ -5,7 +5,7 @@ use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
-    /// Computes homomorphically a multiplication of a ciphertext by a scalar.
+    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
     /// The result is returned in a _new_ ciphertext.
     ///
@@ -36,7 +36,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a multiplication of a ciphertext by a scalar.
+    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
     /// The result it stored in the given ciphertext.
     ///
@@ -67,7 +67,7 @@ impl ServerKey {
         })
     }
 
-    /// Verifies if the ciphertext can be multiplied by a scalar.
+    /// Verify if the ciphertext can be multiplied by a scalar.
     ///
     /// # Example
     ///
@@ -92,7 +92,7 @@ impl ServerKey {
         final_degree <= self.max_degree.0
     }
 
-    /// Computes homomorphically a multiplication of a ciphertext by a scalar.
+    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
     /// If the operation is possible, the result is returned in a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -135,7 +135,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a multiplication of a ciphertext by a scalar.
+    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
     /// If the operation is possible, the result is stored _in_ the input ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned and the ciphertext is not .
@@ -175,7 +175,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a multiplication of a ciphertext by a scalar.
+    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
     /// This checks that the multiplication is possible. In the case where the carry buffers are
     /// full, then it is automatically cleared to allow the operation.
@@ -211,7 +211,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a multiplication of a ciphertext by a scalar.
+    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
     /// This checks that the multiplication is possible. In the case where the carry buffers are
     /// full, then it is automatically cleared to allow the operation.

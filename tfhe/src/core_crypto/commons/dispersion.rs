@@ -21,11 +21,11 @@ use serde::{Deserialize, Serialize};
 //  As long as Variance wraps a native type (f64) it is ok to derive it from Copy instead of
 //  Clone because f64 is itself Copy and stored in register.
 pub trait DispersionParameter: Copy {
-    /// Returns the standard deviation of the distribution, i.e. $\sigma = 2^p$.
+    /// Return the standard deviation of the distribution, i.e. $\sigma = 2^p$.
     fn get_standard_dev(&self) -> f64;
-    /// Returns the variance of the distribution, i.e. $\sigma^2 = 2^{2p}$.
+    /// Return the variance of the distribution, i.e. $\sigma^2 = 2^{2p}$.
     fn get_variance(&self) -> f64;
-    /// Returns base 2 logarithm of the standard deviation of the distribution, i.e.
+    /// Return base 2 logarithm of the standard deviation of the distribution, i.e.
     /// $\log\_2(\sigma)=p$
     fn get_log_standard_dev(&self) -> f64;
     /// For a `Uint` type representing $\mathbb{Z}/2^q\mathbb{Z}$, we return $2^{q-p}$.

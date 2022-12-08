@@ -7,7 +7,7 @@ use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
-/// Adds a polynomial to the output polynomial.
+/// Add a polynomial to the output polynomial.
 ///
 /// # Note
 ///
@@ -36,7 +36,7 @@ pub fn polynomial_wrapping_add_assign<Scalar, OutputCont, InputCont>(
     slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref())
 }
 
-/// Adds the sum of the element-wise product between two lists of polynomials to the output
+/// Add the sum of the element-wise product between two lists of polynomials to the output
 /// polynomial.
 ///
 /// I.e., if the output polynomial is $C(X)$, for a collection of polynomials $(P\_i(X)))\_i$
@@ -77,7 +77,7 @@ pub fn polynomial_wrapping_add_multisum_assign<Scalar, OutputCont, InputCont1, I
     }
 }
 
-/// Adds the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
+/// Add the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
 /// output polynomial.
 ///
 /// # Note
@@ -182,7 +182,7 @@ pub fn polynomial_wrapping_monic_monomial_div_assign<Scalar, OutputCont>(
         .for_each(|a| *a = a.wrapping_neg());
 }
 
-/// Multiplies (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
+/// Multiply (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
 /// $X^{degree}$.
 ///
 /// # Note
@@ -223,7 +223,7 @@ pub fn polynomial_wrapping_monic_monomial_mul_assign<Scalar, OutputCont>(
         .for_each(|a| *a = a.wrapping_neg());
 }
 
-/// Subtracts the sum of the element-wise product between two lists of polynomials, to the output
+/// Subtract the sum of the element-wise product between two lists of polynomials, to the output
 /// polynomial.
 ///
 /// I.e., if the output polynomial is $C(X)$, for two lists of polynomials $(P\_i(X)))\_i$ and
@@ -265,7 +265,7 @@ pub fn polynomial_wrapping_sub_multisum_assign<Scalar, OutputCont, InputCont1, I
     }
 }
 
-/// Subtracts the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
+/// Subtract the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
 /// output polynomial.
 ///
 /// # Note
@@ -328,7 +328,7 @@ pub fn polynomial_wrapping_sub_mul_assign<Scalar, OutputCont, InputCont1, InputC
     }
 }
 
-/// Fills the ouptut polynomial, with the result of the product of two polynomials, reduced modulo
+/// Fill the ouptut polynomial, with the result of the product of two polynomials, reduced modulo
 /// $(X^{N} + 1)$ with the schoolbook algorithm Complexity: $O(N^{2})$
 ///
 /// # Note
@@ -362,7 +362,7 @@ pub fn polynomial_wrapping_mul<Scalar, OutputCont, LhsCont, RhsCont>(
     polynomial_wrapping_add_mul_assign(output, lhs, rhs);
 }
 
-/// Fills the output polynomial, with the result of the product of two polynomials, reduced modulo
+/// Fill the output polynomial, with the result of the product of two polynomials, reduced modulo
 /// $(X^{N} + 1)$ with the Karatsuba algorithm Complexity: $O(N^{1.58})$
 ///
 /// # Note
@@ -502,7 +502,7 @@ mod test {
         // settings
         let polynomial_size = random_polynomial_size(2048);
 
-        // generates a random Torus polynomial
+        // generate a random Torus polynomial
         let mut poly = Polynomial::new(T::ZERO, polynomial_size);
         generator.fill_slice_with_random_uniform(poly.as_mut());
 
@@ -511,7 +511,7 @@ mod test {
         // copy this polynomial
         let ground_truth = poly.clone();
 
-        // generates a random r
+        // generate a random r
         let mut r: usize = rng.gen();
         r %= polynomial_size;
 
@@ -522,7 +522,7 @@ mod test {
         // test
         assert_eq!(&poly, &ground_truth);
 
-        // generates a random r_big
+        // generate a random r_big
         let mut r_big: usize = rng.gen();
         r_big = r_big % polynomial_size + 2048;
 
@@ -554,7 +554,7 @@ mod test {
             let polynomial_size = PolynomialSize(1 << polynomial_log);
             let mut generator = new_random_generator();
 
-            // generates two random Torus polynomials
+            // generate two random Torus polynomials
             let mut poly_1 = Polynomial::new(T::ZERO, polynomial_size);
             generator.fill_slice_with_random_uniform::<T>(poly_1.as_mut());
             let poly_1 = poly_1;

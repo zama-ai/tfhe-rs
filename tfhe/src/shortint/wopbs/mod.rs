@@ -28,7 +28,7 @@ pub struct WopbsKey {
 }
 
 impl WopbsKey {
-    /// Generates the server key required to compute a WoPBS from the client and the server keys.
+    /// Generate the server key required to compute a WoPBS from the client and the server keys.
     ///
     /// #Warning
     /// Only when the classical PBS is not used in the circuit
@@ -51,7 +51,7 @@ impl WopbsKey {
         })
     }
 
-    /// Generates the server key required to compute a WoPBS from the client and the server keys.
+    /// Generate the server key required to compute a WoPBS from the client and the server keys.
     /// # Example
     ///
     /// ```rust
@@ -70,7 +70,7 @@ impl WopbsKey {
         })
     }
 
-    /// Generates the Look-Up Table homomorphically using the WoPBS approach.
+    /// Generate the Look-Up Table homomorphically using the WoPBS approach.
     ///
     /// # Warning: this assumes one bit of padding.
     ///
@@ -110,7 +110,7 @@ impl WopbsKey {
         vec_lut
     }
 
-    /// Generates the Look-Up Table homomorphically using the WoPBS approach.
+    /// Generate the Look-Up Table homomorphically using the WoPBS approach.
     ///
     /// # Warning: this assumes no bit of padding.
     ///
@@ -149,7 +149,7 @@ impl WopbsKey {
         vec_lut
     }
 
-    /// Generates the Look-Up Table homomorphically using the WoPBS approach.
+    /// Generate the Look-Up Table homomorphically using the WoPBS approach.
     ///
     ///
     /// # Example
@@ -189,7 +189,7 @@ impl WopbsKey {
         vec_lut
     }
 
-    /// Applies the Look-Up Table homomorphically using the WoPBS approach.
+    /// Apply the Look-Up Table homomorphically using the WoPBS approach.
     ///
     /// #Warning: this assumes one bit of padding.
     ///
@@ -227,7 +227,7 @@ impl WopbsKey {
         })
     }
 
-    /// Applies the Look-Up Table homomorphically using the WoPBS approach.
+    /// Apply the Look-Up Table homomorphically using the WoPBS approach.
     ///
     /// #Warning: this assumes one bit of padding.
     /// #Warning: to use in a WoPBS context ONLY (i.e., non compliant with classical PBS)
@@ -256,7 +256,7 @@ impl WopbsKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.wopbs(self, ct_in, lut).unwrap())
     }
 
-    /// Applies the Look-Up Table homomorphically using the WoPBS approach.
+    /// Apply the Look-Up Table homomorphically using the WoPBS approach.
     ///
     /// # Example
     ///
@@ -288,7 +288,7 @@ impl WopbsKey {
         })
     }
 
-    /// Applies the Look-Up Table homomorphically using the WoPBS approach.
+    /// Apply the Look-Up Table homomorphically using the WoPBS approach.
     ///
     /// # Example
     ///
@@ -320,7 +320,7 @@ impl WopbsKey {
         })
     }
 
-    /// Extracts the given number of bits from a ciphertext.
+    /// Extract the given number of bits from a ciphertext.
     ///
     /// # Warning Experimental
     pub fn extract_bits(
