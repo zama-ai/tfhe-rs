@@ -74,7 +74,10 @@ impl<C: Container> GlweMask<C> {
     /// let glwe_dimension = GlweDimension(1);
     /// let polynomial_size = PolynomialSize(1024);
     ///
-    /// let glwe_mask = GlweMask::from_container(vec![0u64; glwe_dimension.0 * polynomial_size.0]);
+    /// let glwe_mask = GlweMask::from_container(
+    ///     vec![0u64; glwe_dimension.0 * polynomial_size.0],
+    ///     polynomial_size,
+    /// );
     ///
     /// assert_eq!(glwe_mask.glwe_dimension(), glwe_dimension);
     /// assert_eq!(glwe_mask.polynomial_size(), polynomial_size);
@@ -209,6 +212,10 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
     /// Create a [`GlweCiphertext`] from an existing container.
     ///
     /// # Note
+    ///
+    /// This function only wraps a container in the appropriate type. If you want to encrypt data
+    /// you need to use [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] using this
+    /// ciphertext as output.
     ///
     /// This docstring exhibits [`GlweCiphertext`] primitives usage.
     ///
@@ -383,6 +390,13 @@ pub type GlweCiphertextMutView<'data, Scalar> = GlweCiphertext<&'data mut [Scala
 
 impl<Scalar: Copy> GlweCiphertextOwned<Scalar> {
     /// Allocate memory and create a new owned [`GlweCiphertext`].
+    ///
+    /// # Note
+    ///
+    /// This function allocates an empty vector and wraps it in the appropriate type. If you want to
+    /// encrypt data you need to use [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`]
+    /// using this ciphertext as output.
+    ///
     ///
     /// See [`GlweCiphertext::from_container`] for usage.
     pub fn new(

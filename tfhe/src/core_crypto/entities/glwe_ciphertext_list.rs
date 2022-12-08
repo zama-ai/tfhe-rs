@@ -28,6 +28,12 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextList<C> {
     ///
     /// # Note
     ///
+    /// This function only wraps a container in the appropriate type. If you want to encrypt data in
+    /// the list you need to use [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext_list`] or
+    /// a variant working on a single ciphertext at a time
+    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] on the individual
+    /// ciphertexts in the list.
+    ///
     /// This docstring exhibits [`GlweCiphertextList`] primitives usage.
     ///
     /// ```
@@ -115,6 +121,14 @@ pub type GlweCiphertextListMutView<'data, Scalar> = GlweCiphertextList<&'data mu
 
 impl<Scalar: Copy> GlweCiphertextListOwned<Scalar> {
     /// Allocate memory and create a new owned [`GlweCiphertextList`].
+    ///
+    /// # Note
+    ///
+    /// This function allocates an empty vector and wraps it in the appropriate type. If you want to
+    /// encrypt data in the list you need to use
+    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext_list`] or a variant working on
+    /// a single ciphertext at a time [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] on
+    /// the individual ciphertexts in the list.
     ///
     /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn new(
