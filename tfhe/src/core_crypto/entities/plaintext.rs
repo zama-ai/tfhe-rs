@@ -1,12 +1,13 @@
 use crate::core_crypto::commons::traits::*;
 
-/// A plaintext (encoded) value. This may contain a reference, in that case it can be converted to a
-/// plaintext containing the actual value via a call to `into`.
+/// A plaintext (encoded) value.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Plaintext<T: Numeric>(pub T);
+/// An immutable reference to a plaintext (encoded) value.
 ///
+/// Can be converted to a plaintext via a call to `into`
 /// ```
 /// use tfhe::core_crypto::entities::*;
-///
-/// # pub fn main() {
 ///
 /// pub fn takes_plaintext(plain: Plaintext<u64>) {
 ///     println!("{plain:?}");
@@ -14,50 +15,63 @@ use crate::core_crypto::commons::traits::*;
 ///
 /// let encoded_msg = 3u64 << 60;
 ///
-/// let normal_plaintext = Plaintext(encoded_msg);
-/// takes_plaintext(normal_plaintext);
+/// // A plaintext containing a reference can be returned by iterators for example, here is how
+/// // to convert them painlessly.
+/// let ref_plaintext = PlaintextRef(&encoded_msg);
+/// takes_plaintext(ref_plaintext.into());
+/// ```
+pub struct PlaintextRef<'data, T: Numeric>(pub &'data T);
+/// A mutable reference to a plaintext (encoded) value.
+///
+/// Can be converted to a plaintext via a call to `into`
+/// ```
+/// use tfhe::core_crypto::entities::*;
+///
+/// pub fn takes_plaintext(plain: Plaintext<u64>) {
+///     println!("{plain:?}");
+/// }
+///
+/// let mut encoded_msg = 3u64 << 60;
 ///
 /// // A plaintext containing a reference can be returned by iterators for example, here is how
 /// // to convert them painlessly.
-/// let ref_plaintext = Plaintext(&encoded_msg);
+/// let ref_plaintext = PlaintextRefMut(&mut encoded_msg);
 /// takes_plaintext(ref_plaintext.into());
-/// # }
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Plaintext<T>(pub T);
+pub struct PlaintextRefMut<'data, T: Numeric>(pub &'data mut T);
 
-impl<'data, T> CreateFrom<&'data [T]> for Plaintext<&'data T> {
+impl<'data, T: Numeric> CreateFrom<&'data [T]> for PlaintextRef<'data, T> {
     type Metadata = ();
 
     #[inline]
-    fn create_from(from: &[T], _: Self::Metadata) -> Plaintext<&T> {
-        Plaintext(&from[0])
+    fn create_from(from: &[T], _: Self::Metadata) -> PlaintextRef<'_, T> {
+        PlaintextRef(&from[0])
     }
 }
 
-impl<'data, T> CreateFrom<&'data mut [T]> for Plaintext<&'data mut T> {
+impl<'data, T: Numeric> CreateFrom<&'data mut [T]> for PlaintextRefMut<'data, T> {
     type Metadata = ();
 
     #[inline]
-    fn create_from(from: &mut [T], _: Self::Metadata) -> Plaintext<&mut T> {
-        Plaintext(&mut from[0])
+    fn create_from(from: &mut [T], _: Self::Metadata) -> PlaintextRefMut<'_, T> {
+        PlaintextRefMut(&mut from[0])
     }
 }
 
-impl<T> From<Plaintext<&T>> for Plaintext<T>
+impl<T: Numeric> From<PlaintextRef<'_, T>> for Plaintext<T>
 where
     T: Copy,
 {
-    fn from(plaintext_ref: Plaintext<&T>) -> Plaintext<T> {
+    fn from(plaintext_ref: PlaintextRef<T>) -> Plaintext<T> {
         Plaintext(*plaintext_ref.0)
     }
 }
 
-impl<T> From<Plaintext<&mut T>> for Plaintext<T>
+impl<T: Numeric> From<PlaintextRefMut<'_, T>> for Plaintext<T>
 where
     T: Copy,
 {
-    fn from(plaintext_ref: Plaintext<&mut T>) -> Plaintext<T> {
+    fn from(plaintext_ref: PlaintextRefMut<T>) -> Plaintext<T> {
         Plaintext(*plaintext_ref.0)
     }
 }
