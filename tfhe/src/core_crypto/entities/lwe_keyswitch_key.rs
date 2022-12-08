@@ -67,6 +67,8 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for LweKeyswitchKey creation
     /// let input_lwe_dimension = LweDimension(600);
     /// let output_lwe_dimension = LweDimension(1024);

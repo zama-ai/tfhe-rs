@@ -205,6 +205,8 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for GgswCiphertext creation
     /// let glwe_size = GlweSize(2);
     /// let polynomial_size = PolynomialSize(1024);
@@ -441,6 +443,8 @@ impl<C: Container> GgswLevelMatrix<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for GgswLevelMatrix creation
     /// let glwe_size = GlweSize(2);
     /// let polynomial_size = PolynomialSize(1024);
