@@ -36,7 +36,7 @@ pub fn lwe_pfpksk_input_key_element_encrypted_size(
     decomp_level_count.0 * output_glwe_size.0 * output_polynomial_size.0
 }
 
-/// Return the number of elements in a [`LwePrivateFunctionalPackingKeyswitchKey`] given an input
+/// Return the number of elements in an [`LwePrivateFunctionalPackingKeyswitchKey`] given an input
 /// [`LweSize`], [`DecompositionLevelCount`], output [`GlweSize`], and output [`PolynomialSize`].
 pub fn lwe_pfpksk_size(
     input_lwe_size: LweSize,
@@ -53,7 +53,7 @@ pub fn lwe_pfpksk_size(
 }
 
 impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKey<C> {
-    /// Create a [`LwePrivateFunctionalPackingKeyswitchKey`] from an existing container.
+    /// Create an [`LwePrivateFunctionalPackingKeyswitchKey`] from an existing container.
     ///
     /// # Note
     ///
@@ -252,12 +252,12 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeysw
     }
 }
 
-/// A [`LwePrivateFunctionalPackingKeyswitchKey`] owning the memory for its own storage.
+/// An [`LwePrivateFunctionalPackingKeyswitchKey`] owning the memory for its own storage.
 pub type LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> =
     LwePrivateFunctionalPackingKeyswitchKey<Vec<Scalar>>;
 
 impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> {
-    /// Create a [`LwePrivateFunctionalPackingKeyswitchKey`] from an existing container.
+    /// Create an [`LwePrivateFunctionalPackingKeyswitchKey`] from an existing container.
     ///
     /// # Note
     ///
