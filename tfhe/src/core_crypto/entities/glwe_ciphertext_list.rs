@@ -124,8 +124,8 @@ impl<Scalar: Copy> GlweCiphertextListOwned<Scalar> {
     ///
     /// # Note
     ///
-    /// This function allocates an empty vector and wraps it in the appropriate type. If you want to
-    /// encrypt data in the list you need to use
+    /// This function allocates a vector of the appropriate size and wraps it in the appropriate
+    /// type. If you want to encrypt data in the list you need to use
     /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext_list`] or a variant working on
     /// a single ciphertext at a time [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] on
     /// the individual ciphertexts in the list.
