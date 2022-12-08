@@ -195,6 +195,11 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     ///
     /// # Note
     ///
+    /// This function only wraps a container in the appropriate type. If you want to encrypt data
+    /// you need to use [`crate::core_crypto::algorithms::encrypt_ggsw_ciphertext`] or its parallel
+    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_ggsw_ciphertext`] using
+    /// this ciphertext as output.
+    ///
     /// This docstring exhibits [`GgswCiphertext`] primitives usage.
     ///
     /// ```
@@ -375,6 +380,13 @@ pub type GgswCiphertextMutView<'data, Scalar> = GgswCiphertext<&'data mut [Scala
 
 impl<Scalar: Copy> GgswCiphertextOwned<Scalar> {
     /// Allocate memory and create a new owned [`GgswCiphertext`].
+    ///
+    /// # Note
+    ///
+    /// This function allocates an empty vector and wraps it in the appropriate type. If you want to
+    /// encrypt data you need to use [`crate::core_crypto::algorithms::encrypt_ggsw_ciphertext`]
+    /// or its parallel counterpart [`crate::core_crypto::algorithms::par_encrypt_ggsw_ciphertext`]
+    /// using this ciphertext as output.
     ///
     /// See [`GgswCiphertext::from_container`] for usage.
     pub fn new(
