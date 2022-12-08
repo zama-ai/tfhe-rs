@@ -109,6 +109,8 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
     }
 
     /// Consume the entity and return its underlying container.
+    ///
+    /// See [`GlweSecretKey::from_container`] for usage.
     pub fn into_container(self) -> C {
         self.data
     }
@@ -124,8 +126,8 @@ where
     ///
     /// # Note
     ///
-    /// This function allocates an empty vector and wraps it in the appropriate type. If you want to
-    /// generate a [`GlweSecretKey`] you need to call
+    /// This function allocates a vector of the appropriate size and wraps it in the appropriate
+    /// type. If you want to generate a [`GlweSecretKey`] you need to call
     /// [`crate::core_crypto::algorithms::generate_binary_glwe_secret_key`] (or other generation
     /// functions working with different coefficient distributions) using this secret key as
     /// output.
