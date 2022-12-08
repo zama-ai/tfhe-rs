@@ -75,21 +75,21 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextList<C> {
         }
     }
 
-    /// Returns the [`GlweSize`] of the [`GlweCiphertext`] stored in the list.
+    /// Return the [`GlweSize`] of the [`GlweCiphertext`] stored in the list.
     ///
     /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn glwe_size(&self) -> GlweSize {
         self.glwe_size
     }
 
-    /// Returns the [`PolynomialSize`] of the [`GlweCiphertext`] stored in the list.
+    /// Return the [`PolynomialSize`] of the [`GlweCiphertext`] stored in the list.
     ///
     /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn polynomial_size(&self) -> PolynomialSize {
         self.polynomial_size
     }
 
-    /// Returns the [`GlweCiphertextCount`] of the [`GlweCiphertextList`].
+    /// Return the [`GlweCiphertextCount`] of the [`GlweCiphertextList`].
     ///
     /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn glwe_ciphertext_count(&self) -> GlweCiphertextCount {
@@ -98,7 +98,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertextList<C> {
         )
     }
 
-    /// Consumes the entity and return its underlying container.
+    /// Consume the entity and return its underlying container.
     ///
     /// See [`GlweCiphertextList::from_container`] for usage.
     pub fn into_container(self) -> C {

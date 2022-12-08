@@ -186,43 +186,43 @@ pub mod test_tools {
         );
     }
 
-    /// Returns a random plaintext count in [1;max].
+    /// Return a random plaintext count in [1;max].
     pub fn random_plaintext_count(max: usize) -> PlaintextCount {
         let max = std::cmp::max(2, max);
         PlaintextCount(random_usize_between(1..max + 1))
     }
 
-    /// Returns a random ciphertext count in [1;max].
+    /// Return a random ciphertext count in [1;max].
     pub fn random_ciphertext_count(max: usize) -> CiphertextCount {
         let max = std::cmp::max(2, max);
         CiphertextCount(random_usize_between(1..max + 1))
     }
 
-    /// Returns a random LWE dimension in [1;max].
+    /// Return a random LWE dimension in [1;max].
     pub fn random_lwe_dimension(max: usize) -> LweDimension {
         let max = std::cmp::max(2, max);
         LweDimension(random_usize_between(1..max + 1))
     }
 
-    /// Returns a random GLWE dimension in [1;max].
+    /// Return a random GLWE dimension in [1;max].
     pub fn random_glwe_dimension(max: usize) -> GlweDimension {
         let max = std::cmp::max(2, max);
         GlweDimension(random_usize_between(1..max + 1))
     }
 
-    /// Returns a random polynomial size in [2;max].
+    /// Return a random polynomial size in [2;max].
     pub fn random_polynomial_size(max: usize) -> PolynomialSize {
         let max = std::cmp::max(3, max);
         PolynomialSize(random_usize_between(2..max + 1))
     }
 
-    /// Returns a random base log in [2;max].
+    /// Return a random base log in [2;max].
     pub fn random_base_log(max: usize) -> DecompositionBaseLog {
         let max = std::cmp::max(3, max);
         DecompositionBaseLog(random_usize_between(2..max + 1))
     }
 
-    /// Returns a random level count in [2;max].
+    /// Return a random level count in [2;max].
     pub fn random_level_count(max: usize) -> DecompositionLevelCount {
         let max = std::cmp::max(3, max);
         DecompositionLevelCount(random_usize_between(2..max + 1))

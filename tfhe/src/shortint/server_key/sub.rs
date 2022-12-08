@@ -73,7 +73,7 @@ impl ServerKey {
         })
     }
 
-    /// Verifies if ct_right can be subtracted to ct_left.
+    /// Verify if ct_right can be subtracted to ct_left.
     ///
     /// # Example
     ///
@@ -106,7 +106,7 @@ impl ServerKey {
         final_operation_count <= self.max_degree.0
     }
 
-    /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
+    /// Compute homomorphically a subtraction between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -146,7 +146,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a subtraction between two ciphertexts.
+    /// Compute homomorphically a subtraction between two ciphertexts.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
@@ -186,7 +186,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a subtraction between two ciphertexts.
+    /// Compute homomorphically a subtraction between two ciphertexts.
     ///
     /// This checks that the subtraction is possible. In the case where the carry buffers are
     /// full, then it is automatically cleared to allow the operation.
@@ -217,7 +217,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a subtraction between two ciphertexts.
+    /// Compute homomorphically a subtraction between two ciphertexts.
     ///
     /// This checks that the subtraction is possible. In the case where the carry buffers are
     /// full, then it is automatically cleared to allow the operation.
@@ -246,7 +246,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a subtraction between two ciphertexts without checks, and returns
+    /// Compute homomorphically a subtraction between two ciphertexts without checks, and returns
     /// a correcting term.
     ///
     /// This checks that the subtraction is possible. In the case where the carry buffers are
@@ -267,7 +267,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a subtraction between two ciphertexts without checks, and returns
+    /// Compute homomorphically a subtraction between two ciphertexts without checks, and returns
     /// a correcting term.
     ///
     /// # Warning
@@ -285,7 +285,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a subtraction between two ciphertexts without checks, and returns
+    /// Compute homomorphically a subtraction between two ciphertexts without checks, and returns
     /// a correcting term.
     ///
     /// # Warning

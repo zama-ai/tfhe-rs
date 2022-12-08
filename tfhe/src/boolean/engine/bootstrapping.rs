@@ -19,7 +19,7 @@ struct Memory {
 }
 
 impl Memory {
-    /// Returns a tuple with buffers that matches the server key.
+    /// Return a tuple with buffers that matches the server key.
     ///
     /// - The first element is the accumulator for bootstrap step.
     /// - The second element is a lwe buffer where the result of the of the bootstrap should be
@@ -84,7 +84,7 @@ pub struct ServerKey {
     pub(crate) key_switching_key: LweKeyswitchKeyOwned<u32>,
 }
 
-/// Performs ciphertext bootstraps on the CPU
+/// Perform ciphertext bootstraps on the CPU
 pub(crate) struct Bootstrapper {
     memory: Memory,
     /// A structure containing two CSPRNGs to generate material for encryption like public masks
