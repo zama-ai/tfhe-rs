@@ -51,6 +51,8 @@ impl<Scalar, C: Container<Element = Scalar>> LwePublicKey<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for LwePublicKey creation
     /// let lwe_size = LweSize(600);
     /// let zero_encryption_count = LwePublicKeyZeroEncryptionCount(3);
