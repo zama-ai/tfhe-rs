@@ -11,7 +11,7 @@ fn test_normal_random<T: UnsignedTorus>() {
     let k = 1_000_000;
     let mut generator = new_random_generator();
 
-    // generates normal random
+    // generate normal random
     let mut samples_int = vec![T::ZERO; k];
     generator.fill_slice_with_random_gaussian(&mut samples_int, mean, std_dev);
 
@@ -66,7 +66,7 @@ fn test_distribution<T: UnsignedTorus>() {
     let k = 10_000_000;
     let mut generator = new_random_generator();
 
-    // generates normal random
+    // generate normal random
     let first = vec![T::ZERO; k];
     let mut second = vec![T::ZERO; k];
     generator.fill_slice_with_random_gaussian(&mut second, mean, std_dev);

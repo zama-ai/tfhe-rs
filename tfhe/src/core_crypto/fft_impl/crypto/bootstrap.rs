@@ -59,7 +59,7 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
         }
     }
 
-    /// Returns an iterator over the GGSW ciphertexts composing the key.
+    /// Return an iterator over the GGSW ciphertexts composing the key.
     pub fn into_ggsw_iter(self) -> impl DoubleEndedIterator<Item = FourierGgswCiphertext<C>>
     where
         C: Split,
@@ -168,13 +168,13 @@ impl FourierLweBootstrapKey<ABox<[c64]>> {
     }
 }
 
-/// Returns the required memory for [`FourierLweBootstrapKeyMutView::fill_with_forward_fourier`].
+/// Return the required memory for [`FourierLweBootstrapKeyMutView::fill_with_forward_fourier`].
 pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, SizeOverflow> {
     fft.forward_scratch()
 }
 
 impl<'a> FourierLweBootstrapKeyMutView<'a> {
-    /// Fills a bootstrapping key with the Fourier transform of a bootstrapping key in the standard
+    /// Fill a bootstrapping key with the Fourier transform of a bootstrapping key in the standard
     /// domain.
     pub fn fill_with_forward_fourier<Scalar: UnsignedTorus>(
         mut self,
@@ -190,7 +190,7 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
     }
 }
 
-/// Returns the required memory for [`FourierLweBootstrapKeyView::blind_rotate_assign`].
+/// Return the required memory for [`FourierLweBootstrapKeyView::blind_rotate_assign`].
 pub fn blind_rotate_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
@@ -200,7 +200,7 @@ pub fn blind_rotate_scratch<Scalar>(
         .try_and(cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)?)
 }
 
-/// Returns the required memory for [`FourierLweBootstrapKeyView::bootstrap`].
+/// Return the required memory for [`FourierLweBootstrapKeyView::bootstrap`].
 pub fn bootstrap_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,

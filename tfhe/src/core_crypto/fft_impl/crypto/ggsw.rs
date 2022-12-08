@@ -157,7 +157,7 @@ impl<C: Container<Element = c64>> FourierGgswLevelMatrix<C> {
         }
     }
 
-    /// Returns an iterator over the rows of the level matrices.
+    /// Return an iterator over the rows of the level matrices.
     pub fn into_rows(self) -> impl DoubleEndedIterator<Item = FourierGgswLevelRow<C>>
     where
         C: Split,
@@ -228,7 +228,7 @@ impl<C: Container<Element = c64>> FourierGgswLevelRow<C> {
 }
 
 impl<'a> FourierGgswCiphertextView<'a> {
-    /// Returns an iterator over the level matrices.
+    /// Return an iterator over the level matrices.
     pub fn into_levels(self) -> impl DoubleEndedIterator<Item = FourierGgswLevelMatrixView<'a>> {
         self.fourier
             .data
@@ -246,13 +246,13 @@ impl<'a> FourierGgswCiphertextView<'a> {
     }
 }
 
-/// Returns the required memory for [`FourierGgswCiphertextMutView::fill_with_forward_fourier`].
+/// Return the required memory for [`FourierGgswCiphertextMutView::fill_with_forward_fourier`].
 pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, SizeOverflow> {
     fft.forward_scratch()
 }
 
 impl<'a> FourierGgswCiphertextMutView<'a> {
-    /// Fills a GGSW ciphertext with the Fourier transform of a GGSW ciphertext in the standard
+    /// Fill a GGSW ciphertext with the Fourier transform of a GGSW ciphertext in the standard
     /// domain.
     pub fn fill_with_forward_fourier<Scalar: UnsignedTorus>(
         self,
@@ -279,7 +279,7 @@ impl<'a> FourierGgswCiphertextMutView<'a> {
     }
 }
 
-/// Returns the required memory for [`add_external_product_assign`].
+/// Return the required memory for [`add_external_product_assign`].
 pub fn add_external_product_assign_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
@@ -302,7 +302,7 @@ pub fn add_external_product_assign_scratch<Scalar>(
     substack0.try_and(fourier_scratch)
 }
 
-/// Performs the external product of `ggsw` and `glwe`, and adds the result to `out`.
+/// Perform the external product of `ggsw` and `glwe`, and adds the result to `out`.
 #[cfg_attr(__profiling, inline(never))]
 pub fn add_external_product_assign<Scalar, InputGlweCont>(
     mut out: GlweCiphertextMutView<'_, Scalar>,
@@ -639,7 +639,7 @@ unsafe fn update_with_fmadd(
     });
 }
 
-/// Returns the required memory for [`cmux`].
+/// Return the required memory for [`cmux`].
 pub fn cmux_scratch<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,

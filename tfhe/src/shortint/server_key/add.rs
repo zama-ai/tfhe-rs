@@ -5,7 +5,7 @@ use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
-    /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// The result is returned in a _new_ ciphertext.
     ///
@@ -39,7 +39,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// The result is _stored_ in the `ct_left` ciphertext.
     ///
@@ -73,7 +73,7 @@ impl ServerKey {
         })
     }
 
-    /// Verifies if ct_left and ct_right can be added together.
+    /// Verify if ct_left and ct_right can be added together.
     ///
     /// This checks that the sum of their degree is
     /// smaller than the maximum degree.
@@ -103,7 +103,7 @@ impl ServerKey {
         final_operation_count <= self.max_degree.0
     }
 
-    /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -145,7 +145,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
@@ -186,7 +186,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -218,7 +218,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically an addition between two ciphertexts
+    /// Compute homomorphically an addition between two ciphertexts
     ///
     /// The result is stored in the `ct_left` cipher text.
     ///

@@ -5,7 +5,7 @@ use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
-    /// Computes homomorphically a right shift of the bits without checks.
+    /// Compute homomorphically a right shift of the bits without checks.
     ///
     /// # Example
     ///
@@ -44,7 +44,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a right shift of the bits without checks.
+    /// Compute homomorphically a right shift of the bits without checks.
     ///
     /// # Example
     ///
@@ -81,7 +81,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a left shift of the bits without checks.
+    /// Compute homomorphically a left shift of the bits without checks.
     ///
     /// # Example
     ///
@@ -122,7 +122,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a left shift of the bits without checks
+    /// Compute homomorphically a left shift of the bits without checks
     ///
     /// # Example
     ///
@@ -186,7 +186,7 @@ impl ServerKey {
         final_operation_count <= self.max_degree.0
     }
 
-    /// Computes homomorphically a left shift of the bits.
+    /// Compute homomorphically a left shift of the bits.
     ///
     /// If the operation can be performed, a new ciphertext with the result is returned.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -256,7 +256,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a left shift of the bits
+    /// Compute homomorphically a left shift of the bits
     ///
     /// This checks that the operation is possible. In the case where the carry buffers are
     /// full, then it is automatically cleared to allow the operation.

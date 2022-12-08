@@ -31,7 +31,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweSecretKey<C> {
         LweDimension(self.data.container_len())
     }
 
-    /// Consumes the entity and return its underlying container.
+    /// Consume the entity and return its underlying container.
     pub fn into_container(self) -> C {
         self.data
     }

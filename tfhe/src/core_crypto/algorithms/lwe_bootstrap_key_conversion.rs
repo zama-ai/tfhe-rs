@@ -21,7 +21,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, OutputCo
         .fill_with_forward_fourier(input_bsk.as_view(), fft, stack);
 }
 
-/// Returns the required memory for [`convert_standard_lwe_bootstrap_key_to_fourier`].
+/// Return the required memory for [`convert_standard_lwe_bootstrap_key_to_fourier`].
 pub fn convert_standard_lwe_bootstrap_key_to_fourier_scratch(
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {

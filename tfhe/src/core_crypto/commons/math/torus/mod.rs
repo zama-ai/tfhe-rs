@@ -26,7 +26,7 @@ where
     F: FloatingPoint,
     Self: UnsignedInteger,
 {
-    /// Consumes `self` and returns its closest floating point representation.
+    /// Consume `self` and returns its closest floating point representation.
     fn into_torus(self) -> F;
 }
 
@@ -37,7 +37,7 @@ where
     F: FloatingPoint,
     Self: UnsignedInteger,
 {
-    /// Consumes `input` and returns its closest unsigned integer representation.
+    /// Consume `input` and returns its closest unsigned integer representation.
     fn from_torus(input: F) -> Self;
 }
 

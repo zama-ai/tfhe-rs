@@ -50,7 +50,7 @@ where
         self.fresh
     }
 
-    /// Returns the logarithm in base two of the base of this decomposition.
+    /// Return the logarithm in base two of the base of this decomposition.
     ///
     /// If the decomposition uses a base $B=2^b$, this returns $b$.
     ///
@@ -69,7 +69,7 @@ where
         DecompositionBaseLog(self.base_log)
     }
 
-    /// Returns the number of levels of this decomposition.
+    /// Return the number of levels of this decomposition.
     ///
     /// If the decomposition uses $l$ levels, this returns $l$.
     ///
