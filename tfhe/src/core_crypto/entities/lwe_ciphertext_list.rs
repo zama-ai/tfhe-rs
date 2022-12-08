@@ -50,7 +50,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertextList<C> {
     /// // Demonstrate how to recover the allocated container
     /// let underlying_container: Vec<u64> = lwe_list.into_container();
     ///
-    /// // Recreate a ciphertext using from_container
+    /// // Recreate a list using from_container
     /// let lwe_list = LweCiphertextList::from_container(underlying_container, lwe_size);
     ///
     /// assert_eq!(lwe_list.lwe_size(), lwe_size);
