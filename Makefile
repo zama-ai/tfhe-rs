@@ -79,8 +79,13 @@ clippy_js_wasm_api: install_rs_check_toolchain
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api \
 		-p tfhe -- --no-deps -D warnings
 
+.PHONY: clippy_tasks # Run clippy lints on helper tasks crate.
+clippy_tasks:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		-p tasks -- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
-clippy_all: clippy clippy_c_api clippy_js_wasm_api
+clippy_all: clippy clippy_boolean clippy_shortint clippy_c_api clippy_js_wasm_api clippy_tasks
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
@@ -142,6 +147,15 @@ doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint --no-deps
+
+.PHONY: format_doc_latex # Format the documentation latex equations to avoid broken rendering.
+format_doc_latex:
+	cargo xtask format_latex_doc
+	@"$(MAKE)" --no-print-directory fmt
+	@printf "\n===============================\n\n"
+	@printf "Please manually inspect changes made by format_latex_doc, rustfmt can break equations \
+	if the line length is exceeded\n"
+	@printf "\n===============================\n"
 
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests:
