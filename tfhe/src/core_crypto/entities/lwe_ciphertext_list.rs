@@ -23,7 +23,7 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphertextList<C> {
 }
 
 impl<Scalar, C: Container<Element = Scalar>> LweCiphertextList<C> {
-    /// Create a [`LweCiphertextList`] from an existing container.
+    /// Create an [`LweCiphertextList`] from an existing container.
     ///
     /// # Note
     ///
@@ -108,11 +108,11 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertextList<C> {
     }
 }
 
-/// A [`LweCiphertextList`] owning the memory for its own storage.
+/// An [`LweCiphertextList`] owning the memory for its own storage.
 pub type LweCiphertextListOwned<Scalar> = LweCiphertextList<Vec<Scalar>>;
-/// A [`LweCiphertextList`] immutably borrowing memory for its own storage.
+/// An [`LweCiphertextList`] immutably borrowing memory for its own storage.
 pub type LweCiphertextListView<'data, Scalar> = LweCiphertextList<&'data [Scalar]>;
-/// A [`LweCiphertextList`] mutably borrowing memory for its own storage.
+/// An [`LweCiphertextList`] mutably borrowing memory for its own storage.
 pub type LweCiphertextListMutView<'data, Scalar> = LweCiphertextList<&'data mut [Scalar]>;
 
 impl<Scalar: Copy> LweCiphertextListOwned<Scalar> {
