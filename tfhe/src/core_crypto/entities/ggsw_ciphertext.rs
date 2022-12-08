@@ -45,7 +45,7 @@ use crate::core_crypto::entities::*;
 /// ## GGSW Encryption
 /// ###### inputs:
 /// - $\mathsf{PT}\in\mathcal{R}\_q$: a polynomial plaintext
-/// - $\vec{S}=\left(S\_0, \cdots, S\_{k-1} \right) \in\mathcal{R}\_q^k$: an
+/// - $\vec{S}=\left(S\_0, \cdots, S\_{k-1} \right) \in\mathcal{R}\_q^k$: a
 /// [`GLWE secret key`](`crate::core_crypto::entities::GlweSecretKey`)
 /// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean of
 ///   $\mu$
