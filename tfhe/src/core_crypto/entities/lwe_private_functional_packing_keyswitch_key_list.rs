@@ -2,6 +2,8 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+/// A contiguous list containing [`LWE private functional packing keyswitch
+/// keys`](`crate::core_crypto::entities::LwePrivateFunctionalPackingKeyswitchKey`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LwePrivateFunctionalPackingKeyswitchKeyList<C: Container> {
     data: C,
@@ -26,21 +28,89 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]>
     }
 }
 
-pub fn lwe_pfpksk_size(
-    input_lwe_size: LweSize,
-    decomp_level_count: DecompositionLevelCount,
-    output_glwe_size: GlweSize,
-    output_polynomial_size: PolynomialSize,
-) -> usize {
-    input_lwe_size.0
-        * lwe_pfpksk_input_key_element_encrypted_size(
-            decomp_level_count,
-            output_glwe_size,
-            output_polynomial_size,
-        )
-}
-
 impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKeyList<C> {
+    /// Create a [`LwePrivateFunctionalPackingKeyswitchKeyList`] from an existing container.
+    ///
+    /// # Note
+    ///
+    /// This function only wraps a container in the appropriate type. If you want to generate keys
+    /// in the list you need to use
+    /// [`crate::core_crypto::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
+    /// the parallel variant
+    /// [`crate::core_crypto::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
+    /// on the individual keys in the list. Alternatively if you need to generate a list of keys for
+    /// use with the [`crate::core_crypto::algorithms::lwe_wopbs`] primitives you can use
+    /// [`crate::core_crypto::algorithms::generate_circuit_bootstrap_lwe_pfpksk_list`] or its
+    /// parallel variant
+    /// [`crate::core_crypto::algorithms::par_generate_circuit_bootstrap_lwe_pfpksk_list`].
+    ///
+    /// This docstring exhibits [`LwePrivateFunctionalPackingKeyswitchKeyList`] primitives usage.
+    ///
+    /// ```
+    /// use tfhe::core_crypto::prelude::*;
+    ///
+    /// // Define parameters for LwePrivateFunctionalPackingKeyswitchKeyList creation
+    /// let glwe_size = GlweSize(2);
+    /// let polynomial_size = PolynomialSize(1024);
+    /// let decomp_base_log = DecompositionBaseLog(8);
+    /// let decomp_level_count = DecompositionLevelCount(3);
+    /// let input_lwe_dimension = LweDimension(600);
+    /// let lwe_pfpksk_count = FunctionalPackingKeyswitchKeyCount(2);
+    ///
+    /// // Create a new LwePrivateFunctionalPackingKeyswitchKeyList
+    /// let pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyList::new(
+    ///     0u64,
+    ///     decomp_base_log,
+    ///     decomp_level_count,
+    ///     input_lwe_dimension,
+    ///     glwe_size,
+    ///     polynomial_size,
+    ///     lwe_pfpksk_count,
+    /// );
+    ///
+    /// assert_eq!(
+    ///     pfpksk_list.output_glwe_key_dimension(),
+    ///     glwe_size.to_glwe_dimension()
+    /// );
+    /// assert_eq!(pfpksk_list.output_glwe_size(), glwe_size);
+    /// assert_eq!(pfpksk_list.output_polynomial_size(), polynomial_size);
+    /// assert_eq!(pfpksk_list.decomposition_base_log(), decomp_base_log);
+    /// assert_eq!(pfpksk_list.decomposition_level_count(), decomp_level_count);
+    /// assert_eq!(
+    ///     pfpksk_list.input_lwe_size(),
+    ///     input_lwe_dimension.to_lwe_size()
+    /// );
+    /// assert_eq!(pfpksk_list.input_lwe_key_dimension(), input_lwe_dimension);
+    /// assert_eq!(pfpksk_list.lwe_pfpksk_count(), lwe_pfpksk_count);
+    ///
+    /// // Demonstrate how to recover the allocated container
+    /// let underlying_container: Vec<u64> = pfpksk_list.into_container();
+    ///
+    /// // Recreate a list using from_container
+    /// let pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
+    ///     underlying_container,
+    ///     decomp_base_log,
+    ///     decomp_level_count,
+    ///     input_lwe_dimension.to_lwe_size(),
+    ///     glwe_size,
+    ///     polynomial_size,
+    /// );
+    ///
+    /// assert_eq!(
+    ///     pfpksk_list.output_glwe_key_dimension(),
+    ///     glwe_size.to_glwe_dimension()
+    /// );
+    /// assert_eq!(pfpksk_list.output_glwe_size(), glwe_size);
+    /// assert_eq!(pfpksk_list.output_polynomial_size(), polynomial_size);
+    /// assert_eq!(pfpksk_list.decomposition_base_log(), decomp_base_log);
+    /// assert_eq!(pfpksk_list.decomposition_level_count(), decomp_level_count);
+    /// assert_eq!(
+    ///     pfpksk_list.input_lwe_size(),
+    ///     input_lwe_dimension.to_lwe_size()
+    /// );
+    /// assert_eq!(pfpksk_list.input_lwe_key_dimension(), input_lwe_dimension);
+    /// assert_eq!(pfpksk_list.lwe_pfpksk_count(), lwe_pfpksk_count);
+    /// ```
     pub fn from_container(
         container: C,
         decomp_base_log: DecompositionBaseLog,
@@ -82,34 +152,64 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
         }
     }
 
+    /// Return the output key [`GlweDimension`] of the [`LwePrivateFunctionalPackingKeyswitchKey`]
+    /// stored in the list.
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn output_glwe_key_dimension(&self) -> GlweDimension {
         self.output_glwe_size.to_glwe_dimension()
     }
 
+    /// Return the output [`GlweSize`] of the [`LwePrivateFunctionalPackingKeyswitchKey`] stored in
+    /// the list.
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn output_glwe_size(&self) -> GlweSize {
         self.output_glwe_size
     }
 
+    /// Return the output [`PolynomialSize`] of the [`LwePrivateFunctionalPackingKeyswitchKey`]
+    /// stored in the list.
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn output_polynomial_size(&self) -> PolynomialSize {
         self.output_polynomial_size
     }
 
+    /// Return the input key [`LweDimension`] of the [`LwePrivateFunctionalPackingKeyswitchKey`]
+    /// stored in the list.
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn input_lwe_key_dimension(&self) -> LweDimension {
         self.input_lwe_size.to_lwe_dimension()
     }
 
+    /// Return the input [`LweSize`] of the [`LwePrivateFunctionalPackingKeyswitchKey`]stored in the
+    /// list.
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn input_lwe_size(&self) -> LweSize {
         self.input_lwe_size
     }
 
+    /// Return the [`DecompositionLevelCount`] of the [`LwePrivateFunctionalPackingKeyswitchKey`]
+    /// stored in the list.
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
         self.decomp_level_count
     }
 
+    /// Return the [`DecompositionBaseLog`] of the [`LwePrivateFunctionalPackingKeyswitchKey`]
+    /// stored in the list.
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
         self.decomp_base_log
     }
 
+    /// Return the number of elements in a  [`LwePrivateFunctionalPackingKeyswitchKey`]  stored in
+    /// the list.
     pub fn lwe_pfpksk_size(&self) -> usize {
         lwe_pfpksk_size(
             self.input_lwe_size,
@@ -119,10 +219,16 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
         )
     }
 
+    /// Return the [`FunctionalPackingKeyswitchKeyCount`] of the
+    /// [`LwePrivateFunctionalPackingKeyswitchKeyList`].
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn lwe_pfpksk_count(&self) -> FunctionalPackingKeyswitchKeyCount {
         FunctionalPackingKeyswitchKeyCount(self.as_ref().container_len() / self.lwe_pfpksk_size())
     }
 
+    /// Return a view of the [`LwePrivateFunctionalPackingKeyswitchKeyList`]. This is useful if an
+    /// algorithm takes a view by value.
     pub fn as_view(&self) -> LwePrivateFunctionalPackingKeyswitchKeyList<&'_ [Scalar]> {
         LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
             self.as_ref(),
@@ -135,12 +241,15 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
     }
 
     /// Consume the entity and return its underlying container.
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn into_container(self) -> C {
         self.data
     }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKeyList<C> {
+    /// Mutable variant of [`LwePrivateFunctionalPackingKeyswitchKeyList::as_view`].
     pub fn as_mut_view(&mut self) -> LwePrivateFunctionalPackingKeyswitchKeyList<&'_ mut [Scalar]> {
         let decomp_base_log = self.decomp_base_log;
         let decomp_level_count = self.decomp_level_count;
@@ -159,10 +268,27 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeysw
     }
 }
 
+/// A [`LwePrivateFunctionalPackingKeyswitchKeyList`] owning the memory for its own storage.
 pub type LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar> =
     LwePrivateFunctionalPackingKeyswitchKeyList<Vec<Scalar>>;
 
 impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar> {
+    /// Allocate memory and create a new owned [`LwePrivateFunctionalPackingKeyswitchKeyList`].
+    ///
+    /// # Note
+    ///
+    /// This function allocates a vector of the appropriate size and wraps it in the appropriate
+    /// type. If you want to generate keys in the list you need to use
+    /// [`crate::core_crypto::algorithms::generate_lwe_private_functional_packing_keyswitch_key`] or
+    /// the parallel variant
+    /// [`crate::core_crypto::algorithms::par_generate_lwe_private_functional_packing_keyswitch_key`]
+    /// on the individual keys in the list. Alternatively if you need to generate a list of keys for
+    /// use with the [`crate::core_crypto::algorithms::lwe_wopbs`] primitives you can use
+    /// [`crate::core_crypto::algorithms::generate_circuit_bootstrap_lwe_pfpksk_list`] or its
+    /// parallel variant
+    /// [`crate::core_crypto::algorithms::par_generate_circuit_bootstrap_lwe_pfpksk_list`].
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
     pub fn new(
         fill_with: Scalar,
         decomp_base_log: DecompositionBaseLog,
@@ -192,6 +318,8 @@ impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar> {
     }
 }
 
+/// Metadata used in the [`CreateFrom`] implementation to create
+/// [`LwePrivateFunctionalPackingKeyswitchKeyList`] entities.
 #[derive(Clone, Copy)]
 pub struct LwePrivateFunctionalPackingKeyswitchKeyListCreationMetadata(
     pub DecompositionBaseLog,
