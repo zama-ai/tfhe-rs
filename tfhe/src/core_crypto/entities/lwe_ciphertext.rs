@@ -20,6 +20,8 @@ impl<C: Container> LweMask<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for LweMask creation
     /// let lwe_dimension = LweDimension(600);
     ///
@@ -102,6 +104,8 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertext<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
+    /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    /// // computations
     /// // Define parameters for LweCiphertext creation
     /// let lwe_size = LweSize(601);
     ///
