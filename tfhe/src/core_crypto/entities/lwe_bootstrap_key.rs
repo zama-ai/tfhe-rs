@@ -198,6 +198,7 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweBootstrapKey<C> {
     }
 }
 
+/// An [`LweBootstrapKey`] owning the memory for its own storage.
 pub type LweBootstrapKeyOwned<Scalar> = LweBootstrapKey<Vec<Scalar>>;
 
 impl<Scalar: Copy> LweBootstrapKeyOwned<Scalar> {
@@ -211,7 +212,7 @@ impl<Scalar: Copy> LweBootstrapKeyOwned<Scalar> {
     /// equivalent [`crate::core_crypto::algorithms::par_generate_lwe_bootstrap_key`] using this
     /// key as output.
     ///
-    /// See [`GgswCiphertextList::from_container`] for usage.
+    /// See [`LweBootstrapKey::from_container`] for usage.
     pub fn new(
         fill_with: Scalar,
         glwe_size: GlweSize,
