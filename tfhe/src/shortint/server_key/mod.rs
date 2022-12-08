@@ -65,7 +65,7 @@ pub struct ServerKey {
 }
 
 impl ServerKey {
-    /// Generates a server key.
+    /// Generate a server key.
     ///
     /// # Example
     ///
@@ -83,7 +83,7 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_server_key(cks).unwrap())
     }
 
-    /// Generates a server key with a chosen maximum degree
+    /// Generate a server key with a chosen maximum degree
     pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -160,7 +160,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes a keyswitch and a bootstrap, returning a new ciphertext with empty
+    /// Compute a keyswitch and a bootstrap, returning a new ciphertext with empty
     /// carry bits.
     ///
     /// # Example
@@ -216,7 +216,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes a keyswitch and programmable bootstrap.
+    /// Compute a keyswitch and programmable bootstrap.
     ///
     /// # Example
     ///
@@ -266,7 +266,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes a keyswitch and programmable bootstrap.
+    /// Compute a keyswitch and programmable bootstrap.
     ///
     /// # Example
     ///
@@ -347,7 +347,7 @@ impl ServerKey {
         })
     }
 
-    /// Verifies if a bivariate functional pbs can be applied on ct_left and ct_right.
+    /// Verify if a bivariate functional pbs can be applied on ct_left and ct_right.
     pub fn is_functional_bivariate_pbs_possible(&self, ct1: &Ciphertext, ct2: &Ciphertext) -> bool {
         //product of the degree
         let final_degree = ct1.degree.0 * (ct2.degree.0 + 1) + ct2.degree.0;
@@ -393,7 +393,7 @@ impl ServerKey {
         })
     }
 
-    /// Extracts a new ciphertext encrypting the input carry buffer.
+    /// Extract a new ciphertext encrypting the input carry buffer.
     ///
     /// # Example
     ///
@@ -469,7 +469,7 @@ impl ServerKey {
         })
     }
 
-    /// Extracts a new ciphertext containing only the message i.e., with a cleared carry buffer.
+    /// Extract a new ciphertext containing only the message i.e., with a cleared carry buffer.
     ///
     /// # Example
     ///
@@ -506,7 +506,7 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.message_extract(self, ct).unwrap())
     }
 
-    /// Computes a trivial shortint from a given value.
+    /// Compute a trivial shortint from a given value.
     ///
     /// # Example
     ///

@@ -2,7 +2,7 @@
 
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 
-/// Computes a dot product between two slices containing unsigned integers.
+/// Compute a dot product between two slices containing unsigned integers.
 ///
 /// # Note
 ///
@@ -36,7 +36,7 @@ where
         })
 }
 
-/// Adds a slice containing unsigned integers to another one element-wise.
+/// Add a slice containing unsigned integers to another one element-wise.
 ///
 /// # Note
 ///
@@ -76,7 +76,7 @@ where
         .for_each(|(out, (&lhs, &rhs))| *out = lhs.wrapping_add(rhs));
 }
 
-/// Adds a slice containing unsigned integers to another one element-wise and in place.
+/// Add a slice containing unsigned integers to another one element-wise and in place.
 ///
 /// # Note
 ///
@@ -108,7 +108,7 @@ where
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs));
 }
 
-/// Adds a slice containing unsigned integers to another one mutiplied by a scalar.
+/// Add a slice containing unsigned integers to another one mutiplied by a scalar.
 ///
 /// Let *a*,*b* be two slices, let *c* be a scalar, this computes: *a <- a+bc*
 ///
@@ -145,7 +145,7 @@ pub fn slice_wrapping_add_scalar_mul_assign<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs.wrapping_mul(scalar)));
 }
 
-/// Subtracts a slice containing unsigned integers to another one element-wise.
+/// Subtract a slice containing unsigned integers to another one element-wise.
 ///
 /// # Note
 ///
@@ -185,7 +185,7 @@ where
         .for_each(|(out, (&lhs, &rhs))| *out = lhs.wrapping_sub(rhs));
 }
 
-/// Subtracts a slice containing unsigned integers to another one, element-wise and in place.
+/// Subtract a slice containing unsigned integers to another one, element-wise and in place.
 ///
 /// # Note
 ///
@@ -217,7 +217,7 @@ where
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs));
 }
 
-/// Subtracts a slice containing unsigned integers to another one mutiplied by a scalar,
+/// Subtract a slice containing unsigned integers to another one mutiplied by a scalar,
 /// element-wise and in place.
 ///
 /// Let *a*,*b* be two slices, let *c* be a scalar, this computes: *a <- a-bc*
@@ -254,7 +254,7 @@ pub fn slice_wrapping_sub_scalar_mul_assign<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs.wrapping_mul(scalar)));
 }
 
-/// Computes the opposite of a slice containing unsigned integers, element-wise and in place.
+/// Compute the opposite of a slice containing unsigned integers, element-wise and in place.
 ///
 /// # Note
 ///
@@ -278,7 +278,7 @@ where
         .for_each(|elt| *elt = (*elt).wrapping_neg());
 }
 
-/// Multiplies a slice containing unsigned integers by a scalar, element-wise and in place.
+/// Multiply a slice containing unsigned integers by a scalar, element-wise and in place.
 ///
 /// # Note
 ///

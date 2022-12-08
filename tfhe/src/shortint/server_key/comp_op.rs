@@ -11,7 +11,7 @@ use crate::shortint::Ciphertext;
 // ">=" is greater of equal, not greater_assign.
 
 impl ServerKey {
-    /// Implements the "greater" (`>`) operator between two ciphertexts without checks.
+    /// Implement the "greater" (`>`) operator between two ciphertexts without checks.
     ///
     /// # Example
     ///
@@ -40,7 +40,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "greater" (`>`) operator between two ciphertexts with checks.
+    /// Implement the "greater" (`>`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -80,7 +80,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a `>` between two ciphertexts encrypting integer values.
+    /// Compute homomorphically a `>` between two ciphertexts encrypting integer values.
     ///
     /// This checks that the operation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -112,7 +112,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "greater or equal" (`>=`) operator between two ciphertexts without checks.
+    /// Implement the "greater or equal" (`>=`) operator between two ciphertexts without checks.
     ///
     /// # Example
     ///
@@ -147,7 +147,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a `>=` between two ciphertexts encrypting integer values.
+    /// Compute homomorphically a `>=` between two ciphertexts encrypting integer values.
     ///
     /// This checks that the operation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -185,7 +185,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "greater or equal" (`>=`) operator between two ciphertexts with checks.
+    /// Implement the "greater or equal" (`>=`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -225,7 +225,7 @@ impl ServerKey {
         }
     }
 
-    /// Implements the "less" (`<`) operator between two ciphertexts without checks.
+    /// Implement the "less" (`<`) operator between two ciphertexts without checks.
     ///
     /// # Example
     ///
@@ -255,7 +255,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "less" (`<`) operator between two ciphertexts with checks.
+    /// Implement the "less" (`<`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -295,7 +295,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a `<` between two ciphertexts encrypting integer values.
+    /// Compute homomorphically a `<` between two ciphertexts encrypting integer values.
     ///
     /// This checks that the operation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -327,7 +327,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "less or equal" (`<=`) between two ciphertexts operator without checks.
+    /// Implement the "less or equal" (`<=`) between two ciphertexts operator without checks.
     ///
     /// # Example
     ///
@@ -362,7 +362,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "less or equal" (`<=`) operator between two ciphertexts with checks.
+    /// Implement the "less or equal" (`<=`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -402,7 +402,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a `<=` between two ciphertexts encrypting integer values.
+    /// Compute homomorphically a `<=` between two ciphertexts encrypting integer values.
     ///
     /// This checks that the operation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -438,7 +438,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "equal" operator (`==`) between two ciphertexts without checks.
+    /// Implement the "equal" operator (`==`) between two ciphertexts without checks.
     ///
     /// # Example
     ///
@@ -467,7 +467,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "equal" (`==`) operator between two ciphertexts with checks.
+    /// Implement the "equal" (`==`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -507,7 +507,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a `==` between two ciphertexts encrypting integer values.
+    /// Compute homomorphically a `==` between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -539,7 +539,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "not equal" operator (`!=`) between two ciphertexts without checks.
+    /// Implement the "not equal" operator (`!=`) between two ciphertexts without checks.
     ///
     /// # Example
     ///
@@ -568,7 +568,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "not equal" (`!=`) operator between two ciphertexts with checks.
+    /// Implement the "not equal" (`!=`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned.
@@ -608,7 +608,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a `!=` between two ciphertexts encrypting integer values.
+    /// Compute homomorphically a `!=` between two ciphertexts encrypting integer values.
     ///
     /// This checks that the operation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -644,7 +644,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "equal" operator (`==`) between a ciphertext and a scalar without checks.
+    /// Implement the "equal" operator (`==`) between a ciphertext and a scalar without checks.
     ///
     /// # Example
     ///
@@ -672,7 +672,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "not equal" operator (`!=`) between a ciphertext and a scalar without checks.
+    /// Implement the "not equal" operator (`!=`) between a ciphertext and a scalar without checks.
     ///
     /// # Example
     ///
@@ -702,7 +702,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "greater or equal" operator (`>=`) between a ciphertext and a scalar without
+    /// Implement the "greater or equal" operator (`>=`) between a ciphertext and a scalar without
     /// checks.
     ///
     /// # Example
@@ -733,7 +733,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "less or equal" operator (`<=`) between a ciphertext and a scalar without
+    /// Implement the "less or equal" operator (`<=`) between a ciphertext and a scalar without
     /// checks.
     ///
     /// # Example
@@ -764,7 +764,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "greater" operator (`>`) between a ciphertext and a scalar without checks.
+    /// Implement the "greater" operator (`>`) between a ciphertext and a scalar without checks.
     ///
     /// # Example
     ///
@@ -792,7 +792,7 @@ impl ServerKey {
         })
     }
 
-    /// Implements the "less" operator (`<`) between a ciphertext and a scalar without checks.
+    /// Implement the "less" operator (`<`) between a ciphertext and a scalar without checks.
     ///
     /// # Example
     ///

@@ -21,7 +21,7 @@ pub struct EncryptionRandomGenerator<G: ByteRandomGenerator> {
 }
 
 impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
-    /// Creates a new [`EncryptionRandomGenerator`], using the provided [`Seed`] to seed the public
+    /// Create a new [`EncryptionRandomGenerator`], using the provided [`Seed`] to seed the public
     /// mask generator and using the provided [`Seeder`] to privately seed the noise generator.
     // S is ?Sized to allow Box<dyn Seeder> to be passed.
     pub fn new<S: Seeder + ?Sized>(seed: Seed, seeder: &mut S) -> EncryptionRandomGenerator<G> {
@@ -38,7 +38,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         self.noise = RandomGenerator::new(seed);
     }
 
-    /// Returns the number of remaining bytes for the mask generator, if the generator is bounded.
+    /// Return the number of remaining bytes for the mask generator, if the generator is bounded.
     pub fn remaining_bytes(&self) -> Option<usize> {
         self.mask.remaining_bytes()
     }

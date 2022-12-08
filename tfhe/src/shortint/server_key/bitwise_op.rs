@@ -147,7 +147,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically an AND between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -179,7 +179,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically an AND between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -362,7 +362,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically an XOR between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an XOR between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -394,7 +394,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a XOR between two ciphertexts encrypting integer values.
+    /// Compute homomorphically a XOR between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -579,7 +579,7 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically an OR between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
@@ -611,7 +611,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically an OR between two ciphertexts encrypting integer values.
+    /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.

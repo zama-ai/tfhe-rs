@@ -20,7 +20,7 @@ impl<Scalar> SignedDecomposer<Scalar>
 where
     Scalar: UnsignedInteger,
 {
-    /// Creates a new decomposer.
+    /// Create a new decomposer.
     ///
     /// # Example
     ///
@@ -47,7 +47,7 @@ where
         }
     }
 
-    /// Returns the logarithm in base two of the base of this decomposer.
+    /// Return the logarithm in base two of the base of this decomposer.
     ///
     /// If the decomposer uses a base $B=2^b$, this returns $b$.
     ///
@@ -64,7 +64,7 @@ where
         DecompositionBaseLog(self.base_log)
     }
 
-    /// Returns the number of levels of this decomposer.
+    /// Return the number of levels of this decomposer.
     ///
     /// If the decomposer uses $l$ levels, this returns $l$.
     ///
@@ -81,7 +81,7 @@ where
         DecompositionLevelCount(self.level_count)
     }
 
-    /// Returns the closet value representable by the decomposition.
+    /// Return the closet value representable by the decomposition.
     ///
     /// # Example
     ///
@@ -113,7 +113,7 @@ where
         res << non_rep_bit_count
     }
 
-    /// Generates an iterator over the terms of the decomposition of the input.
+    /// Generate an iterator over the terms of the decomposition of the input.
     ///
     /// # Warning
     ///

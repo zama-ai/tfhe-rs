@@ -6,9 +6,9 @@ use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
-    /// Multiplies two ciphertexts together without checks.
+    /// Multiply two ciphertexts together without checks.
     ///
-    /// Returns the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
     /// message_modulus.
     ///
     /// The result is returned in a _new_ ciphertext.
@@ -49,9 +49,9 @@ impl ServerKey {
         })
     }
 
-    /// Multiplies two ciphertexts together without checks.
+    /// Multiply two ciphertexts together without checks.
     ///
-    /// Returns the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
     /// message_modulus.
     ///
     /// The result is _assigned_ in the first ciphertext
@@ -88,9 +88,9 @@ impl ServerKey {
         })
     }
 
-    /// Multiplies two ciphertexts together without checks.
+    /// Multiply two ciphertexts together without checks.
     ///
-    /// Returns the "most significant bits" of the multiplication, i.e., the part in the carry
+    /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
     /// buffer.
     ///
     /// The result is returned in a _new_ ciphertext.
@@ -140,7 +140,7 @@ impl ServerKey {
         })
     }
 
-    /// Verifies if two ciphertexts can be multiplied together.
+    /// Verify if two ciphertexts can be multiplied together.
     ///
     /// # Example
     ///
@@ -165,9 +165,9 @@ impl ServerKey {
         self.is_functional_bivariate_pbs_possible(ct1, ct2)
     }
 
-    /// Multiplies two ciphertexts together with checks.
+    /// Multiply two ciphertexts together with checks.
     ///
-    /// Returns the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
     /// message_modulus.
     ///
     /// If the operation can be performed, a _new_ ciphertext with the result is returned.
@@ -208,9 +208,9 @@ impl ServerKey {
         }
     }
 
-    /// Multiplies two ciphertexts together with checks.
+    /// Multiply two ciphertexts together with checks.
     ///
-    /// Returns the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
     /// message_modulus.
     ///
     /// If the operation can be performed, the result is assigned to the first ciphertext given
@@ -251,9 +251,9 @@ impl ServerKey {
         }
     }
 
-    /// Multiplies two ciphertexts together without checks.
+    /// Multiply two ciphertexts together without checks.
     ///
-    /// Returns the "most significant bits" of the multiplication, i.e., the part in the carry
+    /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
     /// buffer.
     ///
     /// If the operation can be performed, a _new_ ciphertext with the result is returned.
@@ -363,7 +363,7 @@ impl ServerKey {
         })
     }
 
-    /// Verifies if two ciphertexts can be multiplied together in the case where the carry
+    /// Verify if two ciphertexts can be multiplied together in the case where the carry
     /// modulus is smaller than the message modulus.
     ///
     /// # Example
@@ -402,7 +402,7 @@ impl ServerKey {
         b1 & b2
     }
 
-    /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
+    /// Compute homomorphically a multiplication between two ciphertexts encrypting integer values.
     ///
     /// The operation is done using a small carry buffer.
     ///
@@ -449,9 +449,9 @@ impl ServerKey {
         }
     }
 
-    /// Multiplies two ciphertexts.
+    /// Multiply two ciphertexts.
     ///
-    /// Returns the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
     /// message_modulus.
     ///
     /// The result is _assigned_ in the first ciphertext
@@ -497,7 +497,7 @@ impl ServerKey {
 
     /// Multiply two ciphertexts together
     ///
-    /// Returns the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
     /// message_modulus.
     ///
     /// # Example
@@ -542,7 +542,7 @@ impl ServerKey {
 
     /// Multiply two ciphertexts together
     ///
-    /// Returns the "most significant bits" of the multiplication, i.e., the part in the carry
+    /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
     /// buffer.
     ///
     /// # Example

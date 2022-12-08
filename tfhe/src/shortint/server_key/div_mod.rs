@@ -195,7 +195,7 @@ impl ServerKey {
         })
     }
 
-    /// Computes homomorphically a modular reduction without checks.
+    /// Compute homomorphically a modular reduction without checks.
     ///
     /// # Panics
     ///
