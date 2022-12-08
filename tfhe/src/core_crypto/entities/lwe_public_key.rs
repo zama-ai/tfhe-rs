@@ -119,7 +119,7 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LwePublicKey<C> {
     }
 }
 
-/// A [`LwePublicKey`] owning the memory for its own storage.
+/// An [`LwePublicKey`] owning the memory for its own storage.
 pub type LwePublicKeyOwned<Scalar> = LwePublicKey<Vec<Scalar>>;
 
 impl<Scalar: Copy> LwePublicKeyOwned<Scalar> {

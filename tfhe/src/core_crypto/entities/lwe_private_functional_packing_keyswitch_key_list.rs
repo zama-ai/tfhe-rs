@@ -29,7 +29,7 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]>
 }
 
 impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKeyList<C> {
-    /// Create a [`LwePrivateFunctionalPackingKeyswitchKeyList`] from an existing container.
+    /// Create an [`LwePrivateFunctionalPackingKeyswitchKeyList`] from an existing container.
     ///
     /// # Note
     ///
@@ -270,7 +270,7 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeysw
     }
 }
 
-/// A [`LwePrivateFunctionalPackingKeyswitchKeyList`] owning the memory for its own storage.
+/// An [`LwePrivateFunctionalPackingKeyswitchKeyList`] owning the memory for its own storage.
 pub type LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar> =
     LwePrivateFunctionalPackingKeyswitchKeyList<Vec<Scalar>>;
 
