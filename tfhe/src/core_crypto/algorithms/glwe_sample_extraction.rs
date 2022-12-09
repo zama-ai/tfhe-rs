@@ -24,7 +24,7 @@ use crate::core_crypto::entities::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for GgswCiphertext creation
+/// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
@@ -57,8 +57,8 @@ use crate::core_crypto::entities::*;
 ///
 /// encrypt_glwe_ciphertext(
 ///     &glwe_secret_key,
-///     &plaintext_list,
 ///     &mut glwe,
+///     &plaintext_list,
 ///     glwe_modular_std_dev,
 ///     &mut encryption_generator,
 /// );

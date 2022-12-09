@@ -39,7 +39,7 @@ where
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for GgswCiphertext creation
+/// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 ///

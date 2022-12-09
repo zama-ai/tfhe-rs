@@ -25,9 +25,9 @@ impl<C: Container> LweMask<C> {
     /// // Define parameters for LweMask creation
     /// let lwe_dimension = LweDimension(600);
     ///
-    /// let lwe_body = LweMask::from_container(vec![0u64; lwe_dimension.0]);
+    /// let lwe_mask = LweMask::from_container(vec![0u64; lwe_dimension.0]);
     ///
-    /// assert_eq!(lwe_body.lwe_dimension(), lwe_dimension);
+    /// assert_eq!(lwe_mask.lwe_dimension(), lwe_dimension);
     /// ```
     pub fn from_container(container: C) -> Self {
         LweMask { data: container }
@@ -110,17 +110,27 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertext<C> {
     /// let lwe_size = LweSize(601);
     ///
     /// // Create a new LweCiphertext
-    /// let lwe = LweCiphertext::new(0u64, lwe_size);
+    /// let mut lwe = LweCiphertext::new(0u64, lwe_size);
     ///
     /// assert_eq!(lwe.lwe_size(), lwe_size);
+    /// assert_eq!(lwe.get_mask().lwe_dimension(), lwe_size.to_lwe_dimension());
+    /// assert_eq!(
+    ///     lwe.get_mut_mask().lwe_dimension(),
+    ///     lwe_size.to_lwe_dimension()
+    /// );
     ///
     /// // Demonstrate how to recover the allocated container
     /// let underlying_container: Vec<u64> = lwe.into_container();
     ///
     /// // Recreate a ciphertext using from_container
-    /// let lwe = LweCiphertext::from_container(underlying_container);
+    /// let mut lwe = LweCiphertext::from_container(underlying_container);
     ///
     /// assert_eq!(lwe.lwe_size(), lwe_size);
+    /// assert_eq!(lwe.get_mask().lwe_dimension(), lwe_size.to_lwe_dimension());
+    /// assert_eq!(
+    ///     lwe.get_mut_mask().lwe_dimension(),
+    ///     lwe_size.to_lwe_dimension()
+    /// );
     /// ```
     pub fn from_container(container: C) -> LweCiphertext<C> {
         assert!(
@@ -152,8 +162,10 @@ impl<Scalar, C: Container<Element = Scalar>> LweCiphertext<C> {
     }
 
     /// Return an immutable view to the [`LweMask`] of an [`LweCiphertext`].
+    ///
+    /// See [`LweCiphertext::from_container`] for usage.
     pub fn get_mask(&self) -> LweMask<&[Scalar]> {
-        LweMask::from_container(&self.as_ref()[0..=self.lwe_size().to_lwe_dimension().0])
+        LweMask::from_container(&self.as_ref()[0..self.lwe_size().to_lwe_dimension().0])
     }
 
     /// Return a view of the [`LweCiphertext`]. This is useful if an algorithm takes a view by
@@ -186,9 +198,11 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweCiphertext<C> {
     }
 
     /// Mutable variant of [`LweCiphertext::get_mask`].
+    ///
+    /// See [`LweCiphertext::from_container`] for usage.
     pub fn get_mut_mask(&mut self) -> LweMask<&mut [Scalar]> {
         let lwe_dimension = self.lwe_size().to_lwe_dimension();
-        LweMask::from_container(&mut self.as_mut()[0..=lwe_dimension.0])
+        LweMask::from_container(&mut self.as_mut()[0..lwe_dimension.0])
     }
 
     /// Mutable variant of [`LweCiphertext::as_view`].
