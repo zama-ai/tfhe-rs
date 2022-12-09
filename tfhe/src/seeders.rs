@@ -31,6 +31,24 @@ mod wasm_seeder {
     }
 }
 
+/// Return an available boxed [`Seeder`] prioritizing hardware entropy sources.
+///
+/// # Note
+///
+/// With the `seeder_x86_64_rdseed` feature enabled on `x86_64` CPUs the rdseed seeder is
+/// prioritized.
+///
+/// On macOS the next seeder to be prioritized uses Apple's [`Randomization
+/// Service`](`https://developer.apple.com/documentation/security/randomization_services?language=objc`)
+/// calling [`SecRandomCopyBytes`](`https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc`).
+///
+/// With the `seeder_unix` feature enabled on Unix platforms, `/dev/random` is used as a fallback
+/// and the quality of the generated seeds depends on the particular implementation of the platform
+/// your code is running on.
+///
+/// For the wasm32 target the [`getrandom`](`https://docs.rs/getrandom/latest/getrandom/`)
+/// js random number generator is used as a source of
+/// [`cryptographically random numbers per the W3C documentation`](`https://www.w3.org/TR/WebCryptoAPI/#Crypto-method-getRandomValues`).
 pub fn new_seeder() -> Box<dyn Seeder> {
     let mut seeder: Option<Box<dyn Seeder>> = None;
 
