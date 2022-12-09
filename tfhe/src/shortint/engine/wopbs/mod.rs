@@ -81,15 +81,20 @@ impl ShortintEngine {
 
         let fft = Fft::new(bootstrap_key.polynomial_size());
         let fft = fft.as_view();
-        self.fft_buffers.resize(
-            convert_standard_lwe_bootstrap_key_to_fourier_scratch(fft)
+        self.computation_buffers.resize(
+            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_scratch(fft)
                 .unwrap()
                 .unaligned_bytes_required(),
         );
-        let stack = self.fft_buffers.stack();
+        let stack = self.computation_buffers.stack();
 
         // Conversion to fourier domain
-        convert_standard_lwe_bootstrap_key_to_fourier(&bootstrap_key, &mut small_bsk, fft, stack);
+        convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
+            &bootstrap_key,
+            &mut small_bsk,
+            fft,
+            stack,
+        );
 
         //KSK encryption_key -> small WoPBS key (used in the 1st KS in the extract bit)
         let ksk_wopbs_large_to_wopbs_small = allocate_and_generate_new_lwe_keyswitch_key(
@@ -182,7 +187,7 @@ impl ShortintEngine {
         let fft = Fft::new(bsk.polynomial_size());
         let fft = fft.as_view();
 
-        self.fft_buffers.resize(
+        self.computation_buffers.resize(
             extract_bits_from_lwe_ciphertext_scratch::<u64>(
                 lwe_in.lwe_size().to_lwe_dimension(),
                 ksk.output_key_lwe_dimension(),
@@ -194,7 +199,7 @@ impl ShortintEngine {
             .unaligned_bytes_required(),
         );
 
-        let stack = self.fft_buffers.stack();
+        let stack = self.computation_buffers.stack();
 
         extract_bits_from_lwe_ciphertext(
             lwe_in,
@@ -227,7 +232,7 @@ impl ShortintEngine {
 
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
-        self.fft_buffers.resize(
+        self.computation_buffers.resize(
             circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_scracth::<u64>(
                 extracted_bits.lwe_ciphertext_count(),
                 output_cbs_vp_ct.lwe_ciphertext_count(),
@@ -243,7 +248,7 @@ impl ShortintEngine {
             .unaligned_bytes_required(),
         );
 
-        let stack = self.fft_buffers.stack();
+        let stack = self.computation_buffers.stack();
 
         circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list(
             extracted_bits,
@@ -363,12 +368,12 @@ impl ShortintEngine {
         // 2. PBS to remove the noise added by the previous KS
         //
         let acc = self.generate_accumulator(&wopbs_key.pbs_server_key, |x| x)?;
-        let (buffers, fft_buffers) = self.buffers_for_key(&wopbs_key.pbs_server_key);
+        let (ciphertext_buffers, buffers) = self.buffers_for_key(&wopbs_key.pbs_server_key);
         // Compute a key switch
         keyswitch_lwe_ciphertext(
             &wopbs_key.pbs_server_key.key_switching_key,
             &ct_in.ct,
-            &mut buffers.buffer_lwe_after_ks,
+            &mut ciphertext_buffers.buffer_lwe_after_ks,
         );
 
         let fourier_bsk = &wopbs_key.pbs_server_key.bootstrapping_key;
@@ -378,7 +383,7 @@ impl ShortintEngine {
 
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
-        fft_buffers.resize(
+        buffers.resize(
             programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
@@ -387,11 +392,11 @@ impl ShortintEngine {
             .unwrap()
             .unaligned_bytes_required(),
         );
-        let stack = fft_buffers.stack();
+        let stack = buffers.stack();
 
         // Compute a bootstrap
         programmable_bootstrap_lwe_ciphertext_mem_optimized(
-            &buffers.buffer_lwe_after_ks,
+            &ciphertext_buffers.buffer_lwe_after_ks,
             &mut ct_out,
             &acc,
             fourier_bsk,
