@@ -13,7 +13,7 @@ use crate::core_crypto::commons::traits::*;
 ///
 /// # GSW Ciphertext
 ///
-/// An GSW ciphertext is an encryption of a plaintext.
+/// A GSW ciphertext is an encryption of a plaintext.
 /// It is a vector of Lev ciphertexts.
 /// It is a specialization of
 /// [`GGSW ciphertexts`](`crate::core_crypto::entities::GgswCiphertext`).
