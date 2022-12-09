@@ -22,8 +22,8 @@ rs_build_toolchain:
 install_rs_check_toolchain:
 	@rustup toolchain list | grep -q "$(RS_CHECK_TOOLCHAIN)" || \
 	rustup toolchain install --profile default "$(RS_CHECK_TOOLCHAIN)" || \
-	echo "Unable to install $(RS_CHECK_TOOLCHAIN) toolchain, check your rustup installation. \
-	Rustup can be downloaded at https://rustup.rs/"
+	( echo "Unable to install $(RS_CHECK_TOOLCHAIN) toolchain, check your rustup installation. \
+	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
 
 .PHONY: install_rs_build_toolchain # Install the toolchain used for builds
 install_rs_build_toolchain:
@@ -32,14 +32,14 @@ install_rs_build_toolchain:
 	--rust-toolchain "$(CARGO_RS_BUILD_TOOLCHAIN)" \
 	--min-rust-version "$(MIN_RUST_VERSION)" ) || \
 	rustup toolchain install --profile default "$(RS_BUILD_TOOLCHAIN)" || \
-	echo "Unable to install $(RS_BUILD_TOOLCHAIN) toolchain, check your rustup installation. \
-	Rustup can be downloaded at https://rustup.rs/"
+	( echo "Unable to install $(RS_BUILD_TOOLCHAIN) toolchain, check your rustup installation. \
+	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
 
 .PHONY: install_cargo_nextest # Install cargo nextest used for shortint tests
 install_cargo_nextest: install_rs_build_toolchain
 	@cargo nextest --version > /dev/null 2>&1 || \
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-nextest --locked || \
-	echo "Unable to install cargo nextest, unknown error."
+	( echo "Unable to install cargo nextest, unknown error." && exit 1 )
 
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
