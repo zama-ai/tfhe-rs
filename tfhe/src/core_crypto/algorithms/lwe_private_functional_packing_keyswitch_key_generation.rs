@@ -117,6 +117,8 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
     }
 }
 
+/// Parallel variant of [`generate_lwe_private_functional_packing_keyswitch_key`]. You may want to
+/// use this variant for bette key generation times.
 pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
     Scalar,
     InputKeyCont,
@@ -186,7 +188,7 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
         )
         .unwrap();
 
-    let palintext_count = PlaintextCount(
+    let plaintext_count = PlaintextCount(
         lwe_pfpksk.decomposition_level_count().0 * lwe_pfpksk.output_polynomial_size().0,
     );
 
@@ -197,7 +199,7 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
         .for_each(
             |((&input_key_bit, mut keyswitch_key_block), mut loop_generator)| {
                 // We instantiate a buffer
-                let mut messages = PlaintextListOwned::new(Scalar::ZERO, palintext_count);
+                let mut messages = PlaintextListOwned::new(Scalar::ZERO, plaintext_count);
 
                 // We fill the buffer with the powers of the key bits
                 for (level, mut message) in (1..=decomp_level_count.0)

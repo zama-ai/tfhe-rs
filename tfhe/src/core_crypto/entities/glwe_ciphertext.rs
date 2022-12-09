@@ -233,19 +233,43 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
     /// let polynomial_size = PolynomialSize(1024);
     ///
     /// // Create a new GlweCiphertext
-    /// let glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size);
+    /// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size);
     ///
     /// assert_eq!(glwe.glwe_size(), glwe_size);
     /// assert_eq!(glwe.polynomial_size(), polynomial_size);
+    /// assert_eq!(glwe.get_body().polynomial_size(), polynomial_size);
+    /// assert_eq!(glwe.get_mut_body().polynomial_size(), polynomial_size);
+    /// assert_eq!(
+    ///     glwe.get_mask().glwe_dimension(),
+    ///     glwe_size.to_glwe_dimension()
+    /// );
+    /// assert_eq!(
+    ///     glwe.get_mut_mask().glwe_dimension(),
+    ///     glwe_size.to_glwe_dimension()
+    /// );
+    /// assert_eq!(glwe.get_mask().polynomial_size(), polynomial_size);
+    /// assert_eq!(glwe.get_mut_mask().polynomial_size(), polynomial_size);
     ///
     /// // Demonstrate how to recover the allocated container
     /// let underlying_container: Vec<u64> = glwe.into_container();
     ///
     /// // Recreate a ciphertext using from_container
-    /// let glwe = GlweCiphertext::from_container(underlying_container, polynomial_size);
+    /// let mut glwe = GlweCiphertext::from_container(underlying_container, polynomial_size);
     ///
     /// assert_eq!(glwe.glwe_size(), glwe_size);
     /// assert_eq!(glwe.polynomial_size(), polynomial_size);
+    /// assert_eq!(glwe.get_body().polynomial_size(), polynomial_size);
+    /// assert_eq!(glwe.get_mut_body().polynomial_size(), polynomial_size);
+    /// assert_eq!(
+    ///     glwe.get_mask().glwe_dimension(),
+    ///     glwe_size.to_glwe_dimension()
+    /// );
+    /// assert_eq!(
+    ///     glwe.get_mut_mask().glwe_dimension(),
+    ///     glwe_size.to_glwe_dimension()
+    /// );
+    /// assert_eq!(glwe.get_mask().polynomial_size(), polynomial_size);
+    /// assert_eq!(glwe.get_mut_mask().polynomial_size(), polynomial_size);
     /// ```
     pub fn from_container(container: C, polynomial_size: PolynomialSize) -> GlweCiphertext<C> {
         assert!(
@@ -293,6 +317,8 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
     }
 
     /// Return an immutable view to the [`GlweBody`] of a [`GlweCiphertext`].
+    ///
+    /// See [`GlweCiphertext::from_container`] for usage.
     pub fn get_body(&self) -> GlweBody<&[Scalar]> {
         let body = &self.data.as_ref()[glwe_ciphertext_mask_size(
             self.glwe_size().to_glwe_dimension(),
@@ -303,6 +329,8 @@ impl<Scalar, C: Container<Element = Scalar>> GlweCiphertext<C> {
     }
 
     /// Return an immutable view to the [`GlweMask`] of a [`GlweCiphertext`].
+    ///
+    /// See [`GlweCiphertext::from_container`] for usage.
     pub fn get_mask(&self) -> GlweMask<&[Scalar]> {
         GlweMask::from_container(
             &self.as_ref()[0..glwe_ciphertext_mask_size(
@@ -353,6 +381,8 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> GlweCiphertext<C> {
     }
 
     /// Mutable variant of [`GlweCiphertext::get_body`].
+    ///
+    /// See [`GlweCiphertext::from_container`] for usage.
     pub fn get_mut_body(&mut self) -> GlweBody<&mut [Scalar]> {
         let glwe_dimension = self.glwe_size().to_glwe_dimension();
         let polynomial_size = self.polynomial_size();
@@ -364,6 +394,8 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> GlweCiphertext<C> {
     }
 
     /// Mutable variant of [`GlweCiphertext::get_mask`].
+    ///
+    /// See [`GlweCiphertext::from_container`] for usage.
     pub fn get_mut_mask(&mut self) -> GlweMask<&mut [Scalar]> {
         let polynomial_size = self.polynomial_size();
         let glwe_dimension = self.glwe_size().to_glwe_dimension();
