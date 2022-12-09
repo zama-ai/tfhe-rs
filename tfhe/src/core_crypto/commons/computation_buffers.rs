@@ -2,13 +2,13 @@ use core::mem::MaybeUninit;
 use dyn_stack::DynStack;
 
 #[derive(Default)]
-pub struct FftBuffers {
+pub struct ComputationBuffers {
     memory: Vec<MaybeUninit<u8>>,
 }
 
-impl FftBuffers {
+impl ComputationBuffers {
     pub fn new() -> Self {
-        FftBuffers { memory: Vec::new() }
+        ComputationBuffers { memory: Vec::new() }
     }
 
     pub fn resize(&mut self, capacity: usize) {

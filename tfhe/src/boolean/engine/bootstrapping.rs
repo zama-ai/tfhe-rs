@@ -1,7 +1,7 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::{ClientKey, PLAINTEXT_TRUE};
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::fft_buffers::FftBuffers;
+use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::entities::*;
@@ -94,7 +94,7 @@ pub(crate) struct Bootstrapper {
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
     pub(crate) encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
-    pub(crate) fft_buffers: FftBuffers,
+    pub(crate) computation_buffers: ComputationBuffers,
 }
 
 impl Bootstrapper {
@@ -102,7 +102,7 @@ impl Bootstrapper {
         Bootstrapper {
             memory: Default::default(),
             encryption_generator: EncryptionRandomGenerator::<_>::new(seeder.seed(), seeder),
-            fft_buffers: Default::default(),
+            computation_buffers: Default::default(),
         }
     }
 
@@ -131,15 +131,15 @@ impl Bootstrapper {
 
         let fft = Fft::new(standard_bootstraping_key.polynomial_size());
         let fft = fft.as_view();
-        self.fft_buffers.resize(
-            convert_standard_lwe_bootstrap_key_to_fourier_scratch(fft)
+        self.computation_buffers.resize(
+            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_scratch(fft)
                 .unwrap()
                 .unaligned_bytes_required(),
         );
-        let stack = self.fft_buffers.stack();
+        let stack = self.computation_buffers.stack();
 
         // Conversion to fourier domain
-        convert_standard_lwe_bootstrap_key_to_fourier(
+        convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
             &standard_bootstraping_key,
             &mut fourier_bsk,
             fft,
@@ -177,7 +177,7 @@ impl Bootstrapper {
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
 
-        self.fft_buffers.resize(
+        self.computation_buffers.resize(
             programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
@@ -186,7 +186,7 @@ impl Bootstrapper {
             .unwrap()
             .unaligned_bytes_required(),
         );
-        let stack = self.fft_buffers.stack();
+        let stack = self.computation_buffers.stack();
 
         programmable_bootstrap_lwe_ciphertext_mem_optimized(
             input,
@@ -233,7 +233,7 @@ impl Bootstrapper {
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
 
-        self.fft_buffers.resize(
+        self.computation_buffers.resize(
             programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
@@ -242,7 +242,7 @@ impl Bootstrapper {
             .unwrap()
             .unaligned_bytes_required(),
         );
-        let stack = self.fft_buffers.stack();
+        let stack = self.computation_buffers.stack();
 
         // Compute a bootstrap
         programmable_bootstrap_lwe_ciphertext_mem_optimized(

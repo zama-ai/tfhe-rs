@@ -43,8 +43,8 @@ macro_rules! modular_distance {
     };
 }
 
+pub mod computation_buffers;
 pub mod dispersion;
-pub mod fft_buffers;
 pub mod generators;
 pub mod math;
 pub mod numeric;
