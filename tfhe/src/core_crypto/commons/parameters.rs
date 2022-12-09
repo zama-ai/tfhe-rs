@@ -84,7 +84,7 @@ impl GlweSize {
     }
 }
 
-/// The number of polynomials of an GLWE mask, or the size of an GLWE secret key.
+/// The number of polynomials of a GLWE mask, or the size of a GLWE secret key.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct GlweDimension(pub usize);
 
