@@ -1,5 +1,5 @@
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::fft_buffers::FftBuffers;
+use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
 };
@@ -86,8 +86,8 @@ pub struct ShortintEngine {
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
     encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
-    fft_buffers: FftBuffers,
-    buffers: BTreeMap<KeyId, Buffers>,
+    computation_buffers: ComputationBuffers,
+    ciphertext_buffers: BTreeMap<KeyId, Buffers>,
 }
 
 impl ShortintEngine {
@@ -129,8 +129,8 @@ impl ShortintEngine {
                 deterministic_seeder.seed(),
                 &mut deterministic_seeder,
             ),
-            fft_buffers: Default::default(),
-            buffers: Default::default(),
+            computation_buffers: Default::default(),
+            ciphertext_buffers: Default::default(),
         }
     }
 
@@ -200,17 +200,16 @@ impl ShortintEngine {
         ShortintEngine::generate_accumulator_with_engine(server_key, wrapped_f)
     }
 
-    /// Return the `Buffers` for the given `ServerKey`
+    /// Return the [`Buffers`] and [`ComputationBuffers`] for the given `ServerKey`
     ///
-    /// Takes care creating the buffers if they do not exists for the given key
-    ///
-    /// This also `&mut CoreEngine` to simply borrow checking for the caller
-    /// (since returned buffers are borrowed from `self`, using the `self.engine`
-    /// wouldn't be possible after calling `buffers_for_key`)
-    pub fn buffers_for_key(&mut self, server_key: &ServerKey) -> (&mut Buffers, &mut FftBuffers) {
+    /// Takes care creating the [`Buffers`] if they do not exists for the given key
+    pub fn buffers_for_key(
+        &mut self,
+        server_key: &ServerKey,
+    ) -> (&mut Buffers, &mut ComputationBuffers) {
         let key = server_key.key_id();
         // To make borrow checker happy
-        let buffers_map = &mut self.buffers;
+        let buffers_map = &mut self.ciphertext_buffers;
         let buffers = buffers_map.entry(key).or_insert_with(|| {
             let accumulator = Self::generate_accumulator_with_engine(server_key, |n| {
                 n % server_key.message_modulus.0 as u64
@@ -233,6 +232,6 @@ impl ShortintEngine {
             }
         });
 
-        (buffers, &mut self.fft_buffers)
+        (buffers, &mut self.computation_buffers)
     }
 }
