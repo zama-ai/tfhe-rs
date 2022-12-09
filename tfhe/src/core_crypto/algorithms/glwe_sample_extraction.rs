@@ -4,10 +4,90 @@ use crate::core_crypto::commons::parameters::{MonomialDegree, *};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+/// Extract the nth coefficient from the body of a [`GLWE Ciphertext`](`GlweCiphertext`) as an
+/// [`LWE ciphertext`](`LweCiphertext`).
+///
+/// # Formal definition
+///
+/// This operation is usually referred to as a _sample extract_ in the literature.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::commons::generators::{
+///     EncryptionRandomGenerator, SecretRandomGenerator,
+/// };
+/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
+/// use tfhe::core_crypto::prelude::*;
+/// use tfhe::seeders::new_seeder;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for GgswCiphertext creation
+/// let glwe_size = GlweSize(2);
+/// let polynomial_size = PolynomialSize(1024);
+/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let mut seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the GlweSecretKey
+/// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_size.to_glwe_dimension(),
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+///
+/// // Create the plaintext
+/// let msg = 3u64;
+/// let encoded_msg = msg << 60;
+/// let mut plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
+///
+/// let special_value = 15;
+/// *plaintext_list.get_mut(42).0 = 15 << 60;
+///
+/// // Create a new GlweCiphertext
+/// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size);
+///
+/// encrypt_glwe_ciphertext(
+///     &glwe_secret_key,
+///     &plaintext_list,
+///     &mut glwe,
+///     glwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// // Now we get the equivalent LweSecretKey from the GlweSecretKey
+/// let equivalent_lwe_sk = glwe_secret_key.clone().into_lwe_secret_key();
+///
+/// let mut extracted_sample =
+///     LweCiphertext::new(0u64, equivalent_lwe_sk.lwe_dimension().to_lwe_size());
+///
+/// // Here we chose to extract sample at index 42 (corresponding to the MonomialDegree(42))
+/// extract_lwe_sample_from_glwe_ciphertext(&glwe, &mut extracted_sample, MonomialDegree(42));
+///
+/// let decrypted_plaintext = decrypt_lwe_ciphertext(&equivalent_lwe_sk, &extracted_sample);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// let recovered_message = decomposer.closest_representable(decrypted_plaintext.0) >> 60;
+///
+/// // We check we recover our special value instead of the 3 stored in all other slots of the
+/// // GlweCiphertext
+/// assert_eq!(special_value, recovered_message);
+/// ```
 pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     input_glwe: &GlweCiphertext<InputCont>,
     output_lwe: &mut LweCiphertext<OutputCont>,
-    n_th: MonomialDegree,
+    nth: MonomialDegree,
 ) where
     Scalar: UnsignedInteger,
     InputCont: Container<Element = Scalar>,
@@ -27,14 +107,14 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     let (glwe_mask, glwe_body) = input_glwe.get_mask_and_body();
 
     // We copy the body
-    *lwe_body.0 = glwe_body.as_ref()[n_th.0];
+    *lwe_body.0 = glwe_body.as_ref()[nth.0];
 
     // We copy the mask (each polynomial is in the wrong order)
     lwe_mask.as_mut().copy_from_slice(glwe_mask.as_ref());
 
     // We compute the number of elements which must be
     // turned into their opposite
-    let opposite_count = input_glwe.polynomial_size().0 - n_th.0 - 1;
+    let opposite_count = input_glwe.polynomial_size().0 - nth.0 - 1;
 
     // We loop through the polynomials
     for lwe_mask_poly in lwe_mask.as_mut().chunks_mut(input_glwe.polynomial_size().0) {
