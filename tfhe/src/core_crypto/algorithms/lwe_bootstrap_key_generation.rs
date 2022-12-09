@@ -101,6 +101,8 @@ where
     bsk
 }
 
+/// Parallel variant of [`generate_lwe_bootstrap_key`], it is recommended to use this function for
+/// better key generation times as LWE bootstrapping keys can be quite large.
 pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
