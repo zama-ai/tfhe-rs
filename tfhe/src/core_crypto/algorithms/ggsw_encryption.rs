@@ -13,7 +13,9 @@ use rayon::prelude::*;
 /// encryption algorithm.
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::EncryptionRandomGenerator;
+/// use tfhe::core_crypto::commons::generators::{
+///     EncryptionRandomGenerator, SecretRandomGenerator,
+/// };
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 /// use tfhe::seeders::new_seeder;
@@ -27,18 +29,24 @@ use rayon::prelude::*;
 /// let decomp_level_count = DecompositionLevelCount(3);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 ///
-/// // Create the GlweSecretKey
-/// let glwe_secret_key = GlweSecretKey::new(0u64, glwe_size.to_glwe_dimension(), polynomial_size);
-///
-/// // Create the plaintext
-/// let encoded_msg = 3u64 << 60;
-/// let plaintext = Plaintext(encoded_msg);
-///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let mut seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the GlweSecretKey
+/// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_size.to_glwe_dimension(),
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+///
+/// // Create the plaintext
+/// let encoded_msg = 3u64 << 60;
+/// let plaintext = Plaintext(encoded_msg);
 ///
 /// // Create a new GgswCiphertext
 /// let mut ggsw = GgswCiphertext::new(
@@ -140,7 +148,9 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// New tasks are created per level matrix and per row of each level matrix.
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::EncryptionRandomGenerator;
+/// use tfhe::core_crypto::commons::generators::{
+///     EncryptionRandomGenerator, SecretRandomGenerator,
+/// };
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 /// use tfhe::seeders::new_seeder;
@@ -154,18 +164,24 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// let decomp_level_count = DecompositionLevelCount(3);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 ///
-/// // Create the GlweSecretKey
-/// let glwe_secret_key = GlweSecretKey::new(0u64, glwe_size.to_glwe_dimension(), polynomial_size);
-///
-/// // Create the plaintext
-/// let encoded_msg = 3u64 << 60;
-/// let plaintext = Plaintext(encoded_msg);
-///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let mut seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the GlweSecretKey
+/// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_size.to_glwe_dimension(),
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+///
+/// // Create the plaintext
+/// let encoded_msg = 3u64 << 60;
+/// let plaintext = Plaintext(encoded_msg);
 ///
 /// // Create a new GgswCiphertext
 /// let mut ggsw = GgswCiphertext::new(
