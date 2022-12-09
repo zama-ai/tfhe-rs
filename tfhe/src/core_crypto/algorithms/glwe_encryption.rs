@@ -25,7 +25,7 @@ use crate::core_crypto::entities::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for GgswCiphertext creation
+/// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
@@ -157,7 +157,7 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for GgswCiphertext creation
+/// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
@@ -187,8 +187,8 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
 ///
 /// encrypt_glwe_ciphertext(
 ///     &glwe_secret_key,
-///     &plaintext_list,
 ///     &mut glwe,
+///     &plaintext_list,
 ///     glwe_modular_std_dev,
 ///     &mut encryption_generator,
 /// );
@@ -217,8 +217,8 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
 /// ```
 pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
-    input_plaintext_list: &PlaintextList<InputCont>,
     output_glwe_ciphertext: &mut GlweCiphertext<OutputCont>,
+    input_plaintext_list: &PlaintextList<InputCont>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
@@ -287,7 +287,7 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for GgswCiphertext creation
+/// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
@@ -397,8 +397,8 @@ pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>
     {
         encrypt_glwe_ciphertext(
             glwe_secret_key,
-            &encoded,
             &mut ciphertext,
+            &encoded,
             noise_parameters,
             generator,
         );
@@ -408,6 +408,25 @@ pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>
 /// Decrypt a [`GLWE ciphertext`](`GlweCiphertext`) in a (scalar) plaintext list.
 ///
 /// See [`encrypt_glwe_ciphertext`] for usage.
+///
+/// # Formal Definition
+///
+/// ## GLWE Decryption
+/// ###### inputs:
+/// - $\mathsf{CT} = \left( \vec{A} , B \right) \in \mathsf{GLWE}\_{\vec{S}}( \mathsf{PT} )\subseteq
+///   \mathcal{R}\_q^{k+1}$: an GLWE ciphertext
+/// - $\vec{S} \in\mathcal{R}\_q^k$: a secret key
+///
+/// ###### outputs:
+/// - $\mathsf{PT}\in\mathcal{R}\_q$: a plaintext
+///
+/// ###### algorithm:
+///
+/// 1. compute $\mathsf{PT} = B - \left\langle \vec{A} , \vec{S} \right\rangle \in\mathcal{R}\_q$
+/// 2. output $\mathsf{PT}$
+///
+/// **Remark:** Observe that the decryption is followed by a decoding phase that will contain a
+/// rounding.
 pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     input_glwe_ciphertext: &GlweCiphertext<InputCont>,
@@ -496,6 +515,7 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 }
 
 /// A trivial encryption uses a zero mask and no noise.
+///
 /// It is absolutely not secure, as the body contains a direct copy of the plaintext.
 /// However, it is useful for some FHE algorithms taking public information as input. For
 /// example, a trivial GLWE encryption of a public lookup table is used in the programmable
@@ -503,7 +523,7 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 ///
 /// By definition a trivial encryption can be decrypted by any [`GLWE secret key`](`GlweSecretKey`).
 ///
-/// Encrypt an input (scalar) plaintext list in a [`GLWE ciphertext`](`GlweCiphertext`).
+/// Trivially encrypt an input (scalar) plaintext list in a [`GLWE ciphertext`](`GlweCiphertext`).
 ///
 /// # Example
 ///
@@ -516,7 +536,7 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for GgswCiphertext creation
+/// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 ///
@@ -580,6 +600,7 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 }
 
 /// A trivial encryption uses a zero mask and no noise.
+///
 /// It is absolutely not secure, as the body contains a direct copy of the plaintext.
 /// However, it is useful for some FHE algorithms taking public information as input. For
 /// example, a trivial GLWE encryption of a public lookup table is used in the programmable
@@ -587,8 +608,8 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 ///
 /// By definition a trivial encryption can be decrypted by any [`GLWE secret key`](`GlweSecretKey`).
 ///
-/// Allocate a new [`GLWE ciphertext`](`GlweCiphertext`) and encrypt an input (scalar) plaintext
-/// list in it.
+/// Allocate a new [`GLWE ciphertext`](`GlweCiphertext`) and trivially encrypt an input (scalar)
+/// plaintext list in it.
 ///
 /// # Example
 ///
@@ -601,7 +622,7 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for GgswCiphertext creation
+/// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 ///
