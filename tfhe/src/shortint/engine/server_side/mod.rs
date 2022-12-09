@@ -57,15 +57,20 @@ impl ShortintEngine {
 
         let fft = Fft::new(bootstrap_key.polynomial_size());
         let fft = fft.as_view();
-        self.fft_buffers.resize(
-            convert_standard_lwe_bootstrap_key_to_fourier_scratch(fft)
+        self.computation_buffers.resize(
+            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_scratch(fft)
                 .unwrap()
                 .unaligned_bytes_required(),
         );
-        let stack = self.fft_buffers.stack();
+        let stack = self.computation_buffers.stack();
 
         // Conversion to fourier domain
-        convert_standard_lwe_bootstrap_key_to_fourier(&bootstrap_key, &mut fourier_bsk, fft, stack);
+        convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
+            &bootstrap_key,
+            &mut fourier_bsk,
+            fft,
+            stack,
+        );
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
@@ -114,20 +119,20 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
-        let (buffers, fft_buffers) = self.buffers_for_key(server_key);
+        let (ciphertext_buffers, buffers) = self.buffers_for_key(server_key);
 
         // Compute a keyswitch
         keyswitch_lwe_ciphertext(
             &server_key.key_switching_key,
             &ct.ct,
-            &mut buffers.buffer_lwe_after_ks,
+            &mut ciphertext_buffers.buffer_lwe_after_ks,
         );
 
         let fourier_bsk = &server_key.bootstrapping_key;
 
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
-        fft_buffers.resize(
+        buffers.resize(
             programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
@@ -136,13 +141,13 @@ impl ShortintEngine {
             .unwrap()
             .unaligned_bytes_required(),
         );
-        let stack = fft_buffers.stack();
+        let stack = buffers.stack();
 
         // Compute a bootstrap
         programmable_bootstrap_lwe_ciphertext_mem_optimized(
-            &buffers.buffer_lwe_after_ks,
+            &ciphertext_buffers.buffer_lwe_after_ks,
             &mut ct.ct,
-            &buffers.accumulator,
+            &ciphertext_buffers.accumulator,
             fourier_bsk,
             fft,
             stack,
@@ -169,20 +174,20 @@ impl ShortintEngine {
         acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
-        let (buffers, fft_buffers) = self.buffers_for_key(server_key);
+        let (ciphertext_buffers, buffers) = self.buffers_for_key(server_key);
 
         // Compute a key switch
         keyswitch_lwe_ciphertext(
             &server_key.key_switching_key,
             &ct.ct,
-            &mut buffers.buffer_lwe_after_ks,
+            &mut ciphertext_buffers.buffer_lwe_after_ks,
         );
 
         let fourier_bsk = &server_key.bootstrapping_key;
 
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
-        fft_buffers.resize(
+        buffers.resize(
             programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
@@ -191,11 +196,11 @@ impl ShortintEngine {
             .unwrap()
             .unaligned_bytes_required(),
         );
-        let stack = fft_buffers.stack();
+        let stack = buffers.stack();
 
         // Compute a bootstrap
         programmable_bootstrap_lwe_ciphertext_mem_optimized(
-            &buffers.buffer_lwe_after_ks,
+            &ciphertext_buffers.buffer_lwe_after_ks,
             &mut ct.ct,
             acc,
             fourier_bsk,
