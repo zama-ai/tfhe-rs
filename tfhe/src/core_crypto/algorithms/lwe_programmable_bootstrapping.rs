@@ -1,4 +1,4 @@
-use crate::core_crypto::commons::fft_buffers::FftBuffers;
+use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -19,12 +19,12 @@ pub fn blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     OutputCont: ContainerMut<Element = Scalar>,
     KeyCont: Container<Element = c64>,
 {
-    let mut fft_buffers = FftBuffers::new();
+    let mut buffers = ComputationBuffers::new();
 
     let fft = Fft::new(fourier_bsk.polynomial_size());
     let fft = fft.as_view();
 
-    fft_buffers.resize(
+    buffers.resize(
         blind_rotate_assign_mem_optimized_scratch::<Scalar>(
             fourier_bsk.glwe_size(),
             fourier_bsk.polynomial_size(),
@@ -34,7 +34,7 @@ pub fn blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
         .unaligned_bytes_required(),
     );
 
-    let stack = fft_buffers.stack();
+    let stack = buffers.stack();
 
     blind_rotate_assign_mem_optimized(input, lut, fourier_bsk, fft, stack);
 }
@@ -79,12 +79,12 @@ pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccC
     AccCont: Container<Element = Scalar>,
     KeyCont: Container<Element = c64>,
 {
-    let mut fft_buffers = FftBuffers::new();
+    let mut buffers = ComputationBuffers::new();
 
     let fft = Fft::new(fourier_bsk.polynomial_size());
     let fft = fft.as_view();
 
-    fft_buffers.resize(
+    buffers.resize(
         programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<Scalar>(
             fourier_bsk.glwe_size(),
             fourier_bsk.polynomial_size(),
@@ -94,7 +94,7 @@ pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccC
         .unaligned_bytes_required(),
     );
 
-    let stack = fft_buffers.stack();
+    let stack = buffers.stack();
 
     programmable_bootstrap_lwe_ciphertext_mem_optimized(
         input,
