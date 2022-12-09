@@ -2,7 +2,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
-/// A [`plaintext list`](`PlaintextList`). See [`Plaintext`].
+/// A contiguous list containing [`plaintexts`](`crate::core_crypto::entities::Plaintext`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PlaintextList<C: Container> {
     data: C,
