@@ -32,7 +32,7 @@ impl<Scalar, C: Container<Element = Scalar>> PlaintextList<C> {
     /// ```
     /// use tfhe::core_crypto::prelude::*;
     ///
-    /// // Define parameters for LweSecretKey creation
+    /// // Define parameters for PlaintextList creation
     /// let plaintext_count = PlaintextCount(1024);
     ///
     /// // Create a new PlaintextList
