@@ -28,3 +28,18 @@ doctest!("../docs/core_crypto/tutorial.md", core_crypto_turorial);
 //     "../docs/tutorials/circuit_evaluation.md",
 //     circuit_evaluation
 // );
+
+// Integer
+doctest!(
+    "../docs/integer/getting_started/first_circuit.md",
+    integer_first_circuit
+);
+doctest!(
+    "../docs/integer/tutorials/serialization.md",
+    integer_serialization_tuto
+);
+doctest!(
+    "../docs/integer/tutorials/circuit_evaluation.md",
+    integer_circuit_evaluation
+);
+doctest!("../docs/integer/how_to/pbs.md", integer_pbs);

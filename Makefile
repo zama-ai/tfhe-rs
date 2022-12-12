@@ -69,10 +69,16 @@ clippy_shortint: install_rs_check_toolchain
 		--features=$(TARGET_ARCH_FEATURE),shortint \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy # Run clippy lints enabling the boolean, shortint
-clippy: install_rs_check_toolchain
+.PHONY: clippy_integer # Run clippy lints enabling the integer features
+clippy_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint \
+		--features=$(TARGET_ARCH_FEATURE),integer \
+		-p tfhe -- --no-deps -D warnings
+
+.PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
+clippy: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
@@ -95,11 +101,11 @@ clippy_tasks:
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_all # Run all clippy targets
-clippy_all: clippy clippy_boolean clippy_shortint clippy_all_targets clippy_c_api \
+clippy_all: clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets clippy_c_api \
 clippy_js_wasm_api clippy_tasks
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
@@ -118,10 +124,15 @@ build_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
 		--features=$(TARGET_ARCH_FEATURE),shortint -p tfhe
 
-.PHONY: build_boolean_and_shortint # Build with boolean and shortint enabled
-build_boolean_and_shortint: install_rs_build_toolchain
+.PHONY: build_integer # Build with integer enabled
+build_integer: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),integer -p tfhe
+
+.PHONY: build_tfhe_full # Build with boolean, shortint and integer enabled
+build_tfhe_full: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p tfhe
 
 .PHONY: build_c_api # Build the C API for boolean and shortint
 build_c_api: install_rs_build_toolchain
@@ -165,17 +176,26 @@ test_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe -- shortint::
 
+.PHONY: test_integer_ci # Run the tests for integer ci
+test_integer_ci: install_rs_build_toolchain install_cargo_nextest
+	./scripts/integer-tests.sh $(CARGO_RS_BUILD_TOOLCHAIN)
+
+.PHONY: test_integer # Run all the tests for integer
+test_integer: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
+		--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache -p tfhe -- integer::
+
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release --doc \
-		--features=$(TARGET_ARCH_FEATURE),shortint,boolean,internal-keycache -p tfhe \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p tfhe \
 		-- test_user_docs::
 
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint --no-deps
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer --no-deps
 
 .PHONY: format_doc_latex # Format the documentation latex equations to avoid broken rendering.
 format_doc_latex:
@@ -189,7 +209,7 @@ format_doc_latex:
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests: build_c_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
-		--features=$(TARGET_ARCH_FEATURE),shortint,boolean,internal-keycache -p tfhe && \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p tfhe && \
 		./scripts/c_api_tests.sh --build-only
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API

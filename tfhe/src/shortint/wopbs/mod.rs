@@ -346,8 +346,8 @@ impl WopbsKey {
     /// # Warning Experimental
     pub fn circuit_bootstrapping_vertical_packing(
         &self,
-        vec_lut: Vec<Vec<u64>>,
-        extracted_bits_blocks: Vec<LweCiphertextListOwned<u64>>,
+        vec_lut: &[Vec<u64>],
+        extracted_bits_blocks: &[LweCiphertextListOwned<u64>],
     ) -> Vec<LweCiphertextOwned<u64>> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.circuit_bootstrapping_vertical_packing(self, vec_lut, extracted_bits_blocks)

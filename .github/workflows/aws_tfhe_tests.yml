@@ -32,7 +32,7 @@ on:
 jobs:
   shortint-tests:
     concurrency:
-      group: ${{ github.ref }}_${{ github.event.inputs.instance_image_id }}_${{ github.event.inputs.instance_type }}
+      group: ${{ github.workflow }}_${{ github.ref }}_${{ github.event.inputs.instance_image_id }}_${{ github.event.inputs.instance_type }}
       cancel-in-progress: true
     runs-on: ${{ github.event.inputs.runner_name }}
     steps:

@@ -60,6 +60,7 @@ getrandom = { version = "0.2.8", optional = true }
 [features]
 boolean = []
 shortint = []
+integer = ["shortint"]
 internal-keycache = ["lazy_static", "fs2", "bincode"]
 
 __c_api = ["cbindgen", "bincode"]
@@ -106,7 +107,7 @@ aarch64-unix = ["aarch64", "seeder_unix"]
 
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
-features = ["x86_64-unix", "boolean", "shortint"]
+features = ["x86_64-unix", "boolean", "shortint", "integer"]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
 ###########
@@ -132,6 +133,12 @@ name = "shortint-bench"
 path = "benches/shortint/bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
+
+[[bench]]
+name = "integer-bench"
+path = "benches/integer/bench.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
 
 [[bench]]
 name = "keygen"

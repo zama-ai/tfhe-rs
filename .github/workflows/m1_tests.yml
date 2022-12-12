@@ -40,9 +40,13 @@ jobs:
         run: |
           make build_shortint
 
-      - name: Build Release shortint and boolean
+      - name: Build Release integer
         run: |
-          make build_boolean_and_shortint
+          make build_integer
+
+      - name: Build Release tfhe full
+        run: |
+          make build_tfhe_full
 
       - name: Build Release c_api
         run: |
@@ -74,6 +78,10 @@ jobs:
       - name: Run shortint tests
         run: |
           make test_shortint_ci
+
+      - name: Run integer tests
+        run: |
+          make test_integer_ci
 
   remove_label:
     name: Remove m1_test label
