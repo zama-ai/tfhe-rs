@@ -239,6 +239,6 @@ fn f64_to_i64_bit_twiddles() {
         };
 
         let value = if biased_exp == 0 { 0 } else { value };
-        assert_eq!(value as i64, x as i64);
+        assert_eq!(value, x as i64);
     }
 }
