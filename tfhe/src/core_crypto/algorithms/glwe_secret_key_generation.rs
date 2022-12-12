@@ -45,7 +45,7 @@ where
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
