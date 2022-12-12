@@ -6,7 +6,7 @@ use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
-pub fn lwe_ciphertext_addition_assign<Scalar, LhsCont, RhsCont>(
+pub fn lwe_ciphertext_add_assign<Scalar, LhsCont, RhsCont>(
     lhs: &mut LweCiphertext<LhsCont>,
     rhs: &LweCiphertext<RhsCont>,
 ) where
@@ -17,7 +17,7 @@ pub fn lwe_ciphertext_addition_assign<Scalar, LhsCont, RhsCont>(
     slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref());
 }
 
-pub fn lwe_ciphertext_addition<Scalar, OutputCont, LhsCont, RhsCont>(
+pub fn lwe_ciphertext_add<Scalar, OutputCont, LhsCont, RhsCont>(
     output: &mut LweCiphertext<OutputCont>,
     lhs: &LweCiphertext<LhsCont>,
     rhs: &LweCiphertext<RhsCont>,
@@ -30,7 +30,7 @@ pub fn lwe_ciphertext_addition<Scalar, OutputCont, LhsCont, RhsCont>(
     slice_wrapping_add(output.as_mut(), lhs.as_ref(), rhs.as_ref());
 }
 
-pub fn lwe_ciphertext_plaintext_addition_assign<Scalar, InCont>(
+pub fn lwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
     lhs: &mut LweCiphertext<InCont>,
     rhs: Plaintext<Scalar>,
 ) where
@@ -50,7 +50,7 @@ where
     slice_wrapping_opposite_assign(ct.as_mut());
 }
 
-pub fn lwe_ciphertext_cleartext_multiplication_assign<Scalar, InCont>(
+pub fn lwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
     lhs: &mut LweCiphertext<InCont>,
     rhs: Cleartext<Scalar>,
 ) where
@@ -60,7 +60,7 @@ pub fn lwe_ciphertext_cleartext_multiplication_assign<Scalar, InCont>(
     slice_wrapping_scalar_mul_assign(lhs.as_mut(), rhs.0);
 }
 
-pub fn lwe_ciphertext_subtraction_assign<Scalar, LhsCont, RhsCont>(
+pub fn lwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
     lhs: &mut LweCiphertext<LhsCont>,
     rhs: &LweCiphertext<RhsCont>,
 ) where
@@ -71,7 +71,7 @@ pub fn lwe_ciphertext_subtraction_assign<Scalar, LhsCont, RhsCont>(
     slice_wrapping_sub_assign(lhs.as_mut(), rhs.as_ref());
 }
 
-pub fn lwe_ciphertext_cleartext_multiplication<Scalar, InputCont, OutputCont>(
+pub fn lwe_ciphertext_cleartext_mul<Scalar, InputCont, OutputCont>(
     output: &mut LweCiphertext<OutputCont>,
     lhs: &LweCiphertext<InputCont>,
     rhs: Cleartext<Scalar>,
@@ -81,5 +81,5 @@ pub fn lwe_ciphertext_cleartext_multiplication<Scalar, InputCont, OutputCont>(
     OutputCont: ContainerMut<Element = Scalar>,
 {
     output.as_mut().copy_from_slice(lhs.as_ref());
-    lwe_ciphertext_cleartext_multiplication_assign(output, rhs);
+    lwe_ciphertext_cleartext_mul_assign(output, rhs);
 }

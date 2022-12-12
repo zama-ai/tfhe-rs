@@ -348,7 +348,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     let mut lwe_left_shift_buffer = LweCiphertext::from_container(&mut *lwe_left_shift_buffer_data);
     // Shift message LSB on padding bit, at this point we expect to have messages with only 1 bit
     // of information
-    lwe_ciphertext_cleartext_multiplication(
+    lwe_ciphertext_cleartext_mul(
         &mut lwe_left_shift_buffer,
         &lwe_in,
         Cleartext(Scalar::ONE << (ciphertext_n_bits - delta_log.0 - 1)),

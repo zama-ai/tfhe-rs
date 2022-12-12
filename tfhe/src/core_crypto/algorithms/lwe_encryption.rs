@@ -742,7 +742,7 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
     // Add the public encryption of zeros to get the zero encryption
     for (&chosen, public_encryption_of_zero) in ct_choice.iter().zip(lwe_public_key.iter()) {
         if chosen == Scalar::ONE {
-            lwe_ciphertext_addition_assign(output, &public_encryption_of_zero);
+            lwe_ciphertext_add_assign(output, &public_encryption_of_zero);
         }
     }
 
