@@ -19,7 +19,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        lwe_ciphertext_addition_assign(&mut ct_left.ct, &ct_right.ct);
+        lwe_ciphertext_add_assign(&mut ct_left.ct, &ct_right.ct);
         ct_left.degree = Degree(ct_left.degree.0 + ct_right.degree.0);
         Ok(())
     }

@@ -23,7 +23,7 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         let scalar = u64::from(scalar);
         let cleartext_scalar = Cleartext(scalar);
-        lwe_ciphertext_cleartext_multiplication_assign(&mut ct.ct, cleartext_scalar);
+        lwe_ciphertext_cleartext_mul_assign(&mut ct.ct, cleartext_scalar);
 
         ct.degree = Degree(ct.degree.0 * scalar as usize);
         Ok(())
