@@ -1449,9 +1449,9 @@ fn shortint_unchecked_scalar_add(param: Parameters) {
     let message_modulus = param.message_modulus.0 as u8;
 
     for _ in 0..NB_TEST {
-        let clear = rng.gen::<u8>() % message_modulus as u8;
+        let clear = rng.gen::<u8>() % message_modulus;
 
-        let scalar = rng.gen::<u8>() % message_modulus as u8;
+        let scalar = rng.gen::<u8>() % message_modulus;
 
         // encryption of an integer
         let ct = cks.encrypt(clear as u64);

@@ -84,8 +84,15 @@ clippy_tasks:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		-p tasks -- --no-deps -D warnings
 
+.PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
+clippy_all_targets:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache \
+		-p tfhe -- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
-clippy_all: clippy clippy_boolean clippy_shortint clippy_c_api clippy_js_wasm_api clippy_tasks
+clippy_all: clippy clippy_boolean clippy_shortint clippy_all_targets clippy_c_api \
+clippy_js_wasm_api clippy_tasks
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
