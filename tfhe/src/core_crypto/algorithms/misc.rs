@@ -1,8 +1,9 @@
 use crate::core_crypto::prelude::*;
 
-pub fn is_power_of_two<Scalar>(degree: Scalar) -> bool
+/// Convenience function using a bit trick to determine whether a scalar is a power of 2.
+pub fn is_power_of_two<Scalar>(scalar: Scalar) -> bool
 where
     Scalar: UnsignedInteger,
 {
-    (degree != Scalar::ZERO) && ((degree & (degree - Scalar::ONE)) == Scalar::ZERO)
+    (scalar != Scalar::ZERO) && ((scalar & (scalar - Scalar::ONE)) == Scalar::ZERO)
 }
