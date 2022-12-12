@@ -485,8 +485,8 @@ impl ShortintEngine {
     pub fn circuit_bootstrapping_vertical_packing(
         &mut self,
         wopbs_key: &WopbsKey,
-        vec_lut: Vec<Vec<u64>>,
-        extracted_bits_blocks: Vec<LweCiphertextListOwned<u64>>,
+        vec_lut: &[Vec<u64>],
+        extracted_bits_blocks: &[LweCiphertextListOwned<u64>],
     ) -> Vec<LweCiphertextOwned<u64>> {
         let lwe_size = extracted_bits_blocks[0].lwe_size();
 

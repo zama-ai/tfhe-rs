@@ -22,6 +22,9 @@
 * [Cryptographic Parameters](shortint/parameters.md)
 * [Serialization/Deserialization](shortint/serialization.md)
 
+## Integer
+* [Summary](integer/SUMMARY.md)
+
 ## C API
 * [Tutorial](c_api/tutorial.md)
 

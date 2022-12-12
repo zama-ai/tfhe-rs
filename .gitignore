@@ -4,6 +4,8 @@ target/
 
 # Path we use for internal-keycache during tests
 keys/
+# In case of symlinked keys
+keys
 
 **/Cargo.lock
 **/*.bin
