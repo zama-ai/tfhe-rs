@@ -48,7 +48,7 @@ use rayon::prelude::*;
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
@@ -147,7 +147,7 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
@@ -233,7 +233,7 @@ where
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -305,7 +305,7 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -419,7 +419,7 @@ where
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
@@ -523,7 +523,7 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
@@ -669,7 +669,7 @@ pub fn decrypt_lwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
