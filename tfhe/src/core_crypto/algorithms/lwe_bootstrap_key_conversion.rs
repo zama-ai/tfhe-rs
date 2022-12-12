@@ -7,6 +7,8 @@ use crate::core_crypto::fft_impl::math::fft::{Fft, FftView};
 use concrete_fft::c64;
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
 
+/// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the Fourier
+/// domain.
 pub fn convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, OutputCont>(
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut FourierLweBootstrapKey<OutputCont>,

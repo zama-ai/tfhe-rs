@@ -6,6 +6,61 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+/// Fill an [`LWE keyswitch key`](`LweKeyswitchKey`) with an actual keyswitching key constructed
+/// from an input and an output key [`LWE secret key`](`LweSecretKey`).
+///
+/// ```
+/// use tfhe::core_crypto::commons::generators::{
+///     EncryptionRandomGenerator, SecretRandomGenerator,
+/// };
+/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
+/// use tfhe::core_crypto::prelude::*;
+/// use tfhe::seeders::new_seeder;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let input_lwe_dimension = LweDimension(742);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let output_lwe_dimension = LweDimension(2048);
+/// let decomp_base_log = DecompositionBaseLog(3);
+/// let decomp_level_count = DecompositionLevelCount(5);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let mut seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let input_lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(input_lwe_dimension, &mut secret_generator);
+/// let output_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+///     output_lwe_dimension,
+///     &mut secret_generator,
+/// );
+///
+/// let mut ksk = LweKeyswitchKey::new(
+///     0u64,
+///     decomp_base_log,
+///     decomp_level_count,
+///     input_lwe_dimension,
+///     output_lwe_dimension,
+/// );
+///
+/// generate_lwe_keyswitch_key(
+///     &input_lwe_secret_key,
+///     &output_lwe_secret_key,
+///     &mut ksk,
+///     lwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// assert!(ksk.as_ref().iter().all(|&x| x == 0) == false);
+/// ```
 pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont, Gen>(
     input_lwe_sk: &LweSecretKey<InputKeyCont>,
     output_lwe_sk: &LweSecretKey<OutputKeyCont>,
@@ -66,6 +121,10 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
     }
 }
 
+/// Allocate a new [`LWE keyswitch key`](`LweKeyswitchKey`) and fill it with an actual keyswitching
+/// key constructed from an input and an output key [`LWE secret key`](`LweSecretKey`).
+///
+/// See [`keyswitch_lwe_ciphertext`] for usage.
 pub fn allocate_and_generate_new_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     input_lwe_sk: &LweSecretKey<InputKeyCont>,
     output_lwe_sk: &LweSecretKey<OutputKeyCont>,
