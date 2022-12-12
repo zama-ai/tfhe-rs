@@ -32,7 +32,7 @@ use crate::core_crypto::entities::*;
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
@@ -164,7 +164,7 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
@@ -295,7 +295,7 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator =
@@ -542,7 +542,7 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
@@ -628,7 +628,7 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
-/// let mut seeder = seeder.as_mut();
+/// let seeder = seeder.as_mut();
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
