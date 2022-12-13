@@ -71,7 +71,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePublicKey<C> {
     /// // Demonstrate how to recover the allocated container
     /// let underlying_container: Vec<u64> = lwe_public_key.into_container();
     ///
-    /// // Recreate a list using from_container
+    /// // Recreate a public key using from_container
     /// let lwe_public_key = LwePublicKey::from_container(underlying_container, lwe_size);
     ///
     /// assert_eq!(lwe_public_key.lwe_size(), lwe_size);
