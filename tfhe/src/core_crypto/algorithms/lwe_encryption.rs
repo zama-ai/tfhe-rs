@@ -4,10 +4,40 @@ use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
+use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
+
+/// Convenience function to share the core logic of the LWE encryption between all functions needing
+/// it.
+pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output_mask: &mut LweMask<OutputCont>,
+    output_body: LweBody<&mut Scalar>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    generator.fill_slice_with_random_mask(output_mask.as_mut());
+
+    // generate an error from the normal distribution described by std_dev
+    *output_body.0 = generator.random_noise(noise_parameters);
+
+    // compute the multisum between the secret key and the mask
+    *output_body.0 = (*output_body.0).wrapping_add(slice_wrapping_dot_product(
+        output_mask.as_ref(),
+        lwe_secret_key.as_ref(),
+    ));
+
+    *output_body.0 = (*output_body.0).wrapping_add(encoded.0);
+}
 
 /// Encrypt an input plaintext in an output [`LWE ciphertext`](`LweCiphertext`).
 ///
@@ -109,18 +139,14 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 
     let (mut mask, body) = output.get_mut_mask_and_body();
 
-    generator.fill_slice_with_random_mask(mask.as_mut());
-
-    // generate an error from the normal distribution described by std_dev
-    *body.0 = generator.random_noise(noise_parameters);
-
-    // compute the multisum between the secret key and the mask
-    *body.0 = (*body.0).wrapping_add(slice_wrapping_dot_product(
-        mask.as_ref(),
-        lwe_secret_key.as_ref(),
-    ));
-
-    *body.0 = (*body.0).wrapping_add(encoded.0);
+    fill_lwe_mask_and_body_for_encryption(
+        lwe_secret_key,
+        &mut mask,
+        body,
+        encoded,
+        noise_parameters,
+        generator,
+    );
 }
 
 /// Allocate a new [`LWE ciphertext`](`LweCiphertext`) and encrypt an input plaintext in it.
@@ -434,7 +460,7 @@ where
 /// let encoded_msg = msg << 60;
 /// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(lwe_ciphertext_count.0));
 ///
-/// // Create a new LweCiphertext
+/// // Create a new LweCiphertextList
 /// let mut lwe_list =
 ///     LweCiphertextList::new(0u64, lwe_dimension.to_lwe_size(), lwe_ciphertext_count);
 ///
@@ -538,7 +564,7 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
 /// let encoded_msg = msg << 60;
 /// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(lwe_ciphertext_count.0));
 ///
-/// // Create a new LweCiphertext
+/// // Create a new LweCiphertextList
 /// let mut lwe_list =
 ///     LweCiphertextList::new(0u64, lwe_dimension.to_lwe_size(), lwe_ciphertext_count);
 ///
@@ -749,4 +775,159 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
     // Add encoded plaintext
     let body = output.get_mut_body();
     *body.0 = (*body.0).wrapping_add(encoded.0);
+}
+
+/// Convenience function to share the core logic of the seeded LWE encryption between all functions
+/// needing it.
+pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
+    Scalar,
+    KeyCont,
+    OutputCont,
+    InputCont,
+    Gen,
+>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output: &mut SeededLweCiphertextList<OutputCont>,
+    encoded: &PlaintextList<InputCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        output.lwe_size().to_lwe_dimension() == lwe_secret_key.lwe_dimension(),
+        "Mismatched LweDimension between input LweSecretKey {:?} and output \
+        SeededLweCiphertextList {:?}.",
+        lwe_secret_key.lwe_dimension(),
+        output.lwe_size().to_lwe_dimension(),
+    );
+    assert!(
+        output.lwe_ciphertext_count().0 == encoded.plaintext_count().0,
+        "Mismatch between number of output cipertexts and input plaintexts. \
+        Got {:?} plaintexts, and {:?} ciphertext.",
+        encoded.plaintext_count(),
+        output.lwe_ciphertext_count()
+    );
+
+    let mut output_mask =
+        LweMask::from_container(vec![Scalar::ZERO; output.lwe_size().to_lwe_dimension().0]);
+
+    for (output_body, plaintext) in output.iter_mut().zip(encoded.iter()) {
+        fill_lwe_mask_and_body_for_encryption(
+            lwe_secret_key,
+            &mut output_mask,
+            output_body,
+            plaintext.into(),
+            noise_parameters,
+            generator,
+        )
+    }
+}
+
+/// Encrypt a [`PlaintextList`] in a
+/// [`compressed/seeded LWE ciphertext list`](`SeededLweCiphertextList`).
+///
+/// ```
+/// use tfhe::core_crypto::commons::generators::{
+///     EncryptionRandomGenerator, SecretRandomGenerator,
+/// };
+/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
+/// use tfhe::core_crypto::prelude::*;
+/// use tfhe::seeders::new_seeder;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let lwe_dimension = LweDimension(742);
+/// let lwe_ciphertext_count = LweCiphertextCount(2);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+///
+/// // Create the plaintext
+/// let msg = 3u64;
+/// let encoded_msg = msg << 60;
+/// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(lwe_ciphertext_count.0));
+///
+/// // Create a new SeededLweCiphertextList
+/// let mut lwe_list = SeededLweCiphertextList::new(
+///     0u64,
+///     lwe_dimension.to_lwe_size(),
+///     lwe_ciphertext_count,
+///     seeder,
+/// );
+///
+/// encrypt_seeded_lwe_ciphertext_list(
+///     &lwe_secret_key,
+///     &mut lwe_list,
+///     &plaintext_list,
+///     lwe_modular_std_dev,
+///     seeder,
+/// );
+///
+/// let lwe_list = lwe_list.decompress_into_lwe_ciphertext_list();
+///
+/// let mut output_plaintext_list =
+///     PlaintextList::new(0u64, PlaintextCount(lwe_list.lwe_ciphertext_count().0));
+/// decrypt_lwe_ciphertext_list(&lwe_secret_key, &lwe_list, &mut output_plaintext_list);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// output_plaintext_list
+///     .iter_mut()
+///     .for_each(|elt| *elt.0 = decomposer.closest_representable(*elt.0));
+///
+/// // Get the raw vector
+/// let mut cleartext_list = output_plaintext_list.into_container();
+/// // Remove the encoding
+/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// // Get the list immutably
+/// let cleartext_list = cleartext_list;
+///
+/// // Check we recovered the original message for each plaintext we encrypted
+/// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
+/// ```
+pub fn encrypt_seeded_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, NoiseSeeder>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output: &mut SeededLweCiphertextList<OutputCont>,
+    encoded: &PlaintextList<InputCont>,
+    noise_parameters: impl DispersionParameter,
+    noise_seeder: &mut NoiseSeeder,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
+    NoiseSeeder: Seeder + ?Sized,
+{
+    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        output.compression_seed().seed,
+        noise_seeder,
+    );
+
+    encrypt_seeded_lwe_ciphertext_list_with_existing_generator(
+        lwe_secret_key,
+        output,
+        encoded,
+        noise_parameters,
+        &mut generator,
+    );
 }
