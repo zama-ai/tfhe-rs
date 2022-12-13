@@ -249,7 +249,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         &'this mut self,
     ) -> ParallelWrappingLendingIteratorMut<'this, Self::Element, Self::EntityMutView<'this>>
     where
-        Self::Element: Send + Sync,
+        Self::Element: Sync + Send,
         Self::EntityMutView<'this>: Send,
         Self::EntityViewMetadata: Send,
     {

@@ -17,6 +17,8 @@ pub mod lwe_wopbs;
 pub mod misc;
 pub mod polynomial_algorithms;
 pub mod seeded_lwe_ciphertext_list_decompression;
+pub mod seeded_lwe_public_key_decompression;
+pub mod seeded_lwe_public_key_generation;
 pub mod slice_algorithms;
 
 // No pub use for slice and polynomial algorithms which would not interest higher level users
@@ -39,3 +41,5 @@ pub use lwe_secret_key_generation::*;
 pub use lwe_wopbs::*;
 pub use misc::*;
 pub use seeded_lwe_ciphertext_list_decompression::*;
+pub use seeded_lwe_public_key_decompression::*;
+pub use seeded_lwe_public_key_generation::*;
