@@ -55,7 +55,7 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLweCiphertextList<C> {
     ///     0u64,
     ///     lwe_dimension.to_lwe_size(),
     ///     lwe_ciphertext_count,
-    ///     seeder,
+    ///     seeder.seed().into(),
     /// );
     ///
     /// assert_eq!(seeded_lwe_list.lwe_size(), lwe_dimension.to_lwe_size());
@@ -131,12 +131,31 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLweCiphertextList<C> {
         Scalar: UnsignedTorus,
     {
         let mut decompressed_list =
-            LweCiphertextListOwned::new(Scalar::ZERO, self.lwe_size(), self.lwe_ciphertext_count());
+            LweCiphertextList::new(Scalar::ZERO, self.lwe_size(), self.lwe_ciphertext_count());
         decompress_seeded_lwe_ciphertext_list::<_, _, _, ActivatedRandomGenerator>(
             &mut decompressed_list,
             &self,
         );
         decompressed_list
+    }
+
+    /// Return a view of the [`SeededLweCiphertextList`]. This is useful if an algorithm takes a
+    /// view by value.
+    pub fn as_view(&self) -> SeededLweCiphertextList<&'_ [Scalar]> {
+        SeededLweCiphertextList::from_container(
+            self.as_ref(),
+            self.lwe_size(),
+            self.compression_seed(),
+        )
+    }
+}
+
+impl<Scalar, C: ContainerMut<Element = Scalar>> SeededLweCiphertextList<C> {
+    /// Mutable variant of [`SeededLweCiphertextList::as_view`].
+    pub fn as_mut_view(&mut self) -> SeededLweCiphertextList<&'_ mut [Scalar]> {
+        let lwe_size = self.lwe_size();
+        let compression_seed = self.compression_seed();
+        SeededLweCiphertextList::from_container(self.as_mut(), lwe_size, compression_seed)
     }
 }
 
@@ -163,14 +182,12 @@ impl<Scalar: Copy> SeededLweCiphertextListOwned<Scalar> {
         fill_with: Scalar,
         lwe_size: LweSize,
         ciphertext_count: LweCiphertextCount,
-        seeder: &mut dyn Seeder,
+        compression_seed: CompressionSeed,
     ) -> SeededLweCiphertextListOwned<Scalar> {
         SeededLweCiphertextListOwned::from_container(
             vec![fill_with; ciphertext_count.0],
             lwe_size,
-            CompressionSeed {
-                seed: seeder.seed(),
-            },
+            compression_seed,
         )
     }
 }

@@ -216,7 +216,7 @@ mod parallel_test {
     use crate::core_crypto::entities::LweBootstrapKeyOwned;
     use concrete_csprng::generators::SoftwareRandomGenerator;
 
-    fn test_refactored_bsk_parallel_gen_equivalence<T: UnsignedTorus + Send + Sync>() {
+    fn test_refactored_bsk_parallel_gen_equivalence<T: UnsignedTorus + Sync + Send>() {
         for _ in 0..10 {
             let lwe_dim =
                 LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));

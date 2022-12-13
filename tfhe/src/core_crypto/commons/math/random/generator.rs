@@ -36,6 +36,12 @@ pub struct CompressionSeed {
     pub seed: Seed,
 }
 
+impl From<Seed> for CompressionSeed {
+    fn from(seed: Seed) -> Self {
+        CompressionSeed { seed }
+    }
+}
+
 /// A cryptographically secure random number generator.
 ///
 /// This csprng is used by every objects that needs sampling in the library. If the proper
