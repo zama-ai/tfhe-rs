@@ -53,6 +53,24 @@ impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweMask<C> {
     }
 }
 
+impl<'data, T> CreateFrom<&'data [T]> for LweBody<&'data T> {
+    type Metadata = ();
+
+    #[inline]
+    fn create_from(from: &[T], _meta: Self::Metadata) -> LweBody<&'_ T> {
+        LweBody(&from[0])
+    }
+}
+
+impl<'data, T> CreateFrom<&'data mut [T]> for LweBody<&'data mut T> {
+    type Metadata = ();
+
+    #[inline]
+    fn create_from(from: &mut [T], _meta: Self::Metadata) -> LweBody<&'_ mut T> {
+        LweBody(&mut from[0])
+    }
+}
+
 /// An [`LWE ciphertext`](`LweCiphertext`).
 ///
 /// # Formal Definition
