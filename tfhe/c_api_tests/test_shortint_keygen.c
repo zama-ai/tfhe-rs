@@ -99,9 +99,56 @@ void test_public_keygen(void) {
   destroy_shortint_ciphertext(ct);
 }
 
+void test_compressed_public_keygen(void) {
+  ShortintClientKey *cks = NULL;
+  ShortintCompressedPublicKey *cpks = NULL;
+  ShortintPublicKey *pks = NULL;
+  ShortintParameters *params = NULL;
+  ShortintCiphertext *ct = NULL;
+
+  int get_params_ok = shortint_get_parameters(2, 2, &params);
+  assert(get_params_ok == 0);
+
+  int gen_keys_ok = shortint_gen_client_key(params, &cks);
+  assert(gen_keys_ok == 0);
+
+  int gen_cpks = shortint_gen_compressed_public_key(cks, &cpks);
+  assert(gen_cpks == 0);
+
+  uint64_t msg = 2;
+
+  int encrypt_compressed_ok = shortint_compressed_public_key_encrypt(cpks, msg, &ct);
+  assert(encrypt_compressed_ok == 0);
+
+  uint64_t result_compressed = -1;
+  int decrypt_compressed_ok = shortint_client_key_decrypt(cks, ct, &result_compressed);
+  assert(decrypt_compressed_ok == 0);
+
+  assert(result_compressed == 2);
+
+  int decompress_ok = shortint_decompress_public_key(cpks, &pks);
+  assert(decompress_ok == 0);
+
+  int encrypt_ok = shortint_public_key_encrypt(pks, msg, &ct);
+  assert(encrypt_ok == 0);
+
+  uint64_t result = -1;
+  int decrypt_ok = shortint_client_key_decrypt(cks, ct, &result);
+  assert(decrypt_ok == 0);
+
+  assert(result == 2);
+
+  destroy_shortint_parameters(params);
+  destroy_shortint_client_key(cks);
+  destroy_shortint_compressed_public_key(cpks);
+  destroy_shortint_public_key(pks);
+  destroy_shortint_ciphertext(ct);
+}
+
 int main(void) {
   test_predefined_keygen_w_serde();
   test_custom_keygen();
   test_public_keygen();
+  test_compressed_public_keygen();
   return EXIT_SUCCESS;
 }

@@ -4,7 +4,7 @@ use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
-use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
+use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, RandomGenerator};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -775,6 +775,122 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
     for (&chosen, public_encryption_of_zero) in ct_choice.iter().zip(lwe_public_key.iter()) {
         if chosen == Scalar::ONE {
             lwe_ciphertext_add_assign(output, &public_encryption_of_zero);
+        }
+    }
+
+    // Add encoded plaintext
+    let body = output.get_mut_body();
+    *body.0 = (*body.0).wrapping_add(encoded.0);
+}
+
+/// Encrypt an input plaintext in an output [`LWE ciphertext`](`LweCiphertext`) using a
+/// [`seeded LWE public key`](`SeededLwePublicKey`). The ciphertext can be decrypted using the
+/// [`LWE secret key`](`LweSecretKey`) that was used to generate the public key.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::commons::generators::{
+///     EncryptionRandomGenerator, SecretRandomGenerator,
+/// };
+/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
+/// use tfhe::core_crypto::prelude::*;
+/// use tfhe::seeders::new_seeder;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let lwe_dimension = LweDimension(742);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let zero_encryption_count =
+///     LwePublicKeyZeroEncryptionCount(lwe_dimension.to_lwe_size().0 * 64 + 128);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+///
+/// let lwe_public_key = allocate_and_generate_new_seeded_lwe_public_key(
+///     &lwe_secret_key,
+///     zero_encryption_count,
+///     lwe_modular_std_dev,
+///     seeder,
+/// );
+///
+/// // Create the plaintext
+/// let msg = 3u64;
+/// let plaintext = Plaintext(msg << 60);
+///
+/// // Create a new LweCiphertext
+/// let mut lwe = LweCiphertext::new(0u64, lwe_dimension.to_lwe_size());
+///
+/// encrypt_lwe_ciphertext_with_seeded_public_key(
+///     &lwe_public_key,
+///     &mut lwe,
+///     plaintext,
+///     &mut secret_generator,
+/// );
+///
+/// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// let rounded = decomposer.closest_representable(decrypted_plaintext.0);
+///
+/// // Remove the encoding
+/// let cleartext = rounded >> 60;
+///
+/// // Check we recovered the original message
+/// assert_eq!(cleartext, msg);
+/// ```
+pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont, Gen>(
+    lwe_public_key: &SeededLwePublicKey<KeyCont>,
+    output: &mut LweCiphertext<OutputCont>,
+    encoded: Plaintext<Scalar>,
+    generator: &mut SecretRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        output.lwe_size().to_lwe_dimension() == lwe_public_key.lwe_size().to_lwe_dimension(),
+        "Mismatch between LweDimension of output cipertext and input public key. \
+        Got {:?} in output, and {:?} in public key.",
+        output.lwe_size().to_lwe_dimension(),
+        lwe_public_key.lwe_size().to_lwe_dimension()
+    );
+
+    output.as_mut().fill(Scalar::ZERO);
+
+    let mut ct_choice = vec![Scalar::ZERO; lwe_public_key.zero_encryption_count().0];
+
+    generator.fill_slice_with_random_uniform_binary(&mut ct_choice);
+
+    let mut tmp_ciphertext = LweCiphertext::new(Scalar::ZERO, lwe_public_key.lwe_size());
+
+    let mut random_generator =
+        RandomGenerator::<ActivatedRandomGenerator>::new(lwe_public_key.compression_seed().seed);
+
+    // Add the public encryption of zeros to get the zero encryption
+    for (&chosen, public_encryption_of_zero_body) in ct_choice.iter().zip(lwe_public_key.iter()) {
+        let (mut mask, body) = tmp_ciphertext.get_mut_mask_and_body();
+        random_generator.fill_slice_with_random_uniform(mask.as_mut());
+        *body.0 = *public_encryption_of_zero_body.0;
+
+        if chosen == Scalar::ONE {
+            lwe_ciphertext_add_assign(output, &tmp_ciphertext);
         }
     }
 
