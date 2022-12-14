@@ -106,7 +106,16 @@ impl BooleanEngine {
             client_parameters.lwe_dimension.to_lwe_size().0 * LOG2_Q_32 + 128,
         );
 
+        #[cfg(not(feature = "__wasm_api"))]
         let lwe_public_key: LwePublicKeyOwned<u32> = par_allocate_and_generate_new_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_key.parameters.lwe_modular_std_dev,
+            &mut self.encryption_generator,
+        );
+
+        #[cfg(feature = "__wasm_api")]
+        let lwe_public_key: LwePublicKeyOwned<u32> = allocate_and_generate_new_lwe_public_key(
             &client_key.lwe_secret_key,
             zero_encryption_count,
             client_key.parameters.lwe_modular_std_dev,

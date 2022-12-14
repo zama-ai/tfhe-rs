@@ -69,7 +69,6 @@ void test_custom_keygen(void) {
 
 void test_public_keygen(void) {
   ShortintClientKey *cks = NULL;
-  ShortintServerKey *sks = NULL;
   ShortintPublicKey *pks = NULL;
   ShortintParameters *params = NULL;
   ShortintCiphertext *ct = NULL;
@@ -83,12 +82,9 @@ void test_public_keygen(void) {
   int gen_pks = shortint_gen_public_key(cks, &pks);
   assert(gen_pks == 0);
 
-  int gen_sks = shortint_gen_server_key(cks, &sks);
-  assert(gen_sks == 0);
-
   uint64_t msg = 2;
 
-  int encrypt_ok = shortint_public_key_encrypt(pks, sks, msg, &ct);
+  int encrypt_ok = shortint_public_key_encrypt(pks, msg, &ct);
   assert(encrypt_ok == 0);
 
   uint64_t result = -1;
@@ -99,7 +95,6 @@ void test_public_keygen(void) {
 
   destroy_shortint_parameters(params);
   destroy_shortint_client_key(cks);
-  destroy_shortint_server_key(sks);
   destroy_shortint_public_key(pks);
   destroy_shortint_ciphertext(ct);
 }
