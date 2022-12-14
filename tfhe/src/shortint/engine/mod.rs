@@ -86,6 +86,9 @@ pub struct ShortintEngine {
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
     encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    /// A seeder that can be called to generate 128 bits seeds, useful to create new
+    /// [`EncryptionRandomGenerator`] to encrypt seeded types.
+    seeder: DeterministicSeeder<ActivatedRandomGenerator>,
     computation_buffers: ComputationBuffers,
     ciphertext_buffers: BTreeMap<KeyId, Buffers>,
 }
@@ -129,6 +132,7 @@ impl ShortintEngine {
                 deterministic_seeder.seed(),
                 &mut deterministic_seeder,
             ),
+            seeder: deterministic_seeder,
             computation_buffers: Default::default(),
             ciphertext_buffers: Default::default(),
         }
