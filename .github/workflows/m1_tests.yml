@@ -48,13 +48,13 @@ jobs:
         run: |
           make build_c_api
 
-      - name: Test tfhe-rs/boolean with cpu
-        run: |
-          make test_boolean
-
       - name: Run core tests
         run: |
           make test_core_crypto
+
+      - name: Run boolean tests
+        run: |
+          make test_boolean
 
       - name: Run C API tests
         run: |
@@ -63,6 +63,9 @@ jobs:
       - name: Run user docs tests
         run: |
           make test_user_doc
+
+      # JS tests are more easily launched in docker, we won't test that on M1 as docker is pretty
+      # slow on Apple machines due to the virtualization layer.
 
       - name: Configure AWS credentials from Test account
         uses: aws-actions/configure-aws-credentials@v1
