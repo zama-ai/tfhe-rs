@@ -5,7 +5,7 @@ use std::os::raw::c_int;
 
 use crate::shortint;
 
-use super::{ShortintCiphertext, ShortintClientKey, ShortintServerKey};
+use super::{ShortintCiphertext, ShortintClientKey};
 
 pub struct ShortintPublicKey(pub(in crate::c_api) shortint::public_key::PublicKey);
 
@@ -34,7 +34,6 @@ pub unsafe extern "C" fn shortint_gen_public_key(
 #[no_mangle]
 pub unsafe extern "C" fn shortint_public_key_encrypt(
     public_key: *const ShortintPublicKey,
-    server_key: *const ShortintServerKey,
     value_to_encrypt: u64,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
@@ -46,11 +45,9 @@ pub unsafe extern "C" fn shortint_public_key_encrypt(
         *result = std::ptr::null_mut();
 
         let public_key = get_ref_checked(public_key).unwrap();
-        let server_key = get_ref_checked(server_key).unwrap();
 
-        let heap_allocated_ciphertext = Box::new(ShortintCiphertext(
-            public_key.0.encrypt(&server_key.0, value_to_encrypt),
-        ));
+        let heap_allocated_ciphertext =
+            Box::new(ShortintCiphertext(public_key.0.encrypt(value_to_encrypt)));
 
         *result = Box::into_raw(heap_allocated_ciphertext);
     })

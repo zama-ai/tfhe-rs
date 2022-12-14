@@ -178,12 +178,11 @@ impl Shortint {
     #[wasm_bindgen]
     pub fn encrypt_with_public_key(
         public_key: &ShortintPublicKey,
-        server_key: &ShortintServerKey,
         message: u64,
     ) -> ShortintCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
 
-        ShortintCiphertext(public_key.0.encrypt(&server_key.0, message))
+        ShortintCiphertext(public_key.0.encrypt(message))
     }
 
     #[wasm_bindgen]

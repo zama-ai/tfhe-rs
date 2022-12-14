@@ -53,15 +53,15 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
-   let (client_key, server_key) = gen_keys(Parameters::default());
+   let (client_key, _) = gen_keys(Parameters::default());
    let public_key = PublicKey::new(&client_key);
 
     let msg1 = 1;
     let msg2 = 0;
 
     // We use the client key to encrypt two messages:
-    let ct_1 = public_key.encrypt(&server_key, msg1);
-    let ct_2 = public_key.encrypt(&server_key, msg2);
+    let ct_1 = public_key.encrypt(msg1);
+    let ct_2 = public_key.encrypt(msg2);
 }
 ```
 
