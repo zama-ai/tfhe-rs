@@ -1,9 +1,39 @@
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+
+/// Convenience function to share the core logic of the GLWE assign encryption between all functions
+/// needing it.
+pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont, Scalar, Gen>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    generator.unsigned_torus_slice_wrapping_add_random_noise_assign(
+        output_body.as_mut(),
+        noise_parameters,
+    );
+
+    generator.fill_slice_with_random_mask(output_mask.as_mut());
+
+    polynomial_wrapping_add_multisum_assign(
+        &mut output_body.as_mut_polynomial(),
+        &output_mask.as_polynomial_list(),
+        &glwe_secret_key.as_polynomial_list(),
+    );
+}
 
 /// Variant of [`encrypt_glwe_ciphertext`] which assumes that the plaintexts to encrypt are already
 /// loaded in the body of the output [`GLWE ciphertext`](`GlweCiphertext`), this is sometimes useful
@@ -112,14 +142,44 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
 
     let (mut mask, mut body) = output.get_mut_mask_and_body();
 
-    generator.fill_slice_with_random_mask(mask.as_mut());
+    fill_glwe_mask_and_body_for_encryption_assign(
+        glwe_secret_key,
+        &mut mask,
+        &mut body,
+        noise_parameters,
+        generator,
+    );
+}
 
-    generator
-        .unsigned_torus_slice_wrapping_add_random_noise_assign(body.as_mut(), noise_parameters);
+/// Convenience function to share the core logic of the GLWE encryption between all functions
+/// needing it.
+pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, MaskCont, Scalar, Gen>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    encoded: &PlaintextList<InputCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    generator.fill_slice_with_random_noise(output_body.as_mut(), noise_parameters);
+
+    generator.fill_slice_with_random_mask(output_mask.as_mut());
+
+    polynomial_wrapping_add_assign(
+        &mut output_body.as_mut_polynomial(),
+        &encoded.as_polynomial(),
+    );
 
     polynomial_wrapping_add_multisum_assign(
-        &mut body.as_mut_polynomial(),
-        &mask.as_polynomial_list(),
+        &mut output_body.as_mut_polynomial(),
+        &output_mask.as_polynomial_list(),
         &glwe_secret_key.as_polynomial_list(),
     );
 }
@@ -252,19 +312,13 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 
     let (mut mask, mut body) = output_glwe_ciphertext.get_mut_mask_and_body();
 
-    generator.fill_slice_with_random_mask(mask.as_mut());
-
-    generator.fill_slice_with_random_noise(body.as_mut(), noise_parameters);
-
-    polynomial_wrapping_add_assign(
-        &mut body.as_mut_polynomial(),
-        &input_plaintext_list.as_polynomial(),
-    );
-
-    polynomial_wrapping_add_multisum_assign(
-        &mut body.as_mut_polynomial(),
-        &mask.as_polynomial_list(),
-        &glwe_secret_key.as_polynomial_list(),
+    fill_glwe_mask_and_body_for_encryption(
+        glwe_secret_key,
+        &mut mask,
+        &mut body,
+        input_plaintext_list,
+        noise_parameters,
+        generator,
     );
 }
 
@@ -678,4 +732,140 @@ where
     body.as_mut().copy_from_slice(encoded.as_ref());
 
     new_ct
+}
+
+/// Encrypt a [`PlaintextList`] in a
+/// [`compressed/seeded GLWE ciphertext`](`SeededGlweCiphertext`).
+///
+/// ```
+/// use tfhe::core_crypto::commons::generators::{
+///     EncryptionRandomGenerator, SecretRandomGenerator,
+/// };
+/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
+/// use tfhe::core_crypto::prelude::*;
+/// use tfhe::seeders::new_seeder;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for GlweCiphertext creation
+/// let glwe_size = GlweSize(2);
+/// let polynomial_size = PolynomialSize(1024);
+/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the GlweSecretKey
+/// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_size.to_glwe_dimension(),
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+///
+/// // Create the plaintext
+/// let msg = 3u64;
+/// let encoded_msg = msg << 60;
+/// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
+///
+/// // Create a new GlweCiphertext
+/// let mut glwe =
+///     SeededGlweCiphertext::new(0u64, glwe_size, polynomial_size, seeder.seed().into());
+///
+/// encrypt_seeded_glwe_ciphertext(
+///     &glwe_secret_key,
+///     &mut glwe,
+///     &plaintext_list,
+///     glwe_modular_std_dev,
+///     seeder,
+/// );
+///
+/// let glwe = glwe.decompress_into_glwe_ciphertext();
+///
+/// let mut output_plaintext_list = PlaintextList::new(0u64, plaintext_list.plaintext_count());
+///
+/// decrypt_glwe_ciphertext(&glwe_secret_key, &glwe, &mut output_plaintext_list);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// output_plaintext_list
+///     .iter_mut()
+///     .for_each(|elt| *elt.0 = decomposer.closest_representable(*elt.0));
+///
+/// // Get the raw vector
+/// let mut cleartext_list = output_plaintext_list.into_container();
+/// // Remove the encoding
+/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// // Get the list immutably
+/// let cleartext_list = cleartext_list;
+///
+/// // Check we recovered the original message for each plaintext we encrypted
+/// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
+/// ```
+pub fn encrypt_seeded_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, NoiseSeeder>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_glwe_ciphertext: &mut SeededGlweCiphertext<OutputCont>,
+    input_plaintext_list: &PlaintextList<InputCont>,
+    noise_parameters: impl DispersionParameter,
+    noise_seeder: &mut NoiseSeeder,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
+    NoiseSeeder: Seeder + ?Sized,
+{
+    assert!(
+        output_glwe_ciphertext.polynomial_size().0 == input_plaintext_list.plaintext_count().0,
+        "Mismatch between PolynomialSize of output cipertext PlaintextCount of input. \
+    Got {:?} in output, and {:?} in input.",
+        output_glwe_ciphertext.polynomial_size(),
+        input_plaintext_list.plaintext_count()
+    );
+    assert!(
+        output_glwe_ciphertext.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
+        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+        glwe_secret_key.glwe_dimension()
+    );
+    assert!(
+        output_glwe_ciphertext.polynomial_size() == glwe_secret_key.polynomial_size(),
+        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output_glwe_ciphertext.polynomial_size(),
+        glwe_secret_key.polynomial_size()
+    );
+
+    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        output_glwe_ciphertext.compression_seed().seed,
+        noise_seeder,
+    );
+
+    let glwe_dimension = output_glwe_ciphertext.glwe_size().to_glwe_dimension();
+    let polynomial_size = output_glwe_ciphertext.polynomial_size();
+
+    let mut body = output_glwe_ciphertext.get_mut_body();
+
+    let mut tmp_mask = GlweMask::from_container(
+        vec![Scalar::ZERO; glwe_ciphertext_mask_size(glwe_dimension, polynomial_size)],
+        polynomial_size,
+    );
+
+    fill_glwe_mask_and_body_for_encryption(
+        glwe_secret_key,
+        &mut tmp_mask,
+        &mut body,
+        input_plaintext_list,
+        noise_parameters,
+        &mut generator,
+    );
 }

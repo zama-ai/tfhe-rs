@@ -36,7 +36,7 @@ impl ShortintEngine {
 
     pub(crate) fn unchecked_neg_assign_with_z(
         &mut self,
-        _server_key: &ServerKey,
+        server_key: &ServerKey,
         ct: &mut Ciphertext,
     ) -> EngineResult<u64> {
         // z = ceil( degree / 2^p ) * 2^p
@@ -46,7 +46,7 @@ impl ShortintEngine {
 
         // Value of the shift we multiply our messages by
         let delta =
-            (1_u64 << 63) / (_server_key.message_modulus.0 * _server_key.carry_modulus.0) as u64;
+            (1_u64 << 63) / (server_key.message_modulus.0 * server_key.carry_modulus.0) as u64;
 
         //Scaling + 1 on the padding bit
         let w = Plaintext(z * delta);
