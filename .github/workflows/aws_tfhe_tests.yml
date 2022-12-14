@@ -72,6 +72,10 @@ jobs:
         run: |
           make test_boolean
 
+      - name: Run js on wasm API tests
+        run: |
+          make test_nodejs_wasm_api_in_docker
+
       - name: Install AWS CLI
         run: |
           apt update

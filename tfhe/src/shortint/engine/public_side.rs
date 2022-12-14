@@ -5,7 +5,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
-use crate::shortint::{Ciphertext, ClientKey, PublicKey, ServerKey};
+use crate::shortint::{Ciphertext, ClientKey, PublicKey};
 
 // We have q = 2^64 so log2q = 64
 const LOG2_Q_64: usize = 64;
@@ -21,7 +21,16 @@ impl ShortintEngine {
                 + 128,
         );
 
+        #[cfg(not(feature = "__wasm_api"))]
         let lwe_public_key = par_allocate_and_generate_new_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_key.parameters.glwe_modular_std_dev,
+            &mut self.encryption_generator,
+        );
+
+        #[cfg(feature = "__wasm_api")]
+        let lwe_public_key = allocate_and_generate_new_lwe_public_key(
             &client_key.lwe_secret_key,
             zero_encryption_count,
             client_key.parameters.glwe_modular_std_dev,
@@ -37,18 +46,13 @@ impl ShortintEngine {
     pub(crate) fn encrypt_with_public_key(
         &mut self,
         public_key: &PublicKey,
-        server_key: &ServerKey,
         message: u64,
     ) -> EngineResult<Ciphertext> {
-        let mut ciphertext = self.encrypt_with_message_modulus_and_public_key(
+        let ciphertext = self.encrypt_with_message_modulus_and_public_key(
             public_key,
             message,
             public_key.parameters.message_modulus,
         )?;
-
-        let acc = self.generate_accumulator(server_key, |x| x)?;
-
-        self.programmable_bootstrap_keyswitch_assign(server_key, &mut ciphertext, &acc)?;
 
         Ok(ciphertext)
     }

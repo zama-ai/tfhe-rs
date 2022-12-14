@@ -1,0 +1,33 @@
+FROM ubuntu:22.04
+
+ENV TZ=Europe/Paris
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+ENV CARGO_TARGET_DIR=/root/tfhe-rs-target
+
+ARG RUST_TOOLCHAIN="stable"
+
+WORKDIR /tfhe-wasm-tests
+
+RUN apt-get update && \
+    apt-get install -y \
+    build-essential \
+    curl \
+    git && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > install-rustup.sh && \
+    chmod +x install-rustup.sh && \
+    ./install-rustup.sh -y --default-toolchain "${RUST_TOOLCHAIN}" \
+    -c rust-src -t wasm32-unknown-unknown && \
+    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf > install-wasm-pack.sh && \
+    chmod +x install-wasm-pack.sh && \
+    . "$HOME/.cargo/env" && \
+    ./install-wasm-pack.sh -y && \
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh > install-node.sh && \
+    chmod +x install-node.sh && \
+    ./install-node.sh && \
+    . "$HOME/.nvm/nvm.sh" && \
+    bash -i -c 'nvm install node && nvm use node'
+
+WORKDIR /tfhe-wasm-tests/tfhe-rs/
