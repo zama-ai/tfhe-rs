@@ -17,6 +17,7 @@ pub mod plaintext;
 pub mod plaintext_list;
 pub mod polynomial;
 pub mod polynomial_list;
+pub mod seeded_glwe_ciphertext;
 pub mod seeded_lwe_ciphertext_list;
 pub mod seeded_lwe_public_key;
 
@@ -42,5 +43,6 @@ pub use plaintext::*;
 pub use plaintext_list::*;
 pub use polynomial::*;
 pub use polynomial_list::*;
+pub use seeded_glwe_ciphertext::*;
 pub use seeded_lwe_ciphertext_list::*;
 pub use seeded_lwe_public_key::*;
