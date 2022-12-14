@@ -33,7 +33,7 @@ arithmetics over encrypted data. It includes:
 
 **TFHE-rs** is meant for developers and researchers who want full control over
 what they can do with TFHE, while not having to worry about the low level
-implementation. The goal is to have a stable, simple, high-performance and
+implementation. The goal is to have a stable, simple, high-performance, and
 production-ready library for all the advanced features of TFHE.
 
 ## Getting Started
@@ -101,7 +101,7 @@ fn main() {
 
 There are two ways to contribute to TFHE-rs:
 
-- you can open issues to report bugs or typos and to suggest new ideas
+- you can open issues to report bugs or typos, or to suggest new ideas
 - you can ask to become an official contributor by emailing [hello@zama.ai](mailto:hello@zama.ai).
 (becoming an approved contributor involves signing our Contributor License Agreement (CLA))
 
