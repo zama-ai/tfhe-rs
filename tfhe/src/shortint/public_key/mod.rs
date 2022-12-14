@@ -3,7 +3,7 @@ use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, Parameters};
-use crate::shortint::{ClientKey, ServerKey};
+use crate::shortint::ClientKey;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Debug;
 
@@ -46,30 +46,26 @@ impl PublicKey {
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let sks = ServerKey::new(&cks);
-    ///
     /// let pk = PublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 3;
-    /// let ct = pk.encrypt(&sks, msg);
+    /// let ct = pk.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg, dec);
     ///
     /// // Encryption of one message that is outside the encrypted message modulus:
     /// let msg = 5;
-    /// let ct = pk.encrypt(&sks, msg);
+    /// let ct = pk.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(msg % modulus, dec);
     /// ```
-    pub fn encrypt(&self, server_key: &ServerKey, message: u64) -> Ciphertext {
+    pub fn encrypt(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_with_public_key(self, server_key, message)
-                .unwrap()
+            engine.encrypt_with_public_key(self, message).unwrap()
         })
     }
 
