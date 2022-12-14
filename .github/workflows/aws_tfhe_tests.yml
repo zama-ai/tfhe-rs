@@ -60,6 +60,10 @@ jobs:
         run: |
           make test_core_crypto
 
+      - name: Run boolean tests
+        run: |
+          make test_boolean
+
       - name: Run C API tests
         run: |
           make test_c_api
@@ -67,10 +71,6 @@ jobs:
       - name: Run user docs tests
         run: |
           make test_user_doc
-
-      - name: Run boolean tests
-        run: |
-          make test_boolean
 
       - name: Run js on wasm API tests
         run: |

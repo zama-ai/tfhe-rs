@@ -92,6 +92,23 @@ test('shortint_public_encrypt_decrypt', (t) => {
     assert.deepEqual(decrypted, BigInt(3));
 });
 
+test('shortint_compressed_public_encrypt_decrypt', (t) => {
+    let params = Shortint.get_shortint_parameters(1, 1);
+    let cks = Shortint.new_client_key(params);
+    let pk = Shortint.new_compressed_public_key(cks);
+
+    let serialized_pk = Shortint.serialize_shortint_compressed_public_key(pk);
+    let deserialized_pk = Shortint.deserialize_shortint_compressed_public_key(serialized_pk);
+
+    let ct = Shortint.encrypt_with_compressed_public_key(deserialized_pk, BigInt(1));
+
+    let serialized_ct = Shortint.serialize_shortint_ciphertext(ct);
+    let deserialized_ct = Shortint.deserialize_shortint_ciphertext(serialized_ct);
+
+    let decrypted = Shortint.decrypt(cks, deserialized_ct);
+    assert.deepEqual(decrypted, BigInt(1));
+});
+
 test('shortint_deterministic_keygen', (t) => {
     const TEST_LOOP_COUNT = 128;
 

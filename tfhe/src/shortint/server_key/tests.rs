@@ -114,6 +114,24 @@ create_parametrized_test!(shortint_unchecked_sub);
 create_parametrized_test!(shortint_smart_sub);
 create_parametrized_test!(shortint_mul_small_carry);
 
+// Public key tests are limited to small parameter sets to avoid blowing up memory and large testing
+// times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
+// 2_2 uncompressed keys take ~2 GB and 3_3 about ~34 GB, hence why we stop at 2_2.
+#[test]
+fn test_shortint_compressed_public_key_smart_add_param_message_1_carry_1() {
+    shortint_compressed_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1)
+}
+
+#[test]
+fn test_shortint_public_key_smart_add_param_message_1_carry_1() {
+    shortint_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1)
+}
+
+#[test]
+fn test_shortint_public_key_smart_add_param_message_2_carry_2() {
+    shortint_public_key_smart_add(PARAM_MESSAGE_2_CARRY_2)
+}
+
 //These functions are compatible with some parameter sets where the carry modulus is larger than
 // the message modulus.
 create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_bitand);
@@ -452,6 +470,86 @@ fn shortint_smart_add(param: Parameters) {
 
         // encryption of an integer
         let mut ctxt_1 = cks.encrypt(clear_1);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
+        let mut clear = clear_0 + clear_1;
+
+        //add multiple times to raise the degree and test the smart operation
+        for _ in 0..40 {
+            ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
+            clear += clear_0;
+
+            // decryption of ct_res
+            let dec_res = cks.decrypt(&ct_res);
+
+            // assert
+            assert_eq!(clear % modulus, dec_res);
+        }
+    }
+}
+
+/// test addition with the LWE server key using the a public key for encryption
+fn shortint_compressed_public_key_smart_add(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    let pk = crate::shortint::CompressedPublicKey::new(cks);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..10 {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let mut ctxt_0 = pk.encrypt(clear_0);
+
+        // encryption of an integer
+        let mut ctxt_1 = pk.encrypt(clear_1);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
+        let mut clear = clear_0 + clear_1;
+
+        //add multiple times to raise the degree and test the smart operation
+        for _ in 0..40 {
+            ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
+            clear += clear_0;
+
+            // decryption of ct_res
+            let dec_res = cks.decrypt(&ct_res);
+
+            // assert
+            assert_eq!(clear % modulus, dec_res);
+        }
+    }
+}
+
+/// test addition with the LWE server key using the a public key for encryption
+fn shortint_public_key_smart_add(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    let pk = crate::shortint::PublicKey::new(cks);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..10 {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let mut ctxt_0 = pk.encrypt(clear_0);
+
+        // encryption of an integer
+        let mut ctxt_1 = pk.encrypt(clear_1);
 
         // add the two ciphertexts
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
