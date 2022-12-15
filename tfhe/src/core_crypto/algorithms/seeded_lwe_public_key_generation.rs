@@ -14,6 +14,7 @@ pub fn generate_seeded_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Noise
     Scalar: UnsignedTorus,
     InputKeyCont: Container<Element = Scalar>,
     OutputKeyCont: ContainerMut<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
     assert!(
@@ -46,6 +47,7 @@ pub fn allocate_and_generate_new_seeded_lwe_public_key<Scalar, InputKeyCont, Noi
 where
     Scalar: UnsignedTorus,
     InputKeyCont: Container<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut pk = SeededLwePublicKeyOwned::new(
@@ -71,6 +73,7 @@ pub fn par_generate_seeded_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, N
     Scalar: UnsignedTorus + Sync + Send,
     InputKeyCont: Container<Element = Scalar> + Sync,
     OutputKeyCont: ContainerMut<Element = Scalar> + Sync,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
     assert!(
@@ -103,6 +106,7 @@ pub fn par_allocate_and_generate_new_seeded_lwe_public_key<Scalar, InputKeyCont,
 where
     Scalar: UnsignedTorus + Sync + Send,
     InputKeyCont: Container<Element = Scalar> + Sync,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut pk = SeededLwePublicKeyOwned::new(
