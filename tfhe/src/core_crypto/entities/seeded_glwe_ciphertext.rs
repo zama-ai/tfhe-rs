@@ -219,3 +219,17 @@ impl<Scalar: Copy> SeededGlweCiphertextOwned<Scalar> {
         )
     }
 }
+
+/// Metadata used in the [`CreateFrom`] implementation to create [`SeededGlweCiphertext`] entities.
+#[derive(Clone, Copy)]
+pub struct SeededGlweCiphertextCreationMetadata(pub GlweSize, pub CompressionSeed);
+
+impl<C: Container> CreateFrom<C> for SeededGlweCiphertext<C> {
+    type Metadata = SeededGlweCiphertextCreationMetadata;
+
+    #[inline]
+    fn create_from(from: C, meta: Self::Metadata) -> SeededGlweCiphertext<C> {
+        let SeededGlweCiphertextCreationMetadata(glwe_size, compression_seed) = meta;
+        SeededGlweCiphertext::from_container(from, glwe_size, compression_seed)
+    }
+}
