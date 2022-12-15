@@ -114,6 +114,17 @@ impl<Scalar, C: Container<Element = Scalar>> SeededGgswCiphertext<C> {
     ///     ggsw.seeded_ggsw_level_matrix_size(),
     ///     seeded_ggsw_level_matrix_size(glwe_size, polynomial_size)
     /// );
+    ///
+    /// let ggsw = ggsw.decompress_into_ggsw_ciphertext();
+    ///
+    /// assert_eq!(ggsw.glwe_size(), glwe_size);
+    /// assert_eq!(ggsw.polynomial_size(), polynomial_size);
+    /// assert_eq!(ggsw.decomposition_base_log(), decomp_base_log);
+    /// assert_eq!(ggsw.decomposition_level_count(), decomp_level_count);
+    /// assert_eq!(
+    ///     ggsw.ggsw_level_matrix_size(),
+    ///     ggsw_level_matrix_size(glwe_size, polynomial_size)
+    /// );
     /// ```
     pub fn from_container(
         container: C,
