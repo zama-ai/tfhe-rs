@@ -1228,10 +1228,13 @@ mod test {
         DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
     };
     use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
+    use crate::core_crypto::commons::test_tools;
     use crate::core_crypto::prelude::*;
     use crate::seeders::new_seeder;
 
-    fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus>() {
+    fn test_parallel_and_seeded_lwe_list_encryption_equivalence<
+        Scalar: UnsignedTorus + Sync + Send,
+    >() {
         // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
         // computations
         // Define parameters for LweCiphertext creation
@@ -1256,13 +1259,16 @@ mod test {
                 &mut secret_generator,
             );
             // Create the plaintext
-            let msg = 3u64;
+            let msg: Scalar = test_tools::random_uint_between(Scalar::ZERO..Scalar::TWO.shl(2));
             let encoded_msg = msg << 60;
             let plaintext_list =
                 PlaintextList::new(encoded_msg, PlaintextCount(lwe_ciphertext_count.0));
             // Create a new LweCiphertextList
-            let mut par_lwe_list =
-                LweCiphertextList::new(0u64, lwe_dimension.to_lwe_size(), lwe_ciphertext_count);
+            let mut par_lwe_list = LweCiphertextList::new(
+                Scalar::ZERO,
+                lwe_dimension.to_lwe_size(),
+                lwe_ciphertext_count,
+            );
 
             let mut determinisitic_seeder =
                 DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
@@ -1279,8 +1285,11 @@ mod test {
                 &mut encryption_generator,
             );
 
-            let mut ser_lwe_list =
-                LweCiphertextList::new(0u64, lwe_dimension.to_lwe_size(), lwe_ciphertext_count);
+            let mut ser_lwe_list = LweCiphertextList::new(
+                Scalar::ZERO,
+                lwe_dimension.to_lwe_size(),
+                lwe_ciphertext_count,
+            );
 
             let mut determinisitic_seeder =
                 DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
@@ -1303,7 +1312,7 @@ mod test {
                 DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
             // Create a new LweCiphertextList
             let mut par_seeded_lwe_list = SeededLweCiphertextList::new(
-                0u64,
+                Scalar::ZERO,
                 lwe_dimension.to_lwe_size(),
                 lwe_ciphertext_count,
                 determinisitic_seeder.seed().into(),
@@ -1321,7 +1330,7 @@ mod test {
                 DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
 
             let mut ser_seeded_lwe_list = SeededLweCiphertextList::new(
-                0u64,
+                Scalar::ZERO,
                 lwe_dimension.to_lwe_size(),
                 lwe_ciphertext_count,
                 determinisitic_seeder.seed().into(),
