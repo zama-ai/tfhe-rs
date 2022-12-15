@@ -230,9 +230,9 @@ impl<Scalar: Copy> SeededGlweCiphertextListOwned<Scalar> {
 impl<C: Container> ContiguousEntityContainer for SeededGlweCiphertextList<C> {
     type Element = C::Element;
 
-    type EntityViewMetadata = ();
+    type EntityViewMetadata = SeededGlweCiphertextCreationMetadata;
 
-    type EntityView<'this> = GlweBody<&'this [Self::Element]>
+    type EntityView<'this> = SeededGlweCiphertext<&'this [Self::Element]>
     where
         Self: 'this;
 
@@ -242,7 +242,9 @@ impl<C: Container> ContiguousEntityContainer for SeededGlweCiphertextList<C> {
     where
         Self: 'this;
 
-    fn get_entity_view_creation_metadata(&self) {}
+    fn get_entity_view_creation_metadata(&self) -> SeededGlweCiphertextCreationMetadata {
+        SeededGlweCiphertextCreationMetadata(self.glwe_size(), self.compression_seed())
+    }
 
     fn get_entity_view_pod_size(&self) -> usize {
         self.polynomial_size().0
@@ -259,7 +261,7 @@ impl<C: Container> ContiguousEntityContainer for SeededGlweCiphertextList<C> {
 }
 
 impl<C: ContainerMut> ContiguousEntityContainerMut for SeededGlweCiphertextList<C> {
-    type EntityMutView<'this> = GlweBody<&'this mut [Self::Element]>
+    type EntityMutView<'this> = SeededGlweCiphertext<&'this mut [Self::Element]>
     where
         Self: 'this;
 

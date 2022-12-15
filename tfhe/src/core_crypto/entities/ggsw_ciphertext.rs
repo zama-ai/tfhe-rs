@@ -259,7 +259,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     ) -> Self {
         assert!(
             container.container_len() > 0,
-            "Got an empty container to create a GgswCiphertextBase"
+            "Got an empty container to create a GgswCiphertext"
         );
         assert!(
             container.container_len() % (glwe_size.0 * glwe_size.0 * polynomial_size.0) == 0,
