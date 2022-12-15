@@ -31,7 +31,8 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLweCiphertextList<C> {
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_seeded_lwe_ciphertext_list`] using
+    /// you need to use [`crate::core_crypto::algorithms::encrypt_seeded_lwe_ciphertext_list`] or
+    /// [`crate::core_crypto::algorithms::par_encrypt_seeded_lwe_ciphertext_list`] using
     /// this list as output.
     ///
     /// This docstring exhibits [`SeededLweCiphertextList`] primitives usage.
@@ -174,8 +175,9 @@ impl<Scalar: Copy> SeededLweCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_seeded_lwe_ciphertext_list`] using this list as
-    /// output.
+    /// [`crate::core_crypto::algorithms::encrypt_seeded_lwe_ciphertext_list`] or
+    /// [`crate::core_crypto::algorithms::par_encrypt_seeded_lwe_ciphertext_list`]  using this list
+    /// as output.
     ///
     /// See [`SeededLweCiphertextList::from_container`] for usage.
     pub fn new(
