@@ -55,6 +55,15 @@ impl<C: ContainerMut> GlweBody<C> {
     }
 }
 
+impl<C: Container> CreateFrom<C> for GlweBody<C> {
+    type Metadata = ();
+
+    #[inline]
+    fn create_from(from: C, _meta: Self::Metadata) -> GlweBody<C> {
+        GlweBody::from_container(from)
+    }
+}
+
 /// A convenience structure to easily manipulate the mask of a [`GlweCiphertext`].
 #[derive(Clone, Debug)]
 pub struct GlweMask<C: Container> {

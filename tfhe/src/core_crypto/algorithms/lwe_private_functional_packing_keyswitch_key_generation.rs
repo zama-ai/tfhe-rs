@@ -109,8 +109,8 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
         // We encrypt the buffer
         encrypt_glwe_ciphertext_list(
             output_glwe_secret_key,
-            &messages,
             &mut keyswitch_key_block,
+            &messages,
             noise_parameters,
             &mut loop_generator,
         )
@@ -221,8 +221,8 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
                 // We encrypt the buffer
                 encrypt_glwe_ciphertext_list(
                     output_glwe_secret_key,
-                    &messages,
                     &mut keyswitch_key_block,
+                    &messages,
                     noise_parameters,
                     &mut loop_generator,
                 )
