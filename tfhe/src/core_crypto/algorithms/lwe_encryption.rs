@@ -750,3 +750,42 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
     let body = output.get_mut_body();
     *body.0 = (*body.0).wrapping_add(encoded.0);
 }
+
+pub fn rc_encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
+    lwe_public_key: &LwePublicKey<KeyCont>,
+    output: &mut LweCiphertext<OutputCont>,
+    encoded: Plaintext<Scalar>,
+    generator: &mut SecretRandomGenerator<Gen>,
+) -> Vec<Scalar>
+where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        output.lwe_size().to_lwe_dimension() == lwe_public_key.lwe_size().to_lwe_dimension(),
+        "Mismatch between LweDimension of output cipertext and input public key. \
+        Got {:?} in output, and {:?} in public key.",
+        output.lwe_size().to_lwe_dimension(),
+        lwe_public_key.lwe_size().to_lwe_dimension()
+    );
+
+    output.as_mut().fill(Scalar::ZERO);
+
+    let mut ct_choice = vec![Scalar::ZERO; lwe_public_key.zero_encryption_count().0];
+
+    generator.fill_slice_with_random_uniform_binary(&mut ct_choice);
+
+    // Add the public encryption of zeros to get the zero encryption
+    for (&chosen, public_encryption_of_zero) in ct_choice.iter().zip(lwe_public_key.iter()) {
+        if chosen == Scalar::ONE {
+            lwe_ciphertext_add_assign(output, &public_encryption_of_zero);
+        }
+    }
+
+    // Add encoded plaintext
+    let body = output.get_mut_body();
+    *body.0 = (*body.0).wrapping_add(encoded.0);
+    ct_choice
+}

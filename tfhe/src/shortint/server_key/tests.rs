@@ -150,6 +150,8 @@ create_parametrized_test_bivariate_pbs_compliant!(
     shortint_encrypt_with_message_modulus_smart_add_and_mul
 );
 
+create_parametrized_test_bivariate_pbs_compliant!(shortint_pk_unchecked_add);
+
 /// test encryption and decryption with the LWE client key
 fn shortint_encrypt_decrypt(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
@@ -416,6 +418,42 @@ fn shortint_unchecked_add(param: Parameters) {
 
         // encryption of an integer
         let ctxt_1 = cks.encrypt(clear_1);
+
+        // add the two ciphertexts
+        let ct_res = sks.unchecked_add(&ctxt_0, &ctxt_1);
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        println!(
+            "The parameters set is CARRY_{}_MESSAGE_{}",
+            cks.parameters.carry_modulus.0, cks.parameters.message_modulus.0
+        );
+        assert_eq!((clear_0 + clear_1) % modulus, dec_res);
+    }
+}
+
+/// test addition with the LWE server key
+fn shortint_pk_unchecked_add(param: Parameters) {
+    use crate::shortint::PublicKey;
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    let pk = PublicKey::new(&cks);
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let (ctxt_0, rc0) = pk.rc_unchecked_encrypt(clear_0);
+
+        // encryption of an integer
+        let (ctxt_1, rc1) = pk.rc_unchecked_encrypt(clear_1);
 
         // add the two ciphertexts
         let ct_res = sks.unchecked_add(&ctxt_0, &ctxt_1);

@@ -137,6 +137,14 @@ impl PublicKey {
         })
     }
 
+    pub fn rc_unchecked_encrypt(&self, message: u64) -> (Ciphertext, Vec<u64>) {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .rc_unchecked_encrypt_with_public_key(self, message)
+                .unwrap()
+        })
+    }
+
     /// Encrypt a small integer message using the client key without padding bit.
     ///
     /// The input message is reduced to the encrypted message space modulus
