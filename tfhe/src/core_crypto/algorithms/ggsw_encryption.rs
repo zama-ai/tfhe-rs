@@ -317,6 +317,65 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
     }
 }
 
+pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, OutputCont, Gen>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output: &mut SeededGgswCiphertext<OutputCont>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar> + std::fmt::Debug,
+    Gen: ByteRandomGenerator,
+{
+    // Generators used to have same sequential and parallel key generation
+    let gen_iter = generator
+        .fork_ggsw_to_ggsw_levels::<Scalar>(
+            output.decomposition_level_count(),
+            output.glwe_size(),
+            output.polynomial_size(),
+        )
+        .expect("Failed to split generator into ggsw levels");
+
+    let output_glwe_size = output.glwe_size();
+    let output_polynomial_size = output.polynomial_size();
+    let decomp_base_log = output.decomposition_base_log();
+
+    for (level_index, (mut level_matrix, mut loop_generator)) in
+        output.iter_mut().zip(gen_iter).enumerate()
+    {
+        let decomp_level = DecompositionLevel(level_index + 1);
+        let factor = encoded
+            .0
+            .wrapping_neg()
+            .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+
+        // We iterate over the rows of the level matrix, the last row needs special treatment
+        let gen_iter = loop_generator
+            .fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
+            .expect("Failed to split generator into glwe");
+
+        let last_row_index = level_matrix.glwe_size().0 - 1;
+
+        for ((row_index, mut row_as_glwe), mut loop_generator) in level_matrix
+            .as_mut_seeded_glwe_list()
+            .iter_mut()
+            .enumerate()
+            .zip(gen_iter)
+        {
+            encrypt_seeded_ggsw_level_matrix_row(
+                glwe_secret_key,
+                (row_index, last_row_index),
+                factor,
+                &mut row_as_glwe,
+                noise_parameters,
+                &mut loop_generator,
+            );
+        }
+    }
+}
+
 /// Encrypt a plaintext in a [`seeded GGSW ciphertext`](`SeededGgswCiphertext`).
 ///
 /// See the [`formal definition`](`GgswCiphertext#ggsw-encryption`) for the definition of the
@@ -385,7 +444,8 @@ pub fn encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
 ) where
     Scalar: UnsignedTorus,
     KeyCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar> + std::fmt::Debug,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
     assert!(
@@ -409,9 +469,35 @@ pub fn encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
         noise_seeder,
     );
 
+    encrypt_seeded_ggsw_ciphertext_with_existing_generator(
+        glwe_secret_key,
+        output,
+        encoded,
+        noise_parameters,
+        &mut generator,
+    )
+}
+
+pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
+    Scalar,
+    KeyCont,
+    OutputCont,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output: &mut SeededGgswCiphertext<OutputCont>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter + Sync,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus + Sync + Send,
+    KeyCont: Container<Element = Scalar> + Sync,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ParallelByteRandomGenerator,
+{
     // Generators used to have same sequential and parallel key generation
     let gen_iter = generator
-        .fork_ggsw_to_ggsw_levels::<Scalar>(
+        .par_fork_ggsw_to_ggsw_levels::<Scalar>(
             output.decomposition_level_count(),
             output.glwe_size(),
             output.polynomial_size(),
@@ -422,38 +508,38 @@ pub fn encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
 
-    for (level_index, (mut level_matrix, mut generator)) in
-        output.iter_mut().zip(gen_iter).enumerate()
-    {
-        let decomp_level = DecompositionLevel(level_index + 1);
-        let factor = encoded
-            .0
-            .wrapping_neg()
-            .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+    output.par_iter_mut().zip(gen_iter).enumerate().for_each(
+        |(level_index, (mut level_matrix, mut generator))| {
+            let decomp_level = DecompositionLevel(level_index + 1);
+            let factor = encoded
+                .0
+                .wrapping_neg()
+                .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
 
-        // We iterate over the rows of the level matrix, the last row needs special treatment
-        let gen_iter = generator
-            .fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
-            .expect("Failed to split generator into glwe");
+            // We iterate over the rows of the level matrix, the last row needs special treatment
+            let gen_iter = generator
+                .par_fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
+                .expect("Failed to split generator into glwe");
 
-        let last_row_index = level_matrix.glwe_size().0 - 1;
+            let last_row_index = level_matrix.glwe_size().0 - 1;
 
-        for ((row_index, mut row_as_glwe), mut generator) in level_matrix
-            .as_mut_seeded_glwe_list()
-            .iter_mut()
-            .enumerate()
-            .zip(gen_iter)
-        {
-            encrypt_seeded_ggsw_level_matrix_row(
-                glwe_secret_key,
-                (row_index, last_row_index),
-                factor,
-                &mut row_as_glwe,
-                noise_parameters,
-                &mut generator,
-            );
-        }
-    }
+            level_matrix
+                .as_mut_seeded_glwe_list()
+                .par_iter_mut()
+                .enumerate()
+                .zip(gen_iter)
+                .for_each(|((row_index, mut row_as_glwe), mut generator)| {
+                    encrypt_seeded_ggsw_level_matrix_row(
+                        glwe_secret_key,
+                        (row_index, last_row_index),
+                        factor,
+                        &mut row_as_glwe,
+                        noise_parameters,
+                        &mut generator,
+                    );
+                });
+        },
+    );
 }
 
 /// Parallel variant of [`encrypt_ggsw_ciphertext`].
@@ -527,6 +613,7 @@ pub fn par_encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeed
     Scalar: UnsignedTorus + Sync + Send,
     KeyCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
     assert!(
@@ -550,50 +637,12 @@ pub fn par_encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeed
         noise_seeder,
     );
 
-    // Generators used to have same sequential and parallel key generation
-    let gen_iter = generator
-        .par_fork_ggsw_to_ggsw_levels::<Scalar>(
-            output.decomposition_level_count(),
-            output.glwe_size(),
-            output.polynomial_size(),
-        )
-        .expect("Failed to split generator into ggsw levels");
-
-    let output_glwe_size = output.glwe_size();
-    let output_polynomial_size = output.polynomial_size();
-    let decomp_base_log = output.decomposition_base_log();
-
-    output.par_iter_mut().zip(gen_iter).enumerate().for_each(
-        |(level_index, (mut level_matrix, mut generator))| {
-            let decomp_level = DecompositionLevel(level_index + 1);
-            let factor = encoded
-                .0
-                .wrapping_neg()
-                .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
-
-            // We iterate over the rows of the level matrix, the last row needs special treatment
-            let gen_iter = generator
-                .par_fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
-                .expect("Failed to split generator into glwe");
-
-            let last_row_index = level_matrix.glwe_size().0 - 1;
-
-            level_matrix
-                .as_mut_seeded_glwe_list()
-                .par_iter_mut()
-                .enumerate()
-                .zip(gen_iter)
-                .for_each(|((row_index, mut row_as_glwe), mut generator)| {
-                    encrypt_seeded_ggsw_level_matrix_row(
-                        glwe_secret_key,
-                        (row_index, last_row_index),
-                        factor,
-                        &mut row_as_glwe,
-                        noise_parameters,
-                        &mut generator,
-                    );
-                });
-        },
+    par_encrypt_seeded_ggsw_ciphertext_with_existing_generator(
+        glwe_secret_key,
+        output,
+        encoded,
+        noise_parameters,
+        &mut generator,
     );
 }
 
