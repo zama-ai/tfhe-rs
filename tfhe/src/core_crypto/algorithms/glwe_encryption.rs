@@ -151,6 +151,60 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
     );
 }
 
+/// Convenience function to share the core logic of the seeded GLWE assign encryption between all
+/// functions needing it
+pub fn encrypt_seeded_glwe_ciphertext_assign_with_existing_generator<
+    Scalar,
+    KeyCont,
+    OutputCont,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output: &mut SeededGlweCiphertext<OutputCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
+        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output.glwe_size().to_glwe_dimension(),
+        glwe_secret_key.glwe_dimension()
+    );
+    assert!(
+        output.polynomial_size() == glwe_secret_key.polynomial_size(),
+        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output.polynomial_size(),
+        glwe_secret_key.polynomial_size()
+    );
+
+    let mut mask = GlweMask::from_container(
+        vec![
+            Scalar::ZERO;
+            glwe_ciphertext_mask_size(
+                output.glwe_size().to_glwe_dimension(),
+                output.polynomial_size()
+            )
+        ],
+        output.polynomial_size(),
+    );
+    let mut body = output.get_mut_body();
+
+    fill_glwe_mask_and_body_for_encryption_assign(
+        glwe_secret_key,
+        &mut mask,
+        &mut body,
+        noise_parameters,
+        generator,
+    );
+}
+
 /// Convenience function to share the core logic of the GLWE encryption between all functions
 /// needing it.
 pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, MaskCont, Scalar, Gen>(
@@ -734,6 +788,67 @@ where
     new_ct
 }
 
+pub fn encrypt_seeded_glwe_ciphertext_with_exsiting_generator<
+    Scalar,
+    KeyCont,
+    OutputCont,
+    InputCont,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_glwe_ciphertext: &mut SeededGlweCiphertext<OutputCont>,
+    input_plaintext_list: &PlaintextList<InputCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        output_glwe_ciphertext.polynomial_size().0 == input_plaintext_list.plaintext_count().0,
+        "Mismatch between PolynomialSize of output cipertext PlaintextCount of input. \
+    Got {:?} in output, and {:?} in input.",
+        output_glwe_ciphertext.polynomial_size(),
+        input_plaintext_list.plaintext_count()
+    );
+    assert!(
+        output_glwe_ciphertext.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
+        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+        glwe_secret_key.glwe_dimension()
+    );
+    assert!(
+        output_glwe_ciphertext.polynomial_size() == glwe_secret_key.polynomial_size(),
+        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        output_glwe_ciphertext.polynomial_size(),
+        glwe_secret_key.polynomial_size()
+    );
+
+    let glwe_dimension = output_glwe_ciphertext.glwe_size().to_glwe_dimension();
+    let polynomial_size = output_glwe_ciphertext.polynomial_size();
+
+    let mut body = output_glwe_ciphertext.get_mut_body();
+
+    let mut tmp_mask = GlweMask::from_container(
+        vec![Scalar::ZERO; glwe_ciphertext_mask_size(glwe_dimension, polynomial_size)],
+        polynomial_size,
+    );
+
+    fill_glwe_mask_and_body_for_encryption(
+        glwe_secret_key,
+        &mut tmp_mask,
+        &mut body,
+        input_plaintext_list,
+        noise_parameters,
+        generator,
+    );
+}
+
 /// Encrypt a [`PlaintextList`] in a
 /// [`compressed/seeded GLWE ciphertext`](`SeededGlweCiphertext`).
 ///
@@ -823,54 +938,21 @@ pub fn encrypt_seeded_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, No
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
-    assert!(
-        output_glwe_ciphertext.polynomial_size().0 == input_plaintext_list.plaintext_count().0,
-        "Mismatch between PolynomialSize of output cipertext PlaintextCount of input. \
-    Got {:?} in output, and {:?} in input.",
-        output_glwe_ciphertext.polynomial_size(),
-        input_plaintext_list.plaintext_count()
-    );
-    assert!(
-        output_glwe_ciphertext.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertext and input secret key. \
-        Got {:?} in output, and {:?} in secret key.",
-        output_glwe_ciphertext.glwe_size().to_glwe_dimension(),
-        glwe_secret_key.glwe_dimension()
-    );
-    assert!(
-        output_glwe_ciphertext.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between PolynomialSize of output cipertext and input secret key. \
-        Got {:?} in output, and {:?} in secret key.",
-        output_glwe_ciphertext.polynomial_size(),
-        glwe_secret_key.polynomial_size()
-    );
-
     let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
         output_glwe_ciphertext.compression_seed().seed,
         noise_seeder,
     );
 
-    let glwe_dimension = output_glwe_ciphertext.glwe_size().to_glwe_dimension();
-    let polynomial_size = output_glwe_ciphertext.polynomial_size();
-
-    let mut body = output_glwe_ciphertext.get_mut_body();
-
-    let mut tmp_mask = GlweMask::from_container(
-        vec![Scalar::ZERO; glwe_ciphertext_mask_size(glwe_dimension, polynomial_size)],
-        polynomial_size,
-    );
-
-    fill_glwe_mask_and_body_for_encryption(
+    encrypt_seeded_glwe_ciphertext_with_exsiting_generator(
         glwe_secret_key,
-        &mut tmp_mask,
-        &mut body,
+        output_glwe_ciphertext,
         input_plaintext_list,
         noise_parameters,
         &mut generator,
     );
 }
 
-/// Convenience function to share the core logic of the seeded LWE encryption between all functions
+/// Convenience function to share the core logic of the seeded GLWE encryption between all functions
 /// needing it.
 pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
     Scalar,
@@ -923,14 +1005,14 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
 
     let polynomial_size = output.polynomial_size();
 
-    for (mut output_body, plaintext_list) in output
+    for (mut output_glwe, plaintext_list) in output
         .iter_mut()
         .zip(encoded.chunks_exact(polynomial_size.0))
     {
         fill_glwe_mask_and_body_for_encryption(
             glwe_secret_key,
             &mut output_mask,
-            &mut output_body,
+            &mut output_glwe.get_mut_body(),
             &plaintext_list,
             noise_parameters,
             generator,
