@@ -224,6 +224,40 @@ impl ShortintEngine {
         })
     }
 
+    pub(crate) fn encrypt_without_padding_with_compressed_public_key(
+        &mut self,
+        public_key: &CompressedPublicKey,
+        message: u64,
+    ) -> EngineResult<Ciphertext> {
+        //Multiply by 2 to reshift and exclude the padding bit
+        let delta = ((1_u64 << 63)
+            / (public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0)
+                as u64)
+            * 2;
+
+        let shifted_message = message * delta;
+        // encode the message
+        let plain = Plaintext(shifted_message);
+
+        // This allocates the required ct
+        let mut encrypted_ct = LweCiphertextOwned::new(0u64, public_key.lwe_public_key.lwe_size());
+
+        // encryption
+        encrypt_lwe_ciphertext_with_seeded_public_key(
+            &public_key.lwe_public_key,
+            &mut encrypted_ct,
+            plain,
+            &mut self.secret_generator,
+        );
+
+        Ok(Ciphertext {
+            ct: encrypted_ct,
+            degree: Degree(public_key.parameters.message_modulus.0 - 1),
+            message_modulus: public_key.parameters.message_modulus,
+            carry_modulus: public_key.parameters.carry_modulus,
+        })
+    }
+
     pub(crate) fn encrypt_native_crt_with_public_key(
         &mut self,
         public_key: &PublicKey,
@@ -255,6 +289,37 @@ impl ShortintEngine {
         })
     }
 
+    pub(crate) fn encrypt_native_crt_with_compressed_public_key(
+        &mut self,
+        public_key: &CompressedPublicKey,
+        message: u64,
+        message_modulus: u8,
+    ) -> EngineResult<Ciphertext> {
+        let carry_modulus = 1;
+        let m = (message % message_modulus as u64) as u128;
+        let shifted_message = m * (1 << 64) / message_modulus as u128;
+        // encode the message
+
+        let plain = Plaintext(shifted_message as u64);
+
+        // This allocates the required ct
+        let mut encrypted_ct = LweCiphertextOwned::new(0u64, public_key.lwe_public_key.lwe_size());
+
+        encrypt_lwe_ciphertext_with_seeded_public_key(
+            &public_key.lwe_public_key,
+            &mut encrypted_ct,
+            plain,
+            &mut self.secret_generator,
+        );
+
+        Ok(Ciphertext {
+            ct: encrypted_ct,
+            degree: Degree(message_modulus as usize - 1),
+            message_modulus: MessageModulus(message_modulus as usize),
+            carry_modulus: CarryModulus(carry_modulus),
+        })
+    }
+
     pub(crate) fn unchecked_encrypt_with_public_key(
         &mut self,
         public_key: &PublicKey,
@@ -271,6 +336,38 @@ impl ShortintEngine {
         let mut encrypted_ct = LweCiphertextOwned::new(0u64, public_key.lwe_public_key.lwe_size());
 
         encrypt_lwe_ciphertext_with_public_key(
+            &public_key.lwe_public_key,
+            &mut encrypted_ct,
+            plain,
+            &mut self.secret_generator,
+        );
+
+        Ok(Ciphertext {
+            ct: encrypted_ct,
+            degree: Degree(
+                public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0 - 1,
+            ),
+            message_modulus: public_key.parameters.message_modulus,
+            carry_modulus: public_key.parameters.carry_modulus,
+        })
+    }
+
+    pub(crate) fn unchecked_encrypt_with_compressed_public_key(
+        &mut self,
+        public_key: &CompressedPublicKey,
+        message: u64,
+    ) -> EngineResult<Ciphertext> {
+        let delta = (1_u64 << 63)
+            / (public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0)
+                as u64;
+        let shifted_message = message * delta;
+        // encode the message
+        let plain = Plaintext(shifted_message);
+
+        // This allocates the required ct
+        let mut encrypted_ct = LweCiphertextOwned::new(0u64, public_key.lwe_public_key.lwe_size());
+
+        encrypt_lwe_ciphertext_with_seeded_public_key(
             &public_key.lwe_public_key,
             &mut encrypted_ct,
             plain,
