@@ -206,6 +206,10 @@ impl PublicKey {
                 .unwrap()
         })
     }
+
+    pub fn lwe_public_key(self) -> LwePublicKeyOwned<u64> {
+        self.lwe_public_key
+    }
 }
 
 #[derive(Serialize, Deserialize)]

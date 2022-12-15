@@ -450,10 +450,10 @@ fn shortint_pk_unchecked_add(param: Parameters) {
         let clear_1 = rng.gen::<u64>() % modulus;
 
         // encryption of an integer
-        let (ctxt_0, rc0) = pk.rc_unchecked_encrypt(clear_0);
+        let (ctxt_0, _rc0) = pk.rc_unchecked_encrypt(clear_0);
 
         // encryption of an integer
-        let (ctxt_1, rc1) = pk.rc_unchecked_encrypt(clear_1);
+        let (ctxt_1, _rc1) = pk.rc_unchecked_encrypt(clear_1);
 
         // add the two ciphertexts
         let ct_res = sks.unchecked_add(&ctxt_0, &ctxt_1);
