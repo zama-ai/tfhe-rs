@@ -266,7 +266,7 @@ fn shortint_keyswitch_bootstrap(param: Parameters) {
         // assert_eq!(clear_0, dec_res);
     }
 
-    println!("fail_rate = {}/{}", failures, 100);
+    println!("fail_rate = {failures}/{NB_TEST}");
     assert_eq!(0, failures);
 }
 
@@ -351,9 +351,7 @@ fn shortint_carry_extract(param: Parameters) {
 
         // assert
         println!(
-            "msg = {}, modulus = {}, msg/modulus = {}",
-            clear,
-            msg_modulus,
+            "msg = {clear}, modulus = {msg_modulus}, msg/modulus = {}",
             clear / msg_modulus
         );
         assert_eq!(clear / msg_modulus, dec);
@@ -1898,20 +1896,14 @@ fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: Parameters) {
         let mut ct1 = cks.encrypt_with_message_modulus(clear1, MessageModulus(modulus as usize));
         let mut ct2 = cks.encrypt_with_message_modulus(clear2, MessageModulus(modulus as usize));
 
-        println!(
-            "MUL SMALL CARRY:: clear1 = {}, clear2 = {}, mod = {}",
-            clear1, clear2, modulus
-        );
+        println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
         let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct1, &mut ct2);
         assert_eq!(
             (clear1 * clear2) % modulus,
             cks.decrypt_message_and_carry(&ct_res) % modulus
         );
 
-        println!(
-            "ADD:: clear1 = {}, clear2 = {}, mod = {}",
-            clear1, clear2, modulus
-        );
+        println!("ADD:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
         let ct_res = sks.unchecked_add(&ct1, &ct2);
         assert_eq!((clear1 + clear2), cks.decrypt_message_and_carry(&ct_res));
     }

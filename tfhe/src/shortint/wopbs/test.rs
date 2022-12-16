@@ -57,7 +57,7 @@ fn generate_lut(params: (Parameters, Parameters)) {
     }
     if 0 != tmp {
         println!("______");
-        println!("failure rate {:?}/{:?}", tmp, NB_TEST);
+        println!("failure rate {tmp:?}/{NB_TEST:?}");
         println!("______");
     }
     assert_eq!(0, tmp);

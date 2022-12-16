@@ -427,9 +427,9 @@ impl<'a> FftView<'a> {
     /// # Panics
     ///
     /// See [`Self::forward_as_torus`]
-    pub fn backward_as_torus<'out, Scalar: UnsignedTorus>(
+    pub fn backward_as_torus<Scalar: UnsignedTorus>(
         self,
-        standard: PolynomialUninitMutView<'out, Scalar>,
+        standard: PolynomialUninitMutView<'_, Scalar>,
         fourier: FourierPolynomialView<'_>,
         stack: DynStack<'_>,
     ) {
@@ -447,9 +447,9 @@ impl<'a> FftView<'a> {
     /// # Panics
     ///
     /// See [`Self::forward_as_torus`]
-    pub fn add_backward_as_torus<'out, Scalar: UnsignedTorus>(
+    pub fn add_backward_as_torus<Scalar: UnsignedTorus>(
         self,
-        standard: PolynomialMutView<'out, Scalar>,
+        standard: PolynomialMutView<'_, Scalar>,
         fourier: FourierPolynomialView<'_>,
         stack: DynStack<'_>,
     ) {
@@ -493,12 +493,11 @@ impl<'a> FftView<'a> {
     ///
     /// `conv_fn` must initialize the entirety of the mutable slices that it receives.
     unsafe fn backward_with_conv<
-        'out,
         Scalar: UnsignedTorus,
         F: Fn(&mut [MaybeUninit<Scalar>], &mut [MaybeUninit<Scalar>], &[c64], TwistiesView<'_>),
     >(
         self,
-        mut standard: PolynomialUninitMutView<'out, Scalar>,
+        mut standard: PolynomialUninitMutView<'_, Scalar>,
         fourier: FourierPolynomialView<'_>,
         conv_fn: F,
         stack: DynStack<'_>,

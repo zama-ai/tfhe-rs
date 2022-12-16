@@ -42,9 +42,8 @@ fn test_normal_random<T: UnsignedTorus>() {
     // test
     assert!(
         proportion_of_samples_outside_confidence_interval < 0.003,
-        "test normal random : proportion = {} ; n = {}",
-        proportion_of_samples_outside_confidence_interval,
-        number_of_samples_outside_confidence_interval
+        "test normal random : proportion = {proportion_of_samples_outside_confidence_interval} ; \
+        n = {number_of_samples_outside_confidence_interval}"
     );
 }
 
