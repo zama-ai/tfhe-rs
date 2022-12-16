@@ -4,7 +4,7 @@ set -e
 
 ARCH_FEATURE=x86_64
 
-IS_AARCH64="$( (uname -a | grep -c arm64) || true)"
+IS_AARCH64="$( (uname -a | grep -c "arm64\|aarch64") || true)"
 
 if [[ "${IS_AARCH64}" != "0" ]]; then
     ARCH_FEATURE=aarch64
