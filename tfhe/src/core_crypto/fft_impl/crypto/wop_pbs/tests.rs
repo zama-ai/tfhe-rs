@@ -117,7 +117,7 @@ pub fn test_extract_bits() {
 
         // Encryption
         let message = Plaintext(val << delta_log.0);
-        println!("{:?}", message);
+        println!("{message:?}");
         let mut lwe_in = LweCiphertextOwned::new(0u64, lwe_big_sk.lwe_dimension().to_lwe_size());
         encrypt_lwe_ciphertext(
             &lwe_big_sk,
@@ -155,8 +155,8 @@ pub fn test_extract_bits() {
             let decrypted_rounded = decomposer.closest_representable(decrypted_message.0);
             // Bring back the extracted bit found in the MSB in the LSB
             let decrypted_extract_bit = decrypted_rounded >> 63;
-            println!("extracted bit : {:?}", decrypted_extract_bit);
-            println!("{:?}", decrypted_message);
+            println!("extracted bit : {decrypted_extract_bit:?}");
+            println!("{decrypted_message:?}");
             assert_eq!(
                 ((message.0 >> delta_log.0) >> i) & 1,
                 decrypted_extract_bit,
@@ -294,7 +294,7 @@ fn test_circuit_bootstrapping_binary() {
         let glwe_size = glwe_dimension.to_glwe_size();
 
         //print the key to check if the RLWE in the GGSW seem to be well created
-        println!("RLWE secret key:\n{:?}", glwe_sk);
+        println!("RLWE secret key:\n{glwe_sk:?}");
         let mut decrypted = PlaintextListOwned::new(
             0_u64,
             PlaintextCount(polynomial_size.0 * level_count_cbs.0 * glwe_size.0),
@@ -417,7 +417,7 @@ pub fn test_cmux_tree() {
     for _ in 0..number_of_test_runs {
         let mut value =
             test_tools::random_uint_between(0..2u64.pow(number_of_bits_for_payload as u32));
-        println!("value: {}", value);
+        println!("value: {value}");
         let witness = value % (1 << (64 - delta_log));
 
         // Bit decomposition of the value from MSB to LSB
@@ -489,8 +489,8 @@ pub fn test_cmux_tree() {
 
         // The recovered lut_number must be equal to the value stored in the lut at index
         // witness % 2 ^ {64 - delta_log}
-        println!("result : {:?}", decoded_result);
-        println!("witness : {:?}", witness);
+        println!("result : {decoded_result:?}");
+        println!("witness : {witness:?}");
         assert_eq!(decoded_result, witness)
     }
 }
@@ -652,8 +652,8 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             let decrypted_message = decrypt_lwe_ciphertext(&lwe_small_sk, &ct);
             let extract_bit_result =
                 (((decrypted_message.0 as f64) / (1u64 << (63)) as f64).round()) as u64;
-            println!("extract_bit_result: {:?}", extract_bit_result);
-            println!("decrypted_message: {:?}", decrypted_message);
+            println!("extract_bit_result: {extract_bit_result:?}");
+            println!("decrypted_message: {decrypted_message:?}");
         }
 
         // LUT creation
@@ -733,11 +733,10 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         // print information if the result is wrong
         if decoded_message != cleartext {
             panic!(
-                "decoded_message ({:?}) != cleartext ({:?})\n\
-                decrypted_message: {:?}, decoded_message: {:?}",
-                decoded_message, cleartext, decrypted_message, decoded_message
+                "decoded_message ({decoded_message:?}) != cleartext ({cleartext:?})\n\
+                decrypted_message: {decrypted_message:?}, decoded_message: {decoded_message:?}",
             );
         }
-        println!("{:?}", decoded_message);
+        println!("{decoded_message:?}");
     }
 }

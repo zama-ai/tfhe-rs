@@ -1,5 +1,5 @@
 SHELL:=$(shell /usr/bin/env which bash)
-RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt)
+RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
 TARGET_ARCH_FEATURE:=$(shell ./scripts/get_arch_feature.sh)
 RS_BUILD_TOOLCHAIN:=$(shell \

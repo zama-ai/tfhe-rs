@@ -22,25 +22,25 @@ fn bench_gates(c: &mut Criterion, params: BooleanParameters, parameter_name: &st
     let ct2 = cks.encrypt(false);
     let ct3 = cks.encrypt(true);
 
-    let id = format!("AND gate {}", parameter_name);
+    let id = format!("AND gate {parameter_name}");
     c.bench_function(&id, |b| b.iter(|| black_box(sks.and(&ct1, &ct2))));
 
-    let id = format!("NAND gate {}", parameter_name);
+    let id = format!("NAND gate {parameter_name}");
     c.bench_function(&id, |b| b.iter(|| black_box(sks.nand(&ct1, &ct2))));
 
-    let id = format!("OR gate {}", parameter_name);
+    let id = format!("OR gate {parameter_name}");
     c.bench_function(&id, |b| b.iter(|| black_box(sks.or(&ct1, &ct2))));
 
-    let id = format!("XOR gate {}", parameter_name);
+    let id = format!("XOR gate {parameter_name}");
     c.bench_function(&id, |b| b.iter(|| black_box(sks.xor(&ct1, &ct2))));
 
-    let id = format!("XNOR gate {}", parameter_name);
+    let id = format!("XNOR gate {parameter_name}");
     c.bench_function(&id, |b| b.iter(|| black_box(sks.xnor(&ct1, &ct2))));
 
-    let id = format!("NOT gate {}", parameter_name);
+    let id = format!("NOT gate {parameter_name}");
     c.bench_function(&id, |b| b.iter(|| black_box(sks.not(&ct1))));
 
-    let id = format!("MUX gate {}", parameter_name);
+    let id = format!("MUX gate {parameter_name}");
     c.bench_function(&id, |b| b.iter(|| black_box(sks.mux(&ct1, &ct2, &ct3))));
 }
 

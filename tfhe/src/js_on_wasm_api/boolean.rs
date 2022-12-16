@@ -50,7 +50,7 @@ impl Boolean {
     pub fn get_boolean_parameters(parameter_choice: u32) -> Result<BooleanParameters, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         let parameter_choice = BooleanParameterSet::try_from(parameter_choice)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))?;
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))?;
 
         match parameter_choice {
             BooleanParameterSet::Default => Ok(crate::boolean::parameters::DEFAULT_PARAMETERS),
@@ -162,14 +162,14 @@ impl Boolean {
     ) -> Result<Vec<u8>, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&ciphertext.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_boolean_ciphertext(buffer: &[u8]) -> Result<BooleanCiphertext, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(BooleanCiphertext)
     }
 
@@ -177,14 +177,14 @@ impl Boolean {
     pub fn serialize_boolean_client_key(client_key: &BooleanClientKey) -> Result<Vec<u8>, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&client_key.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_boolean_client_key(buffer: &[u8]) -> Result<BooleanClientKey, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(BooleanClientKey)
     }
 
@@ -192,14 +192,14 @@ impl Boolean {
     pub fn serialize_boolean_public_key(public_key: &BooleanPublicKey) -> Result<Vec<u8>, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&public_key.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_boolean_public_key(buffer: &[u8]) -> Result<BooleanPublicKey, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(BooleanPublicKey)
     }
 
@@ -207,14 +207,14 @@ impl Boolean {
     pub fn serialize_boolean_server_key(server_key: &BooleanServerKey) -> Result<Vec<u8>, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&server_key.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_boolean_server_key(buffer: &[u8]) -> Result<BooleanServerKey, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(BooleanServerKey)
     }
 }

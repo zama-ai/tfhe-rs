@@ -143,7 +143,7 @@ impl Shortint {
 
         tmp_shortint_engine
             .new_client_key(parameters.0.to_owned())
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintClientKey)
     }
 
@@ -220,14 +220,14 @@ impl Shortint {
     ) -> Result<Vec<u8>, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&ciphertext.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_shortint_ciphertext(buffer: &[u8]) -> Result<ShortintCiphertext, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintCiphertext)
     }
 
@@ -237,14 +237,14 @@ impl Shortint {
     ) -> Result<Vec<u8>, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&client_key.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_shortint_client_key(buffer: &[u8]) -> Result<ShortintClientKey, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintClientKey)
     }
 
@@ -254,14 +254,14 @@ impl Shortint {
     ) -> Result<Vec<u8>, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&public_key.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_shortint_public_key(buffer: &[u8]) -> Result<ShortintPublicKey, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintPublicKey)
     }
 
@@ -271,7 +271,7 @@ impl Shortint {
     ) -> Result<Vec<u8>, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&public_key.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
     }
 
     #[wasm_bindgen]
@@ -280,7 +280,7 @@ impl Shortint {
     ) -> Result<ShortintCompressedPublicKey, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintCompressedPublicKey)
     }
 
@@ -290,14 +290,14 @@ impl Shortint {
     ) -> Result<Vec<u8>, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::serialize(&server_key.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
     }
 
     #[wasm_bindgen]
     pub fn deserialize_shortint_server_key(buffer: &[u8]) -> Result<ShortintServerKey, JsError> {
         set_hook(Box::new(console_error_panic_hook::hook));
         bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{:?}", e).as_str()))
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintServerKey)
     }
 }
