@@ -194,6 +194,21 @@ impl<Scalar: Copy> SeededLweCiphertextListOwned<Scalar> {
     }
 }
 
+/// Metadata used in the [`CreateFrom`] implementation to create [`SeededLweCiphertextList`]
+/// entities.
+#[derive(Clone, Copy)]
+pub struct SeededLweCiphertextListCreationMetadata(pub LweSize, pub CompressionSeed);
+
+impl<C: Container> CreateFrom<C> for SeededLweCiphertextList<C> {
+    type Metadata = SeededLweCiphertextListCreationMetadata;
+
+    #[inline]
+    fn create_from(from: C, meta: Self::Metadata) -> SeededLweCiphertextList<C> {
+        let SeededLweCiphertextListCreationMetadata(lwe_size, compression_seed) = meta;
+        SeededLweCiphertextList::from_container(from, lwe_size, compression_seed)
+    }
+}
+
 impl<C: Container> ContiguousEntityContainer for SeededLweCiphertextList<C> {
     type Element = C::Element;
 
