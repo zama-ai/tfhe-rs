@@ -202,6 +202,10 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
     pub fn into_container(self) -> C {
         self.data
     }
+
+    pub fn as_lwe_ciphertext_list(&self) -> LweCiphertextListView<'_, Scalar> {
+        LweCiphertextListView::from_container(self.as_ref(), self.output_lwe_size())
+    }
 }
 
 impl<Scalar, C: ContainerMut<Element = Scalar>> LweKeyswitchKey<C> {
@@ -216,6 +220,11 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweKeyswitchKey<C> {
             decomp_level_count,
             output_lwe_size,
         )
+    }
+
+    pub fn as_mut_lwe_ciphertext_list(&mut self) -> LweCiphertextListMutView<'_, Scalar> {
+        let output_lwe_size = self.output_lwe_size();
+        LweCiphertextListMutView::from_container(self.as_mut(), output_lwe_size)
     }
 }
 
