@@ -842,8 +842,8 @@ pub fn get_parameters_from_message_and_carry(msg_space: usize, carry_space: usiz
     }
     if !flag {
         println!(
-            "### WARNING: NO PARAMETERS FOUND for msg_space = {} and carry_space = {} ### ",
-            rescaled_message_space, rescaled_carry_space
+            "### WARNING: NO PARAMETERS FOUND for msg_space = {rescaled_message_space} and \
+            carry_space = {rescaled_carry_space} ### "
         );
     }
     out

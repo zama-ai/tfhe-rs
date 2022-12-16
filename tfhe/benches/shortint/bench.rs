@@ -41,7 +41,7 @@ where
         let mut ct_0 = cks.encrypt(clear_0);
         let mut ct_1 = cks.encrypt(clear_1);
 
-        let bench_id = format!("{}::{}", bench_name, param_name);
+        let bench_id = format!("{bench_name}::{param_name}");
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 binary_op(sks, &mut ct_0, &mut ct_1);
@@ -71,7 +71,7 @@ where
 
         let mut ct_0 = cks.encrypt(clear_0);
 
-        let bench_id = format!("{}::{}", bench_name, param_name);
+        let bench_id = format!("{bench_name}::{param_name}");
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 binary_op(sks, &mut ct_0, clear_1 as u8);
@@ -97,7 +97,7 @@ fn carry_extract(c: &mut Criterion) {
 
         let ct_0 = cks.encrypt(clear_0);
 
-        let bench_id = format!("ServerKey::carry_extract::{}", param_name);
+        let bench_id = format!("ServerKey::carry_extract::{param_name}");
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 sks.carry_extract(&ct_0);
@@ -125,7 +125,7 @@ fn programmable_bootstrapping(c: &mut Criterion) {
 
         let ctxt = cks.encrypt(clear_0);
 
-        let id = format!("ServerKey::programmable_bootstrap::{}", param_name);
+        let id = format!("ServerKey::programmable_bootstrap::{param_name}");
 
         bench_group.bench_function(&id, |b| {
             b.iter(|| {
@@ -151,7 +151,7 @@ fn bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
     let mut ct = cks.encrypt_without_padding(clear as u64);
     let vec_lut = wopbs_key.generate_lut_native_crt(&ct, |x| x);
 
-    let id = format!("Shortint WOPBS: {:?}", param);
+    let id = format!("Shortint WOPBS: {param:?}");
 
     bench_group.bench_function(&id, |b| {
         b.iter(|| {

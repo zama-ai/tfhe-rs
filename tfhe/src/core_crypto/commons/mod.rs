@@ -134,9 +134,7 @@ pub mod test_tools {
             let torus_distance = distance / 2_f64.powi(Element::BITS as i32);
             assert!(
                 torus_distance <= 5. * dist.get_standard_dev(),
-                "{} != {} ",
-                x,
-                y
+                "{x} != {y} "
             );
         }
     }
