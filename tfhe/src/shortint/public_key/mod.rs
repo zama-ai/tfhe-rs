@@ -207,8 +207,8 @@ impl PublicKey {
         })
     }
 
-    pub fn lwe_public_key(self) -> LwePublicKeyOwned<u64> {
-        self.lwe_public_key
+    pub fn lwe_public_key(&self) -> &LwePublicKeyOwned<u64> {
+        &self.lwe_public_key
     }
 }
 
