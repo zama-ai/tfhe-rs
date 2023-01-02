@@ -112,8 +112,11 @@ impl ServerKey {
         })
     }
 
-    pub fn bc_smart_greater(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) ->
-                                                                                      Ciphertext {
+    pub fn bc_smart_greater(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.bc_smart_greater(self, ct_left, ct_right).unwrap()
         })
@@ -558,9 +561,11 @@ impl ServerKey {
         })
     }
 
-
-    pub fn bc_smart_equal(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) ->
-                                                                                      Ciphertext {
+    pub fn bc_smart_equal(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.bc_smart_equal(self, ct_left, ct_right).unwrap()
         })
