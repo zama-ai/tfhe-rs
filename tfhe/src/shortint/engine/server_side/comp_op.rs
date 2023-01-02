@@ -287,7 +287,7 @@ impl ShortintEngine {
         let modulus = ct_left.message_modulus.0 as u64;
         let acc =
             self.generate_accumulator(server_key, |x| (x % modulus == scalar as u64) as u64)?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
         ct_left.degree.0 = 1;
         Ok(())
     }
@@ -364,7 +364,7 @@ impl ShortintEngine {
         let modulus = ct_left.message_modulus.0 as u64;
         let acc =
             self.generate_accumulator(server_key, |x| (x % modulus != scalar as u64) as u64)?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
         ct_left.degree.0 = 1;
         Ok(())
     }
@@ -387,7 +387,7 @@ impl ShortintEngine {
         scalar: u8,
     ) -> EngineResult<()> {
         let acc = self.generate_accumulator(server_key, |x| (x >= scalar as u64) as u64)?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
         ct_left.degree.0 = 1;
         Ok(())
     }
@@ -410,7 +410,7 @@ impl ShortintEngine {
         scalar: u8,
     ) -> EngineResult<()> {
         let acc = self.generate_accumulator(server_key, |x| (x <= scalar as u64) as u64)?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
         ct_left.degree.0 = 1;
         Ok(())
     }
@@ -433,7 +433,7 @@ impl ShortintEngine {
         scalar: u8,
     ) -> EngineResult<()> {
         let acc = self.generate_accumulator(server_key, |x| (x > scalar as u64) as u64)?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
         ct_left.degree.0 = 1;
         Ok(())
     }
@@ -456,7 +456,7 @@ impl ShortintEngine {
         scalar: u8,
     ) -> EngineResult<()> {
         let acc = self.generate_accumulator(server_key, |x| (x < scalar as u64) as u64)?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
         ct_left.degree.0 = 1;
         Ok(())
     }

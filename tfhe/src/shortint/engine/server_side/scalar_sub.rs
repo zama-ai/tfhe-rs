@@ -57,7 +57,7 @@ impl ShortintEngine {
             let scalar = u64::from(scalar);
             // If the scalar is too large, PBS is used to compute the scalar mul
             let acc = self.generate_accumulator(server_key, |x| (x - scalar) % modulus)?;
-            self.programmable_bootstrap_keyswitch_assign(server_key, ct, &acc)?;
+            self.keyswitch_programmable_bootstrap_assign(server_key, ct, &acc)?;
             ct.degree = Degree(server_key.message_modulus.0 - 1);
         }
         Ok(())

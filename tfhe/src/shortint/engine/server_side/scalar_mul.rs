@@ -56,7 +56,7 @@ impl ShortintEngine {
         // If the ciphertext cannot be multiplied without exceeding the degree max
         else {
             let acc = self.generate_accumulator(server_key, |x| (scalar as u64 * x) % modulus)?;
-            self.programmable_bootstrap_keyswitch_assign(server_key, ctxt, &acc)?;
+            self.keyswitch_programmable_bootstrap_assign(server_key, ctxt, &acc)?;
             ctxt.degree = Degree(server_key.message_modulus.0 - 1);
         }
         Ok(())

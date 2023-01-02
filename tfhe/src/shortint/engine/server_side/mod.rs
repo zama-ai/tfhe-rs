@@ -227,18 +227,18 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn programmable_bootstrap_keyswitch(
+    pub(crate) fn keyswitch_programmable_bootstrap(
         &mut self,
         server_key: &ServerKey,
         ct: &Ciphertext,
         acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct.clone();
-        self.programmable_bootstrap_keyswitch_assign(server_key, &mut ct_res, acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, &mut ct_res, acc)?;
         Ok(ct_res)
     }
 
-    pub(crate) fn programmable_bootstrap_keyswitch_assign(
+    pub(crate) fn keyswitch_programmable_bootstrap_assign(
         &mut self,
         server_key: &ServerKey,
         ct: &mut Ciphertext,
@@ -281,7 +281,7 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn programmable_bootstrap_keyswitch_bivariate(
+    pub(crate) fn keyswitch_programmable_bootstrap_bivariate(
         &mut self,
         server_key: &ServerKey,
         ct_left: &Ciphertext,
@@ -289,7 +289,7 @@ impl ShortintEngine {
         acc: &GlweCiphertextOwned<u64>,
     ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct_left.clone();
-        self.programmable_bootstrap_keyswitch_bivariate_assign(
+        self.keyswitch_programmable_bootstrap_bivariate_assign(
             server_key,
             &mut ct_res,
             ct_right,
@@ -298,7 +298,7 @@ impl ShortintEngine {
         Ok(ct_res)
     }
 
-    pub(crate) fn programmable_bootstrap_keyswitch_bivariate_assign(
+    pub(crate) fn keyswitch_programmable_bootstrap_bivariate_assign(
         &mut self,
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
@@ -314,7 +314,7 @@ impl ShortintEngine {
         self.unchecked_add_assign(ct_left, ct_right)?;
 
         // Compute the PBS
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, acc)?;
 
         Ok(())
     }
@@ -367,7 +367,7 @@ impl ShortintEngine {
         let acc = self.generate_accumulator(server_key, f)?;
 
         // Compute the PBS
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
         Ok(())
     }
 
@@ -419,7 +419,7 @@ impl ShortintEngine {
         self.unchecked_add_assign(ct_left, ct_right)?;
 
         // Compute the PBS
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, acc)?;
         Ok(())
     }
 
@@ -432,7 +432,7 @@ impl ShortintEngine {
 
         let accumulator = self.generate_accumulator(server_key, |x| x / modulus)?;
 
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct, &accumulator)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct, &accumulator)?;
 
         // The degree of the carry
         ct.degree = Degree(min(modulus - 1, ct.degree.0 as u64 / modulus) as usize);
@@ -458,7 +458,7 @@ impl ShortintEngine {
 
         let acc = self.generate_accumulator(server_key, |x| x % modulus)?;
 
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct, &acc)?;
 
         ct.degree = Degree(ct.message_modulus.0 - 1);
         Ok(())
