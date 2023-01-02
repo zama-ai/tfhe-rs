@@ -2,6 +2,7 @@ use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
 use paste::paste;
 use rand::Rng;
+use crate::shortint::{ClientKey, ServerKey};
 
 /// Number of assert in randomized tests
 const NB_TEST: usize = 30;
@@ -177,6 +178,8 @@ create_parametrized_test_bivariate_pbs_compliant!(
 create_parametrized_test_bivariate_pbs_compliant!(
     shortint_encrypt_with_message_modulus_smart_add_and_mul
 );
+create_parametrized_test_bivariate_pbs_compliant!(bc_shortint_keygen);
+
 
 /// test encryption and decryption with the LWE client key
 fn shortint_encrypt_decrypt(param: Parameters) {
@@ -1952,5 +1955,34 @@ fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: Parameters) {
         println!("ADD:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
         let ct_res = sks.unchecked_add(&ct1, &ct2);
         assert_eq!((clear1 + clear2), cks.decrypt_message_and_carry(&ct_res));
+    }
+}
+
+/// test encryption and decryption with the LWE client key
+fn bc_shortint_keygen(param: Parameters) {
+    let cks = ClientKey::bc_new(param);
+    let sks = ServerKey::bc_new(&cks);
+
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..NB_TEST {
+
+        let clear1 = rng.gen::<u64>() % param.message_modulus.0 as u64;
+        let clear2 = rng.gen::<u64>() % param.message_modulus.0 as u64;
+
+        let mut ct1 = cks.encrypt(clear1);
+        let mut ct2 = cks.encrypt(clear2);
+        //
+        // println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
+        // let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct1, &mut ct2);
+        // assert_eq!(
+        //     (clear1 * clear2) % modulus,
+        //     cks.decrypt_message_and_carry(&ct_res) % modulus
+        // );
+        //
+        // println!("ADD:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
+        // let ct_res = sks.unchecked_add(&ct1, &ct2);
+        assert_eq!((clear1), cks.decrypt_message_and_carry(&ct1));
+        assert_eq!((clear2), cks.decrypt_message_and_carry(&ct2));
     }
 }

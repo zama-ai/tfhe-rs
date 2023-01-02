@@ -32,6 +32,32 @@ impl ShortintEngine {
         })
     }
 
+    pub fn bc_new_client_key(&mut self, parameters: Parameters) -> EngineResult<ClientKey> {
+        // generate the lwe secret key
+        let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            parameters.lwe_dimension,
+            &mut self.secret_generator,
+        );
+
+        // generate the rlwe secret key
+        let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+            parameters.glwe_dimension,
+            parameters.polynomial_size,
+            &mut self.secret_generator,
+        );
+
+        let large_lwe_secret_key = glwe_secret_key.clone().into_lwe_secret_key();
+
+        // pack the keys in the client key set
+        Ok(ClientKey {
+            lwe_secret_key: small_lwe_secret_key,
+            glwe_secret_key,
+            lwe_secret_key_after_ks: large_lwe_secret_key,
+            parameters,
+        })
+    }
+
+
     pub fn encrypt(&mut self, client_key: &ClientKey, message: u64) -> EngineResult<Ciphertext> {
         self.encrypt_with_message_modulus(
             client_key,

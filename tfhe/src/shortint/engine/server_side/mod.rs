@@ -31,6 +31,77 @@ impl ShortintEngine {
         self.new_server_key_with_max_degree(cks, max)
     }
 
+    pub(crate) fn bc_new_server_key(&mut self, cks: &ClientKey) -> EngineResult<ServerKey> {
+        // Plaintext Max Value
+        let max_value = cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0 - 1;
+
+        // The maximum number of operations before we need to clean the carry buffer
+        let max = MaxDegree(max_value);
+        self.bc_new_server_key_with_max_degree(cks, max)
+    }
+
+    pub(crate) fn bc_new_server_key_with_max_degree(
+        &mut self,
+        cks: &ClientKey,
+        max_degree: MaxDegree,
+    ) -> EngineResult<ServerKey> {
+        let bootstrap_key: LweBootstrapKeyOwned<u64> =
+            par_allocate_and_generate_new_lwe_bootstrap_key(
+                &cks.lwe_secret_key,
+                &cks.glwe_secret_key,
+                cks.parameters.pbs_base_log,
+                cks.parameters.pbs_level,
+                cks.parameters.glwe_modular_std_dev,
+                &mut self.encryption_generator,
+            );
+
+        // Creation of the bootstrapping key in the Fourier domain
+        let mut fourier_bsk = FourierLweBootstrapKey::new(
+            bootstrap_key.input_lwe_dimension(),
+            bootstrap_key.glwe_size(),
+            bootstrap_key.polynomial_size(),
+            bootstrap_key.decomposition_base_log(),
+            bootstrap_key.decomposition_level_count(),
+        );
+
+        let fft = Fft::new(bootstrap_key.polynomial_size());
+        let fft = fft.as_view();
+        self.computation_buffers.resize(
+            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_scratch(fft)
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+        let stack = self.computation_buffers.stack();
+
+        // Conversion to fourier domain
+        convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
+            &bootstrap_key,
+            &mut fourier_bsk,
+            fft,
+            stack,
+        );
+
+        // Creation of the key switching key
+        let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
+            &cks.lwe_secret_key_after_ks,
+            &cks.lwe_secret_key,
+            cks.parameters.ks_base_log,
+            cks.parameters.ks_level,
+            cks.parameters.lwe_modular_std_dev,
+            &mut self.encryption_generator,
+        );
+
+        // Pack the keys in the server key set:
+        Ok(ServerKey {
+            key_switching_key,
+            bootstrapping_key: fourier_bsk,
+            message_modulus: cks.parameters.message_modulus,
+            carry_modulus: cks.parameters.carry_modulus,
+            max_degree,
+        })
+    }
+
+
     pub(crate) fn new_server_key_with_max_degree(
         &mut self,
         cks: &ClientKey,

@@ -65,6 +65,10 @@ pub struct ServerKey {
 }
 
 impl ServerKey {
+    pub fn bc_new(cks: &ClientKey) -> ServerKey {
+        ShortintEngine::with_thread_local_mut(|engine| engine.bc_new_server_key(cks).unwrap())
+    }
+
     /// Generate a server key.
     ///
     /// # Example
