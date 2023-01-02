@@ -33,6 +33,12 @@ impl PublicKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key).unwrap())
     }
 
+    pub fn bc_new(client_key: &ClientKey) -> PublicKey {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_new_public_key(client_key).unwrap()
+        })
+    }
+
     /// Encrypt a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus

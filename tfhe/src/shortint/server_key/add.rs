@@ -218,6 +218,12 @@ impl ServerKey {
         })
     }
 
+    pub fn bc_smart_add(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_smart_add(self, ct_left, ct_right).unwrap()
+        })
+    }
+
     /// Compute homomorphically an addition between two ciphertexts
     ///
     /// The result is stored in the `ct_left` cipher text.

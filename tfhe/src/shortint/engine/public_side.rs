@@ -19,6 +19,12 @@ pub fn shortint_public_key_zero_encryption_count(
     )
 }
 
+pub fn bc_shortint_public_key_zero_encryption_count(
+    params: &Parameters,
+) -> LwePublicKeyZeroEncryptionCount {
+    LwePublicKeyZeroEncryptionCount(params.lwe_dimension.to_lwe_size().0 * LOG2_Q_64 + 128)
+}
+
 impl ShortintEngine {
     pub(crate) fn new_public_key(&mut self, client_key: &ClientKey) -> EngineResult<PublicKey> {
         let client_parameters = client_key.parameters;
@@ -38,6 +44,34 @@ impl ShortintEngine {
             &client_key.lwe_secret_key,
             zero_encryption_count,
             client_key.parameters.glwe_modular_std_dev,
+            &mut self.encryption_generator,
+        );
+
+        Ok(PublicKey {
+            lwe_public_key,
+            parameters: client_key.parameters.to_owned(),
+        })
+    }
+
+    pub(crate) fn bc_new_public_key(&mut self, client_key: &ClientKey) -> EngineResult<PublicKey> {
+        let client_parameters = client_key.parameters;
+
+        let zero_encryption_count =
+            bc_shortint_public_key_zero_encryption_count(&client_parameters);
+
+        #[cfg(not(feature = "__wasm_api"))]
+        let lwe_public_key = par_allocate_and_generate_new_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_key.parameters.lwe_modular_std_dev,
+            &mut self.encryption_generator,
+        );
+
+        #[cfg(feature = "__wasm_api")]
+        let lwe_public_key = allocate_and_generate_new_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_key.parameters.lwe_modular_std_dev,
             &mut self.encryption_generator,
         );
 

@@ -526,6 +526,21 @@ impl ShortintEngine {
         Ok(())
     }
 
+    pub(crate) fn bc_message_extract_assign(
+        &mut self,
+        server_key: &ServerKey,
+        ct: &mut Ciphertext,
+    ) -> EngineResult<()> {
+        let modulus = ct.message_modulus.0 as u64;
+
+        let acc = self.generate_accumulator(server_key, |x| x % modulus)?;
+
+        self.programmable_bootstrap_keyswitch_assign(server_key, ct, &acc)?;
+
+        ct.degree = Degree(ct.message_modulus.0 - 1);
+        Ok(())
+    }
+
     pub(crate) fn message_extract(
         &mut self,
         server_key: &ServerKey,

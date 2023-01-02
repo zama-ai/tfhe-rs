@@ -178,7 +178,16 @@ create_parametrized_test_bivariate_pbs_compliant!(
 create_parametrized_test_bivariate_pbs_compliant!(
     shortint_encrypt_with_message_modulus_smart_add_and_mul
 );
-create_parametrized_test_bivariate_pbs_compliant!(bc_shortint_keygen);
+
+#[test]
+fn test_bc_shortint_keygen_param_message_1_carry_1() {
+    bc_shortint_keygen(PARAM_MESSAGE_1_CARRY_1)
+}
+
+#[test]
+fn test_bc_shortint_keygen_param_message_2_carry_2() {
+    bc_shortint_keygen(PARAM_MESSAGE_2_CARRY_2)
+}
 
 /// test encryption and decryption with the LWE client key
 fn shortint_encrypt_decrypt(param: Parameters) {
@@ -582,9 +591,9 @@ fn shortint_public_key_smart_add(param: Parameters) {
 /// test addition with the LWE server key
 fn shortint_rc_pk_smart_add(param: Parameters) {
     use crate::shortint::PublicKey;
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-    let pk = PublicKey::new(cks);
+    let cks = ClientKey::bc_new(param);
+    let sks = ServerKey::bc_new(&cks);
+    let pk = PublicKey::bc_new(&cks);
     //RNG
     let mut rng = rand::thread_rng();
 
@@ -601,7 +610,7 @@ fn shortint_rc_pk_smart_add(param: Parameters) {
         let (mut ctxt_1, _) = pk.rc_unchecked_encrypt(clear_1);
 
         // add the two ciphertexts
-        let ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
+        let ct_res = sks.bc_smart_add(&mut ctxt_0, &mut ctxt_1);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -612,6 +621,8 @@ fn shortint_rc_pk_smart_add(param: Parameters) {
             cks.parameters.carry_modulus.0, cks.parameters.message_modulus.0
         );
         assert_eq!((clear_0 + clear_1) % modulus, dec_res);
+        assert_eq!((clear_0), cks.decrypt_message_and_carry(&ctxt_0));
+        assert_eq!((clear_1), cks.decrypt_message_and_carry(&ctxt_1));
     }
 }
 
@@ -1969,7 +1980,7 @@ fn bc_shortint_keygen(param: Parameters) {
         let clear2 = rng.gen::<u64>() % param.message_modulus.0 as u64;
 
         let mut ct1 = cks.encrypt(clear1);
-        let ct2 = cks.encrypt(clear2);
+        let mut ct2 = cks.encrypt(clear2);
 
         let acc = sks.generate_accumulator(|x| (x * x) % param.message_modulus.0 as u64);
 
@@ -1987,11 +1998,18 @@ fn bc_shortint_keygen(param: Parameters) {
         // let ct_res = sks.unchecked_add(&ct1, &ct2);
         assert_eq!(
             (clear1 * clear1) % param.message_modulus.0 as u64,
-            cks.decrypt_message_and_carry(&ct1)
+            cks.decrypt(&ct1)
         );
         assert_eq!(
             (clear2 * clear2) % param.message_modulus.0 as u64,
-            cks.decrypt_message_and_carry(&ct3)
+            cks.decrypt(&ct3)
+        );
+
+        let ct4 = sks.bc_smart_add(&mut ct1, &mut ct2);
+
+        assert_eq!(
+            (clear1 * clear1 + clear2) % param.message_modulus.0 as u64,
+            cks.decrypt(&ct4)
         );
     }
 }
