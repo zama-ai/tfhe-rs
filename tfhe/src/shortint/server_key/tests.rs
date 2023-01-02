@@ -1976,7 +1976,7 @@ fn bc_shortint_keygen(param: Parameters) {
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
-        let clear1 = rng.gen::<u64>() % param.message_modulus.0 as u64;
+        let mut clear1 = rng.gen::<u64>() % param.message_modulus.0 as u64;
         let clear2 = rng.gen::<u64>() % param.message_modulus.0 as u64;
 
         let mut ct1 = cks.encrypt(clear1);
@@ -1984,22 +1984,8 @@ fn bc_shortint_keygen(param: Parameters) {
 
         let acc = sks.generate_accumulator(|x| (x * x) % param.message_modulus.0 as u64);
 
-        sks.programmable_bootstrap_keyswitch_assign(&mut ct1, &acc);
         let ct3 = sks.programmable_bootstrap_keyswitch(&ct2, &acc);
-        //
-        // println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
-        // let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct1, &mut ct2);
-        // assert_eq!(
-        //     (clear1 * clear2) % modulus,
-        //     cks.decrypt_message_and_carry(&ct_res) % modulus
-        // );
-        //
-        // println!("ADD:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
-        // let ct_res = sks.unchecked_add(&ct1, &ct2);
-        assert_eq!(
-            (clear1 * clear1) % param.message_modulus.0 as u64,
-            cks.decrypt(&ct1)
-        );
+
         assert_eq!(
             (clear2 * clear2) % param.message_modulus.0 as u64,
             cks.decrypt(&ct3)
@@ -2008,8 +1994,18 @@ fn bc_shortint_keygen(param: Parameters) {
         let ct4 = sks.bc_smart_add(&mut ct1, &mut ct2);
 
         assert_eq!(
-            (clear1 * clear1 + clear2) % param.message_modulus.0 as u64,
+            (clear1 + clear2) % param.message_modulus.0 as u64,
             cks.decrypt(&ct4)
         );
+
+        let ct_eq = sks.bc_smart_equal(&mut ct1, &mut ct2);
+        let ct_greater = sks.bc_smart_greater(&mut ct1, &mut ct2);
+        let ct_less = sks.bc_smart_less(&mut ct1, &mut ct2);
+
+        assert_eq!((clear1 == clear2) as u64, cks.decrypt(&ct_eq));
+
+        assert_eq!((clear1 > clear2) as u64, cks.decrypt(&ct_greater));
+
+        assert_eq!((clear1 < clear2) as u64, cks.decrypt(&ct_less));
     }
 }

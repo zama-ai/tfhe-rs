@@ -91,7 +91,7 @@ impl ShortintEngine {
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
-        self.smart_greater_assign(server_key, &mut result, ct_right)?;
+        self.bc_smart_greater_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
@@ -381,7 +381,7 @@ impl ShortintEngine {
         ct_right: &Ciphertext,
     ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
-        self.unchecked_equal_assign(server_key, &mut result, ct_right)?;
+        self.bc_unchecked_equal_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
@@ -422,7 +422,7 @@ impl ShortintEngine {
             self.bc_message_extract_assign(server_key, ct_left)?;
             self.bc_message_extract_assign(server_key, ct_right)?;
         }
-        self.unchecked_equal_assign(server_key, ct_left, ct_right)?;
+        self.bc_unchecked_equal_assign(server_key, ct_left, ct_right)?;
         Ok(())
     }
 

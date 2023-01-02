@@ -444,7 +444,7 @@ impl ShortintEngine {
         F: Fn(u64) -> u64,
     {
         let mut ct_res = ct_left.clone();
-        self.unchecked_functional_bivariate_pbs_assign(server_key, &mut ct_res, ct_right, f)?;
+        self.bc_unchecked_functional_bivariate_pbs_assign(server_key, &mut ct_res, ct_right, f)?;
         Ok(ct_res)
     }
 
