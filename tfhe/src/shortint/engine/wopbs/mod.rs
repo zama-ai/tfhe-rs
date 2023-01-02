@@ -332,7 +332,7 @@ impl ShortintEngine {
     ) -> EngineResult<Ciphertext> {
         // First PBS to remove the noise
         let acc = self.generate_accumulator(sks, |x| x)?;
-        let ct_clean = self.programmable_bootstrap_keyswitch(sks, ct_in, &acc)?;
+        let ct_clean = self.keyswitch_programmable_bootstrap(sks, ct_in, &acc)?;
 
         let mut buffer_lwe_after_ks = LweCiphertextOwned::new(
             0,

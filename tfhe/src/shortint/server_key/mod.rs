@@ -248,7 +248,7 @@ impl ServerKey {
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .programmable_bootstrap_keyswitch_bivariate(self, ct_left, ct_right, acc)
+                .keyswitch_programmable_bootstrap_bivariate(self, ct_left, ct_right, acc)
                 .unwrap()
         })
     }
@@ -261,7 +261,7 @@ impl ServerKey {
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .programmable_bootstrap_keyswitch_bivariate_assign(self, ct_left, ct_right, acc)
+                .keyswitch_programmable_bootstrap_bivariate_assign(self, ct_left, ct_right, acc)
                 .unwrap()
         })
     }
@@ -296,7 +296,7 @@ impl ServerKey {
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .programmable_bootstrap_keyswitch(self, ct_in, acc)
+                .keyswitch_programmable_bootstrap(self, ct_in, acc)
                 .unwrap()
         })
     }
@@ -308,7 +308,7 @@ impl ServerKey {
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .programmable_bootstrap_keyswitch_assign(self, ct_in, acc)
+                .keyswitch_programmable_bootstrap_assign(self, ct_in, acc)
                 .unwrap()
         })
     }

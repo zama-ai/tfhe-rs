@@ -36,7 +36,7 @@ impl ShortintEngine {
             ((x / modulus) * (x % modulus)) % res_modulus
         })?;
 
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
         ct_left.degree = Degree(ct_left.message_modulus.0 - 1);
         Ok(())
     }
@@ -76,7 +76,7 @@ impl ShortintEngine {
             ((x / modulus) * (x % modulus)) / res_modulus
         })?;
 
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
 
         ct_left.degree = Degree(deg);
         Ok(())
@@ -101,8 +101,8 @@ impl ShortintEngine {
         let acc_sub =
             self.generate_accumulator(server_key, |x| (((x - z) * (x - z)) / 4) % modulus)?;
 
-        self.programmable_bootstrap_keyswitch_assign(server_key, &mut ct_tmp_left, &acc_add)?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, &mut ct_tmp_right, &acc_sub)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, &mut ct_tmp_left, &acc_add)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, &mut ct_tmp_right, &acc_sub)?;
 
         //Last subtraction might fill one bit of carry
         self.unchecked_sub(server_key, &ct_tmp_left, &ct_tmp_right)
