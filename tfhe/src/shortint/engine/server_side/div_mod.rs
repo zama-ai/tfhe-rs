@@ -96,7 +96,7 @@ impl ShortintEngine {
         assert_ne!(scalar, 0);
         //generate the accumulator for the multiplication
         let acc = self.generate_accumulator(server_key, |x| x / (scalar as u64))?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct, &acc)?;
         ct.degree = Degree(ct.degree.0 / scalar as usize);
         Ok(())
     }
@@ -123,7 +123,7 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         assert_ne!(modulus, 0);
         let acc = self.generate_accumulator(server_key, |x| x % modulus as u64)?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct, &acc)?;
         ct.degree = Degree(modulus as usize - 1);
         Ok(())
     }

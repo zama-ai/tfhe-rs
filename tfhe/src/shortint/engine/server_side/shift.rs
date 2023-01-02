@@ -21,7 +21,7 @@ impl ShortintEngine {
         shift: u8,
     ) -> EngineResult<()> {
         let acc = self.generate_accumulator(server_key, |x| x >> shift)?;
-        self.programmable_bootstrap_keyswitch_assign(server_key, ct, &acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct, &acc)?;
 
         ct.degree = Degree(ct.degree.0 >> shift);
         Ok(())
@@ -69,7 +69,7 @@ impl ShortintEngine {
         } else {
             let modulus = server_key.message_modulus.0 as u64;
             let acc = self.generate_accumulator(server_key, |x| (x << shift) % modulus)?;
-            self.programmable_bootstrap_keyswitch_assign(server_key, ct, &acc)?;
+            self.keyswitch_programmable_bootstrap_assign(server_key, ct, &acc)?;
             ct.degree = ct.degree.after_left_shift(shift, modulus as usize);
         }
         Ok(())
