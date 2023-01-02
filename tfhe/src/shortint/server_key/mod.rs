@@ -305,6 +305,30 @@ impl ServerKey {
         })
     }
 
+    pub fn programmable_bootstrap_keyswitch(
+        &self,
+        ct_in: &Ciphertext,
+        acc: &GlweCiphertextOwned<u64>,
+    ) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .programmable_bootstrap_keyswitch(self, ct_in, acc)
+                .unwrap()
+        })
+    }
+
+    pub fn programmable_bootstrap_keyswitch_assign(
+        &self,
+        ct_in: &mut Ciphertext,
+        acc: &GlweCiphertextOwned<u64>,
+    ) {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .programmable_bootstrap_keyswitch_assign(self, ct_in, acc)
+                .unwrap()
+        })
+    }
+
     pub fn keyswitch_programmable_bootstrap_assign(
         &self,
         ct_in: &mut Ciphertext,

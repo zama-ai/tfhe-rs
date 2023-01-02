@@ -27,10 +27,10 @@ pub struct ClientKey {
 
 impl ClientKey {
     pub fn bc_new(parameters: Parameters) -> ClientKey {
-        ShortintEngine::with_thread_local_mut(|engine| engine.bc_new_client_key(parameters)
-            .unwrap())
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_new_client_key(parameters).unwrap()
+        })
     }
-
 
     /// Generate a client key.
     ///

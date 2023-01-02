@@ -101,7 +101,6 @@ impl ShortintEngine {
         })
     }
 
-
     pub(crate) fn new_server_key_with_max_degree(
         &mut self,
         cks: &ClientKey,
@@ -277,6 +276,69 @@ impl ShortintEngine {
             fourier_bsk,
             fft,
             stack,
+        );
+        Ok(())
+    }
+
+    pub(crate) fn programmable_bootstrap_keyswitch(
+        &mut self,
+        server_key: &ServerKey,
+        ct: &Ciphertext,
+        acc: &GlweCiphertextOwned<u64>,
+    ) -> EngineResult<Ciphertext> {
+        let mut ct_res = ct.clone();
+        self.programmable_bootstrap_keyswitch_assign(server_key, &mut ct_res, acc)?;
+        Ok(ct_res)
+    }
+
+    pub(crate) fn programmable_bootstrap_keyswitch_assign(
+        &mut self,
+        server_key: &ServerKey,
+        ct: &mut Ciphertext,
+        acc: &GlweCiphertextOwned<u64>,
+    ) -> EngineResult<()> {
+        // Compute the programmable bootstrapping with fixed test polynomial
+        let (_, buffers) = self.buffers_for_key(server_key);
+
+        // Allocate the buffer for the output of the PBS
+        let mut buffer_lwe_after_pbs = LweCiphertext::new(
+            0_u64,
+            server_key
+                .bootstrapping_key
+                .output_lwe_dimension()
+                .to_lwe_size(),
+        );
+
+        let fourier_bsk = &server_key.bootstrapping_key;
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+        let stack = buffers.stack();
+
+        // Compute a bootstrap
+        programmable_bootstrap_lwe_ciphertext_mem_optimized(
+            &ct.ct,
+            &mut buffer_lwe_after_pbs,
+            acc,
+            fourier_bsk,
+            fft,
+            stack,
+        );
+
+        // Compute a key switch
+        keyswitch_lwe_ciphertext(
+            &server_key.key_switching_key,
+            &buffer_lwe_after_pbs,
+            &mut ct.ct,
         );
         Ok(())
     }

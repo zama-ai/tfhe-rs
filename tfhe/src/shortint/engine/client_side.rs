@@ -57,7 +57,6 @@ impl ShortintEngine {
         })
     }
 
-
     pub fn encrypt(&mut self, client_key: &ClientKey, message: u64) -> EngineResult<Ciphertext> {
         self.encrypt_with_message_modulus(
             client_key,
