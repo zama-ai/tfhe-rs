@@ -194,6 +194,18 @@ impl PublicKey {
                 .unwrap()
         })
     }
+
+    pub fn rc_unchecked_encrypt(&self, message: u64) -> (Ciphertext, Vec<u64>) {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .rc_unchecked_encrypt_with_public_key(self, message)
+                .unwrap()
+        })
+    }
+
+    pub fn lwe_public_key(&self) -> &LwePublicKeyOwned<u64> {
+        &self.lwe_public_key
+    }
 }
 
 impl From<CompressedPublicKey> for PublicKey {

@@ -190,6 +190,42 @@ impl ShortintEngine {
         })
     }
 
+    pub(crate) fn rc_unchecked_encrypt_with_public_key(
+        &mut self,
+        public_key: &PublicKey,
+        message: u64,
+    ) -> EngineResult<(Ciphertext, Vec<u64>)> {
+        let delta = (1_u64 << 63)
+            / (public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0)
+                as u64;
+        let shifted_message = message * delta;
+        // encode the message
+        let plain = Plaintext(shifted_message);
+
+        // This allocates the required ct
+        let mut encrypted_ct = LweCiphertextOwned::new(0u64, public_key.lwe_public_key.lwe_size());
+
+        let rc = rc_encrypt_lwe_ciphertext_with_public_key(
+            &public_key.lwe_public_key,
+            &mut encrypted_ct,
+            plain,
+            &mut self.secret_generator,
+        );
+
+        Ok((
+            Ciphertext {
+                ct: encrypted_ct,
+                degree: Degree(
+                    public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0
+                        - 1,
+                ),
+                message_modulus: public_key.parameters.message_modulus,
+                carry_modulus: public_key.parameters.carry_modulus,
+            },
+            rc,
+        ))
+    }
+
     pub(crate) fn encrypt_without_padding_with_public_key(
         &mut self,
         public_key: &PublicKey,

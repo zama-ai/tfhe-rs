@@ -132,6 +132,16 @@ fn test_shortint_public_key_smart_add_param_message_2_carry_2() {
     shortint_public_key_smart_add(PARAM_MESSAGE_2_CARRY_2)
 }
 
+#[test]
+fn test_shortint_rc_pk_smart_add_param_message_1_carry_1() {
+    shortint_rc_pk_smart_add(PARAM_MESSAGE_1_CARRY_1)
+}
+
+#[test]
+fn test_shortint_rc_pk_smart_add_param_message_2_carry_2() {
+    shortint_rc_pk_smart_add(PARAM_MESSAGE_2_CARRY_2)
+}
+
 //These functions are compatible with some parameter sets where the carry modulus is larger than
 // the message modulus.
 create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_bitand);
@@ -564,6 +574,42 @@ fn shortint_public_key_smart_add(param: Parameters) {
             // assert
             assert_eq!(clear % modulus, dec_res);
         }
+    }
+}
+
+/// test addition with the LWE server key
+fn shortint_rc_pk_smart_add(param: Parameters) {
+    use crate::shortint::PublicKey;
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    let pk = PublicKey::new(cks);
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let (mut ctxt_0, _) = pk.rc_unchecked_encrypt(clear_0);
+
+        // encryption of an integer
+        let (mut ctxt_1, _) = pk.rc_unchecked_encrypt(clear_1);
+
+        // add the two ciphertexts
+        let ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        println!(
+            "The parameters set is CARRY_{}_MESSAGE_{}",
+            cks.parameters.carry_modulus.0, cks.parameters.message_modulus.0
+        );
+        assert_eq!((clear_0 + clear_1) % modulus, dec_res);
     }
 }
 
