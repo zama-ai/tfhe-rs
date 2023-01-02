@@ -112,6 +112,13 @@ impl ServerKey {
         })
     }
 
+    pub fn bc_smart_greater(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) ->
+                                                                                      Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_smart_greater(self, ct_left, ct_right).unwrap()
+        })
+    }
+
     /// Implement the "greater or equal" (`>=`) operator between two ciphertexts without checks.
     ///
     /// # Example
@@ -327,6 +334,12 @@ impl ServerKey {
         })
     }
 
+    pub fn bc_smart_less(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_smart_less(self, ct_left, ct_right).unwrap()
+        })
+    }
+
     /// Implement the "less or equal" (`<=`) between two ciphertexts operator without checks.
     ///
     /// # Example
@@ -467,6 +480,12 @@ impl ServerKey {
         })
     }
 
+    pub fn bc_unchecked_equal(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_unchecked_equal(self, ct_left, ct_right).unwrap()
+        })
+    }
+
     /// Implement the "equal" (`==`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
@@ -539,6 +558,13 @@ impl ServerKey {
         })
     }
 
+
+    pub fn bc_smart_equal(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) ->
+                                                                                      Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_smart_equal(self, ct_left, ct_right).unwrap()
+        })
+    }
     /// Implement the "not equal" operator (`!=`) between two ciphertexts without checks.
     ///
     /// # Example

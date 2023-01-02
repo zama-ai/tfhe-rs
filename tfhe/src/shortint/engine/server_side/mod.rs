@@ -433,6 +433,47 @@ impl ShortintEngine {
         Ok(())
     }
 
+    pub(crate) fn bc_unchecked_functional_bivariate_pbs<F>(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+        f: F,
+    ) -> EngineResult<Ciphertext>
+    where
+        F: Fn(u64) -> u64,
+    {
+        let mut ct_res = ct_left.clone();
+        self.unchecked_functional_bivariate_pbs_assign(server_key, &mut ct_res, ct_right, f)?;
+        Ok(ct_res)
+    }
+
+    pub(crate) fn bc_unchecked_functional_bivariate_pbs_assign<F>(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
+        f: F,
+    ) -> EngineResult<()>
+    where
+        F: Fn(u64) -> u64,
+    {
+        let modulus = (ct_right.degree.0 + 1) as u64;
+
+        // Message 1 is shifted to the carry bits
+        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
+
+        // Message 2 is placed in the message bits
+        self.unchecked_add_assign(ct_left, ct_right)?;
+
+        // Generate the accumulator for the function
+        let acc = self.generate_accumulator(server_key, f)?;
+
+        // Compute the PBS
+        self.programmable_bootstrap_keyswitch_assign(server_key, ct_left, &acc)?;
+        Ok(())
+    }
+
     // Those are currently not used in shortint, we therefore disable the warning when not compiling
     // the C API
     #[cfg_attr(not(feature = "__c_api"), allow(dead_code))]
