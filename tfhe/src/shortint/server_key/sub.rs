@@ -246,6 +246,18 @@ impl ServerKey {
         })
     }
 
+    pub fn bc_smart_sub(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_smart_sub(self, ct_left, ct_right).unwrap()
+        })
+    }
+
+    pub fn bc_smart_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_smart_sub_assign(self, ct_left, ct_right).unwrap()
+        })
+    }
+
     /// Compute homomorphically a subtraction between two ciphertexts without checks, and returns
     /// a correcting term.
     ///

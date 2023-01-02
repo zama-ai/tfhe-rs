@@ -83,6 +83,36 @@ impl ShortintEngine {
         Ok(())
     }
 
+    pub(crate) fn bc_smart_sub(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> EngineResult<Ciphertext> {
+        // If the ciphertext cannot be subtracted together without exceeding the degree max
+        if !server_key.is_sub_possible(ct_left, ct_right) {
+            self.bc_message_extract_assign(server_key, ct_right)?;
+            self.bc_message_extract_assign(server_key, ct_left)?;
+        }
+        self.unchecked_sub(server_key, ct_left, ct_right)
+    }
+
+    pub(crate) fn bc_smart_sub_assign(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> EngineResult<()> {
+        // If the ciphertext cannot be subtracted together without exceeding the degree max
+        if !server_key.is_sub_possible(ct_left, ct_right) {
+            self.bc_message_extract_assign(server_key, ct_right)?;
+            self.bc_message_extract_assign(server_key, ct_left)?;
+        }
+
+        self.unchecked_sub_assign(server_key, ct_left, ct_right)?;
+        Ok(())
+    }
+
     pub(crate) fn smart_sub_with_z(
         &mut self,
         server_key: &ServerKey,

@@ -613,7 +613,7 @@ fn shortint_rc_pk_smart_add(param: Parameters) {
         let ct_res = sks.bc_smart_add(&mut ctxt_0, &mut ctxt_1);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt(&ct_res);
+        let dec_res = cks.bc_decrypt(&ct_res);
 
         // assert
         println!(
@@ -621,8 +621,8 @@ fn shortint_rc_pk_smart_add(param: Parameters) {
             cks.parameters.carry_modulus.0, cks.parameters.message_modulus.0
         );
         assert_eq!((clear_0 + clear_1) % modulus, dec_res);
-        assert_eq!((clear_0), cks.decrypt_message_and_carry(&ctxt_0));
-        assert_eq!((clear_1), cks.decrypt_message_and_carry(&ctxt_1));
+        assert_eq!((clear_0), cks.bc_decrypt(&ctxt_0));
+        assert_eq!((clear_1), cks.bc_decrypt(&ctxt_1));
     }
 }
 
@@ -1976,11 +1976,11 @@ fn bc_shortint_keygen(param: Parameters) {
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
-        let mut clear1 = rng.gen::<u64>() % param.message_modulus.0 as u64;
+        let clear1 = rng.gen::<u64>() % param.message_modulus.0 as u64;
         let clear2 = rng.gen::<u64>() % param.message_modulus.0 as u64;
 
-        let mut ct1 = cks.encrypt(clear1);
-        let mut ct2 = cks.encrypt(clear2);
+        let mut ct1 = cks.bc_encrypt(clear1);
+        let mut ct2 = cks.bc_encrypt(clear2);
 
         let acc = sks.generate_accumulator(|x| (x * x) % param.message_modulus.0 as u64);
 
@@ -1988,24 +1988,31 @@ fn bc_shortint_keygen(param: Parameters) {
 
         assert_eq!(
             (clear2 * clear2) % param.message_modulus.0 as u64,
-            cks.decrypt(&ct3)
+            cks.bc_decrypt(&ct3)
         );
 
         let ct4 = sks.bc_smart_add(&mut ct1, &mut ct2);
 
         assert_eq!(
             (clear1 + clear2) % param.message_modulus.0 as u64,
-            cks.decrypt(&ct4)
+            cks.bc_decrypt(&ct4)
         );
 
         let ct_eq = sks.bc_smart_equal(&mut ct1, &mut ct2);
         let ct_greater = sks.bc_smart_greater(&mut ct1, &mut ct2);
         let ct_less = sks.bc_smart_less(&mut ct1, &mut ct2);
 
-        assert_eq!((clear1 == clear2) as u64, cks.decrypt(&ct_eq));
+        assert_eq!((clear1 == clear2) as u64, cks.bc_decrypt(&ct_eq));
 
-        assert_eq!((clear1 > clear2) as u64, cks.decrypt(&ct_greater));
+        assert_eq!((clear1 > clear2) as u64, cks.bc_decrypt(&ct_greater));
 
-        assert_eq!((clear1 < clear2) as u64, cks.decrypt(&ct_less));
+        assert_eq!((clear1 < clear2) as u64, cks.bc_decrypt(&ct_less));
+
+        let ct5 = sks.bc_smart_sub(&mut ct1, &mut ct2);
+
+        assert_eq!(
+            (clear1 - clear2) % param.message_modulus.0 as u64,
+            cks.bc_decrypt(&ct5)
+        );
     }
 }

@@ -433,6 +433,7 @@ impl ShortintEngine {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) fn bc_unchecked_functional_bivariate_pbs<F>(
         &mut self,
         server_key: &ServerKey,

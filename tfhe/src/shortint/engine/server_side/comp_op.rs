@@ -56,6 +56,7 @@ impl ShortintEngine {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) fn bc_unchecked_greater(
         &mut self,
         server_key: &ServerKey,
@@ -216,6 +217,7 @@ impl ShortintEngine {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub(crate) fn bc_unchecked_less(
         &mut self,
         server_key: &ServerKey,

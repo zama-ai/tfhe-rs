@@ -78,6 +78,10 @@ impl ClientKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.encrypt(self, message).unwrap())
     }
 
+    pub fn bc_encrypt(&self, message: u64) -> Ciphertext {
+        self.encrypt(message)
+    }
+
     /// Encrypt a small integer message using the client key with a specific message modulus
     ///
     /// # Example
@@ -182,6 +186,10 @@ impl ClientKey {
     /// ```
     pub fn decrypt(&self, ct: &Ciphertext) -> u64 {
         ShortintEngine::with_thread_local_mut(|engine| engine.decrypt(self, ct).unwrap())
+    }
+
+    pub fn bc_decrypt(&self, ct: &Ciphertext) -> u64 {
+        self.decrypt(ct)
     }
 
     /// Encrypt a small integer message using the client key without padding bit.
