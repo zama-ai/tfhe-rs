@@ -84,3 +84,11 @@ pub fn gen_keys(parameters_set: Parameters) -> (ClientKey, ServerKey) {
 
     (cks, sks)
 }
+
+pub fn bc_gen_keys(parameters_set: Parameters) -> (ClientKey, ServerKey) {
+    let cks = ClientKey::bc_new(parameters_set);
+    let sks = ServerKey::bc_new(&cks);
+
+    (cks, sks)
+}
+
