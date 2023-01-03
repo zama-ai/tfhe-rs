@@ -25,7 +25,7 @@ pub fn blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     let fft = fft.as_view();
 
     buffers.resize(
-        blind_rotate_assign_mem_optimized_scratch::<Scalar>(
+        blind_rotate_assign_mem_optimized_requirement::<Scalar>(
             fourier_bsk.glwe_size(),
             fourier_bsk.polynomial_size(),
             fft,
@@ -58,7 +58,7 @@ pub fn blind_rotate_assign_mem_optimized<Scalar, InputCont, OutputCont, KeyCont>
 }
 
 /// Return the required memory for [`blind_rotate_assign_mem_optimized`].
-pub fn blind_rotate_assign_mem_optimized_scratch<Scalar>(
+pub fn blind_rotate_assign_mem_optimized_requirement<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
@@ -85,7 +85,7 @@ pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccC
     let fft = fft.as_view();
 
     buffers.resize(
-        programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<Scalar>(
+        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
             fourier_bsk.glwe_size(),
             fourier_bsk.polynomial_size(),
             fft,
@@ -137,7 +137,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
 }
 
 /// Return the required memory for [`programmable_bootstrap_lwe_ciphertext_mem_optimized`].
-pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch<Scalar>(
+pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,

@@ -82,7 +82,7 @@ impl ShortintEngine {
         let fft = Fft::new(bootstrap_key.polynomial_size());
         let fft = fft.as_view();
         self.computation_buffers.resize(
-            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_scratch(fft)
+            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
                 .unwrap()
                 .unaligned_bytes_required(),
         );
@@ -188,7 +188,7 @@ impl ShortintEngine {
         let fft = fft.as_view();
 
         self.computation_buffers.resize(
-            extract_bits_from_lwe_ciphertext_scratch::<u64>(
+            extract_bits_from_lwe_ciphertext_mem_optimized_requirement::<u64>(
                 lwe_in.lwe_size().to_lwe_dimension(),
                 ksk.output_key_lwe_dimension(),
                 bsk.glwe_size(),
@@ -201,7 +201,7 @@ impl ShortintEngine {
 
         let stack = self.computation_buffers.stack();
 
-        extract_bits_from_lwe_ciphertext(
+        extract_bits_from_lwe_ciphertext_mem_optimized(
             lwe_in,
             &mut output,
             bsk,
@@ -233,7 +233,7 @@ impl ShortintEngine {
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
         self.computation_buffers.resize(
-            circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_scracth::<u64>(
+            circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement::<u64>(
                 extracted_bits.lwe_ciphertext_count(),
                 output_cbs_vp_ct.lwe_ciphertext_count(),
                 extracted_bits.lwe_size(),
@@ -250,7 +250,7 @@ impl ShortintEngine {
 
         let stack = self.computation_buffers.stack();
 
-        circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list(
+        circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(
             extracted_bits,
             &mut output_cbs_vp_ct,
             &lut,
@@ -384,7 +384,7 @@ impl ShortintEngine {
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
         buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
                 fft,

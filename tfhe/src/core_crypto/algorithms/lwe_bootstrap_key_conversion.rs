@@ -23,7 +23,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, OutputCo
     let fft = fft.as_view();
 
     buffers.resize(
-        convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_scratch(fft)
+        convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
             .unwrap()
             .unaligned_bytes_required(),
     );
@@ -52,7 +52,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized<Scalar, Input
 }
 
 /// Return the required memory for [`convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized`].
-pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_scratch(
+pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     fill_with_forward_fourier_scratch(fft)
