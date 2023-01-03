@@ -6,10 +6,17 @@ RS_BUILD_TOOLCHAIN:=$(shell \
 	( (echo $(TARGET_ARCH_FEATURE) | grep -q x86) && echo stable) || echo $(RS_CHECK_TOOLCHAIN))
 CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
 MIN_RUST_VERSION:=1.65
+AVX512_SUPPORT?=OFF
 WASM_RUSTFLAGS:=
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS:=-C target-cpu=native
+
+ifeq ($(AVX512_SUPPORT),ON)
+		AVX512_FEATURE=nightly-avx512
+else
+		AVX512_FEATURE=
+endif
 
 .PHONY: rs_check_toolchain # Echo the rust toolchain used for checks
 rs_check_toolchain:
@@ -214,6 +221,30 @@ no_tfhe_typo:
 		echo "tfhe typo detected, see output log above"; \
 		exit 1; \
 	fi
+
+.PHONY: bench_shortint # Run benchmarks for shortint
+bench_shortint: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench shortint-bench \
+	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,$(AVX512_FEATURE) -p tfhe
+
+.PHONY: bench_boolean # Run benchmarks for boolean
+bench_boolean: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench boolean-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache,$(AVX512_FEATURE) -p tfhe
+
+.PHONY: measure_shortint_key_sizes # Measure sizes of bootstrapping and key switching keys for shortint
+measure_shortint_key_sizes: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
+	--example shortint_key_sizes \
+	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache
+
+.PHONY: measure_boolean_key_sizes # Measure sizes of bootstrapping and key switching keys for boolean
+measure_boolean_key_sizes: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
+	--example boolean_key_sizes \
+	--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache
 
 .PHONY: pcc # pcc stands for pre commit checks
 pcc: no_tfhe_typo check_fmt doc clippy_all check_compile_tests
