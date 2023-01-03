@@ -70,8 +70,10 @@ void test_custom_keygen(void) {
 void test_public_keygen(void) {
   ShortintClientKey *cks = NULL;
   ShortintPublicKey *pks = NULL;
+  ShortintPublicKey *pks_deser = NULL;
   ShortintParameters *params = NULL;
   ShortintCiphertext *ct = NULL;
+  Buffer pks_ser_buff = {.pointer = NULL, .length = 0};
 
   int get_params_ok = shortint_get_parameters(2, 2, &params);
   assert(get_params_ok == 0);
@@ -82,9 +84,16 @@ void test_public_keygen(void) {
   int gen_pks = shortint_gen_public_key(cks, &pks);
   assert(gen_pks == 0);
 
+  int pks_ser = shortint_serialize_public_key(pks, &pks_ser_buff);
+  assert(pks_ser == 0);
+
+  BufferView pks_ser_buff_view = {.pointer = pks_ser_buff.pointer, .length = pks_ser_buff.length};
+  int pks_deser_ok = shortint_deserialize_public_key(pks_ser_buff_view, &pks_deser);
+  assert(pks_deser_ok == 0);
+
   uint64_t msg = 2;
 
-  int encrypt_ok = shortint_public_key_encrypt(pks, msg, &ct);
+  int encrypt_ok = shortint_public_key_encrypt(pks_deser, msg, &ct);
   assert(encrypt_ok == 0);
 
   uint64_t result = -1;
@@ -96,6 +105,8 @@ void test_public_keygen(void) {
   destroy_shortint_parameters(params);
   destroy_shortint_client_key(cks);
   destroy_shortint_public_key(pks);
+  destroy_shortint_public_key(pks_deser);
+  destroy_buffer(&pks_ser_buff);
   destroy_shortint_ciphertext(ct);
 }
 
