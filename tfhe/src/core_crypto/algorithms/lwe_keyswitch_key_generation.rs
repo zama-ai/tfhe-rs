@@ -11,10 +11,6 @@ use crate::core_crypto::entities::*;
 /// from an input and an output key [`LWE secret key`](`LweSecretKey`).
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -161,10 +157,6 @@ where
 /// constructed from an input and an output key [`LWE secret key`](`LweSecretKey`).
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
