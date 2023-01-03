@@ -8,7 +8,7 @@ All the benchmarks had been launched on an AWS m6i.metal with the following spec
 
 This measures the execution time of a single binary boolean gate.
 
-### thfe.rs::booleans.
+### tfhe.rs::booleans.
 
 | Parameter set         | concrete-fft | concrete-fft + avx512 |
 | --------------------- | ------------ | --------------------- |
@@ -32,7 +32,7 @@ This measures the execution time of a single binary boolean gate.
 
 This measures the execution time for some operations and some parameter sets of shortint.
 
-### thfe.rs::shortint.
+### tfhe.rs::shortint.
 
 This uses the concrete-fft + avx512 configuration.
 

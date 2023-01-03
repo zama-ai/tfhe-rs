@@ -69,7 +69,7 @@ pub(in crate::c_api) enum BooleanParametersSet {
 }
 
 pub const BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS: c_int = 0;
-pub const BOOLEAN_PARAMETERS_SET_THFE_LIB_PARAMETERS: c_int = 1;
+pub const BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS: c_int = 1;
 
 impl TryFrom<c_int> for BooleanParametersSet {
     type Error = String;
@@ -79,7 +79,7 @@ impl TryFrom<c_int> for BooleanParametersSet {
             BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS => {
                 Ok(BooleanParametersSet::DefaultParameters)
             }
-            BOOLEAN_PARAMETERS_SET_THFE_LIB_PARAMETERS => {
+            BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS => {
                 Ok(BooleanParametersSet::TfheLibParameters)
             }
             _ => Err(format!(
