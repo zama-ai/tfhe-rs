@@ -205,8 +205,18 @@ test_nodejs_wasm_api_in_docker: build_nodejs_test_docker
 test_nodejs_wasm_api: build_node_js_api
 	cd tfhe && node --test js_on_wasm_tests
 
+.PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
+no_tfhe_typo:
+	@if ! grep --exclude=Makefile --exclude-dir=.git --exclude-from=.gitignore -rniI thfe .; \
+	then \
+		exit 0; \
+	else \
+		echo "tfhe typo detected, see output log above"; \
+		exit 1; \
+	fi
+
 .PHONY: pcc # pcc stands for pre commit checks
-pcc: check_fmt doc clippy_all check_compile_tests
+pcc: no_tfhe_typo check_fmt doc clippy_all check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fmt
