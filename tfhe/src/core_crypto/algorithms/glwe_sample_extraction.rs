@@ -14,11 +14,6 @@ use crate::core_crypto::entities::*;
 /// # Example
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
