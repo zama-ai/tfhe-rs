@@ -181,12 +181,12 @@ create_parametrized_test_bivariate_pbs_compliant!(
 
 #[test]
 fn test_bc_shortint_keygen_param_message_1_carry_1() {
-    bc_shortint_keygen(PARAM_MESSAGE_1_CARRY_1)
+    bc_shortint_keygen(bc_parameters::PARAM_MESSAGE_1_CARRY_1)
 }
 
 #[test]
 fn test_bc_shortint_keygen_param_message_2_carry_2() {
-    bc_shortint_keygen(PARAM_MESSAGE_2_CARRY_2)
+    bc_shortint_keygen(bc_parameters::PARAM_MESSAGE_2_CARRY_2)
 }
 
 /// test encryption and decryption with the LWE client key
