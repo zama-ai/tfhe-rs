@@ -2001,12 +2001,15 @@ fn bc_shortint_keygen(param: Parameters) {
         let ct_eq = sks.bc_smart_equal(&mut ct1, &mut ct2);
         let ct_greater = sks.bc_smart_greater(&mut ct1, &mut ct2);
         let ct_less = sks.bc_smart_less(&mut ct1, &mut ct2);
+        let ct_less_or_eq = sks.bc_smart_less_or_equal(&mut ct1, &mut ct2);
 
         assert_eq!((clear1 == clear2) as u64, cks.bc_decrypt(&ct_eq));
 
         assert_eq!((clear1 > clear2) as u64, cks.bc_decrypt(&ct_greater));
 
         assert_eq!((clear1 < clear2) as u64, cks.bc_decrypt(&ct_less));
+
+        assert_eq!((clear1 <= clear2) as u64, cks.bc_decrypt(&ct_less_or_eq));
 
         let ct5 = sks.bc_smart_sub(&mut ct1, &mut ct2);
 

@@ -454,6 +454,18 @@ impl ServerKey {
         })
     }
 
+    pub fn bc_smart_less_or_equal(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .bc_smart_less_or_equal(self, ct_left, ct_right)
+                .unwrap()
+        })
+    }
+
     /// Implement the "equal" operator (`==`) between two ciphertexts without checks.
     ///
     /// # Example
