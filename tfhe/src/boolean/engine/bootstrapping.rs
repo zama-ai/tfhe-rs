@@ -80,8 +80,8 @@ impl Memory {
 /// * `key_switching_key` - a public key, used to perform the key-switching operation.
 #[derive(Clone)]
 pub struct ServerKey {
-    pub(crate) bootstrapping_key: FourierLweBootstrapKeyOwned,
-    pub(crate) key_switching_key: LweKeyswitchKeyOwned<u32>,
+    pub bootstrapping_key: FourierLweBootstrapKeyOwned,
+    pub key_switching_key: LweKeyswitchKeyOwned<u32>,
 }
 
 /// Perform ciphertext bootstraps on the CPU

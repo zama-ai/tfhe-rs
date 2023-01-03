@@ -2,17 +2,20 @@
 benchmark_parser
 ----------------
 
-Parse criterion benchmark results.
+Parse criterion benchmark or keys size results.
 """
 import argparse
+import csv
 import pathlib
 import json
 import sys
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('results_dir',
-                    help='Location of criterion benchmark results directory')
+parser.add_argument('results',
+                    help='Location of criterion benchmark results directory.'
+                         'If the --key-size option is used, then the value would have to point to'
+                         'a CSV file.')
 parser.add_argument('output_file', help='File storing parsed results')
 parser.add_argument('-d', '--database', dest='database',
                     help='Name of the database used to store results')
@@ -32,6 +35,8 @@ parser.add_argument('--append-results', dest='append_results', action='store_tru
                     help='Append parsed results to an existing file')
 parser.add_argument('--walk-subdirs', dest='walk_subdirs', action='store_true',
                     help='Check for results in subdirectories')
+parser.add_argument('--keys-size', dest='keys_size', action='store_true',
+                    help='Parse only the results regarding keys size measurments')
 
 
 def recursive_parse(directory, walk_subdirs=False, name_suffix=""):
@@ -74,8 +79,8 @@ def parse_benchmark_file(directory):
 
     :return: name of the test as :class:`str`
     """
-    raw_results = _parse_file_to_json(directory, "benchmark.json")
-    return raw_results["full_id"].replace(" ", "_")
+    raw_res = _parse_file_to_json(directory, "benchmark.json")
+    return raw_res["full_id"].replace(" ", "_")
 
 
 def parse_estimate_file(directory):
@@ -86,11 +91,28 @@ def parse_estimate_file(directory):
 
     :return: :class:`dict` of data points
     """
-    raw_results = _parse_file_to_json(directory, "estimates.json")
+    raw_res = _parse_file_to_json(directory, "estimates.json")
     return {
-        stat_name: raw_results[stat_name]["point_estimate"]
+        stat_name: raw_res[stat_name]["point_estimate"]
         for stat_name in ("mean", "std_dev")
     }
+
+
+def parse_keys_size(result_file):
+    """
+    Parse file containing keys size results. The file must be formatted as CSV.
+
+    :param result_file: results file as :class:`pathlib.Path`
+
+    :return: :class:`list` of data points
+    """
+    result_values = list()
+    with result_file.open() as csv_file:
+        reader = csv.reader(csv_file)
+        for (test_name, value) in reader:
+            result_values.append({"value": int(value), "test": test_name})
+
+    return result_values
 
 
 def _parse_file_to_json(directory, filename):
@@ -137,7 +159,7 @@ def check_mandatory_args(input_args):
     missing_args = list()
     for arg_name in vars(input_args):
         if arg_name in ["results_dir", "output_file", "name_suffix",
-                        "append_results", "walk_subdirs"]:
+                        "append_results", "walk_subdirs", "keys_size"]:
             continue
         if not getattr(input_args, arg_name):
             missing_args.append(arg_name)
@@ -152,8 +174,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     check_mandatory_args(args)
 
-    print("Parsing benchmark results... ")
-    results = recursive_parse(pathlib.Path(args.results_dir), args.walk_subdirs, args.name_suffix)
+    raw_results = pathlib.Path(args.results)
+    if not args.keys_size:
+        print("Parsing benchmark results... ")
+        results = recursive_parse(raw_results, args.walk_subdirs, args.name_suffix)
+    else:
+        print("Parsing keys size results... ")
+        results = parse_keys_size(raw_results)
     print("Parsing results done")
 
     output_file = pathlib.Path(args.output_file)

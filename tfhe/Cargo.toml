@@ -130,6 +130,10 @@ name = "generates_test_keys"
 required-features = ["shortint", "internal-keycache"]
 
 [[example]]
+name = "key_sizes"
+required-features = ["shortint", "internal-keycache"]
+
+[[example]]
 name = "micro_bench_and"
 required-features = ["boolean"]
 
