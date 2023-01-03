@@ -245,7 +245,13 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn extract_bits_from_lwe_ciphertext<Scalar, InputCont, OutputCont, BskCont, KSKCont>(
+pub fn extract_bits_from_lwe_ciphertext_mem_optimized<
+    Scalar,
+    InputCont,
+    OutputCont,
+    BskCont,
+    KSKCont,
+>(
     lwe_in: &LweCiphertext<InputCont>,
     lwe_list_out: &mut LweCiphertextList<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<BskCont>,
@@ -274,7 +280,7 @@ pub fn extract_bits_from_lwe_ciphertext<Scalar, InputCont, OutputCont, BskCont, 
     )
 }
 
-pub fn extract_bits_from_lwe_ciphertext_scratch<Scalar>(
+pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
     lwe_dimension: LweDimension,
     ksk_output_key_lwe_dimension: LweDimension,
     glwe_size: GlweSize,
@@ -291,7 +297,7 @@ pub fn extract_bits_from_lwe_ciphertext_scratch<Scalar>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list<
+pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized<
     Scalar,
     InputCont,
     OutputCont,
@@ -331,7 +337,9 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_scracth<Scalar>(
+pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement<
+    Scalar,
+>(
     lwe_list_in_count: LweCiphertextCount,
     lwe_list_out_count: LweCiphertextCount,
     lwe_in_size: LweSize,
