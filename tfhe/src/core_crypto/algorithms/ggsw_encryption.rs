@@ -19,7 +19,6 @@ use rayon::prelude::*;
 /// };
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -154,7 +153,6 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// };
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -387,7 +385,6 @@ pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, O
 /// };
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -555,7 +552,6 @@ pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
 /// };
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -706,7 +702,6 @@ mod test {
     use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
     use crate::core_crypto::commons::test_tools;
     use crate::core_crypto::prelude::*;
-    use crate::seeders::new_seeder;
 
     fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>()
     where
