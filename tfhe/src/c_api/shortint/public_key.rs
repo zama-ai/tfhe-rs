@@ -35,6 +35,28 @@ pub unsafe extern "C" fn shortint_gen_public_key(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn shortint_bc_gen_public_key(
+    client_key: *const ShortintClientKey,
+    result: *mut *mut ShortintPublicKey,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let client_key = get_ref_checked(client_key).unwrap();
+
+        let heap_allocated_public_key = Box::new(ShortintPublicKey(
+            shortint::public_key::PublicKey::bc_new(&client_key.0),
+        ));
+
+        *result = Box::into_raw(heap_allocated_public_key);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn shortint_public_key_encrypt(
     public_key: *const ShortintPublicKey,
     value_to_encrypt: u64,
@@ -49,6 +71,31 @@ pub unsafe extern "C" fn shortint_public_key_encrypt(
 
         let public_key = get_ref_checked(public_key).unwrap();
 
+        let heap_allocated_ciphertext =
+            Box::new(ShortintCiphertext(public_key.0.encrypt(value_to_encrypt)));
+
+        *result = Box::into_raw(heap_allocated_ciphertext);
+    })
+}
+
+// Function provided as alias for convenience
+#[no_mangle]
+pub unsafe extern "C" fn shortint_bc_public_key_encrypt(
+    public_key: *const ShortintPublicKey,
+    value_to_encrypt: u64,
+    result: *mut *mut ShortintCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let public_key = get_ref_checked(public_key).unwrap();
+
+        // Encrypt and not bc_encrypt as both functions are actually the same, function provided as
+        // alias for convenience
         let heap_allocated_ciphertext =
             Box::new(ShortintCiphertext(public_key.0.encrypt(value_to_encrypt)));
 

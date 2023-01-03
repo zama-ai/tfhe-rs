@@ -551,7 +551,118 @@ void test_server_key(void) {
   destroy_buffer(&sks_ser_buffer);
 }
 
+void test_bc_shortint_binary_op(const ShortintClientKey *cks, const ShortintServerKey *sks,
+                                const uint32_t message_bits, const uint32_t carry_bits,
+                                uint64_t (*c_fun)(uint64_t, uint64_t),
+                                int (*api_fun)(const ShortintServerKey *, ShortintCiphertext *,
+                                               ShortintCiphertext *, ShortintCiphertext **)) {
+
+  int message_max = 1 << message_bits;
+
+  for (int val_left = 0; val_left < message_max; ++val_left) {
+    for (int val_right = 0; val_right < message_max; ++val_right) {
+      ShortintCiphertext *ct_left = NULL;
+      ShortintCiphertext *ct_right = NULL;
+      ShortintCiphertext *ct_result = NULL;
+
+      uint64_t left = (uint64_t)val_left;
+      uint64_t right = (uint64_t)val_right;
+
+      uint64_t expected = c_fun(left, right) % message_max;
+
+      int encrypt_left_ok = shortint_bc_client_key_encrypt(cks, left, &ct_left);
+      assert(encrypt_left_ok == 0);
+
+      int encrypt_right_ok = shortint_bc_client_key_encrypt(cks, right, &ct_right);
+      assert(encrypt_right_ok == 0);
+
+      int api_call_ok = api_fun(sks, ct_left, ct_right, &ct_result);
+      assert(api_call_ok == 0);
+
+      uint64_t decrypted_result = -1;
+
+      int decrypt_ok = shortint_bc_client_key_decrypt(cks, ct_result, &decrypted_result);
+      assert(decrypt_ok == 0);
+
+      assert(decrypted_result == expected);
+
+      destroy_shortint_ciphertext(ct_left);
+      destroy_shortint_ciphertext(ct_right);
+      destroy_shortint_ciphertext(ct_result);
+    }
+  }
+}
+
+void test_bc_server_key(void) {
+  ShortintClientKey *cks = NULL;
+  ShortintServerKey *sks = NULL;
+  Buffer cks_ser_buffer = {.pointer = NULL, .length = 0};
+  ShortintClientKey *deser_cks = NULL;
+  Buffer sks_ser_buffer = {.pointer = NULL, .length = 0};
+  ShortintServerKey *deser_sks = NULL;
+  ShortintParameters *params = NULL;
+
+  const uint32_t message_bits = 2;
+  const uint32_t carry_bits = 2;
+
+  int get_params_ok = shortint_get_parameters(message_bits, carry_bits, &params);
+  assert(get_params_ok == 0);
+
+  int gen_keys_ok = shortint_bc_gen_keys_with_parameters(params, &cks, &sks);
+  assert(gen_keys_ok == 0);
+
+  int ser_cks_ok = shortint_serialize_client_key(cks, &cks_ser_buffer);
+  assert(ser_cks_ok == 0);
+
+  BufferView deser_view = {.pointer = cks_ser_buffer.pointer, .length = cks_ser_buffer.length};
+
+  int deser_cks_ok = shortint_deserialize_client_key(deser_view, &deser_cks);
+  assert(deser_cks_ok == 0);
+
+  int ser_sks_ok = shortint_serialize_server_key(sks, &sks_ser_buffer);
+  assert(ser_sks_ok == 0);
+
+  deser_view.pointer = sks_ser_buffer.pointer;
+  deser_view.length = sks_ser_buffer.length;
+
+  int deser_sks_ok = shortint_deserialize_server_key(deser_view, &deser_sks);
+  assert(deser_sks_ok == 0);
+
+  printf("bc_add\n");
+  test_bc_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, add,
+                             shortint_bc_server_key_smart_add);
+
+  printf("bc_sub\n");
+  test_bc_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, sub,
+                             shortint_bc_server_key_smart_sub);
+
+  printf("bc_greater\n");
+  test_bc_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, greater,
+                             shortint_bc_server_key_smart_greater);
+
+  printf("bc_less\n");
+  test_bc_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, less,
+                             shortint_bc_server_key_smart_less);
+
+  printf("bc_less_or_equal\n");
+  test_bc_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, less_or_equal,
+                             shortint_bc_server_key_smart_less_or_equal);
+
+  printf("bc_equal\n");
+  test_bc_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, equal,
+                             shortint_bc_server_key_smart_equal);
+
+  destroy_shortint_client_key(cks);
+  destroy_shortint_server_key(sks);
+  destroy_shortint_client_key(deser_cks);
+  destroy_shortint_server_key(deser_sks);
+  destroy_shortint_parameters(params);
+  destroy_buffer(&cks_ser_buffer);
+  destroy_buffer(&sks_ser_buffer);
+}
+
 int main(void) {
   test_server_key();
+  test_bc_server_key();
   return EXIT_SUCCESS;
 }

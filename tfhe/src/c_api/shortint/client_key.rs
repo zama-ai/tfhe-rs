@@ -31,6 +31,28 @@ pub unsafe extern "C" fn shortint_gen_client_key(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn shortint_bc_gen_client_key(
+    shortint_parameters: *const super::parameters::ShortintParameters,
+    result_client_key: *mut *mut ShortintClientKey,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result_client_key).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result_client_key = std::ptr::null_mut();
+
+        let shortint_parameters = get_ref_checked(shortint_parameters).unwrap();
+
+        let client_key = shortint::client_key::ClientKey::bc_new(shortint_parameters.0.to_owned());
+
+        let heap_allocated_client_key = Box::new(ShortintClientKey(client_key));
+
+        *result_client_key = Box::into_raw(heap_allocated_client_key);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn shortint_client_key_encrypt(
     client_key: *const ShortintClientKey,
     value_to_encrypt: u64,
@@ -53,6 +75,29 @@ pub unsafe extern "C" fn shortint_client_key_encrypt(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn shortint_bc_client_key_encrypt(
+    client_key: *const ShortintClientKey,
+    value_to_encrypt: u64,
+    result: *mut *mut ShortintCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let client_key = get_ref_checked(client_key).unwrap();
+
+        let heap_allocated_ciphertext = Box::new(ShortintCiphertext(
+            client_key.0.bc_encrypt(value_to_encrypt),
+        ));
+
+        *result = Box::into_raw(heap_allocated_ciphertext);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn shortint_client_key_decrypt(
     client_key: *const ShortintClientKey,
     ciphertext_to_decrypt: *const ShortintCiphertext,
@@ -65,6 +110,22 @@ pub unsafe extern "C" fn shortint_client_key_decrypt(
         let ciphertext_to_decrypt = get_ref_checked(ciphertext_to_decrypt).unwrap();
 
         *result = client_key.0.decrypt(&ciphertext_to_decrypt.0);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_bc_client_key_decrypt(
+    client_key: *const ShortintClientKey,
+    ciphertext_to_decrypt: *const ShortintCiphertext,
+    result: *mut u64,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        let client_key = get_ref_checked(client_key).unwrap();
+        let ciphertext_to_decrypt = get_ref_checked(ciphertext_to_decrypt).unwrap();
+
+        *result = client_key.0.bc_decrypt(&ciphertext_to_decrypt.0);
     })
 }
 
