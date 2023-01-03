@@ -57,7 +57,7 @@ void test_predefined_keygen_w_serde(void) {
   destroy_boolean_server_key(sks);
 
   gen_keys_ok = boolean_gen_keys_with_predefined_parameters_set(
-      BOOLEAN_PARAMETERS_SET_THFE_LIB_PARAMETERS, &cks, &sks);
+      BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS, &cks, &sks);
 
   assert(gen_keys_ok == 0);
 
