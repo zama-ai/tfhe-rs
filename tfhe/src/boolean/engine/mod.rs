@@ -11,7 +11,7 @@ use crate::core_crypto::commons::generators::{
 };
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::commons::parameters::*;
-use crate::seeders::new_seeder;
+use crate::core_crypto::seeders::new_seeder;
 
 pub(crate) trait BinaryGatesEngine<L, R, K> {
     fn and(&mut self, ct_left: L, ct_right: R, server_key: &K) -> Ciphertext;

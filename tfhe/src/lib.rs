@@ -20,7 +20,5 @@ pub mod js_on_wasm_api;
 #[cfg(feature = "__wasm_api")]
 pub use js_on_wasm_api::*;
 
-pub mod seeders;
-
 #[cfg(all(doctest, feature = "shortint", feature = "boolean"))]
 mod test_user_docs;

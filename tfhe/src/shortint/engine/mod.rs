@@ -6,7 +6,7 @@ use crate::core_crypto::commons::generators::{
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
-use crate::seeders::new_seeder;
+use crate::core_crypto::seeders::new_seeder;
 use crate::shortint::ServerKey;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
