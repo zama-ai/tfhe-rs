@@ -45,11 +45,6 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
 /// # Example
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -260,11 +255,6 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
 /// # Example
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -383,11 +373,6 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 /// # Example
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -633,9 +618,6 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 /// # Example
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::SecretRandomGenerator;
-/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -718,9 +700,6 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 /// # Example
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::SecretRandomGenerator;
-/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -848,11 +827,6 @@ pub fn encrypt_seeded_glwe_ciphertext_with_exsiting_generator<
 /// [`compressed/seeded GLWE ciphertext`](`SeededGlweCiphertext`).
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -1018,11 +992,6 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
 /// [`compressed/seeded LWE ciphertext list`](`SeededLweCiphertextList`).
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct

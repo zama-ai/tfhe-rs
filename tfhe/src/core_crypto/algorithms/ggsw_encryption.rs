@@ -14,10 +14,6 @@ use rayon::prelude::*;
 /// encryption algorithm.
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -148,10 +144,6 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// New tasks are created per level matrix and per row of each level matrix.
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -380,10 +372,6 @@ pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, O
 /// encryption algorithm.
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -547,10 +535,6 @@ pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
 /// New tasks are created per level matrix and per row of each level matrix.
 ///
 /// ```
-/// use tfhe::core_crypto::commons::generators::{
-///     EncryptionRandomGenerator, SecretRandomGenerator,
-/// };
-/// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
