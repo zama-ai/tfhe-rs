@@ -32,11 +32,7 @@ This measures the execution time of a single binary boolean gate.
 
 This measures the execution time for some operations and some parameter sets of shortint.
 
-<<<<<<< HEAD
 ### tfhe.rs::shortint.
-=======
-### thfe.rs::shortint.
->>>>>>> b89ca6f (chore(doc): language edits)
 
 This uses the concrete-fft + avx512 configuration.
 
