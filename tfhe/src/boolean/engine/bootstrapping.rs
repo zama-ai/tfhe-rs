@@ -132,7 +132,7 @@ impl Bootstrapper {
         let fft = Fft::new(standard_bootstraping_key.polynomial_size());
         let fft = fft.as_view();
         self.computation_buffers.resize(
-            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_scratch(fft)
+            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
                 .unwrap()
                 .unaligned_bytes_required(),
         );
@@ -178,7 +178,7 @@ impl Bootstrapper {
         let fft = fft.as_view();
 
         self.computation_buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
                 fft,
@@ -234,7 +234,7 @@ impl Bootstrapper {
         let fft = fft.as_view();
 
         self.computation_buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_mem_optimized_scratch::<u64>(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
                 fourier_bsk.glwe_size(),
                 fourier_bsk.polynomial_size(),
                 fft,
