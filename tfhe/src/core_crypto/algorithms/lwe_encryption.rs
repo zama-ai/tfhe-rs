@@ -68,7 +68,6 @@ pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -163,7 +162,6 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -250,7 +248,6 @@ where
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -322,7 +319,6 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -434,7 +430,6 @@ where
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -544,7 +539,6 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -689,7 +683,6 @@ pub fn decrypt_lwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -796,7 +789,6 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -966,7 +958,6 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -1128,7 +1119,6 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -1230,7 +1220,6 @@ mod test {
     use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
     use crate::core_crypto::commons::test_tools;
     use crate::core_crypto::prelude::*;
-    use crate::seeders::new_seeder;
 
     fn test_parallel_and_seeded_lwe_list_encryption_equivalence<
         Scalar: UnsignedTorus + Sync + Send,

@@ -49,7 +49,6 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLweKeyswitchKey<C> {
     ///
     /// ```
     /// use tfhe::core_crypto::prelude::*;
-    /// use tfhe::seeders::new_seeder;
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
     /// // computations

@@ -16,7 +16,6 @@ use crate::core_crypto::entities::*;
 /// };
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -167,7 +166,6 @@ where
 /// };
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -333,7 +331,6 @@ mod test {
     };
     use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
     use crate::core_crypto::prelude::*;
-    use crate::seeders::new_seeder;
 
     fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus>() {
         // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
