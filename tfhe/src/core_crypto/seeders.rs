@@ -49,6 +49,19 @@ mod wasm_seeder {
 /// For the wasm32 target the [`getrandom`](`https://docs.rs/getrandom/latest/getrandom/`)
 /// js random number generator is used as a source of
 /// [`cryptographically random numbers per the W3C documentation`](`https://www.w3.org/TR/WebCryptoAPI/#Crypto-method-getRandomValues`).
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// let mut seeder = new_seeder();
+/// let mut seeder = seeder.as_mut();
+///
+/// let mut first_seed = seeder.seed();
+/// let mut second_seed = seeder.seed();
+/// assert_ne!(first_seed, second_seed);
+/// ```
 pub fn new_seeder() -> Box<dyn Seeder> {
     let mut seeder: Option<Box<dyn Seeder>> = None;
 
