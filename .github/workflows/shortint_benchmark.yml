@@ -64,7 +64,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo +nightly bench --bench shortint-bench --features=x86_64-unix,shortint,internal-keycache -p tfhe
+          make bench_shortint
 
       - name: Parse results
         run: |
@@ -85,13 +85,23 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          RUSTFLAGS="-C target-cpu=native" cargo +nightly bench --bench shortint-bench --features=x86_64-unix,shortint,internal-keycache,nightly-avx512 -p tfhe
+          make AVX512_SUPPORT=ON bench_shortint
 
       - name: Parse AVX512 results
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --walk-subdirs \
           --name-suffix avx512 \
+          --append-results
+
+      - name: Measure key sizes
+        run: |
+          make measure_shortint_key_sizes
+
+      - name: Parse key sizes results
+        run: |
+          python3 ./ci/benchmark_parser.py tfhe/shortint_key_sizes.csv ${{ env.RESULTS_FILENAME }} \
+          --key-sizes \
           --append-results
 
       - name: Upload parsed results artifact

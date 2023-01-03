@@ -84,6 +84,24 @@ pub struct ServerKey {
     pub(crate) key_switching_key: LweKeyswitchKeyOwned<u32>,
 }
 
+impl ServerKey {
+    pub fn bootstrapping_key_size_elements(&self) -> usize {
+        self.bootstrapping_key.as_view().data().as_ref().len()
+    }
+
+    pub fn bootstrapping_key_size_bytes(&self) -> usize {
+        self.bootstrapping_key_size_elements() * std::mem::size_of::<concrete_fft::c64>()
+    }
+
+    pub fn key_switching_key_size_elements(&self) -> usize {
+        self.key_switching_key.as_ref().len()
+    }
+
+    pub fn key_switching_key_size_bytes(&self) -> usize {
+        self.key_switching_key_size_elements() * std::mem::size_of::<u64>()
+    }
+}
+
 /// Perform ciphertext bootstraps on the CPU
 pub(crate) struct Bootstrapper {
     memory: Memory,
