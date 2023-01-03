@@ -18,7 +18,6 @@ use rayon::prelude::*;
 /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
 /// use tfhe::core_crypto::commons::math::random::ActivatedRandomGenerator;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::seeders::new_seeder;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations

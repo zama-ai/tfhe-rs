@@ -3,3 +3,4 @@ pub use super::commons::dispersion::*;
 pub use super::commons::parameters::*;
 pub use super::commons::traits::*;
 pub use super::entities::*;
+pub use super::seeders::new_seeder;
