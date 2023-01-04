@@ -5,10 +5,10 @@ doctest!("../docs/getting_started/quick_start.md", quick_start);
 doctest!("../docs/getting_started/operations.md", operations);
 
 // Booleans
-doctest!("../docs/Booleans/parameters.md", booleans_parameters);
-doctest!("../docs/Booleans/operations.md", booleans_operations);
-doctest!("../docs/Booleans/serialization.md", booleans_serialization);
-doctest!("../docs/Booleans/tutorial.md", booleans_tutorial);
+doctest!("../docs/Boolean/parameters.md", booleans_parameters);
+doctest!("../docs/Boolean/operations.md", booleans_operations);
+doctest!("../docs/Boolean/serialization.md", booleans_serialization);
+doctest!("../docs/Boolean/tutorial.md", booleans_tutorial);
 
 // Shortint
 doctest!("../docs/shortint/parameters.md", shortint_parameters);
