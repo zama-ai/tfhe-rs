@@ -20,7 +20,7 @@ where
     Gen: ByteRandomGenerator,
 {
     let mut glwe_secret_key =
-        GlweSecretKeyOwned::new(Scalar::ZERO, glwe_dimension, polynomial_size);
+        GlweSecretKeyOwned::new_empty_key(Scalar::ZERO, glwe_dimension, polynomial_size);
 
     generate_binary_glwe_secret_key(&mut glwe_secret_key, generator);
 
@@ -36,7 +36,7 @@ where
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for GlweCiphertext creation
+/// // Define parameters for GlweSecretKey creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 ///
@@ -47,7 +47,7 @@ where
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
 /// let mut glwe_secret_key =
-///     GlweSecretKey::new(0u64, glwe_size.to_glwe_dimension(), polynomial_size);
+///     GlweSecretKey::new_empty_key(0u64, glwe_size.to_glwe_dimension(), polynomial_size);
 ///
 /// generate_binary_glwe_secret_key(&mut glwe_secret_key, &mut secret_generator);
 ///
