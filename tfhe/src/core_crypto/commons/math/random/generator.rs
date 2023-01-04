@@ -31,6 +31,7 @@ pub mod serialization_proxy {
 pub(crate) use serialization_proxy::*;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
+/// New type to manage seeds used for compressed/seeded types.
 pub struct CompressionSeed {
     #[serde(with = "SeedSerdeDef")]
     pub seed: Seed,

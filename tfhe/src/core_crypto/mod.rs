@@ -1,4 +1,4 @@
-//! Welcome to the TFHE-rs `core_crypto` module documentation!
+//! # Description
 //!
 //! This library contains a set of low-level primitives which can be used to implement *Fully
 //! Homomorphically Encrypted* (FHE) programs. In a nutshell, fully homomorphic encryption makes it

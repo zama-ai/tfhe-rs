@@ -1,4 +1,4 @@
-//! Noise distribution
+//! Module containing noise distribution primitives.
 //!
 //! When dealing with noise, we tend to use different representation for the same value. In
 //! general, the noise is specified by the standard deviation of a gaussian distribution, which

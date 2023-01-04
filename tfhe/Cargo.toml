@@ -92,8 +92,8 @@ __profiling = []
 seeder_unix = ["concrete-csprng/seeder_unix"]
 seeder_x86_64_rdseed = ["concrete-csprng/seeder_x86_64_rdseed"]
 
-# These target_arch features enable a set of public features for concrete-core if users want a known
-# good/working configuration for concrete-core.
+# These target_arch features enable a set of public features for tfhe if users want a known
+# good/working configuration for tfhe.
 # For a target_arch that does not yet have such a feature, one can still enable features manually or
 # create a feature for said target_arch to make its use simpler.
 x86_64 = ["generator_x86_64_aesni", "seeder_x86_64_rdseed"]

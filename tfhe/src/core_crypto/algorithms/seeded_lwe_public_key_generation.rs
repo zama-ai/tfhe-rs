@@ -1,3 +1,5 @@
+//! Module with primitives pertaining to [`SeededLwePublicKey`] generation.
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::math::random::CompressionSeed;
@@ -5,6 +7,9 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+/// Fill a [`seeded LWE public key`](`SeededLwePublicKey`) with an actual public key.
+///
+/// Consider using [`par_generate_seeded_lwe_public_key`] for better key generation times.
 pub fn generate_seeded_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, NoiseSeeder>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output: &mut SeededLwePublicKey<OutputKeyCont>,
@@ -38,6 +43,11 @@ pub fn generate_seeded_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Noise
     );
 }
 
+/// Allocate a new [`seeded LWE public key`](`SeededLwePublicKey`) and fill it with an actual
+/// seeded public key.
+///
+/// Consider using [`par_allocate_and_generate_new_seeded_lwe_public_key`] for better key
+/// generation times.
 pub fn allocate_and_generate_new_seeded_lwe_public_key<Scalar, InputKeyCont, NoiseSeeder>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,
@@ -64,6 +74,8 @@ where
     pk
 }
 
+/// Parallel variant of [`par_generate_seeded_lwe_public_key`], it is recommended to use this
+/// function for better key generation times as LWE public keys can be quite large.
 pub fn par_generate_seeded_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, NoiseSeeder>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output: &mut SeededLwePublicKey<OutputKeyCont>,
@@ -97,6 +109,8 @@ pub fn par_generate_seeded_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, N
     )
 }
 
+/// Parallel variant of [`allocate_and_generate_new_seeded_lwe_public_key`], it is recommended to
+/// use this function for better key generation times as LWE public keys can be quite large.
 pub fn par_allocate_and_generate_new_seeded_lwe_public_key<Scalar, InputKeyCont, NoiseSeeder>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,

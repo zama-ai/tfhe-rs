@@ -1,5 +1,3 @@
-//! Welcome to the TFHE-rs `boolean` module documentation!
-//!
 //! # Description
 //! This library makes it possible to execute boolean gates over encrypted bits.
 //! It allows to execute a boolean circuit on an untrusted server because both circuit inputs and

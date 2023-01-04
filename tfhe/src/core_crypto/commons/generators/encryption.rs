@@ -1,3 +1,5 @@
+//! Module containing primitives pertaining to random generation in the context of encryption.
+
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, Gaussian, ParallelByteRandomGenerator, RandomGenerable, RandomGenerator,

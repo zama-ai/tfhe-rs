@@ -1,3 +1,6 @@
+//! Module containing primitives pertaining to [`LWE private functional packing keyswitch key
+//! generation`](`LwePrivateFunctionalPackingKeyswitchKey`).
+
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
@@ -8,6 +11,11 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
 
+/// Fill an [`LWE private functional packing keyswitch
+/// key`](`LwePrivateFunctionalPackingKeyswitchKey`) with an actual key.
+///
+/// Consider using [`par_generate_lwe_private_functional_packing_keyswitch_key`] for better key
+/// generation times.
 pub fn generate_lwe_private_functional_packing_keyswitch_key<
     Scalar,
     InputKeyCont,
@@ -118,7 +126,7 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
 }
 
 /// Parallel variant of [`generate_lwe_private_functional_packing_keyswitch_key`]. You may want to
-/// use this variant for bette key generation times.
+/// use this variant for better key generation times.
 pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
     Scalar,
     InputKeyCont,
