@@ -15,7 +15,7 @@ use crate::core_crypto::entities::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for LweCiphertext creation
+/// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
 /// let output_lwe_dimension = LweDimension(2048);
@@ -161,7 +161,7 @@ where
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for LweCiphertext creation
+/// // Define parameters for LweKeyswitchKey creation
 /// let input_lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
 /// let output_lwe_dimension = LweDimension(2048);
@@ -327,7 +327,7 @@ mod test {
     fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus>() {
         // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
         // computations
-        // Define parameters for LweCiphertext creation
+        // Define parameters for LweKeyswitchKey creation
         let input_lwe_dimension = LweDimension(742);
         let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
         let output_lwe_dimension = LweDimension(2048);
