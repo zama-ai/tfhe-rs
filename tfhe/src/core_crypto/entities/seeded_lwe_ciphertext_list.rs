@@ -42,7 +42,7 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLweCiphertextList<C> {
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
     /// // computations
-    /// // Define parameters for LweCiphertext creation
+    /// // Define parameters for SeededLweCiphertextList creation
     /// let lwe_dimension = LweDimension(742);
     /// let lwe_ciphertext_count = LweCiphertextCount(2);
     ///
