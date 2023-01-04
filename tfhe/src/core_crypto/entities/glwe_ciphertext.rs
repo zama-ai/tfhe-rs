@@ -1,3 +1,5 @@
+//! Module containing the definition of the GlweCiphertext.
+
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -203,6 +205,22 @@ pub fn glwe_ciphertext_mask_size(
 ///
 /// When we set $k=1$ a GLWE ciphertext becomes an RLWE ciphertext.
 /// When we set $N=1$ a GLWE ciphertext becomes an LWE ciphertext with $n=k$.
+///
+/// ## GLWE Encryption
+/// ###### inputs:
+/// - $\mathsf{PT}\in\mathcal{R}\_q$: a plaintext
+/// - $\vec{S} \in\mathcal{R}\_q^k$: a secret key
+/// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and mean $\mu$
+///
+/// ###### outputs:
+/// - $\mathsf{CT} = \left( \vec{A} , B \right) \in \mathsf{GLWE}\_{\vec{S}}( \mathsf{PT} )\subseteq
+///   \mathcal{R}\_q^{k+1}$: an GLWE ciphertext
+///
+/// ###### algorithm:
+/// 1. uniformly sample each coefficient of the polynomial vector $\vec{A}\in\mathcal{R}^k\_q$
+/// 2. sample each integer error coefficient of an error polynomial $E\in\mathcal{R}\_q$ from
+/// $\mathcal{D\_{\sigma^2,\mu}}$ 3. compute $B = \left\langle \vec{A} , \vec{S} \right\rangle +
+/// \mathsf{PT} + E \in\mathcal{R}\_q$ 4. output $\left( \vec{A} , B \right)$
 #[derive(Clone, Debug, PartialEq)]
 pub struct GlweCiphertext<C: Container> {
     data: C,

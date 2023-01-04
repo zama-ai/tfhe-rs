@@ -1,4 +1,4 @@
-//! Module with the definition of the PublicKey.
+//! Module with the definition of the compressed PublicKey.
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;

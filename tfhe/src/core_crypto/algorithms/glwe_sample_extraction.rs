@@ -1,3 +1,7 @@
+//! Module containing primitives pertaining to the operation usually referred to as a
+//! _sample extract_ in the literature. Allowing to extract a single
+//! [`LWE Ciphertext`](`LweCiphertext`) from a given [`GLWE ciphertext`](`GlweCiphertext`).
+
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{MonomialDegree, *};
