@@ -6,7 +6,7 @@ use crate::core_crypto::fft_impl::math::fft::Fft;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::EngineResult;
 use crate::shortint::server_key::MaxDegree;
-use crate::shortint::{Ciphertext, ClientKey, ServerKey};
+use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, ServerKey};
 use std::cmp::min;
 
 mod add;
@@ -86,6 +86,63 @@ impl ShortintEngine {
         Ok(ServerKey {
             key_switching_key,
             bootstrapping_key: fourier_bsk,
+            message_modulus: cks.parameters.message_modulus,
+            carry_modulus: cks.parameters.carry_modulus,
+            max_degree,
+        })
+    }
+
+    pub(crate) fn new_compressed_server_key(
+        &mut self,
+        cks: &ClientKey,
+    ) -> EngineResult<CompressedServerKey> {
+        // Plaintext Max Value
+        let max_value = cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0 - 1;
+
+        // The maximum number of operations before we need to clean the carry buffer
+        let max = MaxDegree(max_value);
+        self.new_compressed_server_key_with_max_degree(cks, max)
+    }
+
+    pub(crate) fn new_compressed_server_key_with_max_degree(
+        &mut self,
+        cks: &ClientKey,
+        max_degree: MaxDegree,
+    ) -> EngineResult<CompressedServerKey> {
+        #[cfg(not(feature = "__wasm_api"))]
+        let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
+            &cks.lwe_secret_key_after_ks,
+            &cks.glwe_secret_key,
+            cks.parameters.pbs_base_log,
+            cks.parameters.pbs_level,
+            cks.parameters.glwe_modular_std_dev,
+            &mut self.seeder,
+        );
+
+        #[cfg(feature = "__wasm_api")]
+        let bootstrapping_key = allocate_and_generate_new_seeded_lwe_bootstrap_key(
+            &cks.lwe_secret_key_after_ks,
+            &cks.glwe_secret_key,
+            cks.parameters.pbs_base_log,
+            cks.parameters.pbs_level,
+            cks.parameters.glwe_modular_std_dev,
+            &mut self.seeder,
+        );
+
+        // Creation of the key switching key
+        let key_switching_key = allocate_and_generate_new_seeded_lwe_keyswitch_key(
+            &cks.lwe_secret_key,
+            &cks.lwe_secret_key_after_ks,
+            cks.parameters.ks_base_log,
+            cks.parameters.ks_level,
+            cks.parameters.lwe_modular_std_dev,
+            &mut self.seeder,
+        );
+
+        // Pack the keys in the server key set:
+        Ok(CompressedServerKey {
+            key_switching_key,
+            bootstrapping_key,
             message_modulus: cks.parameters.message_modulus,
             carry_modulus: cks.parameters.carry_modulus,
             max_degree,

@@ -14,7 +14,7 @@ pub use ciphertext::ShortintCiphertext;
 pub use client_key::ShortintClientKey;
 pub use public_key::{ShortintCompressedPublicKey, ShortintPublicKey};
 pub use server_key::pbs::{ShortintBivariatePBSAccumulator, ShortintPBSAccumulator};
-pub use server_key::ShortintServerKey;
+pub use server_key::{ShortintCompressedServerKey, ShortintServerKey};
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_gen_keys_with_parameters(
