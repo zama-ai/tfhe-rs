@@ -28,3 +28,10 @@ jobs:
           source_branch: "main"
           destination_repo: ${{ secrets.SYNC_DEST_REPO }}
           destination_branch: "main"
+      - name: git-sync tags
+        uses: wei/git-sync@v3
+        with:
+          source_repo: "zama-ai/tfhe-rs"
+          source_branch: "refs/tags/*"
+          destination_repo: ${{ secrets.SYNC_DEST_REPO }}
+          destination_branch: "refs/tags/*"
