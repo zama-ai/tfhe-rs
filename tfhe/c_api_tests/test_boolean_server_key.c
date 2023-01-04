@@ -326,19 +326,41 @@ bool c_xnor(bool left, bool right) { return !c_xor(left, right); }
 
 void test_server_key(void) {
   BooleanClientKey *cks = NULL;
+  BooleanCompressedServerKey *csks = NULL;
   BooleanServerKey *sks = NULL;
   Buffer cks_ser_buffer = {.pointer = NULL, .length = 0};
   BooleanClientKey *deser_cks = NULL;
+  Buffer csks_ser_buffer = {.pointer = NULL, .length = 0};
+  BooleanCompressedServerKey *deser_csks = NULL;
   Buffer sks_ser_buffer = {.pointer = NULL, .length = 0};
   BooleanServerKey *deser_sks = NULL;
+  BooleanParameters *params = NULL;
 
-  int gen_keys_ok = boolean_gen_keys_with_default_parameters(&cks, &sks);
-  assert(gen_keys_ok == 0);
+  int get_params_ok = boolean_get_parameters(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &params);
+  assert(get_params_ok == 0);
+
+  int gen_cks_ok = boolean_gen_client_key(params, &cks);
+  assert(gen_cks_ok == 0);
+
+  int gen_csks_ok = boolean_gen_compressed_server_key(cks, &csks);
+  assert(gen_csks_ok == 0);
+
+  int ser_csks_ok = boolean_serialize_compressed_server_key(csks, &csks_ser_buffer);
+  assert(ser_csks_ok == 0);
+
+  BufferView deser_view = {.pointer = csks_ser_buffer.pointer, .length = csks_ser_buffer.length};
+
+  int deser_csks_ok = boolean_deserialize_compressed_server_key(deser_view, &deser_csks);
+  assert(deser_csks_ok == 0);
+
+  int decompress_csks_ok = boolean_decompress_server_key(deser_csks, &sks);
+  assert(decompress_csks_ok == 0);
 
   int ser_cks_ok = boolean_serialize_client_key(cks, &cks_ser_buffer);
   assert(ser_cks_ok == 0);
 
-  BufferView deser_view = {.pointer = cks_ser_buffer.pointer, .length = cks_ser_buffer.length};
+  deser_view.pointer = cks_ser_buffer.pointer;
+  deser_view.length = cks_ser_buffer.length;
 
   int deser_cks_ok = boolean_deserialize_client_key(deser_view, &deser_cks);
   assert(deser_cks_ok == 0);
@@ -390,10 +412,14 @@ void test_server_key(void) {
                                              boolean_server_key_xnor_scalar_assign);
 
   destroy_boolean_client_key(cks);
+  destroy_boolean_compressed_server_key(csks);
   destroy_boolean_server_key(sks);
   destroy_boolean_client_key(deser_cks);
+  destroy_boolean_compressed_server_key(deser_csks);
   destroy_boolean_server_key(deser_sks);
+  destroy_boolean_parameters(params);
   destroy_buffer(&cks_ser_buffer);
+  destroy_buffer(&csks_ser_buffer);
   destroy_buffer(&sks_ser_buffer);
 }
 

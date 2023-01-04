@@ -9,32 +9,39 @@ function genRandomBigIntWithBytes(byteCount) {
 
 // Boolean tests
 test('boolean_encrypt_decrypt', (t) => {
-    let params = Boolean.get_boolean_parameters(BooleanParameterSet.Default);
+    let params = Boolean.get_parameters(BooleanParameterSet.Default);
     let cks = Boolean.new_client_key(params);
     let ct = Boolean.encrypt(cks, true);
 
-    let serialized_cks = Boolean.serialize_boolean_client_key(cks);
-    let deserialized_cks = Boolean.deserialize_boolean_client_key(serialized_cks);
+    let serialized_cks = Boolean.serialize_client_key(cks);
+    let deserialized_cks = Boolean.deserialize_client_key(serialized_cks);
 
-    let serialized_ct = Boolean.serialize_boolean_ciphertext(ct);
-    let deserialized_ct = Boolean.deserialize_boolean_ciphertext(serialized_ct);
+    let serialized_ct = Boolean.serialize_ciphertext(ct);
+    let deserialized_ct = Boolean.deserialize_ciphertext(serialized_ct);
 
     let decrypted = Boolean.decrypt(deserialized_cks, deserialized_ct);
     assert.deepStrictEqual(decrypted, true);
+
+    let sks = Boolean.new_compressed_server_key(cks);
+
+    let serialized_sks = Boolean.serialize_compressed_server_key(sks);
+    let deserialized_sks = Boolean.deserialize_compressed_server_key(serialized_sks);
+
+    // No equality tests here, as wasm stores pointers which will always differ
 });
 
 test('boolean_public_encrypt_decrypt', (t) => {
-    let params = Boolean.get_boolean_parameters(BooleanParameterSet.Default);
+    let params = Boolean.get_parameters(BooleanParameterSet.Default);
     let cks = Boolean.new_client_key(params);
     let pk = Boolean.new_public_key(cks);
 
-    let serialized_pk = Boolean.serialize_boolean_public_key(pk);
-    let deserialized_pk = Boolean.deserialize_boolean_public_key(serialized_pk);
+    let serialized_pk = Boolean.serialize_public_key(pk);
+    let deserialized_pk = Boolean.deserialize_public_key(serialized_pk);
 
     let ct = Boolean.encrypt_with_public_key(deserialized_pk, true);
 
-    let serialized_ct = Boolean.serialize_boolean_ciphertext(ct);
-    let deserialized_ct = Boolean.deserialize_boolean_ciphertext(serialized_ct);
+    let serialized_ct = Boolean.serialize_ciphertext(ct);
+    let deserialized_ct = Boolean.deserialize_ciphertext(serialized_ct);
 
     let decrypted = Boolean.decrypt(cks, deserialized_ct);
     assert.deepStrictEqual(decrypted, true);
@@ -46,7 +53,7 @@ test('boolean_deterministic_keygen', (t) => {
     let seed_high_bytes = genRandomBigIntWithBytes(8);
     let seed_low_bytes = genRandomBigIntWithBytes(8);
 
-    let params = Boolean.get_boolean_parameters(BooleanParameterSet.Default);
+    let params = Boolean.get_parameters(BooleanParameterSet.Default);
     let cks = Boolean.new_client_key_from_seed_and_parameters(seed_high_bytes, seed_low_bytes, params);
     let other_cks = Boolean.new_client_key_from_seed_and_parameters(seed_high_bytes, seed_low_bytes, params);
 
@@ -64,53 +71,53 @@ test('boolean_deterministic_keygen', (t) => {
 
 // Shortint tests
 test('shortint_encrypt_decrypt', (t) => {
-    let params = Shortint.get_shortint_parameters(2, 2);
+    let params = Shortint.get_parameters(2, 2);
     let cks = Shortint.new_client_key(params);
     let ct = Shortint.encrypt(cks, BigInt(3));
 
-    let serialized_cks = Shortint.serialize_shortint_client_key(cks);
-    let deserialized_cks = Shortint.deserialize_shortint_client_key(serialized_cks);
+    let serialized_cks = Shortint.serialize_client_key(cks);
+    let deserialized_cks = Shortint.deserialize_client_key(serialized_cks);
 
-    let serialized_ct = Shortint.serialize_shortint_ciphertext(ct);
-    let deserialized_ct = Shortint.deserialize_shortint_ciphertext(serialized_ct);
+    let serialized_ct = Shortint.serialize_ciphertext(ct);
+    let deserialized_ct = Shortint.deserialize_ciphertext(serialized_ct);
 
     let decrypted = Shortint.decrypt(deserialized_cks, deserialized_ct);
     assert.deepStrictEqual(decrypted, BigInt(3));
 
     let sks = Shortint.new_compressed_server_key(cks);
 
-    let serialized_sks = Shortint.serialize_shortint_compressed_server_key(sks);
-    let deserialized_sks = Shortint.deserialize_shortint_compressed_server_key(serialized_sks);
+    let serialized_sks = Shortint.serialize_compressed_server_key(sks);
+    let deserialized_sks = Shortint.deserialize_compressed_server_key(serialized_sks);
 
     // No equality tests here, as wasm stores pointers which will always differ
 });
 
 test('shortint_public_encrypt_decrypt', (t) => {
-    let params = Shortint.get_shortint_parameters(2, 0);
+    let params = Shortint.get_parameters(2, 0);
     let cks = Shortint.new_client_key(params);
     let pk = Shortint.new_public_key(cks);
 
     let ct = Shortint.encrypt_with_public_key(pk, BigInt(3));
 
-    let serialized_ct = Shortint.serialize_shortint_ciphertext(ct);
-    let deserialized_ct = Shortint.deserialize_shortint_ciphertext(serialized_ct);
+    let serialized_ct = Shortint.serialize_ciphertext(ct);
+    let deserialized_ct = Shortint.deserialize_ciphertext(serialized_ct);
 
     let decrypted = Shortint.decrypt(cks, deserialized_ct);
     assert.deepStrictEqual(decrypted, BigInt(3));
 });
 
 test('shortint_compressed_public_encrypt_decrypt', (t) => {
-    let params = Shortint.get_shortint_parameters(1, 1);
+    let params = Shortint.get_parameters(1, 1);
     let cks = Shortint.new_client_key(params);
     let pk = Shortint.new_compressed_public_key(cks);
 
-    let serialized_pk = Shortint.serialize_shortint_compressed_public_key(pk);
-    let deserialized_pk = Shortint.deserialize_shortint_compressed_public_key(serialized_pk);
+    let serialized_pk = Shortint.serialize_compressed_public_key(pk);
+    let deserialized_pk = Shortint.deserialize_compressed_public_key(serialized_pk);
 
     let ct = Shortint.encrypt_with_compressed_public_key(deserialized_pk, BigInt(1));
 
-    let serialized_ct = Shortint.serialize_shortint_ciphertext(ct);
-    let deserialized_ct = Shortint.deserialize_shortint_ciphertext(serialized_ct);
+    let serialized_ct = Shortint.serialize_ciphertext(ct);
+    let deserialized_ct = Shortint.deserialize_ciphertext(serialized_ct);
 
     let decrypted = Shortint.decrypt(cks, deserialized_ct);
     assert.deepStrictEqual(decrypted, BigInt(1));
@@ -122,7 +129,7 @@ test('shortint_deterministic_keygen', (t) => {
     let seed_high_bytes = genRandomBigIntWithBytes(8);
     let seed_low_bytes = genRandomBigIntWithBytes(8);
 
-    let params = Shortint.get_shortint_parameters(2, 2);
+    let params = Shortint.get_parameters(2, 2);
     let cks = Shortint.new_client_key_from_seed_and_parameters(seed_high_bytes, seed_low_bytes, params);
     let other_cks = Shortint.new_client_key_from_seed_and_parameters(seed_high_bytes, seed_low_bytes, params);
 
