@@ -6,4 +6,4 @@ pub use super::commons::math::random::ActivatedRandomGenerator;
 pub use super::commons::parameters::*;
 pub use super::commons::traits::*;
 pub use super::entities::*;
-pub use super::seeders::new_seeder;
+pub use super::seeders::*;
