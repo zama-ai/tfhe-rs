@@ -14,9 +14,13 @@ mod scalar_sub;
 mod shift;
 mod sub;
 
+pub mod compressed;
+pub use compressed::CompressedServerKey;
+
 #[cfg(test)]
 mod tests;
 
+use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned;
 use crate::shortint::ciphertext::Ciphertext;
@@ -549,6 +553,42 @@ impl ServerKey {
 
     pub fn key_switching_key_size_bytes(&self) -> usize {
         self.key_switching_key_size_elements() * std::mem::size_of::<u64>()
+    }
+}
+
+impl From<CompressedServerKey> for ServerKey {
+    fn from(compressed_server_key: CompressedServerKey) -> Self {
+        let CompressedServerKey {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+        } = compressed_server_key;
+
+        let key_switching_key = key_switching_key.decompress_into_lwe_keyswitch_key();
+        let standard_bootstrapping_key = bootstrapping_key.decompress_into_lwe_bootstrap_key();
+
+        let mut bootstrapping_key = FourierLweBootstrapKeyOwned::new(
+            standard_bootstrapping_key.input_lwe_dimension(),
+            standard_bootstrapping_key.glwe_size(),
+            standard_bootstrapping_key.polynomial_size(),
+            standard_bootstrapping_key.decomposition_base_log(),
+            standard_bootstrapping_key.decomposition_level_count(),
+        );
+
+        convert_standard_lwe_bootstrap_key_to_fourier(
+            &standard_bootstrapping_key,
+            &mut bootstrapping_key,
+        );
+
+        Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+        }
     }
 }
 

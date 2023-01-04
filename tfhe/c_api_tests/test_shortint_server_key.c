@@ -296,9 +296,12 @@ uint64_t right_shift(uint64_t left, uint8_t right) { return left >> right; }
 
 void test_server_key(void) {
   ShortintClientKey *cks = NULL;
+  ShortintCompressedServerKey *csks = NULL;
   ShortintServerKey *sks = NULL;
   Buffer cks_ser_buffer = {.pointer = NULL, .length = 0};
   ShortintClientKey *deser_cks = NULL;
+  Buffer csks_ser_buffer = {.pointer = NULL, .length = 0};
+  ShortintCompressedServerKey *deser_csks = NULL;
   Buffer sks_ser_buffer = {.pointer = NULL, .length = 0};
   ShortintServerKey *deser_sks = NULL;
   ShortintParameters *params = NULL;
@@ -309,13 +312,28 @@ void test_server_key(void) {
   int get_params_ok = shortint_get_parameters(message_bits, carry_bits, &params);
   assert(get_params_ok == 0);
 
-  int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
-  assert(gen_keys_ok == 0);
+  int gen_cks_ok = shortint_gen_client_key(params, &cks);
+  assert(gen_cks_ok == 0);
+
+  int gen_csks_ok = shortint_gen_compressed_server_key(cks, &csks);
+  assert(gen_csks_ok == 0);
+
+  int ser_csks_ok = shortint_serialize_compressed_server_key(csks, &csks_ser_buffer);
+  assert(ser_csks_ok == 0);
+
+  BufferView deser_view = {.pointer = csks_ser_buffer.pointer, .length = csks_ser_buffer.length};
+
+  int deser_csks_ok = shortint_deserialize_compressed_server_key(deser_view, &deser_csks);
+  assert(deser_csks_ok == 0);
+
+  int decompress_csks_ok = shortint_decompress_server_key(deser_csks, &sks);
+  assert(decompress_csks_ok == 0);
 
   int ser_cks_ok = shortint_serialize_client_key(cks, &cks_ser_buffer);
   assert(ser_cks_ok == 0);
 
-  BufferView deser_view = {.pointer = cks_ser_buffer.pointer, .length = cks_ser_buffer.length};
+  deser_view.pointer = cks_ser_buffer.pointer;
+  deser_view.length = cks_ser_buffer.length;
 
   int deser_cks_ok = shortint_deserialize_client_key(deser_view, &deser_cks);
   assert(deser_cks_ok == 0);
@@ -543,11 +561,14 @@ void test_server_key(void) {
                                         forbidden_scalar_mod_values, 1);
 
   destroy_shortint_client_key(cks);
+  destroy_shortint_compressed_server_key(csks);
   destroy_shortint_server_key(sks);
   destroy_shortint_client_key(deser_cks);
+  destroy_shortint_compressed_server_key(deser_csks);
   destroy_shortint_server_key(deser_sks);
   destroy_shortint_parameters(params);
   destroy_buffer(&cks_ser_buffer);
+  destroy_buffer(&csks_ser_buffer);
   destroy_buffer(&sks_ser_buffer);
 }
 

@@ -15,7 +15,7 @@ pub struct CompressedPublicKey {
 }
 
 impl CompressedPublicKey {
-    /// Generates a public key.
+    /// Generate a compressed public key.
     ///
     /// # Example
     ///
