@@ -17,7 +17,7 @@ where
     Scalar: RandomGenerable<UniformBinary> + Numeric,
     Gen: ByteRandomGenerator,
 {
-    let mut lwe_secret_key = LweSecretKeyOwned::new(Scalar::ZERO, lwe_dimension);
+    let mut lwe_secret_key = LweSecretKeyOwned::new_empty_key(Scalar::ZERO, lwe_dimension);
 
     generate_binary_lwe_secret_key(&mut lwe_secret_key, generator);
 
@@ -33,7 +33,7 @@ where
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for GlweCiphertext creation
+/// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 //
 /// // Create the PRNG
@@ -43,7 +43,7 @@ where
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
 /// let mut lwe_secret_key =
-///     LweSecretKey::new(0u64, lwe_dimension);
+///     LweSecretKey::new_empty_key(0u64, lwe_dimension);
 ///
 /// generate_binary_lwe_secret_key(&mut lwe_secret_key, &mut secret_generator);
 ///
