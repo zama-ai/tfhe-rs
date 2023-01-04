@@ -91,4 +91,3 @@ pub fn bc_gen_keys(parameters_set: Parameters) -> (ClientKey, ServerKey) {
 
     (cks, sks)
 }
-

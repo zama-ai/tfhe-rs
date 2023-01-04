@@ -111,6 +111,37 @@ impl ShortintEngine {
         })
     }
 
+    pub(crate) fn bc_new_compressed_public_key(
+        &mut self,
+        client_key: &ClientKey,
+    ) -> EngineResult<CompressedPublicKey> {
+        let client_parameters = client_key.parameters;
+
+        let zero_encryption_count =
+            bc_shortint_public_key_zero_encryption_count(&client_parameters);
+
+        #[cfg(not(feature = "__wasm_api"))]
+        let compressed_public_key = par_allocate_and_generate_new_seeded_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_parameters.glwe_modular_std_dev,
+            &mut self.seeder,
+        );
+
+        #[cfg(feature = "__wasm_api")]
+        let compressed_public_key = allocate_and_generate_new_seeded_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_parameters.glwe_modular_std_dev,
+            &mut self.seeder,
+        );
+
+        Ok(CompressedPublicKey {
+            lwe_public_key: compressed_public_key,
+            parameters: client_key.parameters.to_owned(),
+        })
+    }
+
     pub(crate) fn encrypt_with_public_key(
         &mut self,
         public_key: &PublicKey,

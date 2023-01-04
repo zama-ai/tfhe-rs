@@ -35,6 +35,12 @@ impl CompressedPublicKey {
         })
     }
 
+    pub fn bc_new(client_key: &ClientKey) -> CompressedPublicKey {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_new_compressed_public_key(client_key).unwrap()
+        })
+    }
+
     /// Encrypts a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus

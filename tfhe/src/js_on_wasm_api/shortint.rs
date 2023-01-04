@@ -82,6 +82,59 @@ impl Shortint {
     }
 
     #[wasm_bindgen]
+    pub fn bc_get_shortint_parameters(
+        message_bits: usize,
+        carry_bits: usize,
+    ) -> Result<ShortintParameters, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        match (message_bits, carry_bits) {
+            (1, 0) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_1_CARRY_0),
+            (1, 1) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_1_CARRY_1),
+            (2, 0) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_2_CARRY_0),
+            (1, 2) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_1_CARRY_2),
+            (2, 1) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_2_CARRY_1),
+            (3, 0) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_3_CARRY_0),
+            (1, 3) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_1_CARRY_3),
+            (2, 2) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_2_CARRY_2),
+            (3, 1) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_3_CARRY_1),
+            (4, 0) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_4_CARRY_0),
+            (1, 4) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_1_CARRY_4),
+            (2, 3) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_2_CARRY_3),
+            (3, 2) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_3_CARRY_2),
+            (4, 1) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_4_CARRY_1),
+            (5, 0) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_5_CARRY_0),
+            (1, 5) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_1_CARRY_5),
+            (2, 4) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_2_CARRY_4),
+            (3, 3) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_3_CARRY_3),
+            (4, 2) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_4_CARRY_2),
+            (5, 1) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_5_CARRY_1),
+            (6, 0) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_6_CARRY_0),
+            (1, 6) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_1_CARRY_6),
+            (2, 5) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_2_CARRY_5),
+            (3, 4) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_3_CARRY_4),
+            (4, 3) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_4_CARRY_3),
+            (5, 2) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_5_CARRY_2),
+            (6, 1) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_6_CARRY_1),
+            (7, 0) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_7_CARRY_0),
+            (1, 7) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_1_CARRY_7),
+            (2, 6) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_2_CARRY_6),
+            (3, 5) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_3_CARRY_5),
+            (4, 4) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_4_CARRY_4),
+            (5, 3) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_5_CARRY_3),
+            (6, 2) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_6_CARRY_2),
+            (7, 1) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_7_CARRY_1),
+            (8, 0) => Ok(crate::shortint::parameters::bc_parameters::PARAM_MESSAGE_8_CARRY_0),
+            _ => Err(wasm_bindgen::JsError::new(
+                format!(
+                "No parameters for {message_bits} bits of message and {carry_bits} bits of carry"
+            )
+                .as_str(),
+            )),
+        }
+        .map(ShortintParameters)
+    }
+
+    #[wasm_bindgen]
     #[allow(clippy::too_many_arguments)]
     pub fn new_shortint_parameters(
         lwe_dimension: usize,
@@ -148,6 +201,30 @@ impl Shortint {
     }
 
     #[wasm_bindgen]
+    pub fn bc_new_client_key_from_seed_and_parameters(
+        seed_high_bytes: u64,
+        seed_low_bytes: u64,
+        parameters: &ShortintParameters,
+    ) -> Result<ShortintClientKey, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        let seed_high_bytes: u128 = seed_high_bytes.into();
+        let seed_low_bytes: u128 = seed_low_bytes.into();
+        let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
+
+        let mut constant_seeder = Box::new(js_wasm_seeder::ConstantSeeder::new(
+            crate::core_crypto::commons::math::random::Seed(seed),
+        ));
+
+        let mut tmp_shortint_engine =
+            crate::shortint::engine::ShortintEngine::new_from_seeder(constant_seeder.as_mut());
+
+        tmp_shortint_engine
+            .bc_new_client_key(parameters.0.to_owned())
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
+            .map(ShortintClientKey)
+    }
+
+    #[wasm_bindgen]
     pub fn new_client_key(parameters: &ShortintParameters) -> ShortintClientKey {
         set_hook(Box::new(console_error_panic_hook::hook));
 
@@ -170,6 +247,17 @@ impl Shortint {
         set_hook(Box::new(console_error_panic_hook::hook));
 
         ShortintCompressedPublicKey(crate::shortint::public_key::CompressedPublicKey::new(
+            &client_key.0,
+        ))
+    }
+
+    #[wasm_bindgen]
+    pub fn bc_new_compressed_public_key(
+        client_key: &ShortintClientKey,
+    ) -> ShortintCompressedPublicKey {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        ShortintCompressedPublicKey(crate::shortint::public_key::CompressedPublicKey::bc_new(
             &client_key.0,
         ))
     }
@@ -212,6 +300,12 @@ impl Shortint {
     pub fn decrypt(client_key: &ShortintClientKey, ct: &ShortintCiphertext) -> u64 {
         set_hook(Box::new(console_error_panic_hook::hook));
         client_key.0.decrypt(&ct.0)
+    }
+
+    #[wasm_bindgen]
+    pub fn bc_decrypt(client_key: &ShortintClientKey, ct: &ShortintCiphertext) -> u64 {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        client_key.0.bc_decrypt(&ct.0)
     }
 
     #[wasm_bindgen]
