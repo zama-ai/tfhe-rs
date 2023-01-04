@@ -2,15 +2,15 @@
 
 ## Using the C API
 
-Welcome to this `TFHE-rs` C API tutorial!
+Welcome to this TFHE-rs C API tutorial!
 
-This library exposes a C binding to the `TFHE-rs` primitives to implement _Fully Homomorphic Encryption_ (FHE) programs.
+This library exposes a C binding to the TFHE-rs primitives to implement _Fully Homomorphic Encryption_ (FHE) programs.
 
-## First steps using `TFHE-rs` C API
+## First steps using TFHE-rs C API
 
-### Setting-up `TFHE-rs` C API for use in a C program.
+### Setting-up TFHE-rs C API for use in a C program.
 
-`TFHE-rs` C API can be built on a Unix x86\_64 machine using the following command:
+TFHE-rs C API can be built on a Unix x86\_64 machine using the following command:
 
 ```shell
 RUSTFLAGS="-C target-cpu=native" cargo build --release --features=x86_64-unix,boolean-c-api,shortint-c-api -p tfhe
@@ -26,7 +26,7 @@ All features are opt-in, but for simplicity here, the C API is enabled for boole
 
 The `tfhe.h` header as well as the static (.a) and dynamic (.so) `libtfhe` binaries can then be found in "${REPO\_ROOT}/target/release/"
 
-The build system needs to be set up so that the C or C++ program links against `TFHE-rs` C API binaries.
+The build system needs to be set up so that the C or C++ program links against TFHE-rs C API binaries.
 
 Here is a minimal CMakeLists.txt allowing to do just that:
 
@@ -175,4 +175,4 @@ int main(void)
 
 ## Audience
 
-Programmers wishing to use `TFHE-rs` but who are unable to use Rust (for various reasons) can use these bindings in their language of choice, as long as it can interface with C code to bring `TFHE-rs` functionalities to said language.
+Programmers wishing to use TFHE-rs but who are unable to use Rust (for various reasons) can use these bindings in their language of choice, as long as it can interface with C code to bring TFHE-rs functionalities to said language.

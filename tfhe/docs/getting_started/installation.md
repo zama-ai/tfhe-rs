@@ -25,7 +25,7 @@ This crate exposes two kinds of data types. Each kind is enabled by activating i
 
 The different data types and keys exposed by the crate can be serialized / deserialized.
 
-More information can be found [here](../Booleans/serialization.md) for boolean and [here](../shortint/serialization.md) for shortint.
+More information can be found [here](../Boolean/serialization.md) for boolean and [here](../shortint/serialization.md) for shortint.
 
 ## Supported platforms
 

@@ -1,3 +1,5 @@
+//! Module with primitives pertaining to generic entity creations.
+
 /// Trait to be able to create structs in contexts where the concrete type may not be known ahead of
 /// time.
 pub trait CreateFrom<T> {

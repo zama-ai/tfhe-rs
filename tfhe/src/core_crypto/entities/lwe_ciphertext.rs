@@ -1,3 +1,5 @@
+//! Module containing the definition of the LweCiphertext.
+
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 
@@ -91,6 +93,38 @@ impl<'data, T> CreateFrom<&'data mut [T]> for LweBody<&'data mut T> {
 /// In an LWE ciphertext, it is the length of the vector $\vec{a}$.
 /// At [`encryption`](`crate::core_crypto::algorithms::encrypt_lwe_ciphertext`) time, it is
 /// the number of uniformly random integers generated.
+///
+/// ## LWE Encryption
+/// ###### inputs:
+/// - $\mathsf{pt}\in\mathbb{Z}\_q$: a plaintext
+/// - $\vec{s}\in\mathbb{Z}\_q^n$: a secret key
+/// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean $\mu$
+///
+/// ###### outputs:
+/// - $\mathsf{ct} = \left( \vec{a} , b\right) \in \mathsf{LWE}^n\_{\vec{s}}( \mathsf{pt} )\subseteq
+///   \mathbb{Z}\_q^{(n+1)}$: an LWE ciphertext
+///
+/// ###### algorithm:
+/// 1. uniformly sample a vector $\vec{a}\in\mathbb{Z}\_q^n$
+/// 2. sample an integer error term $e \hookleftarrow \mathcal{D\_{\sigma^2,\mu}}$
+/// 3. compute $b = \left\langle \vec{a} , \vec{s} \right\rangle + \mathsf{pt} + e \in\mathbb{Z}\_q$
+/// 4. output $\left( \vec{a} , b\right)$
+///
+/// ## LWE Decryption
+/// ###### inputs:
+/// - $\mathsf{ct} = \left( \vec{a} , b\right) \in \mathsf{LWE}^n\_{\vec{s}}( \mathsf{pt} )\subseteq
+///   \mathbb{Z}\_q^{(n+1)}$: an LWE ciphertext
+/// - $\vec{s}\in\mathbb{Z}\_q^n$: a secret key
+///
+/// ###### outputs:
+/// - $\mathsf{pt}\in\mathbb{Z}\_q$: a plaintext
+///
+/// ###### algorithm:
+/// 1. compute $\mathsf{pt} = b - \left\langle \vec{a} , \vec{s} \right\rangle \in\mathbb{Z}\_q$
+/// 3. output $\mathsf{pt}$
+///
+/// **Remark:** Observe that the decryption is followed by a decoding phase that will contain a
+/// rounding.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LweCiphertext<C: Container> {
     data: C,

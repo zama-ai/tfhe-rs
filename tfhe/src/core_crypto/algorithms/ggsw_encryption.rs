@@ -1,3 +1,6 @@
+//! Module containing primitives pertaining to [`GGSW ciphertext
+//! encryption`](`GgswCiphertext#ggsw-encryption`).
+
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
@@ -10,8 +13,8 @@ use rayon::prelude::*;
 
 /// Encrypt a plaintext in a [`GGSW ciphertext`](`GgswCiphertext`).
 ///
-/// See the [`formal definition`](`GgswCiphertext#ggsw-encryption`) for the definition of the
-/// encryption algorithm.
+/// See the [`GGSW ciphertext formal definition`](`GgswCiphertext#ggsw-encryption`) for the
+/// definition of the encryption algorithm.
 ///
 /// ```
 /// use tfhe::core_crypto::prelude::*;
@@ -307,6 +310,10 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
     }
 }
 
+/// Convenience function to share the core logic of the seeded GGSW encryption between all
+/// functions needing it.
+///
+/// Allows to efficiently encrypt lists of seeded GGSW.
 pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
@@ -463,6 +470,10 @@ pub fn encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
     )
 }
 
+/// Convenience function to share the core logic of the parallele seeded GGSW encryption between all
+/// functions needing it.
+///
+/// Allows to efficiently encrypt lists of seeded GGSW.
 pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
     Scalar,
     KeyCont,

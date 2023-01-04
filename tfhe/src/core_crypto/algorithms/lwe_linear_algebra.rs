@@ -1,5 +1,5 @@
-//! Module containing functions related to LWE ciphertext linear algebra, like addition,
-//! multiplication, etc.
+//! Module containing primitives pertaining to [`LWE ciphertext`](`LweCiphertext`) linear algebra,
+//! like addition, multiplication, etc.
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;

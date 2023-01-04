@@ -1,3 +1,5 @@
+//! Module containing the definition of the GgswCiphertextList.
+
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
