@@ -1,3 +1,8 @@
+//! Module with new-types wrapping basic rust types, giving them a particular meaning, to avoid
+//! common mistakes when passing parameters to functions.
+//!
+//! These types have 0 overhead compared to the type being wrapped.
+
 use serde::{Deserialize, Serialize};
 
 /// The number plaintexts in a plaintext list.

@@ -1,3 +1,6 @@
+//! Module with traits pertaining to efficient contiguous containers of complex entities
+//! manipulation.
+
 use super::create_from::*;
 use rayon::prelude::*;
 

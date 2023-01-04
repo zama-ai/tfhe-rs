@@ -1,4 +1,5 @@
-//! Module containing functions related to LWE ciphertext encryption and decryption
+//! Module containing primitives pertaining to [`LWE ciphertext encryption and
+//! decryption`](`LweCiphertext#lwe-encryption`).
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
@@ -41,23 +42,8 @@ pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
 
 /// Encrypt an input plaintext in an output [`LWE ciphertext`](`LweCiphertext`).
 ///
-/// # Formal Definition
-///
-/// ## LWE Encryption
-/// ###### inputs:
-/// - $\mathsf{pt}\in\mathbb{Z}\_q$: a plaintext
-/// - $\vec{s}\in\mathbb{Z}\_q^n$: a secret key
-/// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and a mean $\mu$
-///
-/// ###### outputs:
-/// - $\mathsf{ct} = \left( \vec{a} , b\right) \in \mathsf{LWE}^n\_{\vec{s}}( \mathsf{pt} )\subseteq
-///   \mathbb{Z}\_q^{(n+1)}$: an LWE ciphertext
-///
-/// ###### algorithm:
-/// 1. uniformly sample a vector $\vec{a}\in\mathbb{Z}\_q^n$
-/// 2. sample an integer error term $e \hookleftarrow \mathcal{D\_{\sigma^2,\mu}}$
-/// 3. compute $b = \left\langle \vec{a} , \vec{s} \right\rangle + \mathsf{pt} + e \in\mathbb{Z}\_q$
-/// 4. output $\left( \vec{a} , b\right)$
+/// See the [`LWE ciphertext formal definition`](`LweCiphertext#lwe-encryption`) for the definition
+/// of the encryption algorithm.
 ///
 /// # Example
 ///
@@ -360,21 +346,8 @@ where
 ///
 /// # Formal Definition
 ///
-/// ## LWE Decryption
-/// ###### inputs:
-/// - $\mathsf{ct} = \left( \vec{a} , b\right) \in \mathsf{LWE}^n\_{\vec{s}}( \mathsf{pt} )\subseteq
-///   \mathbb{Z}\_q^{(n+1)}$: an LWE ciphertext
-/// - $\vec{s}\in\mathbb{Z}\_q^n$: a secret key
-///
-/// ###### outputs:
-/// - $\mathsf{pt}\in\mathbb{Z}\_q$: a plaintext
-///
-/// ###### algorithm:
-/// 1. compute $\mathsf{pt} = b - \left\langle \vec{a} , \vec{s} \right\rangle \in\mathbb{Z}\_q$
-/// 2. output $\mathsf{pt}$
-///
-/// **Remark:** Observe that the decryption is followed by a decoding phase that will contain a
-/// rounding.
+/// See the [`LWE ciphertext formal definition`](`LweCiphertext#lwe-decryption`) for the definition
+/// of the encryption algorithm.
 pub fn decrypt_lwe_ciphertext<Scalar, KeyCont, InputCont>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     lwe_ciphertext: &LweCiphertext<InputCont>,

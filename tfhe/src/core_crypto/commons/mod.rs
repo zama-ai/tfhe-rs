@@ -1,4 +1,7 @@
 #![allow(dead_code)]
+//! Module containing common mathematical objects/cryptographic primitives like random generators or
+//! traits expected to be re-used in various algorithms and entities implementations.
+//!
 //! # Dispersion
 //! This module contains the functions used to compute the variance, standard
 //! deviation, etc.
