@@ -1,10 +1,10 @@
-use crate::core_crypto::commons::math::random::Seeder;
+pub use crate::core_crypto::commons::math::random::Seeder;
 #[cfg(all(target_os = "macos", not(feature = "__wasm_api")))]
-use concrete_csprng::seeders::AppleSecureEnclaveSeeder;
+pub use concrete_csprng::seeders::AppleSecureEnclaveSeeder;
 #[cfg(feature = "seeder_x86_64_rdseed")]
-use concrete_csprng::seeders::RdseedSeeder;
+pub use concrete_csprng::seeders::RdseedSeeder;
 #[cfg(feature = "seeder_unix")]
-use concrete_csprng::seeders::UnixSeeder;
+pub use concrete_csprng::seeders::UnixSeeder;
 
 #[cfg(feature = "__wasm_api")]
 mod wasm_seeder {

@@ -12,8 +12,8 @@ use crate::core_crypto::fft_impl::crypto::bootstrap::{
     fill_with_forward_fourier_scratch, FourierLweBootstrapKey,
 };
 use crate::core_crypto::fft_impl::math::fft::Fft;
+use crate::core_crypto::seeders::new_seeder;
 use concrete_csprng::generators::SoftwareRandomGenerator;
-use concrete_csprng::seeders::{Seeder, UnixSeeder};
 use concrete_fft::c64;
 use dyn_stack::{DynStack, GlobalMemBuffer, ReborrowMut, StackReq};
 
@@ -37,12 +37,12 @@ pub fn test_extract_bits() {
     // Tests take about 2-3 seconds on a laptop with this number
     let number_of_test_runs = 32;
 
-    const UNSAFE_SECRET: u128 = 0;
-    let mut seeder = UnixSeeder::new(UNSAFE_SECRET);
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
 
     let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed());
     let mut encryption_generator =
-        EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), &mut seeder);
+        EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), seeder);
 
     // allocation and generation of the key in coef domain:
     let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
@@ -188,12 +188,12 @@ fn test_circuit_bootstrapping_binary() {
 
     let std = LogStandardDev::from_log_standard_dev(-60.);
 
-    const UNSAFE_SECRET: u128 = 0;
-    let mut seeder = UnixSeeder::new(UNSAFE_SECRET);
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
 
     let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed());
     let mut encryption_generator =
-        EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), &mut seeder);
+        EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), seeder);
 
     // Create GLWE and LWE secret key
     let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
@@ -371,12 +371,12 @@ fn test_circuit_bootstrapping_binary() {
 #[test]
 pub fn test_cmux_tree() {
     // Define settings for an insecure toy example
-    const UNSAFE_SECRET: u128 = 0;
-    let mut seeder = UnixSeeder::new(UNSAFE_SECRET);
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
 
     let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed());
     let mut encryption_generator =
-        EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), &mut seeder);
+        EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), seeder);
     let polynomial_size = PolynomialSize(512);
     let glwe_dimension = GlweDimension(1);
     let std = LogStandardDev::from_log_standard_dev(-60.);
@@ -524,12 +524,12 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     // 0.000_061_200_133_780_220_36
     let std_big = StandardDev::from_standard_dev(0.000_061_200_133_780_220_36);
 
-    const UNSAFE_SECRET: u128 = 0;
-    let mut seeder = UnixSeeder::new(UNSAFE_SECRET);
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
 
     let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed());
     let mut encryption_generator =
-        EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), &mut seeder);
+        EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), seeder);
 
     //create GLWE and LWE secret key
     let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
