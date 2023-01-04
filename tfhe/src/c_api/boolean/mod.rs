@@ -13,7 +13,7 @@ use crate::boolean;
 pub use ciphertext::BooleanCiphertext;
 pub use client_key::BooleanClientKey;
 pub use public_key::BooleanPublicKey;
-pub use server_key::BooleanServerKey;
+pub use server_key::{BooleanCompressedServerKey, BooleanServerKey};
 
 #[no_mangle]
 pub unsafe extern "C" fn boolean_gen_keys_with_default_parameters(

@@ -10,7 +10,7 @@ mod tests;
 
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
-pub use crate::boolean::engine::bootstrapping::ServerKey;
+pub use crate::boolean::engine::bootstrapping::{CompressedServerKey, ServerKey};
 use crate::boolean::engine::{
     BinaryGatesAssignEngine, BinaryGatesEngine, BooleanEngine, WithThreadLocalEngine,
 };
@@ -153,5 +153,11 @@ impl ServerKey {
         BooleanEngine::with_thread_local_mut(|engine| {
             engine.mux(ct_condition, ct_then, ct_else, self)
         })
+    }
+}
+
+impl CompressedServerKey {
+    pub fn new(cks: &ClientKey) -> Self {
+        BooleanEngine::with_thread_local_mut(|engine| engine.create_compressed_server_key(cks))
     }
 }
