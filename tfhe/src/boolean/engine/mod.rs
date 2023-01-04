@@ -5,7 +5,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use std::cell::RefCell;
 pub mod bootstrapping;
-use crate::boolean::engine::bootstrapping::{Bootstrapper, ServerKey};
+use crate::boolean::engine::bootstrapping::{Bootstrapper, CompressedServerKey, ServerKey};
 use crate::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
 };
@@ -94,6 +94,12 @@ impl BooleanEngine {
 
     pub fn create_server_key(&mut self, cks: &ClientKey) -> ServerKey {
         let server_key = self.bootstrapper.new_server_key(cks).unwrap();
+
+        server_key
+    }
+
+    pub fn create_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {
+        let server_key = self.bootstrapper.new_compressed_server_key(cks).unwrap();
 
         server_key
     }
