@@ -42,7 +42,7 @@ impl<Scalar, C: Container<Element = Scalar>> SeededGlweCiphertextList<C> {
     ///
     /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
     /// // computations
-    /// // Define parameters for LweCiphertext creation
+    /// // Define parameters for SeededGlweCiphertextList creation
     /// let glwe_size = GlweSize(2);
     /// let polynomial_size = PolynomialSize(1024);
     /// let glwe_ciphertext_count = GlweCiphertextCount(2);

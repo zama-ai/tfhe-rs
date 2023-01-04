@@ -16,7 +16,7 @@ use rayon::prelude::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for LweCiphertext creation
+/// // Define parameters for LweBootstrapKey creation
 /// let input_lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
 /// let output_lwe_dimension = LweDimension(2048);
