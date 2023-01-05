@@ -277,6 +277,13 @@ impl Shortint {
     }
 
     #[wasm_bindgen]
+    pub fn bc_encrypt(client_key: &ShortintClientKey, message: u64) -> ShortintCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        ShortintCiphertext(client_key.0.bc_encrypt(message))
+    }
+
+    #[wasm_bindgen]
     pub fn encrypt_with_public_key(
         public_key: &ShortintPublicKey,
         message: u64,
@@ -288,6 +295,16 @@ impl Shortint {
 
     #[wasm_bindgen]
     pub fn encrypt_with_compressed_public_key(
+        public_key: &ShortintCompressedPublicKey,
+        message: u64,
+    ) -> ShortintCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        ShortintCiphertext(public_key.0.encrypt(message))
+    }
+
+    #[wasm_bindgen]
+    pub fn bc_encrypt_with_compressed_public_key(
         public_key: &ShortintCompressedPublicKey,
         message: u64,
     ) -> ShortintCiphertext {
