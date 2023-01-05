@@ -40,9 +40,25 @@ production-ready library for all the advanced features of TFHE.
 
 To use the latest version of `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
+For x86_64-based machines running Unix-like OSes:
+
 ```toml
-tfhe = { version = "*", features = [ "boolean","shortint","x86_64-unix" ] }
+tfhe = { version = "*", features = ["boolean", "shortint", "x86_64-unix"] }
 ```
+
+For Apple Silicon or aarch64-based machines running Unix-like OSes:
+
+```toml
+tfhe = { version = "*", features = ["boolean", "shortint", "aarch64-unix"] }
+```
+
+For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
+
+```toml
+tfhe = { version = "*", features = ["boolean", "shortint", "x86_64"] }
+```
+
+Note: aarch64-based machines are not yet supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs
 
 Here is a full example evaluating a Boolean circuit:
 

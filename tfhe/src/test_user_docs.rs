@@ -16,6 +16,9 @@ doctest!("../docs/shortint/serialization.md", shortint_serialization);
 doctest!("../docs/shortint/tutorial.md", shortint_tutorial);
 doctest!("../docs/shortint/operations.md", shortint_operations);
 
+// core_crypto
+doctest!("../docs/core_crypto/tutorial.md", core_crypto_turorial);
+
 // doctest!("../docs/tutorials/serialization.md", serialization_tuto);
 // doctest!(
 //     "../docs/tutorials/circuit_evaluation.md",
