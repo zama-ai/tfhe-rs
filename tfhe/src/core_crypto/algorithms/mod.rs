@@ -1,3 +1,7 @@
+//! This module contains algorithms manipulating FHE entities as well as some convenience algorithms
+//! operating on [`slices of scalars`](`slice_algorithms`) and on
+//! [`polynomials`](`polynomial_algorithms`).
+
 pub mod ggsw_encryption;
 pub mod glwe_encryption;
 pub mod glwe_sample_extraction;
