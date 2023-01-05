@@ -1,3 +1,6 @@
+//! Module containing primitives pertaining to the generation of
+//! [`standard LWE bootstrap keys`](`LweBootstrapKey`).
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
@@ -10,6 +13,8 @@ use rayon::prelude::*;
 /// Fill an [`LWE bootstrap key`](`LweBootstrapKey`) with an actual bootstrapping key constructed
 /// from an input key [`LWE secret key`](`LweSecretKey`) and an output key
 /// [`GLWE secret key`](`GlweSecretKey`)
+///
+/// Consider using [`par_generate_lwe_bootstrap_key`] for better key generation times.
 ///
 /// ```
 /// use tfhe::core_crypto::prelude::*;
@@ -123,6 +128,12 @@ pub fn generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCon
     }
 }
 
+/// Allocate a new [`LWE bootstrap key`](`LweBootstrapKey`) and fill it with an actual bootstrapping
+/// key constructed from an input key [`LWE secret key`](`LweSecretKey`) and an output key
+/// [`GLWE secret key`](`GlweSecretKey`).
+///
+/// Consider using [`par_allocate_and_generate_new_lwe_bootstrap_key`] for better key generation
+/// times.
 pub fn allocate_and_generate_new_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
@@ -220,6 +231,8 @@ pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Outpu
         })
 }
 
+/// Parallel variant of [`allocate_and_generate_new_lwe_bootstrap_key`], it is recommended to use
+/// this function for better key generation times as LWE bootstrapping keys can be quite large.
 pub fn par_allocate_and_generate_new_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
@@ -254,6 +267,11 @@ where
     bsk
 }
 
+/// Fill a [`seeded LWE bootstrap key`](`SeededLweBootstrapKey`) with an actual seeded bootstrapping
+/// key constructed from an input key [`LWE secret key`](`LweSecretKey`) and an output key
+/// [`GLWE secret key`](`GlweSecretKey`)
+///
+/// Consider using [`par_generate_seeded_lwe_bootstrap_key`] for better key generation times.
 pub fn generate_seeded_lwe_bootstrap_key<
     Scalar,
     InputKeyCont,
@@ -327,6 +345,12 @@ pub fn generate_seeded_lwe_bootstrap_key<
     }
 }
 
+/// Allocate a new [`seeded LWE bootstrap key`](`SeededLweBootstrapKey`) and fill it with an actual
+/// seeded bootstrapping key constructed from an input key [`LWE secret key`](`LweSecretKey`) and an
+/// output key [`GLWE secret key`](`GlweSecretKey`)
+///
+/// Consider using [`par_allocate_and_generate_new_seeded_lwe_bootstrap_key`] for better key
+/// generation times.
 pub fn allocate_and_generate_new_seeded_lwe_bootstrap_key<
     Scalar,
     InputKeyCont,
@@ -443,6 +467,8 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
         })
 }
 
+/// Parallel variant of [`allocate_and_generate_new_seeded_lwe_bootstrap_key`], it is recommended to
+/// use this function for better key generation times as LWE bootstrapping keys can be quite large.
 pub fn par_allocate_and_generate_new_seeded_lwe_bootstrap_key<
     Scalar,
     InputKeyCont,
