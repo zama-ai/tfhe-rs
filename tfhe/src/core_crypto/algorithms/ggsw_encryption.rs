@@ -310,6 +310,10 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
     }
 }
 
+/// Convenience function to share the core logic of the seeded GGSW encryption between all
+/// functions needing it.
+///
+/// Allows to efficiently encrypt lists of seeded GGSW.
 pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
@@ -466,6 +470,10 @@ pub fn encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
     )
 }
 
+/// Convenience function to share the core logic of the parallele seeded GGSW encryption between all
+/// functions needing it.
+///
+/// Allows to efficiently encrypt lists of seeded GGSW.
 pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
     Scalar,
     KeyCont,
