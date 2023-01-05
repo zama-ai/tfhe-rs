@@ -1,3 +1,7 @@
+//! Module containing primitives pertaining to the conversion of
+//! [`standard LWE bootstrap keys`](`LweBootstrapKey`) to various representations/numerical domains
+//! like the Fourier domain.
+
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
