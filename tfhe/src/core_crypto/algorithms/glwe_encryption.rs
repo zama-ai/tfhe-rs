@@ -1,3 +1,6 @@
+//! Module containing primitives pertaining to [`GLWE ciphertext
+//! encryption`](`GlweCiphertext#glwe-encryption`).
+
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
@@ -146,7 +149,7 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
 }
 
 /// Convenience function to share the core logic of the seeded GLWE assign encryption between all
-/// functions needing it
+/// functions needing it.
 pub fn encrypt_seeded_glwe_ciphertext_assign_with_existing_generator<
     Scalar,
     KeyCont,
@@ -762,6 +765,8 @@ where
     new_ct
 }
 
+/// Convenience function to share the core logic of the seeded GLWE encryption between all
+/// functions needing it.
 pub fn encrypt_seeded_glwe_ciphertext_with_exsiting_generator<
     Scalar,
     KeyCont,
@@ -920,8 +925,10 @@ pub fn encrypt_seeded_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, No
     );
 }
 
-/// Convenience function to share the core logic of the seeded GLWE encryption between all functions
-/// needing it.
+/// Convenience function to share the core logic of the seeded GLWE list encryption between all
+/// functions needing it.
+///
+/// Allows to efficiently encrypt lists of seeded GLWE.
 pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
     Scalar,
     KeyCont,
