@@ -1,3 +1,6 @@
+//! Module containing primitives pertaining to [`GGSW ciphertext
+//! encryption`](`GgswCiphertext#ggsw-encryption`).
+
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
