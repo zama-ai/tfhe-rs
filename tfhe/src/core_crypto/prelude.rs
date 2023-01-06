@@ -3,7 +3,6 @@
 //! The TFHE-rs preludes include convenient imports.
 //! Having `tfhe::core_crypto::prelude::*;` should be enough to start using the lib.
 
-
 pub use super::algorithms::{polynomial_algorithms, slice_algorithms, *};
 pub use super::commons::dispersion::*;
 pub use super::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};

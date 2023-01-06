@@ -13,8 +13,8 @@ use rayon::prelude::*;
 
 /// Encrypt a plaintext in a [`GGSW ciphertext`](`GgswCiphertext`).
 ///
-/// See the [`formal definition`](`GgswCiphertext#ggsw-encryption`) for the definition of the
-/// encryption algorithm.
+/// See the [`GGSW ciphertext formal definition`](`GgswCiphertext#ggsw-encryption`) for the
+/// definition of the encryption algorithm.
 ///
 /// ```
 /// use tfhe::core_crypto::prelude::*;
