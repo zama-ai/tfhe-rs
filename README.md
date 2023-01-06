@@ -51,6 +51,9 @@ For Apple Silicon or aarch64-based machines running Unix-like OSes:
 ```toml
 tfhe = { version = "*", features = ["boolean", "shortint", "aarch64-unix"] }
 ```
+{% hint style="info" %}
+Users who have ARM devices can use `TFHE-rs` by compiling using the `nightly` toolchain.
+{% endhint %}
 
 For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
 
