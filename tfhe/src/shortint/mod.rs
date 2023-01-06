@@ -1,5 +1,3 @@
-//! Welcome to the TFHE-rs `shortint` module documentation!
-//!
 //! # Description
 //!
 //! This library makes it possible to execute modular operations over encrypted short integer.

@@ -6,11 +6,22 @@
 pub mod c_api;
 
 #[cfg(feature = "boolean")]
+///Welcome to the TFHE-rs `boolean` module documentation!
+///
+/// # Special module attributes
 /// cbindgen:ignore
 pub mod boolean;
+
+///Welcome to the TFHE-rs `core_crypto` module documentation!
+///
+/// # Special module attributes
 /// cbindgen:ignore
 pub mod core_crypto;
+
 #[cfg(feature = "shortint")]
+///Welcome to the TFHE-rs `shortint` module documentation!
+///
+/// # Special module attributes
 /// cbindgen:ignore
 pub mod shortint;
 
