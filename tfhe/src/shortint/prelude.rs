@@ -1,3 +1,7 @@
+//! The TFHE-rs preludes includes convenient imports.
+//!
+//! Using use tfhe::shortint::prelude::*; should be enough to start using the lib.
+
 pub use super::client_key::ClientKey;
 pub use super::gen_keys;
 pub use super::parameters::{
@@ -11,6 +15,5 @@ pub use super::parameters::{
     PARAM_MESSAGE_4_CARRY_4,
 };
 pub use super::public_key::PublicKey;
-
 pub use super::ciphertext::Ciphertext;
 pub use super::server_key::ServerKey;

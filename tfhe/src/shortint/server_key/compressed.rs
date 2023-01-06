@@ -1,3 +1,6 @@
+//! Module with the definition of the CompressedServerKey.
+
+
 use super::MaxDegree;
 use crate::core_crypto::prelude::*;
 use crate::shortint::engine::ShortintEngine;

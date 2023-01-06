@@ -1,5 +1,5 @@
 #![allow(clippy::excessive_precision)]
-//! Module with the definition of parameters for short-integers.
+//! Module with the definition of cryptographic parameters.
 //!
 //! This module provides the structure containing the cryptographic parameters required for the
 //! homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter
