@@ -1,4 +1,4 @@
-//! Module with engine definitions
+//! Module with the engine definitions.
 //!
 //! Engines are required to abstract cryptographic notions and efficiently manage memory from the
 //! underlying `core_crypto` module.

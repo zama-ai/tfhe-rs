@@ -1,4 +1,4 @@
-//! Module with the definition of the PublicKey.
+//! Module with the definition of the encryption PublicKey.
 
 pub mod compressed;
 pub mod standard;
