@@ -1,3 +1,6 @@
+//! Module containing primitives pertaining to LWE ciphertext private functional keyswitch and
+//! packing keyswitch.
+
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
@@ -5,6 +8,8 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+/// Apply a private functional keyswitch on an input [`LWE ciphertext`](`LweCiphertext`) and write
+/// the result in an output [`GLWE ciphertext`](`GlweCiphertext`).
 pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
     Scalar,
     KeyCont,
@@ -58,6 +63,9 @@ pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
     }
 }
 
+/// Apply a private functional keyswitch on each [`LWE ciphertext`](`LweCiphertext`) of an input
+/// [`LWE ciphertext list`](`LweCiphertextList`) and pack the result in an output
+/// [`GLWE ciphertext`](`GlweCiphertext`).
 pub fn private_functional_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_cipheretext<
     Scalar,
     KeyCont,
