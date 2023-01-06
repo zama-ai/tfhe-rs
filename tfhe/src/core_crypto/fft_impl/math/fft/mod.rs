@@ -19,7 +19,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem::{align_of, size_of, MaybeUninit};
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
+// use std::time::Duration;
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
 mod x86;
@@ -159,7 +159,14 @@ impl Fft {
                 p.get_or_init(|| {
                     Arc::new((
                         Twisties::new(n / 2),
-                        Plan::new(n / 2, Method::Measure(Duration::from_millis(10))),
+                        // Plan::new(n / 2, Method::Measure(Duration::from_millis(10))),
+                        Plan::new(
+                            n / 2,
+                            Method::UserProvided {
+                                base_algo: concrete_fft::ordered::FftAlgo::Dif4,
+                                base_n: n / 2,
+                            },
+                        ),
                     ))
                 })
                 .clone()
