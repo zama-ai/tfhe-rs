@@ -3,7 +3,6 @@
 //! Entities represent either mathematical or cryptographic objects. They contain usual methods
 //! associated to the object, e.g., `get_mask` for the entity `LweCiphertext`.
 
-
 pub mod cleartext;
 pub mod ggsw_ciphertext;
 pub mod ggsw_ciphertext_list;
