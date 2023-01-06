@@ -1,3 +1,5 @@
+//! Module containing primitives pertaining to the Wopbs (WithOut padding PBS).
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
@@ -14,6 +16,12 @@ use concrete_fft::c64;
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
 
+/// Allocate a new [`list of LWE private functional packing keyswitch
+/// keys`](`LwePrivateFunctionalPackingKeyswitchKeyList`) and fill it with actual keys required to
+/// perform a circuit bootstrap.
+///
+/// Consider using [`par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list`] for better
+/// key generation times.
 pub fn allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
     LweKeyCont,
@@ -56,6 +64,12 @@ where
     cbs_pfpksk_list
 }
 
+/// Fill a [`list of LWE private functional packing keyswitch
+/// keys`](`LwePrivateFunctionalPackingKeyswitchKeyList`) with actual keys required to perform a
+/// circuit bootstrap.
+///
+/// Consider using [`par_generate_circuit_bootstrap_lwe_pfpksk_list`] for better key generation
+/// times.
 pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
     OutputCont,
@@ -128,6 +142,9 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
     }
 }
 
+/// Parallel variant of [`allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list`], it is
+/// recommended to use this function for better key generation times as the generated keys can be
+/// quite large.
 pub fn par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
     LweKeyCont,
@@ -170,6 +187,8 @@ where
     cbs_pfpksk_list
 }
 
+/// Parallel variant of [`generate_circuit_bootstrap_lwe_pfpksk_list`], it is recommended to use
+/// this function for better key generation times as the generated keys can be quite large.
 pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
     OutputCont,
@@ -245,6 +264,26 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Fill the `output` [`LWE ciphertext list`](`LweCiphertextList`) with the bit extraction of the
+/// `input` [`LWE ciphertext`](`LweCiphertext`), extracting `number_of_bits_to_extract` bits
+/// starting from the bit at index `delta_log` (0-indexed) included, and going towards the most
+/// significant bits.
+///
+/// Output bits are ordered from the MSB to the LSB. Each one of them is output in a distinct [`LWE
+/// ciphertext`](`LweCiphertext`), containing the encryption of the bit scaled by q/2 (i.e., the
+/// most significant bit in the plaintext representation).
+///
+/// The caller must provide a properly configured [`FftView`] object and a `DynStack` used as a
+/// memory buffer having a capacity at least as large as the result of
+/// [`extract_bits_from_lwe_ciphertext_mem_optimized_requirement`].
+///
+/// # Formal Definition
+///
+/// This function takes as input an [`LWE ciphertext`](`LweCiphertext`)
+/// $$\mathsf{ct\} = \mathsf{LWE}^n\_{\vec{s}}( \mathsf{m}) \subseteq \mathbb{Z}\_q^{(n+1)}$$
+/// which encrypts some message `m`. We extract bits $m\_i$ of this message into individual LWE
+/// ciphertexts. Each of these ciphertexts contains an encryption of $m\_i \cdot q/2$, i.e.
+/// $$\mathsf{ct\_i} = \mathsf{LWE}^n\_{\vec{s}}( \mathsf{m\_i} \cdot q/2 )$$.
 pub fn extract_bits_from_lwe_ciphertext_mem_optimized<
     Scalar,
     InputCont,
@@ -280,6 +319,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized<
     )
 }
 
+/// Return the required memory for [`extract_bits_from_lwe_ciphertext_mem_optimized`].
 pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
     lwe_dimension: LweDimension,
     ksk_output_key_lwe_dimension: LweDimension,
@@ -297,6 +337,46 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Perform a boolean circuit bootstrapping followed by a vertical packing to evaluate a look-up
+/// table on an [`LWE ciphertext list`](`LweCiphertextList`). The term "boolean" refers to the fact
+/// the input ciphertexts encrypt a single bit of message.
+///
+/// The provided "big" `luts` look-up table is expected to be divisible into the same number of
+/// chunks of polynomials as there are ciphertexts in the `output` [`LWE Ciphertext
+/// list`](`LweCiphertextList`). Each chunk of polynomials is used as a look-up table to evaluate
+/// during the vertical packing operation to fill an output ciphertext.
+///
+/// Note that there should be enough polynomials provided in each chunk to perform the vertical
+/// packing given the number of boolean input ciphertexts. The number of boolean input ciphertexts
+/// is in fact a number of bits. For this example let's say we have 16 input ciphertexts
+/// representing 16 bits and want to output 4 ciphertexts. The "big" `luts` will need to be
+/// divisible into 4 chunks of equal size. If the polynomial size used is $1024 = 2^{10}$ then each
+/// chunk must contain $2^6 = 64$ polynomials ($2^6 * 2^{10} = 2^{16}$) to match the amount of
+/// values representable by the 16 input ciphertexts each encrypting a bit. The "big" `luts` then
+/// has a layout looking as follows:
+///
+/// ```text
+/// small lut for 1st output ciphertext|...|small lut for 4th output ciphertext
+/// |[polynomial 1] ... [polynomial 64]|...|[polynomial 1] ... [polynomial 64]|
+/// ```
+///
+/// The polynomials in the above representation are not necessarily the same, this is just for
+/// illustration purposes.
+///
+/// It is also possible in the above example to have a single polynomial of size $2^{16} = 65 536$
+/// for each chunk if the polynomial size is supported for computation. Chunks containing a single
+/// polynomial of size $2^{10} = 1024$ would work for example for 10 input ciphertexts as that
+/// polynomial size is supported for computations. The "big" `luts` layout would then look as
+/// follows for that 10 bits example (still with 4 output ciphertexts):
+///
+/// ```text
+/// small lut for 1st output ciphertext|...|small lut for 4th output ciphertext
+/// |[          polynomial 1          ]|...|[          polynomial 1          ]|
+/// ```
+///
+/// The caller must provide a properly configured [`FftView`] object and a `DynStack` used as a
+/// memory buffer having a capacity at least as large as the result of
+/// [`circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement`].
 pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized<
     Scalar,
     InputCont,
@@ -337,6 +417,8 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimi
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Return the required memory for
+/// [`circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized`].
 pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement<
     Scalar,
 >(
