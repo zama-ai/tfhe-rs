@@ -1,3 +1,5 @@
+//! Module containing primitives pertaining to random generation in the context of seeds generation.
+
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, RandomGenerable, RandomGenerator, Seed, Seeder, Uniform,
 };
@@ -15,9 +17,9 @@ use crate::core_crypto::commons::math::random::{
 ///
 /// ## Is it safe?
 ///
-/// The answer to this question is the following: as long as the the CSPRNG used in this [`Seeder`]
-/// is seeded with a [`Seed`] coming from an entropy source then yes, seeding other CSPRNGs using
-/// this CSPRNG is safe.
+/// The answer to this question is the following: as long as the CSPRNG used in this [`Seeder`] is
+/// seeded with a [`Seed`] coming from an entropy source then yes, seeding other CSPRNGs using this
+/// CSPRNG is safe.
 ///
 /// ## Why is it deterministic?
 ///
