@@ -1,3 +1,5 @@
+//! Module with primitives pertaining to [`SeededLwePublicKey`] generation.
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::math::random::CompressionSeed;

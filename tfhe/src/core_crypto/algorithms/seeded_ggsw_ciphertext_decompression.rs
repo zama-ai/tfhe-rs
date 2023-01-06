@@ -1,3 +1,5 @@
+//! Module with primitives pertaining to [`SeededGgswCiphertext`] decompression.
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::commons::traits::*;
