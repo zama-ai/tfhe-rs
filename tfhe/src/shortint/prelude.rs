@@ -1,7 +1,7 @@
 //! Module with the definition of the prelude.
 //!
-//! The TFHE-rs preludes includes convenient imports.
-//! Using use tfhe::shortint::prelude::*; should be enough to start using the lib.
+//! The TFHE-rs preludes include convenient imports.
+//! Having `tfhe::shortint::prelude::*;` should be enough to start using the lib.
 
 pub use super::client_key::ClientKey;
 pub use super::gen_keys;

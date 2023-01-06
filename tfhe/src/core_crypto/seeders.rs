@@ -1,3 +1,9 @@
+//! This module contains methods to get a random seed.
+//!
+//! Seeding depends on the underlying OS/hardware. Here, many strategies are proposed to (securely)
+//! obtain a seed. A random seed is useful to have compressed keys and is used as a prerequisite
+//! for cryptographically secure pseudo random number generators.
+
 pub use crate::core_crypto::commons::math::random::Seeder;
 #[cfg(all(target_os = "macos", not(feature = "__wasm_api")))]
 pub use concrete_csprng::seeders::AppleSecureEnclaveSeeder;
