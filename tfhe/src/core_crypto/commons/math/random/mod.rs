@@ -15,6 +15,7 @@
 //! [`RandomGenerator`] instead.
 use crate::core_crypto::commons::numeric::FloatingPoint;
 
+/// Convenience alias for the most efficient CSPRNG implementation available.
 pub use activated_random_generator::ActivatedRandomGenerator;
 pub use gaussian::*;
 pub use generator::*;
@@ -38,6 +39,7 @@ mod uniform_msb;
 mod uniform_ternary;
 mod uniform_with_zeros;
 
+/// A trait giving a type the ability to be randomly generated according to a given distribution.
 pub trait RandomGenerable<D: Distribution>
 where
     Self: Sized,
