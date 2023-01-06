@@ -1,3 +1,5 @@
+//! Module containing the definition of the LweCiphertext.
+
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 

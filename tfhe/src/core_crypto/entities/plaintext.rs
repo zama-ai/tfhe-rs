@@ -1,3 +1,5 @@
+//! Module containing the definition of the Plaintext.
+
 use crate::core_crypto::commons::traits::*;
 
 /// A plaintext (encoded) value.

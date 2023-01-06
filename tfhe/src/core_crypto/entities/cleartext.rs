@@ -1,3 +1,6 @@
+//! Module containing the definition of the Cleartext.
+
+
 use crate::core_crypto::commons::numeric::Numeric;
 
 /// A cleartext, not encoded, value.
