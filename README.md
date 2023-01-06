@@ -40,22 +40,22 @@ production-ready library for all the advanced features of TFHE.
 
 To use the latest version of `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
-For x86_64-based machines running Unix-like OSes:
++ For x86_64-based machines running Unix-like OSes:
 
 ```toml
 tfhe = { version = "*", features = ["boolean", "shortint", "x86_64-unix"] }
 ```
 
-For Apple Silicon or aarch64-based machines running Unix-like OSes:
++ For Apple Silicon or aarch64-based machines running Unix-like OSes:
 
 ```toml
 tfhe = { version = "*", features = ["boolean", "shortint", "aarch64-unix"] }
 ```
-{% hint style="info" %}
-Users who have ARM devices can use `TFHE-rs` by compiling using the `nightly` toolchain.
-{% endhint %}
+Note: users with ARM devices must use `TFHE-rs` by compiling using the `nightly` toolchain.
 
-For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
+
++ For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) 
+running Windows:
 
 ```toml
 tfhe = { version = "*", features = ["boolean", "shortint", "x86_64"] }
