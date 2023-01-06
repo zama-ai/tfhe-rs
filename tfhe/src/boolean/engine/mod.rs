@@ -3,7 +3,6 @@
 //! Engines are required to abstract cryptographic notions and efficiently manage memory from the
 //! underlying `core_crypto` module.
 
-
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::parameters::BooleanParameters;
 use crate::boolean::{ClientKey, PublicKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};

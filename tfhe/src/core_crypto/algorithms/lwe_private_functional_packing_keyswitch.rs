@@ -16,7 +16,6 @@ use crate::core_crypto::entities::*;
 
 /// Apply a private functional keyswitch on an input [`LWE ciphertext`](`LweCiphertext`) and write
 /// the result in an output [`GLWE ciphertext`](`GlweCiphertext`).
-///
 pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
     Scalar,
     KeyCont,
