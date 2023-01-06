@@ -1,25 +1,28 @@
 # Overview of the `core_crypto` Module
 
-The `core_crypto` module from TFHE-rs is dedicated to the implementation of the underlying 
+The `core_crypto` module from TFHE-rs is dedicated to the implementation of the 
 cryptographic tools 
 related to 
 TFHE.
-If you want to construct an FHE application, the [shortint](..shortint/tutorial.md) and/or [Boolean]
-(../Boolean/tutorial.md) modules (based on this one) are recommended.
+If you want to construct an FHE application, the [shortint](..shortint/tutorial.md) and/or [Boolean](../Boolean/tutorial.md) modules (based on this one) are recommended.
 
 The `core_crypto` module offers an API to low-level cryptographic primitives and objects, like 
 `lwe_encryption` or `rlwe_ciphertext`. Its goal is to propose an easy-to-use API for 
-cryptographers willing to develop a prototype based on usual cryptographic objects. The API is 
-also convenient to easily add or modify existing algorithms or to have direct access to the raw 
-data. For instance, a definition of an LWE ciphertext is given, along with suitable functions to 
-get the mask or the body. However, this is also possible to bypass these utilities to get 
-directly the $$i^{th}$$ element of LWE.
+cryptographers.
 
+The overall code architecture is split in two
+parts: one for the entity definitions, and another one focused on the algorithms.
+For instance, the entities contain the definition of useful types, like LWE ciphertext or bootstrapping keys.
+The algorithms are then naturally defined to work using these entities. 
 
-The overall architecture is split in two 
-parts: one for the entity definitions, and another one focused on the algorithms. 
-For instance, the entities contain the definition of useful types, like LWE ciphertext or bootstrapping keys. 
-The algorithms are then naturally defined to work using these entities.
+The API is convenient to easily add or modify existing algorithms or to have direct 
+access to 
+the raw 
+data. For instance, even if the LWE ciphertext object is defined along with functions 
+giving access to the body, this is also possible to bypass these 
+to get 
+directly the $$i^{th}$$ element of LWE mask.
+
 
 For instance, the code to encrypt and then decrypt a message looks like:
 ```rust
