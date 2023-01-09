@@ -10,10 +10,6 @@
 * [Benchmarks](getting\_started/benchmarks.md)
 * [Security and Cryptography](getting\_started/security\_and\_cryptography.md)
 
-## Low-Level Core Cryptography
-* [Presentation](core_crypto/presentation.md)
-* [Tutorial](core_crypto/tutorial.md)
-
 ## Boolean
 * [Tutorial](Boolean/tutorial.md)
 * [Operations](Boolean/operations.md)
@@ -28,6 +24,10 @@
 
 ## C API
 * [Tutorial](c_api/tutorial.md)
+
+## Low-Level Core Cryptography
+* [Quick Start](core_crypto/presentation.md)
+* [Tutorial](core_crypto/tutorial.md)
 
 ## Developers
 * [Contributing](dev/contributing.md)

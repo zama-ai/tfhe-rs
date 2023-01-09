@@ -6,15 +6,23 @@ Welcome to this tutorial about TFHE-rs `core_crypto` module!
 
 ### Setting-up TFHE-rs to use the `core_crypto` module
 
-To use `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
+To use `TFHE-rs`, first it has to be added as a dependency in the `Cargo.toml`:
 
 ```toml
 tfhe = { version = "0.2.0", features = [ "x86_64-unix" ] }
 ```
 
-Here we enable the `x86_64-unix` feature to enable efficient implementations of various algorithms for `x86_64` CPUs on a Unix-like system. The unix suffix indicates that the `UnixSeeder`, which uses `/dev/random` to generate random numbers, is actived as a fallback if no hardware number generator is available, like `rdseed` on `x86_64` or if the [`Randomization Services`](https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc) on Apple platforms are not available. If you don't want to have the `UnixSeeder` as a potential fallback or are on non Unix systems like Windows, you can just enable the `x86_64` feature.
+Here, this enables the `x86_64-unix` feature to have efficient implementations of various 
+algorithms for `x86_64` CPUs on a Unix-like system. The 'unix' suffix indicates that the 
+`UnixSeeder`, which uses `/dev/random` to generate random numbers, is actived as a fallback if 
+no hardware number generator is available, like `rdseed` on `x86_64` or if the [`Randomization 
+Services`](https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?
+language=objc) on Apple platforms are not available. To avoid having the `UnixSeeder` 
+as a potential fallback or to run on non-Unix systems (e.g., Windows), the 
+`x86_64` feature is sufficient.
 
-For Apple Silicon you can enable the `aarch64-unix` or `aarch64` feature. Note that `aarch64` is not supported on Windows as it's currently missing an entropy source required to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
+For Apple Silicon, the `aarch64-unix` or `aarch64` feature should be enabled. Note that `aarch64` 
+is not supported on Windows as it's currently missing an entropy source required to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
 
 In short:
 For x86_64-based machines running Unix-like OSes:
@@ -37,7 +45,10 @@ tfhe = { version = "0.2.0", features = ["x86_64"] }
 
 ### Commented code to double a 2 bits message in a leveled fashion and using a PBS `core_crypto` module.
 
-In the following rust code we will compute 2 * 3 in FHE using two methods, first using a cleartext multiplication and then using a PBS. We will demonstrate the usage of some common primitives to get a feel for the `core_crypto` APIs.
+As a complete example showing the usage of some common
+primitives of the `core_crypto` APIs, the following Rust code homomorphically computes 2 * 3 in 
+using two methods. First using a 
+cleartext multiplication and second using a PBS. 
 
 ```rust
 use tfhe::core_crypto::prelude::*;

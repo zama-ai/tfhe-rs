@@ -4,7 +4,8 @@ The `core_crypto` module from TFHE-rs is dedicated to the implementation of the
 cryptographic tools 
 related to 
 TFHE.
-If you want to construct an FHE application, the [shortint](..shortint/tutorial.md) and/or [Boolean](../Boolean/tutorial.md) modules (based on this one) are recommended.
+To construct an FHE application, the [shortint](..shortint/tutorial.md) and/or [Boolean](..
+/Boolean/tutorial.md) modules (based on this one) are recommended.
 
 The `core_crypto` module offers an API to low-level cryptographic primitives and objects, like 
 `lwe_encryption` or `rlwe_ciphertext`. Its goal is to propose an easy-to-use API for 
@@ -74,17 +75,4 @@ let cleartext = rounded >> 60;
 // Check we recovered the original message
 assert_eq!(cleartext, msg);
 ```
-
-
-
-
-```
-
-
-
-[comment]: <> (This used to construct higher level abstractions for FHE computations, like the [shortint]&#40;..)
-[comment]: <> (/shortint/tutorial.md&#41; and [Boolean]&#40;../Boolean/tutorial.md&#41; modules. It contains tools like ad-hoc CSPRNGs based on [concrete-csprng]&#40;https://crates.io/crates/concrete-csprng&#41; implementations, mathematical objects like polynomials as well as other primitives used in the TFHE cryptosystem like LWE ciphertexts, LWE bootrapping key etc.)
-
-
-
 
