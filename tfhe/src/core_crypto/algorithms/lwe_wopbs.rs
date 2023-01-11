@@ -377,6 +377,226 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// The caller must provide a properly configured [`FftView`] object and a `DynStack` used as a
 /// memory buffer having a capacity at least as large as the result of
 /// [`circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement`].
+///
+/// # Example
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// let polynomial_size = PolynomialSize(1024);
+/// let glwe_dimension = GlweDimension(1);
+/// let lwe_dimension = LweDimension(481);
+///
+/// let var_small = Variance::from_variance(2f64.powf(-80.0));
+/// let var_big = Variance::from_variance(2f64.powf(-70.0));
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_dimension,
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+/// let lwe_small_sk =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+/// let lwe_big_sk = glwe_sk.clone().into_lwe_secret_key();
+///
+/// let bsk_level_count = DecompositionLevelCount(9);
+/// let bsk_base_log = DecompositionBaseLog(4);
+///
+/// let std_bsk: LweBootstrapKeyOwned<u64> = par_allocate_and_generate_new_lwe_bootstrap_key(
+///     &lwe_small_sk,
+///     &glwe_sk,
+///     bsk_base_log,
+///     bsk_level_count,
+///     var_small,
+///     &mut encryption_generator,
+/// );
+///
+/// let mut fourier_bsk = FourierLweBootstrapKeyOwned::new(
+///     std_bsk.input_lwe_dimension(),
+///     std_bsk.glwe_size(),
+///     std_bsk.polynomial_size(),
+///     std_bsk.decomposition_base_log(),
+///     std_bsk.decomposition_level_count(),
+/// );
+///
+/// let ksk_level_count = DecompositionLevelCount(9);
+/// let ksk_base_log = DecompositionBaseLog(1);
+///
+/// let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+///     &lwe_big_sk,
+///     &lwe_small_sk,
+///     ksk_base_log,
+///     ksk_level_count,
+///     var_big,
+///     &mut encryption_generator,
+/// );
+///
+/// let pfpksk_level_count = DecompositionLevelCount(9);
+/// let pfpksk_base_log = DecompositionBaseLog(4);
+///
+/// let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
+///     &lwe_big_sk,
+///     &glwe_sk,
+///     pfpksk_base_log,
+///     pfpksk_level_count,
+///     var_small,
+///     &mut encryption_generator,
+/// );
+///
+/// // We will have a message with 10 bits of information
+/// let message_bits = 10;
+/// let bits_to_extract = ExtractedBitsCount(message_bits);
+///
+/// // Note that this particular table will not trigger the cmux tree from the vertical packing,
+/// // adapt the LUT generation to your usage.
+/// //  Here we apply a single look-up table as we output a single ciphertext.
+/// let number_of_luts_and_output_vp_ciphertexts = LweCiphertextCount(1);
+///
+/// let cbs_level_count = DecompositionLevelCount(4);
+/// let cbs_base_log = DecompositionBaseLog(6);
+///
+/// let fft = Fft::new(polynomial_size);
+/// let fft = fft.as_view();
+/// let mut buffers = ComputationBuffers::new();
+///
+/// let buffer_size_req =
+///     convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
+///         .unwrap()
+///         .unaligned_bytes_required();
+/// let buffer_size_req = buffer_size_req.max(
+///     extract_bits_from_lwe_ciphertext_mem_optimized_requirement::<u64>(
+///         lwe_dimension,
+///         ksk_big_to_small.output_key_lwe_dimension(),
+///         glwe_dimension.to_glwe_size(),
+///         polynomial_size,
+///         fft,
+///     )
+///     .unwrap()
+///     .unaligned_bytes_required(),
+/// );
+/// let buffer_size_req = buffer_size_req.max(
+///     circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement::<
+///         u64,
+///     >(
+///         LweCiphertextCount(bits_to_extract.0),
+///         number_of_luts_and_output_vp_ciphertexts,
+///         lwe_dimension.to_lwe_size(),
+///         PolynomialCount(1),
+///         fourier_bsk.output_lwe_dimension().to_lwe_size(),
+///         fourier_bsk.glwe_size(),
+///         polynomial_size,
+///         cbs_level_count,
+///         fft,
+///     )
+///     .unwrap()
+///     .unaligned_bytes_required(),
+/// );
+///
+/// // We resize our buffers once
+/// buffers.resize(buffer_size_req);
+///
+/// convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
+///     &std_bsk,
+///     &mut fourier_bsk,
+///     fft,
+///     buffers.stack(),
+/// );
+///
+/// // The value we encrypt is 42, we will extract the bits of this value and apply the
+/// // circuit bootstrapping followed by the vertical packing on the extracted bits.
+/// let cleartext = 42;
+/// let delta_log_msg = DeltaLog(64 - message_bits);
+///
+/// let encoded_message = Plaintext(cleartext << delta_log_msg.0);
+/// let lwe_in = allocate_and_encrypt_new_lwe_ciphertext(
+///     &lwe_big_sk,
+///     encoded_message,
+///     var_big,
+///     &mut encryption_generator,
+/// );
+///
+/// // Bit extraction output, use the zero_encrypt engine to allocate a ciphertext vector
+/// let mut bit_extraction_output = LweCiphertextList::new(
+///     0u64,
+///     lwe_dimension.to_lwe_size(),
+///     LweCiphertextCount(bits_to_extract.0),
+/// );
+///
+/// extract_bits_from_lwe_ciphertext_mem_optimized(
+///     &lwe_in,
+///     &mut bit_extraction_output,
+///     &fourier_bsk,
+///     &ksk_big_to_small,
+///     delta_log_msg,
+///     bits_to_extract,
+///     fft,
+///     buffers.stack(),
+/// );
+///
+/// // Though the delta log here is the same as the message delta log, in the general case they
+/// // are different, so we create two DeltaLog parameters
+/// let delta_log_lut = DeltaLog(64 - message_bits);
+///
+/// // Create a look-up table we want to apply during vertical packing, here just the identity
+/// // with the proper encoding.
+/// // Note that this particular table will not trigger the cmux tree from the vertical packing,
+/// // adapt the LUT generation to your usage.
+/// // Here we apply a single look-up table as we output a single ciphertext.
+/// let lut_size = 1 << bits_to_extract.0;
+/// let mut lut: Vec<u64> = Vec::with_capacity(lut_size);
+///
+/// for i in 0..lut_size {
+///     lut.push((i as u64 % (1 << message_bits)) << delta_log_lut.0);
+/// }
+///
+/// let lut_as_polynomial_list = PolynomialList::from_container(lut, polynomial_size);
+///
+/// let mut output_cbs_vp = LweCiphertextList::new(
+///     0u64,
+///     lwe_big_sk.lwe_dimension().to_lwe_size(),
+///     number_of_luts_and_output_vp_ciphertexts,
+/// );
+///
+/// circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(
+///     &bit_extraction_output,
+///     &mut output_cbs_vp,
+///     &lut_as_polynomial_list,
+///     &fourier_bsk,
+///     &cbs_pfpksk,
+///     cbs_base_log,
+///     cbs_level_count,
+///     fft,
+///     buffers.stack(),
+/// );
+///
+/// // We have a single output ct
+/// let result_ct = output_cbs_vp.iter().next().unwrap();
+///
+/// let decomposer = SignedDecomposer::new(
+///     DecompositionBaseLog(bits_to_extract.0),
+///     DecompositionLevelCount(1),
+/// );
+///
+/// // decrypt result
+/// let decrypted_message = decrypt_lwe_ciphertext(&lwe_big_sk, &result_ct);
+/// let decoded_message = decomposer.closest_representable(decrypted_message.0) >> delta_log_lut.0;
+///
+/// // print information if the result is wrong
+/// assert_eq!(
+///     decoded_message, cleartext,
+///     "decoded_message ({decoded_message:?}) != cleartext ({cleartext:?})\n\
+/// decrypted_message: {decrypted_message:?}, decoded_message: {decoded_message:?}",
+/// );
+/// ```
 pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized<
     Scalar,
     InputCont,
@@ -390,8 +610,8 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimi
     big_lut_as_polynomial_list: &PolynomialList<LutCont>,
     fourier_bsk: &FourierLweBootstrapKey<BskCont>,
     pfpksk_list: &LwePrivateFunctionalPackingKeyswitchKeyList<PFPKSKCont>,
-    level_cbs: DecompositionLevelCount,
     base_log_cbs: DecompositionBaseLog,
+    level_cbs: DecompositionLevelCount,
     fft: FftView<'_>,
     stack: DynStack<'_>,
 ) where
