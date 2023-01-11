@@ -1,5 +1,6 @@
 //! Module containing primitives pertaining to the generation of
-//! [`standard LWE bootstrap keys`](`LweBootstrapKey`).
+//! [`standard LWE bootstrap keys`](`LweBootstrapKey`) and [`seeded standard LWE bootstrap
+//! keys`](`SeededLweBootstrapKey`).
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
