@@ -1,5 +1,6 @@
 //! Module containing primitives pertaining to [`LWE keyswitch keys
-//! generation`](`LweKeyswitchKey#key-switching-key`).
+//! generation`](`LweKeyswitchKey#key-switching-key`) and [`seeded LWE keyswitch keys
+//! generation`](`SeededLweKeyswitchKey`).
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
