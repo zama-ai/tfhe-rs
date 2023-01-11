@@ -1,3 +1,5 @@
+//! Module containing the definition of the LwePrivateFunctionalPackingKeyswitchKeyList.
+
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;

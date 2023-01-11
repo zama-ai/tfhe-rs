@@ -1,3 +1,5 @@
+//! Module with traits pertaining to container manipulation.
+
 /// A trait to manipulate various immutable container types transparently.
 pub trait Container: AsRef<[Self::Element]> {
     type Element;

@@ -1,3 +1,6 @@
+//! Module containing common traits used throughout the [`core_crypto
+//! module`](`crate::core_crypto`).
+
 pub mod container;
 pub mod contiguous_entity_container;
 pub mod create_from;

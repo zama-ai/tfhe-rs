@@ -4,11 +4,11 @@ Due to their nature, homomorphic operations are obviously slower than their clea
 
 All the benchmarks had been launched on an AWS m6i.metal with the following specifications: Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz and 512GB of RAM.
 
-## Booleans
+## Boolean
 
 This measures the execution time of a single binary boolean gate.
 
-### tfhe.rs::booleans.
+### tfhe.rs::boolean.
 
 | Parameter set         | concrete-fft | concrete-fft + avx512 |
 | --------------------- | ------------ | --------------------- |

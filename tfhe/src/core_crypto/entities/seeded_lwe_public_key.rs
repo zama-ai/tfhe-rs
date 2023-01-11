@@ -1,3 +1,5 @@
+//! Module containing the definition of the SeededLwePublicKey.
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;

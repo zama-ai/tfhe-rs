@@ -1,4 +1,4 @@
-//! Generic numeric types.
+//! Generic numeric traits.
 //!
 //! This module contains types and traits to manipulate numeric types in a generic manner. For
 //! instance, in the standard library, the `f32` and `f64` trait share a lot of methods of the

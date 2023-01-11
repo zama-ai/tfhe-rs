@@ -10,11 +10,11 @@
 * [Benchmarks](getting\_started/benchmarks.md)
 * [Security and Cryptography](getting\_started/security\_and\_cryptography.md)
 
-## Booleans
-* [Tutorial](Booleans/tutorial.md)
-* [Operations](Booleans/operations.md)
-* [Cryptographic Parameters](Booleans/parameters.md)
-* [Serialization/Deserialization](Booleans/serialization.md)
+## Boolean
+* [Tutorial](Boolean/tutorial.md)
+* [Operations](Boolean/operations.md)
+* [Cryptographic Parameters](Boolean/parameters.md)
+* [Serialization/Deserialization](Boolean/serialization.md)
 
 ## Shortint
 * [Tutorial](shortint/tutorial.md)
@@ -24,6 +24,10 @@
 
 ## C API
 * [Tutorial](c_api/tutorial.md)
+
+## Low-Level Core Cryptography
+* [Quick Start](core_crypto/presentation.md)
+* [Tutorial](core_crypto/tutorial.md)
 
 ## Developers
 * [Contributing](dev/contributing.md)

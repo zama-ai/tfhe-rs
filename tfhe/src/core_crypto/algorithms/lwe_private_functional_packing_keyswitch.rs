@@ -1,3 +1,12 @@
+//! Module containing primitives pertaining to LWE ciphertext private functional keyswitch and
+//! packing keyswitch.
+//!
+//! Formal description can be found in: \
+//! &nbsp;&nbsp;&nbsp;&nbsp; Chillotti, I., Gama, N., Georgieva, M. et al. \
+//! &nbsp;&nbsp;&nbsp;&nbsp; TFHE: Fast Fully Homomorphic Encryption Over the Torus. \
+//! &nbsp;&nbsp;&nbsp;&nbsp; J. Cryptol 33, 34–91 (2020). \
+//! &nbsp;&nbsp;&nbsp;&nbsp; <https://doi.org/10.1007/s00145-019-09319-x>
+
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
@@ -5,6 +14,8 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+/// Apply a private functional keyswitch on an input [`LWE ciphertext`](`LweCiphertext`) and write
+/// the result in an output [`GLWE ciphertext`](`GlweCiphertext`).
 pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
     Scalar,
     KeyCont,
@@ -58,7 +69,10 @@ pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
     }
 }
 
-pub fn private_functional_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_cipheretext<
+/// Apply a private functional keyswitch on each [`LWE ciphertext`](`LweCiphertext`) of an input
+/// [`LWE ciphertext list`](`LweCiphertextList`) and pack the result in an output
+/// [`GLWE ciphertext`](`GlweCiphertext`).
+pub fn private_functional_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
     Scalar,
     KeyCont,
     InputCont,

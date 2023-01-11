@@ -1,14 +1,11 @@
-//! Module with the definition of a short-integer ciphertext.
+//! Module with the definition of the Ciphertext.
 use crate::core_crypto::entities::*;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cmp;
 use std::fmt::Debug;
 
-/// This indicates the number of operations that has been done.
-///
-/// For instances, computing and addition increases this number by 1, whereas a multiplication by
-/// a constant $\lambda$ increases it by $\lambda$.
+/// This tracks the number of operations that has been done.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct Degree(pub usize);
 
@@ -77,8 +74,8 @@ impl Degree {
     }
 }
 
-/// A structure representing a short-integer ciphertext.
-/// It is used to evaluate a short-integer circuits homomorphically.
+/// A structure representing a shortint ciphertext.
+/// It is used to homomorphically evaluate a shortint circuits.
 /// Internally, it uses a LWE ciphertext.
 #[derive(Clone)]
 pub struct Ciphertext {

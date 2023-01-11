@@ -14,7 +14,7 @@ The list of supported operations by the homomorphic Booleans is:
 | `xnor`         | Binary  |
 | `cmux`         | Ternary |
 
-A walk-through using homomorphic Booleans can be found [here](../Booleans/tutorial.md).
+A walk-through using homomorphic Booleans can be found [here](../Boolean/tutorial.md).
 
 ## ShortInt
 

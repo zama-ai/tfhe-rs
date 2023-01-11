@@ -1,3 +1,5 @@
+//! Module containing the definition of the LweBootstrapKey.
+
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -40,6 +42,59 @@ use crate::core_crypto::entities::*;
 /// \ldots, s\_{\mathsf{out},k\_{\mathsf{out}}-1,N\_{\mathsf{out}}-1}) \in
 /// \mathbb{Z}^{n\_{\mathsf{out}}}$, where $n\_{\mathsf{out}} = k\_{\mathsf{out}} \cdot
 /// N\_{\mathsf{out}}$.
+///
+/// ## Programmable Bootstrapping
+///
+/// This homomorphic procedure allows to both reduce the noise of a ciphertext and to evaluate a
+/// Look-Up Table (LUT) on the encrypted plaintext at the same time, i.e., it transforms an input
+/// [`LWE ciphertext`](`LweCiphertext`)
+/// $\mathsf{ct}\_{\mathsf{in}} = \left(
+/// \vec{a}\_{\mathsf{in}} , b\_{\mathsf{in}}\right) \in
+/// \mathsf{LWE}^{n\_{\mathsf{in}}}\_{\vec{s}\_{\mathsf{in}}}( \mathsf{pt} ) \subseteq
+/// \mathbb{Z}\_q^{(n\_{\mathsf{in}}+1)}$ into an output [`LWE ciphertext`](`LweCiphertext`)
+/// $\mathsf{ct}\_{\mathsf{out}} = \left( \vec{a}\_{\mathsf{out}} ,
+/// b\_{\mathsf{out}}\right) \in \mathsf{LWE}^{n\_{\mathsf{out}}}\_{\vec{s}\_{\mathsf{out}}}(
+/// \mathsf{LUT(pt)} )\subseteq \mathbb{Z}\_q^{(n\_{\mathsf{out}}+1)}$ where $n\_{\mathsf{in}} =
+/// |\vec{s}\_{\mathsf{in}}|$ and $n\_{\mathsf{out}} = |\vec{s}\_{\mathsf{out}}|$, such that the
+/// noise in this latter is set to a fixed (reduced) amount. It requires a
+/// [`bootstrapping key`](`LweBootstrapKey`).
+///
+/// The input ciphertext is encrypted under the
+/// [`LWE secret key`](`LweSecretKey`)
+/// $\vec{s}\_{\mathsf{in}}$ and the
+/// output ciphertext is encrypted under the
+/// [`LWE secret key`](`LweSecretKey`)
+/// $\vec{s}\_{\mathsf{out}}$.
+///
+/// $$\mathsf{ct}\_{\mathsf{in}} \in \mathsf{LWE}^{n\_{\mathsf{in}}}\_{\vec{s}\_{\mathsf{in}}}(
+/// \mathsf{pt} ) ~~~~~~~~~~\mathsf{BSK}\_{\vec{s}\_{\mathsf{in}}\rightarrow
+/// \vec{S}\_{\mathsf{out}}}$$ $$ \mathsf{PBS}\left(\mathsf{ct}\_{\mathsf{in}} , \mathsf{BSK}
+/// \right) \rightarrow \mathsf{ct}\_{\mathsf{out}} \in
+/// \mathsf{LWE}^{n\_{\mathsf{out}}}\_{\vec{s}\_{\mathsf{out}}} \left( \mathsf{pt} \right)$$
+///
+/// ## Algorithm
+/// ###### inputs:
+/// - $\mathsf{ct}\_{\mathsf{in}} = \left( \vec{a}\_{\mathsf{in}} , b\_{\mathsf{in}}\right) \in
+///   \mathsf{LWE}^{n\_{\mathsf{in}}}\_{\vec{s}\_{\mathsf{in}}}( \mathsf{pt} )$: an [`LWE
+///   ciphertext`](`LweCiphertext`) with $\vec{a}\_{\mathsf{in}}=\left(a\_0, \cdots
+///   a\_{n\_{\mathsf{in}}-1}\right)$
+/// - $\mathsf{BSK}\_{\vec{s}\_{\mathsf{in}}\rightarrow \vec{S}\_{\mathsf{out}}}$: a bootstrapping
+///   key as defined above
+/// - $\mathsf{LUT} \in \mathcal{R}\_q$: a LUT represented as a polynomial \_with redundancy\_
+///
+/// ###### outputs:
+/// - $\mathsf{ct}\_{\mathsf{out}} \in \mathsf{LWE}^{n\_{\mathsf{out}}}\_{\vec{s}\_{\mathsf{out}}}
+///   \left( \mathsf{LUT(pt)} \right)$: an [`LWE ciphertext`](`LweCiphertext`)
+///
+/// ###### algorithm:
+/// 1. Compute $\tilde{a}\_i \in \mathbb{Z}\_{2N\_{\mathsf{out}}} \leftarrow \lfloor \frac{2
+/// N\_{\mathsf{out}} \cdot a\_i}{q} \rceil$, for $i= 0, 1, \ldots, n\_{\mathsf{in}-1}$
+/// 2. Compute $\tilde{b}\_\mathsf{in} \in \mathbb{Z}\_{2N\_{\mathsf{out}}} \leftarrow \lfloor
+/// \frac{2 N\_{\mathsf{out}} \cdot b\_\mathsf{in}}{q} \rceil$
+/// 3. Set $\mathsf{ACC} = (0, \ldots, 0, \mathsf{LUT} \cdot X^{-\tilde{b}\_\mathsf{in}})$
+/// 4. Compute $\mathsf{ACC} = \mathsf{CMux}(\overline{\overline{\mathsf{CT}\_i}}, \mathsf{ACC}
+/// \cdot X^{\tilde{a}\_i}, \mathsf{ACC})$, for $i= 0, 1, \ldots, n\_{\mathsf{in}-1}$
+/// 5. Output $\mathsf{ct}\_{\mathsf{out}} \leftarrow \mathsf{SampleExtract}(\mathsf{ACC})$
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LweBootstrapKey<C: Container> {
     // An LweBootstrapKey is literally a GgswCiphertextList, so we wrap a GgswCiphetextList and use

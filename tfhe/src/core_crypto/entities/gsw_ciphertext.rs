@@ -1,3 +1,5 @@
+//! Module containing the definition of the GswCiphertext.
+
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 

@@ -1,3 +1,5 @@
+//! #Warning experimental
+
 pub use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,

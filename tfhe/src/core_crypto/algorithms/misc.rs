@@ -1,3 +1,5 @@
+//! Miscellaneous algorithms.
+
 use crate::core_crypto::prelude::*;
 
 /// Convenience function using a bit trick to determine whether a scalar is a power of 2.

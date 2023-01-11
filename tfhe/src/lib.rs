@@ -1,3 +1,7 @@
+//! Welcome to the TFHR-rs API documentation!
+//!
+//! TFHE-rs is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE.
+
 #![cfg_attr(feature = "__wasm_api", allow(dead_code))]
 #![cfg_attr(feature = "nightly-avx512", feature(stdsimd, avx512_target_feature))]
 #![deny(rustdoc::broken_intra_doc_links)]
@@ -6,11 +10,22 @@
 pub mod c_api;
 
 #[cfg(feature = "boolean")]
+/// Welcome to the TFHE-rs [`boolean`](`crate::boolean`) module documentation!
+///
+/// # Special module attributes
 /// cbindgen:ignore
 pub mod boolean;
+
+/// Welcome to the TFHE-rs [`core_crypto`](`crate::core_crypto`) module documentation!
+///
+/// # Special module attributes
 /// cbindgen:ignore
 pub mod core_crypto;
+
 #[cfg(feature = "shortint")]
+/// Welcome to the TFHE-rs [`shortint`](`crate::shortint`) module documentation!
+///
+/// # Special module attributes
 /// cbindgen:ignore
 pub mod shortint;
 

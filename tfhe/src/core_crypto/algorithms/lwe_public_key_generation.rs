@@ -1,3 +1,6 @@
+//! Module containing primitives pertaining to [`LWE public key
+//! generation`](`LwePublicKey#lwe-public-key`).
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
@@ -5,6 +8,10 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+/// Fill an [`LWE public key`](`LwePublicKey`) with an actual public key constructed from a private
+/// [`LWE secret key`](`LweSecretKey`).
+///
+/// Consider using [`par_generate_lwe_public_key`] for better key generation times.
 pub fn generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output: &mut LwePublicKey<OutputKeyCont>,
@@ -31,6 +38,10 @@ pub fn generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     encrypt_lwe_ciphertext_list(lwe_secret_key, output, &zeros, noise_parameters, generator)
 }
 
+/// Allocate a new [`LWE public key`](`LwePublicKey`) and fill it with an actual public key
+/// constructed from a private [`LWE secret key`](`LweSecretKey`).
+///
+/// Consider using [`par_allocate_and_generate_new_lwe_public_key`] for better key generation times.
 pub fn allocate_and_generate_new_lwe_public_key<Scalar, InputKeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,
@@ -53,6 +64,8 @@ where
     pk
 }
 
+/// Parallel variant of [`generate_lwe_public_key`], it is recommended to use this function for
+/// better key generation times as LWE public keys can be quite large.
 pub fn par_generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output: &mut LwePublicKey<OutputKeyCont>,
@@ -79,6 +92,8 @@ pub fn par_generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
     par_encrypt_lwe_ciphertext_list(lwe_secret_key, output, &zeros, noise_parameters, generator)
 }
 
+/// Parallel variant of [`allocate_and_generate_new_lwe_public_key`], it is recommended to use this
+/// function for better key generation times as LWE public keys can be quite large.
 pub fn par_allocate_and_generate_new_lwe_public_key<Scalar, InputKeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,

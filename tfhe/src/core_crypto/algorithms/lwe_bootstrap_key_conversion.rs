@@ -1,3 +1,7 @@
+//! Module containing primitives pertaining to the conversion of
+//! [`standard LWE bootstrap keys`](`LweBootstrapKey`) to various representations/numerical domains
+//! like the Fourier domain.
+
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -9,6 +13,8 @@ use dyn_stack::{DynStack, SizeOverflow, StackReq};
 
 /// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the Fourier
 /// domain.
+///
+/// See [`programmable_bootstrap_lwe_ciphertext`](`crate::core_crypto::algorithms::programmable_bootstrap_lwe_ciphertext`) for usage.
 pub fn convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, OutputCont>(
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut FourierLweBootstrapKey<OutputCont>,

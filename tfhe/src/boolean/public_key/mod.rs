@@ -1,3 +1,5 @@
+//! Module with the definition of the encryption PublicKey.
+
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};

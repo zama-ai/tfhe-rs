@@ -1,3 +1,5 @@
+//! Module with primitives pertaining to [`SeededGlweCiphertextList`] decompression.
+
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;

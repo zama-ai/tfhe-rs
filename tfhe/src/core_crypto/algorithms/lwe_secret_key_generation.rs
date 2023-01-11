@@ -1,3 +1,6 @@
+//! Module containing primitives pertaining to the generation of
+//! [`LWE secret keys`](`LweSecretKey`).
+
 use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::numeric::Numeric;

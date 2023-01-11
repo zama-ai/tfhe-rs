@@ -1,3 +1,5 @@
+//! Module containing the definition of the LweSecretKey.
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::SecretRandomGenerator;
 use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};

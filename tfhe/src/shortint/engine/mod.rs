@@ -1,3 +1,8 @@
+//! Module with the engine definitions.
+//!
+//! Engines are required to abstract cryptographic notions and efficiently manage memory from the
+//! underlying `core_crypto` module.
+
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{
