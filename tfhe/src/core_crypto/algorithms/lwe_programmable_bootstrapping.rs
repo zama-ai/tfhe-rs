@@ -130,15 +130,20 @@ pub fn blind_rotate_assign_mem_optimized_requirement<Scalar>(
 /// // Create a copy of the GlweSecretKey re-interpreted as an LweSecretKey
 /// let big_lwe_sk = glwe_sk.clone().into_lwe_secret_key();
 ///
-/// // Generate the bootstrapping key, we use the parallel variant for performance reason
-/// let std_bootstrapping_key = par_allocate_and_generate_new_lwe_bootstrap_key(
+/// // Generate the seeded bootstrapping key to show how to handle entity decompression,
+/// // we use the parallel variant for performance reason
+/// let std_bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
 ///     &small_lwe_sk,
 ///     &glwe_sk,
 ///     pbs_base_log,
 ///     pbs_level,
 ///     glwe_modular_std_dev,
-///     &mut encryption_generator,
+///     seeder,
 /// );
+///
+/// // We decompress the bootstrapping key
+/// let std_bootstrapping_key: LweBootstrapKeyOwned<u64> =
+///     std_bootstrapping_key.decompress_into_lwe_bootstrap_key();
 ///
 /// // Create the empty bootstrapping key in the Fourier domain
 /// let mut fourier_bsk = FourierLweBootstrapKey::new(
