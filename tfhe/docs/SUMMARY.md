@@ -25,6 +25,9 @@
 ## C API
 * [Tutorial](c_api/tutorial.md)
 
+## JS on WASM API
+* [Tutorial](js_on_wasm_api/tutorial.md)
+
 ## Low-Level Core Cryptography
 * [Quick Start](core_crypto/presentation.md)
 * [Tutorial](core_crypto/tutorial.md)
