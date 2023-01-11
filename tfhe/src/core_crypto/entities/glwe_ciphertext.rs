@@ -221,6 +221,23 @@ pub fn glwe_ciphertext_mask_size(
 /// 2. sample each integer error coefficient of an error polynomial $E\in\mathcal{R}\_q$ from
 /// $\mathcal{D\_{\sigma^2,\mu}}$ 3. compute $B = \left\langle \vec{A} , \vec{S} \right\rangle +
 /// \mathsf{PT} + E \in\mathcal{R}\_q$ 4. output $\left( \vec{A} , B \right)$
+///
+/// ## GLWE Decryption
+/// ###### inputs:
+/// - $\mathsf{CT} = \left( \vec{A} , B \right) \in \mathsf{GLWE}\_{\vec{S}}( \mathsf{PT} )\subseteq
+///   \mathcal{R}\_q^{k+1}$: an GLWE ciphertext
+/// - $\vec{S} \in\mathcal{R}\_q^k$: a secret key
+///
+/// ###### outputs:
+/// - $\mathsf{PT}\in\mathcal{R}\_q$: a plaintext
+///
+/// ###### algorithm:
+///
+/// 1. compute $\mathsf{PT} = B - \left\langle \vec{A} , \vec{S} \right\rangle \in\mathcal{R}\_q$
+/// 2. output $\mathsf{PT}$
+///
+/// **Remark:** Observe that the decryption is followed by a decoding phase that will contain a
+/// rounding.
 #[derive(Clone, Debug, PartialEq)]
 pub struct GlweCiphertext<C: Container> {
     data: C,
