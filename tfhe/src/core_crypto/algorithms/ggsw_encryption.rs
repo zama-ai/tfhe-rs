@@ -314,6 +314,9 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
 /// functions needing it.
 ///
 /// Allows to efficiently encrypt lists of seeded GGSW.
+///
+/// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
+/// the right bytes are generated at the right time.
 pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
@@ -474,6 +477,9 @@ pub fn encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
 /// functions needing it.
 ///
 /// Allows to efficiently encrypt lists of seeded GGSW.
+///
+/// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
+/// the right bytes are generated at the right time.
 pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
     Scalar,
     KeyCont,

@@ -42,7 +42,7 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
 /// loaded in the body of the output [`GLWE ciphertext`](`GlweCiphertext`), this is sometimes useful
 /// to avoid allocating a [`PlaintextList`] in situ.
 ///
-/// See this [`formal definition`](`encrypt_glwe_ciphertext#formal-definition`) for the definition
+/// See this [`formal definition`](`GlweCiphertext#glwe-encryption`) for the definition
 /// of the GLWE encryption algorithm.
 ///
 /// # Example
@@ -150,6 +150,9 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
 
 /// Convenience function to share the core logic of the seeded GLWE assign encryption between all
 /// functions needing it.
+///
+/// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
+/// the right bytes are generated at the right time.
 pub fn encrypt_seeded_glwe_ciphertext_assign_with_existing_generator<
     Scalar,
     KeyCont,
@@ -239,21 +242,8 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
 ///
 /// # Formal Definition
 ///
-/// ## GLWE Encryption
-/// ###### inputs:
-/// - $\mathsf{PT}\in\mathcal{R}\_q$: a plaintext
-/// - $\vec{S} \in\mathcal{R}\_q^k$: a secret key
-/// - $\mathcal{D\_{\sigma^2,\mu}}$: a normal distribution of variance $\sigma^2$ and mean $\mu$
-///
-/// ###### outputs:
-/// - $\mathsf{CT} = \left( \vec{A} , B \right) \in \mathsf{GLWE}\_{\vec{S}}( \mathsf{PT} )\subseteq
-///   \mathcal{R}\_q^{k+1}$: a GLWE ciphertext
-///
-/// ###### algorithm:
-/// 1. uniformly sample each coefficient of the polynomial vector $\vec{A}\in\mathcal{R}^k\_q$
-/// 2. sample each integer error coefficient of an error polynomial $E\in\mathcal{R}\_q$ from
-/// $\mathcal{D\_{\sigma^2,\mu}}$ 3. compute $B = \left\langle \vec{A} , \vec{S} \right\rangle +
-/// \mathsf{PT} + E \in\mathcal{R}\_q$ 4. output $\left( \vec{A} , B \right)$
+/// See this [`formal definition`](`GlweCiphertext#glwe-encryption`) for the definition
+/// of the GLWE encryption algorithm.
 ///
 /// # Example
 ///
@@ -370,7 +360,7 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 /// Encrypt a (scalar) plaintext list in [`GLWE ciphertexts`](`GlweCiphertext`) of the output
 /// [`GLWE ciphertext list`](`GlweCiphertextList`).
 ///
-/// See this [`formal definition`](`encrypt_glwe_ciphertext#formal-definition`) for the definition
+/// See this [`formal definition`](`GlweCiphertext#glwe-encryption`) for the definition
 /// of the GLWE encryption algorithm.
 ///
 /// # Example
@@ -504,22 +494,8 @@ pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>
 ///
 /// # Formal Definition
 ///
-/// ## GLWE Decryption
-/// ###### inputs:
-/// - $\mathsf{CT} = \left( \vec{A} , B \right) \in \mathsf{GLWE}\_{\vec{S}}( \mathsf{PT} )\subseteq
-///   \mathcal{R}\_q^{k+1}$: an GLWE ciphertext
-/// - $\vec{S} \in\mathcal{R}\_q^k$: a secret key
-///
-/// ###### outputs:
-/// - $\mathsf{PT}\in\mathcal{R}\_q$: a plaintext
-///
-/// ###### algorithm:
-///
-/// 1. compute $\mathsf{PT} = B - \left\langle \vec{A} , \vec{S} \right\rangle \in\mathcal{R}\_q$
-/// 2. output $\mathsf{PT}$
-///
-/// **Remark:** Observe that the decryption is followed by a decoding phase that will contain a
-/// rounding.
+/// See this [`formal definition`](`GlweCiphertext#glwe-decryption`) for the definition
+/// of the GLWE decryption algorithm.
 pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     input_glwe_ciphertext: &GlweCiphertext<InputCont>,
@@ -929,6 +905,9 @@ pub fn encrypt_seeded_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, No
 /// functions needing it.
 ///
 /// Allows to efficiently encrypt lists of seeded GLWE.
+///
+/// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
+/// the right bytes are generated at the right time.
 pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
     Scalar,
     KeyCont,
