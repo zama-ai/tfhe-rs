@@ -256,8 +256,8 @@ impl ShortintEngine {
             &lut,
             &sks.bootstrapping_key,
             &wopbs_key.cbs_pfpksk,
-            wopbs_key.param.cbs_level,
             wopbs_key.param.cbs_base_log,
+            wopbs_key.param.cbs_level,
             fft,
             stack,
         );
