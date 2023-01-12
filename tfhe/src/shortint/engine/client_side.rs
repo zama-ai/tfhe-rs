@@ -4,7 +4,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
-use crate::shortint::{Ciphertext, ClientKey, Parameters};
+use crate::shortint::{Ciphertext, ClientKey, CompressedCiphertext, Parameters};
 
 impl ShortintEngine {
     pub fn new_client_key(&mut self, parameters: Parameters) -> EngineResult<ClientKey> {
@@ -34,6 +34,18 @@ impl ShortintEngine {
 
     pub fn encrypt(&mut self, client_key: &ClientKey, message: u64) -> EngineResult<Ciphertext> {
         self.encrypt_with_message_modulus(
+            client_key,
+            message,
+            client_key.parameters.message_modulus,
+        )
+    }
+
+    pub fn encrypt_compressed(
+        &mut self,
+        client_key: &ClientKey,
+        message: u64,
+    ) -> EngineResult<CompressedCiphertext> {
+        self.encrypt_with_message_modulus_compressed(
             client_key,
             message,
             client_key.parameters.message_modulus,
@@ -72,6 +84,45 @@ impl ShortintEngine {
         );
 
         Ok(Ciphertext {
+            ct,
+            degree: Degree(message_modulus.0 - 1),
+            message_modulus,
+            carry_modulus: CarryModulus(carry_modulus),
+        })
+    }
+
+    pub(crate) fn encrypt_with_message_modulus_compressed(
+        &mut self,
+        client_key: &ClientKey,
+        message: u64,
+        message_modulus: MessageModulus,
+    ) -> EngineResult<CompressedCiphertext> {
+        //This ensures that the space message_modulus*carry_modulus < param.message_modulus *
+        // param.carry_modulus
+        let carry_modulus = (client_key.parameters.message_modulus.0
+            * client_key.parameters.carry_modulus.0)
+            / message_modulus.0;
+
+        //The delta is the one defined by the parameters
+        let delta = (1_u64 << 63)
+            / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
+                as u64;
+
+        //The input is reduced modulus the message_modulus
+        let m = message % message_modulus.0 as u64;
+
+        let shifted_message = m * delta;
+
+        let encoded = Plaintext(shifted_message);
+
+        let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
+            &client_key.lwe_secret_key,
+            encoded,
+            client_key.parameters.lwe_modular_std_dev,
+            &mut self.seeder,
+        );
+
+        Ok(CompressedCiphertext {
             ct,
             degree: Degree(message_modulus.0 - 1),
             message_modulus,
@@ -166,6 +217,36 @@ impl ShortintEngine {
         })
     }
 
+    pub(crate) fn encrypt_without_padding_compressed(
+        &mut self,
+        client_key: &ClientKey,
+        message: u64,
+    ) -> EngineResult<CompressedCiphertext> {
+        //Multiply by 2 to reshift and exclude the padding bit
+        let delta = ((1_u64 << 63)
+            / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
+                as u64)
+            * 2;
+
+        let shifted_message = message * delta;
+
+        let encoded = Plaintext(shifted_message);
+
+        let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
+            &client_key.lwe_secret_key,
+            encoded,
+            client_key.parameters.lwe_modular_std_dev,
+            &mut self.seeder,
+        );
+
+        Ok(CompressedCiphertext {
+            ct,
+            degree: Degree(client_key.parameters.message_modulus.0 - 1),
+            message_modulus: client_key.parameters.message_modulus,
+            carry_modulus: client_key.parameters.carry_modulus,
+        })
+    }
+
     pub(crate) fn decrypt_message_and_carry_without_padding(
         &mut self,
         client_key: &ClientKey,
@@ -219,6 +300,33 @@ impl ShortintEngine {
         );
 
         Ok(Ciphertext {
+            ct,
+            degree: Degree(message_modulus as usize - 1),
+            message_modulus: MessageModulus(message_modulus as usize),
+            carry_modulus: CarryModulus(carry_modulus),
+        })
+    }
+
+    pub(crate) fn encrypt_native_crt_compressed(
+        &mut self,
+        client_key: &ClientKey,
+        message: u64,
+        message_modulus: u8,
+    ) -> EngineResult<CompressedCiphertext> {
+        let carry_modulus = 1;
+        let m = (message % message_modulus as u64) as u128;
+        let shifted_message = (m * (1 << 64) / message_modulus as u128) as u64;
+
+        let encoded = Plaintext(shifted_message);
+
+        let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
+            &client_key.lwe_secret_key,
+            encoded,
+            client_key.parameters.lwe_modular_std_dev,
+            &mut self.seeder,
+        );
+
+        Ok(CompressedCiphertext {
             ct,
             degree: Degree(message_modulus as usize - 1),
             message_modulus: MessageModulus(message_modulus as usize),
