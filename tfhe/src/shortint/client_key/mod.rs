@@ -1,7 +1,7 @@
 //! Module with the definition of the ClientKey.
 
 use crate::core_crypto::entities::*;
-use crate::shortint::ciphertext::Ciphertext;
+use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, Parameters};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -72,6 +72,43 @@ impl ClientKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.encrypt(self, message).unwrap())
     }
 
+    /// Encrypt a small integer message using the client key returning a compressed ciphertext.
+    ///
+    /// The input message is reduced to the encrypted message space modulus
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::{Ciphertext, ClientKey};
+    ///
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encryption of one message that is within the encrypted message modulus:
+    /// let msg = 3;
+    /// let ct = cks.encrypt_compressed(msg);
+    ///
+    /// let ct: Ciphertext = ct.into();
+    ///
+    /// let dec = cks.decrypt(&ct);
+    /// assert_eq!(msg, dec);
+    ///
+    /// // Encryption of one message that is outside the encrypted message modulus:
+    /// let msg = 5;
+    /// let ct = cks.encrypt_compressed(msg);
+    ///
+    /// let ct: Ciphertext = ct.into();
+    ///
+    /// let dec = cks.decrypt(&ct);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(msg % modulus, dec);
+    /// ```
+    pub fn encrypt_compressed(&self, message: u64) -> CompressedCiphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.encrypt_compressed(self, message).unwrap()
+        })
+    }
+
     /// Encrypt a small integer message using the client key with a specific message modulus
     ///
     /// # Example
@@ -100,6 +137,41 @@ impl ClientKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_with_message_modulus(self, message, message_modulus)
+                .unwrap()
+        })
+    }
+
+    /// Encrypt a small integer message using the client key with a specific message modulus
+    /// returning a compressed ciphertext
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::MessageModulus;
+    /// use tfhe::shortint::{Ciphertext, ClientKey, Parameters};
+    ///
+    /// // Generate the client key
+    /// let cks = ClientKey::new(Parameters::default());
+    ///
+    /// let msg = 3;
+    ///
+    /// // Encryption of one message:
+    /// let ct = cks.encrypt_with_message_modulus(msg, MessageModulus(6));
+    ///
+    /// let ct: Ciphertext = ct.into();
+    ///
+    /// // Decryption:
+    /// let dec = cks.decrypt(&ct);
+    /// assert_eq!(msg, dec);
+    /// ```
+    pub fn encrypt_with_message_modulus_compressed(
+        &self,
+        message: u64,
+        message_modulus: MessageModulus,
+    ) -> CompressedCiphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .encrypt_with_message_modulus_compressed(self, message, message_modulus)
                 .unwrap()
         })
     }
@@ -203,6 +275,36 @@ impl ClientKey {
         })
     }
 
+    /// Encrypt a small integer message using the client key without padding bit returning a
+    /// compressed message.
+    ///
+    /// The input message is reduced to the encrypted message space modulus
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::{Ciphertext, ClientKey};
+    ///
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encryption of one message that is within the encrypted message modulus:
+    /// let msg = 6;
+    /// let ct = cks.encrypt_without_padding(msg);
+    ///
+    /// let ct: Ciphertext = ct.into();
+    ///
+    /// let dec = cks.decrypt_message_and_carry_without_padding(&ct);
+    /// assert_eq!(msg, dec);
+    /// ```
+    pub fn encrypt_without_padding_compressed(&self, message: u64) -> CompressedCiphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .encrypt_without_padding_compressed(self, message)
+                .unwrap()
+        })
+    }
+
     /// Decrypt a ciphertext encrypting an integer message and carries using the client key,
     /// where the ciphertext is assumed to not have any padding bit.
     ///
@@ -285,6 +387,43 @@ impl ClientKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_native_crt(self, message, message_modulus)
+                .unwrap()
+        })
+    }
+
+    /// Encrypt a small integer message using the client key without padding bit with some modulus
+    /// returning a compressed ciphertext.
+    ///
+    /// The input message is reduced to the encrypted message space modulus
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::{Ciphertext, ClientKey, Parameters};
+    ///
+    /// // Generate the client key
+    /// let cks = ClientKey::new(Parameters::default());
+    ///
+    /// let msg = 2;
+    /// let modulus = 3;
+    ///
+    /// // Encryption of one message:
+    /// let ct = cks.encrypt_native_crt(msg, modulus);
+    ///
+    /// let ct: Ciphertext = ct.into();
+    ///
+    /// // Decryption:
+    /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
+    /// assert_eq!(msg, dec % modulus as u64);
+    /// ```
+    pub fn encrypt_native_crt_compressed(
+        &self,
+        message: u64,
+        message_modulus: u8,
+    ) -> CompressedCiphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .encrypt_native_crt_compressed(self, message, message_modulus)
                 .unwrap()
         })
     }
