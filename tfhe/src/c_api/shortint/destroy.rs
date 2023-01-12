@@ -4,8 +4,8 @@ use std::os::raw::c_int;
 use super::parameters::ShortintParameters;
 use super::{
     ShortintBivariatePBSAccumulator, ShortintCiphertext, ShortintClientKey,
-    ShortintCompressedPublicKey, ShortintCompressedServerKey, ShortintPBSAccumulator,
-    ShortintPublicKey, ShortintServerKey,
+    ShortintCompressedCiphertext, ShortintCompressedPublicKey, ShortintCompressedServerKey,
+    ShortintPBSAccumulator, ShortintPublicKey, ShortintServerKey,
 };
 
 #[no_mangle]
@@ -71,6 +71,17 @@ pub unsafe extern "C" fn destroy_shortint_parameters(
 #[no_mangle]
 pub unsafe extern "C" fn destroy_shortint_ciphertext(
     shortint_ciphertext: *mut ShortintCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(shortint_ciphertext).unwrap();
+
+        drop(Box::from_raw(shortint_ciphertext));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn destroy_shortint_compressed_ciphertext(
+    shortint_ciphertext: *mut ShortintCompressedCiphertext,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(shortint_ciphertext).unwrap();

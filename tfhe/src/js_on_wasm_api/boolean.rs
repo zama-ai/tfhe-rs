@@ -9,6 +9,9 @@ use std::panic::set_hook;
 pub struct BooleanCiphertext(pub(crate) crate::boolean::ciphertext::Ciphertext);
 
 #[wasm_bindgen]
+pub struct BooleanCompressedCiphertext(pub(crate) crate::boolean::ciphertext::CompressedCiphertext);
+
+#[wasm_bindgen]
 pub struct BooleanClientKey(pub(crate) crate::boolean::client_key::ClientKey);
 
 #[wasm_bindgen]
@@ -137,6 +140,23 @@ impl Boolean {
     }
 
     #[wasm_bindgen]
+    pub fn encrypt_compressed(
+        client_key: &BooleanClientKey,
+        message: bool,
+    ) -> BooleanCompressedCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        BooleanCompressedCiphertext(client_key.0.encrypt_compressed(message))
+    }
+
+    #[wasm_bindgen]
+    pub fn decompress_ciphertext(
+        compressed_ciphertext: &BooleanCompressedCiphertext,
+    ) -> BooleanCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        BooleanCiphertext(compressed_ciphertext.0.clone().into())
+    }
+
+    #[wasm_bindgen]
     pub fn encrypt_with_public_key(
         public_key: &BooleanPublicKey,
         message: bool,
@@ -171,6 +191,25 @@ impl Boolean {
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(BooleanCiphertext)
+    }
+
+    #[wasm_bindgen]
+    pub fn serialize_compressed_ciphertext(
+        ciphertext: &BooleanCompressedCiphertext,
+    ) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::serialize(&ciphertext.0)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
+    }
+
+    #[wasm_bindgen]
+    pub fn deserialize_compressed_ciphertext(
+        buffer: &[u8],
+    ) -> Result<BooleanCompressedCiphertext, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::deserialize(buffer)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
+            .map(BooleanCompressedCiphertext)
     }
 
     #[wasm_bindgen]

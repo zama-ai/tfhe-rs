@@ -9,6 +9,11 @@ use std::panic::set_hook;
 pub struct ShortintCiphertext(pub(crate) crate::shortint::ciphertext::Ciphertext);
 
 #[wasm_bindgen]
+pub struct ShortintCompressedCiphertext(
+    pub(crate) crate::shortint::ciphertext::CompressedCiphertext,
+);
+
+#[wasm_bindgen]
 pub struct ShortintClientKey(pub(crate) crate::shortint::ClientKey);
 
 #[wasm_bindgen]
@@ -193,6 +198,24 @@ impl Shortint {
     }
 
     #[wasm_bindgen]
+    pub fn encrypt_compressed(
+        client_key: &ShortintClientKey,
+        message: u64,
+    ) -> ShortintCompressedCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+
+        ShortintCompressedCiphertext(client_key.0.encrypt_compressed(message))
+    }
+
+    #[wasm_bindgen]
+    pub fn decompress_ciphertext(
+        compressed_ciphertext: &ShortintCompressedCiphertext,
+    ) -> ShortintCiphertext {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        ShortintCiphertext(compressed_ciphertext.0.clone().into())
+    }
+
+    #[wasm_bindgen]
     pub fn encrypt_with_public_key(
         public_key: &ShortintPublicKey,
         message: u64,
@@ -231,6 +254,25 @@ impl Shortint {
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintCiphertext)
+    }
+
+    #[wasm_bindgen]
+    pub fn serialize_compressed_ciphertext(
+        ciphertext: &ShortintCompressedCiphertext,
+    ) -> Result<Vec<u8>, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::serialize(&ciphertext.0)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
+    }
+
+    #[wasm_bindgen]
+    pub fn deserialize_compressed_ciphertext(
+        buffer: &[u8],
+    ) -> Result<ShortintCompressedCiphertext, JsError> {
+        set_hook(Box::new(console_error_panic_hook::hook));
+        bincode::deserialize(buffer)
+            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
+            .map(ShortintCompressedCiphertext)
     }
 
     #[wasm_bindgen]

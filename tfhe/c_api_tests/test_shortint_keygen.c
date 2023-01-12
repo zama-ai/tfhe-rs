@@ -12,6 +12,9 @@ void test_predefined_keygen_w_serde(void) {
   ShortintCiphertext *ct = NULL;
   Buffer ct_ser_buffer = {.pointer = NULL, .length = 0};
   ShortintCiphertext *deser_ct = NULL;
+  ShortintCompressedCiphertext *cct = NULL;
+  ShortintCompressedCiphertext *deser_cct = NULL;
+  ShortintCiphertext *decompressed_ct = NULL;
 
   int get_params_ok = shortint_get_parameters(2, 2, &params);
   assert(get_params_ok == 0);
@@ -41,11 +44,35 @@ void test_predefined_keygen_w_serde(void) {
 
   assert(result == 3);
 
+  int c_encrypt_ok = shortint_client_key_encrypt_compressed(cks, 3, &cct);
+  assert(c_encrypt_ok == 0);
+
+  int c_ser_ok = shortint_serialize_compressed_ciphertext(cct, &ct_ser_buffer);
+  assert(c_ser_ok == 0);
+
+  deser_view.pointer = ct_ser_buffer.pointer;
+  deser_view.length = ct_ser_buffer.length;
+
+  int c_deser_ok = shortint_deserialize_compressed_ciphertext(deser_view, &deser_cct);
+  assert(c_deser_ok == 0);
+
+  int decomp_ok = shortint_decompress_ciphertext(cct, &decompressed_ct);
+  assert(decomp_ok == 0);
+
+  uint64_t c_result = -1;
+  int c_decrypt_ok = shortint_client_key_decrypt(cks, decompressed_ct, &c_result);
+  assert(c_decrypt_ok == 0);
+
+  assert(c_result == 3);
+
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);
   destroy_shortint_parameters(params);
   destroy_shortint_ciphertext(ct);
   destroy_shortint_ciphertext(deser_ct);
+  destroy_shortint_compressed_ciphertext(cct);
+  destroy_shortint_compressed_ciphertext(deser_cct);
+  destroy_shortint_ciphertext(decompressed_ct);
   destroy_buffer(&ct_ser_buffer);
 }
 

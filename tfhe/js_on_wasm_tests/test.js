@@ -30,6 +30,23 @@ test('boolean_encrypt_decrypt', (t) => {
     // No equality tests here, as wasm stores pointers which will always differ
 });
 
+test('boolean_compressed_encrypt_decrypt', (t) => {
+    let params = Boolean.get_parameters(BooleanParameterSet.Default);
+    let cks = Boolean.new_client_key(params);
+    let ct = Boolean.encrypt_compressed(cks, true);
+
+    let serialized_cks = Boolean.serialize_client_key(cks);
+    let deserialized_cks = Boolean.deserialize_client_key(serialized_cks);
+
+    let serialized_ct = Boolean.serialize_compressed_ciphertext(ct);
+    let deserialized_ct = Boolean.deserialize_compressed_ciphertext(serialized_ct);
+
+    let decompressed_ct = Boolean.decompress_ciphertext(deserialized_ct);
+
+    let decrypted = Boolean.decrypt(deserialized_cks, decompressed_ct);
+    assert.deepStrictEqual(decrypted, true);
+});
+
 test('boolean_public_encrypt_decrypt', (t) => {
     let params = Boolean.get_parameters(BooleanParameterSet.Default);
     let cks = Boolean.new_client_key(params);
@@ -90,6 +107,23 @@ test('shortint_encrypt_decrypt', (t) => {
     let deserialized_sks = Shortint.deserialize_compressed_server_key(serialized_sks);
 
     // No equality tests here, as wasm stores pointers which will always differ
+});
+
+test('shortint_compressed_encrypt_decrypt', (t) => {
+    let params = Shortint.get_parameters(2, 2);
+    let cks = Shortint.new_client_key(params);
+    let ct = Shortint.encrypt_compressed(cks, BigInt(3));
+
+    let serialized_cks = Shortint.serialize_client_key(cks);
+    let deserialized_cks = Shortint.deserialize_client_key(serialized_cks);
+
+    let serialized_ct = Shortint.serialize_compressed_ciphertext(ct);
+    let deserialized_ct = Shortint.deserialize_compressed_ciphertext(serialized_ct);
+
+    let decompressed_ct = Shortint.decompress_ciphertext(deserialized_ct);
+
+    let decrypted = Shortint.decrypt(deserialized_cks, decompressed_ct);
+    assert.deepStrictEqual(decrypted, BigInt(3));
 });
 
 test('shortint_public_encrypt_decrypt', (t) => {

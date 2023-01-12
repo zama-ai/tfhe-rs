@@ -10,7 +10,7 @@ use std::os::raw::c_int;
 
 use crate::boolean;
 
-pub use ciphertext::BooleanCiphertext;
+pub use ciphertext::{BooleanCiphertext, BooleanCompressedCiphertext};
 pub use client_key::BooleanClientKey;
 pub use public_key::BooleanPublicKey;
 pub use server_key::{BooleanCompressedServerKey, BooleanServerKey};
