@@ -3,7 +3,7 @@
 //! Engines are required to abstract cryptographic notions and efficiently manage memory from the
 //! underlying `core_crypto` module.
 
-use crate::boolean::ciphertext::Ciphertext;
+use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::boolean::parameters::BooleanParameters;
 use crate::boolean::{ClientKey, PublicKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
 use crate::core_crypto::algorithms::*;
@@ -160,6 +160,25 @@ impl BooleanEngine {
         );
 
         Ciphertext::Encrypted(ct)
+    }
+
+    pub fn encrypt_compressed(&mut self, message: bool, cks: &ClientKey) -> CompressedCiphertext {
+        // encode the boolean message
+        let plain: Plaintext<u32> = if message {
+            Plaintext(PLAINTEXT_TRUE)
+        } else {
+            Plaintext(PLAINTEXT_FALSE)
+        };
+
+        // encryption
+        let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
+            &cks.lwe_secret_key,
+            plain,
+            cks.parameters.lwe_modular_std_dev,
+            &mut self.bootstrapper.seeder,
+        );
+
+        CompressedCiphertext { ciphertext: ct }
     }
 
     pub fn encrypt_with_public_key(&mut self, message: bool, pks: &PublicKey) -> Ciphertext {

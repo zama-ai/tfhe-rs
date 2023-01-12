@@ -3,7 +3,7 @@
 //! This module implements the generation of the client' secret keys, together with the
 //! encryption and decryption methods.
 
-use crate::boolean::ciphertext::Ciphertext;
+use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanParameters;
 use crate::core_crypto::entities::*;
@@ -67,6 +67,31 @@ impl ClientKey {
     /// ```
     pub fn encrypt(&self, message: bool) -> Ciphertext {
         BooleanEngine::with_thread_local_mut(|engine| engine.encrypt(message, self))
+    }
+
+    /// Encrypt a Boolean message using the client key returning a compressed ciphertext.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # fn main() {
+    /// use tfhe::boolean::prelude::*;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, mut sks) = gen_keys();
+    ///
+    /// // Encryption of one message:
+    /// let ct = cks.encrypt_compressed(true);
+    ///
+    /// let ct: Ciphertext = ct.into();
+    ///
+    /// // Decryption:
+    /// let dec = cks.decrypt(&ct);
+    /// assert_eq!(true, dec);
+    /// # }
+    /// ```
+    pub fn encrypt_compressed(&self, message: bool) -> CompressedCiphertext {
+        BooleanEngine::with_thread_local_mut(|engine| engine.encrypt_compressed(message, self))
     }
 
     /// Decrypt a ciphertext encrypting a Boolean message using the client key.
