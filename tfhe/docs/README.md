@@ -2,7 +2,7 @@
 
 <mark style="background-color:yellow;">⭐️</mark> [<mark style="background-color:yellow;">Star the repo on Github</mark>](https://github.com/zama-ai/tfhe-rs) <mark style="background-color:yellow;">| 🗣</mark> [<mark style="background-color:yellow;">Community support forum</mark> ](https://community.zama.ai)<mark style="background-color:yellow;">| 📁</mark> [<mark style="background-color:yellow;">Contribute to the project</mark>](https://docs.zama.ai/tfhe-rs/developers/contributing)
 
-![](\_static/docs\_home.jpg)
+![](\_static/tfhe-rs-doc-home.png)
 
 TFHE-rs is a pure Rust implementation of TFHE for boolean and small integer arithmetics over encrypted data. It includes a Rust and C API, as well as a client-side WASM API.
 
