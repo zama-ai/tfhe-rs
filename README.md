@@ -95,24 +95,32 @@ Another example of how the library can be used with shortints:
 use tfhe::shortint::prelude::*;
 
 fn main() {
-    // We generate a set of client/server keys, using the default parameters:
+    // Generate a set of client/server keys, using the default parameters:
     let (client_key, server_key) = gen_keys(Parameters::default());
 
-    let msg1 = 1;
-    let msg2 = 0;
+    let msg1 = 3;
+    let msg2 = 2;
 
-    let modulus = client_key.parameters.message_modulus.0;
-
-    // We use the client key to encrypt two messages:
+    // Encrypt two messages using the (private) client key:
     let ct_1 = client_key.encrypt(msg1);
     let ct_2 = client_key.encrypt(msg2);
 
-    // We use the server public key to execute an integer circuit:
-    let ct_3 = server_key.unchecked_add(&ct_1, &ct_2);
+    // Homomorphically compute an addition
+    let ct_add = server_key.unchecked_add(&ct_1, &ct_2);
 
-    // We use the client key to decrypt the output of the circuit:
-    let output = client_key.decrypt(&ct_3);
-    assert_eq!(output, (msg1 + msg2) % modulus as u64);
+    // Define the Hamming weight function
+    // f: x -> sum of the bits of x
+    let f = |x:u64| x.count_ones() as u64;
+
+    // Generate the accumulator for the function
+    let acc = server_key.generate_accumulator(f);
+
+    // Compute the function over the ciphertext using the PBS
+    let ct_res = server_key.keyswitch_programmable_bootstrap(&ct_add, &acc);
+
+    // Decrypt the ciphertext using the (private) client key
+    let output = client_key.decrypt(&ct_res);
+    assert_eq!(output, f(msg1 + msg2));
 }
 ```
 
