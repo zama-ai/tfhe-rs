@@ -58,7 +58,7 @@ pub mod server_key;
 #[cfg(not(feature = "__wasm_api"))]
 pub mod wopbs;
 
-pub use ciphertext::Ciphertext;
+pub use ciphertext::{Ciphertext, CompressedCiphertext};
 pub use client_key::ClientKey;
 pub use parameters::Parameters;
 pub use public_key::{CompressedPublicKey, PublicKey};
