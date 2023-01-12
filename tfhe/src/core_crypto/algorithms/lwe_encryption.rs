@@ -1139,6 +1139,198 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, Input
     );
 }
 
+/// Convenience function to share the core logic of the seeded LWE encryption between all functions
+/// needing it.
+pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<Scalar, KeyCont, Gen>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output: &mut SeededLweCiphertext<Scalar>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    let mut mask = LweMask::from_container(vec![Scalar::ZERO; lwe_secret_key.lwe_dimension().0]);
+
+    fill_lwe_mask_and_body_for_encryption(
+        lwe_secret_key,
+        &mut mask,
+        output.get_mut_body(),
+        encoded,
+        noise_parameters,
+        generator,
+    )
+}
+
+/// Encrypt an input plaintext in an output [`seeded LWE ciphertext`](`SeededLweCiphertext`).
+///
+/// See the [`LWE ciphertext formal definition`](`LweCiphertext#lwe-encryption`) for the definition
+/// of the encryption algorithm.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let lwe_dimension = LweDimension(742);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+///
+/// // Create the plaintext
+/// let msg = 3u64;
+/// let plaintext = Plaintext(msg << 60);
+///
+/// // Create a new SeededLweCiphertext
+/// let mut lwe = SeededLweCiphertext::new(0u64, lwe_dimension.to_lwe_size(), seeder.seed().into());
+///
+/// encrypt_seeded_lwe_ciphertext(
+///     &lwe_secret_key,
+///     &mut lwe,
+///     plaintext,
+///     lwe_modular_std_dev,
+///     seeder,
+/// );
+///
+/// let lwe = lwe.decompress_into_lwe_ciphertext();
+///
+/// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// let rounded = decomposer.closest_representable(decrypted_plaintext.0);
+///
+/// // Remove the encoding
+/// let cleartext = rounded >> 60;
+///
+/// // Check we recovered the original message
+/// assert_eq!(cleartext, msg);
+/// ```
+pub fn encrypt_seeded_lwe_ciphertext<Scalar, KeyCont, NoiseSeeder>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output: &mut SeededLweCiphertext<Scalar>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter,
+    noise_seeder: &mut NoiseSeeder,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
+    NoiseSeeder: Seeder + ?Sized,
+{
+    let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        output.compression_seed().seed,
+        noise_seeder,
+    );
+
+    encrypt_seeded_lwe_ciphertext_with_existing_generator(
+        lwe_secret_key,
+        output,
+        encoded,
+        noise_parameters,
+        &mut encryption_generator,
+    )
+}
+
+/// Allocate a new [`seeded LWE ciphertext`](`SeededLweCiphertext`) and encrypt an input plaintext
+/// in it.
+///
+/// See this [`formal definition`](`encrypt_lwe_ciphertext#formal-definition`) for the definition
+/// of the LWE encryption algorithm.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let lwe_dimension = LweDimension(742);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+///
+/// // Create the plaintext
+/// let msg = 3u64;
+/// let plaintext = Plaintext(msg << 60);
+///
+/// // Create a new SeededLweCiphertext
+/// let mut lwe = allocate_and_encrypt_new_seeded_lwe_ciphertext(
+///     &lwe_secret_key,
+///     plaintext,
+///     lwe_modular_std_dev,
+///     seeder,
+/// );
+///
+/// let lwe = lwe.decompress_into_lwe_ciphertext();
+///
+/// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// let rounded = decomposer.closest_representable(decrypted_plaintext.0);
+///
+/// // Remove the encoding
+/// let cleartext = rounded >> 60;
+///
+/// // Check we recovered the original message
+/// assert_eq!(cleartext, msg);
+/// ```
+pub fn allocate_and_encrypt_new_seeded_lwe_ciphertext<Scalar, KeyCont, NoiseSeeder>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter,
+    noise_seeder: &mut NoiseSeeder,
+) -> SeededLweCiphertext<Scalar>
+where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
+    NoiseSeeder: Seeder + ?Sized,
+{
+    let mut seeded_ct = SeededLweCiphertext::new(
+        Scalar::ZERO,
+        lwe_secret_key.lwe_dimension().to_lwe_size(),
+        noise_seeder.seed().into(),
+    );
+
+    encrypt_seeded_lwe_ciphertext(
+        lwe_secret_key,
+        &mut seeded_ct,
+        encoded,
+        noise_parameters,
+        noise_seeder,
+    );
+
+    seeded_ct
+}
+
 #[cfg(test)]
 mod test {
     use crate::core_crypto::commons::generators::{
