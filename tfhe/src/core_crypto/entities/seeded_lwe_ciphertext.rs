@@ -5,7 +5,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A [`seeded GLWE ciphertext`](`SeededLweCiphertext`).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SeededLweCiphertext<Scalar> {
     data: Scalar,
     lwe_size: LweSize,
