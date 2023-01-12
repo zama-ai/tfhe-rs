@@ -3,8 +3,8 @@ use std::os::raw::c_int;
 
 use super::parameters::BooleanParameters;
 use super::{
-    BooleanCiphertext, BooleanClientKey, BooleanCompressedServerKey, BooleanPublicKey,
-    BooleanServerKey,
+    BooleanCiphertext, BooleanClientKey, BooleanCompressedCiphertext, BooleanCompressedServerKey,
+    BooleanPublicKey, BooleanServerKey,
 };
 
 #[no_mangle]
@@ -59,6 +59,17 @@ pub unsafe extern "C" fn destroy_boolean_parameters(
 #[no_mangle]
 pub unsafe extern "C" fn destroy_boolean_ciphertext(
     boolean_ciphertext: *mut BooleanCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(boolean_ciphertext).unwrap();
+
+        drop(Box::from_raw(boolean_ciphertext));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn destroy_boolean_compressed_ciphertext(
+    boolean_ciphertext: *mut BooleanCompressedCiphertext,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(boolean_ciphertext).unwrap();

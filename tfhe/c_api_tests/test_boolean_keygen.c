@@ -11,6 +11,9 @@ void test_default_keygen_w_serde(void) {
   BooleanCiphertext *ct = NULL;
   Buffer ct_ser_buffer = {.pointer = NULL, .length = 0};
   BooleanCiphertext *deser_ct = NULL;
+  BooleanCompressedCiphertext *cct = NULL;
+  BooleanCompressedCiphertext *deser_cct = NULL;
+  BooleanCiphertext *decompressed_ct = NULL;
 
   int gen_keys_ok = boolean_gen_keys_with_default_parameters(&cks, &sks);
   assert(gen_keys_ok == 0);
@@ -37,10 +40,34 @@ void test_default_keygen_w_serde(void) {
 
   assert(result == true);
 
+  int c_encrypt_ok = boolean_client_key_encrypt_compressed(cks, true, &cct);
+  assert(c_encrypt_ok == 0);
+
+  int c_ser_ok = boolean_serialize_compressed_ciphertext(cct, &ct_ser_buffer);
+  assert(c_ser_ok == 0);
+
+  deser_view.pointer = ct_ser_buffer.pointer;
+  deser_view.length = ct_ser_buffer.length;
+
+  int c_deser_ok = boolean_deserialize_compressed_ciphertext(deser_view, &deser_cct);
+  assert(c_deser_ok == 0);
+
+  int decomp_ok = boolean_decompress_ciphertext(cct, &decompressed_ct);
+  assert(decomp_ok == 0);
+
+  bool c_result = false;
+  int c_decrypt_ok = boolean_client_key_decrypt(cks, decompressed_ct, &c_result);
+  assert(c_decrypt_ok == 0);
+
+  assert(c_result == true);
+
   destroy_boolean_client_key(cks);
   destroy_boolean_server_key(sks);
   destroy_boolean_ciphertext(ct);
   destroy_boolean_ciphertext(deser_ct);
+  destroy_boolean_compressed_ciphertext(cct);
+  destroy_boolean_compressed_ciphertext(deser_cct);
+  destroy_boolean_ciphertext(decompressed_ct);
   destroy_buffer(&ct_ser_buffer);
 }
 
