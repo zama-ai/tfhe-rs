@@ -568,7 +568,7 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
         C: Split,
     {
         self.fourier.data.split_into(self.count).map(move |slice| {
-            FourierGgswCiphertext::new(
+            FourierGgswCiphertext::from_container(
                 slice,
                 self.glwe_size,
                 self.fourier.polynomial_size,
