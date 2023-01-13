@@ -14,7 +14,7 @@ use crate::core_crypto::commons::traits::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use aligned_vec::CACHELINE_ALIGN;
+use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
 use dyn_stack::{DynStack, ReborrowMut, SizeOverflow, StackReq};
 
@@ -60,7 +60,7 @@ pub type FourierGgswLevelRowView<'a> = FourierGgswLevelRow<&'a [c64]>;
 pub type FourierGgswLevelRowMutView<'a> = FourierGgswLevelRow<&'a mut [c64]>;
 
 impl<C: Container<Element = c64>> FourierGgswCiphertext<C> {
-    pub fn new(
+    pub fn from_container(
         data: C,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
@@ -276,6 +276,32 @@ impl<'a> FourierGgswCiphertextMutView<'a> {
                 stack.rb_mut(),
             );
         }
+    }
+}
+
+#[allow(unused)]
+type FourierGgswCiphertextOwned = FourierGgswCiphertext<ABox<[c64]>>;
+
+impl FourierGgswCiphertext<ABox<[c64]>> {
+    pub fn new(
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        decomposition_base_log: DecompositionBaseLog,
+        decomposition_level_count: DecompositionLevelCount,
+    ) -> FourierGgswCiphertext<ABox<[c64]>> {
+        let boxed = avec![
+            c64::default();
+            polynomial_size.0 / 2 * glwe_size.0 * glwe_size.0 * decomposition_level_count.0
+        ]
+        .into_boxed_slice();
+
+        FourierGgswCiphertext::from_container(
+            boxed,
+            glwe_size,
+            polynomial_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        )
     }
 }
 
