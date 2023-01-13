@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check first line
-        uses: gsactions/commit-message-checker@v1
+        uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee
         with:
           pattern: '^((feat|fix|chore|refactor|style|test|docs|doc)\(\w+\)\:) .+$'
           flags: "gs"
@@ -19,7 +19,7 @@ jobs:
           accessToken: ${{ secrets.GITHUB_TOKEN }} # github access token is only required if checkAllCommitMessages is true
 
       - name: Check line length
-        uses: gsactions/commit-message-checker@v1
+        uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee
         with:
           pattern: '(^.{0,74}$\r?\n?){0,20}'
           flags: "gm"
