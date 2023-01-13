@@ -35,6 +35,7 @@ pub mod seeded_lwe_public_key;
 pub use crate::core_crypto::fft_impl::crypto::bootstrap::{
     FourierLweBootstrapKey, FourierLweBootstrapKeyOwned,
 };
+pub use crate::core_crypto::fft_impl::crypto::ggsw::FourierGgswCiphertext;
 pub use cleartext::*;
 pub use ggsw_ciphertext::*;
 pub use ggsw_ciphertext_list::*;

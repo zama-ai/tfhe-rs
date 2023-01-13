@@ -68,7 +68,7 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
             .data
             .split_into(self.input_lwe_dimension.0)
             .map(move |slice| {
-                FourierGgswCiphertext::new(
+                FourierGgswCiphertext::from_container(
                     slice,
                     self.glwe_size,
                     self.fourier.polynomial_size,
