@@ -5,8 +5,9 @@
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKey;
-use crate::core_crypto::fft_impl::crypto::ggsw::fill_with_forward_fourier_scratch;
+use crate::core_crypto::fft_impl::crypto::bootstrap::{
+    fill_with_forward_fourier_scratch, FourierLweBootstrapKey,
+};
 use crate::core_crypto::fft_impl::math::fft::{Fft, FftView};
 use concrete_fft::c64;
 use dyn_stack::{DynStack, SizeOverflow, StackReq};
