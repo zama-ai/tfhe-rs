@@ -44,14 +44,14 @@ jobs:
           echo "Type: ${{ github.event.inputs.instance_type }}"
           echo "Request ID: ${{ github.event.inputs.request_id }}"
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
 
       - name: Set up home
         run: |
           echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
 
       - name: Install latest stable
-        uses: actions-rs/toolchain@v1
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
         with:
           toolchain: stable
           default: true
@@ -82,7 +82,7 @@ jobs:
           apt install -y awscli
 
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838
         with:
           aws-access-key-id: ${{ secrets.AWS_IAM_ID }}
           aws-secret-access-key: ${{ secrets.AWS_IAM_KEY }}
