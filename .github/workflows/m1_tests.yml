@@ -20,10 +20,10 @@ jobs:
     runs-on: ["self-hosted", "m1mac"]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
 
       - name: Install latest stable
-        uses: actions-rs/toolchain@v1
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
         with:
           toolchain: stable
           default: true
@@ -68,7 +68,7 @@ jobs:
       # slow on Apple machines due to the virtualization layer.
 
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838
         with:
           aws-access-key-id: ${{ secrets.AWS_IAM_ID }}
           aws-secret-access-key: ${{ secrets.AWS_IAM_KEY }}
@@ -97,7 +97,7 @@ jobs:
       - cargo-builds
     if: ${{ always() }}
     steps:
-      - uses: actions-ecosystem/action-remove-labels@v1
+      - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
         with:
           labels: m1_test
           github_token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,17 @@
+# Trigger an AWS build each time commits are pushed to a pull request.
+name: PR AWS build trigger
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: mshick/add-pr-comment@a65df5f64fc741e91c59b8359a4bc56e57aaf5b1
+        with:
+          allow-repeats: true
+          message: |
+            @slab-ci cpu_test
