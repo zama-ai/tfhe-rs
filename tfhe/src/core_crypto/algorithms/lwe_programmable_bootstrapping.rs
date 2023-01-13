@@ -6,6 +6,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::{bootstrap_scratch, FourierLweBootstrapKey};
+use crate::core_crypto::fft_impl::crypto::ggsw::{cmux, cmux_scratch, FourierGgswCiphertext};
 use crate::core_crypto::fft_impl::crypto::wop_pbs::blind_rotate_assign_scratch;
 use crate::core_crypto::fft_impl::math::fft::{Fft, FftView};
 use concrete_fft::c64;
@@ -76,6 +77,271 @@ pub fn blind_rotate_assign_mem_optimized_requirement<Scalar>(
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)
+}
+
+/// Compute a cmux on the input `ct0` and `ct1` using `ggsw` as selector.
+///
+/// `ct0` and `ct1` are both modified by this operation, the result is stored in `ct0` at the end
+/// of the computation.
+///
+/// Strictly speaking this function computes:
+///
+/// ```text
+/// ct1 <- ct1 - ct0
+/// ct0 <- ct1 * ggsw + ct0
+/// ```
+///
+/// Therefore encrypting values other than 0 or 1 in the `ggsw` will yield a linear combination of
+/// `ct0` and `ct1`
+///
+/// From a logical point of view (without considering the side effects of the implementationw) the
+/// cmux operation does the following assuming a binary (0 or 1) value stored in the input `ggsw`:
+///
+/// ```text
+/// def cmux(ct0, ct1, ggsw):
+///     if ggsw == 1:
+///         return ct1
+///     else:
+///         return ct0
+/// ```
+///
+/// If you want to manage the computation memory manually you can use
+/// [`cmux_assign_mem_optimized`].
+pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
+    ct0: &mut GlweCiphertext<Cont0>,
+    ct1: &mut GlweCiphertext<Cont1>,
+    ggsw: &FourierGgswCiphertext<GgswCont>,
+) where
+    Scalar: UnsignedTorus,
+    Cont0: ContainerMut<Element = Scalar>,
+    Cont1: ContainerMut<Element = Scalar>,
+    GgswCont: Container<Element = c64>,
+{
+    let fft = Fft::new(ggsw.polynomial_size());
+    let fft = fft.as_view();
+
+    let mut buffers = ComputationBuffers::new();
+    buffers.resize(
+        cmux_assign_mem_optimized_requirement::<Scalar>(
+            ggsw.glwe_size(),
+            ggsw.polynomial_size(),
+            fft,
+        )
+        .unwrap()
+        .unaligned_bytes_required(),
+    );
+
+    cmux_assign_mem_optimized(ct0, ct1, ggsw, fft, buffers.stack());
+}
+
+/// Memory optimized version of [`cmux_assign`], the caller must provide a properly configured
+/// [`FftView`] object and a `DynStack` used as a memory buffer having a capacity at least as large
+/// as the result of [`cmux_assign_mem_optimized_requirement`].
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for GgswCiphertext creation
+/// let glwe_size = GlweSize(2);
+/// let polynomial_size = PolynomialSize(2048);
+/// let decomp_base_log = DecompositionBaseLog(23);
+/// let decomp_level_count = DecompositionLevelCount(1);
+/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the GlweSecretKey
+/// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_size.to_glwe_dimension(),
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+///
+/// // Create the plaintext
+/// let msg_ggsw_0 = Plaintext(0u64);
+///
+/// // Create a new GgswCiphertext
+/// let mut ggsw_0 = GgswCiphertext::new(
+///     0u64,
+///     glwe_size,
+///     polynomial_size,
+///     decomp_base_log,
+///     decomp_level_count,
+/// );
+///
+/// encrypt_ggsw_ciphertext(
+///     &glwe_secret_key,
+///     &mut ggsw_0,
+///     msg_ggsw_0,
+///     glwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// /// // Create the plaintext
+/// let msg_ggsw_1 = Plaintext(1u64);
+///
+/// // Create a new GgswCiphertext
+/// let mut ggsw_1 = GgswCiphertext::new(
+///     0u64,
+///     glwe_size,
+///     polynomial_size,
+///     decomp_base_log,
+///     decomp_level_count,
+/// );
+///
+/// encrypt_ggsw_ciphertext(
+///     &glwe_secret_key,
+///     &mut ggsw_1,
+///     msg_ggsw_1,
+///     glwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// let ct0_plaintext = Plaintext(1 << 60);
+/// let ct1_plaintext = Plaintext(3 << 60);
+///
+/// let ct0_plaintexts = PlaintextList::new(ct0_plaintext.0, PlaintextCount(polynomial_size.0));
+/// let ct1_plaintexts = PlaintextList::new(ct1_plaintext.0, PlaintextCount(polynomial_size.0));
+///
+/// let mut ct0 = GlweCiphertext::new(0u64, glwe_size, polynomial_size);
+/// let mut ct1 = GlweCiphertext::new(0u64, glwe_size, polynomial_size);
+///
+/// encrypt_glwe_ciphertext(
+///     &glwe_secret_key,
+///     &mut ct0,
+///     &ct0_plaintexts,
+///     glwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// encrypt_glwe_ciphertext(
+///     &glwe_secret_key,
+///     &mut ct1,
+///     &ct1_plaintexts,
+///     glwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// let fft = Fft::new(polynomial_size);
+/// let fft = fft.as_view();
+/// let mut buffers = ComputationBuffers::new();
+///
+/// let buffer_size_req =
+///     cmux_assign_mem_optimized_requirement::<u64>(glwe_size, polynomial_size, fft)
+///         .unwrap()
+///         .unaligned_bytes_required();
+///
+/// let buffer_size_req = buffer_size_req.max(
+///     convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft)
+///         .unwrap()
+///         .unaligned_bytes_required(),
+/// );
+///
+/// buffers.resize(buffer_size_req);
+///
+/// let mut fourier_ggsw_0 = FourierGgswCiphertext::new(
+///     glwe_size,
+///     polynomial_size,
+///     decomp_base_log,
+///     decomp_level_count,
+/// );
+/// let mut fourier_ggsw_1 = FourierGgswCiphertext::new(
+///     glwe_size,
+///     polynomial_size,
+///     decomp_base_log,
+///     decomp_level_count,
+/// );
+///
+/// convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
+///     &ggsw_0,
+///     &mut fourier_ggsw_0,
+///     fft,
+///     buffers.stack(),
+/// );
+///
+/// convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
+///     &ggsw_1,
+///     &mut fourier_ggsw_1,
+///     fft,
+///     buffers.stack(),
+/// );
+///
+/// let mut ct0_clone = ct0.clone();
+/// let mut ct1_clone = ct1.clone();
+///
+/// cmux_assign_mem_optimized(
+///     &mut ct0_clone,
+///     &mut ct1_clone,
+///     &fourier_ggsw_0,
+///     fft,
+///     buffers.stack(),
+/// );
+///
+/// let mut output_plaintext_list_0 = PlaintextList::new(0u64, ct0_plaintexts.plaintext_count());
+///
+/// decrypt_glwe_ciphertext(&glwe_secret_key, &ct0_clone, &mut output_plaintext_list_0);
+///
+/// let signed_decomposer =
+///     SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// output_plaintext_list_0
+///     .iter_mut()
+///     .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0));
+///
+/// assert!(output_plaintext_list_0
+///     .iter()
+///     .all(|x| *x.0 == ct0_plaintext.0));
+///
+/// cmux_assign_mem_optimized(&mut ct0, &mut ct1, &fourier_ggsw_1, fft, buffers.stack());
+///
+/// let mut output_plaintext_list_1 = PlaintextList::new(0u64, ct1_plaintexts.plaintext_count());
+///
+/// decrypt_glwe_ciphertext(&glwe_secret_key, &ct0, &mut output_plaintext_list_1);
+///
+/// output_plaintext_list_1
+///     .iter_mut()
+///     .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0));
+///
+/// assert!(output_plaintext_list_1
+///     .iter()
+///     .all(|x| *x.0 == ct1_plaintext.0));
+/// ```
+pub fn cmux_assign_mem_optimized<Scalar, Cont0, Cont1, GgswCont>(
+    ct0: &mut GlweCiphertext<Cont0>,
+    ct1: &mut GlweCiphertext<Cont1>,
+    ggsw: &FourierGgswCiphertext<GgswCont>,
+    fft: FftView<'_>,
+    stack: DynStack<'_>,
+) where
+    Scalar: UnsignedTorus,
+    Cont0: ContainerMut<Element = Scalar>,
+    Cont1: ContainerMut<Element = Scalar>,
+    GgswCont: Container<Element = c64>,
+{
+    cmux(
+        ct0.as_mut_view(),
+        ct1.as_mut_view(),
+        ggsw.as_view(),
+        fft,
+        stack,
+    );
+}
+
+pub fn cmux_assign_mem_optimized_requirement<Scalar>(
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    fft: FftView<'_>,
+) -> Result<StackReq, SizeOverflow> {
+    cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)
 }
 
 /// Perform a programmable bootsrap given an input [`LWE ciphertext`](`LweCiphertext`), a
