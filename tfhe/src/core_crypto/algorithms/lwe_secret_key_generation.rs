@@ -38,15 +38,14 @@ where
 /// // computations
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
-//
+///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut secret_generator =
 ///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 ///
-/// let mut lwe_secret_key =
-///     LweSecretKey::new_empty_key(0u64, lwe_dimension);
+/// let mut lwe_secret_key = LweSecretKey::new_empty_key(0u64, lwe_dimension);
 ///
 /// generate_binary_lwe_secret_key(&mut lwe_secret_key, &mut secret_generator);
 ///
