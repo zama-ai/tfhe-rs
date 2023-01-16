@@ -145,6 +145,8 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
 /// Parallel variant of [`allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list`], it is
 /// recommended to use this function for better key generation times as the generated keys can be
 /// quite large.
+///
+/// See [`circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized`] for usage.
 pub fn par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     Scalar,
     LweKeyCont,
@@ -276,6 +278,8 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
 /// The caller must provide a properly configured [`FftView`] object and a `DynStack` used as a
 /// memory buffer having a capacity at least as large as the result of
 /// [`extract_bits_from_lwe_ciphertext_mem_optimized_requirement`].
+///
+/// See [`circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized`] for usage.
 ///
 /// # Formal Definition
 ///
