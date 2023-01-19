@@ -137,11 +137,11 @@ impl ShortintEngine {
             //If the ciphertext cannot be added together without exceeding the capacity of a
             // ciphertext
             if !server_key.is_mul_possible(ct_left, ct_right) {
-                if server_key.message_modulus.0 * (ct_right.degree.0 + 1)
+                if (server_key.message_modulus.0 - 1) * ct_right.degree.0
                     < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
                 {
                     self.message_extract_assign(server_key, ct_left)?;
-                } else if (server_key.message_modulus.0 + 1) + (ct_left.degree.0 + 1)
+                } else if (server_key.message_modulus.0 - 1) + ct_left.degree.0
                     < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
                 {
                     self.message_extract_assign(server_key, ct_right)?;
