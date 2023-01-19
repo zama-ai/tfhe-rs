@@ -26,15 +26,19 @@ fi
 
 filter_expression=''\
 '('\
-'   test(/^shortint::server_key::.*_param_message_1_carry_1$/)'\
-'or test(/^shortint::server_key::.*_param_message_1_carry_2$/)'\
-'or test(/^shortint::server_key::.*_param_message_1_carry_3$/)'\
-'or test(/^shortint::server_key::.*_param_message_1_carry_4$/)'\
-'or test(/^shortint::server_key::.*_param_message_1_carry_5$/)'\
-'or test(/^shortint::server_key::.*_param_message_1_carry_6$/)'\
-'or test(/^shortint::server_key::.*_param_message_2_carry_2$/)'\
-'or test(/^shortint::server_key::.*_param_message_3_carry_3$/)'\
-'or test(/^shortint::server_key::.*_param_message_4_carry_4$/)'\
+'   test(/^shortint::.*_param_message_1_carry_1$/)'\
+'or test(/^shortint::.*_param_message_1_carry_2$/)'\
+'or test(/^shortint::.*_param_message_1_carry_3$/)'\
+'or test(/^shortint::.*_param_message_1_carry_4$/)'\
+'or test(/^shortint::.*_param_message_1_carry_5$/)'\
+'or test(/^shortint::.*_param_message_1_carry_6$/)'\
+'or test(/^shortint::.*_param_message_2_carry_1$/)'\
+'or test(/^shortint::.*_param_message_2_carry_2$/)'\
+'or test(/^shortint::.*_param_message_2_carry_3$/)'\
+'or test(/^shortint::.*_param_message_3_carry_1$/)'\
+'or test(/^shortint::.*_param_message_3_carry_2$/)'\
+'or test(/^shortint::.*_param_message_3_carry_3$/)'\
+'or test(/^shortint::.*_param_message_4_carry_4$/)'\
 ')'\
 'and not test(~smart_add_and_mul)' # This test is too slow
 
