@@ -113,6 +113,7 @@ create_parametrized_test!(shortint_unchecked_left_shift);
 create_parametrized_test!(shortint_unchecked_sub);
 create_parametrized_test!(shortint_smart_sub);
 create_parametrized_test!(shortint_mul_small_carry);
+create_parametrized_test!(shortint_mux);
 
 // Public key tests are limited to small parameter sets to avoid blowing up memory and large testing
 // times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
@@ -1907,4 +1908,31 @@ fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: Parameters) {
         let ct_res = sks.unchecked_add(&ct1, &ct2);
         assert_eq!((clear1 + clear2), cks.decrypt_message_and_carry(&ct_res));
     }
+}
+
+/// test simulating a MUX
+fn shortint_mux(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let mut rng = rand::thread_rng();
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    let msg_true = rng.gen::<u64>() % modulus;
+    let msg_false = rng.gen::<u64>() % modulus;
+    let control_bit = rng.gen::<u64>() % 2;
+
+    let mut ct_true = cks.encrypt(msg_true);
+    let mut ct_false = cks.encrypt(msg_false);
+    let mut ct_control = cks.encrypt(control_bit);
+
+    let mut res = sks.smart_sub(&mut ct_true, &mut ct_false);
+    let mut res = sks.smart_mul_lsb(&mut res, &mut ct_control);
+    let res = sks.smart_add(&mut res, &mut ct_false);
+
+    let dec_res = cks.decrypt(&res);
+
+    let clear_mux = (msg_true - msg_false) * control_bit + msg_false;
+    println!("(msg_true - msg_false) * control_bit  + msg_false = {clear_mux}, res = {dec_res}");
+    assert_eq!(clear_mux, dec_res);
 }
