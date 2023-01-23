@@ -1,7 +1,11 @@
 use super::super::math::fft::{wrapping_neg, Fft128View};
 use super::ggsw::cmux_split;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
-use crate::core_crypto::commons::parameters::{LutCountLog, ModulusSwitchOffset, MonomialDegree};
+use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::parameters::{
+    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, LutCountLog,
+    ModulusSwitchOffset, MonomialDegree,
+};
 use crate::core_crypto::commons::traits::ContiguousEntityContainerMut;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
@@ -115,10 +119,12 @@ where
                     let mut ct1_lo = GlweCiphertextMutView::from_container(
                         &mut *ct1_lo,
                         ct0_lo.polynomial_size(),
+                        ct0_lo.ciphertext_modulus(),
                     );
                     let mut ct1_hi = GlweCiphertextMutView::from_container(
                         &mut *ct1_hi,
                         ct0_lo.polynomial_size(),
+                        ct0_lo.ciphertext_modulus(),
                     );
 
                     // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
@@ -138,8 +144,6 @@ where
                         )
                     }
 
-                    // ct1 is re-created each loop it can be moved, ct0 is already a view, but
-                    // as_mut_view is required to keep borrow rules consistent
                     cmux_split(
                         &mut ct0_lo,
                         &mut ct0_hi,
@@ -194,10 +198,18 @@ where
             let mut local_accumulator_lo = GlweCiphertextMutView::from_container(
                 &mut *local_accumulator_lo,
                 accumulator.polynomial_size(),
+                // Here we split a u128 to two u64 containers and the ciphertext modulus does not
+                // match anymore in terms of the underlying Scalar type, so we'll provide a dummy
+                // native modulus
+                CiphertextModulus::new_native(),
             );
             let mut local_accumulator_hi = GlweCiphertextMutView::from_container(
                 &mut *local_accumulator_hi,
                 accumulator.polynomial_size(),
+                // Here we split a u128 to two u64 containers and the ciphertext modulus does not
+                // match anymore in terms of the underlying Scalar type, so we'll provide a dummy
+                // native modulus
+                CiphertextModulus::new_native(),
             );
             this.blind_rotate_assign_split(
                 &mut local_accumulator_lo,
@@ -206,15 +218,33 @@ where
                 fft,
                 stack.rb_mut(),
             );
-            let (local_accumulator, _) = stack.collect_aligned(
+            let (mut local_accumulator, _) = stack.collect_aligned(
                 align,
                 izip!(local_accumulator_lo.as_ref(), local_accumulator_hi.as_ref())
                     .map(|(&lo, &hi)| lo as u128 | ((hi as u128) << 64)),
             );
-            let local_accumulator = GlweCiphertextView::from_container(
-                &*local_accumulator,
+            let mut local_accumulator = GlweCiphertextMutView::from_container(
+                &mut *local_accumulator,
                 accumulator.polynomial_size(),
+                accumulator.ciphertext_modulus(),
             );
+
+            let ciphertext_modulus = local_accumulator.ciphertext_modulus();
+            if !ciphertext_modulus.is_native_modulus() {
+                // When we convert back from the fourier domain, integer values will contain up to
+                // about 100 MSBs with information. In our representation of power of 2
+                // moduli < native modulus we fill the MSBs and leave the LSBs
+                // empty, this usage of the signed decomposer allows to round while
+                // keeping the data in the MSBs
+                let signed_decomposer = SignedDecomposer::new(
+                    DecompositionBaseLog(ciphertext_modulus.get().ilog2() as usize),
+                    DecompositionLevelCount(1),
+                );
+                local_accumulator
+                    .as_mut()
+                    .iter_mut()
+                    .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+            }
 
             extract_lwe_sample_from_glwe_ciphertext(
                 &local_accumulator,

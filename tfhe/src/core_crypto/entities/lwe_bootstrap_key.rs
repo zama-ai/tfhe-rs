@@ -96,13 +96,18 @@ use crate::core_crypto::entities::*;
 /// \cdot X^{\tilde{a}\_i}, \mathsf{ACC})$, for $i= 0, 1, \ldots, n\_{\mathsf{in}-1}$
 /// 5. Output $\mathsf{ct}\_{\mathsf{out}} \leftarrow \mathsf{SampleExtract}(\mathsf{ACC})$
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct LweBootstrapKey<C: Container> {
+pub struct LweBootstrapKey<C: Container>
+where
+    C::Element: UnsignedInteger,
+{
     // An LweBootstrapKey is literally a GgswCiphertextList, so we wrap a GgswCiphertextList and
     // use Deref to have access to all the primitives of the GgswCiphertextList easily
     ggsw_list: GgswCiphertextList<C>,
 }
 
-impl<C: Container> std::ops::Deref for LweBootstrapKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> std::ops::Deref
+    for LweBootstrapKey<C>
+{
     type Target = GgswCiphertextList<C>;
 
     fn deref(&self) -> &GgswCiphertextList<C> {
@@ -110,13 +115,15 @@ impl<C: Container> std::ops::Deref for LweBootstrapKey<C> {
     }
 }
 
-impl<C: ContainerMut> std::ops::DerefMut for LweBootstrapKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> std::ops::DerefMut
+    for LweBootstrapKey<C>
+{
     fn deref_mut(&mut self) -> &mut GgswCiphertextList<C> {
         &mut self.ggsw_list
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBootstrapKey<C> {
     /// Create an [`LweBootstrapKey`] from an existing container.
     ///
     /// # Note
@@ -139,6 +146,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
     /// let decomp_base_log = DecompositionBaseLog(8);
     /// let decomp_level_count = DecompositionLevelCount(3);
     /// let input_lwe_dimension = LweDimension(600);
+    /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// // Create a new LweBootstrapKey
     /// let bsk = LweBootstrapKey::new(
@@ -148,6 +156,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
     ///     decomp_base_log,
     ///     decomp_level_count,
     ///     input_lwe_dimension,
+    ///     ciphertext_modulus,
     /// );
     ///
     /// // These methods are "inherited" from GgswCiphertextList and are accessed through the Deref
@@ -156,6 +165,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
     /// assert_eq!(bsk.polynomial_size(), polynomial_size);
     /// assert_eq!(bsk.decomposition_base_log(), decomp_base_log);
     /// assert_eq!(bsk.decomposition_level_count(), decomp_level_count);
+    /// assert_eq!(bsk.ciphertext_modulus(), ciphertext_modulus);
     ///
     /// // These methods are specific to the LweBootstrapKey
     /// assert_eq!(bsk.input_lwe_dimension(), input_lwe_dimension);
@@ -174,12 +184,14 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
     ///     polynomial_size,
     ///     decomp_base_log,
     ///     decomp_level_count,
+    ///     ciphertext_modulus,
     /// );
     ///
     /// assert_eq!(bsk.glwe_size(), glwe_size);
     /// assert_eq!(bsk.polynomial_size(), polynomial_size);
     /// assert_eq!(bsk.decomposition_base_log(), decomp_base_log);
     /// assert_eq!(bsk.decomposition_level_count(), decomp_level_count);
+    /// assert_eq!(bsk.ciphertext_modulus(), ciphertext_modulus);
     /// assert_eq!(bsk.input_lwe_dimension(), input_lwe_dimension);
     /// assert_eq!(
     ///     bsk.output_lwe_dimension().0,
@@ -192,6 +204,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
         polynomial_size: PolynomialSize,
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
+        ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> LweBootstrapKey<C> {
         LweBootstrapKey {
             ggsw_list: GgswCiphertextList::from_container(
@@ -200,6 +213,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
                 polynomial_size,
                 decomp_base_log,
                 decomp_level_count,
+                ciphertext_modulus,
             ),
         }
     }
@@ -234,23 +248,26 @@ impl<Scalar, C: Container<Element = Scalar>> LweBootstrapKey<C> {
             self.polynomial_size(),
             self.decomposition_base_log(),
             self.decomposition_level_count(),
+            self.ciphertext_modulus(),
         )
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> LweBootstrapKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweBootstrapKey<C> {
     /// Mutable variant of [`LweBootstrapKey::as_view`].
     pub fn as_mut_view(&mut self) -> LweBootstrapKey<&'_ mut [Scalar]> {
         let glwe_size = self.glwe_size();
         let polynomial_size = self.polynomial_size();
         let decomp_base_log = self.decomposition_base_log();
         let decomp_level_count = self.decomposition_level_count();
+        let ciphertext_modulus = self.ciphertext_modulus();
         LweBootstrapKey::from_container(
             self.as_mut(),
             glwe_size,
             polynomial_size,
             decomp_base_log,
             decomp_level_count,
+            ciphertext_modulus,
         )
     }
 }
@@ -258,7 +275,7 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LweBootstrapKey<C> {
 /// An [`LweBootstrapKey`] owning the memory for its own storage.
 pub type LweBootstrapKeyOwned<Scalar> = LweBootstrapKey<Vec<Scalar>>;
 
-impl<Scalar: Copy> LweBootstrapKeyOwned<Scalar> {
+impl<Scalar: UnsignedInteger> LweBootstrapKeyOwned<Scalar> {
     /// Allocate memory and create a new owned [`LweBootstrapKey`].
     ///
     /// # Note
@@ -277,6 +294,7 @@ impl<Scalar: Copy> LweBootstrapKeyOwned<Scalar> {
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         input_lwe_dimension: LweDimension,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> LweBootstrapKeyOwned<Scalar> {
         LweBootstrapKeyOwned {
             ggsw_list: GgswCiphertextList::new(
@@ -286,6 +304,7 @@ impl<Scalar: Copy> LweBootstrapKeyOwned<Scalar> {
                 decomp_base_log,
                 decomp_level_count,
                 GgswCiphertextCount(input_lwe_dimension.0),
+                ciphertext_modulus,
             ),
         }
     }

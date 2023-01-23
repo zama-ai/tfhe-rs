@@ -2,6 +2,7 @@ use super::super::math::fft::{Fft128, Fft128View};
 use super::ggsw::{cmux, cmux_scratch, Fourier128GgswCiphertext};
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
+use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
@@ -158,8 +159,8 @@ pub type Fourier128LweBootstrapKeyOwned = Fourier128LweBootstrapKey<ABox<[f64]>>
 impl Fourier128LweBootstrapKey<ABox<[f64]>> {
     pub fn new(
         input_lwe_dimension: LweDimension,
-        polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
     ) -> Fourier128LweBootstrapKey<ABox<[f64]>> {
@@ -263,6 +264,7 @@ where
             let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
 
             let lut_poly_size = lut.polynomial_size();
+            let ciphertext_modulus = lut.ciphertext_modulus();
             let monomial_degree = pbs_modulus_switch(
                 *lwe_body,
                 lut_poly_size,
@@ -290,8 +292,11 @@ where
                     // We copy ct_0 to ct_1
                     let (mut ct1, stack) =
                         stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
-                    let mut ct1 =
-                        GlweCiphertextMutView::from_container(&mut *ct1, ct0.polynomial_size());
+                    let mut ct1 = GlweCiphertextMutView::from_container(
+                        &mut *ct1,
+                        ct0.polynomial_size(),
+                        ct0.ciphertext_modulus(),
+                    );
 
                     // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
                     for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
@@ -310,6 +315,21 @@ where
                     // as_mut_view is required to keep borrow rules consistent
                     cmux(&mut ct0, &mut ct1, &bootstrap_key_ggsw, fft, stack);
                 }
+            }
+
+            if !ciphertext_modulus.is_native_modulus() {
+                // When we convert back from the fourier domain, integer values will contain up to
+                // about 100 MSBs with information. In our representation of power of 2
+                // moduli < native modulus we fill the MSBs and leave the LSBs
+                // empty, this usage of the signed decomposer allows to round while
+                // keeping the data in the MSBs
+                let signed_decomposer = SignedDecomposer::new(
+                    DecompositionBaseLog(ciphertext_modulus.get().ilog2() as usize),
+                    DecompositionLevelCount(1),
+                );
+                ct0.as_mut()
+                    .iter_mut()
+                    .for_each(|x| *x = signed_decomposer.closest_representable(*x));
             }
         }
         implementation(self.as_view(), lut.as_mut_view(), lwe.as_view(), fft, stack)
@@ -350,6 +370,7 @@ where
             let mut local_accumulator = GlweCiphertextMutView::from_container(
                 &mut *local_accumulator_data,
                 accumulator.polynomial_size(),
+                accumulator.ciphertext_modulus(),
             );
             this.blind_rotate_assign(&mut local_accumulator.as_mut_view(), &lwe_in, fft, stack);
             extract_lwe_sample_from_glwe_ciphertext(
@@ -389,8 +410,8 @@ where
     ) -> Self {
         Self::new(
             input_lwe_dimension,
-            polynomial_size,
             glwe_size,
+            polynomial_size,
             decomposition_base_log,
             decomposition_level_count,
         )

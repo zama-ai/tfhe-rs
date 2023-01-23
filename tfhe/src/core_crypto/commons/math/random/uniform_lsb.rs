@@ -11,6 +11,7 @@ pub struct UniformLsb {
 macro_rules! implement_uniform_some_lsb {
     ($T:ty) => {
         impl RandomGenerable<UniformLsb> for $T {
+            type CustomModulus = $T;
             fn generate_one<G: ByteRandomGenerator>(
                 generator: &mut RandomGenerator<G>,
                 UniformLsb { n }: UniformLsb,

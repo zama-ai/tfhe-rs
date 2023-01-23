@@ -157,20 +157,24 @@ use crate::core_crypto::entities::*;
 /// algorithm`](`crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext`)
 /// on one of the GLWE ciphertexts contained in the GLev ciphertext.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct GgswCiphertext<C: Container> {
+pub struct GgswCiphertext<C: Container>
+where
+    C::Element: UnsignedInteger,
+{
     data: C,
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     decomp_base_log: DecompositionBaseLog,
+    ciphertext_modulus: CiphertextModulus<C::Element>,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]> for GgswCiphertext<C> {
+impl<T: UnsignedInteger, C: Container<Element = T>> AsRef<[T]> for GgswCiphertext<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
-impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for GgswCiphertext<C> {
+impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for GgswCiphertext<C> {
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
     }
@@ -211,7 +215,7 @@ pub fn fourier_ggsw_level_matrix_size(
     glwe_size.0 * glwe_size.0 * fourier_polynomial_size.0
 }
 
-impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertext<C> {
     /// Create a [`GgswCiphertext`] from an existing container.
     ///
     /// # Note
@@ -234,6 +238,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     /// let polynomial_size = PolynomialSize(1024);
     /// let decomp_base_log = DecompositionBaseLog(8);
     /// let decomp_level_count = DecompositionLevelCount(3);
+    /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// // Create a new GgswCiphertext
     /// let ggsw = GgswCiphertext::new(
@@ -242,12 +247,14 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     ///     polynomial_size,
     ///     decomp_base_log,
     ///     decomp_level_count,
+    ///     ciphertext_modulus,
     /// );
     ///
     /// assert_eq!(ggsw.glwe_size(), glwe_size);
     /// assert_eq!(ggsw.polynomial_size(), polynomial_size);
     /// assert_eq!(ggsw.decomposition_base_log(), decomp_base_log);
     /// assert_eq!(ggsw.decomposition_level_count(), decomp_level_count);
+    /// assert_eq!(ggsw.ciphertext_modulus(), ciphertext_modulus);
     /// assert_eq!(
     ///     ggsw.ggsw_level_matrix_size(),
     ///     ggsw_level_matrix_size(glwe_size, polynomial_size)
@@ -262,12 +269,14 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     ///     glwe_size,
     ///     polynomial_size,
     ///     decomp_base_log,
+    ///     ciphertext_modulus,
     /// );
     ///
     /// assert_eq!(ggsw.glwe_size(), glwe_size);
     /// assert_eq!(ggsw.polynomial_size(), polynomial_size);
     /// assert_eq!(ggsw.decomposition_base_log(), decomp_base_log);
     /// assert_eq!(ggsw.decomposition_level_count(), decomp_level_count);
+    /// assert_eq!(ggsw.ciphertext_modulus(), ciphertext_modulus);
     /// assert_eq!(
     ///     ggsw.ggsw_level_matrix_size(),
     ///     ggsw_level_matrix_size(glwe_size, polynomial_size)
@@ -278,6 +287,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         decomp_base_log: DecompositionBaseLog,
+        ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
             container.container_len() > 0,
@@ -298,6 +308,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
             glwe_size,
             polynomial_size,
             decomp_base_log,
+            ciphertext_modulus,
         }
     }
 
@@ -329,6 +340,13 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
         DecompositionLevelCount(self.data.container_len() / self.ggsw_level_matrix_size())
     }
 
+    /// Return the [`CiphertextModulus`] of the [`GgswCiphertext`].
+    ///
+    /// See [`GgswCiphertext::from_container`] for usage.
+    pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
+        self.ciphertext_modulus
+    }
+
     /// Return the size in number of elements of a single [`GgswLevelMatrix`] of the current
     /// [`GgswCiphertext`].
     ///
@@ -345,7 +363,12 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
 
     /// Interpret the [`GgswCiphertext`] as a [`GlweCiphertextList`].
     pub fn as_glwe_list(&self) -> GlweCiphertextListView<'_, Scalar> {
-        GlweCiphertextListView::from_container(self.as_ref(), self.glwe_size, self.polynomial_size)
+        GlweCiphertextListView::from_container(
+            self.as_ref(),
+            self.glwe_size,
+            self.polynomial_size,
+            self.ciphertext_modulus,
+        )
     }
 
     /// Return a view of the [`GgswCiphertext`]. This is useful if an algorithm takes a view by
@@ -356,6 +379,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
             self.glwe_size(),
             self.polynomial_size(),
             self.decomposition_base_log(),
+            self.ciphertext_modulus(),
         )
     }
 
@@ -367,7 +391,7 @@ impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> GgswCiphertext<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GgswCiphertext<C> {
     /// Mutable variant of [`GgswCiphertext::as_polynomial_list`].
     pub fn as_mut_polynomial_list(&mut self) -> PolynomialListMutView<'_, Scalar> {
         let polynomial_size = self.polynomial_size;
@@ -378,7 +402,13 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> GgswCiphertext<C> {
     pub fn as_mut_glwe_list(&mut self) -> GlweCiphertextListMutView<'_, Scalar> {
         let polynomial_size = self.polynomial_size;
         let glwe_size = self.glwe_size;
-        GlweCiphertextListMutView::from_container(self.as_mut(), glwe_size, polynomial_size)
+        let ciphertext_modulus = self.ciphertext_modulus;
+        GlweCiphertextListMutView::from_container(
+            self.as_mut(),
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        )
     }
 
     /// Mutable variant of [`GgswCiphertext::as_view`].
@@ -386,11 +416,13 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> GgswCiphertext<C> {
         let glwe_size = self.glwe_size();
         let polynomial_size = self.polynomial_size();
         let decomp_base_log = self.decomposition_base_log();
+        let ciphertext_modulus = self.ciphertext_modulus;
         GgswCiphertextMutView::from_container(
             self.as_mut(),
             glwe_size,
             polynomial_size,
             decomp_base_log,
+            ciphertext_modulus,
         )
     }
 }
@@ -402,7 +434,7 @@ pub type GgswCiphertextView<'data, Scalar> = GgswCiphertext<&'data [Scalar]>;
 /// A [`GgswCiphertext`] immutably borrowing memory for its own storage.
 pub type GgswCiphertextMutView<'data, Scalar> = GgswCiphertext<&'data mut [Scalar]>;
 
-impl<Scalar: Copy> GgswCiphertextOwned<Scalar> {
+impl<Scalar: UnsignedInteger> GgswCiphertextOwned<Scalar> {
     /// Allocate memory and create a new owned [`GgswCiphertext`].
     ///
     /// # Note
@@ -420,42 +452,60 @@ impl<Scalar: Copy> GgswCiphertextOwned<Scalar> {
         polynomial_size: PolynomialSize,
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> GgswCiphertextOwned<Scalar> {
         GgswCiphertextOwned::from_container(
             vec![fill_with; ggsw_ciphertext_size(glwe_size, polynomial_size, decomp_level_count)],
             glwe_size,
             polynomial_size,
             decomp_base_log,
+            ciphertext_modulus,
         )
     }
 }
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`GgswCiphertext`] entities.
 #[derive(Clone, Copy)]
-pub struct GgswCiphertextCreationMetadata(
+pub struct GgswCiphertextCreationMetadata<Scalar: UnsignedInteger>(
     pub GlweSize,
     pub PolynomialSize,
     pub DecompositionBaseLog,
+    pub CiphertextModulus<Scalar>,
 );
 
-impl<C: Container> CreateFrom<C> for GgswCiphertext<C> {
-    type Metadata = GgswCiphertextCreationMetadata;
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for GgswCiphertext<C> {
+    type Metadata = GgswCiphertextCreationMetadata<Scalar>;
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> GgswCiphertext<C> {
-        let GgswCiphertextCreationMetadata(glwe_size, polynomial_size, decomp_base_log) = meta;
-        GgswCiphertext::from_container(from, glwe_size, polynomial_size, decomp_base_log)
+        let GgswCiphertextCreationMetadata(
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+        ) = meta;
+        GgswCiphertext::from_container(
+            from,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+        )
     }
 }
 
 /// A convenience structure to more easily write iterators on a [`GgswCiphertext`] levels.
-pub struct GgswLevelMatrix<C: Container> {
+pub struct GgswLevelMatrix<C: Container>
+where
+    C::Element: UnsignedInteger,
+{
     data: C,
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
+    ciphertext_modulus: CiphertextModulus<C::Element>,
 }
 
-impl<C: Container> GgswLevelMatrix<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswLevelMatrix<C> {
     /// Create a [`GgswLevelMatrix`] from an existing container.
     ///
     /// # Note
@@ -470,19 +520,23 @@ impl<C: Container> GgswLevelMatrix<C> {
     /// // Define parameters for GgswLevelMatrix creation
     /// let glwe_size = GlweSize(2);
     /// let polynomial_size = PolynomialSize(1024);
+    /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// let container = vec![0u64; ggsw_level_matrix_size(glwe_size, polynomial_size)];
     ///
     /// // Create a new GgswLevelMatrix
-    /// let ggsw_level_matrix = GgswLevelMatrix::from_container(container, glwe_size, polynomial_size);
+    /// let ggsw_level_matrix =
+    ///     GgswLevelMatrix::from_container(container, glwe_size, polynomial_size, ciphertext_modulus);
     ///
     /// assert_eq!(ggsw_level_matrix.glwe_size(), glwe_size);
     /// assert_eq!(ggsw_level_matrix.polynomial_size(), polynomial_size);
+    /// assert_eq!(ggsw_level_matrix.ciphertext_modulus(), ciphertext_modulus);
     /// ```
     pub fn from_container(
         container: C,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
+        ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> GgswLevelMatrix<C> {
         assert!(
             container.container_len() == ggsw_level_matrix_size(glwe_size, polynomial_size),
@@ -496,6 +550,7 @@ impl<C: Container> GgswLevelMatrix<C> {
             data: container,
             glwe_size,
             polynomial_size,
+            ciphertext_modulus,
         }
     }
 
@@ -513,45 +568,60 @@ impl<C: Container> GgswLevelMatrix<C> {
         self.polynomial_size
     }
 
+    /// Return the [`CiphertextModulus`] of the [`GgswLevelMatrix`].
+    ///
+    /// See [`GgswLevelMatrix::from_container`] for usage.
+    pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
+        self.ciphertext_modulus
+    }
+
     /// Interpret the [`GgswLevelMatrix`] as a [`GlweCiphertextList`].
     pub fn as_glwe_list(&self) -> GlweCiphertextListView<'_, C::Element> {
         GlweCiphertextListView::from_container(
             self.data.as_ref(),
             self.glwe_size,
             self.polynomial_size,
+            self.ciphertext_modulus,
         )
     }
 }
 
-impl<C: ContainerMut> GgswLevelMatrix<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GgswLevelMatrix<C> {
     /// Mutable variant of [`GgswLevelMatrix::as_glwe_list`]
     pub fn as_mut_glwe_list(&mut self) -> GlweCiphertextListMutView<'_, C::Element> {
         GlweCiphertextListMutView::from_container(
             self.data.as_mut(),
             self.glwe_size,
             self.polynomial_size,
+            self.ciphertext_modulus,
         )
     }
 }
 
 /// Metadata used in the [`CreateFrom`] implementation to create [`GgswLevelMatrix`] entities.
 #[derive(Clone, Copy)]
-pub struct GgswLevelMatrixCreationMetadata(pub GlweSize, pub PolynomialSize);
+pub struct GgswLevelMatrixCreationMetadata<Scalar: UnsignedInteger>(
+    pub GlweSize,
+    pub PolynomialSize,
+    pub CiphertextModulus<Scalar>,
+);
 
-impl<C: Container> CreateFrom<C> for GgswLevelMatrix<C> {
-    type Metadata = GgswLevelMatrixCreationMetadata;
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for GgswLevelMatrix<C> {
+    type Metadata = GgswLevelMatrixCreationMetadata<C::Element>;
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> GgswLevelMatrix<C> {
-        let GgswLevelMatrixCreationMetadata(glwe_size, polynomial_size) = meta;
-        GgswLevelMatrix::from_container(from, glwe_size, polynomial_size)
+        let GgswLevelMatrixCreationMetadata(glwe_size, polynomial_size, ciphertext_modulus) = meta;
+        GgswLevelMatrix::from_container(from, glwe_size, polynomial_size, ciphertext_modulus)
     }
 }
 
-impl<C: Container> ContiguousEntityContainer for GgswCiphertext<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
+    for GgswCiphertext<C>
+{
     type Element = C::Element;
 
-    type EntityViewMetadata = GgswLevelMatrixCreationMetadata;
+    type EntityViewMetadata = GgswLevelMatrixCreationMetadata<Self::Element>;
 
     type EntityView<'this> = GgswLevelMatrix<&'this [Self::Element]>
     where
@@ -564,7 +634,11 @@ impl<C: Container> ContiguousEntityContainer for GgswCiphertext<C> {
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        GgswLevelMatrixCreationMetadata(self.glwe_size, self.polynomial_size)
+        GgswLevelMatrixCreationMetadata(
+            self.glwe_size,
+            self.polynomial_size,
+            self.ciphertext_modulus,
+        )
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -581,7 +655,9 @@ impl<C: Container> ContiguousEntityContainer for GgswCiphertext<C> {
     }
 }
 
-impl<C: ContainerMut> ContiguousEntityContainerMut for GgswCiphertext<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
+    for GgswCiphertext<C>
+{
     type EntityMutView<'this> = GgswLevelMatrix<&'this mut [Self::Element]>
     where
         Self: 'this;

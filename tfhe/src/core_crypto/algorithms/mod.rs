@@ -34,6 +34,9 @@ pub mod seeded_lwe_keyswitch_key_decompression;
 pub mod seeded_lwe_public_key_decompression;
 pub mod slice_algorithms;
 
+#[cfg(test)]
+mod test;
+
 // No pub use for slice and polynomial algorithms which would not interest higher level users
 // They can still be used via `use crate::core_crypto::algorithms::slice_algorithms::*;`
 pub use ggsw_conversion::*;

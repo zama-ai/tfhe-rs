@@ -27,6 +27,7 @@ use crate::core_crypto::entities::*;
 /// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -50,6 +51,7 @@ use crate::core_crypto::entities::*;
 ///     decomp_base_log,
 ///     decomp_level_count,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -62,10 +64,15 @@ use crate::core_crypto::entities::*;
 ///     &input_lwe_secret_key,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
-/// let mut output_lwe = LweCiphertext::new(0, output_lwe_secret_key.lwe_dimension().to_lwe_size());
+/// let mut output_lwe = LweCiphertext::new(
+///     0,
+///     output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+///     ciphertext_modulus,
+/// );
 ///
 /// keyswitch_lwe_ciphertext(&ksk, &input_lwe, &mut output_lwe);
 ///
@@ -114,7 +121,7 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
     output_lwe_ciphertext.as_mut().fill(Scalar::ZERO);
 
     // Copy the input body to the output ciphertext
-    *output_lwe_ciphertext.get_mut_body().0 = *input_lwe_ciphertext.get_body().0;
+    *output_lwe_ciphertext.get_mut_body().data = *input_lwe_ciphertext.get_body().data;
 
     // We instantiate a decomposer
     let decomposer = SignedDecomposer::new(

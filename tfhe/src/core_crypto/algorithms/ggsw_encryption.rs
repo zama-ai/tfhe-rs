@@ -7,7 +7,7 @@ use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
-use crate::core_crypto::commons::parameters::{DecompositionLevelCount, PlaintextCount};
+use crate::core_crypto::commons::parameters::PlaintextCount;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
@@ -28,6 +28,7 @@ use rayon::prelude::*;
 /// let decomp_base_log = DecompositionBaseLog(8);
 /// let decomp_level_count = DecompositionLevelCount(3);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -54,6 +55,7 @@ use rayon::prelude::*;
 ///     polynomial_size,
 ///     decomp_base_log,
 ///     decomp_level_count,
+///     ciphertext_modulus,
 /// );
 ///
 /// encrypt_constant_ggsw_ciphertext(
@@ -107,15 +109,19 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     let output_glwe_size = output.glwe_size();
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
+    let ciphertext_modulus = output.ciphertext_modulus();
 
     for (level_index, (mut level_matrix, mut generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
         let decomp_level = DecompositionLevel(level_index + 1);
+        // We scale the factor down from the native torus to whatever our torus is, the
+        // encryption process will scale it back up
         let factor = encoded
             .0
             .wrapping_neg()
-            .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+            .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
+            .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
 
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = generator
@@ -160,6 +166,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// let decomp_base_log = DecompositionBaseLog(8);
 /// let decomp_level_count = DecompositionLevelCount(3);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -186,6 +193,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 ///     polynomial_size,
 ///     decomp_base_log,
 ///     decomp_level_count,
+///     ciphertext_modulus,
 /// );
 ///
 /// par_encrypt_constant_ggsw_ciphertext(
@@ -239,16 +247,21 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     let output_glwe_size = output.glwe_size();
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
+    let ciphertext_modulus = output.ciphertext_modulus();
 
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
         |(level_index, (mut level_matrix, mut generator))| {
             let decomp_level = DecompositionLevel(level_index + 1);
+            // We scale the factor down from the native torus to whatever our torus is, the
+            // encryption process will scale it back up
             let factor = encoded
                 .0
                 .wrapping_neg()
-                .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+                .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
+                .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
 
-            // We iterate over the rows of the level matrix, the last row needs special treatment
+            // We iterate over the rows of the level matrix, the last row needs special
+            // treatment
             let gen_iter = generator
                 .par_fork_ggsw_level_to_glwe::<Scalar>(output_glwe_size, output_polynomial_size)
                 .expect("Failed to split generator into glwe");
@@ -352,15 +365,19 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     let output_glwe_size = output.glwe_size();
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
+    let ciphertext_modulus = output.ciphertext_modulus();
 
     for (level_index, (mut level_matrix, mut loop_generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
         let decomp_level = DecompositionLevel(level_index + 1);
+        // We scale the factor down from the native torus to whatever our torus is, the
+        // encryption process will scale it back up
         let factor = encoded
             .0
             .wrapping_neg()
-            .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+            .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
+            .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
 
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = loop_generator
@@ -404,6 +421,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 /// let decomp_base_log = DecompositionBaseLog(8);
 /// let decomp_level_count = DecompositionLevelCount(3);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -432,6 +450,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 ///     decomp_base_log,
 ///     decomp_level_count,
 ///     seeder.seed().into(),
+///     ciphertext_modulus,
 /// );
 ///
 /// encrypt_constant_seeded_ggsw_ciphertext(
@@ -521,14 +540,18 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     let output_glwe_size = output.glwe_size();
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
+    let ciphertext_modulus = output.ciphertext_modulus();
 
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
         |(level_index, (mut level_matrix, mut generator))| {
             let decomp_level = DecompositionLevel(level_index + 1);
+            // We scale the factor down from the native torus to whatever our torus is, the
+            // encryption process will scale it back up
             let factor = encoded
                 .0
                 .wrapping_neg()
-                .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+                .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
+                .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
 
             // We iterate over the rows of the level matrix, the last row needs special treatment
             let gen_iter = generator
@@ -556,7 +579,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     );
 }
 
-/// Parallel variant of [`encrypt_constant_ggsw_ciphertext`].
+/// Parallel variant of [`encrypt_constant_seeded_ggsw_ciphertext`].
 ///
 /// See the [`formal definition`](`GgswCiphertext#ggsw-encryption`) for the definition of the
 /// encryption algorithm.
@@ -574,6 +597,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 /// let decomp_base_log = DecompositionBaseLog(8);
 /// let decomp_level_count = DecompositionLevelCount(3);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -602,6 +626,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
 ///     decomp_base_log,
 ///     decomp_level_count,
 ///     seeder.seed().into(),
+///     ciphertext_modulus,
 /// );
 ///
 /// par_encrypt_constant_seeded_ggsw_ciphertext(
@@ -723,6 +748,7 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Ge
 /// let decomp_base_log = DecompositionBaseLog(8);
 /// let decomp_level_count = DecompositionLevelCount(3);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -749,6 +775,7 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Ge
 ///     polynomial_size,
 ///     decomp_base_log,
 ///     decomp_level_count,
+///     ciphertext_modulus,
 /// );
 ///
 /// par_encrypt_constant_ggsw_ciphertext(
@@ -787,11 +814,10 @@ where
         glwe_secret_key.glwe_dimension()
     );
 
-    let level_matrix = ggsw_ciphertext.iter().next().unwrap();
+    let level_matrix = ggsw_ciphertext.last().unwrap();
     let level_matrix_as_glwe_list = level_matrix.as_glwe_list();
     let last_row = level_matrix_as_glwe_list.last().unwrap();
-    // The first level matrix is associated to DecompositionLevel #1
-    let decomp_level = DecompositionLevelCount(1);
+    let decomp_level = ggsw_ciphertext.decomposition_level_count();
 
     let mut decrypted_plaintext_list = PlaintextList::new(
         Scalar::ZERO,
@@ -806,167 +832,16 @@ where
 
     let plaintext_ref = decrypted_plaintext_list.get(0);
 
-    let rounded = decomposer.closest_representable(*plaintext_ref.0);
+    // Glwe decryption maps to a smaller torus potentially, map back to the native torus
+    let rounded = decomposer.closest_representable(
+        (*plaintext_ref.0).wrapping_mul(
+            ggsw_ciphertext
+                .ciphertext_modulus()
+                .get_scaling_to_native_torus(),
+        ),
+    );
     let decoded =
         rounded.wrapping_div(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
 
     Plaintext(decoded)
-}
-
-#[cfg(test)]
-mod test {
-    use crate::core_crypto::commons::generators::{
-        DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
-    };
-    use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
-    use crate::core_crypto::commons::test_tools;
-    use crate::core_crypto::prelude::*;
-
-    fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>()
-    where
-        Scalar: UnsignedTorus + Sync + Send,
-    {
-        // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
-        // computations
-        // Define parameters for GgswCiphertext creation
-        let glwe_size = GlweSize(2);
-        let polynomial_size = PolynomialSize(1024);
-        let decomp_base_log = DecompositionBaseLog(8);
-        let decomp_level_count = DecompositionLevelCount(3);
-        let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
-
-        // Create the PRNG
-        let mut seeder = new_seeder();
-        let seeder = seeder.as_mut();
-        let main_seed = seeder.seed();
-        let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-
-        const NB_TESTS: usize = 10;
-
-        for _ in 0..NB_TESTS {
-            // Create the GlweSecretKey
-            let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
-                glwe_size.to_glwe_dimension(),
-                polynomial_size,
-                &mut secret_generator,
-            );
-
-            // Create the plaintext
-            let encoded_msg: Scalar =
-                test_tools::random_uint_between(Scalar::ZERO..Scalar::TWO.shl(2));
-            let plaintext = Plaintext(encoded_msg);
-
-            let compression_seed: CompressionSeed = seeder.seed().into();
-
-            let mut ser_ggsw = GgswCiphertext::new(
-                Scalar::ZERO,
-                glwe_size,
-                polynomial_size,
-                decomp_base_log,
-                decomp_level_count,
-            );
-
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
-
-            let mut encryption_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-                    compression_seed.seed,
-                    &mut deterministic_seeder,
-                );
-
-            encrypt_constant_ggsw_ciphertext(
-                &glwe_secret_key,
-                &mut ser_ggsw,
-                plaintext,
-                glwe_modular_std_dev,
-                &mut encryption_generator,
-            );
-
-            let mut par_ggsw = GgswCiphertext::new(
-                Scalar::ZERO,
-                glwe_size,
-                polynomial_size,
-                decomp_base_log,
-                decomp_level_count,
-            );
-
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
-
-            let mut encryption_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-                    compression_seed.seed,
-                    &mut deterministic_seeder,
-                );
-
-            par_encrypt_constant_ggsw_ciphertext(
-                &glwe_secret_key,
-                &mut par_ggsw,
-                plaintext,
-                glwe_modular_std_dev,
-                &mut encryption_generator,
-            );
-
-            assert_eq!(ser_ggsw, par_ggsw);
-
-            // Create a new GgswCiphertext
-            let mut ser_seeded_ggsw = SeededGgswCiphertext::new(
-                Scalar::ZERO,
-                glwe_size,
-                polynomial_size,
-                decomp_base_log,
-                decomp_level_count,
-                compression_seed,
-            );
-
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
-
-            encrypt_constant_seeded_ggsw_ciphertext(
-                &glwe_secret_key,
-                &mut ser_seeded_ggsw,
-                plaintext,
-                glwe_modular_std_dev,
-                &mut deterministic_seeder,
-            );
-
-            let mut par_seeded_ggsw = SeededGgswCiphertext::new(
-                Scalar::ZERO,
-                glwe_size,
-                polynomial_size,
-                decomp_base_log,
-                decomp_level_count,
-                compression_seed,
-            );
-
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
-
-            par_encrypt_constant_seeded_ggsw_ciphertext(
-                &glwe_secret_key,
-                &mut par_seeded_ggsw,
-                plaintext,
-                glwe_modular_std_dev,
-                &mut deterministic_seeder,
-            );
-
-            assert_eq!(ser_seeded_ggsw, par_seeded_ggsw);
-
-            let decompressed_ggsw = par_seeded_ggsw.decompress_into_ggsw_ciphertext();
-
-            assert_eq!(ser_ggsw, decompressed_ggsw);
-        }
-    }
-
-    #[test]
-    fn test_parallel_and_seeded_ggsw_encryption_equivalence_u32() {
-        test_parallel_and_seeded_ggsw_encryption_equivalence::<u32>();
-    }
-
-    #[test]
-    fn test_parallel_and_seeded_ggsw_encryption_equivalence_u64() {
-        test_parallel_and_seeded_ggsw_encryption_equivalence::<u64>();
-    }
 }

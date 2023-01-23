@@ -44,10 +44,23 @@ pub trait RandomGenerable<D: Distribution>
 where
     Self: Sized,
 {
+    type CustomModulus;
+
     fn generate_one<G: ByteRandomGenerator>(
         generator: &mut RandomGenerator<G>,
         distribution: D,
     ) -> Self;
+
+    fn generate_one_custom_modulus<G: ByteRandomGenerator>(
+        generator: &mut RandomGenerator<G>,
+        distribution: D,
+        custom_modulus: Self::CustomModulus,
+    ) -> Self {
+        let _ = generator;
+        let _ = distribution;
+        let _ = custom_modulus;
+        todo!("This distribution does not support custom modulus generation at this time.");
+    }
 
     fn fill_slice<G: ByteRandomGenerator>(
         generator: &mut RandomGenerator<G>,

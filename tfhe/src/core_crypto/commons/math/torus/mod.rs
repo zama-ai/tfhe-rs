@@ -38,6 +38,8 @@ where
 {
     /// Consume `input` and returns its closest unsigned integer representation.
     fn from_torus(input: F) -> Self;
+    /// Consume `input` and returns its closest unsigned integer representation for a given modulus.
+    fn from_torus_custom_modulus(input: F, custom_modulus: F) -> Self;
 }
 
 macro_rules! implement {
@@ -66,6 +68,14 @@ macro_rules! implement {
                 let signed: Self::Signed = fract.cast_into();
                 return signed.cast_into();
             }
+            #[inline]
+            fn from_torus_custom_modulus(input: F, custom_modulus: F) -> Self {
+                let mut fract = input - F::round(input);
+                fract *= custom_modulus;
+                fract = F::round(fract);
+                let signed: Self::Signed = fract.cast_into();
+                return signed.cast_into();
+            }
         }
     };
 }
@@ -81,10 +91,10 @@ pub trait UnsignedTorus:
     UnsignedInteger
     + FromTorus<f64>
     + IntoTorus<f64>
-    + RandomGenerable<Gaussian<f64>>
-    + RandomGenerable<UniformBinary>
-    + RandomGenerable<UniformTernary>
-    + RandomGenerable<Uniform>
+    + RandomGenerable<Gaussian<f64>, CustomModulus = f64>
+    + RandomGenerable<UniformBinary, CustomModulus = Self>
+    + RandomGenerable<UniformTernary, CustomModulus = Self>
+    + RandomGenerable<Uniform, CustomModulus = Self>
     + Display
     + Debug
 {

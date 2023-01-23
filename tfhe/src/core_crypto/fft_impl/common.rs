@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::CastInto;
+use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LutCountLog, LweDimension,
     ModulusSwitchOffset, PolynomialSize,
@@ -33,7 +33,7 @@ pub fn pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
     <Scalar as CastInto<usize>>::cast_into(output)
 }
 
-pub trait FourierBootstrapKey<Scalar> {
+pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
     type Fft;
 
     fn new_fft(polynomial_size: PolynomialSize) -> Self::Fft;
@@ -97,6 +97,7 @@ pub mod tests {
         let polynomial_size = PolynomialSize(2048);
         let pbs_base_log = DecompositionBaseLog(23);
         let pbs_level = DecompositionLevelCount(1);
+        let ciphertext_modulus = CiphertextModulus::new_native();
 
         // Request the best seeder possible, starting with hardware entropy sources and falling back
         // to /dev/random on Unix systems if enabled via cargo features
@@ -136,6 +137,7 @@ pub mod tests {
             pbs_base_log,
             pbs_level,
             glwe_modular_std_dev,
+            ciphertext_modulus,
             &mut encryption_generator,
         );
 
@@ -174,6 +176,7 @@ pub mod tests {
             &small_lwe_sk,
             plaintext,
             lwe_modular_std_dev,
+            ciphertext_modulus,
             &mut encryption_generator,
         );
 
@@ -188,6 +191,7 @@ pub mod tests {
             polynomial_size: PolynomialSize,
             glwe_size: GlweSize,
             message_modulus: usize,
+            ciphertext_modulus: CiphertextModulus<Scalar>,
             delta: Scalar,
             f: F,
         ) -> GlweCiphertextOwned<Scalar>
@@ -222,7 +226,11 @@ pub mod tests {
 
             let accumulator_plaintext = PlaintextList::from_container(accumulator_scalar);
 
-            allocate_and_trivially_encrypt_new_glwe_ciphertext(glwe_size, &accumulator_plaintext)
+            allocate_and_trivially_encrypt_new_glwe_ciphertext(
+                glwe_size,
+                &accumulator_plaintext,
+                ciphertext_modulus,
+            )
         }
 
         let f = |x: Scalar| Scalar::TWO * x;
@@ -230,13 +238,17 @@ pub mod tests {
             polynomial_size,
             glwe_dimension.to_glwe_size(),
             message_modulus.cast_into(),
+            ciphertext_modulus,
             delta,
             f,
         );
 
         // Allocate the LweCiphertext to store the result of the PBS
-        let mut pbs_multiplication_ct: LweCiphertext<Vec<Scalar>> =
-            LweCiphertext::new(Scalar::ZERO, big_lwe_sk.lwe_dimension().to_lwe_size());
+        let mut pbs_multiplication_ct: LweCiphertext<Vec<Scalar>> = LweCiphertext::new(
+            Scalar::ZERO,
+            big_lwe_sk.lwe_dimension().to_lwe_size(),
+            ciphertext_modulus,
+        );
         println!("Computing PBS...");
 
         fourier_bsk.bootstrap(

@@ -109,7 +109,7 @@ void test_custom_keygen(void) {
   ShortintParameters *params = NULL;
 
   int params_ok = shortint_create_parameters(10, 1, 1024, 10e-100, 10e-100, 2, 3, 2, 3, 2, 3,
-                                             10e-100, 2, 3, 2, 2, &params);
+                                             10e-100, 2, 3, 2, 2, SHORTINT_NATIVE_MODULUS, &params);
   assert(params_ok == 0);
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);

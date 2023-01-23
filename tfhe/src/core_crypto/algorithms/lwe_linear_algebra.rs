@@ -19,6 +19,7 @@ use crate::core_crypto::entities::*;
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -41,6 +42,7 @@ use crate::core_crypto::entities::*;
 ///     &lwe_secret_key,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -70,6 +72,14 @@ pub fn lwe_ciphertext_add_assign<Scalar, LhsCont, RhsCont>(
     LhsCont: ContainerMut<Element = Scalar>,
     RhsCont: Container<Element = Scalar>,
 {
+    assert_eq!(
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus(),
+        "Mismatched moduli between lhs ({:?}) and rhs ({:?}) LweCiphertext",
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus()
+    );
+
     slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref());
 }
 
@@ -87,6 +97,7 @@ pub fn lwe_ciphertext_add_assign<Scalar, LhsCont, RhsCont>(
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -109,6 +120,7 @@ pub fn lwe_ciphertext_add_assign<Scalar, LhsCont, RhsCont>(
 ///     &lwe_secret_key,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -142,6 +154,22 @@ pub fn lwe_ciphertext_add<Scalar, OutputCont, LhsCont, RhsCont>(
     LhsCont: Container<Element = Scalar>,
     RhsCont: Container<Element = Scalar>,
 {
+    assert_eq!(
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus(),
+        "Mismatched moduli between lhs ({:?}) and rhs ({:?}) LweCiphertext",
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus()
+    );
+
+    assert_eq!(
+        output.ciphertext_modulus(),
+        rhs.ciphertext_modulus(),
+        "Mismatched moduli between output ({:?}) and rhs ({:?}) LweCiphertext",
+        output.ciphertext_modulus(),
+        rhs.ciphertext_modulus()
+    );
+
     slice_wrapping_add(output.as_mut(), lhs.as_ref(), rhs.as_ref());
 }
 
@@ -158,6 +186,7 @@ pub fn lwe_ciphertext_add<Scalar, OutputCont, LhsCont, RhsCont>(
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -180,6 +209,7 @@ pub fn lwe_ciphertext_add<Scalar, OutputCont, LhsCont, RhsCont>(
 ///     &lwe_secret_key,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -207,8 +237,15 @@ pub fn lwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
     InCont: ContainerMut<Element = Scalar>,
 {
     let body = lhs.get_mut_body();
-
-    *body.0 = (*body.0).wrapping_add(rhs.0);
+    let ciphertext_modulus = body.ciphertext_modulus();
+    if ciphertext_modulus.is_native_modulus() {
+        *body.data = (*body.data).wrapping_add(rhs.0);
+    } else {
+        *body.data = (*body.data).wrapping_add(
+            rhs.0
+                .wrapping_mul(ciphertext_modulus.get_scaling_to_native_torus()),
+        );
+    }
 }
 
 /// Add the right-hand side encoded [`Plaintext`] to the left-hand side [`LWE
@@ -224,6 +261,7 @@ pub fn lwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -246,6 +284,7 @@ pub fn lwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
 ///     &lwe_secret_key,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -273,8 +312,15 @@ pub fn lwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
     InCont: ContainerMut<Element = Scalar>,
 {
     let body = lhs.get_mut_body();
-
-    *body.0 = (*body.0).wrapping_sub(rhs.0);
+    let ciphertext_modulus = body.ciphertext_modulus();
+    if ciphertext_modulus.is_native_modulus() {
+        *body.data = (*body.data).wrapping_sub(rhs.0);
+    } else {
+        *body.data = (*body.data).wrapping_sub(
+            rhs.0
+                .wrapping_mul(ciphertext_modulus.get_scaling_to_native_torus()),
+        );
+    }
 }
 
 /// Compute the opposite of the input [`LWE ciphertext`](`LweCiphertext`) and update it in place.
@@ -289,6 +335,7 @@ pub fn lwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -311,6 +358,7 @@ pub fn lwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
 ///     &lwe_secret_key,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -351,6 +399,7 @@ where
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -374,6 +423,7 @@ where
 ///     &lwe_secret_key,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -403,6 +453,85 @@ pub fn lwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
     slice_wrapping_scalar_mul_assign(lhs.as_mut(), rhs.0);
 }
 
+/// Mulitply the left-hand side [`LWE ciphertext`](`LweCiphertext`) by the right-hand side cleartext
+/// writing the result in the output [`LWE ciphertext`](`LweCiphertext`).
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let lwe_dimension = LweDimension(742);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+///
+/// // Create the plaintext
+/// let msg = 3u64;
+/// let plaintext = Plaintext(msg << 60);
+/// let mul_cleartext = 2;
+///
+/// // Create a new LweCiphertext
+/// let lwe = allocate_and_encrypt_new_lwe_ciphertext(
+///     &lwe_secret_key,
+///     plaintext,
+///     lwe_modular_std_dev,
+///     ciphertext_modulus,
+///     &mut encryption_generator,
+/// );
+///
+/// let mut output = lwe.clone();
+///
+/// lwe_ciphertext_cleartext_mul(&mut output, &lwe, Cleartext(mul_cleartext));
+///
+/// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &output);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// let rounded = decomposer.closest_representable(decrypted_plaintext.0);
+///
+/// // Remove the encoding
+/// let cleartext = rounded >> 60;
+///
+/// // Check we recovered the expected result
+/// assert_eq!(cleartext, msg * mul_cleartext);
+/// ```
+pub fn lwe_ciphertext_cleartext_mul<Scalar, InputCont, OutputCont>(
+    output: &mut LweCiphertext<OutputCont>,
+    lhs: &LweCiphertext<InputCont>,
+    rhs: Cleartext<Scalar>,
+) where
+    Scalar: UnsignedInteger,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    assert_eq!(
+        output.ciphertext_modulus(),
+        lhs.ciphertext_modulus(),
+        "Mismatched moduli between output ({:?}) and lhs ({:?}) LweCiphertext",
+        output.ciphertext_modulus(),
+        lhs.ciphertext_modulus()
+    );
+    output.as_mut().copy_from_slice(lhs.as_ref());
+    lwe_ciphertext_cleartext_mul_assign(output, rhs);
+}
+
 /// Subtract the right-hand side [`LWE ciphertext`](`LweCiphertext`) to the left-hand side [`LWE
 /// ciphertext`](`LweCiphertext`) updating it in-place.
 ///
@@ -416,6 +545,7 @@ pub fn lwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -438,6 +568,7 @@ pub fn lwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
 ///     &lwe_secret_key,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -467,6 +598,14 @@ pub fn lwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
     LhsCont: ContainerMut<Element = Scalar>,
     RhsCont: Container<Element = Scalar>,
 {
+    assert_eq!(
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus(),
+        "Mismatched moduli between lhs ({:?}) and rhs ({:?}) LweCiphertext",
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus()
+    );
+
     slice_wrapping_sub_assign(lhs.as_mut(), rhs.as_ref());
 }
 
@@ -484,6 +623,7 @@ pub fn lwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
 /// // Define parameters for LweCiphertext creation
 /// let lwe_dimension = LweDimension(742);
 /// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -508,12 +648,14 @@ pub fn lwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
 ///     &lwe_secret_key,
 ///     plaintext1,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 /// let lwe2 = allocate_and_encrypt_new_lwe_ciphertext(
 ///     &lwe_secret_key,
 ///     plaintext2,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -545,75 +687,22 @@ pub fn lwe_ciphertext_sub<Scalar, OutputCont, LhsCont, RhsCont>(
     LhsCont: Container<Element = Scalar>,
     RhsCont: Container<Element = Scalar>,
 {
-    slice_wrapping_sub(output.as_mut(), lhs.as_ref(), rhs.as_ref());
-}
+    assert_eq!(
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus(),
+        "Mismatched moduli between lhs ({:?}) and rhs ({:?}) LweCiphertext",
+        lhs.ciphertext_modulus(),
+        rhs.ciphertext_modulus()
+    );
 
-/// Mulitply the left-hand side [`LWE ciphertext`](`LweCiphertext`) by the right-hand side cleartext
-/// writing the result in the output [`LWE ciphertext`](`LweCiphertext`).
-///
-/// # Example
-///
-/// ```
-/// use tfhe::core_crypto::prelude::*;
-///
-/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
-/// // computations
-/// // Define parameters for LweCiphertext creation
-/// let lwe_dimension = LweDimension(742);
-/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
-///
-/// // Create the PRNG
-/// let mut seeder = new_seeder();
-/// let seeder = seeder.as_mut();
-/// let mut encryption_generator =
-///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-/// let mut secret_generator =
-///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-///
-/// // Create the LweSecretKey
-/// let lwe_secret_key =
-///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
-///
-/// // Create the plaintext
-/// let msg = 3u64;
-/// let plaintext = Plaintext(msg << 60);
-/// let mul_cleartext = 2;
-///
-/// // Create a new LweCiphertext
-/// let lwe = allocate_and_encrypt_new_lwe_ciphertext(
-///     &lwe_secret_key,
-///     plaintext,
-///     lwe_modular_std_dev,
-///     &mut encryption_generator,
-/// );
-///
-/// let mut output = lwe.clone();
-///
-/// lwe_ciphertext_cleartext_mul(&mut output, &lwe, Cleartext(mul_cleartext));
-///
-/// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &output);
-///
-/// // Round and remove encoding
-/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
-/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
-///
-/// let rounded = decomposer.closest_representable(decrypted_plaintext.0);
-///
-/// // Remove the encoding
-/// let cleartext = rounded >> 60;
-///
-/// // Check we recovered the expected result
-/// assert_eq!(cleartext, msg * mul_cleartext);
-/// ```
-pub fn lwe_ciphertext_cleartext_mul<Scalar, InputCont, OutputCont>(
-    output: &mut LweCiphertext<OutputCont>,
-    lhs: &LweCiphertext<InputCont>,
-    rhs: Cleartext<Scalar>,
-) where
-    Scalar: UnsignedInteger,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
-{
+    assert_eq!(
+        output.ciphertext_modulus(),
+        rhs.ciphertext_modulus(),
+        "Mismatched moduli between output ({:?}) and rhs ({:?}) LweCiphertext",
+        output.ciphertext_modulus(),
+        rhs.ciphertext_modulus()
+    );
+
     output.as_mut().copy_from_slice(lhs.as_ref());
-    lwe_ciphertext_cleartext_mul_assign(output, rhs);
+    lwe_ciphertext_sub_assign(output, rhs);
 }

@@ -145,6 +145,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
             &input_lwe_secret_key,
             Plaintext(Scalar::ZERO),
             params.lwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
             &mut encryption_generator,
         );
 
@@ -152,12 +153,14 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
             Scalar::ZERO,
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         // Allocate the LweCiphertext to store the result of the PBS
         let mut out_pbs_ct = LweCiphertext::new(
             Scalar::ZERO,
             output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let mut buffers = ComputationBuffers::new();
@@ -242,6 +245,7 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
             &input_lwe_secret_key,
             Plaintext(Scalar::ZERO),
             params.lwe_modular_std_dev.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
             &mut encryption_generator,
         );
 
@@ -249,12 +253,14 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
             Scalar::ZERO,
             params.glwe_dimension.unwrap().to_glwe_size(),
             params.polynomial_size.unwrap(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         // Allocate the LweCiphertext to store the result of the PBS
         let mut out_pbs_ct = LweCiphertext::new(
             Scalar::ZERO,
             output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
         );
 
         let id = format!("{bench_name}_{name}_parallelized");

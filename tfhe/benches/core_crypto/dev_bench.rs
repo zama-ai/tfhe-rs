@@ -72,6 +72,8 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
         thread_count,
     ) = get_bench_params::<Scalar>();
 
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
     while input_lwe_dimension.0 % grouping_factor.0 != 0 {
         input_lwe_dimension = LweDimension(input_lwe_dimension.0 + 1);
     }
@@ -109,16 +111,22 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
         &input_lwe_secret_key,
         Plaintext(Scalar::ZERO),
         lwe_modular_std_dev,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
-    let accumulator =
-        GlweCiphertext::new(Scalar::ZERO, glwe_dimension.to_glwe_size(), polynomial_size);
+    let accumulator = GlweCiphertext::new(
+        Scalar::ZERO,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        ciphertext_modulus,
+    );
 
     // Allocate the LweCiphertext to store the result of the PBS
     let mut out_pbs_ct = LweCiphertext::new(
         Scalar::ZERO,
         output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+        ciphertext_modulus,
     );
 
     let id = format!("Multi Bit PBS {}", Scalar::BITS);
@@ -155,6 +163,8 @@ fn pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) {
         _,
     ) = get_bench_params::<Scalar>();
 
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
     // Create the PRNG
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
@@ -188,16 +198,22 @@ fn pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) {
         &input_lwe_secret_key,
         Plaintext(Scalar::ZERO),
         lwe_modular_std_dev,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
-    let accumulator =
-        GlweCiphertext::new(Scalar::ZERO, glwe_dimension.to_glwe_size(), polynomial_size);
+    let accumulator = GlweCiphertext::new(
+        Scalar::ZERO,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        ciphertext_modulus,
+    );
 
     // Allocate the LweCiphertext to store the result of the PBS
     let mut out_pbs_ct = LweCiphertext::new(
         Scalar::ZERO,
         output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+        ciphertext_modulus,
     );
 
     let id = format!("PBS {}", Scalar::BITS);
@@ -265,15 +281,21 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
         &input_lwe_secret_key,
         Plaintext(Scalar::ZERO),
         lwe_modular_std_dev,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
-    let accumulator =
-        GlweCiphertext::new(Scalar::ZERO, glwe_dimension.to_glwe_size(), polynomial_size);
+    let accumulator = GlweCiphertext::new(
+        Scalar::ZERO,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        ciphertext_modulus,
+    );
     // Allocate the LweCiphertext to store the result of the PBS
     let mut out_pbs_ct = LweCiphertext::new(
         Scalar::ZERO,
         output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+        ciphertext_modulus,
     );
 
     let mut buffers = ComputationBuffers::new();

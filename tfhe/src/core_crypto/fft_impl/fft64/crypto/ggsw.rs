@@ -305,6 +305,154 @@ impl FourierGgswCiphertext<ABox<[c64]>> {
     }
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub struct FourierGgswCiphertextList<C: Container<Element = c64>> {
+    fourier: FourierPolynomialList<C>,
+    glwe_size: GlweSize,
+    decomposition_level_count: DecompositionLevelCount,
+    decomposition_base_log: DecompositionBaseLog,
+    count: usize,
+}
+
+pub type FourierGgswCiphertextListView<'a> = FourierGgswCiphertextList<&'a [c64]>;
+pub type FourierGgswCiphertextListMutView<'a> = FourierGgswCiphertextList<&'a mut [c64]>;
+
+impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
+    pub fn new(
+        data: C,
+        count: usize,
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        decomposition_base_log: DecompositionBaseLog,
+        decomposition_level_count: DecompositionLevelCount,
+    ) -> Self {
+        assert_eq!(
+            data.container_len(),
+            count
+                * polynomial_size.to_fourier_polynomial_size().0
+                * glwe_size.0
+                * glwe_size.0
+                * decomposition_level_count.0
+        );
+
+        Self {
+            fourier: FourierPolynomialList {
+                data,
+                polynomial_size,
+            },
+            count,
+            glwe_size,
+            decomposition_level_count,
+            decomposition_base_log,
+        }
+    }
+
+    pub fn data(self) -> C {
+        self.fourier.data
+    }
+
+    pub fn polynomial_size(&self) -> PolynomialSize {
+        self.fourier.polynomial_size
+    }
+
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
+    pub fn glwe_size(&self) -> GlweSize {
+        self.glwe_size
+    }
+
+    pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
+        self.decomposition_level_count
+    }
+
+    pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
+        self.decomposition_base_log
+    }
+
+    pub fn as_view(&self) -> FourierGgswCiphertextListView<'_> {
+        let fourier = FourierPolynomialList {
+            data: self.fourier.data.as_ref(),
+            polynomial_size: self.fourier.polynomial_size,
+        };
+        FourierGgswCiphertextListView {
+            fourier,
+            count: self.count,
+            glwe_size: self.glwe_size,
+            decomposition_level_count: self.decomposition_level_count,
+            decomposition_base_log: self.decomposition_base_log,
+        }
+    }
+
+    pub fn as_mut_view(&mut self) -> FourierGgswCiphertextListMutView<'_>
+    where
+        C: AsMut<[c64]>,
+    {
+        let fourier = FourierPolynomialList {
+            data: self.fourier.data.as_mut(),
+            polynomial_size: self.fourier.polynomial_size,
+        };
+        FourierGgswCiphertextListMutView {
+            fourier,
+            count: self.count,
+            glwe_size: self.glwe_size,
+            decomposition_level_count: self.decomposition_level_count,
+            decomposition_base_log: self.decomposition_base_log,
+        }
+    }
+
+    pub fn into_ggsw_iter(self) -> impl DoubleEndedIterator<Item = FourierGgswCiphertext<C>>
+    where
+        C: Split,
+    {
+        self.fourier.data.split_into(self.count).map(move |slice| {
+            FourierGgswCiphertext::from_container(
+                slice,
+                self.glwe_size,
+                self.fourier.polynomial_size,
+                self.decomposition_base_log,
+                self.decomposition_level_count,
+            )
+        })
+    }
+
+    pub fn split_at(self, mid: usize) -> (Self, Self)
+    where
+        C: Split,
+    {
+        let polynomial_size = self.fourier.polynomial_size;
+        let glwe_size = self.glwe_size;
+        let decomposition_level_count = self.decomposition_level_count;
+        let decomposition_base_log = self.decomposition_base_log;
+
+        let (left, right) = self.fourier.data.split_at(
+            mid * polynomial_size.to_fourier_polynomial_size().0
+                * glwe_size.0
+                * glwe_size.0
+                * decomposition_level_count.0,
+        );
+        (
+            Self::new(
+                left,
+                mid,
+                glwe_size,
+                polynomial_size,
+                decomposition_base_log,
+                decomposition_level_count,
+            ),
+            Self::new(
+                right,
+                self.count - mid,
+                glwe_size,
+                polynomial_size,
+                decomposition_base_log,
+                decomposition_level_count,
+            ),
+        )
+    }
+}
+
 /// Return the required memory for [`add_external_product_assign`].
 pub fn add_external_product_assign_scratch<Scalar>(
     glwe_size: GlweSize,
@@ -383,8 +531,11 @@ pub fn add_external_product_assign<Scalar, InputGlweCont>(
             // We retrieve the decomposition of this level.
             let (glwe_level, glwe_decomp_term, mut substack2) =
                 collect_next_term(&mut decomposition, &mut substack1, align);
-            let glwe_decomp_term =
-                GlweCiphertextView::from_container(&*glwe_decomp_term, ggsw.polynomial_size());
+            let glwe_decomp_term = GlweCiphertextView::from_container(
+                &*glwe_decomp_term,
+                ggsw.polynomial_size(),
+                out.ciphertext_modulus(),
+            );
             debug_assert_eq!(ggsw_decomp_matrix.decomposition_level(), glwe_level);
 
             // For each level we have to add the result of the vector-matrix product between the

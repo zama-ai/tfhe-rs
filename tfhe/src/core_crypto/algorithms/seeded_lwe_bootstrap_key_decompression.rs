@@ -22,6 +22,15 @@ pub fn decompress_seeded_lwe_bootstrap_key_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    assert_eq!(
+        output_bsk.ciphertext_modulus(),
+        input_bsk.ciphertext_modulus(),
+        "Mismatched CiphertextModulus \
+    between input SeededLweBootstrapKey ({:?}) and output LweBootstrapKey ({:?})",
+        input_bsk.ciphertext_modulus(),
+        output_bsk.ciphertext_modulus(),
+    );
+
     decompress_seeded_ggsw_ciphertext_list_with_existing_generator(output_bsk, input_bsk, generator)
 }
 
@@ -36,6 +45,15 @@ pub fn decompress_seeded_lwe_bootstrap_key<Scalar, InputCont, OutputCont, Gen>(
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    assert_eq!(
+        output_bsk.ciphertext_modulus(),
+        input_bsk.ciphertext_modulus(),
+        "Mismatched CiphertextModulus \
+    between input SeededLweBootstrapKey ({:?}) and output LweBootstrapKey ({:?})",
+        input_bsk.ciphertext_modulus(),
+        output_bsk.ciphertext_modulus(),
+    );
+
     let mut generator = RandomGenerator::<Gen>::new(input_bsk.compression_seed().seed);
     decompress_seeded_lwe_bootstrap_key_with_existing_generator::<_, _, _, Gen>(
         output_bsk,

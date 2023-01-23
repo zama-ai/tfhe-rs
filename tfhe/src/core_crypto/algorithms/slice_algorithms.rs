@@ -301,3 +301,11 @@ where
     lhs.iter_mut()
         .for_each(|lhs| *lhs = (*lhs).wrapping_mul(rhs));
 }
+
+pub fn slice_wrapping_scalar_div_assign<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
+where
+    Scalar: UnsignedInteger,
+{
+    lhs.iter_mut()
+        .for_each(|lhs| *lhs = (*lhs).wrapping_div(rhs));
+}

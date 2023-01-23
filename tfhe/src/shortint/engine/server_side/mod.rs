@@ -1,5 +1,6 @@
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
@@ -46,6 +47,7 @@ impl ShortintEngine {
                 cks.parameters.pbs_base_log,
                 cks.parameters.pbs_level,
                 cks.parameters.glwe_modular_std_dev,
+                cks.parameters.ciphertext_modulus,
                 &mut self.encryption_generator,
             );
 
@@ -82,6 +84,7 @@ impl ShortintEngine {
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
             cks.parameters.lwe_modular_std_dev,
+            cks.parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         );
 
@@ -92,6 +95,7 @@ impl ShortintEngine {
             message_modulus: cks.parameters.message_modulus,
             carry_modulus: cks.parameters.carry_modulus,
             max_degree,
+            ciphertext_modulus: cks.parameters.ciphertext_modulus,
         })
     }
 
@@ -119,6 +123,7 @@ impl ShortintEngine {
             cks.parameters.pbs_base_log,
             cks.parameters.pbs_level,
             cks.parameters.glwe_modular_std_dev,
+            cks.parameters.ciphertext_modulus,
             &mut self.seeder,
         );
 
@@ -129,6 +134,7 @@ impl ShortintEngine {
             cks.parameters.pbs_base_log,
             cks.parameters.pbs_level,
             cks.parameters.glwe_modular_std_dev,
+            cks.parameters.ciphertext_modulus,
             &mut self.seeder,
         );
 
@@ -139,6 +145,7 @@ impl ShortintEngine {
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
             cks.parameters.lwe_modular_std_dev,
+            cks.parameters.ciphertext_modulus,
             &mut self.seeder,
         );
 
@@ -149,6 +156,7 @@ impl ShortintEngine {
             message_modulus: cks.parameters.message_modulus,
             carry_modulus: cks.parameters.carry_modulus,
             max_degree,
+            ciphertext_modulus: cks.parameters.ciphertext_modulus,
         })
     }
 
@@ -645,6 +653,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         value: u64,
+        ciphertext_modulus: CiphertextModulus<u64>,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let lwe_size = match OpOrder::pbs_order() {
             PBSOrder::KeyswitchBootstrap => server_key
@@ -666,7 +675,11 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_value);
 
-        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded);
+        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+            lwe_size,
+            encoded,
+            ciphertext_modulus,
+        );
 
         let degree = Degree(modular_value);
 

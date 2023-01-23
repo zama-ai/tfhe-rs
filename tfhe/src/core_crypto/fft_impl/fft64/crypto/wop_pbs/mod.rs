@@ -3,11 +3,12 @@
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
-use super::super::math::fft::{FftView, FourierPolynomialList};
+use super::super::math::fft::FftView;
 use super::bootstrap::{bootstrap_scratch, FourierLweBootstrapKeyView};
 use super::ggsw::{
     add_external_product_assign, add_external_product_assign_scratch, cmux, cmux_scratch,
-    fill_with_forward_fourier_scratch, FourierGgswCiphertext,
+    fill_with_forward_fourier_scratch, FourierGgswCiphertextListMutView,
+    FourierGgswCiphertextListView,
 };
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::*;
@@ -66,6 +67,13 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: PodStack<'_>,
 ) {
+    debug_assert!(lwe_list_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
+    debug_assert!(lwe_in.ciphertext_modulus() == ksk.ciphertext_modulus());
+    debug_assert!(
+        ksk.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
     let ciphertext_n_bits = Scalar::BITS;
     let number_of_bits_to_extract = number_of_bits_to_extract.0;
 
@@ -102,30 +110,41 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         fourier_bsk.input_lwe_dimension().0,
         ksk.output_key_lwe_dimension().0,
     );
+    debug_assert!(lwe_list_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
+    debug_assert!(lwe_in.ciphertext_modulus() == ksk.ciphertext_modulus());
 
     let polynomial_size = fourier_bsk.polynomial_size();
     let glwe_size = fourier_bsk.glwe_size();
     let glwe_dimension = glwe_size.to_glwe_dimension();
+    let ciphertext_modulus = lwe_in.ciphertext_modulus();
 
     let align = CACHELINE_ALIGN;
 
     let (mut lwe_in_buffer_data, stack) =
         stack.collect_aligned(align, lwe_in.as_ref().iter().copied());
-    let mut lwe_in_buffer = LweCiphertext::from_container(&mut *lwe_in_buffer_data);
+    let mut lwe_in_buffer =
+        LweCiphertext::from_container(&mut *lwe_in_buffer_data, lwe_in.ciphertext_modulus());
 
     let (mut lwe_out_ks_buffer_data, stack) =
         stack.make_aligned_with(ksk.output_lwe_size().0, align, |_| Scalar::ZERO);
-    let mut lwe_out_ks_buffer = LweCiphertext::from_container(&mut *lwe_out_ks_buffer_data);
+    let mut lwe_out_ks_buffer =
+        LweCiphertext::from_container(&mut *lwe_out_ks_buffer_data, ksk.ciphertext_modulus());
 
     let (mut pbs_accumulator_data, stack) =
         stack.make_aligned_with(glwe_size.0 * polynomial_size.0, align, |_| Scalar::ZERO);
-    let mut pbs_accumulator =
-        GlweCiphertextMutView::from_container(&mut *pbs_accumulator_data, polynomial_size);
+    let mut pbs_accumulator = GlweCiphertextMutView::from_container(
+        &mut *pbs_accumulator_data,
+        polynomial_size,
+        ciphertext_modulus,
+    );
 
     let lwe_size = LweSize(glwe_dimension.0 * polynomial_size.0 + 1);
     let (mut lwe_out_pbs_buffer_data, mut stack) =
         stack.make_aligned_with(lwe_size.0, align, |_| Scalar::ZERO);
-    let mut lwe_out_pbs_buffer = LweCiphertext::from_container(&mut *lwe_out_pbs_buffer_data);
+    let mut lwe_out_pbs_buffer = LweCiphertext::from_container(
+        &mut *lwe_out_pbs_buffer_data,
+        lwe_list_out.ciphertext_modulus(),
+    );
 
     // We iterate on the list in reverse as we want to store the extracted MSB at index 0
     for (bit_idx, mut output_ct) in lwe_list_out.iter_mut().rev().enumerate() {
@@ -141,7 +160,10 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         // Key switch to input PBS key
         keyswitch_lwe_ciphertext(
             &ksk,
-            &LweCiphertext::from_container(&*lwe_bit_left_shift_buffer_data),
+            &LweCiphertext::from_container(
+                &*lwe_bit_left_shift_buffer_data,
+                lwe_in.ciphertext_modulus(),
+            ),
             &mut lwe_out_ks_buffer,
         );
 
@@ -160,7 +182,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         }
 
         // Add q/4 to center the error while computing a negacyclic LUT
-        let out_ks_body = lwe_out_ks_buffer.get_mut_body().0;
+        let out_ks_body = lwe_out_ks_buffer.get_mut_body().data;
         *out_ks_body = (*out_ks_body).wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
 
         // Fill lut for the current bit (equivalent to trivial encryption as mask is 0s)
@@ -175,8 +197,8 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         }
 
         fourier_bsk.bootstrap(
-            lwe_out_pbs_buffer.as_mut(),
-            lwe_out_ks_buffer.as_ref(),
+            lwe_out_pbs_buffer.as_mut_view(),
+            lwe_out_ks_buffer.as_view(),
             pbs_accumulator.as_view(),
             fft,
             stack.rb_mut(),
@@ -184,7 +206,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
 
         // Add alpha where alpha = delta*2^{bit_idx-1} to end up with an encryption of 0 if the
         // extracted bit was 0 and 1 in the other case
-        let out_pbs_body = lwe_out_pbs_buffer.get_mut_body().0;
+        let out_pbs_body = lwe_out_pbs_buffer.get_mut_body().data;
 
         *out_pbs_body = (*out_pbs_body).wrapping_add(Scalar::ONE << (delta_log.0 + bit_idx - 1));
 
@@ -219,6 +241,14 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: PodStack<'_>,
 ) {
+    debug_assert!(lwe_in.ciphertext_modulus() == ggsw_out.ciphertext_modulus());
+    debug_assert!(ggsw_out.ciphertext_modulus() == pfpksk_list.ciphertext_modulus());
+
+    debug_assert!(
+        pfpksk_list.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
     let level_cbs = ggsw_out.decomposition_level_count();
     let base_log_cbs = ggsw_out.decomposition_base_log();
 
@@ -276,7 +306,8 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
         CACHELINE_ALIGN,
         |_| Scalar::ZERO,
     );
-    let mut lwe_out_bs_buffer = LweCiphertext::from_container(&mut *lwe_out_bs_buffer_data);
+    let mut lwe_out_bs_buffer =
+        LweCiphertext::from_container(&mut *lwe_out_bs_buffer_data, lwe_in.ciphertext_modulus());
 
     // Output for every pfksk that come from the output GGSW
     let mut glwe_out_pfksk_buffer = ggsw_out.as_mut_glwe_list();
@@ -339,13 +370,23 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: PodStack<'_>,
 ) {
+    debug_assert!(lwe_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
+    debug_assert!(
+        lwe_in.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
     let ciphertext_n_bits = Scalar::BITS;
     let lwe_in_size = lwe_in.lwe_size();
     let polynomial_size = fourier_bsk.polynomial_size();
+    let ciphertext_moudulus = lwe_out.ciphertext_modulus();
 
     let (mut lwe_left_shift_buffer_data, stack) =
         stack.make_aligned_with(lwe_in_size.0, CACHELINE_ALIGN, |_| Scalar::ZERO);
-    let mut lwe_left_shift_buffer = LweCiphertext::from_container(&mut *lwe_left_shift_buffer_data);
+    let mut lwe_left_shift_buffer = LweCiphertext::from_container(
+        &mut *lwe_left_shift_buffer_data,
+        lwe_in.ciphertext_modulus(),
+    );
     // Shift message LSB on padding bit, at this point we expect to have messages with only 1 bit
     // of information
     lwe_ciphertext_cleartext_mul(
@@ -356,16 +397,19 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
 
     // Add q/4 to center the error while computing a negacyclic LUT
     let shift_buffer_body = lwe_left_shift_buffer.get_mut_body();
-    *shift_buffer_body.0 =
-        (*shift_buffer_body.0).wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
+    *shift_buffer_body.data =
+        (*shift_buffer_body.data).wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
 
     let (mut pbs_accumulator_data, stack) = stack.make_aligned_with(
         polynomial_size.0 * fourier_bsk.glwe_size().0,
         CACHELINE_ALIGN,
         |_| Scalar::ZERO,
     );
-    let mut pbs_accumulator =
-        GlweCiphertextMutView::from_container(&mut *pbs_accumulator_data, polynomial_size);
+    let mut pbs_accumulator = GlweCiphertextMutView::from_container(
+        &mut *pbs_accumulator_data,
+        polynomial_size,
+        ciphertext_moudulus,
+    );
 
     // Fill lut (equivalent to trivial encryption as mask is 0s)
     // The LUT is filled with -alpha in each coefficient where
@@ -379,8 +423,8 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     // Applying a negacyclic LUT on a ciphertext with one bit of message in the MSB and no bit
     // of padding
     fourier_bsk.bootstrap(
-        lwe_out.as_mut(),
-        lwe_left_shift_buffer.as_ref(),
+        lwe_out.as_mut_view(),
+        lwe_left_shift_buffer.as_view(),
         pbs_accumulator.as_view(),
         fft,
         stack,
@@ -389,232 +433,8 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     // Add alpha where alpha = 2^{log(q) - 1 - base_log * level}
     // To end up with an encryption of 0 if the message bit was 0 and 1 in the other case
     let out_body = lwe_out.get_mut_body();
-    *out_body.0 = (*out_body.0)
+    *out_body.data = (*out_body.data)
         .wrapping_add(Scalar::ONE << (ciphertext_n_bits - 1 - base_log_cbs.0 * level_count_cbs.0));
-}
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct GlweCiphertextList<C: Container> {
-    data: C,
-    glwe_size: GlweSize,
-    polynomial_size: PolynomialSize,
-    count: usize,
-}
-
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub struct FourierGgswCiphertextList<C: Container<Element = c64>> {
-    fourier: FourierPolynomialList<C>,
-    glwe_size: GlweSize,
-    decomposition_level_count: DecompositionLevelCount,
-    decomposition_base_log: DecompositionBaseLog,
-    count: usize,
-}
-
-pub type FourierGgswCiphertextListView<'a> = FourierGgswCiphertextList<&'a [c64]>;
-pub type FourierGgswCiphertextListMutView<'a> = FourierGgswCiphertextList<&'a mut [c64]>;
-pub type GlweCiphertextListView<'a, Scalar> = GlweCiphertextList<&'a [Scalar]>;
-pub type GlweCiphertextListMutView<'a, Scalar> = GlweCiphertextList<&'a mut [Scalar]>;
-
-impl<C: Container> GlweCiphertextList<C> {
-    pub fn new(
-        data: C,
-        count: usize,
-        glwe_size: GlweSize,
-        polynomial_size: PolynomialSize,
-    ) -> Self {
-        assert_eq!(
-            data.container_len(),
-            count * polynomial_size.0 * glwe_size.0,
-        );
-        Self {
-            data,
-            count,
-            polynomial_size,
-            glwe_size,
-        }
-    }
-
-    pub fn data(self) -> C {
-        self.data
-    }
-
-    pub fn count(&self) -> usize {
-        self.count
-    }
-
-    pub fn polynomial_size(&self) -> PolynomialSize {
-        self.polynomial_size
-    }
-
-    pub fn glwe_size(&self) -> GlweSize {
-        self.glwe_size
-    }
-
-    pub fn as_view(&self) -> GlweCiphertextListView<'_, C::Element> {
-        GlweCiphertextListView {
-            data: self.data.as_ref(),
-            count: self.count,
-            polynomial_size: self.polynomial_size,
-            glwe_size: self.glwe_size,
-        }
-    }
-
-    pub fn as_mut_view(&mut self) -> GlweCiphertextListMutView<'_, C::Element>
-    where
-        C: AsMut<[C::Element]>,
-    {
-        GlweCiphertextListMutView {
-            data: self.data.as_mut(),
-            count: self.count,
-            polynomial_size: self.polynomial_size,
-            glwe_size: self.glwe_size,
-        }
-    }
-
-    pub fn into_glwe_iter(self) -> impl DoubleEndedIterator<Item = GlweCiphertext<C>>
-    where
-        C: Split,
-    {
-        self.data
-            .split_into(self.count)
-            .map(move |slice| GlweCiphertext::from_container(slice, self.polynomial_size))
-    }
-}
-
-impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
-    pub fn new(
-        data: C,
-        count: usize,
-        glwe_size: GlweSize,
-        polynomial_size: PolynomialSize,
-        decomposition_base_log: DecompositionBaseLog,
-        decomposition_level_count: DecompositionLevelCount,
-    ) -> Self {
-        assert_eq!(
-            data.container_len(),
-            count
-                * polynomial_size.to_fourier_polynomial_size().0
-                * glwe_size.0
-                * glwe_size.0
-                * decomposition_level_count.0
-        );
-
-        Self {
-            fourier: FourierPolynomialList {
-                data,
-                polynomial_size,
-            },
-            count,
-            glwe_size,
-            decomposition_level_count,
-            decomposition_base_log,
-        }
-    }
-
-    pub fn data(self) -> C {
-        self.fourier.data
-    }
-
-    pub fn polynomial_size(&self) -> PolynomialSize {
-        self.fourier.polynomial_size
-    }
-
-    pub fn count(&self) -> usize {
-        self.count
-    }
-
-    pub fn glwe_size(&self) -> GlweSize {
-        self.glwe_size
-    }
-
-    pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
-        self.decomposition_level_count
-    }
-
-    pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
-        self.decomposition_base_log
-    }
-
-    pub fn as_view(&self) -> FourierGgswCiphertextListView<'_> {
-        let fourier = FourierPolynomialList {
-            data: self.fourier.data.as_ref(),
-            polynomial_size: self.fourier.polynomial_size,
-        };
-        FourierGgswCiphertextListView {
-            fourier,
-            count: self.count,
-            glwe_size: self.glwe_size,
-            decomposition_level_count: self.decomposition_level_count,
-            decomposition_base_log: self.decomposition_base_log,
-        }
-    }
-
-    pub fn as_mut_view(&mut self) -> FourierGgswCiphertextListMutView<'_>
-    where
-        C: AsMut<[c64]>,
-    {
-        let fourier = FourierPolynomialList {
-            data: self.fourier.data.as_mut(),
-            polynomial_size: self.fourier.polynomial_size,
-        };
-        FourierGgswCiphertextListMutView {
-            fourier,
-            count: self.count,
-            glwe_size: self.glwe_size,
-            decomposition_level_count: self.decomposition_level_count,
-            decomposition_base_log: self.decomposition_base_log,
-        }
-    }
-
-    pub fn into_ggsw_iter(self) -> impl DoubleEndedIterator<Item = FourierGgswCiphertext<C>>
-    where
-        C: Split,
-    {
-        self.fourier.data.split_into(self.count).map(move |slice| {
-            FourierGgswCiphertext::from_container(
-                slice,
-                self.glwe_size,
-                self.fourier.polynomial_size,
-                self.decomposition_base_log,
-                self.decomposition_level_count,
-            )
-        })
-    }
-
-    pub fn split_at(self, mid: usize) -> (Self, Self)
-    where
-        C: Split,
-    {
-        let polynomial_size = self.fourier.polynomial_size;
-        let glwe_size = self.glwe_size;
-        let decomposition_level_count = self.decomposition_level_count;
-        let decomposition_base_log = self.decomposition_base_log;
-
-        let (left, right) = self.fourier.data.split_at(
-            mid * polynomial_size.to_fourier_polynomial_size().0
-                * glwe_size.0
-                * glwe_size.0
-                * decomposition_level_count.0,
-        );
-        (
-            Self::new(
-                left,
-                mid,
-                glwe_size,
-                polynomial_size,
-                decomposition_base_log,
-                decomposition_level_count,
-            ),
-            Self::new(
-                right,
-                self.count - mid,
-                glwe_size,
-                polynomial_size,
-                decomposition_base_log,
-                decomposition_level_count,
-            ),
-        )
-    }
 }
 
 pub fn cmux_tree_memory_optimized_scratch<Scalar>(
@@ -650,6 +470,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
 
     if ggsw_list.count() > 0 {
         let glwe_size = output_glwe.glwe_size();
+        let ciphertext_modulus = output_glwe.ciphertext_modulus();
         let polynomial_size = ggsw_list.polynomial_size();
         let nb_layer = ggsw_list.count();
 
@@ -673,10 +494,18 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
             |_| Scalar::ZERO,
         );
 
-        let mut t_0 =
-            GlweCiphertextList::new(t_0_data.as_mut(), nb_layer, glwe_size, polynomial_size);
-        let mut t_1 =
-            GlweCiphertextList::new(t_1_data.as_mut(), nb_layer, glwe_size, polynomial_size);
+        let mut t_0 = GlweCiphertextList::from_container(
+            t_0_data.as_mut(),
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        );
+        let mut t_1 = GlweCiphertextList::from_container(
+            t_1_data.as_mut(),
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        );
 
         let (mut t_fill, mut stack) = stack.make_with(nb_layer, |_| 0_usize);
 
@@ -690,11 +519,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
                 _ => break,
             };
 
-            let mut t_iter = izip!(
-                t_0.as_mut_view().into_glwe_iter(),
-                t_1.as_mut_view().into_glwe_iter(),
-            )
-            .enumerate();
+            let mut t_iter = izip!(t_0.iter_mut(), t_1.iter_mut(),).enumerate();
 
             let (mut j_counter, (mut t0_j, mut t1_j)) = t_iter.next().unwrap();
 
@@ -714,7 +539,11 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
                         CACHELINE_ALIGN,
                         izip!(t1_j.as_ref(), t0_j.as_ref()).map(|(&a, &b)| a.wrapping_sub(b)),
                     );
-                    let diff = GlweCiphertext::from_container(&*diff_data, polynomial_size);
+                    let diff = GlweCiphertext::from_container(
+                        &*diff_data,
+                        polynomial_size,
+                        ciphertext_modulus,
+                    );
 
                     if j != nb_layer - 1 {
                         let (j_counter_plus_1, (mut t_0_j_plus_1, mut t_1_j_plus_1)) =
@@ -844,6 +673,12 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         lwe_list_out.lwe_size().to_lwe_dimension().0,
         fourier_bsk.output_lwe_dimension().0
     );
+    debug_assert!(lwe_list_out.ciphertext_modulus() == lwe_list_in.ciphertext_modulus());
+    debug_assert!(lwe_list_in.ciphertext_modulus() == pfpksk_list.ciphertext_modulus());
+    debug_assert!(
+        pfpksk_list.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
 
     let glwe_size = pfpksk_list.output_glwe_key_dimension().to_glwe_size();
     let (mut ggsw_list_data, stack) = stack.make_aligned_with(
@@ -874,6 +709,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         glwe_size,
         pfpksk_list.output_polynomial_size(),
         base_log_cbs,
+        pfpksk_list.ciphertext_modulus(),
     );
 
     for (lwe_in, ggsw) in izip!(lwe_list_in.iter(), ggsw_list.as_mut_view().into_ggsw_iter(),) {
@@ -947,9 +783,15 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: PodStack<'_>,
 ) {
+    debug_assert!(
+        lwe_out.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
     let polynomial_size = ggsw_list.polynomial_size();
     let glwe_size = ggsw_list.glwe_size();
     let glwe_dimension = glwe_size.to_glwe_dimension();
+    let ciphertext_modulus = lwe_out.ciphertext_modulus();
 
     debug_assert!(
         lwe_out.lwe_size().to_lwe_dimension().0 == polynomial_size.0 * glwe_dimension.0,
@@ -979,8 +821,11 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
         stack.make_aligned_with(polynomial_size.0 * glwe_size.0, CACHELINE_ALIGN, |_| {
             Scalar::ZERO
         });
-    let mut cmux_tree_lut_res =
-        GlweCiphertext::from_container(&mut *cmux_tree_lut_res_data, polynomial_size);
+    let mut cmux_tree_lut_res = GlweCiphertext::from_container(
+        &mut *cmux_tree_lut_res_data,
+        polynomial_size,
+        ciphertext_modulus,
+    );
 
     cmux_tree_memory_optimized(
         cmux_tree_lut_res.as_mut_view(),
@@ -1024,7 +869,11 @@ pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
         let (mut ct1_data, stack) = stack
             .rb_mut()
             .collect_aligned(CACHELINE_ALIGN, ct_0.as_ref().iter().copied());
-        let mut ct_1 = GlweCiphertext::from_container(&mut *ct1_data, ct_0.polynomial_size());
+        let mut ct_1 = GlweCiphertext::from_container(
+            &mut *ct1_data,
+            ct_0.polynomial_size(),
+            ct_0.ciphertext_modulus(),
+        );
         ct_1.as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
