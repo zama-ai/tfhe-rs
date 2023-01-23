@@ -7,11 +7,9 @@ use super::{ShortintCiphertext, ShortintServerKey};
 pub type AccumulatorCallback = Option<extern "C" fn(u64) -> u64>;
 pub type BivariateAccumulatorCallback = Option<extern "C" fn(u64, u64) -> u64>;
 
-pub struct ShortintPBSAccumulator(
-    pub(in crate::c_api) crate::core_crypto::entities::GlweCiphertextOwned<u64>,
-);
+pub struct ShortintPBSAccumulator(pub(in crate::c_api) crate::shortint::server_key::Accumulator);
 pub struct ShortintBivariatePBSAccumulator(
-    pub(in crate::c_api) crate::core_crypto::entities::GlweCiphertextOwned<u64>,
+    pub(in crate::c_api) crate::shortint::server_key::Accumulator,
 );
 
 #[no_mangle]

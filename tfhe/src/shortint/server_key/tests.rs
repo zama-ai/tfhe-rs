@@ -1927,8 +1927,8 @@ fn shortint_mux(param: Parameters) {
     let mut ct_control = cks.encrypt(control_bit);
 
     let mut res = sks.smart_sub(&mut ct_true, &mut ct_false);
-    let mut res = sks.smart_mul_lsb(&mut res, &mut ct_control);
-    let res = sks.smart_add(&mut res, &mut ct_false);
+    sks.smart_mul_lsb_assign(&mut res, &mut ct_control);
+    sks.smart_add_assign(&mut res, &mut ct_false);
 
     let dec_res = cks.decrypt(&res);
 

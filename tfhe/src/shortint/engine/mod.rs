@@ -12,6 +12,8 @@ use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::seeders::new_seeder;
+use crate::shortint::ciphertext::Degree;
+use crate::shortint::server_key::Accumulator;
 use crate::shortint::ServerKey;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -146,7 +148,7 @@ impl ShortintEngine {
     fn generate_accumulator_with_engine<F>(
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<GlweCiphertextOwned<u64>>
+    ) -> EngineResult<Accumulator>
     where
         F: Fn(u64) -> u64,
     {
@@ -163,12 +165,19 @@ impl ShortintEngine {
         // Create the accumulator
         let mut accumulator_u64 = vec![0_u64; server_key.bootstrapping_key.polynomial_size().0];
 
+        // Tracking the max value of the function to define the degree later
+        let mut max_value = 0;
+
         // This accumulator extracts the carry bits
         for i in 0..modulus_sup {
             let index = i * box_size;
             accumulator_u64[index..index + box_size]
                 .iter_mut()
-                .for_each(|a| *a = f(i as u64) * delta);
+                .for_each(|a| {
+                    let f_eval = f(i as u64);
+                    *a = f_eval * delta;
+                    max_value = max_value.max(f_eval);
+                });
         }
 
         let half_box_size = box_size / 2;
@@ -189,13 +198,16 @@ impl ShortintEngine {
             &accumulator_plaintext,
         );
 
-        Ok(accumulator)
+        Ok(Accumulator {
+            acc: accumulator,
+            degree: Degree(max_value as usize),
+        })
     }
 
     fn generate_accumulator_bivariate_with_engine<F>(
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<GlweCiphertextOwned<u64>>
+    ) -> EngineResult<Accumulator>
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -236,7 +248,7 @@ impl ShortintEngine {
             );
 
             Buffers {
-                accumulator,
+                accumulator: accumulator.acc,
                 buffer_lwe_after_ks,
             }
         });
