@@ -46,6 +46,7 @@ macro_rules! modular_distance {
     };
 }
 
+pub mod ciphertext_modulus;
 pub mod computation_buffers;
 pub mod dispersion;
 pub mod generators;
@@ -78,7 +79,7 @@ pub mod test_tools {
     fn modular_distance<T: UnsignedInteger>(first: T, other: T) -> T {
         let d0 = first.wrapping_sub(other);
         let d1 = other.wrapping_sub(first);
-        std::cmp::min(d0, d1)
+        d0.min(d1)
     }
 
     fn torus_modular_distance<T: UnsignedInteger>(first: T, other: T) -> f64 {

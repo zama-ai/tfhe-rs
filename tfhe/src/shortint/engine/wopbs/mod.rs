@@ -104,6 +104,7 @@ impl ShortintEngine {
             parameters.ks_base_log,
             parameters.ks_level,
             parameters.lwe_modular_std_dev,
+            parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         );
 
@@ -114,6 +115,7 @@ impl ShortintEngine {
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
             parameters.lwe_modular_std_dev,
+            parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         );
 
@@ -125,6 +127,7 @@ impl ShortintEngine {
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
             cks.parameters.lwe_modular_std_dev,
+            parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         );
 
@@ -143,6 +146,7 @@ impl ShortintEngine {
             message_modulus: parameters.message_modulus,
             carry_modulus: parameters.carry_modulus,
             max_degree: MaxDegree(parameters.message_modulus.0 * parameters.carry_modulus.0 - 1),
+            ciphertext_modulus: parameters.ciphertext_modulus,
         };
 
         let pbs_server_key = ServerKey {
@@ -153,6 +157,7 @@ impl ShortintEngine {
             max_degree: MaxDegree(
                 cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0 - 1,
             ),
+            ciphertext_modulus: cks.parameters.ciphertext_modulus,
         };
 
         let wopbs_key = WopbsKey {
@@ -179,8 +184,12 @@ impl ShortintEngine {
             .output_key_lwe_dimension()
             .to_lwe_size();
 
-        let mut output =
-            LweCiphertextListOwned::new(0u64, lwe_size, LweCiphertextCount(extracted_bit_count.0));
+        let mut output = LweCiphertextListOwned::new(
+            0u64,
+            lwe_size,
+            LweCiphertextCount(extracted_bit_count.0),
+            wopbs_key.param.ciphertext_modulus,
+        );
 
         self.extract_bits_assign(
             delta_log,
@@ -252,7 +261,12 @@ impl ShortintEngine {
 
         let output_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
 
-        let mut output_cbs_vp_ct = LweCiphertextListOwned::new(0u64, output_lwe_size, count);
+        let mut output_cbs_vp_ct = LweCiphertextListOwned::new(
+            0u64,
+            output_lwe_size,
+            count,
+            wopbs_key.param.ciphertext_modulus,
+        );
         let lut = PolynomialListView::from_container(lut.as_ref(), fourier_bsk.polynomial_size());
 
         let fft = Fft::new(fourier_bsk.polynomial_size());
@@ -312,7 +326,10 @@ impl ShortintEngine {
 
         // Here the output list contains a single ciphertext, we can consume the container to
         // convert it to a single ciphertext
-        let ciphertext = LweCiphertextOwned::from_container(ciphertext_list.into_container());
+        let ciphertext = LweCiphertextOwned::from_container(
+            ciphertext_list.into_container(),
+            wopbs_key.param.ciphertext_modulus,
+        );
 
         let sks = &wopbs_key.wopbs_server_key;
         let ct_out = CiphertextBase {
@@ -366,6 +383,7 @@ impl ShortintEngine {
                 .ksk_pbs_to_wopbs
                 .output_key_lwe_dimension()
                 .to_lwe_size(),
+            wopbs_key.param.ciphertext_modulus,
         );
 
         // Compute a key switch
@@ -407,7 +425,8 @@ impl ShortintEngine {
         let fourier_bsk = &wopbs_key.pbs_server_key.bootstrapping_key;
 
         let out_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
-        let mut ct_out = LweCiphertextOwned::new(0, out_lwe_size);
+        let mut ct_out =
+            LweCiphertextOwned::new(0, out_lwe_size, wopbs_key.param.ciphertext_modulus);
 
         let fft = Fft::new(fourier_bsk.polynomial_size());
         let fft = fft.as_view();
@@ -493,7 +512,7 @@ impl ShortintEngine {
         let mut cont = vec![0u64; lwe_size];
         cont[lwe_size - 1] =
             (1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5));
-        let tmp = LweCiphertextOwned::from_container(cont);
+        let tmp = LweCiphertextOwned::from_container(cont, wopbs_key.param.ciphertext_modulus);
 
         lwe_ciphertext_sub_assign(&mut ct_in.ct, &tmp);
 
@@ -534,9 +553,10 @@ impl ShortintEngine {
         assert_eq!(output_list.lwe_ciphertext_count().0, vec_lut.len());
 
         let output_container = output_list.into_container();
+        let ciphertext_modulus = wopbs_key.param.ciphertext_modulus;
         let lwes: Vec<_> = output_container
             .chunks_exact(output_container.len() / vec_lut.len())
-            .map(|s| LweCiphertextOwned::from_container(s.to_vec()))
+            .map(|s| LweCiphertextOwned::from_container(s.to_vec(), ciphertext_modulus))
             .collect();
 
         assert_eq!(lwes.len(), vec_lut.len());

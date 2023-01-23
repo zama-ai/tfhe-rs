@@ -116,6 +116,7 @@ use dyn_stack::{DynStack, SizeOverflow, StackReq};
 ///     &small_lwe_sk,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     CiphertextModulus::new_native(),
 ///     &mut encryption_generator,
 /// );
 ///
@@ -179,8 +180,11 @@ use dyn_stack::{DynStack, SizeOverflow, StackReq};
 /// );
 ///
 /// // Allocate the LweCiphertext to store the result of the PBS
-/// let mut pbs_multiplication_ct =
-///     LweCiphertext::new(0u64, big_lwe_sk.lwe_dimension().to_lwe_size());
+/// let mut pbs_multiplication_ct = LweCiphertext::new(
+///     0u64,
+///     big_lwe_sk.lwe_dimension().to_lwe_size(),
+///     CiphertextModulus::new_native(),
+/// );
 /// println!("Performing blind rotation...");
 /// blind_rotate_assign(&lwe_ciphertext_in, &mut accumulator, &fourier_bsk);
 /// println!("Performing sample extraction...");
@@ -221,6 +225,11 @@ pub fn blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     OutputCont: ContainerMut<Element = Scalar>,
     KeyCont: Container<Element = c64>,
 {
+    assert!(
+        input.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
     let mut buffers = ComputationBuffers::new();
 
     let fft = Fft::new(fourier_bsk.polynomial_size());
@@ -257,6 +266,10 @@ pub fn blind_rotate_assign_mem_optimized<Scalar, InputCont, OutputCont, KeyCont>
     OutputCont: ContainerMut<Element = Scalar>,
     KeyCont: Container<Element = c64>,
 {
+    assert!(
+        input.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
     fourier_bsk
         .as_view()
         .blind_rotate_assign(lut.as_mut_view(), input.as_ref(), fft, stack);
@@ -765,6 +778,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Request the best seeder possible, starting with hardware entropy sources and falling back to
 /// // /dev/random on Unix systems if enabled via cargo features
@@ -841,6 +855,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 ///     &small_lwe_sk,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -904,8 +919,11 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 /// );
 ///
 /// // Allocate the LweCiphertext to store the result of the PBS
-/// let mut pbs_multiplication_ct =
-///     LweCiphertext::new(0u64, big_lwe_sk.lwe_dimension().to_lwe_size());
+/// let mut pbs_multiplication_ct = LweCiphertext::new(
+///     0u64,
+///     big_lwe_sk.lwe_dimension().to_lwe_size(),
+///     ciphertext_modulus,
+/// );
 /// println!("Computing PBS...");
 /// programmable_bootstrap_lwe_ciphertext(
 ///     &lwe_ciphertext_in,
@@ -1000,8 +1018,8 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized<
     KeyCont: Container<Element = c64>,
 {
     fourier_bsk.as_view().bootstrap(
-        output.as_mut(),
-        input.as_ref(),
+        output.as_mut_view(),
+        input.as_view(),
         accumulator.as_view(),
         fft,
         stack,

@@ -262,7 +262,7 @@ impl<C: Container> ContiguousEntityContainer for GgswCiphertextList<C> {
     where
         Self: 'this;
 
-    fn get_entity_view_creation_metadata(&self) -> GgswCiphertextCreationMetadata {
+    fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
         GgswCiphertextCreationMetadata(self.glwe_size, self.polynomial_size, self.decomp_base_log)
     }
 

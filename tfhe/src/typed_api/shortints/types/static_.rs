@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Formatter;
 
 use crate::shortint::parameters::{
-    CarryModulus, DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension,
-    MessageModulus, Parameters, PolynomialSize, StandardDev,
+    CarryModulus, CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    GlweDimension, LweDimension, MessageModulus, Parameters, PolynomialSize, StandardDev,
 };
 
 use crate::typed_api::shortints::{CompressedGenericShortint, GenericShortInt};
@@ -36,6 +36,7 @@ pub struct ShortIntegerParameterSet<const MESSAGE_BITS: u8> {
     pub cbs_level: DecompositionLevelCount,
     pub cbs_base_log: DecompositionBaseLog,
     pub carry_modulus: CarryModulus,
+    pub ciphertext_modulus: CoreCiphertextModulus<u64>,
 }
 
 impl<const MESSAGE_BITS: u8> ShortIntegerParameterSet<MESSAGE_BITS> {
@@ -59,6 +60,7 @@ impl<const MESSAGE_BITS: u8> ShortIntegerParameterSet<MESSAGE_BITS> {
             cbs_level: params.cbs_level,
             cbs_base_log: params.cbs_base_log,
             carry_modulus: params.carry_modulus,
+            ciphertext_modulus: params.ciphertext_modulus,
         }
     }
 }
@@ -82,6 +84,7 @@ impl<const MESSAGE_BITS: u8> From<ShortIntegerParameterSet<MESSAGE_BITS>> for Pa
             cbs_base_log: params.cbs_base_log,
             message_modulus: MessageModulus(1 << MESSAGE_BITS as usize),
             carry_modulus: params.carry_modulus,
+            ciphertext_modulus: params.ciphertext_modulus,
         }
     }
 }

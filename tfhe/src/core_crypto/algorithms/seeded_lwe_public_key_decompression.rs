@@ -16,6 +16,15 @@ pub fn decompress_seeded_lwe_public_key<Scalar, InputCont, OutputCont, Gen>(
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    assert_eq!(
+        output_pk.ciphertext_modulus(),
+        input_pk.ciphertext_modulus(),
+        "Mismatched CiphertextModulus \
+    between input SeededLwePublicKey ({:?}) and output LwePublicKey ({:?})",
+        output_pk.ciphertext_modulus(),
+        input_pk.ciphertext_modulus(),
+    );
+
     let mut generator = RandomGenerator::<Gen>::new(input_pk.compression_seed().seed);
     decompress_seeded_lwe_ciphertext_list_with_existing_generator::<_, _, _, Gen>(
         output_pk,

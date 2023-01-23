@@ -7,6 +7,8 @@ use std::os::raw::c_int;
 
 use crate::shortint;
 
+pub const SHORTINT_NATIVE_MODULUS: u64 = 0;
+
 pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::Parameters);
 
 #[no_mangle]
@@ -111,6 +113,7 @@ pub unsafe extern "C" fn shortint_create_parameters(
     cbs_base_log: usize,
     message_modulus: usize,
     carry_modulus: usize,
+    ciphertext_modulus: u64,
     result: *mut *mut ShortintParameters,
 ) -> c_int {
     catch_panic(|| {
@@ -138,6 +141,10 @@ pub unsafe extern "C" fn shortint_create_parameters(
                 cbs_base_log: DecompositionBaseLog(cbs_base_log),
                 message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
                 carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
+                ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new(
+                    ciphertext_modulus as u128,
+                )
+                .unwrap(),
             }));
 
         *result = Box::into_raw(heap_allocated_parameters);

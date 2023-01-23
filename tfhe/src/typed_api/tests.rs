@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use crate::typed_api::prelude::*;
 #[cfg(feature = "boolean")]
 use crate::typed_api::FheBool;

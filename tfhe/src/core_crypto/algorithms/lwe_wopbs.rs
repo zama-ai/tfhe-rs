@@ -391,6 +391,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_dimension = GlweDimension(1);
 /// let lwe_dimension = LweDimension(481);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// let var_small = Variance::from_variance(2f64.powf(-80.0));
 /// let var_big = Variance::from_variance(2f64.powf(-70.0));
@@ -441,6 +442,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     ksk_base_log,
 ///     ksk_level_count,
 ///     var_big,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -525,6 +527,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     &lwe_big_sk,
 ///     encoded_message,
 ///     var_big,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -533,6 +536,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     0u64,
 ///     lwe_dimension.to_lwe_size(),
 ///     LweCiphertextCount(bits_to_extract.0),
+///     ciphertext_modulus,
 /// );
 ///
 /// extract_bits_from_lwe_ciphertext_mem_optimized(
@@ -568,6 +572,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     0u64,
 ///     lwe_big_sk.lwe_dimension().to_lwe_size(),
 ///     number_of_luts_and_output_vp_ciphertexts,
+///     ciphertext_modulus,
 /// );
 ///
 /// circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(

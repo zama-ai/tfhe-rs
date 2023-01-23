@@ -25,6 +25,7 @@ pub mod lwe_programmable_bootstrapping;
 pub mod lwe_public_key_generation;
 pub mod lwe_secret_key_generation;
 pub mod lwe_wopbs;
+pub mod misc;
 pub mod polynomial_algorithms;
 pub mod seeded_ggsw_ciphertext_decompression;
 pub mod seeded_ggsw_ciphertext_list_decompression;
@@ -36,6 +37,9 @@ pub mod seeded_lwe_ciphertext_list_decompression;
 pub mod seeded_lwe_keyswitch_key_decompression;
 pub mod seeded_lwe_public_key_decompression;
 pub mod slice_algorithms;
+
+#[cfg(test)]
+mod test;
 
 // No pub use for slice and polynomial algorithms which would not interest higher level users
 // They can still be used via `use crate::core_crypto::algorithms::slice_algorithms::*;`
@@ -62,6 +66,7 @@ pub use lwe_programmable_bootstrapping::*;
 pub use lwe_public_key_generation::*;
 pub use lwe_secret_key_generation::*;
 pub use lwe_wopbs::*;
+pub use misc::*;
 pub use seeded_ggsw_ciphertext_decompression::*;
 pub use seeded_ggsw_ciphertext_list_decompression::*;
 pub use seeded_glwe_ciphertext_decompression::*;

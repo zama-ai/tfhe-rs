@@ -50,6 +50,7 @@ pub fn allocate_and_generate_new_lwe_public_key<Scalar, InputKeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,
     noise_parameters: impl DispersionParameter,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LwePublicKeyOwned<Scalar>
 where
@@ -61,6 +62,7 @@ where
         Scalar::ZERO,
         lwe_secret_key.lwe_dimension().to_lwe_size(),
         zero_encryption_count,
+        ciphertext_modulus,
     );
 
     generate_lwe_public_key(lwe_secret_key, &mut pk, noise_parameters, generator);
@@ -102,6 +104,7 @@ pub fn par_allocate_and_generate_new_lwe_public_key<Scalar, InputKeyCont, Gen>(
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,
     noise_parameters: impl DispersionParameter + Sync,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LwePublicKeyOwned<Scalar>
 where
@@ -113,6 +116,7 @@ where
         Scalar::ZERO,
         lwe_secret_key.lwe_dimension().to_lwe_size(),
         zero_encryption_count,
+        ciphertext_modulus,
     );
 
     par_generate_lwe_public_key(lwe_secret_key, &mut pk, noise_parameters, generator);
@@ -167,6 +171,7 @@ pub fn allocate_and_generate_new_seeded_lwe_public_key<Scalar, InputKeyCont, Noi
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,
     noise_parameters: impl DispersionParameter,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLwePublicKeyOwned<Scalar>
 where
@@ -182,6 +187,7 @@ where
         CompressionSeed {
             seed: noise_seeder.seed(),
         },
+        ciphertext_modulus,
     );
 
     generate_seeded_lwe_public_key(lwe_secret_key, &mut pk, noise_parameters, noise_seeder);
@@ -230,6 +236,7 @@ pub fn par_allocate_and_generate_new_seeded_lwe_public_key<Scalar, InputKeyCont,
     lwe_secret_key: &LweSecretKey<InputKeyCont>,
     zero_encryption_count: LwePublicKeyZeroEncryptionCount,
     noise_parameters: impl DispersionParameter + Sync,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLwePublicKeyOwned<Scalar>
 where
@@ -245,6 +252,7 @@ where
         CompressionSeed {
             seed: noise_seeder.seed(),
         },
+        ciphertext_modulus,
     );
 
     par_generate_seeded_lwe_public_key(lwe_secret_key, &mut pk, noise_parameters, noise_seeder);

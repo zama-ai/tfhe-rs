@@ -322,7 +322,7 @@ impl ClientKey {
 
             // We want to take at most 64 bits of data from the bit buffer
             // since our words are 64 bits
-            let power_to_write = std::cmp::min(valid_until_power, U64_MODULUS);
+            let power_to_write = valid_until_power.min(U64_MODULUS);
             let mask = power_to_write - 1;
             *current_clear_word = (bit_buffer & mask) as u64;
             bit_buffer /= power_to_write;

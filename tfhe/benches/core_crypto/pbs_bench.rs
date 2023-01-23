@@ -36,16 +36,17 @@ criterion_group!(
 
 criterion_main!(pbs_group);
 
-struct BenchmarkPbsParameters {
+struct BenchmarkPbsParameters<Scalar: UnsignedInteger> {
     input_lwe_dimension: LweDimension,
     lwe_modular_std_dev: StandardDev,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
+    ciphertext_modulus: CoreCiphertextModulus<Scalar>,
 }
 
-impl From<BooleanParameters> for BenchmarkPbsParameters {
+impl From<BooleanParameters> for BenchmarkPbsParameters<u32> {
     fn from(params: BooleanParameters) -> Self {
         BenchmarkPbsParameters {
             input_lwe_dimension: params.lwe_dimension,
@@ -54,11 +55,12 @@ impl From<BooleanParameters> for BenchmarkPbsParameters {
             decomp_level_count: params.pbs_level,
             glwe_dimension: params.glwe_dimension,
             polynomial_size: params.polynomial_size,
+            ciphertext_modulus: CoreCiphertextModulus::<u32>::new_native(),
         }
     }
 }
 
-impl From<Parameters> for BenchmarkPbsParameters {
+impl From<Parameters> for BenchmarkPbsParameters<u64> {
     fn from(params: Parameters) -> Self {
         BenchmarkPbsParameters {
             input_lwe_dimension: params.lwe_dimension,
@@ -67,26 +69,41 @@ impl From<Parameters> for BenchmarkPbsParameters {
             decomp_level_count: params.pbs_level,
             glwe_dimension: params.glwe_dimension,
             polynomial_size: params.polynomial_size,
+            ciphertext_modulus: params.ciphertext_modulus,
         }
     }
 }
 
-fn benchmark_parameters<Scalar: Numeric>() -> Vec<(String, BenchmarkPbsParameters)> {
+fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, BenchmarkPbsParameters<Scalar>)>
+{
     if Scalar::BITS == 64 {
-        SHORTINT_BENCH_PARAMS
-            .iter()
-            .map(|params| {
-                (
-                    format!("shortint_{}", params.name().to_lowercase()),
-                    params.to_owned().into(),
-                )
-            })
-            .collect()
+        unsafe {
+            std::mem::transmute(
+                SHORTINT_BENCH_PARAMS
+                    .iter()
+                    .map(|params| {
+                        (
+                            format!("shortint_{}", params.name().to_lowercase()),
+                            BenchmarkPbsParameters::<u64>::from(params.to_owned()),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        }
     } else if Scalar::BITS == 32 {
-        BOOLEAN_BENCH_PARAMS
-            .iter()
-            .map(|(name, params)| (name.to_string(), params.to_owned().into()))
-            .collect()
+        unsafe {
+            std::mem::transmute(
+                BOOLEAN_BENCH_PARAMS
+                    .iter()
+                    .map(|(name, params)| {
+                        (
+                            name.to_string(),
+                            BenchmarkPbsParameters::<u32>::from(params.to_owned()),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        }
     } else {
         vec![]
     }
@@ -129,6 +146,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
             &input_lwe_secret_key,
             Plaintext(Scalar::ZERO),
             params.lwe_modular_std_dev,
+            params.ciphertext_modulus,
             &mut encryption_generator,
         );
 
@@ -142,6 +160,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
         let mut out_pbs_ct = LweCiphertext::new(
             Scalar::ZERO,
             output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            params.ciphertext_modulus,
         );
 
         let mut buffers = ComputationBuffers::new();

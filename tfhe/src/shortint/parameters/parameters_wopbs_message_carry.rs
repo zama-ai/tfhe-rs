@@ -6,7 +6,7 @@ pub use crate::core_crypto::commons::parameters::{
 };
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_prime_moduli::*;
-use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::parameters::{CarryModulus, CiphertextModulus, MessageModulus};
 use crate::shortint::Parameters;
 
 pub const ALL_PARAMETER_VEC_WOPBS: [Parameters; 116] = [
@@ -145,6 +145,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(32),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_1_CARRY_6: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -163,6 +164,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(64),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_1_CARRY_7: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -181,6 +183,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_7: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(128),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_1_CARRY_4: Parameters = Parameters {
     lwe_dimension: LweDimension(493),
@@ -199,6 +202,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(16),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_1_CARRY_8: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -217,6 +221,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_8: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(7),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(256),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_1_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(497),
@@ -235,6 +240,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(8),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_1_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(498),
@@ -253,6 +259,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_0: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(2),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_1_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(653),
@@ -271,6 +278,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_1: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(5),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(2),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_1_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(487),
@@ -289,6 +297,7 @@ pub const WOPBS_PARAM_MESSAGE_1_CARRY_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_2_CARRY_4: Parameters = Parameters {
     lwe_dimension: LweDimension(493),
@@ -307,6 +316,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(16),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_2_CARRY_5: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -325,6 +335,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(32),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_2_CARRY_6: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -343,6 +354,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(64),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_2_CARRY_7: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -361,6 +373,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_7: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(128),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_2_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(497),
@@ -379,6 +392,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(8),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_2_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(500),
@@ -397,6 +411,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_0: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(2),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_2_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(769),
@@ -415,6 +430,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(5),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_2_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(487),
@@ -433,6 +449,7 @@ pub const WOPBS_PARAM_MESSAGE_2_CARRY_1: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(2),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_3_CARRY_4: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -451,6 +468,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(16),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_3_CARRY_5: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -469,6 +487,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(32),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_3_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(873),
@@ -487,6 +506,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(8),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_3_CARRY_6: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -505,6 +525,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(64),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_3_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(497),
@@ -523,6 +544,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_3_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(486),
@@ -541,6 +563,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_1: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(2),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_3_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(487),
@@ -559,6 +582,7 @@ pub const WOPBS_PARAM_MESSAGE_3_CARRY_0: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(2),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_4_CARRY_4: Parameters = Parameters {
     lwe_dimension: LweDimension(953),
@@ -577,6 +601,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(16),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_4_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(493),
@@ -595,6 +620,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(8),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_4_CARRY_5: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -613,6 +639,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(32),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_4_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(497),
@@ -631,6 +658,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_4_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(486),
@@ -649,6 +677,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_1: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(2),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_4_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(486),
@@ -667,6 +696,7 @@ pub const WOPBS_PARAM_MESSAGE_4_CARRY_0: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_5_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -685,6 +715,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(8),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_5_CARRY_4: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -703,6 +734,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(16),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_5_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(493),
@@ -721,6 +753,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_5_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(497),
@@ -739,6 +772,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_1: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(2),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_5_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(486),
@@ -757,6 +791,7 @@ pub const WOPBS_PARAM_MESSAGE_5_CARRY_0: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_6_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -775,6 +810,7 @@ pub const WOPBS_PARAM_MESSAGE_6_CARRY_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(8),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_6_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(493),
@@ -793,6 +829,7 @@ pub const WOPBS_PARAM_MESSAGE_6_CARRY_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_6_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(497),
@@ -811,6 +848,7 @@ pub const WOPBS_PARAM_MESSAGE_6_CARRY_1: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(2),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_6_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(486),
@@ -829,6 +867,7 @@ pub const WOPBS_PARAM_MESSAGE_6_CARRY_0: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_7_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
@@ -847,6 +886,7 @@ pub const WOPBS_PARAM_MESSAGE_7_CARRY_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_7_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(493),
@@ -865,6 +905,7 @@ pub const WOPBS_PARAM_MESSAGE_7_CARRY_1: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(2),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_7_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(497),
@@ -883,6 +924,7 @@ pub const WOPBS_PARAM_MESSAGE_7_CARRY_0: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_8_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(493),
@@ -901,6 +943,7 @@ pub const WOPBS_PARAM_MESSAGE_8_CARRY_1: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(2),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_8_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(497),
@@ -919,6 +962,7 @@ pub const WOPBS_PARAM_MESSAGE_8_CARRY_0: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 pub const WOPBS_PARAM_MESSAGE_9_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(493),
@@ -937,6 +981,7 @@ pub const WOPBS_PARAM_MESSAGE_9_CARRY_0: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(512),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
 pub fn get_parameters_from_message_and_carry_wopbs(

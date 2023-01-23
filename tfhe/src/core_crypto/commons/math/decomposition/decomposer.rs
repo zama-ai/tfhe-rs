@@ -1,6 +1,11 @@
-use crate::core_crypto::commons::math::decomposition::SignedDecompositionIter;
+use crate::core_crypto::algorithms::misc::*;
+use crate::core_crypto::commons::math::decomposition::{
+    SignedDecompositionIter, SignedDecompositionIterNonNative,
+};
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
-use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
+use crate::core_crypto::commons::parameters::{
+    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+};
 use std::marker::PhantomData;
 
 /// A structure which allows to decompose unsigned integers into a set of smaller terms.
@@ -131,9 +136,11 @@ where
     ///     assert!(1 <= term.level().0);
     ///     assert!(term.level().0 <= 3);
     ///     let signed_term = term.value().into_signed();
+    ///     println!("signed_term: {signed_term}");
     ///     let half_basis = 2i32.pow(4) / 2i32;
+    ///     println!("half_basis: {half_basis}");
     ///     assert!(-half_basis <= signed_term);
-    ///     assert!(signed_term < half_basis);
+    ///     assert!(signed_term <= half_basis);
     /// }
     /// assert_eq!(decomposer.decompose(1).count(), 3);
     /// ```
@@ -165,6 +172,221 @@ where
     /// assert_eq!(decomposer.closest_representable(val), rec.unwrap());
     /// ```
     pub fn recompose(&self, decomp: SignedDecompositionIter<Scalar>) -> Option<Scalar> {
+        if decomp.is_fresh() {
+            Some(decomp.fold(Scalar::ZERO, |acc, term| {
+                acc.wrapping_add(term.to_recomposition_summand())
+            }))
+        } else {
+            None
+        }
+    }
+}
+
+/// A structure which allows to decompose unsigned integers into a set of smaller terms.
+///
+/// See the [module level](super) documentation for a description of the signed decomposition.
+#[derive(Debug)]
+pub struct SignedDecomposerNonNative<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    pub(crate) base_log: usize,
+    pub(crate) level_count: usize,
+    integer_type: PhantomData<Scalar>,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+
+impl<Scalar> SignedDecomposerNonNative<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    /// Create a new decomposer.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::commons::parameters::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::<u64>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    /// );
+    /// assert_eq!(decomposer.level_count(), DecompositionLevelCount(3));
+    /// assert_eq!(decomposer.base_log(), DecompositionBaseLog(4));
+    /// ```
+    pub fn new(
+        base_log: DecompositionBaseLog,
+        level_count: DecompositionLevelCount,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> SignedDecomposerNonNative<Scalar> {
+        debug_assert!(
+            Scalar::BITS > base_log.0 * level_count.0,
+            "Decomposed bits exceeds the size of the integer to be decomposed"
+        );
+        SignedDecomposerNonNative {
+            base_log: base_log.0,
+            level_count: level_count.0,
+            integer_type: PhantomData,
+            ciphertext_modulus,
+        }
+    }
+
+    /// Return the logarithm in base two of the base of this decomposer.
+    ///
+    /// If the decomposer uses a base $B=2^b$, this returns $b$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::commons::parameters::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::<u64>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    /// );
+    /// assert_eq!(decomposer.base_log(), DecompositionBaseLog(4));
+    /// ```
+    pub fn base_log(&self) -> DecompositionBaseLog {
+        DecompositionBaseLog(self.base_log)
+    }
+
+    /// Return the number of levels of this decomposer.
+    ///
+    /// If the decomposer uses $l$ levels, this returns $l$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::commons::parameters::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::<u64>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    /// );
+    /// assert_eq!(decomposer.level_count(), DecompositionLevelCount(3));
+    /// ```
+    pub fn level_count(&self) -> DecompositionLevelCount {
+        DecompositionLevelCount(self.level_count)
+    }
+
+    /// Return the closet value representable by the decomposition.
+    ///
+    /// For some input integer `k`, decomposition base `B`, decomposition level count `l` and given
+    /// ciphertext modulus `q` the performed operation is the following:
+    ///
+    /// $$
+    /// \lfloor \frac{k\cdot q}{B^{l}} \rceil \cdot B^{l}
+    /// $$
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::commons::parameters::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new(1 << 32).unwrap(),
+    /// );
+    /// let closest = decomposer.closest_representable(1_340_987_234_u64);
+    /// assert_eq!(closest, 1_341_128_704_u64);
+    /// ```
+    #[inline]
+    pub fn closest_representable(&self, input: Scalar) -> Scalar {
+        // Floored approach
+        // B^l
+        let base_to_level_count = 1 << (self.base_log * self.level_count);
+        // sr = floor(q/(B^l))
+        let smallest_representable = self.ciphertext_modulus.get() / base_to_level_count;
+
+        let input_128: u128 = input.cast_into();
+        // rounded = round(input/sr)
+        let rounded = divide_round_to_u128(input_128, smallest_representable);
+        // rounded * sr
+        let closest_representable = rounded * smallest_representable;
+        Scalar::cast_from(closest_representable)
+    }
+
+    /// Generate an iterator over the terms of the decomposition of the input.
+    ///
+    /// # Warning
+    ///
+    /// The returned iterator yields the terms $\tilde{\theta}\_i$ in order of decreasing $i$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::commons::numeric::UnsignedInteger;
+    /// use tfhe::core_crypto::commons::parameters::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    ///     // CiphertextModulus::try_new(1 << 32).unwrap(),
+    /// );
+    ///
+    /// for term in decomposer.decompose(1u64 << 63) {
+    ///     assert!(1 <= term.level().0);
+    ///     assert!(term.level().0 <= 3);
+    ///     let signed_term = term.value().into_signed();
+    ///     println!("signed_term: {signed_term}");
+    ///     let half_basis = 2i64.pow(4) / 2i64;
+    ///     println!("half_basis: {half_basis}");
+    ///     assert!(-half_basis <= signed_term);
+    ///     assert!(signed_term <= half_basis);
+    /// }
+    /// assert_eq!(decomposer.decompose(1).count(), 3);
+    /// ```
+    pub fn decompose(&self, input: Scalar) -> SignedDecompositionIterNonNative<Scalar> {
+        // Note that there would be no sense of making the decomposition on an input which was
+        // not rounded to the closest representable first. We then perform it before decomposing.
+        SignedDecompositionIterNonNative::new(
+            self.closest_representable(input),
+            DecompositionBaseLog(self.base_log),
+            DecompositionLevelCount(self.level_count),
+            self.ciphertext_modulus,
+        )
+    }
+
+    /// Recomposes a decomposed value by summing all the terms.
+    ///
+    /// If the input iterator yields $\tilde{\theta}\_i$, this returns
+    /// $\sum\_{i=1}^l\tilde{\theta}\_i\frac{q}{B^i}$.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rand::Rng;
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::commons::parameters::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let mut rng = rand::thread_rng();
+    /// let decomposer = SignedDecomposerNonNative::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new(1 << 32).unwrap(),
+    /// );
+    /// let val = 1_340_987_234_u64;
+    /// let dec = decomposer.decompose(val);
+    /// let rec = decomposer.recompose(dec);
+    /// assert_eq!(decomposer.closest_representable(val), rec.unwrap());
+    /// ```
+    pub fn recompose(&self, decomp: SignedDecompositionIterNonNative<Scalar>) -> Option<Scalar> {
         if decomp.is_fresh() {
             Some(decomp.fold(Scalar::ZERO, |acc, term| {
                 acc.wrapping_add(term.to_recomposition_summand())

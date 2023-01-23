@@ -83,8 +83,10 @@ impl Memory {
         let (after_ks_elements, after_pbs_elements) =
             other_elements.split_at_mut(num_elem_in_lwe_after_ks);
 
-        let buffer_lwe_after_ks = LweCiphertextMutView::from_container(after_ks_elements);
-        let buffer_lwe_after_pbs = LweCiphertextMutView::from_container(after_pbs_elements);
+        let buffer_lwe_after_ks =
+            LweCiphertextMutView::from_container(after_ks_elements, server_key.ciphertext_modulus);
+        let buffer_lwe_after_pbs =
+            LweCiphertextMutView::from_container(after_pbs_elements, server_key.ciphertext_modulus);
 
         BuffersRef {
             accumulator,

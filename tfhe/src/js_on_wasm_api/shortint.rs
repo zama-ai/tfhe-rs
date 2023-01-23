@@ -53,6 +53,8 @@ pub struct Shortint {}
 #[wasm_bindgen]
 pub struct ShortintParameters(pub(crate) crate::shortint::Parameters);
 
+pub const SHORTINT_NATIVE_MODULUS: u64 = 0;
+
 #[wasm_bindgen]
 impl Shortint {
     #[wasm_bindgen]
@@ -148,6 +150,7 @@ impl Shortint {
         cbs_base_log: usize,
         message_modulus: usize,
         carry_modulus: usize,
+        ciphertext_modulus: u64,
     ) -> ShortintParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
         use crate::core_crypto::prelude::*;
@@ -168,6 +171,10 @@ impl Shortint {
             cbs_base_log: DecompositionBaseLog(cbs_base_log),
             message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
             carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
+            ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new(
+                ciphertext_modulus as u128,
+            )
+            .unwrap(),
         })
     }
 

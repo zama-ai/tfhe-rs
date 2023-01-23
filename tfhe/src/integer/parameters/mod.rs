@@ -1,5 +1,5 @@
 #![allow(clippy::excessive_precision)]
-pub use crate::shortint::Parameters;
+pub use crate::shortint::{CiphertextModulus, Parameters};
 
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 pub use crate::shortint::parameters::{
@@ -29,6 +29,7 @@ pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(16),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
 pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: Parameters = Parameters {
@@ -48,6 +49,7 @@ pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
 pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: Parameters = Parameters {
@@ -67,7 +69,9 @@ pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(16),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
+
 pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: Parameters = Parameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
@@ -85,7 +89,9 @@ pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
+
 pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: Parameters = Parameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(1),
@@ -103,6 +109,7 @@ pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(2),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
 pub const PARAM_4_BITS_5_BLOCKS: Parameters = Parameters {
@@ -122,4 +129,5 @@ pub const PARAM_4_BITS_5_BLOCKS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };

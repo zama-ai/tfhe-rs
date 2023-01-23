@@ -70,6 +70,7 @@ fn main() {
             DecompositionBaseLog(0),
             MessageModulus(4),
             CarryModulus(1),
+            CiphertextModulus::new_native(),
         )
     };
 }

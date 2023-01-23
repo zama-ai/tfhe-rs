@@ -53,6 +53,7 @@ pub fn main() {
     let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
     let pbs_base_log = DecompositionBaseLog(23);
     let pbs_level = DecompositionLevelCount(1);
+    let ciphertext_modulus = CiphertextModulus::new_native();
 
     // Request the best seeder possible, starting with hardware entropy sources and falling back to
     // /dev/random on Unix systems if enabled via cargo features
@@ -124,6 +125,7 @@ pub fn main() {
         &small_lwe_sk,
         plaintext,
         lwe_modular_std_dev,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
@@ -217,8 +219,11 @@ pub fn main() {
     );
 
     // Allocate the LweCiphertext to store the result of the PBS
-    let mut pbs_multiplication_ct =
-        LweCiphertext::new(0u64, big_lwe_sk.lwe_dimension().to_lwe_size());
+    let mut pbs_multiplication_ct = LweCiphertext::new(
+        0u64,
+        big_lwe_sk.lwe_dimension().to_lwe_size(),
+        ciphertext_modulus,
+    );
     println!("Computing PBS...");
     programmable_bootstrap_lwe_ciphertext(
         &lwe_ciphertext_in,

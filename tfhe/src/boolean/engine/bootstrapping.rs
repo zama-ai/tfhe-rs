@@ -4,6 +4,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
+use crate::core_crypto::commons::parameters::CiphertextModulus;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::math::fft::Fft;
 use serde::{Deserialize, Serialize};
@@ -62,7 +63,8 @@ impl Memory {
             server_key.bootstrapping_key.polynomial_size(),
         );
 
-        let lwe = LweCiphertextMutView::from_container(lwe_elements);
+        let lwe =
+            LweCiphertextMutView::from_container(lwe_elements, CiphertextModulus::new_native());
 
         (accumulator, lwe)
     }
@@ -192,6 +194,7 @@ impl Bootstrapper {
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
             cks.parameters.lwe_modular_std_dev,
+            CiphertextModulus::new_native(),
             &mut self.encryption_generator,
         );
 
@@ -234,6 +237,7 @@ impl Bootstrapper {
             cks.parameters.ks_base_log,
             cks.parameters.ks_level,
             cks.parameters.lwe_modular_std_dev,
+            CiphertextModulus::new_native(),
             &mut self.seeder,
         );
 
@@ -277,6 +281,7 @@ impl Bootstrapper {
 
         Ok(LweCiphertext::from_container(
             buffer_after_pbs.as_ref().to_owned(),
+            input.ciphertext_modulus(),
         ))
     }
 
@@ -292,6 +297,7 @@ impl Bootstrapper {
                 .bootstrapping_key
                 .input_lwe_dimension()
                 .to_lwe_size(),
+            input.ciphertext_modulus(),
         );
 
         keyswitch_lwe_ciphertext(&server_key.key_switching_key, input, &mut output);

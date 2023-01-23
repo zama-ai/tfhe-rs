@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
+pub use super::ciphertext_modulus::CiphertextModulus;
+
 /// The number plaintexts in a plaintext list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct PlaintextCount(pub usize);

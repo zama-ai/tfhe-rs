@@ -112,6 +112,7 @@ use std::thread;
 ///     &small_lwe_sk,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     CiphertextModulus::new_native(),
 ///     &mut encryption_generator,
 /// );
 ///
@@ -175,8 +176,11 @@ use std::thread;
 /// );
 ///
 /// // Allocate the LweCiphertext to store the result of the PBS
-/// let mut pbs_multiplication_ct =
-///     LweCiphertext::new(0u64, big_lwe_sk.lwe_dimension().to_lwe_size());
+/// let mut pbs_multiplication_ct = LweCiphertext::new(
+///     0u64,
+///     big_lwe_sk.lwe_dimension().to_lwe_size(),
+///     CiphertextModulus::new_native(),
+/// );
 /// println!("Performing blind rotation...");
 /// // Use 4 threads for the multi-bit blind rotation for example
 /// multi_bit_blind_rotate_assign(
@@ -277,7 +281,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 
     let lut_poly_size = accumulator.polynomial_size();
     let monomial_degree = pbs_modulus_switch(
-        *lwe_body.0,
+        *lwe_body.data,
         lut_poly_size,
         ModulusSwitchOffset(0),
         LutCountLog(0),
@@ -587,6 +591,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 ///     &small_lwe_sk,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     CiphertextModulus::new_native(),
 ///     &mut encryption_generator,
 /// );
 ///
@@ -650,8 +655,11 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 /// );
 ///
 /// // Allocate the LweCiphertext to store the result of the PBS
-/// let mut pbs_multiplication_ct =
-///     LweCiphertext::new(0u64, big_lwe_sk.lwe_dimension().to_lwe_size());
+/// let mut pbs_multiplication_ct = LweCiphertext::new(
+///     0u64,
+///     big_lwe_sk.lwe_dimension().to_lwe_size(),
+///     CiphertextModulus::new_native(),
+/// );
 /// println!("Computing PBS...");
 /// // Use 4 threads to compute the multi-bit PBS
 /// multi_bit_programmable_bootstrap_lwe_ciphertext(
@@ -767,6 +775,7 @@ mod test {
         let glwe_dimension = GlweDimension(1);
         let polynomial_size = PolynomialSize(1024);
         let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+        let ciphertext_modulus = CiphertextModulus::new_native();
 
         while input_lwe_dimension.0 % grouping_factor.0 != 0 {
             input_lwe_dimension = LweDimension(input_lwe_dimension.0 + 1);
@@ -884,6 +893,7 @@ mod test {
                         &input_lwe_secret_key,
                         plaintext,
                         lwe_modular_std_dev,
+                        ciphertext_modulus,
                         &mut encryption_generator,
                     );
 
@@ -896,8 +906,11 @@ mod test {
                 );
 
                 // Allocate the LweCiphertext to store the result of the PBS
-                let mut out_pbs_ct =
-                    LweCiphertext::new(0u64, output_lwe_secret_key.lwe_dimension().to_lwe_size());
+                let mut out_pbs_ct = LweCiphertext::new(
+                    0u64,
+                    output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                    ciphertext_modulus,
+                );
                 println!("Computing PBS...");
                 multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &lwe_ciphertext_in,

@@ -66,6 +66,11 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: DynStack<'_>,
 ) {
+    assert!(
+        lwe_in.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
     let ciphertext_n_bits = Scalar::BITS;
     let number_of_bits_to_extract = number_of_bits_to_extract.0;
 
@@ -111,11 +116,13 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
 
     let (mut lwe_in_buffer_data, stack) =
         stack.collect_aligned(align, lwe_in.as_ref().iter().copied());
-    let mut lwe_in_buffer = LweCiphertext::from_container(&mut *lwe_in_buffer_data);
+    let mut lwe_in_buffer =
+        LweCiphertext::from_container(&mut *lwe_in_buffer_data, lwe_in.ciphertext_modulus());
 
     let (mut lwe_out_ks_buffer_data, stack) =
         stack.make_aligned_with(ksk.output_lwe_size().0, align, |_| Scalar::ZERO);
-    let mut lwe_out_ks_buffer = LweCiphertext::from_container(&mut *lwe_out_ks_buffer_data);
+    let mut lwe_out_ks_buffer =
+        LweCiphertext::from_container(&mut *lwe_out_ks_buffer_data, ksk.ciphertext_modulus());
 
     let (mut pbs_accumulator_data, stack) =
         stack.make_aligned_with(glwe_size.0 * polynomial_size.0, align, |_| Scalar::ZERO);
@@ -125,7 +132,10 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
     let lwe_size = LweSize(glwe_dimension.0 * polynomial_size.0 + 1);
     let (mut lwe_out_pbs_buffer_data, mut stack) =
         stack.make_aligned_with(lwe_size.0, align, |_| Scalar::ZERO);
-    let mut lwe_out_pbs_buffer = LweCiphertext::from_container(&mut *lwe_out_pbs_buffer_data);
+    let mut lwe_out_pbs_buffer = LweCiphertext::from_container(
+        &mut *lwe_out_pbs_buffer_data,
+        lwe_list_out.ciphertext_modulus(),
+    );
 
     // We iterate on the list in reverse as we want to store the extracted MSB at index 0
     for (bit_idx, mut output_ct) in lwe_list_out.iter_mut().rev().enumerate() {
@@ -141,7 +151,10 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         // Key switch to input PBS key
         keyswitch_lwe_ciphertext(
             &ksk,
-            &LweCiphertext::from_container(&*lwe_bit_left_shift_buffer_data),
+            &LweCiphertext::from_container(
+                &*lwe_bit_left_shift_buffer_data,
+                lwe_in.ciphertext_modulus(),
+            ),
             &mut lwe_out_ks_buffer,
         );
 
@@ -160,7 +173,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         }
 
         // Add q/4 to center the error while computing a negacyclic LUT
-        let out_ks_body = lwe_out_ks_buffer.get_mut_body().0;
+        let out_ks_body = lwe_out_ks_buffer.get_mut_body().data;
         *out_ks_body = (*out_ks_body).wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
 
         // Fill lut for the current bit (equivalent to trivial encryption as mask is 0s)
@@ -175,8 +188,8 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         }
 
         fourier_bsk.bootstrap(
-            lwe_out_pbs_buffer.as_mut(),
-            lwe_out_ks_buffer.as_ref(),
+            lwe_out_pbs_buffer.as_mut_view(),
+            lwe_out_ks_buffer.as_view(),
             pbs_accumulator.as_view(),
             fft,
             stack.rb_mut(),
@@ -184,7 +197,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
 
         // Add alpha where alpha = delta*2^{bit_idx-1} to end up with an encryption of 0 if the
         // extracted bit was 0 and 1 in the other case
-        let out_pbs_body = lwe_out_pbs_buffer.get_mut_body().0;
+        let out_pbs_body = lwe_out_pbs_buffer.get_mut_body().data;
 
         *out_pbs_body = (*out_pbs_body).wrapping_add(Scalar::ONE << (delta_log.0 + bit_idx - 1));
 
@@ -219,6 +232,11 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: DynStack<'_>,
 ) {
+    assert!(
+        lwe_in.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
     let level_cbs = ggsw_out.decomposition_level_count();
     let base_log_cbs = ggsw_out.decomposition_base_log();
 
@@ -276,7 +294,8 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
         CACHELINE_ALIGN,
         |_| Scalar::ZERO,
     );
-    let mut lwe_out_bs_buffer = LweCiphertext::from_container(&mut *lwe_out_bs_buffer_data);
+    let mut lwe_out_bs_buffer =
+        LweCiphertext::from_container(&mut *lwe_out_bs_buffer_data, lwe_in.ciphertext_modulus());
 
     // Output for every pfksk that come from the output GGSW
     let mut glwe_out_pfksk_buffer = ggsw_out.as_mut_glwe_list();
@@ -339,13 +358,21 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: DynStack<'_>,
 ) {
+    assert!(
+        lwe_in.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
     let ciphertext_n_bits = Scalar::BITS;
     let lwe_in_size = lwe_in.lwe_size();
     let polynomial_size = fourier_bsk.polynomial_size();
 
     let (mut lwe_left_shift_buffer_data, stack) =
         stack.make_aligned_with(lwe_in_size.0, CACHELINE_ALIGN, |_| Scalar::ZERO);
-    let mut lwe_left_shift_buffer = LweCiphertext::from_container(&mut *lwe_left_shift_buffer_data);
+    let mut lwe_left_shift_buffer = LweCiphertext::from_container(
+        &mut *lwe_left_shift_buffer_data,
+        lwe_in.ciphertext_modulus(),
+    );
     // Shift message LSB on padding bit, at this point we expect to have messages with only 1 bit
     // of information
     lwe_ciphertext_cleartext_mul(
@@ -356,8 +383,8 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
 
     // Add q/4 to center the error while computing a negacyclic LUT
     let shift_buffer_body = lwe_left_shift_buffer.get_mut_body();
-    *shift_buffer_body.0 =
-        (*shift_buffer_body.0).wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
+    *shift_buffer_body.data =
+        (*shift_buffer_body.data).wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
 
     let (mut pbs_accumulator_data, stack) = stack.make_aligned_with(
         polynomial_size.0 * fourier_bsk.glwe_size().0,
@@ -379,8 +406,8 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     // Applying a negacyclic LUT on a ciphertext with one bit of message in the MSB and no bit
     // of padding
     fourier_bsk.bootstrap(
-        lwe_out.as_mut(),
-        lwe_left_shift_buffer.as_ref(),
+        lwe_out.as_mut_view(),
+        lwe_left_shift_buffer.as_view(),
         pbs_accumulator.as_view(),
         fft,
         stack,
@@ -389,7 +416,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     // Add alpha where alpha = 2^{log(q) - 1 - base_log * level}
     // To end up with an encryption of 0 if the message bit was 0 and 1 in the other case
     let out_body = lwe_out.get_mut_body();
-    *out_body.0 = (*out_body.0)
+    *out_body.data = (*out_body.data)
         .wrapping_add(Scalar::ONE << (ciphertext_n_bits - 1 - base_log_cbs.0 * level_count_cbs.0));
 }
 
@@ -947,6 +974,11 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
     fft: FftView<'_>,
     stack: DynStack<'_>,
 ) {
+    assert!(
+        lwe_out.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
     let polynomial_size = ggsw_list.polynomial_size();
     let glwe_size = ggsw_list.glwe_size();
     let glwe_dimension = glwe_size.to_glwe_dimension();

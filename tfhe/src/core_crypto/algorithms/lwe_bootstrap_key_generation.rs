@@ -174,6 +174,60 @@ where
 
 /// Parallel variant of [`generate_lwe_bootstrap_key`], it is recommended to use this function for
 /// better key generation times as LWE bootstrapping keys can be quite large.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweBootstrapKey creation
+/// let input_lwe_dimension = LweDimension(742);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let output_lwe_dimension = LweDimension(2048);
+/// let decomp_base_log = DecompositionBaseLog(3);
+/// let decomp_level_count = DecompositionLevelCount(5);
+/// let glwe_dimension = GlweDimension(1);
+/// let polynomial_size = PolynomialSize(1024);
+/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let input_lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(input_lwe_dimension, &mut secret_generator);
+/// let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_dimension,
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+///
+/// let mut bsk = LweBootstrapKey::new(
+///     0u64,
+///     glwe_dimension.to_glwe_size(),
+///     polynomial_size,
+///     decomp_base_log,
+///     decomp_level_count,
+///     input_lwe_dimension,
+/// );
+///
+/// par_generate_lwe_bootstrap_key(
+///     &input_lwe_secret_key,
+///     &output_glwe_secret_key,
+///     &mut bsk,
+///     glwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// assert!(bsk.as_ref().iter().all(|&x| x == 0) == false);
+/// ```
 pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,

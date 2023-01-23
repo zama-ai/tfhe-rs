@@ -178,7 +178,7 @@ impl<C: Container> ContiguousEntityContainer for GlweCiphertextList<C> {
     where
         Self: 'this;
 
-    fn get_entity_view_creation_metadata(&self) -> GlweCiphertextCreationMetadata {
+    fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
         GlweCiphertextCreationMetadata(self.polynomial_size())
     }
 
@@ -186,7 +186,7 @@ impl<C: Container> ContiguousEntityContainer for GlweCiphertextList<C> {
         glwe_ciphertext_size(self.glwe_size(), self.polynomial_size())
     }
 
-    fn get_self_view_creation_metadata(&self) -> GlweCiphertextListCreationMetadata {
+    fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
         GlweCiphertextListCreationMetadata(self.glwe_size(), self.polynomial_size())
     }
 }

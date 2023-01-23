@@ -36,6 +36,32 @@ where
         })
 }
 
+/// This primitive is meant to manage the dot product of values that were cast to a bigger type, for
+/// example u64 to u128, avoiding overflow on each multiplication (as u64::MAX * u64::MAX <
+/// u128::MAX )
+pub fn slice_wrapping_dot_product_custom_modulus<Scalar>(
+    lhs: &[Scalar],
+    rhs: &[Scalar],
+    modulus: Scalar,
+) -> Scalar
+where
+    Scalar: UnsignedInteger,
+{
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+
+    lhs.iter()
+        .zip(rhs.iter())
+        .fold(Scalar::ZERO, |acc, (&left, &right)| {
+            acc.wrapping_add(left.wrapping_mul(right).wrapping_rem(modulus))
+                .wrapping_rem(modulus)
+        })
+}
+
 /// Add a slice containing unsigned integers to another one element-wise.
 ///
 /// # Note
@@ -254,6 +280,30 @@ pub fn slice_wrapping_sub_scalar_mul_assign<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs.wrapping_mul(scalar)));
 }
 
+/// This primitive is meant to manage the sub_scalar_mul operation for values that were cast to a
+/// bigger type, for example u64 to u128, avoiding overflow on each multiplication (as u64::MAX *
+/// u64::MAX < u128::MAX )
+pub fn slice_wrapping_sub_scalar_mul_assign_custom_modulus<Scalar>(
+    lhs: &mut [Scalar],
+    rhs: &[Scalar],
+    scalar: Scalar,
+    modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+{
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+    lhs.iter_mut().zip(rhs.iter()).for_each(|(lhs, &rhs)| {
+        *lhs = (*lhs)
+            .wrapping_sub(rhs.wrapping_mul(scalar).wrapping_rem(modulus))
+            .wrapping_rem(modulus)
+    });
+}
+
 /// Compute the opposite of a slice containing unsigned integers, element-wise and in place.
 ///
 /// # Note
@@ -266,16 +316,29 @@ pub fn slice_wrapping_sub_scalar_mul_assign<Scalar>(
 /// ```
 /// use tfhe::core_crypto::algorithms::slice_algorithms::*;
 /// let mut first = vec![1u8, 2, 3, 4, 5, 6];
-/// slice_wrapping_opposite_assign(&mut first);
+/// slice_wrapping_opposite_assign_native_mod(&mut first);
 /// assert_eq!(&first, &[255u8, 254, 253, 252, 251, 250]);
 /// ```
-pub fn slice_wrapping_opposite_assign<Scalar>(slice: &mut [Scalar])
+pub fn slice_wrapping_opposite_assign_native_mod<Scalar>(slice: &mut [Scalar])
 where
     Scalar: UnsignedInteger,
 {
     slice
         .iter_mut()
         .for_each(|elt| *elt = (*elt).wrapping_neg());
+}
+
+/// This primitive is meant to compute the modular opposite of values for non native moduli.
+pub fn slice_wrapping_opposite_assign_custom_mod<Scalar>(slice: &mut [Scalar], modulus: Scalar)
+where
+    Scalar: UnsignedInteger,
+{
+    slice.as_mut().iter_mut().for_each(|x| {
+        let half_q = modulus / Scalar::TWO;
+        *x = half_q
+            .wrapping_add(Scalar::ONE)
+            .wrapping_sub((*x).wrapping_sub(half_q.wrapping_add(Scalar::ONE)))
+    });
 }
 
 /// Multiply a slice containing unsigned integers by a scalar, element-wise and in place.
@@ -300,4 +363,30 @@ where
 {
     lhs.iter_mut()
         .for_each(|lhs| *lhs = (*lhs).wrapping_mul(rhs));
+}
+
+/// Compute the reaminder of a slice containing unsigned integers by a scalar, element-wise and in
+/// place.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 6];
+/// let modulus = 3;
+/// slice_wrapping_rem_assign(&mut first, modulus);
+/// assert_eq!(&first, &[1, 2, 0, 1, 2, 0]);
+/// ```
+pub fn slice_wrapping_rem_assign<Scalar>(slice: &mut [Scalar], modulus: Scalar)
+where
+    Scalar: UnsignedInteger,
+{
+    slice
+        .iter_mut()
+        .for_each(|x| *x = (*x).wrapping_rem(modulus))
 }

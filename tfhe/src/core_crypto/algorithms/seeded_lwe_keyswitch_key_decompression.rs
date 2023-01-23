@@ -40,6 +40,10 @@ pub fn decompress_seeded_lwe_keyswitch_key<Scalar, InputCont, OutputCont, Gen>(
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    assert!(
+        output_ksk.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
     let mut generator = RandomGenerator::<Gen>::new(input_ksk.compression_seed().seed);
     decompress_seeded_lwe_keyswitch_key_with_existing_generator::<_, _, _, Gen>(
         output_ksk,

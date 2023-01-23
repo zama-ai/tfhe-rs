@@ -32,6 +32,13 @@ pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
     OutputCont: ContainerMut<Element = Scalar>,
 {
     assert!(
+        input_lwe_ciphertext
+            .ciphertext_modulus()
+            .is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
+    assert!(
         lwe_pfpksk.input_lwe_key_dimension().0
             == input_lwe_ciphertext.lwe_size().to_lwe_dimension().0
     );
@@ -87,6 +94,11 @@ pub fn private_functional_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphert
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
+    assert!(
+        input.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
     assert!(input.lwe_ciphertext_count().0 <= output.polynomial_size().0);
     output.as_mut().fill(Scalar::ZERO);
     let mut buffer =
