@@ -1,11 +1,11 @@
 [profile.cpu-big]
 region = "eu-west-3"
-image_id = "ami-04deffe45b5b236fd"
+image_id = "ami-06f8ee10713a8f809"
 instance_type = "c6i.8xlarge"
 
 [profile.bench]
 region = "eu-west-3"
-image_id = "ami-04deffe45b5b236fd"
+image_id = "ami-06f8ee10713a8f809"
 instance_type = "m6i.metal"
 
 [command.cpu_test]
