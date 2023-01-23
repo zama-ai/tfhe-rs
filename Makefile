@@ -214,13 +214,7 @@ test_nodejs_wasm_api: build_node_js_api
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
 no_tfhe_typo:
-	@if ! grep --exclude=Makefile --exclude-dir=.git --exclude-from=.gitignore -rniI thfe .; \
-	then \
-		exit 0; \
-	else \
-		echo "tfhe typo detected, see output log above"; \
-		exit 1; \
-	fi
+	@./scripts/no_tfhe_typo.sh
 
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
