@@ -2,8 +2,9 @@ use crate::core_crypto::commons::math::random::{
     Gaussian, RandomGenerable, Uniform, UniformBinary, UniformLsb, UniformMsb, UniformTernary,
     UniformWithZeros,
 };
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::FloatingPoint;
+use crate::core_crypto::commons::math::torus::{UnsignedInteger, UnsignedTorus};
+use crate::core_crypto::commons::numeric::{CastFrom, CastInto, FloatingPoint};
+use crate::core_crypto::commons::parameters::CiphertextModulus;
 use concrete_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 use rayon::prelude::*;
 use std::convert::TryInto;
@@ -184,6 +185,40 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::fill_slice(self, Uniform, output);
     }
 
+    /// Fill a slice with random uniform values, for non-native power of 2 moduli, a shift is
+    /// applied to only keep log2(modulus) MSBs and zeroed out LSBs
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe::core_crypto::commons::parameters::CiphertextModulus;
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let mut vec = vec![1u32; 100];
+    /// generator.fill_slice_with_random_uniform_custom_mod(
+    ///     &mut vec,
+    ///     CiphertextModulus::try_new_power_of_2(31).unwrap(),
+    /// );
+    /// ```
+    pub fn fill_slice_with_random_uniform_custom_mod<Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) where
+        Scalar: UnsignedInteger + RandomGenerable<Uniform>,
+    {
+        self.fill_slice_with_random_uniform(output);
+
+        if !custom_modulus.is_native_modulus() {
+            output
+                .as_mut()
+                .iter_mut()
+                .for_each(|x| *x = (*x).wrapping_rem(custom_modulus.get().cast_into()));
+        }
+    }
+
     /// Generate a random uniform binary value.
     ///
     /// # Example
@@ -359,6 +394,51 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         });
     }
 
+    /// Fill a slice with random gaussian values.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe::core_crypto::commons::parameters::CiphertextModulus;
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let mut vec = vec![1000u64; 100];
+    /// generator.fill_slice_with_random_gaussian_custom_mod(
+    ///     &mut vec,
+    ///     0.,
+    ///     1.,
+    ///     CiphertextModulus::try_new_power_of_2(63).unwrap(),
+    /// );
+    /// ```
+    pub fn fill_slice_with_random_gaussian_custom_mod<Float, Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        mean: Float,
+        std: Float,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) where
+        Float: FloatingPoint + CastFrom<u128>,
+        Scalar: UnsignedInteger,
+        (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Float>,
+    {
+        let custom_modulus_float: Float = custom_modulus.get().cast_into();
+        output.chunks_mut(2).for_each(|s| {
+            let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
+                self,
+                Gaussian { std, mean },
+                custom_modulus_float,
+            );
+            if let Some(elem) = s.get_mut(0) {
+                *elem = g1;
+            }
+            if let Some(elem) = s.get_mut(1) {
+                *elem = g2;
+            }
+        });
+    }
+
     /// Add a random gaussian value to each element in a slice.
     ///
     /// # Example
@@ -383,6 +463,44 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     {
         output.chunks_mut(2).for_each(|s| {
             let (g1, g2) = <(Scalar, Scalar)>::generate_one(self, Gaussian { std, mean });
+            if let Some(elem) = s.get_mut(0) {
+                *elem = (*elem).wrapping_add(g1);
+            }
+            if let Some(elem) = s.get_mut(1) {
+                *elem = (*elem).wrapping_add(g2);
+            }
+        });
+    }
+    /// Add a random gaussian value to each element in a slice.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    /// let mut vec = vec![1000u32; 100];
+    /// generator.unsigned_torus_slice_wrapping_add_random_gaussian_assign(&mut vec, 0., 1.);
+    /// ```
+    pub fn unsigned_torus_slice_wrapping_add_random_gaussian_custom_mod_assign<Float, Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        mean: Float,
+        std: Float,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) where
+        Scalar: UnsignedTorus,
+        Float: FloatingPoint + CastFrom<u128>,
+        (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Float>,
+    {
+        let custom_modulus_float: Float = custom_modulus.get().cast_into();
+        output.chunks_mut(2).for_each(|s| {
+            let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
+                self,
+                Gaussian { std, mean },
+                custom_modulus_float,
+            );
             if let Some(elem) = s.get_mut(0) {
                 *elem = (*elem).wrapping_add(g1);
             }

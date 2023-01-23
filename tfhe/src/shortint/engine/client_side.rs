@@ -83,6 +83,7 @@ impl ShortintEngine {
             client_lwe_sk,
             encoded,
             noise_parameter,
+            client_key_parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         )
     }
@@ -166,6 +167,7 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
+            client_key.parameters.ciphertext_modulus,
             &mut self.seeder,
         );
 
@@ -205,6 +207,7 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
+            client_key.parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         );
 
@@ -286,6 +289,7 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
+            client_key.parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         );
 
@@ -328,6 +332,7 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
+            client_key.parameters.ciphertext_modulus,
             &mut self.seeder,
         );
 
@@ -405,6 +410,7 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
+            client_key.parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         );
 
@@ -444,6 +450,7 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
+            client_key.parameters.ciphertext_modulus,
             &mut self.seeder,
         );
 

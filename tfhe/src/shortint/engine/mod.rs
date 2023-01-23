@@ -72,6 +72,7 @@ impl Memory {
         let acc = GlweCiphertext::from_container(
             accumulator_elements,
             server_key.bootstrapping_key.polynomial_size(),
+            server_key.ciphertext_modulus,
         );
 
         let accumulator = LookupTableMutView {
@@ -83,8 +84,10 @@ impl Memory {
         let (after_ks_elements, after_pbs_elements) =
             other_elements.split_at_mut(num_elem_in_lwe_after_ks);
 
-        let buffer_lwe_after_ks = LweCiphertextMutView::from_container(after_ks_elements);
-        let buffer_lwe_after_pbs = LweCiphertextMutView::from_container(after_pbs_elements);
+        let buffer_lwe_after_ks =
+            LweCiphertextMutView::from_container(after_ks_elements, server_key.ciphertext_modulus);
+        let buffer_lwe_after_pbs =
+            LweCiphertextMutView::from_container(after_pbs_elements, server_key.ciphertext_modulus);
 
         BuffersRef {
             accumulator,
@@ -248,10 +251,11 @@ impl ShortintEngine {
     where
         F: Fn(u64) -> u64,
     {
-        let mut acc = GlweCiphertextOwned::<u64>::new(
+        let mut acc = GlweCiphertext::new(
             0,
             server_key.bootstrapping_key.glwe_size(),
             server_key.bootstrapping_key.polynomial_size(),
+            server_key.ciphertext_modulus,
         );
         let max_value = fill_accumulator(&mut acc, server_key, f);
 

@@ -1,4 +1,4 @@
-//! Module containing the definition of the SeededLwePublicKey.
+//! Module containing the definition of the [`SeededLwePublicKey`].
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
@@ -25,11 +25,16 @@ use crate::core_crypto::entities::*;
 /// $\vec{s}\in\mathbb{Z}\_q^n$ where $n$ is the LWE dimension of the ciphertexts contained in the
 /// public key.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct SeededLwePublicKey<C: Container> {
+pub struct SeededLwePublicKey<C: Container>
+where
+    C::Element: UnsignedInteger,
+{
     lwe_list: SeededLweCiphertextList<C>,
 }
 
-impl<C: Container> std::ops::Deref for SeededLwePublicKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> std::ops::Deref
+    for SeededLwePublicKey<C>
+{
     type Target = SeededLweCiphertextList<C>;
 
     fn deref(&self) -> &SeededLweCiphertextList<C> {
@@ -37,13 +42,15 @@ impl<C: Container> std::ops::Deref for SeededLwePublicKey<C> {
     }
 }
 
-impl<C: ContainerMut> std::ops::DerefMut for SeededLwePublicKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> std::ops::DerefMut
+    for SeededLwePublicKey<C>
+{
     fn deref_mut(&mut self) -> &mut SeededLweCiphertextList<C> {
         &mut self.lwe_list
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
     /// Create an [`SeededLwePublicKey`] from an existing container.
     ///
     /// # Note
@@ -62,14 +69,20 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
     /// // Define parameters for SeededLwePublicKey creation
     /// let lwe_size = LweSize(600);
     /// let zero_encryption_count = LwePublicKeyZeroEncryptionCount(3);
+    /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// // Get a seeder
     /// let mut seeder = new_seeder();
     /// let seeder = seeder.as_mut();
     ///
     /// // Create a new SeededLwePublicKey
-    /// let seeded_lwe_public_key =
-    ///     SeededLwePublicKey::new(0u64, lwe_size, zero_encryption_count, seeder.seed().into());
+    /// let seeded_lwe_public_key = SeededLwePublicKey::new(
+    ///     0u64,
+    ///     lwe_size,
+    ///     zero_encryption_count,
+    ///     seeder.seed().into(),
+    ///     ciphertext_modulus,
+    /// );
     ///
     /// // This is a method from LweCiphertextList
     /// assert_eq!(seeded_lwe_public_key.lwe_size(), lwe_size);
@@ -78,6 +91,10 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
     ///     seeded_lwe_public_key.zero_encryption_count(),
     ///     zero_encryption_count
     /// );
+    /// assert_eq!(
+    ///     seeded_lwe_public_key.ciphertext_modulus(),
+    ///     ciphertext_modulus
+    /// );
     ///
     /// let compression_seed = seeded_lwe_public_key.compression_seed();
     ///
@@ -85,13 +102,21 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
     /// let underlying_container: Vec<u64> = seeded_lwe_public_key.into_container();
     ///
     /// // Recreate a public key using from_container
-    /// let seeded_lwe_public_key =
-    ///     SeededLwePublicKey::from_container(underlying_container, lwe_size, compression_seed);
+    /// let seeded_lwe_public_key = SeededLwePublicKey::from_container(
+    ///     underlying_container,
+    ///     lwe_size,
+    ///     compression_seed,
+    ///     ciphertext_modulus,
+    /// );
     ///
     /// assert_eq!(seeded_lwe_public_key.lwe_size(), lwe_size);
     /// assert_eq!(
     ///     seeded_lwe_public_key.zero_encryption_count(),
     ///     zero_encryption_count
+    /// );
+    /// assert_eq!(
+    ///     seeded_lwe_public_key.ciphertext_modulus(),
+    ///     ciphertext_modulus
     /// );
     ///
     /// // Decompress the key
@@ -102,11 +127,13 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
     ///     lwe_public_key.zero_encryption_count(),
     ///     zero_encryption_count
     /// );
+    /// assert_eq!(lwe_public_key.ciphertext_modulus(), ciphertext_modulus);
     /// ```
     pub fn from_container(
         container: C,
         lwe_size: LweSize,
         compression_seed: CompressionSeed,
+        ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> SeededLwePublicKey<C> {
         assert!(
             container.container_len() > 0,
@@ -117,6 +144,7 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
                 container,
                 lwe_size,
                 compression_seed,
+                ciphertext_modulus,
             ),
         }
     }
@@ -143,8 +171,12 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
     where
         Scalar: UnsignedTorus,
     {
-        let mut decompressed_list =
-            LwePublicKey::new(Scalar::ZERO, self.lwe_size(), self.zero_encryption_count());
+        let mut decompressed_list = LwePublicKey::new(
+            Scalar::ZERO,
+            self.lwe_size(),
+            self.zero_encryption_count(),
+            self.ciphertext_modulus(),
+        );
         decompress_seeded_lwe_public_key::<_, _, _, ActivatedRandomGenerator>(
             &mut decompressed_list,
             &self,
@@ -155,23 +187,34 @@ impl<Scalar, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
     /// Return a view of the [`SeededLwePublicKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> SeededLwePublicKey<&'_ [Scalar]> {
-        SeededLwePublicKey::from_container(self.as_ref(), self.lwe_size(), self.compression_seed())
+        SeededLwePublicKey::from_container(
+            self.as_ref(),
+            self.lwe_size(),
+            self.compression_seed(),
+            self.ciphertext_modulus(),
+        )
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> SeededLwePublicKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLwePublicKey<C> {
     /// Mutable variant of [`SeededLwePublicKey::as_view`].
     pub fn as_mut_view(&mut self) -> SeededLwePublicKey<&'_ mut [Scalar]> {
         let lwe_size = self.lwe_size();
         let compression_seed = self.compression_seed();
-        SeededLwePublicKey::from_container(self.as_mut(), lwe_size, compression_seed)
+        let ciphertext_modulus = self.ciphertext_modulus();
+        SeededLwePublicKey::from_container(
+            self.as_mut(),
+            lwe_size,
+            compression_seed,
+            ciphertext_modulus,
+        )
     }
 }
 
 /// An [`SeededLwePublicKey`] owning the memory for its own storage.
 pub type SeededLwePublicKeyOwned<Scalar> = SeededLwePublicKey<Vec<Scalar>>;
 
-impl<Scalar: Copy> SeededLwePublicKeyOwned<Scalar> {
+impl<Scalar: UnsignedInteger> SeededLwePublicKeyOwned<Scalar> {
     /// Allocate memory and create a new owned [`SeededLwePublicKey`].
     ///
     /// # Note
@@ -186,11 +229,13 @@ impl<Scalar: Copy> SeededLwePublicKeyOwned<Scalar> {
         lwe_size: LweSize,
         zero_encryption_count: LwePublicKeyZeroEncryptionCount,
         compression_seed: CompressionSeed,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> SeededLwePublicKeyOwned<Scalar> {
         SeededLwePublicKeyOwned::from_container(
             vec![fill_with; zero_encryption_count.0],
             lwe_size,
             compression_seed,
+            ciphertext_modulus,
         )
     }
 }

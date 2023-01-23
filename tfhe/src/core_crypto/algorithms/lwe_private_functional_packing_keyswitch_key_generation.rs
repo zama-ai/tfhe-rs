@@ -62,6 +62,10 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
         output_glwe_secret_key.polynomial_size(),
         lwe_pfpksk.output_polynomial_size()
     );
+    assert!(
+        lwe_pfpksk.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
 
     // We instantiate a buffer
     let mut messages = PlaintextListOwned::new(
@@ -176,6 +180,10 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
         output_glwe_secret_key.polynomial_size(),
         lwe_pfpksk.output_polynomial_size()
     );
+    assert!(
+        lwe_pfpksk.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
 
     // We retrieve decomposition arguments
     let decomp_level_count = lwe_pfpksk.decomposition_level_count();
@@ -271,6 +279,8 @@ mod test {
 
             let var_small = Variance::from_variance(2f64.powf(-80.0));
 
+            let ciphertext_modulus = CiphertextModulus::new_native();
+
             // Create the PRNG
             let mut seeder = new_seeder();
             let mut secret_generator =
@@ -297,6 +307,7 @@ mod test {
                 pfpksk_base_log,
                 pfpksk_level_count,
                 var_small,
+                ciphertext_modulus,
                 &mut encryption_generator,
             );
 
@@ -314,6 +325,7 @@ mod test {
                 pfpksk_base_log,
                 pfpksk_level_count,
                 var_small,
+                ciphertext_modulus,
                 &mut encryption_generator,
             );
 

@@ -53,6 +53,7 @@ pub fn main() {
     let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
     let pbs_base_log = DecompositionBaseLog(23);
     let pbs_level = DecompositionLevelCount(1);
+    let ciphertext_modulus = CiphertextModulus::new_native();
 
     // Request the best seeder possible, starting with hardware entropy sources and falling back to
     // /dev/random on Unix systems if enabled via cargo features
@@ -89,6 +90,7 @@ pub fn main() {
         pbs_base_log,
         pbs_level,
         glwe_modular_std_dev,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
@@ -124,6 +126,7 @@ pub fn main() {
         &small_lwe_sk,
         plaintext,
         lwe_modular_std_dev,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
@@ -167,6 +170,7 @@ pub fn main() {
         polynomial_size: PolynomialSize,
         glwe_size: GlweSize,
         message_modulus: usize,
+        ciphertext_modulus: CiphertextModulus<u64>,
         delta: u64,
         f: F,
     ) -> GlweCiphertextOwned<u64>
@@ -202,7 +206,11 @@ pub fn main() {
         let accumulator_plaintext = PlaintextList::from_container(accumulator_u64);
 
         let accumulator =
-            allocate_and_trivially_encrypt_new_glwe_ciphertext(glwe_size, &accumulator_plaintext);
+            allocate_and_trivially_encrypt_new_glwe_ciphertext(
+                glwe_size,
+                &accumulator_plaintext,
+                ciphertext_modulus,
+            );
 
         accumulator
     }
@@ -212,13 +220,17 @@ pub fn main() {
         polynomial_size,
         glwe_dimension.to_glwe_size(),
         message_modulus as usize,
+        ciphertext_modulus,
         delta,
         |x: u64| 2 * x,
     );
 
     // Allocate the LweCiphertext to store the result of the PBS
-    let mut pbs_multiplication_ct =
-        LweCiphertext::new(0u64, big_lwe_sk.lwe_dimension().to_lwe_size());
+    let mut pbs_multiplication_ct = LweCiphertext::new(
+        0u64,
+        big_lwe_sk.lwe_dimension().to_lwe_size(),
+        ciphertext_modulus,
+    );
     println!("Computing PBS...");
     programmable_bootstrap_lwe_ciphertext(
         &lwe_ciphertext_in,

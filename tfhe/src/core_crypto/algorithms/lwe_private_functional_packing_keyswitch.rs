@@ -31,13 +31,30 @@ pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
-    assert!(
-        lwe_pfpksk.input_lwe_key_dimension().0
-            == input_lwe_ciphertext.lwe_size().to_lwe_dimension().0
+    assert_eq!(
+        lwe_pfpksk.input_lwe_key_dimension().0,
+        input_lwe_ciphertext.lwe_size().to_lwe_dimension().0
     );
+    assert_eq!(
+        lwe_pfpksk.output_glwe_key_dimension().0,
+        output_glwe_ciphertext.glwe_size().to_glwe_dimension().0
+    );
+
+    assert_eq!(
+        lwe_pfpksk.ciphertext_modulus(),
+        output_glwe_ciphertext.ciphertext_modulus()
+    );
+
+    assert_eq!(
+        output_glwe_ciphertext.ciphertext_modulus(),
+        input_lwe_ciphertext.ciphertext_modulus()
+    );
+
     assert!(
-        lwe_pfpksk.output_glwe_key_dimension().0
-            == output_glwe_ciphertext.glwe_size().to_glwe_dimension().0
+        input_lwe_ciphertext
+            .ciphertext_modulus()
+            .is_native_modulus(),
+        "This operation currently only supports native moduli"
     );
 
     // We reset the output
@@ -87,10 +104,21 @@ pub fn private_functional_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphert
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
+    assert_eq!(lwe_pfpksk.ciphertext_modulus(), output.ciphertext_modulus());
+    assert_eq!(output.ciphertext_modulus(), input.ciphertext_modulus());
+    assert!(
+        input.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
     assert!(input.lwe_ciphertext_count().0 <= output.polynomial_size().0);
     output.as_mut().fill(Scalar::ZERO);
-    let mut buffer =
-        GlweCiphertext::new(Scalar::ZERO, output.glwe_size(), output.polynomial_size());
+    let mut buffer = GlweCiphertext::new(
+        Scalar::ZERO,
+        output.glwe_size(),
+        output.polynomial_size(),
+        output.ciphertext_modulus(),
+    );
     // for each ciphertext, call mono_key_switch
     for (degree, input_ciphertext) in input.iter().enumerate() {
         private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext(

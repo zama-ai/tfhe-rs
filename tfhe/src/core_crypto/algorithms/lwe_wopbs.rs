@@ -33,6 +33,7 @@ pub fn allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar>
 where
@@ -41,6 +42,11 @@ where
     GlweKeyCont: Container<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    assert!(
+        ciphertext_modulus.is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
     let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyListOwned::new(
         Scalar::ZERO,
         decomp_base_log,
@@ -51,6 +57,7 @@ where
         FunctionalPackingKeyswitchKeyCount(
             output_glwe_secret_key.glwe_dimension().to_glwe_size().0,
         ),
+        ciphertext_modulus,
     );
 
     generate_circuit_bootstrap_lwe_pfpksk_list(
@@ -96,6 +103,13 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
         (output_glwe_key.glwe_dimension().to_glwe_size())",
         output_cbs_pfpksk_list.lwe_pfpksk_count().0,
         output_glwe_secret_key.glwe_dimension().to_glwe_size().0
+    );
+
+    assert!(
+        output_cbs_pfpksk_list
+            .ciphertext_modulus()
+            .is_native_modulus(),
+        "This operation currently only supports native moduli"
     );
 
     let decomp_level_count = output_cbs_pfpksk_list.decomposition_level_count();
@@ -158,6 +172,7 @@ pub fn par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter + Sync,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar>
 where
@@ -166,6 +181,11 @@ where
     GlweKeyCont: Container<Element = Scalar> + Sync,
     Gen: ParallelByteRandomGenerator,
 {
+    assert!(
+        ciphertext_modulus.is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
     let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyListOwned::new(
         Scalar::ZERO,
         decomp_base_log,
@@ -176,6 +196,7 @@ where
         FunctionalPackingKeyswitchKeyCount(
             output_glwe_secret_key.glwe_dimension().to_glwe_size().0,
         ),
+        ciphertext_modulus,
     );
 
     par_generate_circuit_bootstrap_lwe_pfpksk_list(
@@ -217,6 +238,13 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
         (output_glwe_key.glwe_dimension().to_glwe_size())",
         output_cbs_pfpksk_list.lwe_pfpksk_count().0,
         output_glwe_secret_key.glwe_dimension().to_glwe_size().0
+    );
+
+    assert!(
+        output_cbs_pfpksk_list
+            .ciphertext_modulus()
+            .is_native_modulus(),
+        "This operation currently only supports native moduli"
     );
 
     let decomp_level_count = output_cbs_pfpksk_list.decomposition_level_count();
@@ -311,6 +339,16 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized<
     BskCont: Container<Element = c64>,
     KSKCont: Container<Element = Scalar>,
 {
+    assert_eq!(
+        lwe_list_out.ciphertext_modulus(),
+        lwe_in.ciphertext_modulus()
+    );
+    assert_eq!(lwe_in.ciphertext_modulus(), ksk.ciphertext_modulus());
+    assert!(
+        ksk.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
     extract_bits(
         lwe_list_out.as_mut_view(),
         lwe_in.as_view(),
@@ -391,6 +429,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_dimension = GlweDimension(1);
 /// let lwe_dimension = LweDimension(481);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// let var_small = Variance::from_variance(2f64.powf(-80.0));
 /// let var_big = Variance::from_variance(2f64.powf(-70.0));
@@ -421,6 +460,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     bsk_base_log,
 ///     bsk_level_count,
 ///     var_small,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -441,6 +481,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     ksk_base_log,
 ///     ksk_level_count,
 ///     var_big,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -453,6 +494,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     pfpksk_base_log,
 ///     pfpksk_level_count,
 ///     var_small,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -525,6 +567,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     &lwe_big_sk,
 ///     encoded_message,
 ///     var_big,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -533,6 +576,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     0u64,
 ///     lwe_dimension.to_lwe_size(),
 ///     LweCiphertextCount(bits_to_extract.0),
+///     ciphertext_modulus,
 /// );
 ///
 /// extract_bits_from_lwe_ciphertext_mem_optimized(
@@ -568,6 +612,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///     0u64,
 ///     lwe_big_sk.lwe_dimension().to_lwe_size(),
 ///     number_of_luts_and_output_vp_ciphertexts,
+///     ciphertext_modulus,
 /// );
 ///
 /// circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(
@@ -627,6 +672,19 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimi
     BskCont: Container<Element = c64>,
     PFPKSKCont: Container<Element = Scalar>,
 {
+    assert_eq!(
+        lwe_list_out.ciphertext_modulus(),
+        lwe_list_in.ciphertext_modulus()
+    );
+    assert_eq!(
+        lwe_list_in.ciphertext_modulus(),
+        pfpksk_list.ciphertext_modulus()
+    );
+    assert!(
+        pfpksk_list.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
     circuit_bootstrap_boolean_vertical_packing(
         big_lut_as_polynomial_list.as_view(),
         fourier_bsk.as_view(),

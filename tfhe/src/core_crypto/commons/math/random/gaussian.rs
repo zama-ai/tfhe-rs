@@ -15,6 +15,7 @@ pub struct Gaussian<T: FloatingPoint> {
 macro_rules! implement_gaussian {
     ($T:ty, $S:ty) => {
         impl RandomGenerable<Gaussian<$T>> for ($T, $T) {
+            type CustomModulus = $T;
             fn generate_one<G: ByteRandomGenerator>(
                 generator: &mut RandomGenerator<G>,
                 Gaussian { std, mean }: Gaussian<$T>,
@@ -54,6 +55,8 @@ impl<Torus> RandomGenerable<Gaussian<f64>> for (Torus, Torus)
 where
     Torus: UnsignedTorus,
 {
+    type CustomModulus = f64;
+
     fn generate_one<G: ByteRandomGenerator>(
         generator: &mut RandomGenerator<G>,
         distribution: Gaussian<f64>,
@@ -64,17 +67,40 @@ where
             <Torus as FromTorus<f64>>::from_torus(s2),
         )
     }
+
+    fn generate_one_custom_modulus<G: ByteRandomGenerator>(
+        generator: &mut RandomGenerator<G>,
+        distribution: Gaussian<f64>,
+        custom_modulus: Self::CustomModulus,
+    ) -> Self {
+        let (s1, s2) = <(f64, f64)>::generate_one(generator, distribution);
+        (
+            <Torus as FromTorus<f64>>::from_torus_custom_modulus(s1, custom_modulus),
+            <Torus as FromTorus<f64>>::from_torus_custom_modulus(s2, custom_modulus),
+        )
+    }
 }
 
 impl<Torus> RandomGenerable<Gaussian<f64>> for Torus
 where
     Torus: UnsignedTorus,
 {
+    type CustomModulus = f64;
+
     fn generate_one<G: ByteRandomGenerator>(
         generator: &mut RandomGenerator<G>,
         distribution: Gaussian<f64>,
     ) -> Self {
         let (s1, _) = <(f64, f64)>::generate_one(generator, distribution);
         <Torus as FromTorus<f64>>::from_torus(s1)
+    }
+
+    fn generate_one_custom_modulus<G: ByteRandomGenerator>(
+        generator: &mut RandomGenerator<G>,
+        distribution: Gaussian<f64>,
+        custom_modulus: Self::CustomModulus,
+    ) -> Self {
+        let (s1, _) = <(f64, f64)>::generate_one(generator, distribution);
+        <Torus as FromTorus<f64>>::from_torus_custom_modulus(s1, custom_modulus)
     }
 }

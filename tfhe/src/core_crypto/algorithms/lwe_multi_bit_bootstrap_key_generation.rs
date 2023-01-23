@@ -24,6 +24,7 @@ use rayon::prelude::*;
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let grouping_factor = LweBskGroupingFactor(2);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -50,6 +51,7 @@ use rayon::prelude::*;
 ///     decomp_level_count,
 ///     input_lwe_dimension,
 ///     grouping_factor,
+///     ciphertext_modulus,
 /// );
 ///
 /// generate_lwe_multi_bit_bootstrap_key(
@@ -158,6 +160,7 @@ pub fn generate_lwe_multi_bit_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont,
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     Scalar,
     InputKeyCont,
@@ -170,6 +173,7 @@ pub fn allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     decomp_level_count: DecompositionLevelCount,
     grouping_factor: LweBskGroupingFactor,
     noise_parameters: impl DispersionParameter,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweMultiBitBootstrapKeyOwned<Scalar>
 where
@@ -186,6 +190,7 @@ where
         decomp_level_count,
         input_lwe_secret_key.lwe_dimension(),
         grouping_factor,
+        ciphertext_modulus,
     );
 
     generate_lwe_multi_bit_bootstrap_key(
@@ -214,6 +219,7 @@ where
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let grouping_factor = LweBskGroupingFactor(2);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -240,6 +246,7 @@ where
 ///     decomp_level_count,
 ///     input_lwe_dimension,
 ///     grouping_factor,
+///     ciphertext_modulus,
 /// );
 ///
 /// par_generate_lwe_multi_bit_bootstrap_key(
@@ -400,6 +407,7 @@ where
     key_bits_plaintext
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     Scalar,
     InputKeyCont,
@@ -412,6 +420,7 @@ pub fn par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key<
     decomp_level_count: DecompositionLevelCount,
     grouping_factor: LweBskGroupingFactor,
     noise_parameters: impl DispersionParameter + Sync,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweMultiBitBootstrapKeyOwned<Scalar>
 where
@@ -428,6 +437,7 @@ where
         decomp_level_count,
         input_lwe_secret_key.lwe_dimension(),
         grouping_factor,
+        ciphertext_modulus,
     );
 
     par_generate_lwe_multi_bit_bootstrap_key(

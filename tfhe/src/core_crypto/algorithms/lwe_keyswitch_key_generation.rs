@@ -25,6 +25,7 @@ use crate::core_crypto::entities::*;
 /// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -48,6 +49,7 @@ use crate::core_crypto::entities::*;
 ///     decomp_level_count,
 ///     input_lwe_dimension,
 ///     output_lwe_dimension,
+///     ciphertext_modulus,
 /// );
 ///
 /// generate_lwe_keyswitch_key(
@@ -90,6 +92,7 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
 
     let decomp_base_log = lwe_keyswitch_key.decomposition_base_log();
     let decomp_level_count = lwe_keyswitch_key.decomposition_level_count();
+    let ciphertext_modulus = lwe_keyswitch_key.ciphertext_modulus();
 
     // The plaintexts used to encrypt a key element will be stored in this buffer
     let mut decomposition_plaintexts_buffer =
@@ -107,8 +110,12 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
             .map(DecompositionLevel)
             .zip(decomposition_plaintexts_buffer.iter_mut())
         {
+            // Here  we take the decomposition term from the native torus, bring it to the torus we
+            // are working with by dividing by the scaling factor and the encryption will take care
+            // of mapping that back to the native torus
             *message.0 = DecompositionTerm::new(level, decomp_base_log, *input_key_element)
-                .to_recomposition_summand();
+                .to_recomposition_summand()
+                .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
         }
 
         encrypt_lwe_ciphertext_list(
@@ -131,6 +138,7 @@ pub fn allocate_and_generate_new_lwe_keyswitch_key<Scalar, InputKeyCont, OutputK
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweKeyswitchKeyOwned<Scalar>
 where
@@ -145,6 +153,7 @@ where
         decomp_level_count,
         input_lwe_sk.lwe_dimension(),
         output_lwe_sk.lwe_dimension(),
+        ciphertext_modulus,
     );
 
     generate_lwe_keyswitch_key(
@@ -172,6 +181,7 @@ where
 /// let output_lwe_dimension = LweDimension(2048);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(5);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -194,6 +204,7 @@ where
 ///     input_lwe_dimension,
 ///     output_lwe_dimension,
 ///     seeder.seed().into(),
+///     ciphertext_modulus,
 /// );
 ///
 /// generate_seeded_lwe_keyswitch_key(
@@ -243,6 +254,7 @@ pub fn generate_seeded_lwe_keyswitch_key<
 
     let decomp_base_log = lwe_keyswitch_key.decomposition_base_log();
     let decomp_level_count = lwe_keyswitch_key.decomposition_level_count();
+    let ciphertext_modulus = lwe_keyswitch_key.ciphertext_modulus();
 
     // The plaintexts used to encrypt a key element will be stored in this buffer
     let mut decomposition_plaintexts_buffer =
@@ -265,8 +277,12 @@ pub fn generate_seeded_lwe_keyswitch_key<
             .map(DecompositionLevel)
             .zip(decomposition_plaintexts_buffer.iter_mut())
         {
+            // Here  we take the decomposition term from the native torus, bring it to the torus we
+            // are working with by dividing by the scaling factor and the encryption will take care
+            // of mapping that back to the native torus
             *message.0 = DecompositionTerm::new(level, decomp_base_log, *input_key_element)
-                .to_recomposition_summand();
+                .to_recomposition_summand()
+                .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
         }
 
         encrypt_seeded_lwe_ciphertext_list_with_existing_generator(
@@ -293,6 +309,7 @@ pub fn allocate_and_generate_new_seeded_lwe_keyswitch_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweKeyswitchKeyOwned<Scalar>
 where
@@ -309,6 +326,7 @@ where
         input_lwe_sk.lwe_dimension(),
         output_lwe_sk.lwe_dimension(),
         noise_seeder.seed().into(),
+        ciphertext_modulus,
     );
 
     generate_seeded_lwe_keyswitch_key(
@@ -320,104 +338,4 @@ where
     );
 
     new_lwe_keyswitch_key
-}
-
-#[cfg(test)]
-mod test {
-    use crate::core_crypto::commons::generators::{
-        DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
-    };
-    use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
-    use crate::core_crypto::prelude::*;
-
-    fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus>() {
-        // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
-        // computations
-        // Define parameters for LweKeyswitchKey creation
-        let input_lwe_dimension = LweDimension(742);
-        let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
-        let output_lwe_dimension = LweDimension(2048);
-        let decomp_base_log = DecompositionBaseLog(3);
-        let decomp_level_count = DecompositionLevelCount(5);
-
-        // Create the PRNG
-        let mut seeder = new_seeder();
-        let seeder = seeder.as_mut();
-        let mask_seed = seeder.seed();
-        let deterministic_seeder_seed = seeder.seed();
-        let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-
-        const NB_TEST: usize = 10;
-
-        for _ in 0..NB_TEST {
-            // Create the LweSecretKey
-            let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-                input_lwe_dimension,
-                &mut secret_generator,
-            );
-            let output_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-                output_lwe_dimension,
-                &mut secret_generator,
-            );
-
-            let mut ksk = LweKeyswitchKey::new(
-                Scalar::ZERO,
-                decomp_base_log,
-                decomp_level_count,
-                input_lwe_dimension,
-                output_lwe_dimension,
-            );
-
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed);
-            let mut encryption_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-                    mask_seed,
-                    &mut deterministic_seeder,
-                );
-
-            generate_lwe_keyswitch_key(
-                &input_lwe_secret_key,
-                &output_lwe_secret_key,
-                &mut ksk,
-                lwe_modular_std_dev,
-                &mut encryption_generator,
-            );
-
-            let mut seeded_ksk = SeededLweKeyswitchKey::new(
-                Scalar::ZERO,
-                decomp_base_log,
-                decomp_level_count,
-                input_lwe_dimension,
-                output_lwe_dimension,
-                mask_seed.into(),
-            );
-
-            let mut deterministic_seeder =
-                DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seeder_seed);
-
-            generate_seeded_lwe_keyswitch_key(
-                &input_lwe_secret_key,
-                &output_lwe_secret_key,
-                &mut seeded_ksk,
-                lwe_modular_std_dev,
-                &mut deterministic_seeder,
-            );
-
-            let decompressed_ksk = seeded_ksk.decompress_into_lwe_keyswitch_key();
-
-            assert_eq!(ksk, decompressed_ksk);
-        }
-    }
-
-    #[test]
-    fn test_seeded_lwe_ksk_gen_equivalence_u32() {
-        test_seeded_lwe_ksk_gen_equivalence::<u32>()
-    }
-
-    #[test]
-    fn test_seeded_lwe_ksk_gen_equivalence_u64() {
-        test_seeded_lwe_ksk_gen_equivalence::<u64>()
-    }
 }

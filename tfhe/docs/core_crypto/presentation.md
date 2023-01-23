@@ -18,6 +18,7 @@ use tfhe::core_crypto::prelude::*;
 // Define parameters for LweCiphertext creation
 let lwe_dimension = LweDimension(742);
 let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+let ciphertext_modulus = CiphertextModulus::new_native();
 
 // Create the PRNG
 let mut seeder = new_seeder();
@@ -36,7 +37,7 @@ let msg = 3u64;
 let plaintext = Plaintext(msg << 60);
 
 // Create a new LweCiphertext
-let mut lwe = LweCiphertext::new(0u64, lwe_dimension.to_lwe_size());
+let mut lwe = LweCiphertext::new(0u64, lwe_dimension.to_lwe_size(), ciphertext_modulus);
 
 encrypt_lwe_ciphertext(
     &lwe_secret_key,

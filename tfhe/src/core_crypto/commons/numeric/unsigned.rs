@@ -33,6 +33,9 @@ pub trait UnsignedInteger:
     + CastFrom<Self::Signed>
     + CastFrom<f64>
     + CastInto<f64>
+    + CastFrom<u128>
+    + CastInto<u128>
+    + std::fmt::Binary
 {
     /// The signed type of the same precision.
     type Signed: SignedInteger<Unsigned = Self> + CastFrom<Self>;
@@ -48,6 +51,9 @@ pub trait UnsignedInteger:
     /// Compute a multiplication, modulo the max of the type.
     #[must_use]
     fn wrapping_mul(self, other: Self) -> Self;
+    /// Compute the remainder, modulo the max of the type.
+    #[must_use]
+    fn wrapping_rem(self, other: Self) -> Self;
     /// Compute a negation, modulo the max of the type.
     #[must_use]
     fn wrapping_neg(self) -> Self;
@@ -113,6 +119,10 @@ macro_rules! implement {
             #[inline]
             fn wrapping_mul(self, other: Self) -> Self {
                 self.wrapping_mul(other)
+            }
+            #[must_use]
+            fn wrapping_rem(self, other: Self) -> Self {
+                self.wrapping_rem(other)
             }
             #[inline]
             fn wrapping_neg(self) -> Self {

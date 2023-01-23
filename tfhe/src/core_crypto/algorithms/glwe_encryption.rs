@@ -2,6 +2,9 @@
 //! encryption`](`GlweCiphertext#glwe-encryption`).
 
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
+use crate::core_crypto::algorithms::slice_algorithms::{
+    slice_wrapping_scalar_div_assign, slice_wrapping_scalar_mul_assign,
+};
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
@@ -24,12 +27,28 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
     MaskCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    generator.unsigned_torus_slice_wrapping_add_random_noise_assign(
-        output_body.as_mut(),
-        noise_parameters,
+    assert_eq!(
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus(),
+        "Mismatched moduli between output_mask ({:?}) and output_body ({:?})",
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus()
     );
 
-    generator.fill_slice_with_random_mask(output_mask.as_mut());
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator.unsigned_torus_slice_wrapping_add_random_noise_custom_mod_assign(
+        output_body.as_mut(),
+        noise_parameters,
+        ciphertext_modulus,
+    );
+
+    if !ciphertext_modulus.is_native_modulus() {
+        let torus_scaling = ciphertext_modulus.get_scaling_to_native_torus();
+        slice_wrapping_scalar_mul_assign(output_mask.as_mut(), torus_scaling);
+        slice_wrapping_scalar_mul_assign(output_body.as_mut(), torus_scaling);
+    }
 
     polynomial_wrapping_add_multisum_assign(
         &mut output_body.as_mut_polynomial(),
@@ -56,6 +75,7 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -77,7 +97,7 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
 /// let encoded_msg = msg << 60;
 ///
 /// // Create a new GlweCiphertext
-/// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size);
+/// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);
 ///
 /// // Manually fill the body with the encoded message
 /// glwe.get_mut_body().as_mut().fill(encoded_msg);
@@ -193,6 +213,7 @@ pub fn encrypt_seeded_glwe_ciphertext_assign_with_existing_generator<
             )
         ],
         output.polynomial_size(),
+        output.ciphertext_modulus(),
     );
     let mut body = output.get_mut_body();
 
@@ -222,14 +243,30 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
     MaskCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    generator.fill_slice_with_random_noise(output_body.as_mut(), noise_parameters);
+    assert_eq!(
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus()
+    );
 
-    generator.fill_slice_with_random_mask(output_mask.as_mut());
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator.fill_slice_with_random_noise_custom_mod(
+        output_body.as_mut(),
+        noise_parameters,
+        ciphertext_modulus,
+    );
 
     polynomial_wrapping_add_assign(
         &mut output_body.as_mut_polynomial(),
         &encoded.as_polynomial(),
     );
+
+    if !ciphertext_modulus.is_native_modulus() {
+        let torus_scaling = ciphertext_modulus.get_scaling_to_native_torus();
+        slice_wrapping_scalar_mul_assign(output_mask.as_mut(), torus_scaling);
+        slice_wrapping_scalar_mul_assign(output_body.as_mut(), torus_scaling);
+    }
 
     polynomial_wrapping_add_multisum_assign(
         &mut output_body.as_mut_polynomial(),
@@ -256,6 +293,7 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -278,7 +316,7 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
 /// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
 ///
 /// // Create a new GlweCiphertext
-/// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size);
+/// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);
 ///
 /// encrypt_glwe_ciphertext(
 ///     &glwe_secret_key,
@@ -375,6 +413,7 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let glwe_count = GlweCiphertextCount(2);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -400,7 +439,13 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 /// );
 ///
 /// // Create a new GlweCiphertextList
-/// let mut glwe_list = GlweCiphertextList::new(0u64, glwe_size, polynomial_size, glwe_count);
+/// let mut glwe_list = GlweCiphertextList::new(
+///     0u64,
+///     glwe_size,
+///     polynomial_size,
+///     glwe_count,
+///     ciphertext_modulus,
+/// );
 ///
 /// encrypt_glwe_ciphertext_list(
 ///     &glwe_secret_key,
@@ -525,6 +570,8 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
         input_glwe_ciphertext.polynomial_size()
     );
 
+    let ciphertext_modulus = input_glwe_ciphertext.ciphertext_modulus();
+
     let (mask, body) = input_glwe_ciphertext.get_mask_and_body();
     output_plaintext_list
         .as_mut()
@@ -534,6 +581,13 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
         &mask.as_polynomial_list(),
         &glwe_secret_key.as_polynomial_list(),
     );
+
+    if !ciphertext_modulus.is_native_modulus() {
+        slice_wrapping_scalar_div_assign(
+            output_plaintext_list.as_mut(),
+            ciphertext_modulus.get_scaling_to_native_torus(),
+        );
+    }
 }
 
 /// Decrypt a [`GLWE ciphertext list`](`GlweCiphertextList`) in a (scalar) plaintext list.
@@ -604,6 +658,7 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -617,7 +672,7 @@ pub fn decrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont>(
 /// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
 ///
 /// // Create a new GlweCiphertext
-/// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size);
+/// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);
 ///
 /// trivially_encrypt_glwe_ciphertext(&mut glwe, &plaintext_list);
 ///
@@ -662,6 +717,15 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 
     mask.as_mut().fill(Scalar::ZERO);
     body.as_mut().copy_from_slice(encoded.as_ref());
+
+    let ciphertext_modulus = body.ciphertext_modulus();
+
+    if !ciphertext_modulus.is_native_modulus() {
+        slice_wrapping_scalar_mul_assign(
+            body.as_mut(),
+            ciphertext_modulus.get_scaling_to_native_torus(),
+        );
+    }
 }
 
 /// A trivial encryption uses a zero mask and no noise.
@@ -686,6 +750,7 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 /// // Define parameters for GlweCiphertext creation
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -699,7 +764,11 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 /// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
 ///
 /// // Create a new GlweCiphertext
-/// let mut glwe = allocate_and_trivially_encrypt_new_glwe_ciphertext(glwe_size, &plaintext_list);
+/// let mut glwe = allocate_and_trivially_encrypt_new_glwe_ciphertext(
+///     glwe_size,
+///     &plaintext_list,
+///     ciphertext_modulus,
+/// );
 ///
 /// // Here we show the content of the trivial encryption is actually the input data in clear and
 /// // that the mask is full of 0s
@@ -726,6 +795,7 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 pub fn allocate_and_trivially_encrypt_new_glwe_ciphertext<Scalar, InputCont>(
     glwe_size: GlweSize,
     encoded: &PlaintextList<InputCont>,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
 ) -> GlweCiphertextOwned<Scalar>
 where
     Scalar: UnsignedTorus,
@@ -733,10 +803,18 @@ where
 {
     let polynomial_size = PolynomialSize(encoded.plaintext_count().0);
 
-    let mut new_ct = GlweCiphertextOwned::new(Scalar::ZERO, glwe_size, polynomial_size);
+    let mut new_ct =
+        GlweCiphertextOwned::new(Scalar::ZERO, glwe_size, polynomial_size, ciphertext_modulus);
 
     let mut body = new_ct.get_mut_body();
     body.as_mut().copy_from_slice(encoded.as_ref());
+
+    if !ciphertext_modulus.is_native_modulus() {
+        slice_wrapping_scalar_mul_assign(
+            body.as_mut(),
+            ciphertext_modulus.get_scaling_to_native_torus(),
+        );
+    }
 
     new_ct
 }
@@ -786,12 +864,14 @@ pub fn encrypt_seeded_glwe_ciphertext_with_exsiting_generator<
 
     let glwe_dimension = output_glwe_ciphertext.glwe_size().to_glwe_dimension();
     let polynomial_size = output_glwe_ciphertext.polynomial_size();
+    let ciphertext_modulus = output_glwe_ciphertext.ciphertext_modulus();
 
     let mut body = output_glwe_ciphertext.get_mut_body();
 
     let mut tmp_mask = GlweMask::from_container(
         vec![Scalar::ZERO; glwe_ciphertext_mask_size(glwe_dimension, polynomial_size)],
         polynomial_size,
+        ciphertext_modulus,
     );
 
     fill_glwe_mask_and_body_for_encryption(
@@ -816,6 +896,7 @@ pub fn encrypt_seeded_glwe_ciphertext_with_exsiting_generator<
 /// let glwe_size = GlweSize(2);
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -838,8 +919,13 @@ pub fn encrypt_seeded_glwe_ciphertext_with_exsiting_generator<
 /// let plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
 ///
 /// // Create a new GlweCiphertext
-/// let mut glwe =
-///     SeededGlweCiphertext::new(0u64, glwe_size, polynomial_size, seeder.seed().into());
+/// let mut glwe = SeededGlweCiphertext::new(
+///     0u64,
+///     glwe_size,
+///     polynomial_size,
+///     seeder.seed().into(),
+///     ciphertext_modulus,
+/// );
 ///
 /// encrypt_seeded_glwe_ciphertext(
 ///     &glwe_secret_key,
@@ -953,6 +1039,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
             )
         ],
         output.polynomial_size(),
+        output.ciphertext_modulus(),
     );
 
     // TODO: use forking generators (for later parallel implementation).
@@ -987,6 +1074,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let glwe_count = GlweCiphertextCount(2);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -1018,6 +1106,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
 ///     polynomial_size,
 ///     glwe_count,
 ///     seeder.seed().into(),
+///     ciphertext_modulus,
 /// );
 ///
 /// encrypt_seeded_glwe_ciphertext_list(

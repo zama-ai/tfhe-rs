@@ -6,21 +6,29 @@ use crate::core_crypto::entities::*;
 
 /// An [`LWE private functional packing keyswitch key`](`LwePrivateFunctionalPackingKeyswitchKey`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct LwePrivateFunctionalPackingKeyswitchKey<C: Container> {
+pub struct LwePrivateFunctionalPackingKeyswitchKey<C: Container>
+where
+    C::Element: UnsignedInteger,
+{
     data: C,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     output_glwe_size: GlweSize,
     output_polynomial_size: PolynomialSize,
+    ciphertext_modulus: CiphertextModulus<C::Element>,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]> for LwePrivateFunctionalPackingKeyswitchKey<C> {
+impl<T: UnsignedInteger, C: Container<Element = T>> AsRef<[T]>
+    for LwePrivateFunctionalPackingKeyswitchKey<C>
+{
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
-impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LwePrivateFunctionalPackingKeyswitchKey<C> {
+impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]>
+    for LwePrivateFunctionalPackingKeyswitchKey<C>
+{
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
     }
@@ -54,7 +62,9 @@ pub fn lwe_pfpksk_size(
         )
 }
 
-impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
+    LwePrivateFunctionalPackingKeyswitchKey<C>
+{
     /// Create an [`LwePrivateFunctionalPackingKeyswitchKey`] from an existing container.
     ///
     /// # Note
@@ -79,6 +89,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
     /// let decomp_base_log = DecompositionBaseLog(8);
     /// let decomp_level_count = DecompositionLevelCount(3);
     /// let input_lwe_dimension = LweDimension(600);
+    /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// // Create a new LwePrivateFunctionalPackingKeyswitchKey
     /// let pfpksk = LwePrivateFunctionalPackingKeyswitchKey::new(
@@ -88,6 +99,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
     ///     input_lwe_dimension,
     ///     glwe_size,
     ///     polynomial_size,
+    ///     ciphertext_modulus,
     /// );
     ///
     /// assert_eq!(
@@ -99,6 +111,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
     /// assert_eq!(pfpksk.decomposition_base_log(), decomp_base_log);
     /// assert_eq!(pfpksk.decomposition_level_count(), decomp_level_count);
     /// assert_eq!(pfpksk.input_lwe_key_dimension(), input_lwe_dimension);
+    /// assert_eq!(pfpksk.ciphertext_modulus(), ciphertext_modulus);
     ///
     /// // Demonstrate how to recover the allocated container
     /// let underlying_container: Vec<u64> = pfpksk.into_container();
@@ -111,6 +124,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
     ///     input_lwe_dimension.to_lwe_size(),
     ///     glwe_size,
     ///     polynomial_size,
+    ///     ciphertext_modulus,
     /// );
     ///
     /// assert_eq!(
@@ -122,6 +136,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
     /// assert_eq!(pfpksk.decomposition_base_log(), decomp_base_log);
     /// assert_eq!(pfpksk.decomposition_level_count(), decomp_level_count);
     /// assert_eq!(pfpksk.input_lwe_key_dimension(), input_lwe_dimension);
+    /// assert_eq!(pfpksk.ciphertext_modulus(), ciphertext_modulus);
     /// ```
     pub fn from_container(
         container: C,
@@ -129,6 +144,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
         decomp_level_count: DecompositionLevelCount,
         output_glwe_size: GlweSize,
         output_polynomial_size: PolynomialSize,
+        ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> LwePrivateFunctionalPackingKeyswitchKey<C> {
         assert!(
             container.container_len() > 0,
@@ -161,6 +177,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
             decomp_level_count,
             output_glwe_size,
             output_polynomial_size,
+            ciphertext_modulus,
         }
     }
 
@@ -206,6 +223,13 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
         self.decomp_base_log
     }
 
+    /// Return the [`CiphertextModulus`] of the [`LwePrivateFunctionalPackingKeyswitchKey`].
+    ///
+    /// See [`LwePrivateFunctionalPackingKeyswitchKey::from_container`] for usage.
+    pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
+        self.ciphertext_modulus
+    }
+
     /// Return the number of elements in an encryption of an input [`LweSecretKey`] element of the
     /// current [`LwePrivateFunctionalPackingKeyswitchKey`].
     pub fn input_key_element_encrypted_size(&self) -> usize {
@@ -225,6 +249,7 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
             self.decomp_level_count,
             self.output_glwe_size,
             self.output_polynomial_size,
+            self.ciphertext_modulus,
         )
     }
 
@@ -236,13 +261,16 @@ impl<Scalar, C: Container<Element = Scalar>> LwePrivateFunctionalPackingKeyswitc
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeyswitchKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>>
+    LwePrivateFunctionalPackingKeyswitchKey<C>
+{
     /// Mutable variant of [`LwePrivateFunctionalPackingKeyswitchKey::as_view`].
     pub fn as_mut_view(&mut self) -> LwePrivateFunctionalPackingKeyswitchKey<&'_ mut [Scalar]> {
         let decomp_base_log = self.decomp_base_log;
         let decomp_level_count = self.decomp_level_count;
         let output_glwe_size = self.output_glwe_size;
         let output_polynomial_size = self.output_polynomial_size;
+        let ciphertext_modulus = self.ciphertext_modulus;
 
         LwePrivateFunctionalPackingKeyswitchKey::from_container(
             self.as_mut(),
@@ -250,6 +278,7 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeysw
             decomp_level_count,
             output_glwe_size,
             output_polynomial_size,
+            ciphertext_modulus,
         )
     }
 }
@@ -258,7 +287,7 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> LwePrivateFunctionalPackingKeysw
 pub type LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> =
     LwePrivateFunctionalPackingKeyswitchKey<Vec<Scalar>>;
 
-impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> {
+impl<Scalar: UnsignedInteger> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> {
     /// Create an [`LwePrivateFunctionalPackingKeyswitchKey`] from an existing container.
     ///
     /// # Note
@@ -278,6 +307,7 @@ impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> {
         input_key_lwe_dimension: LweDimension,
         output_glwe_size: GlweSize,
         output_polynomial_size: PolynomialSize,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> {
         LwePrivateFunctionalPackingKeyswitchKeyOwned::from_container(
             vec![
@@ -293,14 +323,17 @@ impl<Scalar: Copy> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> {
             decomp_level_count,
             output_glwe_size,
             output_polynomial_size,
+            ciphertext_modulus,
         )
     }
 }
 
-impl<C: Container> ContiguousEntityContainer for LwePrivateFunctionalPackingKeyswitchKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
+    for LwePrivateFunctionalPackingKeyswitchKey<C>
+{
     type Element = C::Element;
 
-    type EntityViewMetadata = GlweCiphertextListCreationMetadata;
+    type EntityViewMetadata = GlweCiphertextListCreationMetadata<Self::Element>;
 
     type EntityView<'this> = GlweCiphertextListView<'this, Self::Element>
     where
@@ -315,7 +348,11 @@ impl<C: Container> ContiguousEntityContainer for LwePrivateFunctionalPackingKeys
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        GlweCiphertextListCreationMetadata(self.output_glwe_size, self.output_polynomial_size)
+        GlweCiphertextListCreationMetadata(
+            self.output_glwe_size,
+            self.output_polynomial_size,
+            self.ciphertext_modulus,
+        )
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -332,7 +369,9 @@ impl<C: Container> ContiguousEntityContainer for LwePrivateFunctionalPackingKeys
     }
 }
 
-impl<C: ContainerMut> ContiguousEntityContainerMut for LwePrivateFunctionalPackingKeyswitchKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
+    for LwePrivateFunctionalPackingKeyswitchKey<C>
+{
     type EntityMutView<'this> = GlweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
@@ -347,15 +386,18 @@ impl<C: ContainerMut> ContiguousEntityContainerMut for LwePrivateFunctionalPacki
 /// Metadata used in the [`CreateFrom`] implementation to create
 /// [`LwePrivateFunctionalPackingKeyswitchKey`] entities.
 #[derive(Clone, Copy)]
-pub struct LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata(
+pub struct LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata<Scalar: UnsignedInteger>(
     pub DecompositionBaseLog,
     pub DecompositionLevelCount,
     pub GlweSize,
     pub PolynomialSize,
+    pub CiphertextModulus<Scalar>,
 );
 
-impl<C: Container> CreateFrom<C> for LwePrivateFunctionalPackingKeyswitchKey<C> {
-    type Metadata = LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata;
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
+    for LwePrivateFunctionalPackingKeyswitchKey<C>
+{
+    type Metadata = LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata<Scalar>;
 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> LwePrivateFunctionalPackingKeyswitchKey<C> {
@@ -364,6 +406,7 @@ impl<C: Container> CreateFrom<C> for LwePrivateFunctionalPackingKeyswitchKey<C> 
             decomp_level_count,
             output_glwe_size,
             output_polynomial_size,
+            ciphertext_modulus,
         ) = meta;
         LwePrivateFunctionalPackingKeyswitchKey::from_container(
             from,
@@ -371,6 +414,7 @@ impl<C: Container> CreateFrom<C> for LwePrivateFunctionalPackingKeyswitchKey<C> 
             decomp_level_count,
             output_glwe_size,
             output_polynomial_size,
+            ciphertext_modulus,
         )
     }
 }

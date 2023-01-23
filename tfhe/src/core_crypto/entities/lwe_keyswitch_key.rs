@@ -1,4 +1,4 @@
-//! Module containing the definition of the LweKeyswitchKey.
+//! Module containing the definition of the [`LweKeyswitchKey`].
 
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -74,20 +74,24 @@ use crate::core_crypto::entities::*;
 /// \right)$
 /// 3. output $\mathsf{ct}\_{\mathsf{out}}$
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct LweKeyswitchKey<C: Container> {
+pub struct LweKeyswitchKey<C: Container>
+where
+    C::Element: UnsignedInteger,
+{
     data: C,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     output_lwe_size: LweSize,
+    ciphertext_modulus: CiphertextModulus<C::Element>,
 }
 
-impl<T, C: Container<Element = T>> AsRef<[T]> for LweKeyswitchKey<C> {
+impl<T: UnsignedInteger, C: Container<Element = T>> AsRef<[T]> for LweKeyswitchKey<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()
     }
 }
 
-impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for LweKeyswitchKey<C> {
+impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for LweKeyswitchKey<C> {
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
     }
@@ -103,7 +107,7 @@ pub fn lwe_keyswitch_key_input_key_element_encrypted_size(
     decomp_level_count.0 * output_lwe_size.0
 }
 
-impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
     /// Create an [`LweKeyswitchKey`] from an existing container.
     ///
     /// # Note
@@ -124,6 +128,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
     /// let output_lwe_dimension = LweDimension(1024);
     /// let decomp_base_log = DecompositionBaseLog(4);
     /// let decomp_level_count = DecompositionLevelCount(5);
+    /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// // Create a new LweKeyswitchKey
     /// let lwe_ksk = LweKeyswitchKey::new(
@@ -132,6 +137,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
     ///     decomp_level_count,
     ///     input_lwe_dimension,
     ///     output_lwe_dimension,
+    ///     ciphertext_modulus,
     /// );
     ///
     /// assert_eq!(lwe_ksk.decomposition_base_log(), decomp_base_log);
@@ -142,6 +148,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
     ///     lwe_ksk.output_lwe_size(),
     ///     output_lwe_dimension.to_lwe_size()
     /// );
+    /// assert_eq!(lwe_ksk.ciphertext_modulus(), ciphertext_modulus);
     ///
     /// // Demonstrate how to recover the allocated container
     /// let underlying_container: Vec<u64> = lwe_ksk.into_container();
@@ -152,6 +159,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
     ///     decomp_base_log,
     ///     decomp_level_count,
     ///     output_lwe_dimension.to_lwe_size(),
+    ///     ciphertext_modulus,
     /// );
     ///
     /// assert_eq!(lwe_ksk.decomposition_base_log(), decomp_base_log);
@@ -162,12 +170,14 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
     ///     lwe_ksk.output_lwe_size(),
     ///     output_lwe_dimension.to_lwe_size()
     /// );
+    /// assert_eq!(lwe_ksk.ciphertext_modulus(), ciphertext_modulus);
     /// ```
     pub fn from_container(
         container: C,
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         output_lwe_size: LweSize,
+        ciphertext_modulus: CiphertextModulus<C::Element>,
     ) -> Self {
         assert!(
             container.container_len() > 0,
@@ -188,6 +198,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
             decomp_base_log,
             decomp_level_count,
             output_lwe_size,
+            ciphertext_modulus,
         }
     }
 
@@ -243,6 +254,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
             self.decomp_base_log,
             self.decomp_level_count,
             self.output_lwe_size,
+            self.ciphertext_modulus,
         )
     }
 
@@ -254,34 +266,45 @@ impl<Scalar, C: Container<Element = Scalar>> LweKeyswitchKey<C> {
     }
 
     pub fn as_lwe_ciphertext_list(&self) -> LweCiphertextListView<'_, Scalar> {
-        LweCiphertextListView::from_container(self.as_ref(), self.output_lwe_size())
+        LweCiphertextListView::from_container(
+            self.as_ref(),
+            self.output_lwe_size(),
+            self.ciphertext_modulus(),
+        )
+    }
+
+    pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
+        self.ciphertext_modulus
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> LweKeyswitchKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweKeyswitchKey<C> {
     /// Mutable variant of [`LweKeyswitchKey::as_view`].
     pub fn as_mut_view(&mut self) -> LweKeyswitchKey<&'_ mut [Scalar]> {
         let decomp_base_log = self.decomp_base_log;
         let decomp_level_count = self.decomp_level_count;
         let output_lwe_size = self.output_lwe_size;
+        let ciphertext_modulus = self.ciphertext_modulus;
         LweKeyswitchKey::from_container(
             self.as_mut(),
             decomp_base_log,
             decomp_level_count,
             output_lwe_size,
+            ciphertext_modulus,
         )
     }
 
     pub fn as_mut_lwe_ciphertext_list(&mut self) -> LweCiphertextListMutView<'_, Scalar> {
         let output_lwe_size = self.output_lwe_size();
-        LweCiphertextListMutView::from_container(self.as_mut(), output_lwe_size)
+        let ciphertext_modulus = self.ciphertext_modulus();
+        LweCiphertextListMutView::from_container(self.as_mut(), output_lwe_size, ciphertext_modulus)
     }
 }
 
 /// An [`LweKeyswitchKey`] owning the memory for its own storage.
 pub type LweKeyswitchKeyOwned<Scalar> = LweKeyswitchKey<Vec<Scalar>>;
 
-impl<Scalar: Copy> LweKeyswitchKeyOwned<Scalar> {
+impl<Scalar: UnsignedInteger> LweKeyswitchKeyOwned<Scalar> {
     /// Allocate memory and create a new owned [`LweKeyswitchKey`].
     ///
     /// # Note
@@ -297,6 +320,7 @@ impl<Scalar: Copy> LweKeyswitchKeyOwned<Scalar> {
         decomp_level_count: DecompositionLevelCount,
         input_key_lwe_dimension: LweDimension,
         output_key_lwe_dimension: LweDimension,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> LweKeyswitchKeyOwned<Scalar> {
         LweKeyswitchKeyOwned::from_container(
             vec![
@@ -310,14 +334,17 @@ impl<Scalar: Copy> LweKeyswitchKeyOwned<Scalar> {
             decomp_base_log,
             decomp_level_count,
             output_key_lwe_dimension.to_lwe_size(),
+            ciphertext_modulus,
         )
     }
 }
 
-impl<C: Container> ContiguousEntityContainer for LweKeyswitchKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
+    for LweKeyswitchKey<C>
+{
     type Element = C::Element;
 
-    type EntityViewMetadata = LweCiphertextListCreationMetadata;
+    type EntityViewMetadata = LweCiphertextListCreationMetadata<Self::Element>;
 
     type EntityView<'this> = LweCiphertextListView<'this, Self::Element>
     where
@@ -331,8 +358,8 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKey<C> {
     where
         Self: 'this;
 
-    fn get_entity_view_creation_metadata(&self) -> LweCiphertextListCreationMetadata {
-        LweCiphertextListCreationMetadata(self.output_lwe_size())
+    fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        LweCiphertextListCreationMetadata(self.output_lwe_size(), self.ciphertext_modulus())
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -341,7 +368,7 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKey<C> {
 
     /// Unimplemented for [`LweKeyswitchKey`]. At the moment it does not make sense to
     /// return "sub" keyswitch keys.
-    fn get_self_view_creation_metadata(&self) {
+    fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
         unimplemented!(
             "This function is not supported for LweKeyswitchKey. \
         At the moment it does not make sense to return 'sub' keyswitch keys."
@@ -349,7 +376,9 @@ impl<C: Container> ContiguousEntityContainer for LweKeyswitchKey<C> {
     }
 }
 
-impl<C: ContainerMut> ContiguousEntityContainerMut for LweKeyswitchKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
+    for LweKeyswitchKey<C>
+{
     type EntityMutView<'this> = LweCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;

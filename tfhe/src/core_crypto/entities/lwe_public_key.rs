@@ -1,4 +1,4 @@
-//! Module containing the definition of the LwePublicKey.
+//! Module containing the definition of the [`LwePublicKey`].
 
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -21,11 +21,14 @@ use crate::core_crypto::entities::*;
 /// $\vec{s}\in\mathbb{Z}\_q^n$ where $n$ is the LWE dimension of the ciphertexts contained in the
 /// public key.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct LwePublicKey<C: Container> {
+pub struct LwePublicKey<C: Container>
+where
+    C::Element: UnsignedInteger,
+{
     lwe_list: LweCiphertextList<C>,
 }
 
-impl<C: Container> std::ops::Deref for LwePublicKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> std::ops::Deref for LwePublicKey<C> {
     type Target = LweCiphertextList<C>;
 
     fn deref(&self) -> &LweCiphertextList<C> {
@@ -33,13 +36,15 @@ impl<C: Container> std::ops::Deref for LwePublicKey<C> {
     }
 }
 
-impl<C: ContainerMut> std::ops::DerefMut for LwePublicKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> std::ops::DerefMut
+    for LwePublicKey<C>
+{
     fn deref_mut(&mut self) -> &mut LweCiphertextList<C> {
         &mut self.lwe_list
     }
 }
 
-impl<Scalar, C: Container<Element = Scalar>> LwePublicKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LwePublicKey<C> {
     /// Create an [`LwePublicKey`] from an existing container.
     ///
     /// # Note
@@ -58,9 +63,11 @@ impl<Scalar, C: Container<Element = Scalar>> LwePublicKey<C> {
     /// // Define parameters for LwePublicKey creation
     /// let lwe_size = LweSize(600);
     /// let zero_encryption_count = LwePublicKeyZeroEncryptionCount(3);
+    /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// // Create a new LwePublicKey
-    /// let lwe_public_key = LwePublicKey::new(0u64, lwe_size, zero_encryption_count);
+    /// let lwe_public_key =
+    ///     LwePublicKey::new(0u64, lwe_size, zero_encryption_count, ciphertext_modulus);
     ///
     /// // This is a method from LweCiphertextList
     /// assert_eq!(lwe_public_key.lwe_size(), lwe_size);
@@ -69,26 +76,33 @@ impl<Scalar, C: Container<Element = Scalar>> LwePublicKey<C> {
     ///     lwe_public_key.zero_encryption_count(),
     ///     zero_encryption_count
     /// );
+    /// assert_eq!(lwe_public_key.ciphertext_modulus(), ciphertext_modulus);
     ///
     /// // Demonstrate how to recover the allocated container
     /// let underlying_container: Vec<u64> = lwe_public_key.into_container();
     ///
     /// // Recreate a public key using from_container
-    /// let lwe_public_key = LwePublicKey::from_container(underlying_container, lwe_size);
+    /// let lwe_public_key =
+    ///     LwePublicKey::from_container(underlying_container, lwe_size, ciphertext_modulus);
     ///
     /// assert_eq!(lwe_public_key.lwe_size(), lwe_size);
     /// assert_eq!(
     ///     lwe_public_key.zero_encryption_count(),
     ///     zero_encryption_count
     /// );
+    /// assert_eq!(lwe_public_key.ciphertext_modulus(), ciphertext_modulus);
     /// ```
-    pub fn from_container(container: C, lwe_size: LweSize) -> LwePublicKey<C> {
+    pub fn from_container(
+        container: C,
+        lwe_size: LweSize,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> LwePublicKey<C> {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create an LwePublicKey"
         );
         LwePublicKey {
-            lwe_list: LweCiphertextList::from_container(container, lwe_size),
+            lwe_list: LweCiphertextList::from_container(container, lwe_size, ciphertext_modulus),
         }
     }
 
@@ -109,22 +123,23 @@ impl<Scalar, C: Container<Element = Scalar>> LwePublicKey<C> {
     /// Return a view of the [`LwePublicKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> LwePublicKey<&'_ [Scalar]> {
-        LwePublicKey::from_container(self.as_ref(), self.lwe_size())
+        LwePublicKey::from_container(self.as_ref(), self.lwe_size(), self.ciphertext_modulus())
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> LwePublicKey<C> {
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LwePublicKey<C> {
     /// Mutable variant of [`LwePublicKey::as_view`].
     pub fn as_mut_view(&mut self) -> LwePublicKey<&'_ mut [Scalar]> {
         let lwe_size = self.lwe_size();
-        LwePublicKey::from_container(self.as_mut(), lwe_size)
+        let ciphertext_modulus = self.ciphertext_modulus();
+        LwePublicKey::from_container(self.as_mut(), lwe_size, ciphertext_modulus)
     }
 }
 
 /// An [`LwePublicKey`] owning the memory for its own storage.
 pub type LwePublicKeyOwned<Scalar> = LwePublicKey<Vec<Scalar>>;
 
-impl<Scalar: Copy> LwePublicKeyOwned<Scalar> {
+impl<Scalar: UnsignedInteger> LwePublicKeyOwned<Scalar> {
     /// Allocate memory and create a new owned [`LwePublicKey`].
     ///
     /// # Note
@@ -138,10 +153,12 @@ impl<Scalar: Copy> LwePublicKeyOwned<Scalar> {
         fill_with: Scalar,
         lwe_size: LweSize,
         zero_encryption_count: LwePublicKeyZeroEncryptionCount,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> LwePublicKeyOwned<Scalar> {
         LwePublicKeyOwned::from_container(
             vec![fill_with; lwe_size.0 * zero_encryption_count.0],
             lwe_size,
+            ciphertext_modulus,
         )
     }
 }

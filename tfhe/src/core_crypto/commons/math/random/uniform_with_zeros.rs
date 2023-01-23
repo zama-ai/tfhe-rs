@@ -13,6 +13,7 @@ pub struct UniformWithZeros {
 macro_rules! implement_uniform_with_zeros {
     ($T:ty, $bits:literal) => {
         impl RandomGenerable<UniformWithZeros> for $T {
+            type CustomModulus = $T;
             #[allow(unused)]
             fn generate_one<G: ByteRandomGenerator>(
                 generator: &mut RandomGenerator<G>,

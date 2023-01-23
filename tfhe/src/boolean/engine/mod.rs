@@ -122,6 +122,7 @@ impl BooleanEngine {
             &client_key.lwe_secret_key,
             zero_encryption_count,
             client_key.parameters.lwe_modular_std_dev,
+            CiphertextModulus::new_native(),
             &mut self.encryption_generator,
         );
 
@@ -130,6 +131,7 @@ impl BooleanEngine {
             &client_key.lwe_secret_key,
             zero_encryption_count,
             client_key.parameters.lwe_modular_std_dev,
+            CiphertextModulus::new_native(),
             &mut self.encryption_generator,
         );
 
@@ -156,6 +158,7 @@ impl BooleanEngine {
             &cks.lwe_secret_key,
             plain,
             cks.parameters.lwe_modular_std_dev,
+            CiphertextModulus::new_native(),
             &mut self.encryption_generator,
         );
 
@@ -175,6 +178,7 @@ impl BooleanEngine {
             &cks.lwe_secret_key,
             plain,
             cks.parameters.lwe_modular_std_dev,
+            CiphertextModulus::new_native(),
             &mut self.bootstrapper.seeder,
         );
 
@@ -189,7 +193,11 @@ impl BooleanEngine {
             Plaintext(PLAINTEXT_FALSE)
         };
 
-        let mut output = LweCiphertext::new(0u32, pks.parameters.lwe_dimension.to_lwe_size());
+        let mut output = LweCiphertext::new(
+            0u32,
+            pks.parameters.lwe_dimension.to_lwe_size(),
+            CiphertextModulus::new_native(),
+        );
 
         // encryption
         encrypt_lwe_ciphertext_with_public_key(
@@ -292,6 +300,7 @@ impl BooleanEngine {
                         .input_lwe_dimension()
                         .to_lwe_size(),
                     plain,
+                    CiphertextModulus::new_native(),
                 )
             }
         }
@@ -338,7 +347,7 @@ impl BooleanEngine {
                     };
                 }
 
-                // convert inputs into LweCiphertext32
+                // convert inputs into LweCiphertextOwned<u32>
                 let ct_then_ct = self.convert_into_lwe_ciphertext_32(ct_then, server_key);
                 let ct_else_ct = self.convert_into_lwe_ciphertext_32(ct_else, server_key);
 
@@ -348,6 +357,7 @@ impl BooleanEngine {
                         .bootstrapping_key
                         .input_lwe_dimension()
                         .to_lwe_size(),
+                    ct_condition_ct.ciphertext_modulus(),
                 );
 
                 let buffer_lwe_before_pbs = &mut buffer_lwe_before_pbs_o;
@@ -413,6 +423,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                         .bootstrapping_key
                         .input_lwe_dimension()
                         .to_lwe_size(),
+                    ct_left_ct.ciphertext_modulus(),
                 );
 
                 let bootstrapper = &mut self.bootstrapper;
@@ -455,6 +466,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                         .bootstrapping_key
                         .input_lwe_dimension()
                         .to_lwe_size(),
+                    ct_left_ct.ciphertext_modulus(),
                 );
                 let bootstrapper = &mut self.bootstrapper;
 
@@ -497,6 +509,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                         .bootstrapping_key
                         .input_lwe_dimension()
                         .to_lwe_size(),
+                    ct_left_ct.ciphertext_modulus(),
                 );
                 let bootstrapper = &mut self.bootstrapper;
 
@@ -540,6 +553,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                         .bootstrapping_key
                         .input_lwe_dimension()
                         .to_lwe_size(),
+                    ct_left_ct.ciphertext_modulus(),
                 );
                 let bootstrapper = &mut self.bootstrapper;
 
@@ -581,6 +595,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                         .bootstrapping_key
                         .input_lwe_dimension()
                         .to_lwe_size(),
+                    ct_left_ct.ciphertext_modulus(),
                 );
                 let bootstrapper = &mut self.bootstrapper;
 
@@ -625,6 +640,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                         .bootstrapping_key
                         .input_lwe_dimension()
                         .to_lwe_size(),
+                    ct_left_ct.ciphertext_modulus(),
                 );
                 let bootstrapper = &mut self.bootstrapper;
 

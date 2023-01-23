@@ -3,7 +3,7 @@ use criterion::*;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key,
-    par_allocate_and_generate_new_lwe_bootstrap_key, ActivatedRandomGenerator,
+    par_allocate_and_generate_new_lwe_bootstrap_key, ActivatedRandomGenerator, CiphertextModulus,
     EncryptionRandomGenerator, SecretRandomGenerator,
 };
 use tfhe::core_crypto::seeders::new_seeder;
@@ -34,6 +34,7 @@ fn criterion_bench(c: &mut Criterion) {
                 parameters.pbs_base_log,
                 parameters.pbs_level,
                 parameters.glwe_modular_std_dev,
+                CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );
         });

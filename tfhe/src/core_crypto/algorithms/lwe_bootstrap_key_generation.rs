@@ -31,6 +31,7 @@ use rayon::prelude::*;
 /// let glwe_dimension = GlweDimension(1);
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -56,6 +57,7 @@ use rayon::prelude::*;
 ///     decomp_base_log,
 ///     decomp_level_count,
 ///     input_lwe_dimension,
+///     ciphertext_modulus,
 /// );
 ///
 /// generate_lwe_bootstrap_key(
@@ -144,6 +146,7 @@ pub fn allocate_and_generate_new_lwe_bootstrap_key<Scalar, InputKeyCont, OutputK
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweBootstrapKeyOwned<Scalar>
 where
@@ -159,6 +162,7 @@ where
         decomp_base_log,
         decomp_level_count,
         input_lwe_secret_key.lwe_dimension(),
+        ciphertext_modulus,
     );
 
     generate_lwe_bootstrap_key(
@@ -174,6 +178,62 @@ where
 
 /// Parallel variant of [`generate_lwe_bootstrap_key`], it is recommended to use this function for
 /// better key generation times as LWE bootstrapping keys can be quite large.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweBootstrapKey creation
+/// let input_lwe_dimension = LweDimension(742);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let output_lwe_dimension = LweDimension(2048);
+/// let decomp_base_log = DecompositionBaseLog(3);
+/// let decomp_level_count = DecompositionLevelCount(5);
+/// let glwe_dimension = GlweDimension(1);
+/// let polynomial_size = PolynomialSize(1024);
+/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// let ciphertext_modulus = CiphertextModulus::new_native();
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let input_lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(input_lwe_dimension, &mut secret_generator);
+/// let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_dimension,
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+///
+/// let mut bsk = LweBootstrapKey::new(
+///     0u64,
+///     glwe_dimension.to_glwe_size(),
+///     polynomial_size,
+///     decomp_base_log,
+///     decomp_level_count,
+///     input_lwe_dimension,
+///     ciphertext_modulus,
+/// );
+///
+/// par_generate_lwe_bootstrap_key(
+///     &input_lwe_secret_key,
+///     &output_glwe_secret_key,
+///     &mut bsk,
+///     glwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// assert!(bsk.as_ref().iter().all(|&x| x == 0) == false);
+/// ```
 pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
     output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
@@ -232,7 +292,7 @@ pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Outpu
                 noise_parameters,
                 &mut generator,
             );
-        })
+        });
 }
 
 /// Parallel variant of [`allocate_and_generate_new_lwe_bootstrap_key`], it is recommended to use
@@ -245,6 +305,7 @@ pub fn par_allocate_and_generate_new_lwe_bootstrap_key<Scalar, InputKeyCont, Out
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter + Sync,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> LweBootstrapKeyOwned<Scalar>
 where
@@ -260,6 +321,7 @@ where
         decomp_base_log,
         decomp_level_count,
         input_lwe_secret_key.lwe_dimension(),
+        ciphertext_modulus,
     );
 
     par_generate_lwe_bootstrap_key(
@@ -368,6 +430,7 @@ pub fn allocate_and_generate_new_seeded_lwe_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweBootstrapKeyOwned<Scalar>
 where
@@ -385,6 +448,7 @@ where
         decomp_level_count,
         input_lwe_secret_key.lwe_dimension(),
         noise_seeder.seed().into(),
+        ciphertext_modulus,
     );
 
     generate_seeded_lwe_bootstrap_key(
@@ -486,6 +550,7 @@ pub fn par_allocate_and_generate_new_seeded_lwe_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_parameters: impl DispersionParameter + Sync,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     noise_seeder: &mut NoiseSeeder,
 ) -> SeededLweBootstrapKeyOwned<Scalar>
 where
@@ -503,6 +568,7 @@ where
         decomp_level_count,
         input_lwe_secret_key.lwe_dimension(),
         noise_seeder.seed().into(),
+        ciphertext_modulus,
     );
 
     par_generate_seeded_lwe_bootstrap_key(
@@ -514,156 +580,4 @@ where
     );
 
     bsk
-}
-
-#[cfg(test)]
-mod parallel_test {
-    use crate::core_crypto::algorithms::*;
-    use crate::core_crypto::commons::dispersion::StandardDev;
-    use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
-    use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seed};
-    use crate::core_crypto::commons::math::torus::UnsignedTorus;
-    use crate::core_crypto::commons::parameters::{
-        DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
-    };
-    use crate::core_crypto::commons::test_tools::new_secret_random_generator;
-    use crate::core_crypto::entities::*;
-
-    fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>() {
-        for _ in 0..10 {
-            let lwe_dim =
-                LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
-            let glwe_dim =
-                GlweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
-            let poly_size = PolynomialSize(
-                crate::core_crypto::commons::test_tools::random_usize_between(5..10),
-            );
-            let level = DecompositionLevelCount(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
-            let base_log = DecompositionBaseLog(
-                crate::core_crypto::commons::test_tools::random_usize_between(2..5),
-            );
-            let mask_seed = Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
-            let deterministic_seeder_seed =
-                Seed(crate::core_crypto::commons::test_tools::any_usize() as u128);
-
-            let mut secret_generator = new_secret_random_generator();
-            let lwe_sk =
-                allocate_and_generate_new_binary_lwe_secret_key(lwe_dim, &mut secret_generator);
-            let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
-                glwe_dim,
-                poly_size,
-                &mut secret_generator,
-            );
-
-            let mut parallel_bsk = LweBootstrapKeyOwned::new(
-                T::ZERO,
-                glwe_dim.to_glwe_size(),
-                poly_size,
-                base_log,
-                level,
-                lwe_dim,
-            );
-
-            let mut encryption_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-                    mask_seed,
-                    &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(
-                        deterministic_seeder_seed,
-                    ),
-                );
-
-            par_generate_lwe_bootstrap_key(
-                &lwe_sk,
-                &glwe_sk,
-                &mut parallel_bsk,
-                StandardDev::from_standard_dev(10.),
-                &mut encryption_generator,
-            );
-
-            let mut sequential_bsk = LweBootstrapKeyOwned::new(
-                T::ZERO,
-                glwe_dim.to_glwe_size(),
-                poly_size,
-                base_log,
-                level,
-                lwe_dim,
-            );
-
-            let mut encryption_generator =
-                EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-                    mask_seed,
-                    &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(
-                        deterministic_seeder_seed,
-                    ),
-                );
-
-            generate_lwe_bootstrap_key(
-                &lwe_sk,
-                &glwe_sk,
-                &mut sequential_bsk,
-                StandardDev::from_standard_dev(10.),
-                &mut encryption_generator,
-            );
-
-            assert_eq!(parallel_bsk, sequential_bsk);
-
-            let mut sequential_seeded_bsk = SeededLweBootstrapKey::new(
-                T::ZERO,
-                glwe_dim.to_glwe_size(),
-                poly_size,
-                base_log,
-                level,
-                lwe_dim,
-                mask_seed.into(),
-            );
-
-            generate_seeded_lwe_bootstrap_key(
-                &lwe_sk,
-                &glwe_sk,
-                &mut sequential_seeded_bsk,
-                StandardDev::from_standard_dev(10.),
-                &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(
-                    deterministic_seeder_seed,
-                ),
-            );
-
-            let mut parallel_seeded_bsk = SeededLweBootstrapKey::new(
-                T::ZERO,
-                glwe_dim.to_glwe_size(),
-                poly_size,
-                base_log,
-                level,
-                lwe_dim,
-                mask_seed.into(),
-            );
-
-            par_generate_seeded_lwe_bootstrap_key(
-                &lwe_sk,
-                &glwe_sk,
-                &mut parallel_seeded_bsk,
-                StandardDev::from_standard_dev(10.),
-                &mut DeterministicSeeder::<ActivatedRandomGenerator>::new(
-                    deterministic_seeder_seed,
-                ),
-            );
-
-            assert_eq!(sequential_seeded_bsk, parallel_seeded_bsk);
-
-            let decompressed_bsk = sequential_seeded_bsk.decompress_into_lwe_bootstrap_key();
-
-            assert_eq!(decompressed_bsk, sequential_bsk);
-        }
-    }
-
-    #[test]
-    fn test_parallel_and_seeded_bsk_gen_equivalence_u32() {
-        test_parallel_and_seeded_bsk_gen_equivalence::<u32>()
-    }
-
-    #[test]
-    fn test_parallel_and_seeded_bsk_gen_equivalence_u64() {
-        test_parallel_and_seeded_bsk_gen_equivalence::<u64>()
-    }
 }

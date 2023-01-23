@@ -8,6 +8,7 @@ pub struct Uniform;
 macro_rules! implement_uniform {
     ($T:ty) => {
         impl RandomGenerable<Uniform> for $T {
+            type CustomModulus = $T;
             #[allow(unused)]
             fn generate_one<G: ByteRandomGenerator>(
                 generator: &mut RandomGenerator<G>,

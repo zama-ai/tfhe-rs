@@ -222,6 +222,7 @@ impl WopbsKey {
             0u64,
             extract_bits_output_lwe_size,
             LweCiphertextCount(total_bits_extracted),
+            self.wopbs_key.param.ciphertext_modulus,
         );
 
         let mut bits_extracted_so_far = 0;
@@ -306,6 +307,7 @@ impl WopbsKey {
             0u64,
             extract_bits_output_lwe_size,
             LweCiphertextCount(total_bits_extracted),
+            self.wopbs_key.param.ciphertext_modulus,
         );
 
         let mut bits_extracted_so_far = 0;
@@ -995,6 +997,7 @@ impl WopbsKey {
             0u64,
             extract_bits_output_lwe_size,
             LweCiphertextCount(total_bits_extracted),
+            self.wopbs_key.param.ciphertext_modulus,
         );
 
         let mut bits_extracted_so_far = 0;

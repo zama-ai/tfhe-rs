@@ -49,10 +49,15 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
         debug_assert_eq!(ggsw.glwe_size(), out_lo.glwe_size());
         debug_assert_eq!(ggsw.glwe_size(), out_hi.glwe_size());
 
+        debug_assert_eq!(out_lo.ciphertext_modulus(), out_hi.ciphertext_modulus());
+        debug_assert_eq!(glwe_lo.ciphertext_modulus(), glwe_hi.ciphertext_modulus());
+        debug_assert_eq!(glwe_hi.ciphertext_modulus(), out_hi.ciphertext_modulus());
+
         let align = CACHELINE_ALIGN;
         let poly_size = ggsw.polynomial_size().0;
         let fourier_poly_size = ggsw.polynomial_size().to_fourier_polynomial_size().0;
         let glwe_size = ggsw.glwe_size().0;
+        let ciphertext_modulus = out_hi.ciphertext_modulus();
 
         // we round the input mask and body
         let decomposer = SignedDecomposer::<u128>::new(
@@ -139,10 +144,12 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
                 let glwe_decomp_term_lo = GlweCiphertextView::from_container(
                     &*glwe_decomp_term_lo,
                     ggsw.polynomial_size(),
+                    ciphertext_modulus,
                 );
                 let glwe_decomp_term_hi = GlweCiphertextView::from_container(
                     &*glwe_decomp_term_hi,
                     ggsw.polynomial_size(),
+                    ciphertext_modulus,
                 );
                 debug_assert_eq!(ggsw_decomp_matrix.decomposition_level(), glwe_level);
 

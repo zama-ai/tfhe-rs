@@ -1,6 +1,7 @@
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
+use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -33,6 +34,7 @@ use std::thread;
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
 /// let grouping_factor = LweBskGroupingFactor(2); // Group bits in pairs
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Request the best seeder possible, starting with hardware entropy sources and falling back to
 /// // /dev/random on Unix systems if enabled via cargo features
@@ -70,6 +72,7 @@ use std::thread;
 ///     pbs_level,
 ///     small_lwe_dimension,
 ///     grouping_factor,
+///     ciphertext_modulus,
 /// );
 ///
 /// par_generate_lwe_multi_bit_bootstrap_key(
@@ -111,6 +114,7 @@ use std::thread;
 ///     &small_lwe_sk,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -124,6 +128,7 @@ use std::thread;
 ///     polynomial_size: PolynomialSize,
 ///     glwe_size: GlweSize,
 ///     message_modulus: usize,
+///     ciphertext_modulus: CiphertextModulus<u64>,
 ///     delta: u64,
 ///     f: F,
 /// ) -> GlweCiphertextOwned<u64>
@@ -158,8 +163,11 @@ use std::thread;
 ///
 ///     let accumulator_plaintext = PlaintextList::from_container(accumulator_u64);
 ///
-///     let accumulator =
-///         allocate_and_trivially_encrypt_new_glwe_ciphertext(glwe_size, &accumulator_plaintext);
+///     let accumulator = allocate_and_trivially_encrypt_new_glwe_ciphertext(
+///         glwe_size,
+///         &accumulator_plaintext,
+///         ciphertext_modulus,
+///     );
 ///
 ///     accumulator
 /// }
@@ -169,13 +177,17 @@ use std::thread;
 ///     polynomial_size,
 ///     glwe_dimension.to_glwe_size(),
 ///     message_modulus as usize,
+///     ciphertext_modulus,
 ///     delta,
 ///     |x: u64| 2 * x,
 /// );
 ///
 /// // Allocate the LweCiphertext to store the result of the PBS
-/// let mut pbs_multiplication_ct =
-///     LweCiphertext::new(0u64, big_lwe_sk.lwe_dimension().to_lwe_size());
+/// let mut pbs_multiplication_ct = LweCiphertext::new(
+///     0u64,
+///     big_lwe_sk.lwe_dimension().to_lwe_size(),
+///     ciphertext_modulus,
+/// );
 /// println!("Performing blind rotation...");
 /// // Use 4 threads for the multi-bit blind rotation for example
 /// multi_bit_blind_rotate_assign(
@@ -250,6 +262,14 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
         multi_bit_bsk.polynomial_size(),
     );
 
+    assert_eq!(
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+    );
+
     let (lwe_mask, lwe_body) = input.get_mask_and_body();
 
     // No way to chunk the result of ggsw_iter at the moment
@@ -276,7 +296,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 
     let lut_poly_size = accumulator.polynomial_size();
     let monomial_degree = pbs_modulus_switch(
-        *lwe_body.0,
+        *lwe_body.data,
         lut_poly_size,
         ModulusSwitchOffset(0),
         LutCountLog(0),
@@ -426,7 +446,12 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 
         // We initialize ct0 for the successive external products
         let ct0 = accumulator;
-        let mut ct1 = GlweCiphertext::new(Scalar::ZERO, ct0.glwe_size(), ct0.polynomial_size());
+        let mut ct1 = GlweCiphertext::new(
+            Scalar::ZERO,
+            ct0.glwe_size(),
+            ct0.polynomial_size(),
+            ct0.ciphertext_modulus(),
+        );
         let ct1 = &mut ct1;
 
         let mut buffers = ComputationBuffers::new();
@@ -480,11 +505,26 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
             ct0.as_mut().copy_from_slice(ct1.as_ref());
         }
 
+        let ciphertext_modulus = ct0.ciphertext_modulus();
+        if !ciphertext_modulus.is_native_modulus() {
+            // When we convert back from the fourier domain, integer values will contain up to 53
+            // MSBs with information. In our representation of power of 2 moduli < native modulus we
+            // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+            // round while keeping the data in the MSBs
+            let signed_decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(ciphertext_modulus.get().ilog2() as usize),
+                DecompositionLevelCount(1),
+            );
+            ct0.as_mut()
+                .iter_mut()
+                .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+        }
+
         threads.into_iter().for_each(|t| t.join().unwrap());
     });
 }
 
-/// Perform a programmable bootsrap with given an input [`LWE ciphertext`](`LweCiphertext`), a
+/// Perform a programmable bootstrap with given an input [`LWE ciphertext`](`LweCiphertext`), a
 /// look-up table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE multi-bit bootstrap
 /// key`](`LweMultiBitBootstrapKey`) in the fourier domain. The result is written in the provided
 /// output [`LWE ciphertext`](`LweCiphertext`).
@@ -505,6 +545,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
 /// let grouping_factor = LweBskGroupingFactor(2); // Group bits in pairs
+/// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
 /// // Request the best seeder possible, starting with hardware entropy sources and falling back to
 /// // /dev/random on Unix systems if enabled via cargo features
@@ -542,6 +583,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 ///     pbs_level,
 ///     small_lwe_dimension,
 ///     grouping_factor,
+///     ciphertext_modulus,
 /// );
 ///
 /// par_generate_lwe_multi_bit_bootstrap_key(
@@ -583,6 +625,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 ///     &small_lwe_sk,
 ///     plaintext,
 ///     lwe_modular_std_dev,
+///     ciphertext_modulus,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -596,6 +639,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 ///     polynomial_size: PolynomialSize,
 ///     glwe_size: GlweSize,
 ///     message_modulus: usize,
+///     ciphertext_modulus: CiphertextModulus<u64>,
 ///     delta: u64,
 ///     f: F,
 /// ) -> GlweCiphertextOwned<u64>
@@ -630,8 +674,11 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 ///
 ///     let accumulator_plaintext = PlaintextList::from_container(accumulator_u64);
 ///
-///     let accumulator =
-///         allocate_and_trivially_encrypt_new_glwe_ciphertext(glwe_size, &accumulator_plaintext);
+///     let accumulator = allocate_and_trivially_encrypt_new_glwe_ciphertext(
+///         glwe_size,
+///         &accumulator_plaintext,
+///         ciphertext_modulus,
+///     );
 ///
 ///     accumulator
 /// }
@@ -641,13 +688,17 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
 ///     polynomial_size,
 ///     glwe_dimension.to_glwe_size(),
 ///     message_modulus as usize,
+///     ciphertext_modulus,
 ///     delta,
 ///     |x: u64| 2 * x,
 /// );
 ///
 /// // Allocate the LweCiphertext to store the result of the PBS
-/// let mut pbs_multiplication_ct =
-///     LweCiphertext::new(0u64, big_lwe_sk.lwe_dimension().to_lwe_size());
+/// let mut pbs_multiplication_ct = LweCiphertext::new(
+///     0u64,
+///     big_lwe_sk.lwe_dimension().to_lwe_size(),
+///     ciphertext_modulus,
+/// );
 /// println!("Computing PBS...");
 /// // Use 4 threads to compute the multi-bit PBS
 /// multi_bit_programmable_bootstrap_lwe_ciphertext(
@@ -734,10 +785,27 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
         multi_bit_bsk.polynomial_size(),
     );
 
+    assert_eq!(
+        input.ciphertext_modulus(),
+        output.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
+        input.ciphertext_modulus(),
+        output.ciphertext_modulus(),
+    );
+
+    assert_eq!(
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
+        input.ciphertext_modulus(),
+        accumulator.ciphertext_modulus(),
+    );
+
     let mut local_accumulator = GlweCiphertext::new(
         Scalar::ZERO,
         accumulator.glwe_size(),
         accumulator.polynomial_size(),
+        accumulator.ciphertext_modulus(),
     );
     local_accumulator
         .as_mut()
@@ -746,237 +814,4 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
     multi_bit_blind_rotate_assign(input, &mut local_accumulator, multi_bit_bsk, thread_count);
 
     extract_lwe_sample_from_glwe_ciphertext(&local_accumulator, output, MonomialDegree(0));
-}
-
-#[cfg(test)]
-mod test {
-    use crate::core_crypto::prelude::*;
-
-    fn multi_bit_pbs(
-        multi_bit_params: MultiBitParams,
-        grouping_factor: LweBskGroupingFactor,
-        thread_count: ThreadCount,
-    ) {
-        let MultiBitParams {
-            mut input_lwe_dimension,
-            lwe_modular_std_dev,
-            decomp_base_log,
-            decomp_level_count,
-            glwe_dimension,
-            polynomial_size,
-            glwe_modular_std_dev,
-        } = multi_bit_params;
-
-        while input_lwe_dimension.0 % grouping_factor.0 != 0 {
-            input_lwe_dimension = LweDimension(input_lwe_dimension.0 + 1);
-        }
-
-        // Create the PRNG
-        let mut seeder = new_seeder();
-        let seeder = seeder.as_mut();
-        let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-        let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-
-        // Create the LweSecretKey
-        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            input_lwe_dimension,
-            &mut secret_generator,
-        );
-        let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
-            glwe_dimension,
-            polynomial_size,
-            &mut secret_generator,
-        );
-        let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
-
-        let mut bsk = LweMultiBitBootstrapKey::new(
-            0u64,
-            glwe_dimension.to_glwe_size(),
-            polynomial_size,
-            decomp_base_log,
-            decomp_level_count,
-            input_lwe_dimension,
-            grouping_factor,
-        );
-
-        par_generate_lwe_multi_bit_bootstrap_key(
-            &input_lwe_secret_key,
-            &output_glwe_secret_key,
-            &mut bsk,
-            glwe_modular_std_dev,
-            &mut encryption_generator,
-        );
-
-        let mut multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
-            input_lwe_dimension,
-            glwe_dimension.to_glwe_size(),
-            polynomial_size,
-            decomp_base_log,
-            decomp_level_count,
-            grouping_factor,
-        );
-
-        convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut multi_bit_bsk);
-
-        // Here we will define a helper function to generate an accumulator for a PBS
-        fn generate_accumulator<F>(
-            polynomial_size: PolynomialSize,
-            glwe_size: GlweSize,
-            message_modulus: usize,
-            delta: u64,
-            f: F,
-        ) -> GlweCiphertextOwned<u64>
-        where
-            F: Fn(u64) -> u64,
-        {
-            // N/(p/2) = size of each block, to correct noise from the input we introduce the
-            // notion of box, which manages redundancy to yield a denoised value
-            // for several noisy values around a true input value.
-            let box_size = polynomial_size.0 / message_modulus;
-
-            // Create the accumulator
-            let mut accumulator_u64 = vec![0_u64; polynomial_size.0];
-
-            // Fill each box with the encoded denoised value
-            for i in 0..message_modulus {
-                let index = i * box_size;
-                accumulator_u64[index..index + box_size]
-                    .iter_mut()
-                    .for_each(|a| *a = f(i as u64) * delta);
-            }
-
-            let half_box_size = box_size / 2;
-
-            // Negate the first half_box_size coefficients to manage negacyclicity and rotate
-            for a_i in accumulator_u64[0..half_box_size].iter_mut() {
-                *a_i = (*a_i).wrapping_neg();
-            }
-
-            // Rotate the accumulator
-            accumulator_u64.rotate_left(half_box_size);
-
-            let accumulator_plaintext = PlaintextList::from_container(accumulator_u64);
-
-            allocate_and_trivially_encrypt_new_glwe_ciphertext(glwe_size, &accumulator_plaintext)
-        }
-
-        // Our 4 bits message space
-        let message_modulus = 1u64 << 4;
-
-        let f = |x: u64| (3 * x) % message_modulus;
-
-        // Delta used to encode 4 bits of message + a bit of padding on u64
-        let delta = (1_u64 << 63) / message_modulus;
-
-        const NB_TESTS: usize = 10;
-
-        for input_message in 0..message_modulus {
-            for _ in 0..NB_TESTS {
-                // Apply our encoding
-                let plaintext = Plaintext(input_message * delta);
-
-                // Allocate a new LweCiphertext and encrypt our plaintext
-                let lwe_ciphertext_in: LweCiphertextOwned<u64> =
-                    allocate_and_encrypt_new_lwe_ciphertext(
-                        &input_lwe_secret_key,
-                        plaintext,
-                        lwe_modular_std_dev,
-                        &mut encryption_generator,
-                    );
-
-                let accumulator: GlweCiphertextOwned<u64> = generate_accumulator(
-                    polynomial_size,
-                    glwe_dimension.to_glwe_size(),
-                    message_modulus as usize,
-                    delta,
-                    f,
-                );
-
-                // Allocate the LweCiphertext to store the result of the PBS
-                let mut out_pbs_ct =
-                    LweCiphertext::new(0u64, output_lwe_secret_key.lwe_dimension().to_lwe_size());
-                println!("Computing PBS...");
-                multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &lwe_ciphertext_in,
-                    &mut out_pbs_ct,
-                    &accumulator.as_view(),
-                    &multi_bit_bsk,
-                    thread_count,
-                );
-
-                // Decrypt the PBS result
-                let result_plaintext: Plaintext<u64> =
-                    decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
-
-                // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
-                // We pass a DecompositionBaseLog of 5 and a DecompositionLevelCount of 1 indicating
-                // we want to round the 5 MSB, 1 bit of padding plus our 4 bits of
-                // message
-                let signed_decomposer =
-                    SignedDecomposer::new(DecompositionBaseLog(5), DecompositionLevelCount(1));
-
-                // Round and remove our encoding
-                let result_cleartext: u64 =
-                    signed_decomposer.closest_representable(result_plaintext.0) / delta;
-
-                println!("Checking result...");
-                assert_eq!(
-                    f(input_message),
-                    result_cleartext,
-                    "in: {input_message}, expected: {}, out: {result_cleartext}",
-                    f(input_message)
-                );
-            }
-        }
-    }
-
-    pub struct MultiBitParams {
-        pub input_lwe_dimension: LweDimension,
-        pub lwe_modular_std_dev: StandardDev,
-        pub decomp_base_log: DecompositionBaseLog,
-        pub decomp_level_count: DecompositionLevelCount,
-        pub glwe_dimension: GlweDimension,
-        pub polynomial_size: PolynomialSize,
-        pub glwe_modular_std_dev: StandardDev,
-    }
-
-    #[test]
-    fn multi_bit_pbs_test_factor_2_thread_5() {
-        multi_bit_pbs(
-            // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield
-            // correct computations
-            MultiBitParams {
-                input_lwe_dimension: LweDimension(788),
-                lwe_modular_std_dev: StandardDev(0.000003871078133364534),
-                decomp_base_log: DecompositionBaseLog(22),
-                decomp_level_count: DecompositionLevelCount(1),
-                glwe_dimension: GlweDimension(2),
-                polynomial_size: PolynomialSize(1024),
-                glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
-            },
-            LweBskGroupingFactor(2),
-            ThreadCount(5),
-        );
-    }
-
-    #[test]
-    fn multi_bit_pbs_test_factor_3_thread_12() {
-        multi_bit_pbs(
-            // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield
-            // correct computations
-            MultiBitParams {
-                input_lwe_dimension: LweDimension(789),
-                lwe_modular_std_dev: StandardDev(0.0000038003596741624174),
-                decomp_base_log: DecompositionBaseLog(22),
-                decomp_level_count: DecompositionLevelCount(1),
-                glwe_dimension: GlweDimension(2),
-                polynomial_size: PolynomialSize(1024),
-                glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
-            },
-            LweBskGroupingFactor(3),
-            ThreadCount(12),
-        );
-    }
 }

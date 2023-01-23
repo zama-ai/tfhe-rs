@@ -2,6 +2,7 @@ use super::super::math::fft::{Fft, FftView, FourierPolynomialList};
 use super::ggsw::{cmux, *};
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
+use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
@@ -224,6 +225,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
 
         let lut_poly_size = lut.polynomial_size();
+        let ciphertext_modulus = lut.ciphertext_modulus();
         let monomial_degree = pbs_modulus_switch(
             *lwe_body,
             lut_poly_size,
@@ -250,8 +252,11 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
                 // We copy ct_0 to ct_1
                 let (mut ct1, stack) =
                     stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
-                let mut ct1 =
-                    GlweCiphertextMutView::from_container(&mut *ct1, ct0.polynomial_size());
+                let mut ct1 = GlweCiphertextMutView::from_container(
+                    &mut *ct1,
+                    lut_poly_size,
+                    ciphertext_modulus,
+                );
 
                 // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
                 for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
@@ -271,12 +276,26 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
                 cmux(ct0.as_mut_view(), ct1, bootstrap_key_ggsw, fft, stack);
             }
         }
+
+        if !ciphertext_modulus.is_native_modulus() {
+            // When we convert back from the fourier domain, integer values will contain up to 53
+            // MSBs with information. In our representation of power of 2 moduli < native modulus we
+            // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+            // round while keeping the data in the MSBs
+            let signed_decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(ciphertext_modulus.get().ilog2() as usize),
+                DecompositionLevelCount(1),
+            );
+            ct0.as_mut()
+                .iter_mut()
+                .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+        }
     }
 
     pub fn bootstrap<Scalar>(
         self,
-        lwe_out: &mut [Scalar],
-        lwe_in: &[Scalar],
+        mut lwe_out: LweCiphertextMutView<'_, Scalar>,
+        lwe_in: LweCiphertextView<'_, Scalar>,
         accumulator: GlweCiphertextView<'_, Scalar>,
         fft: FftView<'_>,
         stack: PodStack<'_>,
@@ -284,16 +303,24 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         // CastInto required for PBS modulus switch which returns a usize
         Scalar: UnsignedTorus + CastInto<usize>,
     {
+        debug_assert_eq!(lwe_out.ciphertext_modulus(), lwe_in.ciphertext_modulus());
+        debug_assert_eq!(
+            lwe_in.ciphertext_modulus(),
+            accumulator.ciphertext_modulus()
+        );
+
         let (mut local_accumulator_data, stack) =
             stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
         let mut local_accumulator = GlweCiphertextMutView::from_container(
             &mut *local_accumulator_data,
             accumulator.polynomial_size(),
+            accumulator.ciphertext_modulus(),
         );
-        self.blind_rotate_assign(local_accumulator.as_mut_view(), lwe_in, fft, stack);
+        self.blind_rotate_assign(local_accumulator.as_mut_view(), lwe_in.as_ref(), fft, stack);
+
         extract_lwe_sample_from_glwe_ciphertext(
             &local_accumulator,
-            &mut LweCiphertextMutView::from_container(&mut *lwe_out),
+            &mut lwe_out,
             MonomialDegree(0),
         );
     }
@@ -362,8 +389,8 @@ where
         ContAcc: Container<Element = Scalar>,
     {
         self.as_view().bootstrap(
-            lwe_out.as_mut_view().as_mut(),
-            lwe_in.as_view().as_ref(),
+            lwe_out.as_mut_view(),
+            lwe_in.as_view(),
             accumulator.as_view(),
             fft.as_view(),
             stack,

@@ -8,6 +8,7 @@ lto = "fat"
 [profile.release]
 lto = "fat"
 
+# Compiles much faster for tests and allows reasonable performance for iterating
 [profile.devo]
 inherits = "dev"
 opt-level = 3

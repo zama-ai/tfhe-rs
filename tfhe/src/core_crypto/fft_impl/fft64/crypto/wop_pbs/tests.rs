@@ -33,6 +33,8 @@ pub fn test_extract_bits() {
 
     let std = LogStandardDev::from_log_standard_dev(-60.);
 
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
     let number_of_bits_of_message_including_padding = 5_usize;
     // Tests take about 2-3 seconds on a laptop with this number
     let number_of_test_runs = 32;
@@ -59,6 +61,7 @@ pub fn test_extract_bits() {
         base_log_bsk,
         level_bsk,
         std,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
@@ -74,14 +77,16 @@ pub fn test_extract_bits() {
     let fft = fft.as_view();
 
     let lwe_big_sk = glwe_sk.clone().into_lwe_secret_key();
-    let ksk_lwe_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
-        &lwe_big_sk,
-        &lwe_small_sk,
-        base_log_ksk,
-        level_ksk,
-        std,
-        &mut encryption_generator,
-    );
+    let ksk_lwe_big_to_small: LweKeyswitchKeyOwned<u64> =
+        allocate_and_generate_new_lwe_keyswitch_key(
+            &lwe_big_sk,
+            &lwe_small_sk,
+            base_log_ksk,
+            level_ksk,
+            std,
+            ciphertext_modulus,
+            &mut encryption_generator,
+        );
 
     let req = || {
         StackReq::try_any_of([
@@ -118,7 +123,11 @@ pub fn test_extract_bits() {
         // Encryption
         let message = Plaintext(val << delta_log.0);
         println!("{message:?}");
-        let mut lwe_in = LweCiphertextOwned::new(0u64, lwe_big_sk.lwe_dimension().to_lwe_size());
+        let mut lwe_in = LweCiphertextOwned::new(
+            0u64,
+            lwe_big_sk.lwe_dimension().to_lwe_size(),
+            ciphertext_modulus,
+        );
         encrypt_lwe_ciphertext(
             &lwe_big_sk,
             &mut lwe_in,
@@ -135,6 +144,7 @@ pub fn test_extract_bits() {
             0u64,
             ksk_lwe_big_to_small.output_lwe_size(),
             LweCiphertextCount(number_values_to_extract.0),
+            ciphertext_modulus,
         );
 
         extract_bits(
@@ -188,6 +198,8 @@ fn test_circuit_bootstrapping_binary() {
 
     let std = LogStandardDev::from_log_standard_dev(-60.);
 
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
 
@@ -211,6 +223,7 @@ fn test_circuit_bootstrapping_binary() {
         base_log_bsk,
         level_bsk,
         std,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
@@ -240,6 +253,7 @@ fn test_circuit_bootstrapping_binary() {
         base_log_pksk,
         level_pksk,
         std,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
@@ -252,7 +266,8 @@ fn test_circuit_bootstrapping_binary() {
         let value: u64 = test_tools::random_uint_between(0..2u64);
         // Encryption of an LWE with the value 'message'
         let message = Plaintext((value) << delta_log.0);
-        let mut lwe_in = LweCiphertextOwned::new(0u64, lwe_dimension.to_lwe_size());
+        let mut lwe_in =
+            LweCiphertextOwned::new(0u64, lwe_dimension.to_lwe_size(), ciphertext_modulus);
         encrypt_lwe_ciphertext(
             &lwe_sk,
             &mut lwe_in,
@@ -267,6 +282,7 @@ fn test_circuit_bootstrapping_binary() {
             polynomial_size,
             base_log_cbs,
             level_count_cbs,
+            ciphertext_modulus,
         );
 
         let mut mem = GlobalPodBuffer::new(
@@ -382,6 +398,7 @@ pub fn test_cmux_tree() {
     let std = LogStandardDev::from_log_standard_dev(-60.);
     let level = DecompositionLevelCount(3);
     let base_log = DecompositionBaseLog(6);
+    let ciphertext_modulus = CiphertextModulus::new_native();
     // We need (1 << nb_ggsw) > polynomial_size to have an actual CMUX tree and not just a blind
     // rotation
     let nb_ggsw = 10;
@@ -455,6 +472,7 @@ pub fn test_cmux_tree() {
                 polynomial_size,
                 base_log,
                 level,
+                ciphertext_modulus,
             );
             encrypt_constant_ggsw_ciphertext(
                 &glwe_sk,
@@ -471,7 +489,8 @@ pub fn test_cmux_tree() {
                 .fill_with_forward_fourier(ggsw.as_view(), fft, stack);
         }
 
-        let mut result_cmux_tree = GlweCiphertextOwned::new(0_u64, glwe_size, polynomial_size);
+        let mut result_cmux_tree =
+            GlweCiphertext::new(0_u64, glwe_size, polynomial_size, ciphertext_modulus);
         let mut mem = GlobalPodBuffer::new(
             cmux_tree_memory_optimized_scratch::<u64>(glwe_size, polynomial_size, nb_ggsw, fft)
                 .unwrap(),
@@ -519,6 +538,8 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     let level_cbs = DecompositionLevelCount(4);
     let base_log_cbs = DecompositionBaseLog(6);
 
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
     // Value was 0.000_000_000_000_000_221_486_881_160_055_68_513645324585951
     // But rust indicates it gets truncated anyways to
     // 0.000_000_000_000_000_221_486_881_160_055_68
@@ -553,6 +574,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         base_log_bsk,
         level_bsk,
         std_small,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
@@ -575,14 +597,16 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         PodStack::new(&mut mem),
     );
 
-    let ksk_lwe_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
-        &lwe_big_sk,
-        &lwe_small_sk,
-        base_log_ksk,
-        level_ksk,
-        std_big,
-        &mut encryption_generator,
-    );
+    let ksk_lwe_big_to_small: LweKeyswitchKeyOwned<u64> =
+        allocate_and_generate_new_lwe_keyswitch_key(
+            &lwe_big_sk,
+            &lwe_small_sk,
+            base_log_ksk,
+            level_ksk,
+            std_big,
+            ciphertext_modulus,
+            &mut encryption_generator,
+        );
 
     // Creation of all the pfksk for the circuit bootstrapping
     let vec_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
@@ -591,6 +615,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         base_log_pksk,
         level_pksk,
         std_small,
+        ciphertext_modulus,
         &mut encryption_generator,
     );
 
@@ -614,8 +639,11 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         println!("cleartext bits: {cleartext:b}");
 
         let message = Plaintext(cleartext << delta_log.0);
-        let mut lwe_in =
-            LweCiphertextOwned::new(0u64, LweSize(glwe_dimension.0 * polynomial_size.0 + 1));
+        let mut lwe_in = LweCiphertextOwned::new(
+            0u64,
+            LweSize(glwe_dimension.0 * polynomial_size.0 + 1),
+            ciphertext_modulus,
+        );
         encrypt_lwe_ciphertext(
             &lwe_big_sk,
             &mut lwe_in,
@@ -628,6 +656,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             0u64,
             ksk_lwe_big_to_small.output_lwe_size(),
             LweCiphertextCount(number_of_values_to_extract.0),
+            ciphertext_modulus,
         );
 
         let mut mem = GlobalPodBuffer::new(
@@ -697,6 +726,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             0u64,
             LweDimension(polynomial_size.0 * glwe_dimension.0).to_lwe_size(),
             LweCiphertextCount(number_of_luts_and_output_vp_ciphertexts),
+            ciphertext_modulus,
         );
 
         // Perform circuit bootstrap + vertical packing
