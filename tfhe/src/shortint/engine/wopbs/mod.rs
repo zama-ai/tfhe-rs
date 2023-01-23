@@ -398,7 +398,7 @@ impl ShortintEngine {
         programmable_bootstrap_lwe_ciphertext_mem_optimized(
             &ciphertext_buffers.buffer_lwe_after_ks,
             &mut ct_out,
-            &acc,
+            &acc.acc,
             fourier_bsk,
             fft,
             stack,

@@ -19,7 +19,7 @@ mod tests;
 
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned;
-use crate::shortint::ciphertext::Ciphertext;
+use crate::shortint::ciphertext::{Ciphertext, Degree};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
@@ -62,6 +62,11 @@ pub struct ServerKey {
     pub carry_modulus: CarryModulus,
     // Maximum number of operations that can be done before emptying the operation buffer
     pub max_degree: MaxDegree,
+}
+
+pub struct Accumulator {
+    pub acc: GlweCiphertextOwned<u64>,
+    pub degree: Degree,
 }
 
 impl ServerKey {
@@ -121,7 +126,7 @@ impl ServerKey {
     /// // 3^2 mod 4 = 1
     /// assert_eq!(dec, f(msg));
     /// ```
-    pub fn generate_accumulator<F>(&self, f: F) -> GlweCiphertextOwned<u64>
+    pub fn generate_accumulator<F>(&self, f: F) -> Accumulator
     where
         F: Fn(u64) -> u64,
     {
@@ -155,7 +160,7 @@ impl ServerKey {
     /// // 3^2 mod 4 = 1
     /// assert_eq!(dec, f(msg, 0));
     /// ```
-    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> GlweCiphertextOwned<u64>
+    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> Accumulator
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -248,7 +253,7 @@ impl ServerKey {
         &self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        acc: &GlweCiphertextOwned<u64>,
+        acc: &Accumulator,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -261,7 +266,7 @@ impl ServerKey {
         &self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        acc: &GlweCiphertextOwned<u64>,
+        acc: &Accumulator,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -296,7 +301,7 @@ impl ServerKey {
     pub fn keyswitch_programmable_bootstrap(
         &self,
         ct_in: &Ciphertext,
-        acc: &GlweCiphertextOwned<u64>,
+        acc: &Accumulator,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -332,7 +337,7 @@ impl ServerKey {
     pub fn keyswitch_programmable_bootstrap_assign(
         &self,
         ct_in: &mut Ciphertext,
-        acc: &GlweCiphertextOwned<u64>,
+        acc: &Accumulator,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
