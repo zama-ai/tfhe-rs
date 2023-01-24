@@ -21,7 +21,7 @@
   </a>
 <!-- Follow on twitter badge using shields.io -->
   <a href="https://twitter.com/zama_fhe">
-    <img src="https://img.shields.io/twitter/follow/zama_fhe?color=blue&style=flat-square">
+    <img src="https://img.shields.io/badge/follow-zama_fhe-blue?logo=twitter&style=flat-square">
   </a>
 </p>
 
