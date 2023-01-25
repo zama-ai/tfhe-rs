@@ -404,6 +404,84 @@ pub fn lwe_ciphertext_sub_assign<Scalar, LhsCont, RhsCont>(
     slice_wrapping_sub_assign(lhs.as_mut(), rhs.as_ref());
 }
 
+/// Subtract the right-hand side [`LWE ciphertext`](`LweCiphertext`) to the left-hand side [`LWE
+/// ciphertext`](`LweCiphertext`) writing the result in the output [`LWE
+/// ciphertext`](`LweCiphertext`).
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let lwe_dimension = LweDimension(742);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+///
+/// // Create the plaintext
+/// let msg1 = 3u64;
+/// let msg2 = 2u64;
+/// let plaintext1 = Plaintext(msg1 << 60);
+/// let plaintext2 = Plaintext(msg2 << 60);
+///
+/// // Create a new LweCiphertext
+/// let lwe1 = allocate_and_encrypt_new_lwe_ciphertext(
+///     &lwe_secret_key,
+///     plaintext1,
+///     lwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+/// let lwe2 = allocate_and_encrypt_new_lwe_ciphertext(
+///     &lwe_secret_key,
+///     plaintext2,
+///     lwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// let mut output = lwe1.clone();
+///
+/// lwe_ciphertext_sub(&mut output, &lwe1, &lwe2);
+///
+/// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &output);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// let rounded = decomposer.closest_representable(decrypted_plaintext.0);
+///
+/// // Remove the encoding
+/// let cleartext = rounded >> 60;
+///
+/// // Check we recovered the expected result
+/// assert_eq!(cleartext, msg1 - msg2);
+/// ```
+pub fn lwe_ciphertext_sub<Scalar, OutputCont, LhsCont, RhsCont>(
+    output: &mut LweCiphertext<OutputCont>,
+    lhs: &LweCiphertext<LhsCont>,
+    rhs: &LweCiphertext<RhsCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    LhsCont: Container<Element = Scalar>,
+    RhsCont: Container<Element = Scalar>,
+{
+    slice_wrapping_sub(output.as_mut(), lhs.as_ref(), rhs.as_ref());
+}
+
 /// Mulitply the left-hand side [`LWE ciphertext`](`LweCiphertext`) by the right-hand side cleartext
 /// writing the result in the output [`LWE ciphertext`](`LweCiphertext`).
 ///
