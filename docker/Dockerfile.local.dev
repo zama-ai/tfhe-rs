@@ -1,0 +1,12 @@
+FROM rust:1.66 as builder
+
+WORKDIR /usr/local/app
+ADD . /usr/local/app
+RUN make build_c_api
+RUN ls
+RUN ls /usr/local/app/target/release
+
+FROM debian:bullseye-slim
+WORKDIR /usr/local/app/tfhe-rs/lib
+COPY  --from=builder /usr/local/app/target/release/libtfhe.* .
+COPY  --from=builder /usr/local/app/target/release/tfhe.h .
