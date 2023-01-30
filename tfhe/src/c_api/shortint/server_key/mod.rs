@@ -66,6 +66,25 @@ pub unsafe extern "C" fn shortint_bc_gen_server_key(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn shortint_server_key_create_trivial(
+    server_key: *const ShortintServerKey,
+    value_to_trivially_encrypt: u64,
+    result: *mut *mut ShortintCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+
+        let heap_allocated_ciphertext = Box::new(ShortintCiphertext(
+            server_key.0.create_trivial(value_to_trivially_encrypt),
+        ));
+
+        *result = Box::into_raw(heap_allocated_ciphertext);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn shortint_serialize_server_key(
     server_key: *const ShortintServerKey,
     result: *mut Buffer,

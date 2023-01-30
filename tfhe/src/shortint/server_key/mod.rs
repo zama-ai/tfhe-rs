@@ -553,11 +553,11 @@ impl ServerKey {
     /// let ct_res = cks.decrypt(&ct1);
     /// assert_eq!(1, ct_res);
     /// ```
-    pub fn create_trivial(&self, value: u8) -> Ciphertext {
+    pub fn create_trivial(&self, value: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| engine.create_trivial(self, value).unwrap())
     }
 
-    pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u8) {
+    pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.create_trivial_assign(self, ct, value).unwrap()
         })

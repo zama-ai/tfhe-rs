@@ -597,7 +597,7 @@ impl ShortintEngine {
     pub(crate) fn create_trivial(
         &mut self,
         server_key: &ServerKey,
-        value: u8,
+        value: u64,
     ) -> EngineResult<Ciphertext> {
         let lwe_size = server_key
             .bootstrapping_key
@@ -629,7 +629,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         ct: &mut Ciphertext,
-        value: u8,
+        value: u64,
     ) -> EngineResult<()> {
         let modular_value = value as usize % server_key.message_modulus.0;
 
