@@ -7,7 +7,7 @@ use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanParameters;
 use crate::core_crypto::entities::*;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
 /// A structure containing the client key, which must be kept secret.
@@ -18,7 +18,7 @@ use std::fmt::{Debug, Formatter};
 /// * `glwe_secret_key` - a GLWE secret key, used to generate the bootstrapping keys and key
 /// switching keys.
 /// * `parameters` - the cryptographic parameter set.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ClientKey {
     pub(crate) lwe_secret_key: LweSecretKeyOwned<u32>,
     pub(crate) glwe_secret_key: GlweSecretKeyOwned<u32>,
@@ -133,49 +133,5 @@ impl ClientKey {
     /// ```
     pub fn new(parameter_set: &BooleanParameters) -> ClientKey {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_client_key(*parameter_set))
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializableClientKey {
-    lwe_secret_key: Vec<u8>,
-    glwe_secret_key: Vec<u8>,
-    parameters: BooleanParameters,
-}
-
-impl Serialize for ClientKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let lwe_secret_key =
-            bincode::serialize(&self.lwe_secret_key).map_err(serde::ser::Error::custom)?;
-        let glwe_secret_key =
-            bincode::serialize(&self.glwe_secret_key).map_err(serde::ser::Error::custom)?;
-
-        SerializableClientKey {
-            lwe_secret_key,
-            glwe_secret_key,
-            parameters: self.parameters,
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for ClientKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let thing =
-            SerializableClientKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-
-        Ok(Self {
-            lwe_secret_key: bincode::deserialize(thing.lwe_secret_key.as_slice())
-                .map_err(serde::de::Error::custom)?,
-            glwe_secret_key: bincode::deserialize(thing.glwe_secret_key.as_slice())
-                .map_err(serde::de::Error::custom)?,
-            parameters: thing.parameters,
-        })
     }
 }

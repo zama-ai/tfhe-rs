@@ -5,10 +5,10 @@ use crate::boolean::client_key::ClientKey;
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::BooleanParameters;
 use crate::core_crypto::entities::*;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 /// A structure containing a public key.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PublicKey {
     pub(crate) lwe_public_key: LwePublicKeyOwned<u32>,
     pub(crate) parameters: BooleanParameters,
@@ -58,43 +58,5 @@ impl PublicKey {
     /// ```
     pub fn new(client_key: &ClientKey) -> PublicKey {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_public_key(client_key))
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializablePublicKey {
-    lwe_public_key: Vec<u8>,
-    parameters: BooleanParameters,
-}
-
-impl Serialize for PublicKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let lwe_public_key =
-            bincode::serialize(&self.lwe_public_key).map_err(serde::ser::Error::custom)?;
-
-        SerializablePublicKey {
-            lwe_public_key,
-            parameters: self.parameters,
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for PublicKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let thing =
-            SerializablePublicKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-
-        Ok(Self {
-            lwe_public_key: bincode::deserialize(thing.lwe_public_key.as_slice())
-                .map_err(serde::de::Error::custom)?,
-            parameters: thing.parameters,
-        })
     }
 }

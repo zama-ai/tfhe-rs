@@ -11,13 +11,13 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ClientKey, Parameters, ServerKey};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 mod test;
 
 // Struct for WoPBS based on the private functional packing keyswitch.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WopbsKey {
     //Key for the private functional keyswitch
     pub wopbs_server_key: ServerKey,
@@ -364,68 +364,5 @@ impl WopbsKey {
     pub fn keyswitch_to_pbs_params(&self, ct_in: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| engine.keyswitch_to_pbs_params(self, ct_in))
             .unwrap()
-    }
-}
-
-#[derive(Serialize)]
-struct SerializableWopbsKey<'a> {
-    wopbs_server_key: &'a ServerKey,
-    pbs_server_key: &'a ServerKey,
-    cbs_pfpksk: Vec<u8>,
-    ksk_pbs_to_wopbs: Vec<u8>,
-    param: Parameters,
-}
-
-#[derive(Deserialize)]
-struct DeserializableWopbsKey {
-    wopbs_server_key: ServerKey,
-    pbs_server_key: ServerKey,
-    cbs_pfpksk: Vec<u8>,
-    ksk_pbs_to_wopbs: Vec<u8>,
-    param: Parameters,
-}
-
-impl Serialize for WopbsKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let cbs_pfpksk = bincode::serialize(&self.cbs_pfpksk).map_err(serde::ser::Error::custom)?;
-
-        let ksk_pbs_to_wopbs =
-            bincode::serialize(&self.ksk_pbs_to_wopbs).map_err(serde::ser::Error::custom)?;
-
-        SerializableWopbsKey {
-            wopbs_server_key: &self.wopbs_server_key,
-            pbs_server_key: &self.pbs_server_key,
-            cbs_pfpksk,
-            ksk_pbs_to_wopbs,
-            param: self.param,
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for WopbsKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let thing =
-            DeserializableWopbsKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-
-        let cbs_pfpksk =
-            bincode::deserialize(thing.cbs_pfpksk.as_slice()).map_err(serde::de::Error::custom)?;
-
-        let ksk_pbs_to_wopbs = bincode::deserialize(thing.ksk_pbs_to_wopbs.as_slice())
-            .map_err(serde::de::Error::custom)?;
-
-        Ok(Self {
-            wopbs_server_key: thing.wopbs_server_key,
-            pbs_server_key: thing.pbs_server_key,
-            cbs_pfpksk,
-            ksk_pbs_to_wopbs,
-            param: thing.param,
-        })
     }
 }

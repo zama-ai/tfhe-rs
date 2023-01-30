@@ -1,7 +1,7 @@
 //! Module with the definition of the Ciphertext.
 use crate::core_crypto::entities::*;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::fmt::Debug;
 
@@ -77,7 +77,7 @@ impl Degree {
 /// A structure representing a shortint ciphertext.
 /// It is used to homomorphically evaluate a shortint circuits.
 /// Internally, it uses a LWE ciphertext.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Ciphertext {
     pub ct: LweCiphertextOwned<u64>,
     pub degree: Degree,
@@ -85,101 +85,15 @@ pub struct Ciphertext {
     pub carry_modulus: CarryModulus,
 }
 
-#[derive(Serialize, Deserialize)]
-struct SerializableCiphertext {
-    data: Vec<u8>,
-    pub degree: Degree,
-    pub message_modulus: MessageModulus,
-    pub carry_modulus: CarryModulus,
-}
-
-impl Serialize for Ciphertext {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let data = bincode::serialize(&self.ct).map_err(serde::ser::Error::custom)?;
-
-        SerializableCiphertext {
-            data,
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Ciphertext {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let thing = SerializableCiphertext::deserialize(deserializer)?;
-
-        let ct = bincode::deserialize(thing.data.as_slice()).map_err(serde::de::Error::custom)?;
-
-        Ok(Self {
-            ct,
-            degree: thing.degree,
-            message_modulus: thing.message_modulus,
-            carry_modulus: thing.carry_modulus,
-        })
-    }
-}
-
 /// A structure representing a compressed shortint ciphertext.
 /// It is used to homomorphically evaluate a shortint circuits.
 /// Internally, it uses a LWE ciphertext.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct CompressedCiphertext {
     pub ct: SeededLweCiphertext<u64>,
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializableCompressedCiphertext {
-    data: Vec<u8>,
-    pub degree: Degree,
-    pub message_modulus: MessageModulus,
-    pub carry_modulus: CarryModulus,
-}
-
-impl Serialize for CompressedCiphertext {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let data = bincode::serialize(&self.ct).map_err(serde::ser::Error::custom)?;
-
-        SerializableCompressedCiphertext {
-            data,
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for CompressedCiphertext {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let thing = SerializableCiphertext::deserialize(deserializer)?;
-
-        let ct = bincode::deserialize(thing.data.as_slice()).map_err(serde::de::Error::custom)?;
-
-        Ok(Self {
-            ct,
-            degree: thing.degree,
-            message_modulus: thing.message_modulus,
-            carry_modulus: thing.carry_modulus,
-        })
-    }
 }
 
 impl From<CompressedCiphertext> for Ciphertext {
