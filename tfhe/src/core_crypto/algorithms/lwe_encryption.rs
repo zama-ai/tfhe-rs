@@ -1469,4 +1469,65 @@ mod test {
     fn test_parallel_and_seeded_lwe_list_encryption_equivalence_u64() {
         test_parallel_and_seeded_lwe_list_encryption_equivalence::<u64>();
     }
+
+    #[test]
+    fn test_u128_encryption() {
+        // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+        // computations
+        // Define parameters for LweCiphertext creation
+        let lwe_dimension = LweDimension(742);
+        let lwe_modular_std_dev = StandardDev(4.998_277_131_225_527e-11);
+
+        // Create the PRNG
+        let mut seeder = new_seeder();
+        let seeder = seeder.as_mut();
+        let mut encryption_generator =
+            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+        let mut secret_generator =
+            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+        const NB_TESTS: usize = 10;
+        const MSG_BITS: u32 = 4;
+
+        for _ in 0..NB_TESTS {
+            for msg in 0..2u128.pow(MSG_BITS) {
+                // Create the LweSecretKey
+                let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+                    lwe_dimension,
+                    &mut secret_generator,
+                );
+
+                // Create the plaintext
+                const ENCODING: u32 = u128::BITS - MSG_BITS;
+                let plaintext = Plaintext(msg << ENCODING);
+
+                // Create a new LweCiphertext
+                let mut lwe = LweCiphertext::new(0u128, lwe_dimension.to_lwe_size());
+
+                encrypt_lwe_ciphertext(
+                    &lwe_secret_key,
+                    &mut lwe,
+                    plaintext,
+                    lwe_modular_std_dev,
+                    &mut encryption_generator,
+                );
+
+                let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe);
+
+                // Round and remove encoding
+                // First create a decomposer working on the high 4 bits corresponding to our
+                // encoding.
+                let decomposer =
+                    SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+
+                let rounded = decomposer.closest_representable(decrypted_plaintext.0);
+
+                // Remove the encoding
+                let cleartext = rounded >> ENCODING;
+
+                // Check we recovered the original message
+                assert_eq!(cleartext, msg);
+            }
+        }
+    }
 }

@@ -26,3 +26,4 @@ implement_uniform_binary!(u8);
 implement_uniform_binary!(u16);
 implement_uniform_binary!(u32);
 implement_uniform_binary!(u64);
+implement_uniform_binary!(u128);

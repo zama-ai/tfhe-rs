@@ -29,3 +29,4 @@ implement_uniform_ternary!(u8);
 implement_uniform_ternary!(u16);
 implement_uniform_ternary!(u32);
 implement_uniform_ternary!(u64);
+implement_uniform_ternary!(u128);
