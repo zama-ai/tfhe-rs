@@ -4,11 +4,11 @@ use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, Parameters};
 use crate::shortint::ClientKey;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// A structure containing a public key.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompressedPublicKey {
     pub(crate) lwe_public_key: SeededLwePublicKeyOwned<u64>,
     pub parameters: Parameters,
@@ -199,44 +199,6 @@ impl CompressedPublicKey {
             engine
                 .encrypt_native_crt_with_compressed_public_key(self, message, message_modulus)
                 .unwrap()
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializableCompressedPublicKey {
-    lwe_public_key: Vec<u8>,
-    parameters: Parameters,
-}
-
-impl Serialize for CompressedPublicKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let lwe_public_key =
-            bincode::serialize(&self.lwe_public_key).map_err(serde::ser::Error::custom)?;
-
-        SerializableCompressedPublicKey {
-            lwe_public_key,
-            parameters: self.parameters,
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for CompressedPublicKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let thing = SerializableCompressedPublicKey::deserialize(deserializer)
-            .map_err(serde::de::Error::custom)?;
-
-        Ok(Self {
-            lwe_public_key: bincode::deserialize(thing.lwe_public_key.as_slice())
-                .map_err(serde::de::Error::custom)?,
-            parameters: thing.parameters,
         })
     }
 }

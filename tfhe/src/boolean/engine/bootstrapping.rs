@@ -6,7 +6,7 @@ use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRan
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::math::fft::Fft;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 
 /// Memory used as buffer for the bootstrap
@@ -78,7 +78,7 @@ impl Memory {
 /// In more details, it contains:
 /// * `bootstrapping_key` - a public key, used to perform the bootstrapping operation.
 /// * `key_switching_key` - a public key, used to perform the key-switching operation.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ServerKey {
     pub(crate) bootstrapping_key: FourierLweBootstrapKeyOwned,
     pub(crate) key_switching_key: LweKeyswitchKeyOwned<u32>,
@@ -112,7 +112,7 @@ impl ServerKey {
 /// In more details, it contains:
 /// * `bootstrapping_key` - a public key, used to perform the bootstrapping operation.
 /// * `key_switching_key` - a public key, used to perform the key-switching operation.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct CompressedServerKey {
     pub(crate) bootstrapping_key: SeededLweBootstrapKeyOwned<u32>,
     pub(crate) key_switching_key: SeededLweKeyswitchKeyOwned<u32>,
@@ -370,93 +370,5 @@ impl From<CompressedServerKey> for ServerKey {
             key_switching_key,
             bootstrapping_key,
         }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializableServerKey {
-    pub bootstrapping_key: Vec<u8>,
-    pub key_switching_key: Vec<u8>,
-}
-
-impl Serialize for ServerKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let key_switching_key =
-            bincode::serialize(&self.key_switching_key).map_err(serde::ser::Error::custom)?;
-        let bootstrapping_key =
-            bincode::serialize(&self.bootstrapping_key).map_err(serde::ser::Error::custom)?;
-
-        SerializableServerKey {
-            key_switching_key,
-            bootstrapping_key,
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for ServerKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let thing =
-            SerializableServerKey::deserialize(deserializer).map_err(serde::de::Error::custom)?;
-
-        let key_switching_key = bincode::deserialize(thing.key_switching_key.as_slice())
-            .map_err(serde::de::Error::custom)?;
-        let bootstrapping_key = bincode::deserialize(thing.bootstrapping_key.as_slice())
-            .map_err(serde::de::Error::custom)?;
-
-        Ok(Self {
-            bootstrapping_key,
-            key_switching_key,
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerializableCompressedServerKey {
-    pub bootstrapping_key: Vec<u8>,
-    pub key_switching_key: Vec<u8>,
-}
-
-impl Serialize for CompressedServerKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let key_switching_key =
-            bincode::serialize(&self.key_switching_key).map_err(serde::ser::Error::custom)?;
-        let bootstrapping_key =
-            bincode::serialize(&self.bootstrapping_key).map_err(serde::ser::Error::custom)?;
-
-        SerializableCompressedServerKey {
-            key_switching_key,
-            bootstrapping_key,
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for CompressedServerKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let thing = SerializableCompressedServerKey::deserialize(deserializer)
-            .map_err(serde::de::Error::custom)?;
-
-        let key_switching_key = bincode::deserialize(thing.key_switching_key.as_slice())
-            .map_err(serde::de::Error::custom)?;
-        let bootstrapping_key = bincode::deserialize(thing.bootstrapping_key.as_slice())
-            .map_err(serde::de::Error::custom)?;
-
-        Ok(Self {
-            bootstrapping_key,
-            key_switching_key,
-        })
     }
 }
