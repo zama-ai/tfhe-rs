@@ -12,7 +12,6 @@
 //! traits which allow to go back and forth between an unsigned integer representation and a
 //! floating point representation.
 
-use crate::core_crypto::commons::dispersion::LogStandardDev;
 use crate::core_crypto::commons::math::random::{
     Gaussian, RandomGenerable, Uniform, UniformBinary, UniformTernary,
 };
@@ -89,14 +88,10 @@ pub trait UnsignedTorus:
     + Display
     + Debug
 {
-    /// The log standard deviation used to sample gaussian keys in this precision.
-    const GAUSSIAN_KEY_LOG_STD: LogStandardDev;
 }
 
-impl UnsignedTorus for u32 {
-    const GAUSSIAN_KEY_LOG_STD: LogStandardDev = LogStandardDev(-30.32192809488736);
-}
+impl UnsignedTorus for u32 {}
 
-impl UnsignedTorus for u64 {
-    const GAUSSIAN_KEY_LOG_STD: LogStandardDev = LogStandardDev(-62.32192809488736);
-}
+impl UnsignedTorus for u64 {}
+
+impl UnsignedTorus for u128 {}
