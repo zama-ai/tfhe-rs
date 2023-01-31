@@ -625,6 +625,38 @@ impl ShortintEngine {
         })
     }
 
+    // Impossible to call the assign function in this case
+    pub(crate) fn bc_create_trivial(
+        &mut self,
+        server_key: &ServerKey,
+        value: u64,
+    ) -> EngineResult<Ciphertext> {
+        let lwe_size = server_key
+            .bootstrapping_key
+            .input_lwe_dimension()
+            .to_lwe_size();
+
+        let modular_value = value as usize % server_key.message_modulus.0;
+
+        let delta =
+            (1_u64 << 63) / (server_key.message_modulus.0 * server_key.carry_modulus.0) as u64;
+
+        let shifted_value = (modular_value as u64) * delta;
+
+        let encoded = Plaintext(shifted_value);
+
+        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded);
+
+        let degree = Degree(modular_value);
+
+        Ok(Ciphertext {
+            ct,
+            degree,
+            message_modulus: server_key.message_modulus,
+            carry_modulus: server_key.carry_modulus,
+        })
+    }
+
     pub(crate) fn create_trivial_assign(
         &mut self,
         server_key: &ServerKey,

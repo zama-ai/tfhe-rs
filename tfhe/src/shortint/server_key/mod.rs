@@ -557,6 +557,12 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.create_trivial(self, value).unwrap())
     }
 
+    pub fn bc_create_trivial(&self, value: u64) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_create_trivial(self, value).unwrap()
+        })
+    }
+
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.create_trivial_assign(self, ct, value).unwrap()
