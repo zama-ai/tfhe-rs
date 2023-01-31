@@ -8,5 +8,5 @@ RUN ls /usr/local/app/target/release
 
 FROM debian:bullseye-slim
 WORKDIR /usr/local/app/tfhe-rs/lib
-COPY  --from=builder /usr/local/app/target/release/libtfhe.* .
+COPY  --from=builder /usr/local/app/target/release/libtfhe.* /usr/local/app/tfhe-rs/lib/
 COPY  --from=builder /usr/local/app/target/release/tfhe.h .
