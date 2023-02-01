@@ -605,7 +605,7 @@ void test_bc_server_key(void) {
   const uint32_t message_bits = 2;
   const uint32_t carry_bits = 2;
 
-  int get_params_ok = shortint_get_parameters(message_bits, carry_bits, &params);
+  int get_params_ok = shortint_bc_get_parameters(message_bits, carry_bits, &params);
   assert(get_params_ok == 0);
 
   int gen_keys_ok = shortint_bc_gen_keys_with_parameters(params, &cks, &sks);
@@ -635,6 +635,10 @@ void test_bc_server_key(void) {
   printf("bc_sub\n");
   test_bc_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, sub,
                              shortint_bc_server_key_smart_sub);
+
+  printf("bc_mul\n");
+  test_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, mul,
+                          shortint_bc_server_key_smart_mul);
 
   printf("bc_greater\n");
   test_bc_shortint_binary_op(deser_cks, deser_sks, message_bits, carry_bits, greater,

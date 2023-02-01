@@ -287,7 +287,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         ct: &Ciphertext,
-        acc: &GlweCiphertextOwned<u64>,
+        acc: &Accumulator,
     ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct.clone();
         self.programmable_bootstrap_keyswitch_assign(server_key, &mut ct_res, acc)?;
@@ -298,7 +298,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         ct: &mut Ciphertext,
-        acc: &GlweCiphertextOwned<u64>,
+        acc: &Accumulator,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
         let (_, buffers) = self.buffers_for_key(server_key);
@@ -331,7 +331,7 @@ impl ShortintEngine {
         programmable_bootstrap_lwe_ciphertext_mem_optimized(
             &ct.ct,
             &mut buffer_lwe_after_pbs,
-            acc,
+            &acc.acc,
             fourier_bsk,
             fft,
             stack,
@@ -343,6 +343,9 @@ impl ShortintEngine {
             &buffer_lwe_after_pbs,
             &mut ct.ct,
         );
+
+        ct.degree = acc.degree;
+
         Ok(())
     }
 

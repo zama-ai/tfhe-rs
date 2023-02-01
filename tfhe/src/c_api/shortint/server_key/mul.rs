@@ -26,6 +26,30 @@ pub unsafe extern "C" fn shortint_server_key_smart_mul(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn shortint_bc_server_key_smart_mul(
+    server_key: *const ShortintServerKey,
+    ct_left: *mut ShortintCiphertext,
+    ct_right: *mut ShortintCiphertext,
+    result: *mut *mut ShortintCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        let server_key = get_ref_checked(server_key).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_right = get_mut_checked(ct_right).unwrap();
+
+        let heap_allocated_ct_result = Box::new(ShortintCiphertext(
+            server_key
+                .0
+                .bc_smart_mul_lsb(&mut ct_left.0, &mut ct_right.0),
+        ));
+
+        *result = Box::into_raw(heap_allocated_ct_result);
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn shortint_server_key_unchecked_mul(
     server_key: *const ShortintServerKey,
     ct_left: *mut ShortintCiphertext,

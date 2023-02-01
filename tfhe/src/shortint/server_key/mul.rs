@@ -540,6 +540,16 @@ impl ServerKey {
         })
     }
 
+    pub fn bc_smart_mul_lsb(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.bc_smart_mul_lsb(self, ct_left, ct_right).unwrap()
+        })
+    }
+
     /// Multiply two ciphertexts together
     ///
     /// Return the "most significant bits" of the multiplication, i.e., the part in the carry

@@ -313,7 +313,7 @@ impl ServerKey {
     pub fn programmable_bootstrap_keyswitch(
         &self,
         ct_in: &Ciphertext,
-        acc: &GlweCiphertextOwned<u64>,
+        acc: &Accumulator,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -325,7 +325,7 @@ impl ServerKey {
     pub fn programmable_bootstrap_keyswitch_assign(
         &self,
         ct_in: &mut Ciphertext,
-        acc: &GlweCiphertextOwned<u64>,
+        acc: &Accumulator,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine

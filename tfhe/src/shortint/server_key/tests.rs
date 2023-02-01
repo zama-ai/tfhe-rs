@@ -190,6 +190,16 @@ fn test_bc_shortint_keygen_param_message_2_carry_2() {
     bc_shortint_keygen(bc_parameters::PARAM_MESSAGE_2_CARRY_2)
 }
 
+#[test]
+fn test_bc_shortint_mux_param_message_1_carry_1() {
+    bc_shortint_mux(bc_parameters::PARAM_MESSAGE_1_CARRY_1)
+}
+
+#[test]
+fn test_bc_shortint_mux_param_message_2_carry_2() {
+    bc_shortint_mux(bc_parameters::PARAM_MESSAGE_2_CARRY_2)
+}
+
 /// test encryption and decryption with the LWE client key
 fn shortint_encrypt_decrypt(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
@@ -2042,6 +2052,33 @@ fn shortint_mux(param: Parameters) {
     sks.smart_add_assign(&mut res, &mut ct_false);
 
     let dec_res = cks.decrypt(&res);
+
+    let clear_mux = (msg_true - msg_false) * control_bit + msg_false;
+    println!("(msg_true - msg_false) * control_bit  + msg_false = {clear_mux}, res = {dec_res}");
+    assert_eq!(clear_mux, dec_res);
+}
+
+/// test simulating a MUX
+fn bc_shortint_mux(param: Parameters) {
+    let cks = ClientKey::bc_new(param);
+    let sks = ServerKey::bc_new(&cks);
+
+    let mut rng = rand::thread_rng();
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    let msg_true = rng.gen::<u64>() % modulus;
+    let msg_false = rng.gen::<u64>() % modulus;
+    let control_bit = rng.gen::<u64>() % 2;
+
+    let mut ct_true = cks.bc_encrypt(msg_true);
+    let mut ct_false = cks.bc_encrypt(msg_false);
+    let mut ct_control = cks.bc_encrypt(control_bit);
+
+    let mut res = sks.bc_smart_sub(&mut ct_true, &mut ct_false);
+    let mut res = sks.bc_smart_mul_lsb(&mut res, &mut ct_control);
+    let res = sks.bc_smart_add(&mut res, &mut ct_false);
+
+    let dec_res = cks.bc_decrypt(&res);
 
     let clear_mux = (msg_true - msg_false) * control_bit + msg_false;
     println!("(msg_true - msg_false) * control_bit  + msg_false = {clear_mux}, res = {dec_res}");
