@@ -9,7 +9,7 @@ use tfhe::boolean::prelude::*;
 
 fn main() {
 // We generate a set of client/server keys, using the default parameters:
-    let (mut client_key, mut server_key) = gen_keys();
+    let (client_key, server_key) = gen_keys();
 
 // We use the client secret key to encrypt a message:
     let ct_1 = client_key.encrypt(true);
