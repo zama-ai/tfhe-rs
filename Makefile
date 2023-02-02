@@ -10,7 +10,7 @@ AVX512_SUPPORT?=OFF
 WASM_RUSTFLAGS:=
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
-export RUSTFLAGS:=-C target-cpu=native
+export RUSTFLAGS?=-C target-cpu=native
 
 ifeq ($(AVX512_SUPPORT),ON)
 		AVX512_FEATURE=nightly-avx512
@@ -153,8 +153,8 @@ test_boolean: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
 
 .PHONY: test_c_api # Run the tests for the C API
-test_c_api: install_rs_build_toolchain
-	./scripts/c_api_tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN)
+test_c_api: build_c_api
+	./scripts/c_api_tests.sh
 
 .PHONY: test_shortint_ci # Run the tests for shortint ci
 test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
@@ -187,10 +187,10 @@ format_doc_latex:
 	@printf "\n===============================\n"
 
 .PHONY: check_compile_tests # Build tests in debug without running them
-check_compile_tests:
+check_compile_tests: build_c_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
 		--features=$(TARGET_ARCH_FEATURE),shortint,boolean,internal-keycache -p tfhe && \
-		./scripts/c_api_tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) --build-only
+		./scripts/c_api_tests.sh --build-only
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
 build_nodejs_test_docker:
