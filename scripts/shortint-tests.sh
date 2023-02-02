@@ -42,8 +42,6 @@ filter_expression=''\
 ')'\
 'and not test(~smart_add_and_mul)' # This test is too slow
 
-export RUSTFLAGS="-C target-cpu=native"
-
 # Run tests only no examples or benches
 cargo ${1:+"${1}"} nextest run \
     --tests \
