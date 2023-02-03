@@ -1,6 +1,5 @@
 //! Module providing algorithms to perform computations on polynomials modulo $X^{N} + 1$.
 
-use crate::core_crypto::algorithms::misc::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::MonomialDegree;
@@ -34,6 +33,35 @@ pub fn polynomial_wrapping_add_assign<Scalar, OutputCont, InputCont>(
 {
     assert_eq!(lhs.polynomial_size(), rhs.polynomial_size());
     slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref())
+}
+
+/// Subtract a polynomial to the output polynomial.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::entities::*;
+/// let mut first = Polynomial::from_container(vec![1u8, 2, 3, 4, 5, 6]);
+/// let second = Polynomial::from_container(vec![255u8, 255, 255, 1, 2, 3]);
+/// polynomial_wrapping_sub_assign(&mut first, &second);
+/// assert_eq!(first.as_ref(), &[2, 3, 4, 3, 3, 3]);
+/// ```
+pub fn polynomial_wrapping_sub_assign<Scalar, OutputCont, InputCont>(
+    lhs: &mut Polynomial<OutputCont>,
+    rhs: &Polynomial<InputCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert_eq!(lhs.polynomial_size(), rhs.polynomial_size());
+    slice_wrapping_sub_assign(lhs.as_mut(), rhs.as_ref())
 }
 
 /// Add the sum of the element-wise product between two lists of polynomials to the output
@@ -118,23 +146,31 @@ pub fn polynomial_wrapping_add_mul_assign<Scalar, OutputCont, InputCont1, InputC
         output.polynomial_size(),
         rhs.polynomial_size(),
     );
-    let degree = output.degree();
+
     let polynomial_size = output.polynomial_size();
 
-    for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
-        for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
-            let target_degree = lhs_degree + rhs_degree;
-            if target_degree <= degree {
-                let output_coefficient = &mut output.as_mut()[target_degree];
+    if polynomial_size.0.is_power_of_two() && polynomial_size.0 > KARATUSBA_STOP {
+        let mut tmp = Polynomial::new(Scalar::ZERO, polynomial_size);
 
-                *output_coefficient =
-                    (*output_coefficient).wrapping_add(lhs_coeff.wrapping_mul(rhs_coeff));
-            } else {
-                let target_degree = target_degree % polynomial_size.0;
-                let output_coefficient = &mut output.as_mut()[target_degree];
+        polynomial_karatsuba_wrapping_mul(&mut tmp, lhs, rhs);
+        polynomial_wrapping_add_assign(output, &tmp);
+    } else {
+        let degree = output.degree();
+        for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
+            for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
+                let target_degree = lhs_degree + rhs_degree;
+                if target_degree <= degree {
+                    let output_coefficient = &mut output.as_mut()[target_degree];
 
-                *output_coefficient =
-                    (*output_coefficient).wrapping_sub(lhs_coeff.wrapping_mul(rhs_coeff));
+                    *output_coefficient =
+                        (*output_coefficient).wrapping_add(lhs_coeff.wrapping_mul(rhs_coeff));
+                } else {
+                    let target_degree = target_degree % polynomial_size.0;
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient =
+                        (*output_coefficient).wrapping_sub(lhs_coeff.wrapping_mul(rhs_coeff));
+                }
             }
         }
     }
@@ -306,23 +342,31 @@ pub fn polynomial_wrapping_sub_mul_assign<Scalar, OutputCont, InputCont1, InputC
         output.polynomial_size(),
         rhs.polynomial_size(),
     );
-    let degree = output.degree();
+
     let polynomial_size = output.polynomial_size();
 
-    for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
-        for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
-            let target_degree = lhs_degree + rhs_degree;
-            if target_degree <= degree {
-                let output_coefficient = &mut output.as_mut()[target_degree];
+    if polynomial_size.0.is_power_of_two() && polynomial_size.0 > KARATUSBA_STOP {
+        let mut tmp = Polynomial::new(Scalar::ZERO, polynomial_size);
 
-                *output_coefficient =
-                    (*output_coefficient).wrapping_sub(lhs_coeff.wrapping_mul(rhs_coeff));
-            } else {
-                let target_degree = target_degree % polynomial_size.0;
-                let output_coefficient = &mut output.as_mut()[target_degree];
+        polynomial_karatsuba_wrapping_mul(&mut tmp, lhs, rhs);
+        polynomial_wrapping_sub_assign(output, &tmp);
+    } else {
+        let degree = output.degree();
+        for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
+            for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
+                let target_degree = lhs_degree + rhs_degree;
+                if target_degree <= degree {
+                    let output_coefficient = &mut output.as_mut()[target_degree];
 
-                *output_coefficient =
-                    (*output_coefficient).wrapping_add(lhs_coeff.wrapping_mul(rhs_coeff));
+                    *output_coefficient =
+                        (*output_coefficient).wrapping_sub(lhs_coeff.wrapping_mul(rhs_coeff));
+                } else {
+                    let target_degree = target_degree % polynomial_size.0;
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient =
+                        (*output_coefficient).wrapping_add(lhs_coeff.wrapping_mul(rhs_coeff));
+                }
             }
         }
     }
@@ -411,7 +455,7 @@ pub fn polynomial_karatsuba_wrapping_mul<Scalar, OutputCont, LhsCont, RhsCont>(
     let poly_size = output.polynomial_size().0;
 
     // check dimensions are a power of 2
-    assert!(is_power_of_two::<u32>(poly_size.try_into().unwrap()));
+    assert!(poly_size.is_power_of_two());
 
     // allocate slices for the rec
     let mut a0 = vec![Scalar::ZERO; poly_size];
@@ -442,14 +486,14 @@ pub fn polynomial_karatsuba_wrapping_mul<Scalar, OutputCont, LhsCont, RhsCont>(
     slice_wrapping_sub_assign(&mut output[top], &a1[bottom]);
 }
 
+const KARATUSBA_STOP: usize = 32;
 /// Compute the induction for the karatsuba algorithm.
 fn induction_karatsuba<Scalar>(res: &mut [Scalar], p: &[Scalar], q: &[Scalar])
 where
     Scalar: UnsignedInteger,
 {
     // stop the induction when polynomials have KARATUSBA_STOP elements
-    const KARATUSBA_STOP: usize = 32;
-    if p.len() == KARATUSBA_STOP {
+    if p.len() <= KARATUSBA_STOP {
         // schoolbook algorithm
         for (lhs_degree, &lhs_elt) in p.iter().enumerate() {
             for (rhs_degree, &rhs_elt) in q.iter().enumerate() {

@@ -59,6 +59,8 @@ pub trait UnsignedInteger:
     /// Panic free shift-right operation.
     #[must_use]
     fn wrapping_shr(self, rhs: u32) -> Self;
+    #[must_use]
+    fn is_power_of_two(self) -> bool;
     /// Return the casting of the current value to the signed type of the same size.
     fn into_signed(self) -> Self::Signed;
     /// Return a bit representation of the integer, where blocks of length `block_length` are
@@ -127,6 +129,10 @@ macro_rules! implement {
             fn wrapping_pow(self, exp: u32) -> Self {
                 self.wrapping_pow(exp)
             }
+            #[inline]
+            fn is_power_of_two(self) -> bool {
+                self.is_power_of_two()
+            }
         }
     };
 }
@@ -136,6 +142,7 @@ implement!(u16, i16, 16);
 implement!(u32, i32, 32);
 implement!(u64, i64, 64);
 implement!(u128, i128, 128);
+implement!(usize, isize, usize::BITS as usize);
 
 #[cfg(test)]
 mod test {
