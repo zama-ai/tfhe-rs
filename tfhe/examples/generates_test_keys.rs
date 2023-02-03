@@ -18,7 +18,14 @@ fn client_server_keys() {
             params.name()
         );
 
+        let start = std::time::Instant::now();
+
         let _ = KEY_CACHE.get_from_param(params);
+
+        let stop = start.elapsed().as_secs();
+
+        println!("Generation took {stop} seconds");
+
         // Clear keys as we go to avoid filling the RAM
         KEY_CACHE.clear_in_memory_cache()
     }
@@ -40,7 +47,14 @@ fn client_server_keys() {
             params_wopbs.name(),
         );
 
+        let start = std::time::Instant::now();
+
         let _ = KEY_CACHE_WOPBS.get_from_param((params_shortint, params_wopbs));
+
+        let stop = start.elapsed().as_secs();
+
+        println!("Generation took {stop} seconds");
+
         // Clear keys as we go to avoid filling the RAM
         KEY_CACHE_WOPBS.clear_in_memory_cache()
     }
