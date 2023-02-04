@@ -12,8 +12,13 @@ const NB_TEST_SMALLER: usize = 10;
 const NB_CTXT: usize = 4;
 
 create_parametrized_test!(integer_encrypt_decrypt);
+create_parametrized_test!(integer_encrypt_decrypt_128_bits);
+create_parametrized_test!(integer_encrypt_decrypt_128_bits_specific_values);
+create_parametrized_test!(integer_encrypt_decrypt_256_bits_specific_values);
+create_parametrized_test!(integer_encrypt_decrypt_256_bits);
 create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_smart_add);
+create_parametrized_test!(integer_smart_add_128_bits);
 create_parametrized_test!(integer_unchecked_bitand);
 create_parametrized_test!(integer_unchecked_bitor);
 create_parametrized_test!(integer_unchecked_bitxor);
@@ -60,6 +65,176 @@ fn integer_encrypt_decrypt(param: Parameters) {
 
         // assert
         assert_eq!(clear, dec);
+    }
+}
+
+fn integer_encrypt_decrypt_128_bits(param: Parameters) {
+    let (cks, _) = KEY_CACHE.get_from_params(param);
+
+    // RNG
+    let mut rng = rand::thread_rng();
+    let num_block = (64f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize * 2;
+    for _ in 0..1 {
+        let clear = rng.gen::<u128>();
+
+        //encryption
+        let ct = cks.encrypt_radix(clear, num_block);
+
+        // decryption
+        let mut dec = 0u128;
+        cks.decrypt_radix_into(&ct, &mut dec);
+
+        // assert
+        assert_eq!(clear, dec);
+    }
+}
+
+fn integer_encrypt_decrypt_128_bits_specific_values(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+    // let num_block = (64f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize * 2;
+    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    {
+        let a = u64::MAX as u128;
+        let ct = cks.encrypt_radix(a, num_block);
+
+        let mut dec = 0u128;
+        cks.decrypt_radix_into(&ct, &mut dec);
+
+        assert_eq!(a, dec);
+    }
+    {
+        let a = (u64::MAX as u128) << 64;
+        let ct = cks.encrypt_radix(a, num_block);
+
+        let mut dec = 0u128;
+        cks.decrypt_radix_into(&ct, &mut dec);
+
+        assert_eq!(a, dec);
+    }
+
+    {
+        let clear_0 = ((u64::MAX as u128) << 64) + 1;
+        let clear_1 = 1u128 << 64;
+
+        let mut ct = cks.encrypt_radix(clear_0, num_block);
+        let mut ct2 = cks.encrypt_radix(clear_1, num_block);
+        let ct = sks.smart_add(&mut ct, &mut ct2);
+
+        // decryption
+        let mut dec = 0u128;
+        cks.decrypt_radix_into(&ct, &mut dec);
+
+        // assert
+        assert_eq!(clear_0.wrapping_add(clear_1), dec);
+    }
+
+    {
+        let clear_0 = 330885270518284254268036566988540330316u128;
+        let clear_1 = 296783836660960220449461214688067032122u128;
+
+        let mut ct = cks.encrypt_radix(clear_0, num_block);
+        let mut ct2 = cks.encrypt_radix(clear_1, num_block);
+        let ct = sks.smart_add(&mut ct, &mut ct2);
+
+        // decryption
+        let mut dec = 0u128;
+        cks.decrypt_radix_into(&ct, &mut dec);
+
+        // assert
+        assert_eq!(clear_0.wrapping_add(clear_1), dec);
+    }
+}
+
+fn integer_encrypt_decrypt_256_bits_specific_values(param: Parameters) {
+    let (cks, _) = KEY_CACHE.get_from_params(param);
+
+    let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    {
+        let a = (u64::MAX as u128) << 64;
+        let b = 0;
+        let clear = crate::integer::client_key::U256::from((a, b));
+        let ct = cks.encrypt_radix(clear, num_block);
+
+        let mut dec = crate::integer::client_key::U256::from((0, 0));
+        cks.decrypt_radix_into(&ct, &mut dec);
+
+        assert_eq!(clear, dec);
+    }
+    {
+        let a = 0;
+        let b = u128::MAX;
+        let clear = crate::integer::client_key::U256::from((a, b));
+        let ct = cks.encrypt_radix(clear, num_block);
+
+        let mut dec = crate::integer::client_key::U256::from((0, 0));
+        cks.decrypt_radix_into(&ct, &mut dec);
+
+        assert_eq!(clear, dec);
+    }
+}
+
+fn integer_encrypt_decrypt_256_bits(param: Parameters) {
+    let (cks, _) = KEY_CACHE.get_from_params(param);
+
+    // RNG
+    let mut rng = rand::thread_rng();
+    let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+
+    for _ in 0..1 {
+        let clear0 = rng.gen::<u128>();
+        let clear1 = rng.gen::<u128>();
+
+        let clear = crate::integer::client_key::U256::from((clear0, clear1));
+
+        //encryption
+        let ct = cks.encrypt_radix(clear, num_block);
+
+        // decryption
+        let mut dec = crate::integer::client_key::U256::from((0, 0));
+        cks.decrypt_radix_into(&ct, &mut dec);
+
+        // assert
+        assert_eq!(clear, dec);
+    }
+}
+
+fn integer_smart_add_128_bits(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+    let mut rng = rand::thread_rng();
+    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+
+    for _ in 0..100 {
+        let clear_0 = rng.gen::<u128>();
+
+        let clear_1 = rng.gen::<u128>();
+
+        println!("{clear_0} {clear_1}");
+
+        // encryption of an integer
+        let mut ctxt_0 = cks.encrypt_radix(clear_0, num_block);
+
+        // encryption of an integer
+        let mut ctxt_1 = cks.encrypt_radix(clear_1, num_block);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
+
+        let mut clear_result = clear_0 + clear_1;
+
+        // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
+        //add multiple times to raise the degree
+        for _ in 0..2 {
+            ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
+            clear_result += clear_0;
+
+            // decryption of ct_res
+            let mut dec_res = 0u128;
+            cks.decrypt_radix_into(&ct_res, &mut dec_res);
+            // println!("clear = {}, dec_res = {}", clear, dec_res);
+            assert_eq!(clear_result, dec_res);
+        }
     }
 }
 

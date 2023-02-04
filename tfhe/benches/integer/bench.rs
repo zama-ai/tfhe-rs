@@ -7,7 +7,7 @@ use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::parameters::*;
 use tfhe::integer::wopbs::WopbsKey;
 use tfhe::integer::{gen_keys, RadixCiphertext, ServerKey};
-use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
+use tfhe::shortint::keycache::{NamedParam, KEY_CACHE_WOPBS};
 use tfhe::shortint::parameters::parameters_wopbs_message_carry::get_parameters_from_message_and_carry_wopbs;
 use tfhe::shortint::parameters::{get_parameters_from_message_and_carry, DEFAULT_PARAMETERS};
 
@@ -140,6 +140,61 @@ where
     bench_group.finish()
 }
 
+fn bench_smart_add_radix(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("smart_add_radix");
+
+    let mut rng = rand::thread_rng();
+
+    let bit_sizes = [8, 16, 32, 40, 64, 128, 256];
+    let params = [
+        PARAM_MESSAGE_1_CARRY_1,
+        PARAM_MESSAGE_2_CARRY_2,
+        PARAM_MESSAGE_3_CARRY_3,
+        PARAM_MESSAGE_4_CARRY_4,
+    ];
+
+    for param in params {
+        let param_name = param.name();
+
+        let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+        for bit_size in bit_sizes {
+            let num_block =
+                (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+
+            let bench_id = format!("{param_name} * {num_block}={bit_size} bits");
+            bench_group.bench_function(&bench_id, |b| {
+                let encrypt_two_values = || {
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+
+                    let clear_0 = tfhe::integer::client_key::U256::from((clearlow, clearhigh));
+
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+
+                    let clear_1 = tfhe::integer::client_key::U256::from((clearlow, clearhigh));
+
+                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                    let ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                    (ct_0, ct_1)
+                };
+
+                b.iter_batched(
+                    encrypt_two_values,
+                    |(mut ct_0, mut ct_1)| {
+                        sks.smart_add(&mut ct_0, &mut ct_1);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+        }
+    }
+
+    bench_group.finish()
+}
+
 fn bench_server_key_binary_scalar_function<F>(c: &mut Criterion, bench_name: &str, binary_op: F)
 where
     F: Fn(&ServerKey, &mut RadixCiphertext, u64),
@@ -242,6 +297,7 @@ criterion_group!(
     smart_bitor_parallelized,
     smart_bitxor,
     smart_bitxor_parallelized,
+    bench_smart_add_radix,
 );
 
 criterion_group!(

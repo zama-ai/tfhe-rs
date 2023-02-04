@@ -50,6 +50,54 @@ impl AsRef<ClientKey> for ClientKey {
     }
 }
 
+pub trait ClearText {
+    fn as_words(&self) -> &[u64];
+
+    fn as_words_mut(&mut self) -> &mut [u64];
+}
+
+impl ClearText for u64 {
+    fn as_words(&self) -> &[u64] {
+        std::slice::from_ref(self)
+    }
+
+    fn as_words_mut(&mut self) -> &mut [u64] {
+        std::slice::from_mut(self)
+    }
+}
+
+impl ClearText for u128 {
+    fn as_words(&self) -> &[u64] {
+        let u128_slc = std::slice::from_ref(self);
+        unsafe { std::slice::from_raw_parts(u128_slc.as_ptr() as *const u64, 2) }
+    }
+
+    fn as_words_mut(&mut self) -> &mut [u64] {
+        let u128_slc = std::slice::from_mut(self);
+        unsafe { std::slice::from_raw_parts_mut(u128_slc.as_mut_ptr() as *mut u64, 2) }
+    }
+}
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct U256([u128; 2]);
+
+impl ClearText for U256 {
+    fn as_words(&self) -> &[u64] {
+        let u128_slc = self.0.as_slice();
+        unsafe { std::slice::from_raw_parts(u128_slc.as_ptr() as *const u64, 4) }
+    }
+
+    fn as_words_mut(&mut self) -> &mut [u64] {
+        let u128_slc = self.0.as_mut_slice();
+        unsafe { std::slice::from_raw_parts_mut(u128_slc.as_mut_ptr() as *mut u64, 4) }
+    }
+}
+
+impl From<(u128, u128)> for U256 {
+    fn from(v: (u128, u128)) -> Self {
+        Self([v.0, v.1])
+    }
+}
+
 impl ClientKey {
     /// Creates a Client Key.
     ///
@@ -94,25 +142,12 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_radix(&self, message: u64, num_blocks: usize) -> RadixCiphertext {
-        let mut blocks = Vec::with_capacity(num_blocks);
-
-        // Bits of message put to 1
-        let mask = (self.key.parameters.message_modulus.0 - 1) as u64;
-
-        let mut power = 1_u64;
-        // Put each decomposition into a new ciphertext
-        for _ in 0..num_blocks {
-            let decomp = (message & (mask * power)) / power;
-
-            let ct = self.key.encrypt(decomp);
-            blocks.push(ct);
-
-            // modulus to the power i
-            power *= self.key.parameters.message_modulus.0 as u64;
-        }
-
-        RadixCiphertext { blocks }
+    pub fn encrypt_radix<T: ClearText>(&self, message: T, num_blocks: usize) -> RadixCiphertext {
+        self.encrypt_words_radix(
+            message.as_words(),
+            num_blocks,
+            crate::shortint::ClientKey::encrypt,
+        )
     }
 
     /// Encrypts an integer in radix decomposition without padding bit
@@ -140,22 +175,59 @@ impl ClientKey {
         message: u64,
         num_blocks: usize,
     ) -> RadixCiphertext {
+        self.encrypt_words_radix(
+            message.as_words(),
+            num_blocks,
+            crate::shortint::ClientKey::encrypt_without_padding,
+        )
+    }
+
+    /// Encrypts 64-bits words into a ciphertext in radix decomposition
+    ///
+    /// The words are assumed to be in little endian order.
+    ///
+    /// If there are not enough words for the requested num_block,
+    /// encryptions of zeros will be appended.
+    pub fn encrypt_words_radix<F>(
+        &self,
+        message_words: &[u64],
+        num_blocks: usize,
+        encrypt_block: F,
+    ) -> RadixCiphertext
+    where
+        F: Fn(&crate::shortint::ClientKey, u64) -> crate::shortint::Ciphertext,
+    {
+        let mask = (self.key.parameters.message_modulus.0 - 1) as u128;
+        let block_modulus = self.key.parameters.message_modulus.0 as u128;
+
         let mut blocks = Vec::with_capacity(num_blocks);
+        let mut message_block_iter = message_words.iter().copied();
 
-        // Bits of message put to 1
-        let mask = (self.key.parameters.message_modulus.0 - 1) as u64;
-
-        let mut power = 1_u64;
-        // Put each decomposition into a new ciphertext
+        let mut source = 0u128; // stores the bits of the word to be encrypted in one of the iteration
+        let mut valid_until_power = 1; // 2^0 = 1, start with nothing valid
+        let mut current_power = 1; // where the next bits to encrypt starts
         for _ in 0..num_blocks {
-            let decomp = (message & (mask * power)) / power;
+            // Are we going to encrypt bits that are not valid ?
+            // If so, discard already encrypted bits and fetch bits form the input words
+            if (current_power * block_modulus) >= valid_until_power {
+                source /= current_power;
+                valid_until_power /= current_power;
 
-            // encryption
-            let ct = self.key.encrypt_without_padding(decomp);
+                source += message_block_iter
+                    .next()
+                    .map(u128::from)
+                    .unwrap_or_default()
+                    * valid_until_power;
+
+                current_power = 1;
+                valid_until_power <<= 64;
+            }
+
+            let block_value = (source & (mask * current_power)) / current_power;
+            let ct = encrypt_block(&self.key, block_value as u64);
             blocks.push(ct);
 
-            // modulus to the power i
-            power *= self.key.parameters.message_modulus.0 as u64;
+            current_power *= block_modulus;
         }
 
         RadixCiphertext { blocks }
@@ -214,25 +286,18 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn decrypt_radix(&self, ctxt: &RadixCiphertext) -> u64 {
-        let mut result = 0_u64;
-        let mut shift = 1_u64;
-        let modulus = self.parameters().message_modulus.0 as u64;
+    pub fn decrypt_radix<T: ClearText + Default>(&self, ctxt: &RadixCiphertext) -> T {
+        let mut res = T::default();
+        self.decrypt_radix_into(ctxt, &mut res);
+        res
+    }
 
-        for c_i in ctxt.blocks.iter() {
-            // decrypt the component i of the integer and multiply it by the radix product
-            let block_value = self.key.decrypt_message_and_carry(c_i).wrapping_mul(shift);
-
-            // update the result
-            result = result.wrapping_add(block_value);
-
-            // update the shift for the next iteration
-            shift = shift.wrapping_mul(modulus);
-        }
-
-        let whole_modulus = modulus.pow(ctxt.blocks.len() as u32);
-
-        result % whole_modulus
+    pub fn decrypt_radix_into<T: ClearText>(&self, ctxt: &RadixCiphertext, out: &mut T) {
+        self.decrypt_radix_into_words(
+            ctxt,
+            out.as_words_mut(),
+            crate::shortint::ClientKey::decrypt_message_and_carry,
+        );
     }
 
     /// Decrypts a ciphertext encrypting an radix integer encrypted without padding
@@ -256,26 +321,56 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_radix_without_padding(&self, ctxt: &RadixCiphertext) -> u64 {
-        let mut result = 0_u64;
-        let mut shift = 1_u64;
-        let modulus = self.parameters().message_modulus.0 as u64;
-        for c_i in ctxt.blocks.iter() {
-            // decrypt the component i of the integer and multiply it by the radix product
-            let block_value = self
-                .key
-                .decrypt_message_and_carry_without_padding(c_i)
-                .wrapping_mul(shift);
+        let mut res = 0u64;
+        self.decrypt_radix_into_words(
+            ctxt,
+            res.as_words_mut(),
+            crate::shortint::ClientKey::decrypt_message_and_carry_without_padding,
+        );
+        res
+    }
 
-            // update the result
-            result = result.wrapping_add(block_value);
+    /// Decrypts a ciphertext in radix decomposition into 64bits
+    ///
+    /// The words are assumed to be in little endian order.
+    pub fn decrypt_radix_into_words<F>(
+        &self,
+        ctxt: &RadixCiphertext,
+        clear_words: &mut [u64],
+        decrypt_block: F,
+    ) where
+        F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
+    {
+        let mut cipher_blocks_iter = ctxt.blocks.iter();
+        let mut current = 0u128;
+        let mut power = 1u128;
+        let mut power_excess = 1;
+        for current_clear_word in clear_words.iter_mut() {
+            for cipher_block in cipher_blocks_iter.by_ref() {
+                let block_value = decrypt_block(&self.key, cipher_block) as u128;
 
-            // update the shift for the next iteration
-            shift = shift.wrapping_mul(modulus);
+                let shifted_block_value = block_value * power * power_excess;
+                current += shifted_block_value;
+
+                let new_power = power * self.key.parameters.message_modulus.0 as u128;
+                let pow_dif = (new_power * power_excess) / (1u128 << 64);
+
+                if pow_dif >= 1 {
+                    power_excess = pow_dif;
+                    power = 1;
+                    break;
+                } else {
+                    power = new_power;
+                }
+            }
+
+            if power == 1 {
+                *current_clear_word = (current & u128::from(u64::MAX)) as u64;
+                current = current.wrapping_shr(64);
+            } else {
+                *current_clear_word = (current & ((power * power_excess) - 1)) as u64;
+            }
         }
-
-        let whole_modulus = modulus.pow(ctxt.blocks.len() as u32);
-
-        result % whole_modulus
     }
 
     /// Encrypts an integer using crt representation

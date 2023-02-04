@@ -189,12 +189,12 @@ pub fn wopbs_radix(params: (Parameters, Parameters)) {
         let mut ct1 = cks.encrypt_radix(clear1, nb_block);
 
         // //artificially modify the degree
-        let res = cks.decrypt_radix(&ct1);
+        let res: u64 = cks.decrypt_radix(&ct1);
         let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);
         let lut = wopbs_key.generate_lut_radix(&ct1, |x| x);
         let ct_res = wopbs_key.wopbs(&ct1, &lut);
         let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
-        let res_wop = cks.decrypt_radix(&ct_res);
+        let res_wop: u64 = cks.decrypt_radix(&ct_res);
         if res % msg_space != res_wop {
             tmp += 1;
         }
@@ -228,12 +228,12 @@ pub fn wopbs_bivariate_radix(params: (Parameters, Parameters)) {
         let mut ct1 = cks.encrypt_radix(clear1, nb_block);
         let scalar = rng.gen::<u64>() % msg_space;
         sks.smart_scalar_add_assign(&mut ct1, scalar);
-        let dec1 = cks.decrypt_radix(&ct1);
+        let dec1: u64 = cks.decrypt_radix(&ct1);
 
         let mut ct2 = cks.encrypt_radix(clear2, nb_block);
         let scalar = rng.gen::<u64>() % msg_space;
         sks.smart_scalar_add_assign(&mut ct2, scalar);
-        let dec2 = cks.decrypt_radix(&ct2);
+        let dec2: u64 = cks.decrypt_radix(&ct2);
 
         let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);
         let ct2 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct2);
@@ -242,7 +242,7 @@ pub fn wopbs_bivariate_radix(params: (Parameters, Parameters)) {
         let ct_res = wopbs_key.bivariate_wopbs_with_degree(&ct1, &ct2, &lut);
         let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
 
-        let res = cks.decrypt_radix(&ct_res);
+        let res: u64 = cks.decrypt_radix(&ct_res);
         assert_eq!(res, (dec1 + dec2 * dec1) % msg_space);
     }
 }

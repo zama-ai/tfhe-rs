@@ -197,7 +197,7 @@ impl WopbsKey {
     /// let lut = wopbs_key.generate_lut_radix(&ct, |x| x);
     /// let ct_res = wopbs_key.wopbs(&ct, &lut);
     /// let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
-    /// let res = cks.decrypt_radix(&ct_res);
+    /// let res: u64 = cks.decrypt_radix(&ct_res);
     ///
     /// assert_eq!(res, clear);
     /// ```
@@ -400,7 +400,7 @@ impl WopbsKey {
     /// let lut = wopbs_key.generate_lut_bivariate_radix(&ct1, &ct2, |x, y| 2 * x * y);
     /// let ct_res = wopbs_key.bivariate_wopbs_with_degree(&ct1, &ct2, &lut);
     /// let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
-    /// let res = cks.decrypt_radix(&ct_res);
+    /// let res: u64 = cks.decrypt_radix(&ct_res);
     ///
     /// assert_eq!(res, (2 * clear1 * clear2) % moduli);
     /// ```
@@ -436,7 +436,7 @@ impl WopbsKey {
     /// let lut = wopbs_key.generate_lut_radix(&ct, |x| 2 * x);
     /// let ct_res = wopbs_key.wopbs(&ct, &lut);
     /// let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
-    /// let res = cks.decrypt_radix(&ct_res);
+    /// let res: u64 = cks.decrypt_radix(&ct_res);
     ///
     /// assert_eq!(res, (2 * clear) % moduli);
     /// ```
@@ -701,7 +701,7 @@ impl WopbsKey {
     /// let lut = wopbs_key.generate_lut_bivariate_radix(&ct1, &ct2, |x, y| 2 * x * y);
     /// let ct_res = wopbs_key.bivariate_wopbs_with_degree(&ct1, &ct2, &lut);
     /// let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
-    /// let res = cks.decrypt_radix(&ct_res);
+    /// let res: u64 = cks.decrypt_radix(&ct_res);
     ///
     /// assert_eq!(res, (2 * clear1 * clear2) % moduli);
     /// ```
