@@ -3,6 +3,11 @@ FROM ubuntu:22.04
 ENV TZ=Europe/Paris
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
+# Replace default archive.ubuntu.com with fr mirror
+# original archive showed performance issues and is farther away
+RUN sed -i 's|^deb http://archive|deb http://fr.archive|g' /etc/apt/sources.list && \
+    sed -i 's|^deb http://security|deb http://fr.archive|g' /etc/apt/sources.list
+
 ENV CARGO_TARGET_DIR=/root/tfhe-rs-target
 
 ARG RUST_TOOLCHAIN="stable"
