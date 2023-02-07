@@ -16,8 +16,8 @@ fn abs_diff<Scalar: UnsignedTorus>(a: Scalar, b: Scalar) -> Scalar {
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
-    for i in 2..=14 {
-        let size = 1_usize << i;
+    for size_log in 2..=14 {
+        let size = 1_usize << size_log;
 
         let fft = Fft::new(PolynomialSize(size));
         let fft = fft.as_view();
@@ -74,9 +74,9 @@ fn test_product<Scalar: UnsignedTorus>() {
     }
 
     let mut generator = new_random_generator();
-    for i in 5..=14 {
+    for size_log in 5..=14 {
         for _ in 0..100 {
-            let size = 1_usize << i;
+            let size = 1_usize << size_log;
 
             let fft = Fft::new(PolynomialSize(size));
             let fft = fft.as_view();
@@ -98,16 +98,11 @@ fn test_product<Scalar: UnsignedTorus>() {
                 data: avec![c64::default(); size / 2 ].into_boxed_slice(),
             };
 
+            let integer_magnitude = 16;
             for (x, y) in izip!(poly0.as_mut().iter_mut(), poly1.as_mut().iter_mut()) {
                 *x = generator.random_uniform();
                 *y = generator.random_uniform();
-                if Scalar::BITS == 64 {
-                    *x >>= 32;
-                    *y >>= 32;
-                } else {
-                    *x >>= 16;
-                    *y >>= 16;
-                }
+                *y >>= Scalar::BITS - integer_magnitude;
             }
 
             let mut mem = GlobalPodBuffer::new(
@@ -139,7 +134,13 @@ fn test_product<Scalar: UnsignedTorus>() {
                 convolution_from_naive.as_ref().iter(),
                 convolution_from_fft.as_ref().iter()
             ) {
-                assert!(abs_diff(*expected, *actual) < (Scalar::ONE << (Scalar::BITS - 5)));
+                let threshold =
+                    Scalar::ONE << (Scalar::BITS.saturating_sub(52 - integer_magnitude - size_log));
+                let abs_diff = abs_diff(*expected, *actual);
+                assert!(
+                    abs_diff <= threshold,
+                    "abs_diff: {abs_diff}, threshold: {threshold}",
+                );
             }
         }
     }

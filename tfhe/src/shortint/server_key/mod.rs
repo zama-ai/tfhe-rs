@@ -23,7 +23,7 @@ mod tests;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKeyOwned;
 use crate::shortint::ciphertext::{CiphertextBase, Degree};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;

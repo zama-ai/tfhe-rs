@@ -4,11 +4,11 @@ use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::crypto::bootstrap::pbs_modulus_switch;
-use crate::core_crypto::fft_impl::crypto::ggsw::{
+use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
+use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign, add_external_product_assign_scratch, update_with_fmadd,
 };
-use crate::core_crypto::fft_impl::math::fft::Fft;
+use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use concrete_fft::c64;
 use std::sync::{mpsc, Condvar, Mutex};
 use std::thread;

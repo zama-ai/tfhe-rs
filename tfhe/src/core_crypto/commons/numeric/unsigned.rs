@@ -30,6 +30,7 @@ pub trait UnsignedInteger:
     + ShlAssign<usize>
     + Shr<usize, Output = Self>
     + ShrAssign<usize>
+    + CastFrom<Self::Signed>
     + CastFrom<f64>
     + CastInto<f64>
 {

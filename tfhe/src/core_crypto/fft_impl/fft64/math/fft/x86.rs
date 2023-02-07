@@ -899,7 +899,9 @@ pub fn convert_add_backward_torus_u64(
 
 #[cfg(test)]
 mod tests {
-    use crate::core_crypto::fft_impl::math::fft::{convert_add_backward_torus_scalar, Twisties};
+    use crate::core_crypto::fft_impl::fft64::math::fft::{
+        convert_add_backward_torus_scalar, Twisties,
+    };
     use std::mem::transmute;
 
     use super::*;

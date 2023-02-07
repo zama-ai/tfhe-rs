@@ -1,4 +1,4 @@
-use super::super::math::fft::{FftView, FourierPolynomialList};
+use super::super::math::fft::{Fft, FftView, FourierPolynomialList};
 use super::ggsw::{cmux, *};
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
@@ -13,6 +13,8 @@ use crate::core_crypto::commons::traits::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
+use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
@@ -297,26 +299,74 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
     }
 }
 
-/// This function switches modulus for a single coefficient of a ciphertext,
-/// only in the context of a PBS
-///
-/// offset: the number of msb discarded
-/// lut_count_log: the right padding
-pub fn pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
-    input: Scalar,
-    poly_size: PolynomialSize,
-    offset: ModulusSwitchOffset,
-    lut_count_log: LutCountLog,
-) -> usize {
-    // First, do the left shift (we discard the offset msb)
-    let mut output = input << offset.0;
-    // Start doing the right shift
-    output >>= Scalar::BITS - poly_size.log2().0 - 2 + lut_count_log.0;
-    // Do the rounding
-    output += output & Scalar::ONE;
-    // Finish the right shift
-    output >>= 1;
-    // Apply the lsb padding
-    output <<= lut_count_log.0;
-    <Scalar as CastInto<usize>>::cast_into(output)
+impl<Scalar> FourierBootstrapKey<Scalar> for FourierLweBootstrapKeyOwned
+where
+    Scalar: UnsignedTorus + CastInto<usize>,
+{
+    type Fft = Fft;
+
+    fn new_fft(polynomial_size: PolynomialSize) -> Self::Fft {
+        Fft::new(polynomial_size)
+    }
+
+    fn new(
+        input_lwe_dimension: LweDimension,
+        polynomial_size: PolynomialSize,
+        glwe_size: GlweSize,
+        decomposition_base_log: DecompositionBaseLog,
+        decomposition_level_count: DecompositionLevelCount,
+    ) -> Self {
+        Self::new(
+            input_lwe_dimension,
+            glwe_size,
+            polynomial_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        )
+    }
+
+    fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> Result<StackReq, SizeOverflow> {
+        fill_with_forward_fourier_scratch(fft.as_view())
+    }
+
+    fn fill_with_forward_fourier<ContBsk>(
+        &mut self,
+        coef_bsk: &LweBootstrapKey<ContBsk>,
+        fft: &Self::Fft,
+        stack: PodStack<'_>,
+    ) where
+        ContBsk: Container<Element = Scalar>,
+    {
+        self.as_mut_view()
+            .fill_with_forward_fourier(coef_bsk.as_view(), fft.as_view(), stack);
+    }
+
+    fn bootstrap_scratch(
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        fft: &Self::Fft,
+    ) -> Result<StackReq, SizeOverflow> {
+        bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft.as_view())
+    }
+
+    fn bootstrap<ContLweOut, ContLweIn, ContAcc>(
+        &self,
+        lwe_out: &mut LweCiphertext<ContLweOut>,
+        lwe_in: &LweCiphertext<ContLweIn>,
+        accumulator: &GlweCiphertext<ContAcc>,
+        fft: &Self::Fft,
+        stack: PodStack<'_>,
+    ) where
+        ContLweOut: ContainerMut<Element = Scalar>,
+        ContLweIn: Container<Element = Scalar>,
+        ContAcc: Container<Element = Scalar>,
+    {
+        self.as_view().bootstrap(
+            lwe_out.as_mut_view().as_mut(),
+            lwe_in.as_view().as_ref(),
+            accumulator.as_view(),
+            fft.as_view(),
+            stack,
+        )
+    }
 }
