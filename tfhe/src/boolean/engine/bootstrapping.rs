@@ -5,7 +5,7 @@ use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::math::fft::Fft;
+use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 

@@ -1,8 +1,8 @@
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKey;
-use crate::core_crypto::fft_impl::math::fft::Fft;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
+use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::EngineResult;
 use crate::shortint::parameters::MessageModulus;

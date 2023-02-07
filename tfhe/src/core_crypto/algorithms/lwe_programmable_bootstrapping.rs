@@ -5,14 +5,16 @@ use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::crypto::bootstrap::{bootstrap_scratch, FourierLweBootstrapKey};
-use crate::core_crypto::fft_impl::crypto::ggsw::{
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
+    bootstrap_scratch, FourierLweBootstrapKey,
+};
+use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign as impl_add_external_product_assign,
     add_external_product_assign_scratch as impl_add_external_product_assign_scratch, cmux,
     cmux_scratch, FourierGgswCiphertext,
 };
-use crate::core_crypto::fft_impl::crypto::wop_pbs::blind_rotate_assign_scratch;
-use crate::core_crypto::fft_impl::math::fft::{Fft, FftView};
+use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::blind_rotate_assign_scratch;
+use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 

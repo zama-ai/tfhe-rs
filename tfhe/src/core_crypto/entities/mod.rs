@@ -33,11 +33,11 @@ pub mod seeded_lwe_ciphertext_list;
 pub mod seeded_lwe_keyswitch_key;
 pub mod seeded_lwe_public_key;
 
-pub use crate::core_crypto::fft_impl::crypto::bootstrap::{
+pub use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
     FourierLweBootstrapKey, FourierLweBootstrapKeyOwned,
 };
-pub use crate::core_crypto::fft_impl::crypto::ggsw::*;
-pub use crate::core_crypto::fft_impl::math::polynomial::FourierPolynomial;
+pub use crate::core_crypto::fft_impl::fft64::crypto::ggsw::*;
+pub use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomial;
 pub use cleartext::*;
 pub use ggsw_ciphertext::*;
 pub use ggsw_ciphertext_list::*;
