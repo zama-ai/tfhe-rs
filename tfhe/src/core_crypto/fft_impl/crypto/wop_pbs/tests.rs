@@ -452,7 +452,7 @@ pub fn test_cmux_tree() {
                 base_log,
                 level,
             );
-            encrypt_ggsw_ciphertext(
+            encrypt_constant_ggsw_ciphertext(
                 &glwe_sk,
                 &mut ggsw,
                 single_bit_msg,
