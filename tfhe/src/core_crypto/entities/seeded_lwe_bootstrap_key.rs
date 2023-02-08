@@ -15,7 +15,7 @@ use crate::core_crypto::entities::*;
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SeededLweBootstrapKey<C: Container> {
     // An SeededLweBootstrapKey is literally a SeededGgswCiphertextList, so we wrap a
-    // GgswCiphetextList and use Deref to have access to all the primitives of the
+    // GgswCiphertextList and use Deref to have access to all the primitives of the
     // SeededGgswCiphertextList easily
     ggsw_list: SeededGgswCiphertextList<C>,
 }
