@@ -192,6 +192,25 @@ pub fn ggsw_level_matrix_size(glwe_size: GlweSize, polynomial_size: PolynomialSi
     glwe_size.0 * glwe_size.0 * polynomial_size.0
 }
 
+/// Return the number of elements in a [`FourierGgswCiphertext`] given a [`GlweSize`],
+/// [`FourierPolynomialSize`] and [`DecompositionLevelCount`].
+pub fn fourier_ggsw_ciphertext_size(
+    glwe_size: GlweSize,
+    fourier_polynomial_size: FourierPolynomialSize,
+    decomp_level_count: DecompositionLevelCount,
+) -> usize {
+    decomp_level_count.0 * fourier_ggsw_level_matrix_size(glwe_size, fourier_polynomial_size)
+}
+
+/// Return the number of elements in a [`FourierGgswLevelMatrix`] given a [`GlweSize`] and
+/// [`FourierPolynomialSize`].
+pub fn fourier_ggsw_level_matrix_size(
+    glwe_size: GlweSize,
+    fourier_polynomial_size: FourierPolynomialSize,
+) -> usize {
+    glwe_size.0 * glwe_size.0 * fourier_polynomial_size.0
+}
+
 impl<Scalar, C: Container<Element = Scalar>> GgswCiphertext<C> {
     /// Create a [`GgswCiphertext`] from an existing container.
     ///

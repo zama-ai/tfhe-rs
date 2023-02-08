@@ -160,18 +160,18 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
         );
 
         let id = format!("PBS_mem-optimized_{name}");
-        #[allow(clippy::unit_arg)]
         {
             c.bench_function(&id, |b| {
                 b.iter(|| {
-                    black_box(programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
                         &lwe_ciphertext_in,
                         &mut out_pbs_ct,
                         &accumulator.as_view(),
                         &fourier_bsk,
                         fft,
                         buffers.stack(),
-                    ))
+                    );
+                    black_box(&mut out_pbs_ct);
                 })
             });
         }

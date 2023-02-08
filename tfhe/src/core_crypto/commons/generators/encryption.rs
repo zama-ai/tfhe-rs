@@ -9,7 +9,7 @@ use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
     DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweDimension, GlweSize,
-    LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
+    LweBskGroupingFactor, LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
 };
 use concrete_csprng::generators::ForkError;
 use rayon::prelude::*;
@@ -45,6 +45,20 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         self.mask.remaining_bytes()
     }
 
+    pub(crate) fn fork_n(
+        &mut self,
+        n: usize,
+    ) -> Result<impl Iterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
+        // We use ForkTooLarge here as what can fail is the conversion from u128 to usize
+        let mask_bytes = self.mask.remaining_bytes().ok_or(ForkError::ForkTooLarge)? / n;
+        let noise_bytes = self
+            .noise
+            .remaining_bytes()
+            .ok_or(ForkError::ForkTooLarge)?
+            / n;
+        self.try_fork(n, mask_bytes, noise_bytes)
+    }
+
     // Forks the generator, when splitting a bootstrap key into ggsw ct.
     pub(crate) fn fork_bsk_to_ggsw<T: UnsignedInteger>(
         &mut self,
@@ -55,6 +69,21 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     ) -> Result<impl Iterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
         let mask_bytes = mask_bytes_per_ggsw::<T>(level, glwe_size, polynomial_size);
         let noise_bytes = noise_bytes_per_ggsw(level, glwe_size, polynomial_size);
+        self.try_fork(lwe_dimension.0, mask_bytes, noise_bytes)
+    }
+
+    // Forks the generator, when splitting a multi_bit bootstrap key into ggsw ciphertext groups.
+    pub(crate) fn fork_multi_bit_bsk_to_ggsw_group<T: UnsignedInteger>(
+        &mut self,
+        lwe_dimension: LweDimension,
+        level: DecompositionLevelCount,
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        grouping_factor: LweBskGroupingFactor,
+    ) -> Result<impl Iterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
+        let ggsw_count = grouping_factor.ggsw_per_multi_bit_element();
+        let mask_bytes = ggsw_count.0 * mask_bytes_per_ggsw::<T>(level, glwe_size, polynomial_size);
+        let noise_bytes = ggsw_count.0 * noise_bytes_per_ggsw(level, glwe_size, polynomial_size);
         self.try_fork(lwe_dimension.0, mask_bytes, noise_bytes)
     }
 
@@ -210,6 +239,15 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
 }
 
 impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
+    pub(crate) fn par_fork_n(
+        &mut self,
+        n: usize,
+    ) -> Result<impl IndexedParallelIterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
+        let mask_bytes = self.mask.remaining_bytes().unwrap() / n;
+        let noise_bytes = self.noise.remaining_bytes().unwrap() / n;
+        self.par_try_fork(n, mask_bytes, noise_bytes)
+    }
+
     // Forks the generator into a parallel iterator, when splitting a bootstrap key into ggsw ct.
     pub(crate) fn par_fork_bsk_to_ggsw<T: UnsignedInteger>(
         &mut self,
@@ -220,7 +258,21 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
     ) -> Result<impl IndexedParallelIterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
         let mask_bytes = mask_bytes_per_ggsw::<T>(level, glwe_size, polynomial_size);
         let noise_bytes = noise_bytes_per_ggsw(level, glwe_size, polynomial_size);
-        // panic!("{:?} {:?} {:?}", lwe_dimension.0, mask_bytes, noise_bytes);
+        self.par_try_fork(lwe_dimension.0, mask_bytes, noise_bytes)
+    }
+
+    // Forks the generator, when splitting a multi_bit bootstrap key into ggsw ct.
+    pub(crate) fn par_fork_multi_bit_bsk_to_ggsw_group<T: UnsignedInteger>(
+        &mut self,
+        lwe_dimension: LweDimension,
+        level: DecompositionLevelCount,
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        grouping_factor: LweBskGroupingFactor,
+    ) -> Result<impl IndexedParallelIterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
+        let ggsw_count = grouping_factor.ggsw_per_multi_bit_element();
+        let mask_bytes = ggsw_count.0 * mask_bytes_per_ggsw::<T>(level, glwe_size, polynomial_size);
+        let noise_bytes = ggsw_count.0 * noise_bytes_per_ggsw(level, glwe_size, polynomial_size);
         self.par_try_fork(lwe_dimension.0, mask_bytes, noise_bytes)
     }
 

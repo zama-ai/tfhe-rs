@@ -428,7 +428,7 @@ pub fn add_external_product_assign<Scalar, InputGlweCont>(
                 unsafe {
                     update_with_fmadd(
                         output_fft_buffer,
-                        ggsw_row,
+                        ggsw_row.data(),
                         fourier,
                         is_output_uninit,
                         fourier_poly_size,
@@ -637,9 +637,9 @@ unsafe fn update_with_fmadd_scalar(
 ///
 ///  - if `is_output_uninit` is false, `output_fourier` must not hold any uninitialized values.
 #[cfg_attr(__profiling, inline(never))]
-unsafe fn update_with_fmadd(
+pub(crate) unsafe fn update_with_fmadd(
     output_fft_buffer: &mut [MaybeUninit<c64>],
-    ggsw_row: FourierGgswLevelRowView,
+    lhs_polynomial_list: &[c64],
     fourier: &[c64],
     is_output_uninit: bool,
     fourier_poly_size: usize,
@@ -665,10 +665,10 @@ unsafe fn update_with_fmadd(
 
     izip!(
         output_fft_buffer.into_chunks(fourier_poly_size),
-        ggsw_row.data.into_chunks(fourier_poly_size)
+        lhs_polynomial_list.into_chunks(fourier_poly_size)
     )
-    .for_each(|(output_fourier, ggsw_poly)| {
-        ptr(output_fourier, ggsw_poly, fourier, is_output_uninit);
+    .for_each(|(output_fourier, poly_from_list)| {
+        ptr(output_fourier, poly_from_list, fourier, is_output_uninit);
     });
 }
 

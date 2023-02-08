@@ -918,7 +918,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 /// let pbs_multipliation_plaintext: Plaintext<u64> =
 ///     decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_multiplication_ct);
 ///
-/// /// // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
+/// // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
 /// // We pass a DecompositionBaseLog of 5 and a DecompositionLevelCount of 1 indicating we want to
 /// // round the 5 MSB, 1 bit of padding plus our 4 bits of message
 /// let signed_decomposer =

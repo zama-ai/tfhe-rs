@@ -102,7 +102,7 @@ impl GlweDimension {
 
 /// The number of coefficients of a polynomial.
 ///
-/// Assuming a polynomial $a\_0 + a\_1X + /dots + a\_{N-1}X^{N-1}$, this returns $N$.
+/// Assuming a polynomial $a\_0 + a\_1X + /dots + a\_{N-1}X^{N-1}$, this new-type contains $N$.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct PolynomialSize(pub usize);
 
@@ -124,7 +124,7 @@ impl PolynomialSize {
 
 /// The number of elements in the container of a fourier polynomial.
 ///
-/// Assuming a standard polynomial $a\_0 + a\_1X + /dots + a\_{N-1}X^{N-1}$, this returns
+/// Assuming a standard polynomial $a\_0 + a\_1X + /dots + a\_{N-1}X^{N-1}$, this new-type contains
 /// $\frac{N}{2}$.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct FourierPolynomialSize(pub usize);
@@ -204,3 +204,21 @@ pub struct FunctionalPackingKeyswitchKeyCount(pub usize);
 /// The number of bits used for the mask coefficients and the body of a ciphertext
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct CiphertextModulusLog(pub usize);
+
+/// The number of cpu execution thread to use
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct ThreadCount(pub usize);
+
+/// The number of key bits grouped together in the multi_bit PBS
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct LweBskGroupingFactor(pub usize);
+
+impl LweBskGroupingFactor {
+    pub fn ggsw_per_multi_bit_element(&self) -> GgswPerLweMultiBitBskElement {
+        GgswPerLweMultiBitBskElement(1 << self.0)
+    }
+}
+
+/// The number of GGSW ciphertexts required per multi_bit BSK element
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct GgswPerLweMultiBitBskElement(pub usize);
