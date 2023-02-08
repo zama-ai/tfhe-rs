@@ -97,8 +97,8 @@ use crate::core_crypto::entities::*;
 /// 5. Output $\mathsf{ct}\_{\mathsf{out}} \leftarrow \mathsf{SampleExtract}(\mathsf{ACC})$
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LweBootstrapKey<C: Container> {
-    // An LweBootstrapKey is literally a GgswCiphertextList, so we wrap a GgswCiphetextList and use
-    // Deref to have access to all the primitives of the GgswCiphertextList easily
+    // An LweBootstrapKey is literally a GgswCiphertextList, so we wrap a GgswCiphertextList and
+    // use Deref to have access to all the primitives of the GgswCiphertextList easily
     ggsw_list: GgswCiphertextList<C>,
 }
 
