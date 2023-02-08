@@ -14,6 +14,7 @@ pub mod lwe_bootstrap_key;
 pub mod lwe_ciphertext;
 pub mod lwe_ciphertext_list;
 pub mod lwe_keyswitch_key;
+pub mod lwe_multi_bit_bootstrap_key;
 pub mod lwe_private_functional_packing_keyswitch_key;
 pub mod lwe_private_functional_packing_keyswitch_key_list;
 pub mod lwe_public_key;
@@ -35,7 +36,8 @@ pub mod seeded_lwe_public_key;
 pub use crate::core_crypto::fft_impl::crypto::bootstrap::{
     FourierLweBootstrapKey, FourierLweBootstrapKeyOwned,
 };
-pub use crate::core_crypto::fft_impl::crypto::ggsw::FourierGgswCiphertext;
+pub use crate::core_crypto::fft_impl::crypto::ggsw::*;
+pub use crate::core_crypto::fft_impl::math::polynomial::FourierPolynomial;
 pub use cleartext::*;
 pub use ggsw_ciphertext::*;
 pub use ggsw_ciphertext_list::*;
@@ -47,6 +49,7 @@ pub use lwe_bootstrap_key::*;
 pub use lwe_ciphertext::*;
 pub use lwe_ciphertext_list::*;
 pub use lwe_keyswitch_key::*;
+pub use lwe_multi_bit_bootstrap_key::*;
 pub use lwe_private_functional_packing_keyswitch_key::*;
 pub use lwe_private_functional_packing_keyswitch_key_list::*;
 pub use lwe_public_key::*;

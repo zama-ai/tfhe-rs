@@ -1,6 +1,8 @@
 use super::super::as_mut_uninit;
+use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::Polynomial;
+use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
 
 //--------------------------------------------------------------------------------
@@ -20,6 +22,20 @@ pub struct FourierPolynomial<C: Container> {
 
 pub type FourierPolynomialView<'a> = FourierPolynomial<&'a [c64]>;
 pub type FourierPolynomialMutView<'a> = FourierPolynomial<&'a mut [c64]>;
+
+pub type FourierPolynomialOwned = FourierPolynomial<ABox<[c64]>>;
+
+impl FourierPolynomial<ABox<[c64]>> {
+    pub fn new(polynomial_size: PolynomialSize) -> FourierPolynomial<ABox<[c64]>> {
+        let boxed = avec![
+            c64::default();
+            polynomial_size.to_fourier_polynomial_size().0
+        ]
+        .into_boxed_slice();
+
+        FourierPolynomial { data: boxed }
+    }
+}
 
 /// Polynomial in the standard domain, with possibly uninitialized coefficients.
 ///
@@ -53,6 +69,10 @@ impl<C: Container<Element = c64>> FourierPolynomial<C> {
         FourierPolynomial {
             data: self.data.as_mut(),
         }
+    }
+
+    pub fn polynomial_size(&self) -> PolynomialSize {
+        PolynomialSize(self.data.container_len() * 2)
     }
 }
 

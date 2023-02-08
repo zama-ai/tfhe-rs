@@ -5,8 +5,8 @@ use super::polynomial::{
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
-use crate::core_crypto::commons::parameters::PolynomialSize;
-use crate::core_crypto::commons::traits::{Container, IntoContainerOwned};
+use crate::core_crypto::commons::parameters::{PolynomialCount, PolynomialSize};
+use crate::core_crypto::commons::traits::{Container, ContainerMut, IntoContainerOwned};
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox};
@@ -370,7 +370,7 @@ impl<'a> FftView<'a> {
         self.plan
             .fft_scratch()?
             .try_and(StackReq::try_new_aligned::<c64>(
-                self.polynomial_size().0 / 2,
+                self.polynomial_size().to_fourier_polynomial_size().0,
                 aligned_vec::CACHELINE_ALIGN,
             )?)
     }
@@ -519,6 +519,28 @@ impl<'a> FftView<'a> {
 pub struct FourierPolynomialList<C: Container<Element = c64>> {
     pub data: C,
     pub polynomial_size: PolynomialSize,
+}
+
+impl<C: Container<Element = c64>> FourierPolynomialList<C> {
+    pub fn polynomial_count(&self) -> PolynomialCount {
+        PolynomialCount(
+            self.data.container_len() / self.polynomial_size.to_fourier_polynomial_size().0,
+        )
+    }
+}
+
+impl<C: ContainerMut<Element = c64>> FourierPolynomialList<C> {
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = FourierPolynomial<&'_ mut [c64]>> {
+        assert!(
+            self.data.container_len() % self.polynomial_size.to_fourier_polynomial_size().0 == 0
+        );
+        self.data
+            .as_mut()
+            .chunks_exact_mut(self.polynomial_size.to_fourier_polynomial_size().0)
+            .map(move |slice| FourierPolynomial { data: slice })
+    }
 }
 
 impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> {

@@ -115,7 +115,10 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     let opposite_count = input_glwe.polynomial_size().0 - nth.0 - 1;
 
     // We loop through the polynomials
-    for lwe_mask_poly in lwe_mask.as_mut().chunks_mut(input_glwe.polynomial_size().0) {
+    for lwe_mask_poly in lwe_mask
+        .as_mut()
+        .chunks_exact_mut(input_glwe.polynomial_size().0)
+    {
         // We reverse the polynomial
         lwe_mask_poly.reverse();
         // We compute the opposite of the proper coefficients
