@@ -36,10 +36,11 @@ impl<Scalar, C: Container<Element = Scalar>> SeededGgswCiphertextList<C> {
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data in
-    /// the list you need to use [`crate::core_crypto::algorithms::encrypt_seeded_ggsw_ciphertext`]
+    /// the list you need to use
+    /// [`crate::core_crypto::algorithms::encrypt_constant_seeded_ggsw_ciphertext`]
     /// or its parallel counterpart
-    /// [`crate::core_crypto::algorithms::par_encrypt_seeded_ggsw_ciphertext`] on the individual
-    /// ciphertexts in the list.
+    /// [`crate::core_crypto::algorithms::par_encrypt_constant_seeded_ggsw_ciphertext`] on the
+    /// individual ciphertexts in the list.
     ///
     /// This docstring exhibits [`SeededGgswCiphertextList`] primitives usage.
     ///
@@ -230,9 +231,9 @@ impl<Scalar: Copy> SeededGgswCiphertextListOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data in the list you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_seeded_ggsw_ciphertext`] or its parallel
-    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_seeded_ggsw_ciphertext`] on
-    /// the individual ciphertexts in the list.
+    /// [`crate::core_crypto::algorithms::encrypt_constant_seeded_ggsw_ciphertext`] or its parallel
+    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_constant_seeded_ggsw_ciphertext`]
+    /// on the individual ciphertexts in the list.
     ///
     /// See [`SeededGgswCiphertextList::from_container`] for usage.
     pub fn new(

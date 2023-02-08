@@ -362,7 +362,7 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 ///     decomp_level_count,
 /// );
 ///
-/// encrypt_ggsw_ciphertext(
+/// encrypt_constant_ggsw_ciphertext(
 ///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     msg_ggsw,
@@ -575,7 +575,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 ///     decomp_level_count,
 /// );
 ///
-/// encrypt_ggsw_ciphertext(
+/// encrypt_constant_ggsw_ciphertext(
 ///     &glwe_secret_key,
 ///     &mut ggsw_0,
 ///     msg_ggsw_0,
@@ -595,7 +595,7 @@ pub fn cmux_assign<Scalar, Cont0, Cont1, GgswCont>(
 ///     decomp_level_count,
 /// );
 ///
-/// encrypt_ggsw_ciphertext(
+/// encrypt_constant_ggsw_ciphertext(
 ///     &glwe_secret_key,
 ///     &mut ggsw_1,
 ///     msg_ggsw_1,

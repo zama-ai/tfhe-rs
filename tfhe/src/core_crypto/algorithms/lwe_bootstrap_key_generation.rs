@@ -66,7 +66,10 @@ use rayon::prelude::*;
 ///     &mut encryption_generator,
 /// );
 ///
-/// assert!(bsk.as_ref().iter().all(|&x| x == 0) == false);
+/// for (ggsw, &input_key_bit) in bsk.iter().zip(input_lwe_secret_key.as_ref()) {
+///     let decrypted_ggsw = decrypt_constant_ggsw_ciphertext(&output_glwe_secret_key, &ggsw);
+///     assert_eq!(decrypted_ggsw.0, input_key_bit)
+/// }
 /// ```
 pub fn generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCont, Gen>(
     input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
@@ -119,7 +122,7 @@ pub fn generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, OutputCon
         .zip(input_lwe_secret_key.as_ref())
         .zip(gen_iter)
     {
-        encrypt_ggsw_ciphertext(
+        encrypt_constant_ggsw_ciphertext(
             output_glwe_secret_key,
             &mut ggsw,
             Plaintext(input_key_element),
@@ -222,7 +225,7 @@ pub fn par_generate_lwe_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont, Outpu
         .zip(input_lwe_secret_key.as_ref().par_iter())
         .zip(gen_iter)
         .for_each(|((mut ggsw, &input_key_element), mut generator)| {
-            par_encrypt_ggsw_ciphertext(
+            par_encrypt_constant_ggsw_ciphertext(
                 output_glwe_secret_key,
                 &mut ggsw,
                 Plaintext(input_key_element),
@@ -338,7 +341,7 @@ pub fn generate_seeded_lwe_bootstrap_key<
         .zip(input_lwe_secret_key.as_ref())
         .zip(gen_iter)
     {
-        encrypt_seeded_ggsw_ciphertext_with_existing_generator(
+        encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
             output_glwe_secret_key,
             &mut ggsw,
             Plaintext(input_key_element),
@@ -460,7 +463,7 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
         .zip(input_lwe_secret_key.as_ref().par_iter())
         .zip(gen_iter)
         .for_each(|((mut ggsw, &input_key_element), mut generator)| {
-            par_encrypt_seeded_ggsw_ciphertext_with_existing_generator(
+            par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
                 output_glwe_secret_key,
                 &mut ggsw,
                 Plaintext(input_key_element),

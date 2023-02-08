@@ -53,8 +53,9 @@ impl<Scalar, C: Container<Element = Scalar>> SeededGgswCiphertext<C> {
     /// # Note
     ///
     /// This function only wraps a container in the appropriate type. If you want to encrypt data
-    /// you need to use [`crate::core_crypto::algorithms::encrypt_ggsw_ciphertext`] or its parallel
-    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_ggsw_ciphertext`] using
+    /// you need to use [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its
+    /// parallel counterpart
+    /// [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`] using
     /// this ciphertext as output.
     ///
     /// This docstring exhibits [`SeededGgswCiphertext`] primitives usage.
@@ -308,9 +309,9 @@ impl<Scalar: Copy> SeededGgswCiphertextOwned<Scalar> {
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
     /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_ggsw_ciphertext`] or its parallel counterpart
-    /// [`crate::core_crypto::algorithms::par_encrypt_ggsw_ciphertext`] using this ciphertext as
-    /// output.
+    /// [`crate::core_crypto::algorithms::encrypt_constant_ggsw_ciphertext`] or its parallel
+    /// counterpart [`crate::core_crypto::algorithms::par_encrypt_constant_ggsw_ciphertext`]
+    /// using this ciphertext as output.
     ///
     /// See [`SeededGgswCiphertext::from_container`] for usage.
     pub fn new(

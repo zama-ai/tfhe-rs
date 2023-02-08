@@ -5,13 +5,14 @@ use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
+use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
+use crate::core_crypto::commons::parameters::{DecompositionLevelCount, PlaintextCount};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
 
-/// Encrypt a plaintext in a [`GGSW ciphertext`](`GgswCiphertext`).
+/// Encrypt a plaintext in a [`GGSW ciphertext`](`GgswCiphertext`) in the constant coefficient.
 ///
 /// See the [`GGSW ciphertext formal definition`](`GgswCiphertext#ggsw-encryption`) for the
 /// definition of the encryption algorithm.
@@ -44,8 +45,7 @@ use rayon::prelude::*;
 /// );
 ///
 /// // Create the plaintext
-/// let encoded_msg = 3u64 << 60;
-/// let plaintext = Plaintext(encoded_msg);
+/// let plaintext = Plaintext(3u64);
 ///
 /// // Create a new GgswCiphertext
 /// let mut ggsw = GgswCiphertext::new(
@@ -56,15 +56,18 @@ use rayon::prelude::*;
 ///     decomp_level_count,
 /// );
 ///
-/// encrypt_ggsw_ciphertext(
+/// encrypt_constant_ggsw_ciphertext(
 ///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     plaintext,
 ///     glwe_modular_std_dev,
 ///     &mut encryption_generator,
 /// );
+///
+/// let decrypted = decrypt_constant_ggsw_ciphertext(&glwe_secret_key, &ggsw);
+/// assert_eq!(decrypted, plaintext);
 /// ```
-pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
+pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut GgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
@@ -127,7 +130,7 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
             .enumerate()
             .zip(gen_iter)
         {
-            encrypt_ggsw_level_matrix_row(
+            encrypt_constant_ggsw_level_matrix_row(
                 glwe_secret_key,
                 (row_index, last_row_index),
                 factor,
@@ -139,7 +142,7 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     }
 }
 
-/// Parallel variant of [`encrypt_ggsw_ciphertext`].
+/// Parallel variant of [`encrypt_constant_ggsw_ciphertext`].
 ///
 /// See the [`formal definition`](`GgswCiphertext#ggsw-encryption`) for the definition of the
 /// encryption algorithm.
@@ -174,8 +177,7 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 /// );
 ///
 /// // Create the plaintext
-/// let encoded_msg = 3u64 << 60;
-/// let plaintext = Plaintext(encoded_msg);
+/// let plaintext = Plaintext(3u64);
 ///
 /// // Create a new GgswCiphertext
 /// let mut ggsw = GgswCiphertext::new(
@@ -186,15 +188,18 @@ pub fn encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 ///     decomp_level_count,
 /// );
 ///
-/// par_encrypt_ggsw_ciphertext(
+/// par_encrypt_constant_ggsw_ciphertext(
 ///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     plaintext,
 ///     glwe_modular_std_dev,
 ///     &mut encryption_generator,
 /// );
+///
+/// let decrypted = decrypt_constant_ggsw_ciphertext(&glwe_secret_key, &ggsw);
+/// assert_eq!(decrypted, plaintext);
 /// ```
-pub fn par_encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
+pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut GgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
@@ -256,7 +261,7 @@ pub fn par_encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
                 .enumerate()
                 .zip(gen_iter)
                 .for_each(|((row_index, mut row_as_glwe), mut generator)| {
-                    encrypt_ggsw_level_matrix_row(
+                    encrypt_constant_ggsw_level_matrix_row(
                         glwe_secret_key,
                         (row_index, last_row_index),
                         factor,
@@ -270,11 +275,12 @@ pub fn par_encrypt_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 }
 
 /// Convenience function to encrypt a row of a [`GgswLevelMatrix`] irrespective of the current row
-/// being encrypted. Allows to share code between sequential ([`encrypt_ggsw_ciphertext`]) and
-/// parallel ([`par_encrypt_ggsw_ciphertext`]) variants of the GGSW ciphertext encryption.
+/// being encrypted. Allows to share code between sequential ([`encrypt_constant_ggsw_ciphertext`])
+/// and parallel ([`par_encrypt_constant_ggsw_ciphertext`]) variants of the GGSW ciphertext
+/// encryption.
 ///
 /// You probably don't want to use this function directly.
-fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
+fn encrypt_constant_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     (row_index, last_row_index): (usize, usize),
     factor: Scalar,
@@ -317,7 +323,12 @@ fn encrypt_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
 ///
 /// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
 /// the right bytes are generated at the right time.
-pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, OutputCont, Gen>(
+pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
+    Scalar,
+    KeyCont,
+    OutputCont,
+    Gen,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
@@ -364,7 +375,7 @@ pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, O
             .enumerate()
             .zip(gen_iter)
         {
-            encrypt_seeded_ggsw_level_matrix_row(
+            encrypt_constant_seeded_ggsw_level_matrix_row(
                 glwe_secret_key,
                 (row_index, last_row_index),
                 factor,
@@ -376,7 +387,8 @@ pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, O
     }
 }
 
-/// Encrypt a plaintext in a [`seeded GGSW ciphertext`](`SeededGgswCiphertext`).
+/// Encrypt a plaintext in a [`seeded GGSW ciphertext`](`SeededGgswCiphertext`) in the constant
+/// coefficient.
 ///
 /// See the [`formal definition`](`GgswCiphertext#ggsw-encryption`) for the definition of the
 /// encryption algorithm.
@@ -422,7 +434,7 @@ pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, O
 ///     seeder.seed().into(),
 /// );
 ///
-/// encrypt_seeded_ggsw_ciphertext(
+/// encrypt_constant_seeded_ggsw_ciphertext(
 ///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     plaintext,
@@ -430,7 +442,7 @@ pub fn encrypt_seeded_ggsw_ciphertext_with_existing_generator<Scalar, KeyCont, O
 ///     seeder,
 /// );
 /// ```
-pub fn encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
+pub fn encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
@@ -464,7 +476,7 @@ pub fn encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
         noise_seeder,
     );
 
-    encrypt_seeded_ggsw_ciphertext_with_existing_generator(
+    encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
         glwe_secret_key,
         output,
         encoded,
@@ -473,14 +485,14 @@ pub fn encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
     )
 }
 
-/// Convenience function to share the core logic of the parallele seeded GGSW encryption between all
+/// Convenience function to share the core logic of the parallel seeded GGSW encryption between all
 /// functions needing it.
 ///
 /// Allows to efficiently encrypt lists of seeded GGSW.
 ///
 /// WARNING: this assumes the caller manages the coherency of calls to the generator to make sure
 /// the right bytes are generated at the right time.
-pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
+pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     Scalar,
     KeyCont,
     OutputCont,
@@ -531,7 +543,7 @@ pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
                 .enumerate()
                 .zip(gen_iter)
                 .for_each(|((row_index, mut row_as_glwe), mut generator)| {
-                    encrypt_seeded_ggsw_level_matrix_row(
+                    encrypt_constant_seeded_ggsw_level_matrix_row(
                         glwe_secret_key,
                         (row_index, last_row_index),
                         factor,
@@ -544,7 +556,7 @@ pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
     );
 }
 
-/// Parallel variant of [`encrypt_ggsw_ciphertext`].
+/// Parallel variant of [`encrypt_constant_ggsw_ciphertext`].
 ///
 /// See the [`formal definition`](`GgswCiphertext#ggsw-encryption`) for the definition of the
 /// encryption algorithm.
@@ -592,7 +604,7 @@ pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
 ///     seeder.seed().into(),
 /// );
 ///
-/// par_encrypt_seeded_ggsw_ciphertext(
+/// par_encrypt_constant_seeded_ggsw_ciphertext(
 ///     &glwe_secret_key,
 ///     &mut ggsw,
 ///     plaintext,
@@ -600,7 +612,7 @@ pub fn par_encrypt_seeded_ggsw_ciphertext_with_existing_generator<
 ///     seeder,
 /// );
 /// ```
-pub fn par_encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
+pub fn par_encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeeder>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output: &mut SeededGgswCiphertext<OutputCont>,
     encoded: Plaintext<Scalar>,
@@ -634,7 +646,7 @@ pub fn par_encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeed
         noise_seeder,
     );
 
-    par_encrypt_seeded_ggsw_ciphertext_with_existing_generator(
+    par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
         glwe_secret_key,
         output,
         encoded,
@@ -644,12 +656,12 @@ pub fn par_encrypt_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, NoiseSeed
 }
 
 /// Convenience function to encrypt a row of a [`GgswLevelMatrix`] irrespective of the current row
-/// being encrypted. Allows to share code between sequential ([`encrypt_seeded_ggsw_ciphertext`])
-/// and parallel ([`par_encrypt_seeded_ggsw_ciphertext`]) variants of the GGSW ciphertext
-/// encryption.
+/// being encrypted. Allows to share code between sequential
+/// ([`encrypt_constant_seeded_ggsw_ciphertext`]) and parallel
+/// ([`par_encrypt_constant_seeded_ggsw_ciphertext`]) variants of the GGSW ciphertext encryption.
 ///
 /// You probably don't want to use this function directly.
-fn encrypt_seeded_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
+fn encrypt_constant_seeded_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     (row_index, last_row_index): (usize, usize),
     factor: Scalar,
@@ -693,6 +705,112 @@ fn encrypt_seeded_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
             generator,
         );
     }
+}
+
+/// Decrypt a [`GGSW ciphertext`](`GgswCiphertext`) only yielding the plaintext from the constant
+/// term of the polynomial.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for GgswCiphertext creation
+/// let glwe_size = GlweSize(2);
+/// let polynomial_size = PolynomialSize(1024);
+/// let decomp_base_log = DecompositionBaseLog(8);
+/// let decomp_level_count = DecompositionLevelCount(3);
+/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the GlweSecretKey
+/// let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_size.to_glwe_dimension(),
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+///
+/// // Create the plaintext
+/// let plaintext = Plaintext(3u64);
+///
+/// // Create a new GgswCiphertext
+/// let mut ggsw = GgswCiphertext::new(
+///     0u64,
+///     glwe_size,
+///     polynomial_size,
+///     decomp_base_log,
+///     decomp_level_count,
+/// );
+///
+/// par_encrypt_constant_ggsw_ciphertext(
+///     &glwe_secret_key,
+///     &mut ggsw,
+///     plaintext,
+///     glwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// let decrypted = decrypt_constant_ggsw_ciphertext(&glwe_secret_key, &ggsw);
+/// assert_eq!(decrypted, plaintext);
+/// ```
+pub fn decrypt_constant_ggsw_ciphertext<Scalar, KeyCont, InputCont>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    ggsw_ciphertext: &GgswCiphertext<InputCont>,
+) -> Plaintext<Scalar>
+where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert!(
+        ggsw_ciphertext.polynomial_size() == glwe_secret_key.polynomial_size(),
+        "Mismatch between polynomial sizes of input cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        ggsw_ciphertext.polynomial_size(),
+        glwe_secret_key.polynomial_size()
+    );
+
+    assert!(
+        ggsw_ciphertext.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
+        "Mismatch between GlweDimension of input cipertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        ggsw_ciphertext.glwe_size().to_glwe_dimension(),
+        glwe_secret_key.glwe_dimension()
+    );
+
+    let level_matrix = ggsw_ciphertext.iter().next().unwrap();
+    let level_matrix_as_glwe_list = level_matrix.as_glwe_list();
+    let last_row = level_matrix_as_glwe_list.last().unwrap();
+    // The first level matrix is associated to DecompositionLevel #1
+    let decomp_level = DecompositionLevelCount(1);
+
+    let mut decrypted_plaintext_list = PlaintextList::new(
+        Scalar::ZERO,
+        PlaintextCount(ggsw_ciphertext.polynomial_size().0),
+    );
+
+    decrypt_glwe_ciphertext(glwe_secret_key, &last_row, &mut decrypted_plaintext_list);
+
+    let decomp_base_log = ggsw_ciphertext.decomposition_base_log();
+
+    let decomposer = SignedDecomposer::new(decomp_base_log, decomp_level);
+
+    let plaintext_ref = decrypted_plaintext_list.get(0);
+
+    let rounded = decomposer.closest_representable(*plaintext_ref.0);
+    let decoded =
+        rounded.wrapping_div(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));
+
+    Plaintext(decoded)
 }
 
 #[cfg(test)]
@@ -758,7 +876,7 @@ mod test {
                     &mut deterministic_seeder,
                 );
 
-            encrypt_ggsw_ciphertext(
+            encrypt_constant_ggsw_ciphertext(
                 &glwe_secret_key,
                 &mut ser_ggsw,
                 plaintext,
@@ -783,7 +901,7 @@ mod test {
                     &mut deterministic_seeder,
                 );
 
-            par_encrypt_ggsw_ciphertext(
+            par_encrypt_constant_ggsw_ciphertext(
                 &glwe_secret_key,
                 &mut par_ggsw,
                 plaintext,
@@ -806,7 +924,7 @@ mod test {
             let mut deterministic_seeder =
                 DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
 
-            encrypt_seeded_ggsw_ciphertext(
+            encrypt_constant_seeded_ggsw_ciphertext(
                 &glwe_secret_key,
                 &mut ser_seeded_ggsw,
                 plaintext,
@@ -826,7 +944,7 @@ mod test {
             let mut deterministic_seeder =
                 DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
 
-            par_encrypt_seeded_ggsw_ciphertext(
+            par_encrypt_constant_seeded_ggsw_ciphertext(
                 &glwe_secret_key,
                 &mut par_seeded_ggsw,
                 plaintext,
