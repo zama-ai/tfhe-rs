@@ -486,7 +486,7 @@ pub fn polynomial_karatsuba_wrapping_mul<Scalar, OutputCont, LhsCont, RhsCont>(
     slice_wrapping_sub_assign(&mut output[top], &a1[bottom]);
 }
 
-const KARATUSBA_STOP: usize = 32;
+const KARATUSBA_STOP: usize = 64;
 /// Compute the induction for the karatsuba algorithm.
 fn induction_karatsuba<Scalar>(res: &mut [Scalar], p: &[Scalar], q: &[Scalar])
 where
@@ -496,9 +496,9 @@ where
     if p.len() <= KARATUSBA_STOP {
         // schoolbook algorithm
         for (lhs_degree, &lhs_elt) in p.iter().enumerate() {
-            for (rhs_degree, &rhs_elt) in q.iter().enumerate() {
-                res[lhs_degree + rhs_degree] =
-                    res[lhs_degree + rhs_degree].wrapping_add(lhs_elt.wrapping_mul(rhs_elt))
+            let res = &mut res[lhs_degree..];
+            for (&rhs_elt, res) in q.iter().zip(res) {
+                *res = (*res).wrapping_add(lhs_elt.wrapping_mul(rhs_elt))
             }
         }
     } else {
