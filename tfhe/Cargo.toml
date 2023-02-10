@@ -126,6 +126,11 @@ path = "benches/shortint/bench.rs"
 harness = false
 required-features = ["shortint", "internal-keycache"]
 
+[[bench]]
+name = "keygen"
+path = "benches/keygen/bench.rs"
+harness = false
+
 [[example]]
 name = "generates_test_keys"
 required-features = ["shortint", "internal-keycache"]
