@@ -73,8 +73,8 @@ fn integer_encrypt_decrypt_128_bits(param: Parameters) {
 
     // RNG
     let mut rng = rand::thread_rng();
-    let num_block = (64f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize * 2;
-    for _ in 0..1 {
+    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    for _ in 0..10 {
         let clear = rng.gen::<u128>();
 
         //encryption
@@ -92,7 +92,6 @@ fn integer_encrypt_decrypt_128_bits(param: Parameters) {
 fn integer_encrypt_decrypt_128_bits_specific_values(param: Parameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
-    // let num_block = (64f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize * 2;
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
     {
         let a = u64::MAX as u128;
@@ -181,7 +180,7 @@ fn integer_encrypt_decrypt_256_bits(param: Parameters) {
     let mut rng = rand::thread_rng();
     let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    for _ in 0..1 {
+    for _ in 0..10 {
         let clear0 = rng.gen::<u128>();
         let clear1 = rng.gen::<u128>();
 

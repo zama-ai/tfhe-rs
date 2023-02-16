@@ -1,5 +1,6 @@
 mod add;
 mod bitwise_op;
+mod comparison;
 mod mul;
 mod neg;
 mod scalar_add;

@@ -277,6 +277,38 @@ define_server_key_bench_unary_fn!(smart_neg);
 define_server_key_bench_unary_fn!(full_propagate);
 define_server_key_bench_unary_fn!(full_propagate_parallelized);
 
+define_server_key_bench_fn!(unchecked_max);
+define_server_key_bench_fn!(unchecked_min);
+define_server_key_bench_fn!(unchecked_eq);
+define_server_key_bench_fn!(unchecked_lt);
+define_server_key_bench_fn!(unchecked_le);
+define_server_key_bench_fn!(unchecked_gt);
+define_server_key_bench_fn!(unchecked_ge);
+
+define_server_key_bench_fn!(unchecked_max_parallelized);
+define_server_key_bench_fn!(unchecked_min_parallelized);
+define_server_key_bench_fn!(unchecked_eq_parallelized);
+define_server_key_bench_fn!(unchecked_lt_parallelized);
+define_server_key_bench_fn!(unchecked_le_parallelized);
+define_server_key_bench_fn!(unchecked_gt_parallelized);
+define_server_key_bench_fn!(unchecked_ge_parallelized);
+
+define_server_key_bench_fn!(smart_max);
+define_server_key_bench_fn!(smart_min);
+define_server_key_bench_fn!(smart_eq);
+define_server_key_bench_fn!(smart_lt);
+define_server_key_bench_fn!(smart_le);
+define_server_key_bench_fn!(smart_gt);
+define_server_key_bench_fn!(smart_ge);
+
+define_server_key_bench_fn!(smart_max_parallelized);
+define_server_key_bench_fn!(smart_min_parallelized);
+define_server_key_bench_fn!(smart_eq_parallelized);
+define_server_key_bench_fn!(smart_lt_parallelized);
+define_server_key_bench_fn!(smart_le_parallelized);
+define_server_key_bench_fn!(smart_gt_parallelized);
+define_server_key_bench_fn!(smart_ge_parallelized);
+
 criterion_group!(
     smart_arithmetic_operation,
     smart_neg,
@@ -285,6 +317,13 @@ criterion_group!(
     smart_bitand,
     smart_bitor,
     smart_bitxor,
+    smart_max,
+    smart_min,
+    smart_eq,
+    smart_lt,
+    smart_le,
+    smart_gt,
+    smart_ge,
 );
 
 criterion_group!(
@@ -295,6 +334,13 @@ criterion_group!(
     smart_bitand_parallelized,
     smart_bitor_parallelized,
     smart_bitxor_parallelized,
+    smart_max_parallelized,
+    smart_min_parallelized,
+    smart_eq_parallelized,
+    smart_lt_parallelized,
+    smart_le_parallelized,
+    smart_gt_parallelized,
+    smart_ge_parallelized,
 );
 
 criterion_group!(
@@ -319,6 +365,13 @@ criterion_group!(
     unchecked_bitand,
     unchecked_bitor,
     unchecked_bitxor,
+    unchecked_max,
+    unchecked_min,
+    unchecked_eq,
+    unchecked_lt,
+    unchecked_le,
+    unchecked_gt,
+    unchecked_ge,
 );
 
 criterion_group!(
@@ -326,6 +379,13 @@ criterion_group!(
     unchecked_scalar_add,
     unchecked_scalar_sub,
     unchecked_small_scalar_mul,
+    unchecked_max_parallelized,
+    unchecked_min_parallelized,
+    unchecked_eq_parallelized,
+    unchecked_lt_parallelized,
+    unchecked_le_parallelized,
+    unchecked_gt_parallelized,
+    unchecked_ge_parallelized,
 );
 
 criterion_group!(misc, full_propagate, full_propagate_parallelized);

@@ -2,6 +2,7 @@
 //!
 //! This module implements the generation of the server public key, together with all the
 //! available homomorphic integer operations.
+pub mod comparator;
 mod crt;
 mod crt_parallel;
 mod radix;
