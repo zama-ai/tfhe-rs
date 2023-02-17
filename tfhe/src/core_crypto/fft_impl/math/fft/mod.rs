@@ -548,7 +548,7 @@ impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> 
             let chunk_count = if polynomial_size.0 == 0 {
                 0
             } else {
-                data.len() / (polynomial_size.0 / 2)
+                data.len() / (polynomial_size.to_fourier_polynomial_size().0)
             };
 
             let mut state = serializer.serialize_seq(Some(2 + chunk_count))?;
@@ -618,8 +618,10 @@ impl<'de, C: IntoContainerOwned<Element = c64>> serde::Deserialize<'de>
                     }
                 }
 
-                let mut data =
-                    C::collect((0..(polynomial_size.0 / 2 * chunk_count)).map(|_| c64::default()));
+                let mut data = C::collect(
+                    (0..(polynomial_size.to_fourier_polynomial_size().0 * chunk_count))
+                        .map(|_| c64::default()),
+                );
 
                 if chunk_count != 0 {
                     let fft = Fft::new(polynomial_size);

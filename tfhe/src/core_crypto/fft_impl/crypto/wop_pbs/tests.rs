@@ -434,7 +434,11 @@ pub fn test_cmux_tree() {
         let mut ggsw_list = FourierGgswCiphertextList::new(
             vec![
                 c64::default();
-                nb_ggsw * polynomial_size.0 / 2 * glwe_size.0 * glwe_size.0 * level.0
+                nb_ggsw
+                    * polynomial_size.to_fourier_polynomial_size().0
+                    * glwe_size.0
+                    * glwe_size.0
+                    * level.0
             ],
             nb_ggsw,
             glwe_size,

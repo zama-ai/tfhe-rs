@@ -111,6 +111,28 @@ impl PolynomialSize {
     pub fn log2(&self) -> PolynomialSizeLog {
         PolynomialSizeLog((self.0 as f64).log2().ceil() as usize)
     }
+
+    pub fn to_fourier_polynomial_size(&self) -> FourierPolynomialSize {
+        assert_eq!(
+            self.0 % 2,
+            0,
+            "Cannot convert a PolynomialSize that is not a multiple of 2 to FourierPolynomialSize"
+        );
+        FourierPolynomialSize(self.0 / 2)
+    }
+}
+
+/// The number of elements in the container of a fourier polynomial.
+///
+/// Assuming a standard polynomial $a\_0 + a\_1X + /dots + a\_{N-1}X^{N-1}$, this returns
+/// $\frac{N}{2}$.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct FourierPolynomialSize(pub usize);
+
+impl FourierPolynomialSize {
+    pub fn to_standard_polynomial_size(&self) -> PolynomialSize {
+        PolynomialSize(self.0 * 2)
+    }
 }
 
 /// The logarithm of the number of coefficients of a polynomial.
