@@ -39,10 +39,10 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
     ) -> Self {
-        assert_eq!(polynomial_size.0 % 2, 0);
         assert_eq!(
             data.container_len(),
-            input_lwe_dimension.0 * polynomial_size.0 / 2
+            input_lwe_dimension.0
+                * polynomial_size.to_fourier_polynomial_size().0
                 * decomposition_level_count.0
                 * glwe_size.0
                 * glwe_size.0
@@ -148,12 +148,11 @@ impl FourierLweBootstrapKey<ABox<[c64]>> {
     ) -> FourierLweBootstrapKey<ABox<[c64]>> {
         let boxed = avec![
             c64::default();
-            polynomial_size.0
+            polynomial_size.to_fourier_polynomial_size().0
                 * input_lwe_dimension.0
                 * decomposition_level_count.0
                 * glwe_size.0
                 * glwe_size.0
-                / 2
         ]
         .into_boxed_slice();
 

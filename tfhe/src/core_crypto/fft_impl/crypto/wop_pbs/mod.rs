@@ -490,10 +490,13 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
     ) -> Self {
-        assert_eq!(polynomial_size.0 % 2, 0);
         assert_eq!(
             data.container_len(),
-            count * polynomial_size.0 / 2 * glwe_size.0 * glwe_size.0 * decomposition_level_count.0
+            count
+                * polynomial_size.to_fourier_polynomial_size().0
+                * glwe_size.0
+                * glwe_size.0
+                * decomposition_level_count.0
         );
 
         Self {
@@ -588,7 +591,10 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
         let decomposition_base_log = self.decomposition_base_log;
 
         let (left, right) = self.fourier.data.split_at(
-            mid * polynomial_size.0 / 2 * glwe_size.0 * glwe_size.0 * decomposition_level_count.0,
+            mid * polynomial_size.to_fourier_polynomial_size().0
+                * glwe_size.0
+                * glwe_size.0
+                * decomposition_level_count.0,
         );
         (
             Self::new(
