@@ -57,11 +57,13 @@ pub mod client_key;
 pub mod keycache;
 pub mod parameters;
 pub mod server_key;
+pub mod u256;
 pub mod wopbs;
 
 pub use ciphertext::{CrtCiphertext, IntegerCiphertext, RadixCiphertext};
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
 pub use server_key::{CheckError, ServerKey};
+pub use u256::U256;
 
 /// Generate a couple of client and server keys with given parameters
 ///

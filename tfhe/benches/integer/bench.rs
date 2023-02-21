@@ -69,12 +69,12 @@ where
             let encrypt_two_values = || {
                 let clearlow = rng.gen::<u128>();
                 let clearhigh = rng.gen::<u128>();
-                let clear_0 = tfhe::integer::client_key::U256::from((clearlow, clearhigh));
+                let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
                 let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
 
                 let clearlow = rng.gen::<u128>();
                 let clearhigh = rng.gen::<u128>();
-                let clear_1 = tfhe::integer::client_key::U256::from((clearlow, clearhigh));
+                let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
                 let mut ct_1 = cks.encrypt_radix(clear_1, num_block);
 
                 // Raise the degree, so as to ensure worst case path in operations
@@ -83,7 +83,7 @@ where
                     // Raise the degree, so as to ensure worst case path in operations
                     let clearlow = rng.gen::<u128>();
                     let clearhigh = rng.gen::<u128>();
-                    let clear_2 = tfhe::integer::client_key::U256::from((clearlow, clearhigh));
+                    let clear_2 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_2 = cks.encrypt_radix(clear_2, num_block);
                     sks.unchecked_add_assign(&mut ct_0, &ct_2);
                     sks.unchecked_add_assign(&mut ct_1, &ct_2);
@@ -127,7 +127,7 @@ where
                 let clearlow = rng.gen::<u128>();
                 let clearhigh = rng.gen::<u128>();
 
-                let clear_0 = tfhe::integer::client_key::U256::from((clearlow, clearhigh));
+                let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
 
                 let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
 
@@ -137,7 +137,7 @@ where
                     // Raise the degree, so as to ensure worst case path in operations
                     let clearlow = rng.gen::<u128>();
                     let clearhigh = rng.gen::<u128>();
-                    let clear_2 = tfhe::integer::client_key::U256::from((clearlow, clearhigh));
+                    let clear_2 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_2 = cks.encrypt_radix(clear_2, num_block);
                     sks.unchecked_add_assign(&mut ct_0, &ct_2);
 
@@ -178,7 +178,7 @@ where
                 let clearlow = rng.gen::<u128>();
                 let clearhigh = rng.gen::<u128>();
 
-                let clear_0 = tfhe::integer::client_key::U256::from((clearlow, clearhigh));
+                let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
                 let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
                 let clear_1 = rng.gen::<u64>();

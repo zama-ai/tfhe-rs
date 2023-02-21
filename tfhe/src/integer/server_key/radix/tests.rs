@@ -152,10 +152,10 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: Parameters) {
     {
         let a = (u64::MAX as u128) << 64;
         let b = 0;
-        let clear = crate::integer::client_key::U256::from((a, b));
+        let clear = crate::integer::U256::from((a, b));
         let ct = cks.encrypt_radix(clear, num_block);
 
-        let mut dec = crate::integer::client_key::U256::from((0, 0));
+        let mut dec = crate::integer::U256::from((0, 0));
         cks.decrypt_radix_into(&ct, &mut dec);
 
         assert_eq!(clear, dec);
@@ -163,10 +163,10 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: Parameters) {
     {
         let a = 0;
         let b = u128::MAX;
-        let clear = crate::integer::client_key::U256::from((a, b));
+        let clear = crate::integer::U256::from((a, b));
         let ct = cks.encrypt_radix(clear, num_block);
 
-        let mut dec = crate::integer::client_key::U256::from((0, 0));
+        let mut dec = crate::integer::U256::from((0, 0));
         cks.decrypt_radix_into(&ct, &mut dec);
 
         assert_eq!(clear, dec);
@@ -184,13 +184,13 @@ fn integer_encrypt_decrypt_256_bits(param: Parameters) {
         let clear0 = rng.gen::<u128>();
         let clear1 = rng.gen::<u128>();
 
-        let clear = crate::integer::client_key::U256::from((clear0, clear1));
+        let clear = crate::integer::U256::from((clear0, clear1));
 
         //encryption
         let ct = cks.encrypt_radix(clear, num_block);
 
         // decryption
-        let mut dec = crate::integer::client_key::U256::from((0, 0));
+        let mut dec = crate::integer::U256::default();
         cks.decrypt_radix_into(&ct, &mut dec);
 
         // assert

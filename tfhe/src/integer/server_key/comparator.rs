@@ -861,8 +861,7 @@ impl<'a> Comparator<'a> {
 #[cfg(test)]
 mod tests {
     use super::Comparator;
-    use crate::integer::client_key::U256;
-    use crate::integer::{gen_keys, RadixCiphertext};
+    use crate::integer::{gen_keys, RadixCiphertext, U256};
     use crate::shortint::Parameters;
     use rand;
     use rand::prelude::*;
