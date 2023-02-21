@@ -11,6 +11,7 @@ use crate::integer::ciphertext::{
     CompressedCrtCiphertext, CompressedRadixCiphertext, CrtCiphertext, RadixCiphertext,
 };
 use crate::integer::client_key::utils::i_crt;
+use crate::integer::encryption::{encrypt_crt, encrypt_words_radix, ClearText};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::{
     Ciphertext as ShortintCiphertext, ClientKey as ShortintClientKey,
@@ -19,7 +20,6 @@ use crate::shortint::{
 use serde::{Deserialize, Serialize};
 pub use utils::radix_decomposition;
 
-use crate::integer::U256;
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 
@@ -50,46 +50,6 @@ impl From<ClientKey> for ShortintClientKey {
 impl AsRef<ClientKey> for ClientKey {
     fn as_ref(&self) -> &ClientKey {
         self
-    }
-}
-
-pub trait ClearText {
-    fn as_words(&self) -> &[u64];
-
-    fn as_words_mut(&mut self) -> &mut [u64];
-}
-
-impl ClearText for u64 {
-    fn as_words(&self) -> &[u64] {
-        std::slice::from_ref(self)
-    }
-
-    fn as_words_mut(&mut self) -> &mut [u64] {
-        std::slice::from_mut(self)
-    }
-}
-
-impl ClearText for u128 {
-    fn as_words(&self) -> &[u64] {
-        let u128_slc = std::slice::from_ref(self);
-        unsafe { std::slice::from_raw_parts(u128_slc.as_ptr() as *const u64, 2) }
-    }
-
-    fn as_words_mut(&mut self) -> &mut [u64] {
-        let u128_slc = std::slice::from_mut(self);
-        unsafe { std::slice::from_raw_parts_mut(u128_slc.as_mut_ptr() as *mut u64, 2) }
-    }
-}
-
-impl ClearText for U256 {
-    fn as_words(&self) -> &[u64] {
-        let u128_slc = self.0.as_slice();
-        unsafe { std::slice::from_raw_parts(u128_slc.as_ptr() as *const u64, 4) }
-    }
-
-    fn as_words_mut(&mut self) -> &mut [u64] {
-        let u128_slc = self.0.as_mut_slice();
-        unsafe { std::slice::from_raw_parts_mut(u128_slc.as_mut_ptr() as *mut u64, 4) }
     }
 }
 
@@ -217,40 +177,7 @@ impl ClientKey {
         F: Fn(&crate::shortint::ClientKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
-        let mask = (self.key.parameters.message_modulus.0 - 1) as u128;
-        let block_modulus = self.key.parameters.message_modulus.0 as u128;
-
-        let mut blocks = Vec::with_capacity(num_blocks);
-        let mut message_block_iter = message_words.iter().copied();
-
-        let mut source = 0u128; // stores the bits of the word to be encrypted in one of the iteration
-        let mut valid_until_power = 1; // 2^0 = 1, start with nothing valid
-        let mut current_power = 1; // where the next bits to encrypt starts
-        for _ in 0..num_blocks {
-            // Are we going to encrypt bits that are not valid ?
-            // If so, discard already encrypted bits and fetch bits form the input words
-            if (current_power * block_modulus) >= valid_until_power {
-                source /= current_power;
-                valid_until_power /= current_power;
-
-                source += message_block_iter
-                    .next()
-                    .map(u128::from)
-                    .unwrap_or_default()
-                    * valid_until_power;
-
-                current_power = 1;
-                valid_until_power <<= 64;
-            }
-
-            let block_value = (source & (mask * current_power)) / current_power;
-            let ct = encrypt_block(&self.key, block_value as u64);
-            blocks.push(ct);
-
-            current_power *= block_modulus;
-        }
-
-        RadixCiphertextType::from(blocks)
+        encrypt_words_radix(&self.key, message_words, num_blocks, encrypt_block)
     }
 
     /// Encrypts one block.
@@ -544,7 +471,7 @@ impl ClientKey {
         result % whole_modulus
     }
 
-    pub fn encrypt_crt_impl<Block, CrtCiphertextType, F>(
+    fn encrypt_crt_impl<Block, CrtCiphertextType, F>(
         &self,
         message: u64,
         base_vec: Vec<u64>,
@@ -554,16 +481,6 @@ impl ClientKey {
         F: Fn(&crate::shortint::ClientKey, u64, MessageModulus) -> Block,
         CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
     {
-        let mut ctxt_vect = Vec::with_capacity(base_vec.len());
-
-        // Put each decomposition into a new ciphertext
-        for modulus in base_vec.iter().copied() {
-            // encryption
-            let ct = encrypt_block(&self.key, message, MessageModulus(modulus as usize));
-
-            ctxt_vect.push(ct);
-        }
-
-        CrtCiphertextType::from((ctxt_vect, base_vec))
+        encrypt_crt(&self.key, message, base_vec, encrypt_block)
     }
 }

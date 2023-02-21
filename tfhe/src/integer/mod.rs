@@ -50,18 +50,22 @@ extern crate core;
 #[cfg(test)]
 #[macro_use]
 mod tests;
+mod encryption;
 
 pub mod ciphertext;
 pub mod client_key;
 #[cfg(any(test, feature = "internal-keycache"))]
 pub mod keycache;
 pub mod parameters;
+pub mod public_key;
 pub mod server_key;
 pub mod u256;
 pub mod wopbs;
 
 pub use ciphertext::{CrtCiphertext, IntegerCiphertext, RadixCiphertext};
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
+pub use encryption::ClearText;
+pub use public_key::{CompressedPublicKey, PublicKey};
 pub use server_key::{CheckError, ServerKey};
 pub use u256::U256;
 
