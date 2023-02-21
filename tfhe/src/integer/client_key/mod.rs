@@ -7,7 +7,9 @@ mod crt;
 mod radix;
 pub(crate) mod utils;
 
-use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
+use crate::integer::ciphertext::{
+    CompressedCrtCiphertext, CompressedRadixCiphertext, CrtCiphertext, RadixCiphertext,
+};
 use crate::integer::client_key::utils::i_crt;
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::{
@@ -226,6 +228,30 @@ impl ClientKey {
         )
     }
 
+    pub fn encrypt_radix_compressed<T: ClearText>(
+        &self,
+        message: T,
+        num_blocks: usize,
+    ) -> CompressedRadixCiphertext {
+        self.encrypt_words_radix(
+            message.as_words(),
+            num_blocks,
+            crate::shortint::ClientKey::encrypt_compressed,
+        )
+    }
+
+    pub fn encrypt_radix_without_padding_compressed<T: ClearText>(
+        &self,
+        message: T,
+        num_blocks: usize,
+    ) -> CompressedRadixCiphertext {
+        self.encrypt_words_radix(
+            message.as_words(),
+            num_blocks,
+            crate::shortint::ClientKey::encrypt_without_padding_compressed,
+        )
+    }
+
     /// Encrypts an integer in radix decomposition without padding bit
     ///
     /// # Example
@@ -264,14 +290,15 @@ impl ClientKey {
     ///
     /// If there are not enough words for the requested num_block,
     /// encryptions of zeros will be appended.
-    pub fn encrypt_words_radix<F>(
+    pub fn encrypt_words_radix<Block, RadixCiphertextType, F>(
         &self,
         message_words: &[u64],
         num_blocks: usize,
         encrypt_block: F,
-    ) -> RadixCiphertext
+    ) -> RadixCiphertextType
     where
-        F: Fn(&crate::shortint::ClientKey, u64) -> crate::shortint::Ciphertext,
+        F: Fn(&crate::shortint::ClientKey, u64) -> Block,
+        RadixCiphertextType: From<Vec<Block>>,
     {
         let mask = (self.key.parameters.message_modulus.0 - 1) as u128;
         let block_modulus = self.key.parameters.message_modulus.0 as u128;
@@ -306,7 +333,7 @@ impl ClientKey {
             current_power *= block_modulus;
         }
 
-        RadixCiphertext { blocks }
+        RadixCiphertextType::from(blocks)
     }
 
     /// Encrypts one block.
@@ -470,22 +497,23 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn encrypt_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
-        let mut ctxt_vect = Vec::with_capacity(base_vec.len());
+        self.encrypt_crt_impl(
+            message,
+            base_vec,
+            crate::shortint::ClientKey::encrypt_with_message_modulus,
+        )
+    }
 
-        // Put each decomposition into a new ciphertext
-        for modulus in base_vec.iter().copied() {
-            // encryption
-            let ct = self
-                .key
-                .encrypt_with_message_modulus(message, MessageModulus(modulus as usize));
-
-            ctxt_vect.push(ct);
-        }
-
-        CrtCiphertext {
-            blocks: ctxt_vect,
-            moduli: base_vec,
-        }
+    pub fn encrypt_crt_compressed(
+        &self,
+        message: u64,
+        base_vec: Vec<u64>,
+    ) -> CompressedCrtCiphertext {
+        self.encrypt_crt_impl(
+            message,
+            base_vec,
+            crate::shortint::ClientKey::encrypt_with_message_modulus_compressed,
+        )
     }
 
     /// Decrypts an integer in crt decomposition
@@ -517,7 +545,6 @@ impl ClientKey {
             // decrypt the component i of the integer and multiply it by the radix product
             val.push(self.key.decrypt_message_and_carry(c_i) % b_i);
         }
-        println!("VAL DEC = {val:?}");
 
         // Computing the inverse CRT to recompose the message
         let result = i_crt(&ctxt.moduli, &val);
@@ -548,22 +575,19 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn encrypt_native_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
-        //Empty vector of ciphertexts
-        let mut ct_vec = Vec::with_capacity(base_vec.len());
+        self.encrypt_crt_impl(message, base_vec, |cks, msg, moduli| {
+            cks.encrypt_native_crt(msg, moduli.0 as u8)
+        })
+    }
 
-        //Put each decomposition into a new ciphertext
-        for modulus in base_vec.iter() {
-            // encryption
-            let ct = self.key.encrypt_native_crt(message, *modulus as u8);
-
-            // put it in the vector of ciphertexts
-            ct_vec.push(ct);
-        }
-
-        CrtCiphertext {
-            blocks: ct_vec,
-            moduli: base_vec,
-        }
+    pub fn encrypt_native_crt_compressed(
+        &self,
+        message: u64,
+        base_vec: Vec<u64>,
+    ) -> CompressedCrtCiphertext {
+        self.encrypt_crt_impl(message, base_vec, |cks, msg, moduli| {
+            cks.encrypt_native_crt_compressed(msg, moduli.0 as u8)
+        })
     }
 
     /// Decrypts a ciphertext encrypting an integer message with some moduli basis without
@@ -601,5 +625,28 @@ impl ClientKey {
         let whole_modulus: u64 = ct.moduli.iter().copied().product();
 
         result % whole_modulus
+    }
+
+    pub fn encrypt_crt_impl<Block, CrtCiphertextType, F>(
+        &self,
+        message: u64,
+        base_vec: Vec<u64>,
+        encrypt_block: F,
+    ) -> CrtCiphertextType
+    where
+        F: Fn(&crate::shortint::ClientKey, u64, MessageModulus) -> Block,
+        CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
+    {
+        let mut ctxt_vect = Vec::with_capacity(base_vec.len());
+
+        // Put each decomposition into a new ciphertext
+        for modulus in base_vec.iter().copied() {
+            // encryption
+            let ct = encrypt_block(&self.key, message, MessageModulus(modulus as usize));
+
+            ctxt_vect.push(ct);
+        }
+
+        CrtCiphertextType::from((ctxt_vect, base_vec))
     }
 }

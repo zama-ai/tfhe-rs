@@ -91,3 +91,21 @@ impl ServerKey {
         ServerKey { key }
     }
 }
+
+pub struct CompressedServerKey {
+    pub(crate) key: crate::shortint::CompressedServerKey,
+}
+
+impl CompressedServerKey {
+    pub fn new(client_key: &ClientKey) -> CompressedServerKey {
+        let key = crate::shortint::CompressedServerKey::new(&client_key.key);
+        Self { key }
+    }
+}
+
+impl From<CompressedServerKey> for ServerKey {
+    fn from(compressed: CompressedServerKey) -> Self {
+        let key = compressed.key.into();
+        Self { key }
+    }
+}
