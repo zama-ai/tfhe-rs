@@ -10,7 +10,9 @@ The user is allowed to choose which set of parameters to use when creating the p
 
 The difference between the parameter sets is the total amount of space dedicated to the plaintext and how it is split between the message buffer and the carry buffer. The syntax chosen for the name of a parameter is: `PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}`. For example, the set of parameters for a message buffer of 5 bits and a carry buffer of 2 bits is `PARAM_MESSAGE_5_CARRY_2`.
 
-In what follows, there is an example where keys are generated to have messages encoded over 3 bits i.e., computations are done modulus $$2^3 = 8$$), with 3 bits of carry.
+In what follows, there is an example where keys are generated to have messages encoded over 2 bits i.e., computations are done modulus $$2^2 = 4$$), with 2 bits of carry.
+
+Note that the `PARAM_MESSAGE_2_CARRY_2` parameter set is the default `shortint` parameter set that you can also use through the `tfhe::shortint::prelude::DEFAULT_PARAMETERS` constant.
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -20,7 +22,7 @@ fn main() {
    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
     let msg1 = 3;
-    let msg2 = 7;
+    let msg2 = 2;
 
     // We use the client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);
