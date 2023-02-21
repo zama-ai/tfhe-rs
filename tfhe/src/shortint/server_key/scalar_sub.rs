@@ -2,7 +2,7 @@ use super::ServerKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::server_key::CheckError::CarryFull;
-use crate::shortint::Ciphertext;
+use crate::shortint::{CiphertextBase, PBSOrderMarker};
 
 impl ServerKey {
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -15,11 +15,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
+    /// // Encrypt a message
     /// let ct = cks.encrypt(5);
     ///
     /// // Compute homomorphically a scalar subtraction:
@@ -28,8 +29,24 @@ impl ServerKey {
     /// // 5 - 6 mod 4 = 3 mod 4
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(3, clear);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let ct = cks.encrypt_small(5);
+    ///
+    /// // Compute homomorphically a scalar subtraction:
+    /// let ct_res = sks.unchecked_scalar_sub(&ct, 6);
+    ///
+    /// // 5 - 6 mod 4 = 3 mod 4
+    /// let clear = cks.decrypt(&ct_res);
+    /// assert_eq!(3, clear);
     /// ```
-    pub fn unchecked_scalar_sub(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn unchecked_scalar_sub<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+        scalar: u8,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.unchecked_scalar_sub(ct, scalar).unwrap()
         })
@@ -45,11 +62,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
+    /// // Encrypt a message
     /// let mut ct = cks.encrypt(5);
     ///
     /// // Compute homomorphically a scalar subtraction:
@@ -57,8 +75,23 @@ impl ServerKey {
     ///
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(3, clear);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(5);
+    ///
+    /// // Compute homomorphically a scalar subtraction:
+    /// sks.unchecked_scalar_sub_assign(&mut ct, 2);
+    ///
+    /// let clear = cks.decrypt(&ct);
+    /// assert_eq!(3, clear);
     /// ```
-    pub fn unchecked_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
+    pub fn unchecked_scalar_sub_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        scalar: u8,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.unchecked_scalar_sub_assign(ct, scalar).unwrap()
         })
@@ -70,19 +103,34 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
+    /// // Encrypt a message
     /// let ct = cks.encrypt(5);
     ///
     /// // Verification if the scalar subtraction can be computed:
     /// let can_be_computed = sks.is_scalar_sub_possible(&ct, 3);
     ///
     /// assert_eq!(can_be_computed, true);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let ct = cks.encrypt_small(5);
+    ///
+    /// // Verification if the scalar subtraction can be computed:
+    /// let can_be_computed = sks.is_scalar_sub_possible(&ct, 3);
+    ///
+    /// assert_eq!(can_be_computed, true);
     /// ```
-    pub fn is_scalar_sub_possible(&self, ct: &Ciphertext, scalar: u8) -> bool {
+    pub fn is_scalar_sub_possible<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+        scalar: u8,
+    ) -> bool {
         let neg_scalar = u64::from(scalar.wrapping_neg()) % self.message_modulus.0 as u64;
         let final_degree = neg_scalar as usize + ct.degree.0;
         final_degree <= self.max_degree.0
@@ -97,12 +145,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// // Encrypt a message:
+    /// // Encrypt a message
     /// let ct = cks.encrypt(5);
     ///
     /// // Compute homomorphically a subtraction multiplication:
@@ -113,12 +161,26 @@ impl ServerKey {
     /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, 3);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let ct = cks.encrypt_small(5);
+    ///
+    /// // Compute homomorphically a subtraction multiplication:
+    /// let ct_res = sks.checked_scalar_sub(&ct, 2);
+    ///
+    /// assert!(ct_res.is_ok());
+    ///
+    /// let ct_res = ct_res.unwrap();
+    /// let clear_res = cks.decrypt(&ct_res);
+    /// assert_eq!(clear_res, 3);
     /// ```
-    pub fn checked_scalar_sub(
+    pub fn checked_scalar_sub<OpOrder: PBSOrderMarker>(
         &self,
-        ct: &Ciphertext,
+        ct: &CiphertextBase<OpOrder>,
         scalar: u8,
-    ) -> Result<Ciphertext, CheckError> {
+    ) -> Result<CiphertextBase<OpOrder>, CheckError> {
         //If the scalar subtraction cannot be done without exceeding the max degree
         if self.is_scalar_sub_possible(ct, scalar) {
             let ct_result = self.unchecked_scalar_sub(ct, scalar);
@@ -137,12 +199,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// // Encrypt a message:
+    /// // Encrypt a message
     /// let mut ct = cks.encrypt(5);
     ///
     /// // Compute homomorphically a scalar subtraction:
@@ -152,10 +214,23 @@ impl ServerKey {
     ///
     /// let clear_res = cks.decrypt(&ct);
     /// assert_eq!(clear_res, 3);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(5);
+    ///
+    /// // Compute homomorphically a scalar subtraction:
+    /// let res = sks.checked_scalar_sub_assign(&mut ct, 2);
+    ///
+    /// assert!(res.is_ok());
+    ///
+    /// let clear_res = cks.decrypt(&ct);
+    /// assert_eq!(clear_res, 3);
     /// ```
-    pub fn checked_scalar_sub_assign(
+    pub fn checked_scalar_sub_assign<OpOrder: PBSOrderMarker>(
         &self,
-        ct: &mut Ciphertext,
+        ct: &mut CiphertextBase<OpOrder>,
         scalar: u8,
     ) -> Result<(), CheckError> {
         if self.is_scalar_sub_possible(ct, scalar) {
@@ -176,7 +251,7 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -184,6 +259,7 @@ impl ServerKey {
     /// let msg = 3;
     /// let scalar = 3;
     ///
+    /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
@@ -196,8 +272,28 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     ///
     /// assert_eq!(msg - scalar as u64, clear);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically a scalar multiplication:
+    /// let ct_res = sks.smart_scalar_sub(&mut ct, scalar);
+    ///
+    /// // The input ciphertext content is not changed
+    /// assert_eq!(cks.decrypt(&ct), msg);
+    ///
+    /// // Our result is what we expect
+    /// let clear = cks.decrypt(&ct_res);
+    ///
+    /// assert_eq!(msg - scalar as u64, clear);
     /// ```
-    pub fn smart_scalar_sub(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn smart_scalar_sub<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        scalar: u8,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_sub(self, ct, scalar).unwrap()
         })
@@ -214,7 +310,7 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -222,6 +318,7 @@ impl ServerKey {
     /// let msg = 5;
     /// let scalar = 3;
     ///
+    /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
@@ -230,8 +327,24 @@ impl ServerKey {
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(msg - scalar as u64, clear);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically a scalar multiplication:
+    /// sks.smart_scalar_sub_assign(&mut ct, scalar);
+    ///
+    /// // Our result is what we expect
+    /// let clear = cks.decrypt(&ct);
+    /// assert_eq!(msg - scalar as u64, clear);
     /// ```
-    pub fn smart_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
+    pub fn smart_scalar_sub_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        scalar: u8,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_sub_assign(self, ct, scalar).unwrap()
         })

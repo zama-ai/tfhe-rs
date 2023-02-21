@@ -2,42 +2,42 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{CiphertextBase, PBSOrderMarker, ServerKey};
 
 impl ShortintEngine {
-    pub(crate) fn unchecked_neg(
+    pub(crate) fn unchecked_neg<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+        ct: &CiphertextBase<OpOrder>,
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         let mut result = ct.clone();
         self.unchecked_neg_assign(server_key, &mut result)?;
         Ok(result)
     }
 
-    pub(crate) fn unchecked_neg_with_correcting_term(
+    pub(crate) fn unchecked_neg_with_correcting_term<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct: &Ciphertext,
-    ) -> EngineResult<(Ciphertext, u64)> {
+        ct: &CiphertextBase<OpOrder>,
+    ) -> EngineResult<(CiphertextBase<OpOrder>, u64)> {
         let mut result = ct.clone();
         let z = self.unchecked_neg_assign_with_correcting_term(server_key, &mut result)?;
         Ok((result, z))
     }
 
-    pub(crate) fn unchecked_neg_assign(
+    pub(crate) fn unchecked_neg_assign<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut Ciphertext,
+        ct: &mut CiphertextBase<OpOrder>,
     ) -> EngineResult<()> {
         let _z = self.unchecked_neg_assign_with_correcting_term(server_key, ct)?;
         Ok(())
     }
 
-    pub(crate) fn unchecked_neg_assign_with_correcting_term(
+    pub(crate) fn unchecked_neg_assign_with_correcting_term<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut Ciphertext,
+        ct: &mut CiphertextBase<OpOrder>,
     ) -> EngineResult<u64> {
         // z = ceil( degree / 2^p ) * 2^p
         let msg_mod = ct.message_modulus.0;
@@ -62,26 +62,26 @@ impl ShortintEngine {
         Ok(z)
     }
 
-    pub(crate) fn smart_neg(
+    pub(crate) fn smart_neg<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+        ct: &mut CiphertextBase<OpOrder>,
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !server_key.is_neg_possible(ct) {
-            self.keyswitch_bootstrap_assign(server_key, ct)?;
+            self.apply_msg_identity_lut_assign(server_key, ct)?;
         }
         self.unchecked_neg(server_key, ct)
     }
 
-    pub(crate) fn smart_neg_assign(
+    pub(crate) fn smart_neg_assign<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut Ciphertext,
+        ct: &mut CiphertextBase<OpOrder>,
     ) -> EngineResult<()> {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !server_key.is_neg_possible(ct) {
-            self.keyswitch_bootstrap_assign(server_key, ct)?;
+            self.apply_msg_identity_lut_assign(server_key, ct)?;
         }
         self.unchecked_neg_assign(server_key, ct)
     }

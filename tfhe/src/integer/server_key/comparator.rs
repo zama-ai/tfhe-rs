@@ -2,7 +2,7 @@ use rayon::prelude::*;
 
 use super::ServerKey;
 use crate::integer::RadixCiphertext;
-use crate::shortint::server_key::Accumulator;
+use crate::shortint::server_key::LookupTableOwned;
 
 /// Simple enum to select whether we are looking for the min or the max
 enum MinMaxSelector {
@@ -22,11 +22,11 @@ fn has_non_zero_carries(ct: &RadixCiphertext) -> bool {
 /// during the comparisons and min/max algorithms
 pub struct Comparator<'a> {
     server_key: &'a ServerKey,
-    sign_accumulator: Accumulator,
-    selection_accumulator: Accumulator,
-    mask_accumulator: Accumulator,
-    x_accumulator: Accumulator,
-    y_accumulator: Accumulator,
+    sign_accumulator: LookupTableOwned,
+    selection_accumulator: LookupTableOwned,
+    mask_accumulator: LookupTableOwned,
+    x_accumulator: LookupTableOwned,
+    y_accumulator: LookupTableOwned,
 }
 
 impl<'a> Comparator<'a> {
@@ -127,8 +127,8 @@ impl<'a> Comparator<'a> {
     /// Expects the carry buffer to be empty
     fn pack_block_chunk(
         &self,
-        chunk: &[crate::shortint::Ciphertext],
-    ) -> crate::shortint::Ciphertext {
+        chunk: &[crate::shortint::CiphertextBig],
+    ) -> crate::shortint::CiphertextBig {
         let low = &chunk[0];
         let mut high = chunk[1].clone();
         debug_assert!(high.degree.0 < high.message_modulus.0);
@@ -145,8 +145,8 @@ impl<'a> Comparator<'a> {
     /// Expects the carry buffer to be empty
     fn pack_block_assign(
         &self,
-        low: &crate::shortint::Ciphertext,
-        high: &mut crate::shortint::Ciphertext,
+        low: &crate::shortint::CiphertextBig,
+        high: &mut crate::shortint::CiphertextBig,
     ) {
         debug_assert!(high.degree.0 < high.message_modulus.0);
         self.server_key
@@ -161,8 +161,8 @@ impl<'a> Comparator<'a> {
     // - 2 if lhs > rhs
     fn compare_block_assign(
         &self,
-        lhs: &mut crate::shortint::Ciphertext,
-        rhs: &crate::shortint::Ciphertext,
+        lhs: &mut crate::shortint::CiphertextBig,
+        rhs: &crate::shortint::CiphertextBig,
     ) {
         // When rhs > lhs, the subtraction will overflow, and the bit of padding will be set to 1
         // meaning that the output of the pbs will be the negative (modulo message space)
@@ -180,7 +180,7 @@ impl<'a> Comparator<'a> {
         crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs.ct, &rhs.ct);
         self.server_key
             .key
-            .keyswitch_programmable_bootstrap_assign(lhs, &self.sign_accumulator);
+            .apply_lookup_table_assign(lhs, &self.sign_accumulator);
 
         // Here Lhs can have the following values: (-1) % (message modulus * carry modulus), 0, 1
         // So the output values after the addition will be: 0, 1, 2
@@ -200,7 +200,7 @@ impl<'a> Comparator<'a> {
         &self,
         lhs: &RadixCiphertext,
         rhs: &RadixCiphertext,
-    ) -> crate::shortint::Ciphertext {
+    ) -> crate::shortint::CiphertextBig {
         assert_eq!(lhs.blocks.len(), rhs.blocks.len());
         let num_block = lhs.blocks.len();
 
@@ -248,10 +248,9 @@ impl<'a> Comparator<'a> {
                 .key
                 .unchecked_add_assign(&mut selection, comparison);
 
-            self.server_key.key.keyswitch_programmable_bootstrap_assign(
-                &mut selection,
-                &self.selection_accumulator,
-            );
+            self.server_key
+                .key
+                .apply_lookup_table_assign(&mut selection, &self.selection_accumulator);
         }
 
         selection
@@ -264,7 +263,7 @@ impl<'a> Comparator<'a> {
         &self,
         lhs: &RadixCiphertext,
         rhs: &RadixCiphertext,
-    ) -> crate::shortint::Ciphertext {
+    ) -> crate::shortint::CiphertextBig {
         assert_eq!(lhs.blocks.len(), rhs.blocks.len());
 
         let num_block = lhs.blocks.len();
@@ -322,10 +321,9 @@ impl<'a> Comparator<'a> {
                         .unchecked_scalar_mul_assign(&mut high, 4);
                     self.server_key.key.unchecked_add_assign(&mut high, low);
 
-                    self.server_key.key.keyswitch_programmable_bootstrap_assign(
-                        &mut high,
-                        &self.selection_accumulator,
-                    );
+                    self.server_key
+                        .key
+                        .apply_lookup_table_assign(&mut high, &self.selection_accumulator);
                     high
                 })
                 .collect_into_vec(&mut comparisons_2);
@@ -345,7 +343,7 @@ impl<'a> Comparator<'a> {
         &self,
         lhs: &mut RadixCiphertext,
         rhs: &mut RadixCiphertext,
-    ) -> crate::shortint::Ciphertext {
+    ) -> crate::shortint::CiphertextBig {
         if has_non_zero_carries(lhs) {
             self.server_key.full_propagate(lhs);
         }
@@ -359,7 +357,7 @@ impl<'a> Comparator<'a> {
         &self,
         lhs: &mut RadixCiphertext,
         rhs: &mut RadixCiphertext,
-    ) -> crate::shortint::Ciphertext {
+    ) -> crate::shortint::CiphertextBig {
         rayon::join(
             || {
                 if has_non_zero_carries(lhs) {
@@ -391,7 +389,7 @@ impl<'a> Comparator<'a> {
         let mut mask = self.unchecked_compare(lhs, rhs);
         self.server_key
             .key
-            .keyswitch_programmable_bootstrap_assign(&mut mask, &self.mask_accumulator);
+            .apply_lookup_table_assign(&mut mask, &self.mask_accumulator);
 
         let mut result = Vec::with_capacity(num_block);
         for i in 0..num_block {
@@ -401,11 +399,11 @@ impl<'a> Comparator<'a> {
             let maybe_x = self
                 .server_key
                 .key
-                .keyswitch_programmable_bootstrap(&lhs_masked, x_accumulator);
+                .apply_lookup_table(&lhs_masked, x_accumulator);
             let maybe_y = self
                 .server_key
                 .key
-                .keyswitch_programmable_bootstrap(&rhs_masked, y_accumulator);
+                .apply_lookup_table(&rhs_masked, y_accumulator);
 
             let r = self.server_key.key.unchecked_add(&maybe_x, &maybe_y);
             result.push(r)
@@ -429,7 +427,7 @@ impl<'a> Comparator<'a> {
         let mut mask = self.unchecked_compare_parallelized(lhs, rhs);
         self.server_key
             .key
-            .keyswitch_programmable_bootstrap_assign(&mut mask, &self.mask_accumulator);
+            .apply_lookup_table_assign(&mut mask, &self.mask_accumulator);
 
         let blocks = lhs
             .blocks
@@ -439,18 +437,16 @@ impl<'a> Comparator<'a> {
                 let (maybe_x, maybe_y) = rayon::join(
                     || {
                         let mut lhs_masked = self.server_key.key.unchecked_add(lhs_block, &mask);
-                        self.server_key.key.keyswitch_programmable_bootstrap_assign(
-                            &mut lhs_masked,
-                            x_accumulator,
-                        );
+                        self.server_key
+                            .key
+                            .apply_lookup_table_assign(&mut lhs_masked, x_accumulator);
                         lhs_masked
                     },
                     || {
                         let mut rhs_masked = self.server_key.key.unchecked_add(rhs_block, &mask);
-                        self.server_key.key.keyswitch_programmable_bootstrap_assign(
-                            &mut rhs_masked,
-                            y_accumulator,
-                        );
+                        self.server_key
+                            .key
+                            .apply_lookup_table_assign(&mut rhs_masked, y_accumulator);
                         rhs_masked
                     },
                 );
@@ -500,7 +496,7 @@ impl<'a> Comparator<'a> {
 
     fn map_comparison_result<F>(
         &self,
-        comparison: crate::shortint::Ciphertext,
+        comparison: crate::shortint::CiphertextBig,
         sign_result_handler_fn: F,
         num_blocks: usize,
     ) -> RadixCiphertext
@@ -511,10 +507,7 @@ impl<'a> Comparator<'a> {
             .server_key
             .key
             .generate_accumulator(sign_result_handler_fn);
-        let result_block = self
-            .server_key
-            .key
-            .keyswitch_programmable_bootstrap(&comparison, &acc);
+        let result_block = self.server_key.key.apply_lookup_table(&comparison, &acc);
 
         let mut blocks = Vec::with_capacity(num_blocks);
         blocks.push(result_block);
@@ -534,7 +527,7 @@ impl<'a> Comparator<'a> {
         rhs: &RadixCiphertext,
     ) -> RadixCiphertext
     where
-        CmpFn: Fn(&Self, &RadixCiphertext, &RadixCiphertext) -> crate::shortint::Ciphertext,
+        CmpFn: Fn(&Self, &RadixCiphertext, &RadixCiphertext) -> crate::shortint::CiphertextBig,
         F: Fn(u64) -> u64,
     {
         let comparison = comparison_fn(self, lhs, rhs);
@@ -550,7 +543,8 @@ impl<'a> Comparator<'a> {
         rhs: &mut RadixCiphertext,
     ) -> RadixCiphertext
     where
-        CmpFn: Fn(&Self, &mut RadixCiphertext, &mut RadixCiphertext) -> crate::shortint::Ciphertext,
+        CmpFn:
+            Fn(&Self, &mut RadixCiphertext, &mut RadixCiphertext) -> crate::shortint::CiphertextBig,
         F: Fn(u64) -> u64,
     {
         let comparison = smart_comparison_fn(self, lhs, rhs);

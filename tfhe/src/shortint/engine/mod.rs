@@ -12,13 +12,15 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::ContainerMut;
 use crate::core_crypto::seeders::new_seeder;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::Accumulator;
+use crate::shortint::server_key::{
+    BivariateLookupTableOwned, LookupTableMutView, LookupTableOwned,
+};
 use crate::shortint::ServerKey;
 use std::cell::RefCell;
 use std::fmt::Debug;
 
 use super::parameters::MessageModulus;
-use super::server_key::BivariateAccumulator;
+use super::server_key::BivariateLookupTable;
 
 mod client_side;
 mod public_side;
@@ -31,8 +33,11 @@ thread_local! {
 }
 
 pub struct BuffersRef<'a> {
-    pub(crate) accumulator: GlweCiphertextMutView<'a, u64>,
+    pub(crate) accumulator: LookupTableMutView<'a>,
+    // For the intermediate keyswitch result in the case of a big ciphertext
     pub(crate) buffer_lwe_after_ks: LweCiphertextMutView<'a, u64>,
+    // For the intermediate PBS result in the case of a smallciphertext
+    pub(crate) buffer_lwe_after_pbs: LweCiphertextMutView<'a, u64>,
 }
 
 #[derive(Default)]
@@ -44,9 +49,15 @@ impl Memory {
     fn as_buffers(&mut self, server_key: &ServerKey) -> BuffersRef<'_> {
         let num_elem_in_accumulator = server_key.bootstrapping_key.glwe_size().0
             * server_key.bootstrapping_key.polynomial_size().0;
-        let num_elem_in_lwe = server_key.key_switching_key.output_lwe_size().0;
+        let num_elem_in_lwe_after_ks = server_key.key_switching_key.output_lwe_size().0;
+        let num_elem_in_lwe_after_pbs = server_key
+            .bootstrapping_key
+            .output_lwe_dimension()
+            .to_lwe_size()
+            .0;
 
-        let total_elem_needed = num_elem_in_accumulator + num_elem_in_lwe;
+        let total_elem_needed =
+            num_elem_in_accumulator + num_elem_in_lwe_after_ks + num_elem_in_lwe_after_pbs;
 
         let all_elements = if self.buffer.len() < total_elem_needed {
             self.buffer.resize(total_elem_needed, 0u64);
@@ -55,19 +66,30 @@ impl Memory {
             &mut self.buffer[..total_elem_needed]
         };
 
-        let (accumulator_elements, lwe_elements) =
+        let (accumulator_elements, other_elements) =
             all_elements.split_at_mut(num_elem_in_accumulator);
 
-        let accumulator = GlweCiphertextMutView::from_container(
+        let acc = GlweCiphertext::from_container(
             accumulator_elements,
             server_key.bootstrapping_key.polynomial_size(),
         );
 
-        let buffer_lwe_after_ks = LweCiphertextMutView::from_container(lwe_elements);
+        let accumulator = LookupTableMutView {
+            acc,
+            // As a safety, the degree should be updated once the accumulator is actually filled
+            degree: Degree(server_key.max_degree.0),
+        };
+
+        let (after_ks_elements, after_pbs_elements) =
+            other_elements.split_at_mut(num_elem_in_lwe_after_ks);
+
+        let buffer_lwe_after_ks = LweCiphertextMutView::from_container(after_ks_elements);
+        let buffer_lwe_after_pbs = LweCiphertextMutView::from_container(after_pbs_elements);
 
         BuffersRef {
             accumulator,
             buffer_lwe_after_ks,
+            buffer_lwe_after_pbs,
         }
     }
 }
@@ -222,7 +244,7 @@ impl ShortintEngine {
     fn generate_accumulator_with_engine<F>(
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<Accumulator>
+    ) -> EngineResult<LookupTableOwned>
     where
         F: Fn(u64) -> u64,
     {
@@ -233,7 +255,7 @@ impl ShortintEngine {
         );
         let max_value = fill_accumulator(&mut acc, server_key, f);
 
-        Ok(Accumulator {
+        Ok(LookupTableOwned {
             acc,
             degree: Degree(max_value as usize),
         })
@@ -244,7 +266,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         f: F,
         left_message_scaling: MessageModulus,
-    ) -> EngineResult<BivariateAccumulator>
+    ) -> EngineResult<BivariateLookupTableOwned>
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -261,21 +283,22 @@ impl ShortintEngine {
         };
         let accumulator = ShortintEngine::generate_accumulator_with_engine(server_key, wrapped_f)?;
 
-        Ok(BivariateAccumulator {
+        Ok(BivariateLookupTable {
             acc: accumulator,
             ct_right_modulus: left_message_scaling,
         })
     }
 
     /// Return the [`BuffersRef`] and [`ComputationBuffers`] for the given `ServerKey`
-    pub fn buffers_for_key(
+    pub fn get_carry_clearing_accumulator_and_buffers(
         &mut self,
         server_key: &ServerKey,
     ) -> (BuffersRef<'_>, &mut ComputationBuffers) {
         let mut buffers = self.ciphertext_buffers.as_buffers(server_key);
-        fill_accumulator(&mut buffers.accumulator, server_key, |n| {
+        let max_degree = fill_accumulator(&mut buffers.accumulator.acc, server_key, |n| {
             n % server_key.message_modulus.0 as u64
         });
+        buffers.accumulator.degree = Degree(max_degree as usize);
 
         (buffers, &mut self.computation_buffers)
     }

@@ -458,7 +458,7 @@ where
         let accumulator = self.key.generate_accumulator(func);
         let new_ciphertext = self
             .key
-            .keyswitch_programmable_bootstrap(&ciphertext.ciphertext.borrow(), &accumulator);
+            .apply_lookup_table(&ciphertext.ciphertext.borrow(), &accumulator);
         GenericShortInt {
             ciphertext: RefCell::new(new_ciphertext),
             id: ciphertext.id,
@@ -470,10 +470,8 @@ where
         F: Fn(u64) -> u64,
     {
         let accumulator = self.key.generate_accumulator(func);
-        self.key.keyswitch_programmable_bootstrap_assign(
-            &mut ciphertext.ciphertext.borrow_mut(),
-            &accumulator,
-        )
+        self.key
+            .apply_lookup_table_assign(&mut ciphertext.ciphertext.borrow_mut(), &accumulator)
     }
 
     pub(super) fn bivariate_pbs<F>(
@@ -488,7 +486,7 @@ where
     {
         let wrapped_f = |lhs: u64, rhs: u64| -> u64 { u64::from(func(lhs as u8, rhs as u8)) };
 
-        let ciphertext = self.key.smart_functional_bivariate_pbs(
+        let ciphertext = self.key.smart_evaluate_bivariate_function(
             &mut lhs_ct.ciphertext.borrow_mut(),
             &mut rhs_ct.ciphertext.borrow_mut(),
             wrapped_f,

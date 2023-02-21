@@ -107,6 +107,18 @@ test('shortint_encrypt_decrypt', (t) => {
     let deserialized_sks = Shortint.deserialize_compressed_server_key(serialized_sks);
 
     // No equality tests here, as wasm stores pointers which will always differ
+
+    // Encryption using small keys
+    let params_small = Shortint.get_parameters_small(2, 2);
+    let cks_small = Shortint.new_client_key(params_small);
+
+    let ct_small = Shortint.encrypt_small(cks_small, BigInt(3));
+
+    let serialized_ct_small = Shortint.serialize_ciphertext(ct_small);
+    let deserialized_ct_small = Shortint.deserialize_ciphertext(serialized_ct_small);
+
+    let decrypted_small = Shortint.decrypt(cks_small, deserialized_ct_small);
+    assert.deepStrictEqual(decrypted_small, BigInt(3));
 });
 
 test('shortint_compressed_encrypt_decrypt', (t) => {
@@ -124,6 +136,20 @@ test('shortint_compressed_encrypt_decrypt', (t) => {
 
     let decrypted = Shortint.decrypt(deserialized_cks, decompressed_ct);
     assert.deepStrictEqual(decrypted, BigInt(3));
+
+    // Encryption using small keys
+    let params_small = Shortint.get_parameters_small(2, 2);
+    let cks_small = Shortint.new_client_key(params_small);
+
+    let ct_small = Shortint.encrypt_compressed_small(cks_small, BigInt(3));
+
+    let serialized_ct_small = Shortint.serialize_compressed_ciphertext(ct_small);
+    let deserialized_ct_small = Shortint.deserialize_compressed_ciphertext(serialized_ct_small);
+
+    let decompressed_ct_small = Shortint.decompress_ciphertext(deserialized_ct_small);
+
+    let decrypted_small = Shortint.decrypt(cks_small, decompressed_ct_small);
+    assert.deepStrictEqual(decrypted_small, BigInt(3));
 });
 
 test('shortint_public_encrypt_decrypt', (t) => {
@@ -138,6 +164,20 @@ test('shortint_public_encrypt_decrypt', (t) => {
 
     let decrypted = Shortint.decrypt(cks, deserialized_ct);
     assert.deepStrictEqual(decrypted, BigInt(3));
+
+    // Small
+    let params_small = Shortint.get_parameters_small(2, 2);
+    let cks_small = Shortint.new_client_key(params_small);
+
+    let pk_small = Shortint.new_public_key_small(cks_small);
+
+    let ct_small = Shortint.encrypt_with_public_key(pk_small, BigInt(3));
+
+    let serialized_ct_small = Shortint.serialize_ciphertext(ct_small);
+    let deserialized_ct_small = Shortint.deserialize_ciphertext(serialized_ct_small);
+
+    let decrypted_small = Shortint.decrypt(cks_small, deserialized_ct_small);
+    assert.deepStrictEqual(decrypted_small, BigInt(3));
 });
 
 test('shortint_compressed_public_encrypt_decrypt', (t) => {
@@ -155,6 +195,23 @@ test('shortint_compressed_public_encrypt_decrypt', (t) => {
 
     let decrypted = Shortint.decrypt(cks, deserialized_ct);
     assert.deepStrictEqual(decrypted, BigInt(1));
+
+    // Small
+    let params_small = Shortint.get_parameters_small(2, 2);
+    let cks_small = Shortint.new_client_key(params_small);
+
+    let pk_small = Shortint.new_compressed_public_key_small(cks_small);
+
+    let serialized_pk_small = Shortint.serialize_compressed_public_key(pk_small);
+    let deserialized_pk_small = Shortint.deserialize_compressed_public_key(serialized_pk_small);
+
+    let ct_small = Shortint.encrypt_with_compressed_public_key(deserialized_pk_small, BigInt(1));
+
+    let serialized_ct_small = Shortint.serialize_ciphertext(ct_small);
+    let deserialized_ct_small = Shortint.deserialize_ciphertext(serialized_ct_small);
+
+    let decrypted_small = Shortint.decrypt(cks_small, deserialized_ct_small);
+    assert.deepStrictEqual(decrypted_small, BigInt(1));
 });
 
 test('shortint_deterministic_keygen', (t) => {

@@ -44,7 +44,7 @@ impl ServerKey {
     pub fn unchecked_block_mul_assign_parallelized(
         &self,
         ct_left: &mut RadixCiphertext,
-        ct_right: &crate::shortint::Ciphertext,
+        ct_right: &crate::shortint::CiphertextBig,
         index: usize,
     ) {
         *ct_left = self.unchecked_block_mul_parallelized(ct_left, ct_right, index);
@@ -89,7 +89,7 @@ impl ServerKey {
     pub fn unchecked_block_mul_parallelized(
         &self,
         ct1: &RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &crate::shortint::CiphertextBig,
         index: usize,
     ) -> RadixCiphertext {
         let shifted_ct = self.blockshift(ct1, index);
@@ -138,7 +138,7 @@ impl ServerKey {
     pub fn smart_block_mul_parallelized(
         &self,
         ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &crate::shortint::CiphertextBig,
         index: usize,
     ) -> RadixCiphertext {
         //Makes sure we can do the multiplications
@@ -158,7 +158,7 @@ impl ServerKey {
         &self,
         result_lsb: &mut RadixCiphertext,
         result_msb: &mut RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &crate::shortint::CiphertextBig,
         index: usize,
     ) {
         let len = result_msb.blocks.len() - 1;
@@ -183,7 +183,7 @@ impl ServerKey {
     pub fn smart_block_mul_assign_parallelized(
         &self,
         ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &crate::shortint::CiphertextBig,
         index: usize,
     ) {
         *ct1 = self.smart_block_mul_parallelized(ct1, ct2, index);

@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::{Ciphertext, Parameters, ServerKey};
+use tfhe::shortint::{CiphertextBig, Parameters, ServerKey};
 
 use rand::Rng;
 use tfhe::shortint::keycache::KEY_CACHE;
@@ -40,7 +40,7 @@ fn bench_server_key_unary_function<F>(
     unary_op: F,
     params: &[Parameters],
 ) where
-    F: Fn(&ServerKey, &mut Ciphertext),
+    F: Fn(&ServerKey, &mut CiphertextBig),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -73,7 +73,7 @@ fn bench_server_key_binary_function<F>(
     binary_op: F,
     params: &[Parameters],
 ) where
-    F: Fn(&ServerKey, &mut Ciphertext, &mut Ciphertext),
+    F: Fn(&ServerKey, &mut CiphertextBig, &mut CiphertextBig),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -108,7 +108,7 @@ fn bench_server_key_binary_scalar_function<F>(
     binary_op: F,
     params: &[Parameters],
 ) where
-    F: Fn(&ServerKey, &mut Ciphertext, u8),
+    F: Fn(&ServerKey, &mut CiphertextBig, u8),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -142,7 +142,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
     binary_op: F,
     params: &[Parameters],
 ) where
-    F: Fn(&ServerKey, &mut Ciphertext, u8),
+    F: Fn(&ServerKey, &mut CiphertextBig, u8),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -192,7 +192,7 @@ fn carry_extract(c: &mut Criterion) {
         let bench_id = format!("ServerKey::carry_extract::{}", param.name());
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
-                sks.carry_extract(&ct_0);
+                let _ = sks.carry_extract(&ct_0);
             })
         });
     }
@@ -221,7 +221,7 @@ fn programmable_bootstrapping(c: &mut Criterion) {
 
         bench_group.bench_function(&id, |b| {
             b.iter(|| {
-                sks.keyswitch_programmable_bootstrap(&ctxt, &acc);
+                let _ = sks.apply_lookup_table(&ctxt, &acc);
             })
         });
     }
@@ -247,7 +247,7 @@ fn bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
 
     bench_group.bench_function(&id, |b| {
         b.iter(|| {
-            wopbs_key.programmable_bootstrapping_native_crt(&mut ct, &vec_lut);
+            let _ = wopbs_key.programmable_bootstrapping_native_crt(&mut ct, &vec_lut);
         })
     });
 
@@ -261,7 +261,7 @@ macro_rules! define_server_key_unary_bench_fn (
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
               |server_key, lhs| {
-                server_key.$server_key_method(lhs);},
+                let _ = server_key.$server_key_method(lhs);},
               $params)
       }
   }
@@ -274,7 +274,7 @@ macro_rules! define_server_key_bench_fn (
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
               |server_key, lhs, rhs| {
-                server_key.$server_key_method(lhs, rhs);},
+                let _ = server_key.$server_key_method(lhs, rhs);},
               $params)
       }
   }
@@ -287,7 +287,7 @@ macro_rules! define_server_key_scalar_bench_fn (
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
               |server_key, lhs, rhs| {
-                server_key.$server_key_method(lhs, rhs);},
+                let _ = server_key.$server_key_method(lhs, rhs);},
               $params)
       }
   }
@@ -300,7 +300,7 @@ macro_rules! define_server_key_scalar_div_bench_fn (
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
               |server_key, lhs, rhs| {
-                server_key.$server_key_method(lhs, rhs);},
+                let _ = server_key.$server_key_method(lhs, rhs);},
               $params)
       }
   }

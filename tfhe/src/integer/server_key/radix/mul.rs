@@ -37,7 +37,7 @@ impl ServerKey {
     pub fn unchecked_block_mul_assign(
         &self,
         ct_left: &mut RadixCiphertext,
-        ct_right: &crate::shortint::Ciphertext,
+        ct_right: &crate::shortint::CiphertextBig,
         index: usize,
     ) {
         *ct_left = self.unchecked_block_mul(ct_left, ct_right, index);
@@ -78,7 +78,7 @@ impl ServerKey {
     pub fn unchecked_block_mul(
         &self,
         ct1: &RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &crate::shortint::CiphertextBig,
         index: usize,
     ) -> RadixCiphertext {
         let shifted_ct = self.blockshift(ct1, index);
@@ -132,7 +132,7 @@ impl ServerKey {
     pub fn smart_block_mul(
         &self,
         ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &crate::shortint::CiphertextBig,
         index: usize,
     ) -> RadixCiphertext {
         //Makes sure we can do the multiplications
@@ -160,7 +160,7 @@ impl ServerKey {
     pub fn smart_block_mul_assign(
         &self,
         ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &crate::shortint::CiphertextBig,
         index: usize,
     ) {
         *ct1 = self.smart_block_mul(ct1, ct2, index);

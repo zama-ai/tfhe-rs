@@ -119,13 +119,17 @@ impl BlockEncryptionKey for crate::shortint::ClientKey {
     }
 }
 
-impl BlockEncryptionKey for crate::shortint::PublicKey {
+impl<OpOrder: crate::shortint::PBSOrderMarker> BlockEncryptionKey
+    for crate::shortint::PublicKeyBase<OpOrder>
+{
     fn parameters(&self) -> &crate::shortint::Parameters {
         &self.parameters
     }
 }
 
-impl BlockEncryptionKey for crate::shortint::CompressedPublicKey {
+impl<OpOrder: crate::shortint::PBSOrderMarker> BlockEncryptionKey
+    for crate::shortint::CompressedPublicKeyBase<OpOrder>
+{
     fn parameters(&self) -> &crate::shortint::Parameters {
         &self.parameters
     }

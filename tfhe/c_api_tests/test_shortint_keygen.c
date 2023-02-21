@@ -88,7 +88,7 @@ void test_server_key_trivial_encrypt(void) {
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
 
-  int encrypt_ok = shortint_server_key_create_trivial(sks, 3, &ct);
+  int encrypt_ok = shortint_server_key_create_trivial(sks, 3, ShortintCiphertextBig, &ct);
   assert(encrypt_ok == 0);
 
   uint64_t result = -1;
@@ -121,7 +121,7 @@ void test_custom_keygen(void) {
   destroy_shortint_server_key(sks);
 }
 
-void test_public_keygen(void) {
+void test_public_keygen(ShortintPublicKeyKind pk_kind) {
   ShortintClientKey *cks = NULL;
   ShortintPublicKey *pks = NULL;
   ShortintPublicKey *pks_deser = NULL;
@@ -135,7 +135,7 @@ void test_public_keygen(void) {
   int gen_keys_ok = shortint_gen_client_key(params, &cks);
   assert(gen_keys_ok == 0);
 
-  int gen_pks = shortint_gen_public_key(cks, &pks);
+  int gen_pks = shortint_gen_public_key(cks, pk_kind, &pks);
   assert(gen_pks == 0);
 
   int pks_ser = shortint_serialize_public_key(pks, &pks_ser_buff);
@@ -164,7 +164,7 @@ void test_public_keygen(void) {
   destroy_shortint_ciphertext(ct);
 }
 
-void test_compressed_public_keygen(void) {
+void test_compressed_public_keygen(ShortintPublicKeyKind pk_kind) {
   ShortintClientKey *cks = NULL;
   ShortintCompressedPublicKey *cpks = NULL;
   ShortintPublicKey *pks = NULL;
@@ -177,7 +177,7 @@ void test_compressed_public_keygen(void) {
   int gen_keys_ok = shortint_gen_client_key(params, &cks);
   assert(gen_keys_ok == 0);
 
-  int gen_cpks = shortint_gen_compressed_public_key(cks, &cpks);
+  int gen_cpks = shortint_gen_compressed_public_key(cks, pk_kind, &cpks);
   assert(gen_cpks == 0);
 
   uint64_t msg = 2;
@@ -213,8 +213,10 @@ void test_compressed_public_keygen(void) {
 int main(void) {
   test_predefined_keygen_w_serde();
   test_custom_keygen();
-  test_public_keygen();
-  test_compressed_public_keygen();
+  test_public_keygen(ShortintPublicKeyBig);
+  test_public_keygen(ShortintPublicKeySmall);
+  test_compressed_public_keygen(ShortintPublicKeyBig);
+  test_compressed_public_keygen(ShortintPublicKeySmall);
   test_server_key_trivial_encrypt();
   return EXIT_SUCCESS;
 }

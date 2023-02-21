@@ -2,7 +2,7 @@ use super::ServerKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::server_key::CheckError::CarryFull;
-use crate::shortint::Ciphertext;
+use crate::shortint::{CiphertextBase, PBSOrderMarker};
 
 impl ServerKey {
     /// Compute homomorphically a right shift of the bits without checks.
@@ -11,12 +11,14 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 2;
+    ///
+    /// // Encrypt a message
     /// let ct = cks.encrypt(msg);
     /// // |       ct        |
     /// // | carry | message |
@@ -35,8 +37,34 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(msg >> shift, dec);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let ct = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Compute homomorphically a right shift
+    /// let shift: u8 = 1;
+    /// let ct_res = sks.unchecked_scalar_right_shift(&ct, shift);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// // Decrypt:
+    /// let dec = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn unchecked_scalar_right_shift(&self, ct: &Ciphertext, shift: u8) -> Ciphertext {
+    pub fn unchecked_scalar_right_shift<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+        shift: u8,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_scalar_right_shift(self, ct, shift)
@@ -50,10 +78,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 2;
+    ///
+    /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
     /// // |       ct        |
     /// // | carry | message |
@@ -72,8 +102,34 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(msg >> shift, dec);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Compute homomorphically a right shift
+    /// let shift: u8 = 1;
+    /// sks.unchecked_scalar_right_shift_assign(&mut ct, shift);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// // Decrypt:
+    /// let dec = cks.decrypt(&ct);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn unchecked_scalar_right_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
+    pub fn unchecked_scalar_right_shift_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        shift: u8,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_scalar_right_shift_assign(self, ct, shift)
@@ -87,13 +143,14 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 2;
     ///
+    /// // Encrypt a message
     /// let ct = cks.encrypt(msg);
     /// // |       ct        |
     /// // | carry | message |
@@ -115,8 +172,37 @@ impl ServerKey {
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let ct = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Compute homomorphically a left shift
+    /// let shift: u8 = 1;
+    /// let ct_res = sks.unchecked_scalar_left_shift(&ct, shift);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 1  |   0 0   |
+    ///
+    /// // Decrypt:
+    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
+    /// let msg_only = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// assert_eq!(msg << shift, msg_and_carry);
+    /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
-    pub fn unchecked_scalar_left_shift(&self, ct: &Ciphertext, shift: u8) -> Ciphertext {
+    pub fn unchecked_scalar_left_shift<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+        shift: u8,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.unchecked_scalar_left_shift(ct, shift).unwrap()
         })
@@ -128,10 +214,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 2;
+    ///
+    /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
     /// // |       ct        |
     /// // | carry | message |
@@ -153,8 +241,37 @@ impl ServerKey {
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Compute homomorphically a left shift
+    /// let shift: u8 = 1;
+    /// sks.unchecked_scalar_left_shift_assign(&mut ct, shift);
+    /// // |      ct     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 1  |   0 0   |
+    ///
+    /// // Decrypt:
+    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct);
+    /// let msg_only = cks.decrypt(&ct);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// assert_eq!(msg << shift, msg_and_carry);
+    /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
-    pub fn unchecked_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
+    pub fn unchecked_scalar_left_shift_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        shift: u8,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_scalar_left_shift_assign(ct, shift)
@@ -167,21 +284,38 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::shortint::{gen_keys, Parameters};
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(Parameters::default());
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 2;
     /// let shift = 5;
+    ///
+    /// // Encrypt a message
     /// let ct1 = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
     /// let res = sks.is_scalar_left_shift_possible(&ct1, shift);
     ///
     /// assert_eq!(false, res);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let ct1 = cks.encrypt_small(msg);
+    ///
+    /// // Check if we can perform an addition
+    /// let res = sks.is_scalar_left_shift_possible(&ct1, shift);
+    ///
+    /// assert_eq!(false, res);
     /// ```
-    pub fn is_scalar_left_shift_possible(&self, ct1: &Ciphertext, shift: u8) -> bool {
+    pub fn is_scalar_left_shift_possible<OpOrder: PBSOrderMarker>(
+        &self,
+        ct1: &CiphertextBase<OpOrder>,
+        shift: u8,
+    ) -> bool {
         let final_operation_count = ct1.degree.0 << shift as usize;
         final_operation_count <= self.max_degree.0
     }
@@ -195,13 +329,14 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 2;
     ///
+    /// // Encrypt a message
     /// let ct1 = cks.encrypt(msg);
     /// // |       ct        |
     /// // | carry | message |
@@ -229,12 +364,43 @@ impl ServerKey {
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let ct1 = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Shifting 3 times is not ok, as it exceeds the carry buffer
+    /// let ct_res = sks.checked_scalar_left_shift(&ct1, 3);
+    /// assert!(ct_res.is_err());
+    ///
+    /// // Shifting 2 times is ok
+    /// let shift = 2;
+    /// let ct_res = sks.checked_scalar_left_shift(&ct1, shift);
+    /// assert!(ct_res.is_ok());
+    /// let ct_res = ct_res.unwrap();
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 0  |   0 0   |
+    ///
+    /// // Decrypt:
+    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
+    /// let msg_only = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// assert_eq!(msg << shift, msg_and_carry);
+    /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
-    pub fn checked_scalar_left_shift(
+    pub fn checked_scalar_left_shift<OpOrder: PBSOrderMarker>(
         &self,
-        ct: &Ciphertext,
+        ct: &CiphertextBase<OpOrder>,
         shift: u8,
-    ) -> Result<Ciphertext, CheckError> {
+    ) -> Result<CiphertextBase<OpOrder>, CheckError> {
         if self.is_scalar_left_shift_possible(ct, shift) {
             let ct_result = self.unchecked_scalar_left_shift(ct, shift);
             Ok(ct_result)
@@ -243,9 +409,9 @@ impl ServerKey {
         }
     }
 
-    pub fn checked_scalar_left_shift_assign(
+    pub fn checked_scalar_left_shift_assign<OpOrder: PBSOrderMarker>(
         &self,
-        ct: &mut Ciphertext,
+        ct: &mut CiphertextBase<OpOrder>,
         shift: u8,
     ) -> Result<(), CheckError> {
         if self.is_scalar_left_shift_possible(ct, shift) {
@@ -265,10 +431,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 2;
+    ///
+    /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
     /// // |       ct        |
     /// // | carry | message |
@@ -289,14 +457,46 @@ impl ServerKey {
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// let shift: u8 = 1;
+    /// let ct_res = sks.smart_scalar_left_shift(&mut ct, shift);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 1  |   0 0   |
+    ///
+    /// // Decrypt:
+    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
+    /// let msg_only = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// assert_eq!(msg << shift, msg_and_carry);
+    /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
-    pub fn smart_scalar_left_shift(&self, ct: &mut Ciphertext, shift: u8) -> Ciphertext {
+    pub fn smart_scalar_left_shift<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        shift: u8,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_left_shift(self, ct, shift).unwrap()
         })
     }
 
-    pub fn smart_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
+    pub fn smart_scalar_left_shift_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        shift: u8,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .smart_scalar_left_shift_assign(self, ct, shift)
