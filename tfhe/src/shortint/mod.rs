@@ -58,10 +58,16 @@ pub mod server_key;
 #[cfg(not(feature = "__wasm_api"))]
 pub mod wopbs;
 
-pub use ciphertext::{Ciphertext, CompressedCiphertext};
+pub use ciphertext::{
+    CiphertextBase, CiphertextBig, CiphertextSmall, CompressedCiphertextBase,
+    CompressedCiphertextBig, CompressedCiphertextSmall, PBSOrder, PBSOrderMarker,
+};
 pub use client_key::ClientKey;
 pub use parameters::Parameters;
-pub use public_key::{CompressedPublicKey, PublicKey};
+pub use public_key::{
+    CompressedPublicKeyBase, CompressedPublicKeyBig, CompressedPublicKeySmall, PublicKeyBase,
+    PublicKeyBig, PublicKeySmall,
+};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 
 /// Generate a couple of client and server keys.

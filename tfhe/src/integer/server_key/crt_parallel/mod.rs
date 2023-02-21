@@ -89,7 +89,7 @@ impl ServerKey {
             .par_iter_mut()
             .zip(&accumulators)
             .for_each(|(block, acc)| {
-                self.key.keyswitch_programmable_bootstrap_assign(block, acc);
+                self.key.apply_lookup_table_assign(block, acc);
             });
     }
 

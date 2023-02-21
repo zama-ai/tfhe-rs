@@ -68,6 +68,32 @@ pub unsafe extern "C" fn shortint_get_parameters(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn shortint_get_parameters_small(
+    message_bits: u32,
+    carry_bits: u32,
+    result: *mut *mut ShortintParameters,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+        let params: Option<_> = match (message_bits, carry_bits) {
+            (1, 1) => Some(crate::shortint::parameters::PARAM_SMALL_MESSAGE_1_CARRY_1),
+            (2, 2) => Some(crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2),
+            (3, 3) => Some(crate::shortint::parameters::PARAM_SMALL_MESSAGE_3_CARRY_3),
+            (4, 4) => Some(crate::shortint::parameters::PARAM_SMALL_MESSAGE_4_CARRY_4),
+            _ => None,
+        };
+
+        match params {
+            Some(params) => {
+                let params = Box::new(ShortintParameters(params));
+                *result = Box::into_raw(params);
+            }
+            None => *result = std::ptr::null_mut(),
+        }
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn shortint_create_parameters(
     lwe_dimension: usize,
     glwe_dimension: usize,

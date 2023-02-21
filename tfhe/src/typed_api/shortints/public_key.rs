@@ -9,7 +9,7 @@ pub struct GenericShortIntPublicKey<P>
 where
     P: ShortIntegerParameter,
 {
-    pub(in crate::typed_api::shortints) key: crate::shortint::public_key::PublicKey,
+    pub(in crate::typed_api::shortints) key: crate::shortint::public_key::PublicKeyBig,
     _marker: std::marker::PhantomData<P>,
 }
 
@@ -18,7 +18,7 @@ where
     P: ShortIntegerParameter,
 {
     pub fn new(client_key: &GenericShortIntClientKey<P>) -> Self {
-        let key = crate::shortint::public_key::PublicKey::new(&client_key.key);
+        let key = crate::shortint::public_key::PublicKeyBig::new(&client_key.key);
         Self {
             key,
             _marker: Default::default(),

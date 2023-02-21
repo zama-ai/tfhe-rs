@@ -103,7 +103,7 @@ uint64_t get_max_value_of_accumulator_generator(uint64_t (*accumulator_func)(uin
 
 int main(void)
 {
-    ShortintPBSAccumulator *accumulator = NULL;
+    ShortintPBSLookupTable *accumulator = NULL;
     ShortintClientKey *cks = NULL;
     ShortintServerKey *sks = NULL;
     ShortintParameters *params = NULL;

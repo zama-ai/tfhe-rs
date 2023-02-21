@@ -7,7 +7,7 @@ use std::ops::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::shortint::ciphertext::Ciphertext;
+use crate::shortint::ciphertext::CiphertextBig as ShortintCiphertext;
 
 use crate::typed_api::errors::OutOfRangeError;
 use crate::typed_api::global_state::WithGlobalKey;
@@ -98,7 +98,7 @@ pub struct GenericShortInt<P: ShortIntegerParameter> {
     /// of the corresponding `ServerKey` (in tfhe-shortint)
     /// require the ciphertext to be a `&mut`,
     /// while we also overloads rust operators for have a `&` references
-    pub(in crate::typed_api::shortints) ciphertext: RefCell<Ciphertext>,
+    pub(in crate::typed_api::shortints) ciphertext: RefCell<ShortintCiphertext>,
     pub(in crate::typed_api::shortints) id: P::Id,
 }
 
@@ -106,7 +106,7 @@ impl<P> GenericShortInt<P>
 where
     P: ShortIntegerParameter,
 {
-    pub(crate) fn new(inner: Ciphertext, id: P::Id) -> Self {
+    pub(crate) fn new(inner: ShortintCiphertext, id: P::Id) -> Self {
         Self {
             ciphertext: RefCell::new(inner),
             id,

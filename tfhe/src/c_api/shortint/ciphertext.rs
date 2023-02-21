@@ -4,10 +4,50 @@ use std::os::raw::c_int;
 
 use crate::shortint;
 
-pub struct ShortintCiphertext(pub(in crate::c_api) shortint::ciphertext::Ciphertext);
-pub struct ShortintCompressedCiphertext(
-    pub(in crate::c_api) shortint::ciphertext::CompressedCiphertext,
-);
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(in crate::c_api) enum ShortintCiphertextInner {
+    Big(shortint::ciphertext::CiphertextBig),
+    Small(shortint::ciphertext::CiphertextSmall),
+}
+
+impl From<shortint::ciphertext::CiphertextBig> for ShortintCiphertextInner {
+    fn from(value: shortint::ciphertext::CiphertextBig) -> Self {
+        ShortintCiphertextInner::Big(value)
+    }
+}
+
+impl From<shortint::ciphertext::CiphertextSmall> for ShortintCiphertextInner {
+    fn from(value: shortint::ciphertext::CiphertextSmall) -> Self {
+        ShortintCiphertextInner::Small(value)
+    }
+}
+
+pub struct ShortintCiphertext(pub(in crate::c_api) ShortintCiphertextInner);
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(in crate::c_api) enum ShortintCompressedCiphertextInner {
+    Big(shortint::ciphertext::CompressedCiphertextBig),
+    Small(shortint::ciphertext::CompressedCiphertextSmall),
+}
+
+impl From<shortint::ciphertext::CompressedCiphertextBig> for ShortintCompressedCiphertextInner {
+    fn from(value: shortint::ciphertext::CompressedCiphertextBig) -> Self {
+        ShortintCompressedCiphertextInner::Big(value)
+    }
+}
+
+impl From<shortint::ciphertext::CompressedCiphertextSmall> for ShortintCompressedCiphertextInner {
+    fn from(value: shortint::ciphertext::CompressedCiphertextSmall) -> Self {
+        ShortintCompressedCiphertextInner::Small(value)
+    }
+}
+pub struct ShortintCompressedCiphertext(pub(in crate::c_api) ShortintCompressedCiphertextInner);
+
+#[repr(C)]
+pub enum ShortintCiphertextKind {
+    ShortintCiphertextBig,
+    ShortintCiphertextSmall,
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_ciphertext_set_degree(
@@ -17,7 +57,12 @@ pub unsafe extern "C" fn shortint_ciphertext_set_degree(
     catch_panic(|| {
         let ciphertext = get_mut_checked(ciphertext).unwrap();
 
-        ciphertext.0.degree.0 = degree;
+        let inner = &mut ciphertext.0;
+
+        match inner {
+            ShortintCiphertextInner::Big(inner_ct) => inner_ct.degree.0 = degree,
+            ShortintCiphertextInner::Small(inner_ct) => inner_ct.degree.0 = degree,
+        }
     })
 }
 
@@ -31,7 +76,12 @@ pub unsafe extern "C" fn shortint_ciphertext_get_degree(
 
         let ciphertext = get_ref_checked(ciphertext).unwrap();
 
-        *result = ciphertext.0.degree.0;
+        let inner = &ciphertext.0;
+
+        *result = match inner {
+            ShortintCiphertextInner::Big(inner_ct) => inner_ct.degree.0,
+            ShortintCiphertextInner::Small(inner_ct) => inner_ct.degree.0,
+        };
     })
 }
 
@@ -63,8 +113,7 @@ pub unsafe extern "C" fn shortint_deserialize_ciphertext(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result = std::ptr::null_mut();
 
-        let ciphertext: shortint::ciphertext::Ciphertext =
-            bincode::deserialize(buffer_view.into()).unwrap();
+        let ciphertext = bincode::deserialize(buffer_view.into()).unwrap();
 
         let heap_allocated_ciphertext = Box::new(ShortintCiphertext(ciphertext));
 
@@ -74,7 +123,7 @@ pub unsafe extern "C" fn shortint_deserialize_ciphertext(
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_decompress_ciphertext(
-    compressed_ciphertext: *mut ShortintCompressedCiphertext,
+    compressed_ciphertext: *const ShortintCompressedCiphertext,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
@@ -84,9 +133,16 @@ pub unsafe extern "C" fn shortint_decompress_ciphertext(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result = std::ptr::null_mut();
 
-        let compressed_ciphertext = get_mut_checked(compressed_ciphertext).unwrap();
+        let compressed_ciphertext = get_ref_checked(compressed_ciphertext).unwrap();
 
-        let ciphertext = compressed_ciphertext.0.clone().into();
+        let ciphertext = match &compressed_ciphertext.0 {
+            ShortintCompressedCiphertextInner::Big(inner) => {
+                ShortintCiphertextInner::Big(inner.clone().into())
+            }
+            ShortintCompressedCiphertextInner::Small(inner) => {
+                ShortintCiphertextInner::Small(inner.clone().into())
+            }
+        };
 
         let heap_allocated_ciphertext = Box::new(ShortintCiphertext(ciphertext));
 
@@ -122,7 +178,7 @@ pub unsafe extern "C" fn shortint_deserialize_compressed_ciphertext(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result = std::ptr::null_mut();
 
-        let ciphertext: shortint::ciphertext::CompressedCiphertext =
+        let ciphertext: ShortintCompressedCiphertextInner =
             bincode::deserialize(buffer_view.into()).unwrap();
 
         let heap_allocated_ciphertext = Box::new(ShortintCompressedCiphertext(ciphertext));

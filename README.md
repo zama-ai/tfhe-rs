@@ -116,7 +116,7 @@ fn main() {
     let acc = server_key.generate_accumulator(f);
 
     // Compute the function over the ciphertext using the PBS
-    let ct_res = server_key.keyswitch_programmable_bootstrap(&ct_add, &acc);
+    let ct_res = server_key.apply_lookup_table(&ct_add, &acc);
 
     // Decrypt the ciphertext using the (private) client key
     let output = client_key.decrypt(&ct_res);

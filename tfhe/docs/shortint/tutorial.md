@@ -54,7 +54,7 @@ use tfhe::shortint::prelude::*;
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
    let (client_key, _) = gen_keys(Parameters::default());
-   let public_key = PublicKey::new(&client_key);
+   let public_key = PublicKeyBig::new(&client_key);
 
     let msg1 = 1;
     let msg2 = 0;

@@ -2,22 +2,22 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{CiphertextBase, PBSOrderMarker, ServerKey};
 
 impl ShortintEngine {
-    pub(crate) fn unchecked_scalar_sub(
+    pub(crate) fn unchecked_scalar_sub<OpOrder: PBSOrderMarker>(
         &mut self,
-        ct: &Ciphertext,
+        ct: &CiphertextBase<OpOrder>,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         let mut ct_result = ct.clone();
         self.unchecked_scalar_sub_assign(&mut ct_result, scalar)?;
         Ok(ct_result)
     }
 
-    pub(crate) fn unchecked_scalar_sub_assign(
+    pub(crate) fn unchecked_scalar_sub_assign<OpOrder: PBSOrderMarker>(
         &mut self,
-        ct: &mut Ciphertext,
+        ct: &mut CiphertextBase<OpOrder>,
         scalar: u8,
     ) -> EngineResult<()> {
         let neg_scalar = u64::from(scalar.wrapping_neg()) % ct.message_modulus.0 as u64;
@@ -31,22 +31,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_scalar_sub(
+    pub(crate) fn smart_scalar_sub<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut Ciphertext,
+        ct: &mut CiphertextBase<OpOrder>,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         let mut ct_result = ct.clone();
         self.smart_scalar_sub_assign(server_key, &mut ct_result, scalar)?;
 
         Ok(ct_result)
     }
 
-    pub(crate) fn smart_scalar_sub_assign(
+    pub(crate) fn smart_scalar_sub_assign<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut Ciphertext,
+        ct: &mut CiphertextBase<OpOrder>,
         scalar: u8,
     ) -> EngineResult<()> {
         let modulus = server_key.message_modulus.0 as u64;
@@ -57,7 +57,7 @@ impl ShortintEngine {
             let scalar = u64::from(scalar);
             // If the scalar is too large, PBS is used to compute the scalar mul
             let acc = self.generate_accumulator(server_key, |x| (x - scalar) % modulus)?;
-            self.keyswitch_programmable_bootstrap_assign(server_key, ct, &acc)?;
+            self.apply_lookup_table_assign(server_key, ct, &acc)?;
             ct.degree = Degree(server_key.message_modulus.0 - 1);
         }
         Ok(())

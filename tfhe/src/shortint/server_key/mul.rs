@@ -3,7 +3,7 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::server_key::CheckError::CarryFull;
-use crate::shortint::Ciphertext;
+use crate::shortint::{CiphertextBase, PBSOrderMarker};
 
 impl ServerKey {
     /// Multiply two ciphertexts together without checks.
@@ -17,10 +17,10 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key
-    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
+    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let clear_1 = 1;
     /// let clear_2 = 1;
@@ -42,8 +42,32 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages
+    /// let ct_1 = cks.encrypt_small(clear_1);
+    /// let ct_2 = cks.encrypt_small(clear_2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// let ct_res = sks.unchecked_mul_lsb(&ct_1, &ct_2);
+    /// // 2*3 == 6 == 01_10 (base 2)
+    /// // Only the message part is returned (lsb) so `ct_res` is:
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Decrypt
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
-    pub fn unchecked_mul_lsb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
+    pub fn unchecked_mul_lsb<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.unchecked_mul_lsb(self, ct_left, ct_right).unwrap()
         })
@@ -60,10 +84,10 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::DEFAULT_PARAMETERS;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key
-    /// let (mut cks, mut sks) = gen_keys(DEFAULT_PARAMETERS);
+    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let clear_1 = 3;
     /// let clear_2 = 2;
@@ -79,8 +103,26 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_1);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages
+    /// let mut ct_1 = cks.encrypt_small(clear_1);
+    /// let ct_2 = cks.encrypt_small(clear_2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// sks.unchecked_mul_lsb_assign(&mut ct_1, &ct_2);
+    ///
+    /// // Decrypt
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
-    pub fn unchecked_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
+    pub fn unchecked_mul_lsb_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_mul_lsb_assign(self, ct_left, ct_right)
@@ -99,10 +141,10 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::DEFAULT_PARAMETERS;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key
-    /// let (mut cks, mut sks) = gen_keys(DEFAULT_PARAMETERS);
+    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let clear_1 = 3;
     /// let clear_2 = 2;
@@ -125,14 +167,43 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!((clear_1 * clear_2) / modulus, res);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages
+    /// let mut ct_1 = cks.encrypt_small(clear_1);
+    /// let mut ct_2 = cks.encrypt_small(clear_2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// let ct_res = sks.unchecked_mul_msb(&ct_1, &ct_2);
+    /// // 2*3 == 6 == 01_10 (base 2)
+    /// // however the ciphertext will contain only the carry buffer
+    /// // as the message, the ct_res is actually:
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// // Decrypt
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!((clear_1 * clear_2) / modulus, res);
     /// ```
-    pub fn unchecked_mul_msb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
+    pub fn unchecked_mul_msb<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.unchecked_mul_msb(self, ct_left, ct_right).unwrap()
         })
     }
 
-    pub fn unchecked_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
+    pub fn unchecked_mul_msb_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_mul_msb_assign(self, ct_left, ct_right)
@@ -145,10 +216,11 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::shortint::{gen_keys, Parameters};
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(Parameters::default());
+    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 2;
     ///
@@ -160,8 +232,23 @@ impl ServerKey {
     /// let res = sks.is_mul_possible(&ct_1, &ct_2);
     ///
     /// assert_eq!(true, res);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct_1 = cks.encrypt_small(msg);
+    /// let ct_2 = cks.encrypt_small(msg);
+    ///
+    /// // Check if we can perform a multiplication
+    /// let res = sks.is_mul_possible(&ct_1, &ct_2);
+    ///
+    /// assert_eq!(true, res);
     /// ```
-    pub fn is_mul_possible(&self, ct1: &Ciphertext, ct2: &Ciphertext) -> bool {
+    pub fn is_mul_possible<OpOrder: PBSOrderMarker>(
+        &self,
+        ct1: &CiphertextBase<OpOrder>,
+        ct2: &CiphertextBase<OpOrder>,
+    ) -> bool {
         self.is_functional_bivariate_pbs_possible(ct1, ct2)
     }
 
@@ -176,10 +263,11 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::{gen_keys, Parameters};
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(Parameters::default());
+    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt two messages:
     /// let ct_1 = cks.encrypt(2);
@@ -194,12 +282,28 @@ impl ServerKey {
     /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct_1 = cks.encrypt_small(2);
+    /// let ct_2 = cks.encrypt_small(1);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.checked_mul_lsb(&ct_1, &ct_2);
+    ///
+    /// assert!(ct_res.is_ok());
+    ///
+    /// let ct_res = ct_res.unwrap();
+    /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(clear_res % modulus, 2);
     /// ```
-    pub fn checked_mul_lsb(
+    pub fn checked_mul_lsb<OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> Result<CiphertextBase<OpOrder>, CheckError> {
         if self.is_mul_possible(ct_left, ct_right) {
             let ct_result = self.unchecked_mul_lsb(ct_left, ct_right);
             Ok(ct_result)
@@ -220,10 +324,11 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::{gen_keys, Parameters};
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(Parameters::default());
+    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt two messages:
     /// let mut ct_1 = cks.encrypt(2);
@@ -237,11 +342,26 @@ impl ServerKey {
     /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.encrypt_small(2);
+    /// let ct_2 = cks.encrypt_small(1);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.checked_mul_lsb_assign(&mut ct_1, &ct_2);
+    ///
+    /// assert!(ct_res.is_ok());
+    ///
+    /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(clear_res % modulus, 2);
     /// ```
-    pub fn checked_mul_lsb_assign(
+    pub fn checked_mul_lsb_assign<OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
     ) -> Result<(), CheckError> {
         if self.is_mul_possible(ct_left, ct_right) {
             self.unchecked_mul_lsb_assign(ct_left, ct_right);
@@ -263,7 +383,7 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -293,12 +413,37 @@ impl ServerKey {
     ///     clear_res,
     ///     (msg_1 * msg_2) / cks.parameters.message_modulus.0 as u64
     /// );
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct_1 = cks.encrypt_small(msg_1);
+    /// let ct_2 = cks.encrypt_small(msg_2);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.checked_mul_msb(&ct_1, &ct_2);
+    /// assert!(ct_res.is_ok());
+    ///
+    /// // 2*2 == 4 == 01_00 (base 2)
+    /// // however the ciphertext will contain only the carry buffer
+    /// // as the message, the ct_res is actually:
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// let ct_res = ct_res.unwrap();
+    /// let clear_res = cks.decrypt(&ct_res);
+    /// assert_eq!(
+    ///     clear_res,
+    ///     (msg_1 * msg_2) / cks.parameters.message_modulus.0 as u64
+    /// );
     /// ```
-    pub fn checked_mul_msb(
+    pub fn checked_mul_msb<OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> Result<CiphertextBase<OpOrder>, CheckError> {
         if self.is_mul_possible(ct_left, ct_right) {
             let ct_result = self.unchecked_mul_msb(ct_left, ct_right);
             Ok(ct_result)
@@ -319,11 +464,11 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1;
-    /// use tfhe::shortint::{gen_keys, Parameters};
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
+    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let clear_1 = 1;
     /// let clear_2 = 1;
@@ -338,12 +483,25 @@ impl ServerKey {
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!((clear_2 * clear_1), res);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages
+    /// let mut ct_1 = cks.encrypt_small(clear_1);
+    /// let mut ct_2 = cks.encrypt_small(clear_2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct_1, &mut ct_2);
+    ///
+    /// // Decrypt
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!((clear_2 * clear_1), res);
     /// ```
-    pub fn unchecked_mul_lsb_small_carry(
+    pub fn unchecked_mul_lsb_small_carry<OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> Ciphertext {
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_mul_lsb_small_carry_modulus(self, ct_left, ct_right)
@@ -351,10 +509,10 @@ impl ServerKey {
         })
     }
 
-    pub fn unchecked_mul_lsb_small_carry_assign(
+    pub fn unchecked_mul_lsb_small_carry_assign<OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -394,8 +552,30 @@ impl ServerKey {
     /// res = sks.is_mul_small_carry_possible(&ct_1, &ct_3);
     ///
     /// assert_eq!(false, res);
+    ///
+    /// // Encrypt two messages:
+    /// let ct_1 = cks.encrypt(msg);
+    /// let ct_2 = cks.encrypt(msg);
+    ///
+    /// // Check if we can perform a multiplication
+    /// let mut res = sks.is_mul_small_carry_possible(&ct_1, &ct_2);
+    ///
+    /// assert_eq!(true, res);
+    ///
+    /// //Encryption with a full carry buffer
+    /// let large_msg = 7;
+    /// let ct_3 = cks.unchecked_encrypt(large_msg);
+    ///
+    /// //  Check if we can perform a multiplication
+    /// res = sks.is_mul_small_carry_possible(&ct_1, &ct_3);
+    ///
+    /// assert_eq!(false, res);
     /// ```
-    pub fn is_mul_small_carry_possible(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> bool {
+    pub fn is_mul_small_carry_possible<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> bool {
         // Check if an addition is possible
         let b1 = self.is_add_possible(ct_left, ct_right);
         let b2 = self.is_sub_possible(ct_left, ct_right);
@@ -412,8 +592,8 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{gen_keys, Parameters};
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -434,12 +614,28 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.encrypt_small(msg_1);
+    /// let mut ct_2 = cks.encrypt_small(msg_2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// let ct_res = sks.checked_mul_lsb_with_small_carry(&mut ct_1, &mut ct_2);
+    ///
+    /// assert!(ct_res.is_ok());
+    ///
+    /// let ct_res = ct_res.unwrap();
+    /// let clear_res = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
     /// ```
-    pub fn checked_mul_lsb_with_small_carry(
+    pub fn checked_mul_lsb_with_small_carry<OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+    ) -> Result<CiphertextBase<OpOrder>, CheckError> {
         if self.is_mul_small_carry_possible(ct_left, ct_right) {
             let mut ct_result = self.unchecked_mul_lsb_small_carry(ct_left, ct_right);
             ct_result.degree = Degree(ct_left.degree.0 * 2);
@@ -465,10 +661,10 @@ impl ServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_1);
     ///
-    /// // Encrypt two messages:
     /// let msg1 = 5;
     /// let msg2 = 3;
     ///
+    /// // Encrypt two messages:
     /// let mut ct_1 = cks.unchecked_encrypt(msg1);
     /// let mut ct_2 = cks.unchecked_encrypt(msg2);
     ///
@@ -478,8 +674,23 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_1);
     /// let modulus = sks.message_modulus.0 as u64;
     /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt_small(msg1);
+    /// let mut ct_2 = cks.unchecked_encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// sks.smart_mul_lsb_assign(&mut ct_1, &mut ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
     /// ```
-    pub fn smart_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
+    pub fn smart_mul_lsb_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .smart_mul_lsb_assign(self, ct_left, ct_right)
@@ -487,7 +698,11 @@ impl ServerKey {
         })
     }
 
-    pub fn smart_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
+    pub fn smart_mul_msb_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .smart_mul_msb_assign(self, ct_left, ct_right)
@@ -503,15 +718,16 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::{gen_keys, Parameters};
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(Parameters::default());
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// // Encrypt two messages:
     /// let msg1 = 12;
     /// let msg2 = 13;
     ///
+    /// // Encrypt two messages:
     /// let mut ct_left = cks.unchecked_encrypt(msg1);
     /// // |      ct_left    |
     /// // | carry | message |
@@ -533,8 +749,37 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = sks.message_modulus.0;
     /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_left = cks.unchecked_encrypt_small(msg1);
+    /// // |      ct_left    |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 0   |
+    /// let mut ct_right = cks.unchecked_encrypt_small(msg2);
+    /// // |      ct_right   |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 1   |
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.smart_mul_lsb(&mut ct_left, &mut ct_right);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 0   |
+    ///
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = sks.message_modulus.0;
+    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
     /// ```
-    pub fn smart_mul_lsb(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
+    pub fn smart_mul_lsb<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_mul_lsb(self, ct_left, ct_right).unwrap()
         })
@@ -548,15 +793,16 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::{gen_keys, Parameters};
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(Parameters::default());
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// // Encrypt two messages:
     /// let msg1 = 12;
     /// let msg2 = 12;
     ///
+    /// // Encrypt two messages:
     /// let mut ct_1 = cks.unchecked_encrypt(msg1);
     /// let mut ct_2 = cks.unchecked_encrypt(msg2);
     ///
@@ -566,8 +812,25 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// let modulus = sks.carry_modulus.0;
     /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt_small(msg1);
+    /// let mut ct_2 = cks.unchecked_encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.smart_mul_msb(&mut ct_1, &mut ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = sks.carry_modulus.0;
+    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
     /// ```
-    pub fn smart_mul_msb(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
+    pub fn smart_mul_msb<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_mul_msb(self, ct_left, ct_right).unwrap()
         })

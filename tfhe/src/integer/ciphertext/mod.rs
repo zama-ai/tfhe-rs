@@ -1,6 +1,6 @@
 //! This module implements the ciphertext structures.
 use crate::shortint::{
-    Ciphertext as ShortintCiphertext, CompressedCiphertext as CompressedShortintCiphertext,
+    CiphertextBig as ShortintCiphertext, CompressedCiphertextBig as CompressedShortintCiphertext,
 };
 use serde::{Deserialize, Serialize};
 

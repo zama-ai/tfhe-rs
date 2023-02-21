@@ -14,7 +14,7 @@ use crate::integer::client_key::utils::i_crt;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::{
-    Ciphertext as ShortintCiphertext, ClientKey as ShortintClientKey,
+    CiphertextBig as ShortintCiphertext, ClientKey as ShortintClientKey,
     Parameters as ShortintParameters,
 };
 use serde::{Deserialize, Serialize};
@@ -288,7 +288,7 @@ impl ClientKey {
         decrypt_block: F,
     ) where
         T: AsLittleEndianWords,
-        F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
+        F: Fn(&crate::shortint::ClientKey, &crate::shortint::CiphertextBig) -> u64,
     {
         // limit to know when we have at least 64 bits
         // of decrypted data

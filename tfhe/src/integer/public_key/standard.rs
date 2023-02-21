@@ -2,7 +2,7 @@ use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
 use crate::shortint::parameters::MessageModulus;
-use crate::shortint::PublicKey as ShortintPublicKey;
+use crate::shortint::PublicKeyBig as ShortintPublicKey;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PublicKey {
@@ -24,7 +24,7 @@ impl PublicKey {
         message: T,
         num_blocks: usize,
     ) -> RadixCiphertext {
-        self.encrypt_words_radix(message, num_blocks, crate::shortint::PublicKey::encrypt)
+        self.encrypt_words_radix(message, num_blocks, ShortintPublicKey::encrypt)
     }
 
     pub fn encrypt_radix_without_padding(
@@ -35,7 +35,7 @@ impl PublicKey {
         self.encrypt_words_radix(
             message,
             num_blocks,
-            crate::shortint::PublicKey::encrypt_without_padding,
+            ShortintPublicKey::encrypt_without_padding,
         )
     }
 
@@ -47,7 +47,7 @@ impl PublicKey {
     ) -> RadixCiphertextType
     where
         T: AsLittleEndianWords,
-        F: Fn(&crate::shortint::PublicKey, u64) -> Block,
+        F: Fn(&ShortintPublicKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
         encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
@@ -57,7 +57,7 @@ impl PublicKey {
         self.encrypt_crt_impl(
             message,
             base_vec,
-            crate::shortint::PublicKey::encrypt_with_message_modulus,
+            ShortintPublicKey::encrypt_with_message_modulus,
         )
     }
 
@@ -74,7 +74,7 @@ impl PublicKey {
         encrypt_block: F,
     ) -> CrtCiphertextType
     where
-        F: Fn(&crate::shortint::PublicKey, u64, MessageModulus) -> Block,
+        F: Fn(&ShortintPublicKey, u64, MessageModulus) -> Block,
         CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
     {
         encrypt_crt(&self.key, message, base_vec, encrypt_block)

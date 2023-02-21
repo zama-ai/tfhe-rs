@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Simulate sending serialized data to a server and getting
     // back the serialized result
     let serialized_result = server_function(&serialized_data)?;
-    let result: Ciphertext = bincode::deserialize(&serialized_result)?;
+    let result: CiphertextBig = bincode::deserialize(&serialized_result)?;
 
     let output = client_key.decrypt(&result);
     assert_eq!(output, msg1 + msg2);
@@ -50,8 +50,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn server_function(serialized_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut serialized_data = Cursor::new(serialized_data);
     let server_key: ServerKey = bincode::deserialize_from(&mut serialized_data)?;
-    let ct_1: Ciphertext = bincode::deserialize_from(&mut serialized_data)?;
-    let ct_2: Ciphertext = bincode::deserialize_from(&mut serialized_data)?;
+    let ct_1: CiphertextBig = bincode::deserialize_from(&mut serialized_data)?;
+    let ct_2: CiphertextBig = bincode::deserialize_from(&mut serialized_data)?;
 
     let result = server_key.unchecked_add(&ct_1, &ct_2);
 

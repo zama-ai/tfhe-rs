@@ -45,8 +45,9 @@ pub unsafe extern "C" fn shortint_client_key_encrypt(
 
         let client_key = get_ref_checked(client_key).unwrap();
 
-        let heap_allocated_ciphertext =
-            Box::new(ShortintCiphertext(client_key.0.encrypt(value_to_encrypt)));
+        let heap_allocated_ciphertext = Box::new(ShortintCiphertext(
+            client_key.0.encrypt(value_to_encrypt).into(),
+        ));
 
         *result = Box::into_raw(heap_allocated_ciphertext);
     })
@@ -68,7 +69,56 @@ pub unsafe extern "C" fn shortint_client_key_encrypt_compressed(
         let client_key = get_ref_checked(client_key).unwrap();
 
         let heap_allocated_ciphertext = Box::new(ShortintCompressedCiphertext(
-            client_key.0.encrypt_compressed(value_to_encrypt),
+            client_key.0.encrypt_compressed(value_to_encrypt).into(),
+        ));
+
+        *result = Box::into_raw(heap_allocated_ciphertext);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_client_key_encrypt_small(
+    client_key: *const ShortintClientKey,
+    value_to_encrypt: u64,
+    result: *mut *mut ShortintCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let client_key = get_ref_checked(client_key).unwrap();
+
+        let heap_allocated_ciphertext = Box::new(ShortintCiphertext(
+            client_key.0.encrypt_small(value_to_encrypt).into(),
+        ));
+
+        *result = Box::into_raw(heap_allocated_ciphertext);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shortint_client_key_encrypt_compressed_small(
+    client_key: *const ShortintClientKey,
+    value_to_encrypt: u64,
+    result: *mut *mut ShortintCompressedCiphertext,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(result).unwrap();
+
+        // First fill the result with a null ptr so that if we fail and the return code is not
+        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+        *result = std::ptr::null_mut();
+
+        let client_key = get_ref_checked(client_key).unwrap();
+
+        let heap_allocated_ciphertext = Box::new(ShortintCompressedCiphertext(
+            client_key
+                .0
+                .encrypt_compressed_small(value_to_encrypt)
+                .into(),
         ));
 
         *result = Box::into_raw(heap_allocated_ciphertext);
@@ -86,8 +136,16 @@ pub unsafe extern "C" fn shortint_client_key_decrypt(
 
         let client_key = get_ref_checked(client_key).unwrap();
         let ciphertext_to_decrypt = get_ref_checked(ciphertext_to_decrypt).unwrap();
+        let inner = &ciphertext_to_decrypt.0;
 
-        *result = client_key.0.decrypt(&ciphertext_to_decrypt.0);
+        *result = match inner {
+            super::ciphertext::ShortintCiphertextInner::Big(inner_ct) => {
+                client_key.0.decrypt(inner_ct)
+            }
+            super::ciphertext::ShortintCiphertextInner::Small(inner_ct) => {
+                client_key.0.decrypt(inner_ct)
+            }
+        };
     })
 }
 

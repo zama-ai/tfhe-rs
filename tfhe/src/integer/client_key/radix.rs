@@ -2,7 +2,7 @@
 
 use super::ClientKey;
 use crate::integer::RadixCiphertext;
-use crate::shortint::{Ciphertext as ShortintCiphertext, Parameters as ShortintParameters};
+use crate::shortint::{CiphertextBig as ShortintCiphertext, Parameters as ShortintParameters};
 
 use serde::{Deserialize, Serialize};
 

@@ -181,7 +181,7 @@ use tfhe::shortint::prelude::*;
 fn main() {
     // Generate the client key and the server key:
     let (cks, _) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
-    let pks = PublicKey::new(&cks);
+    let pks = PublicKeyBig::new(&cks);
 
     let msg = 2;
     // Encryption of one message:
@@ -307,7 +307,7 @@ fn main() {
     let acc = server_key.generate_accumulator(|n| n.count_ones().into());
 
     // add the two ciphertexts
-    let ct_res = server_key.keyswitch_programmable_bootstrap(&ct_1, &acc);
+    let ct_res = server_key.apply_lookup_table(&ct_1, &acc);
 
 
     // We use the client key to decrypt the output of the circuit:
@@ -336,13 +336,13 @@ fn main() {
 
     // We use the private client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);
-    let ct_2 = client_key.encrypt(msg2);
+    let mut ct_2 = client_key.encrypt(msg2);
 
     // Compute the accumulator for the bivariate functions
     let acc = server_key.generate_accumulator_bivariate(|x,y| (x.count_ones()
         + y.count_ones()) as u64 % modulus );
 
-    let ct_res = server_key.keyswitch_programmable_bootstrap_bivariate(&ct_1, &ct_2, &acc);
+    let ct_res = server_key.smart_apply_lookup_table_bivariate(&ct_1, &mut ct_2, &acc);
 
     // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_res);

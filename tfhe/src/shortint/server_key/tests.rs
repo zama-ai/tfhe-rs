@@ -184,7 +184,7 @@ fn shortint_encrypt_decrypt(param: Parameters) {
 
         let ct = cks.encrypt(clear);
 
-        // decryption of ct_zero
+        // decryption of ct
         let dec = cks.decrypt(&ct);
 
         // assert
@@ -256,7 +256,7 @@ fn shortint_keyswitch_bootstrap(param: Parameters) {
         let ctxt_0 = cks.encrypt(clear_0);
 
         // keyswitch and bootstrap
-        let ct_res = sks.keyswitch_bootstrap(&ctxt_0);
+        let ct_res = sks.clear_carry(&ctxt_0);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -289,7 +289,7 @@ fn shortint_keyswitch_programmable_bootstrap(param: Parameters) {
         //define the accumulator as identity
         let acc = sks.generate_accumulator(|n| n % modulus);
         // add the two ciphertexts
-        let ct_res = sks.keyswitch_programmable_bootstrap(&ctxt_0, &acc);
+        let ct_res = sks.apply_lookup_table(&ctxt_0, &acc);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -317,7 +317,7 @@ fn shortint_keyswitch_bivariate_programmable_bootstrap(param: Parameters) {
         //define the accumulator as identity
         let acc = sks.generate_accumulator_bivariate(|x, y| x * 2 * y);
         // add the two ciphertexts
-        let ct_res = sks.keyswitch_programmable_bootstrap_bivariate(&ctxt_0, &ctxt_1, &acc);
+        let ct_res = sks.unchecked_apply_lookup_table_bivariate(&ctxt_0, &ctxt_1, &acc);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -406,7 +406,7 @@ fn shortint_generate_accumulator(param: Parameters) {
         // encryption of an integer
         let ct = cks.encrypt(clear);
 
-        let ct_res = sks.keyswitch_programmable_bootstrap(&ct, &acc);
+        let ct_res = sks.apply_lookup_table(&ct, &acc);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -493,7 +493,7 @@ fn shortint_smart_add(param: Parameters) {
 fn shortint_compressed_public_key_smart_add(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let pk = crate::shortint::CompressedPublicKey::new(cks);
+    let pk = crate::shortint::CompressedPublicKeyBig::new(cks);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -533,7 +533,7 @@ fn shortint_compressed_public_key_smart_add(param: Parameters) {
 fn shortint_public_key_smart_add(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let pk = crate::shortint::PublicKey::new(cks);
+    let pk = crate::shortint::PublicKeyBig::new(cks);
 
     //RNG
     let mut rng = rand::thread_rng();

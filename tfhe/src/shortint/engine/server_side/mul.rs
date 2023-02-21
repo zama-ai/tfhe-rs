@@ -1,24 +1,24 @@
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::{CiphertextBase, PBSOrderMarker, ServerKey};
 
 impl ShortintEngine {
-    pub(crate) fn unchecked_mul_lsb(
+    pub(crate) fn unchecked_mul_lsb<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         let mut result = ct_left.clone();
         self.unchecked_mul_lsb_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn unchecked_mul_lsb_assign(
+    pub(crate) fn unchecked_mul_lsb_assign<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
     ) -> EngineResult<()> {
         let modulus = (ct_right.degree.0 + 1) as u64;
 
@@ -36,28 +36,28 @@ impl ShortintEngine {
             ((x / modulus) * (x % modulus)) % res_modulus
         })?;
 
-        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
         ct_left.degree = Degree(ct_left.message_modulus.0 - 1);
         Ok(())
     }
 
-    pub(crate) fn unchecked_mul_msb(
+    pub(crate) fn unchecked_mul_msb<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         let mut result = ct_left.clone();
         self.unchecked_mul_msb_assign(server_key, &mut result, ct_right)?;
 
         Ok(result)
     }
 
-    pub(crate) fn unchecked_mul_msb_assign(
+    pub(crate) fn unchecked_mul_msb_assign<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
     ) -> EngineResult<()> {
         let modulus = (ct_right.degree.0 + 1) as u64;
         let deg = (ct_left.degree.0 * ct_right.degree.0) / ct_right.message_modulus.0;
@@ -76,18 +76,18 @@ impl ShortintEngine {
             ((x / modulus) * (x % modulus)) / res_modulus
         })?;
 
-        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
 
         ct_left.degree = Degree(deg);
         Ok(())
     }
 
-    pub(crate) fn unchecked_mul_lsb_small_carry_modulus(
+    pub(crate) fn unchecked_mul_lsb_small_carry_modulus<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct1: &mut Ciphertext,
-        ct2: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+        ct1: &mut CiphertextBase<OpOrder>,
+        ct2: &mut CiphertextBase<OpOrder>,
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         //ct1 + ct2
         let mut ct_tmp_left = self.unchecked_add(ct1, ct2)?;
 
@@ -102,28 +102,28 @@ impl ShortintEngine {
         let acc_sub =
             self.generate_accumulator(server_key, |x| (((x - z) * (x - z)) / 4) % modulus)?;
 
-        self.keyswitch_programmable_bootstrap_assign(server_key, &mut ct_tmp_left, &acc_add)?;
-        self.keyswitch_programmable_bootstrap_assign(server_key, &mut ct_tmp_right, &acc_sub)?;
+        self.apply_lookup_table_assign(server_key, &mut ct_tmp_left, &acc_add)?;
+        self.apply_lookup_table_assign(server_key, &mut ct_tmp_right, &acc_sub)?;
 
         //Last subtraction might fill one bit of carry
         self.unchecked_sub(server_key, &ct_tmp_left, &ct_tmp_right)
     }
 
-    pub(crate) fn unchecked_mul_lsb_small_carry_modulus_assign(
+    pub(crate) fn unchecked_mul_lsb_small_carry_modulus_assign<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct1: &mut Ciphertext,
-        ct2: &mut Ciphertext,
+        ct1: &mut CiphertextBase<OpOrder>,
+        ct2: &mut CiphertextBase<OpOrder>,
     ) -> EngineResult<()> {
         *ct1 = self.unchecked_mul_lsb_small_carry_modulus(server_key, ct1, ct2)?;
         Ok(())
     }
 
-    pub(crate) fn smart_mul_lsb_assign(
+    pub(crate) fn smart_mul_lsb_assign<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
     ) -> EngineResult<()> {
         //Choice of the multiplication algorithm depending on the parameters
         if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
@@ -156,22 +156,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_mul_lsb(
+    pub(crate) fn smart_mul_lsb<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         let mut result = ct_left.clone();
         self.smart_mul_lsb_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn smart_mul_msb_assign(
+    pub(crate) fn smart_mul_msb_assign<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
     ) -> EngineResult<()> {
         if !server_key.is_mul_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
@@ -181,12 +181,12 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_mul_msb(
+    pub(crate) fn smart_mul_msb<OpOrder: PBSOrderMarker>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         let mut result = ct_left.clone();
         self.smart_mul_msb_assign(server_key, &mut result, ct_right)?;
         Ok(result)

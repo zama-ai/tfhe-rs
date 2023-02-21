@@ -1,4 +1,4 @@
-use crate::shortint::CompressedCiphertext;
+use crate::shortint::CompressedCiphertextBig as ShortintCompressedCiphertext;
 use crate::typed_api::keys::RefKeyFromKeyChain;
 use crate::typed_api::shortints::client_key::GenericShortIntClientKey;
 use crate::typed_api::shortints::parameters::ShortIntegerParameter;
@@ -10,7 +10,7 @@ pub struct CompressedGenericShortint<P>
 where
     P: ShortIntegerParameter,
 {
-    pub(in crate::typed_api::shortints) ciphertext: CompressedCiphertext,
+    pub(in crate::typed_api::shortints) ciphertext: ShortintCompressedCiphertext,
     pub(in crate::typed_api::shortints) id: P::Id,
 }
 
@@ -18,7 +18,7 @@ impl<P> CompressedGenericShortint<P>
 where
     P: ShortIntegerParameter,
 {
-    pub(crate) fn new(inner: CompressedCiphertext, id: P::Id) -> Self {
+    pub(crate) fn new(inner: ShortintCompressedCiphertext, id: P::Id) -> Self {
         Self {
             ciphertext: inner,
             id,

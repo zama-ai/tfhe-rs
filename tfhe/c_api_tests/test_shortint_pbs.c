@@ -38,7 +38,7 @@ uint64_t get_max_value_of_bivariate_accumulator_generator(uint64_t (*accumulator
 }
 
 void test_shortint_pbs_2_bits_message(void) {
-  ShortintPBSAccumulator *accumulator = NULL;
+  ShortintPBSLookupTable *accumulator = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
   ShortintParameters *params = NULL;
@@ -115,7 +115,7 @@ void test_shortint_pbs_2_bits_message(void) {
 }
 
 void test_shortint_bivariate_pbs_2_bits_message(void) {
-  ShortintBivariatePBSAccumulator *accumulator = NULL;
+  ShortintBivariatePBSLookupTable *accumulator = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
   ShortintParameters *params = NULL;

@@ -21,12 +21,14 @@ pub use compressed::CompressedServerKey;
 mod tests;
 
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKeyOwned;
-use crate::shortint::ciphertext::{Ciphertext, Degree};
+use crate::shortint::ciphertext::{CiphertextBase, CiphertextBig, CiphertextSmall, Degree};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::PBSOrderMarker;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 
@@ -71,31 +73,46 @@ pub struct ServerKey {
 /// Returns whether it is possible to pack lhs and rhs into a unique
 /// ciphertext without exceeding the max storable value using the formula:
 /// `unique_ciphertext = (lhs * factor) + rhs`
-fn ciphertexts_can_be_packed_without_exceeding_space(
-    lhs: &Ciphertext,
-    rhs: &Ciphertext,
+fn ciphertexts_can_be_packed_without_exceeding_space<OpOrder: PBSOrderMarker>(
+    lhs: &CiphertextBase<OpOrder>,
+    rhs: &CiphertextBase<OpOrder>,
     factor: usize,
 ) -> bool {
     let final_degree = (lhs.degree.0 * factor) + rhs.degree.0;
     final_degree < lhs.carry_modulus.0 * lhs.message_modulus.0
 }
 
-pub struct Accumulator {
-    pub acc: GlweCiphertextOwned<u64>,
+#[derive(Clone, Debug, PartialEq)]
+#[must_use]
+pub struct LookupTable<C: Container<Element = u64>> {
+    pub acc: GlweCiphertext<C>,
     pub degree: Degree,
 }
 
-pub struct BivariateAccumulator {
+pub type LookupTableOwned = LookupTable<Vec<u64>>;
+pub type LookupTableMutView<'a> = LookupTable<&'a mut [u64]>;
+pub type LookupTableView<'a> = LookupTable<&'a [u64]>;
+
+#[must_use]
+pub struct BivariateLookupTable<C: Container<Element = u64>> {
     // A bivariate accumulator is an univariate accumulator
     // where the message space is shared to encode
     // 2 values
-    pub acc: Accumulator,
+    pub acc: LookupTable<C>,
     // By how much we shift the lhs in the LUT
     pub ct_right_modulus: MessageModulus,
 }
 
-impl BivariateAccumulator {
-    pub fn is_bivariate_pbs_possible(&self, lhs: &Ciphertext, rhs: &Ciphertext) -> bool {
+pub type BivariateLookupTableOwned = BivariateLookupTable<Vec<u64>>;
+pub type BivariateLookupTableMutView<'a> = BivariateLookupTable<&'a mut [u64]>;
+pub type BivariateLookupTableView<'a> = BivariateLookupTable<&'a [u64]>;
+
+impl<C: Container<Element = u64>> BivariateLookupTable<C> {
+    pub fn is_bivariate_pbs_possible<OpOrder: PBSOrderMarker>(
+        &self,
+        lhs: &CiphertextBase<OpOrder>,
+        rhs: &CiphertextBase<OpOrder>,
+    ) -> bool {
         ciphertexts_can_be_packed_without_exceeding_space(lhs, rhs, self.ct_right_modulus.0)
     }
 }
@@ -106,7 +123,7 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     /// use tfhe::shortint::{gen_keys, ServerKey};
     ///
     /// // Generate the client key and the server key:
@@ -134,7 +151,7 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -147,13 +164,13 @@ impl ServerKey {
     /// let f = |x| x ^ 2 % 4;
     ///
     /// let acc = sks.generate_accumulator(f);
-    /// let ct_res = sks.keyswitch_programmable_bootstrap(&ct, &acc);
+    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // 3^2 mod 4 = 1
     /// assert_eq!(dec, f(msg));
     /// ```
-    pub fn generate_accumulator<F>(&self, f: F) -> Accumulator
+    pub fn generate_accumulator<F>(&self, f: F) -> LookupTableOwned
     where
         F: Fn(u64) -> u64,
     {
@@ -166,7 +183,7 @@ impl ServerKey {
         &self,
         f: F,
         left_message_scaling: MessageModulus,
-    ) -> BivariateAccumulator
+    ) -> BivariateLookupTableOwned
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -183,7 +200,7 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -192,18 +209,18 @@ impl ServerKey {
     /// let msg_2 = 2;
     ///
     /// let ct1 = cks.encrypt(msg_1);
-    /// let ct2 = cks.encrypt(msg_2);
+    /// let mut ct2 = cks.encrypt(msg_2);
     ///
     /// let f = |x, y| (x + y) % 4;
     ///
     /// let acc = sks.generate_accumulator_bivariate(f);
     /// assert!(acc.is_bivariate_pbs_possible(&ct1, &ct2));
-    /// let ct_res = sks.keyswitch_programmable_bootstrap_bivariate(&ct1, &ct2, &acc);
+    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&ct1, &mut ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(dec, f(msg_1, msg_2));
     /// ```
-    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> BivariateAccumulator
+    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> BivariateLookupTableOwned
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -219,7 +236,7 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -246,7 +263,41 @@ impl ServerKey {
     /// let carry = cks.decrypt(&ct_carry);
     /// assert_eq!(carry, 1);
     ///
-    /// let ct_res = sks.keyswitch_bootstrap(&ct_res);
+    /// let ct_res = sks.clear_carry(&ct_res);
+    ///
+    /// let ct_carry = sks.carry_extract(&ct_res);
+    /// let carry = cks.decrypt(&ct_carry);
+    /// assert_eq!(carry, 0);
+    ///
+    /// let clear = cks.decrypt(&ct_res);
+    ///
+    /// assert_eq!(clear, (3 + 2) % 4);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// let mut ct1 = cks.encrypt_small(3);
+    /// // |      ct1        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 1   |
+    /// let mut ct2 = cks.encrypt_small(2);
+    /// // |      ct2        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// let ct_res = sks.smart_add(&mut ct1, &mut ct2);
+    /// // |     ct_res      |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 1  |   0 1   |
+    ///
+    /// // Get the carry
+    /// let ct_carry = sks.carry_extract(&ct_res);
+    /// let carry = cks.decrypt(&ct_carry);
+    /// assert_eq!(carry, 1);
+    ///
+    /// let ct_res = sks.clear_carry(&ct_res);
     ///
     /// let ct_carry = sks.carry_extract(&ct_res);
     /// let carry = cks.decrypt(&ct_carry);
@@ -256,15 +307,16 @@ impl ServerKey {
     ///
     /// assert_eq!(clear, (3 + 2) % 4);
     /// ```
-    pub fn keyswitch_bootstrap(&self, ct_in: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.keyswitch_bootstrap(self, ct_in).unwrap()
-        })
+    pub fn clear_carry<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_in: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        ShortintEngine::with_thread_local_mut(|engine| engine.clear_carry(self, ct_in).unwrap())
     }
 
-    pub fn keyswitch_bootstrap_assign(&self, ct_in: &mut Ciphertext) {
+    pub fn clear_carry_assign<OpOrder: PBSOrderMarker>(&self, ct_in: &mut CiphertextBase<OpOrder>) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.keyswitch_bootstrap_assign(self, ct_in).unwrap()
+            engine.clear_carry_assign(self, ct_in).unwrap()
         })
     }
 
@@ -274,7 +326,7 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -286,34 +338,34 @@ impl ServerKey {
     ///
     /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
     /// let acc = sks.generate_accumulator_bivariate(|x, y| x * y * x % modulus);
-    /// let ct_res = sks.keyswitch_programmable_bootstrap_bivariate(&ct1, &ct2, &acc);
+    /// let ct_res = sks.unchecked_apply_lookup_table_bivariate(&ct1, &ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // 3^3 mod 4 = 3
     /// assert_eq!(dec, (msg * msg * msg) % modulus);
     /// ```
-    pub fn keyswitch_programmable_bootstrap_bivariate(
+    pub fn unchecked_apply_lookup_table_bivariate<OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-        acc: &BivariateAccumulator,
-    ) -> Ciphertext {
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+        acc: &BivariateLookupTableOwned,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .keyswitch_programmable_bootstrap_bivariate(self, ct_left, ct_right, acc)
+                .unchecked_apply_lookup_table_bivariate(self, ct_left, ct_right, acc)
                 .unwrap()
         })
     }
 
-    pub fn keyswitch_programmable_bootstrap_bivariate_assign(
+    pub fn unchecked_apply_lookup_table_bivariate_assign<OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
-        acc: &BivariateAccumulator,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+        acc: &BivariateLookupTableOwned,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .keyswitch_programmable_bootstrap_bivariate_assign(self, ct_left, ct_right, acc)
+                .unchecked_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
                 .unwrap()
         })
     }
@@ -324,7 +376,57 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg: u64 = 3;
+    /// let ct1 = cks.encrypt(msg);
+    /// let mut ct2 = cks.encrypt(msg);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
+    /// let acc = sks.generate_accumulator_bivariate(|x, y| x * y * x % modulus);
+    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&ct1, &mut ct2, &acc);
+    ///
+    /// let dec = cks.decrypt(&ct_res);
+    /// // 3^3 mod 4 = 3
+    /// assert_eq!(dec, (msg * msg * msg) % modulus);
+    /// ```
+    pub fn smart_apply_lookup_table_bivariate<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+        acc: &BivariateLookupTableOwned,
+    ) -> CiphertextBase<OpOrder> {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .smart_apply_lookup_table_bivariate(self, ct_left, ct_right, acc)
+                .unwrap()
+        })
+    }
+
+    pub fn smart_apply_lookup_table_bivariate_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
+        acc: &BivariateLookupTableOwned,
+    ) {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .smart_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
+                .unwrap()
+        })
+    }
+
+    /// Compute a keyswitch and programmable bootstrap.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -335,102 +437,102 @@ impl ServerKey {
     ///
     /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
     /// let acc = sks.generate_accumulator(|x| x * x * x % modulus);
-    /// let ct_res = sks.keyswitch_programmable_bootstrap(&ct, &acc);
+    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // 3^3 mod 4 = 3
     /// assert_eq!(dec, (msg * msg * msg) % modulus);
     /// ```
-    pub fn keyswitch_programmable_bootstrap(
+    pub fn apply_lookup_table<OpOrder: PBSOrderMarker>(
         &self,
-        ct_in: &Ciphertext,
-        acc: &Accumulator,
-    ) -> Ciphertext {
+        ct_in: &CiphertextBase<OpOrder>,
+        acc: &LookupTableOwned,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .keyswitch_programmable_bootstrap(self, ct_in, acc)
-                .unwrap()
+            engine.apply_lookup_table(self, ct_in, acc).unwrap()
         })
     }
 
-    pub fn keyswitch_programmable_bootstrap_assign(
+    pub fn apply_lookup_table_assign<OpOrder: PBSOrderMarker>(
         &self,
-        ct_in: &mut Ciphertext,
-        acc: &Accumulator,
+        ct_in: &mut CiphertextBase<OpOrder>,
+        acc: &LookupTableOwned,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .keyswitch_programmable_bootstrap_assign(self, ct_in, acc)
-                .unwrap()
+            engine.apply_lookup_table_assign(self, ct_in, acc).unwrap()
         })
     }
 
-    /// Generic programmable bootstrap where messages are concatenated
-    /// into one ciphertext to compute bivariate functions.
-    /// This is used to apply many binary operations (comparisons, multiplications, division).
-    pub fn unchecked_functional_bivariate_pbs<F>(
+    /// Generic programmable bootstrap where messages are concatenated into one ciphertext to
+    /// evaluate a bivariate function. This is used to apply many binary operations (comparisons,
+    /// multiplications, division).
+    pub fn unchecked_evaluate_bivariate_function<F, OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
         f: F,
-    ) -> Ciphertext
+    ) -> CiphertextBase<OpOrder>
     where
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .unchecked_functional_bivariate_pbs(self, ct_left, ct_right, f)
+                .unchecked_evaluate_bivariate_function(self, ct_left, ct_right, f)
                 .unwrap()
         })
     }
 
-    pub fn unchecked_functional_bivariate_pbs_assign<F>(
+    pub fn unchecked_evaluate_bivariate_function_assign<F, OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
         f: F,
     ) where
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .unchecked_functional_bivariate_pbs_assign(self, ct_left, ct_right, f)
+                .unchecked_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
                 .unwrap()
         })
     }
 
     /// Verify if a functional bivariate pbs can be applied on ct_left and ct_right.
-    pub fn is_functional_bivariate_pbs_possible(&self, ct1: &Ciphertext, ct2: &Ciphertext) -> bool {
+    pub fn is_functional_bivariate_pbs_possible<OpOrder: PBSOrderMarker>(
+        &self,
+        ct1: &CiphertextBase<OpOrder>,
+        ct2: &CiphertextBase<OpOrder>,
+    ) -> bool {
         ciphertexts_can_be_packed_without_exceeding_space(ct1, ct2, ct2.degree.0 + 1)
     }
 
-    pub fn smart_functional_bivariate_pbs_assign<F>(
+    pub fn smart_evaluate_bivariate_function_assign<F, OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
         f: F,
     ) where
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .smart_functional_bivariate_pbs_assign(self, ct_left, ct_right, f)
+                .smart_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
                 .unwrap()
         })
     }
 
-    pub fn smart_functional_bivariate_pbs<F>(
+    pub fn smart_evaluate_bivariate_function<F, OpOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &mut CiphertextBase<OpOrder>,
         f: F,
-    ) -> Ciphertext
+    ) -> CiphertextBase<OpOrder>
     where
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .smart_functional_bivariate_pbs(self, ct_left, ct_right, f)
+                .smart_evaluate_bivariate_function(self, ct_left, ct_right, f)
                 .unwrap()
         })
     }
@@ -440,7 +542,7 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -467,7 +569,7 @@ impl ServerKey {
     /// let res = cks.decrypt_message_and_carry(&ct);
     /// assert_eq!(2, res);
     /// ```
-    pub fn carry_extract_assign(&self, ct: &mut Ciphertext) {
+    pub fn carry_extract_assign<OpOrder: PBSOrderMarker>(&self, ct: &mut CiphertextBase<OpOrder>) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.carry_extract_assign(self, ct).unwrap()
         })
@@ -479,7 +581,7 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -506,7 +608,10 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(2, res);
     /// ```
-    pub fn carry_extract(&self, ct: &Ciphertext) -> Ciphertext {
+    pub fn carry_extract<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| engine.carry_extract(self, ct).unwrap())
     }
 
@@ -516,7 +621,7 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -542,8 +647,33 @@ impl ServerKey {
     /// // Decrypt:
     /// let res = cks.decrypt(&ct);
     /// assert_eq!(1, res);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.unchecked_encrypt_small(clear);
+    ///
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 0  |   0 1   |
+    ///
+    /// // Compute homomorphically the message extraction
+    /// sks.message_extract_assign(&mut ct);
+    ///
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct);
+    /// assert_eq!(1, res);
     /// ```
-    pub fn message_extract_assign(&self, ct: &mut Ciphertext) {
+    pub fn message_extract_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.message_extract_assign(self, ct).unwrap()
         })
@@ -555,7 +685,7 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -581,18 +711,42 @@ impl ServerKey {
     /// // Decrypt:
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(1, res);
+    ///
+    /// // Encrypt a message
+    /// let ct = cks.unchecked_encrypt_small(clear);
+    ///
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 0  |   0 1   |
+    ///
+    /// // Compute homomorphically the message extraction
+    /// let ct_res = sks.message_extract(&ct);
+    ///
+    /// // |     ct_res      |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!(1, res);
     /// ```
-    pub fn message_extract(&self, ct: &Ciphertext) -> Ciphertext {
+    pub fn message_extract<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| engine.message_extract(self, ct).unwrap())
     }
 
-    /// Compute a trivial shortint from a given value.
+    /// Compute a trivial shortint ciphertext with the dimension of the big LWE secret key from a
+    /// given value.
     ///
     /// # Example
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
@@ -605,11 +759,39 @@ impl ServerKey {
     /// let ct_res = cks.decrypt(&ct1);
     /// assert_eq!(1, ct_res);
     /// ```
-    pub fn create_trivial(&self, value: u64) -> Ciphertext {
+    pub fn create_trivial(&self, value: u64) -> CiphertextBig {
         ShortintEngine::with_thread_local_mut(|engine| engine.create_trivial(self, value).unwrap())
     }
 
-    pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
+    /// Compute a trivial shortint ciphertext with the dimension of the small LWE secret key from a
+    /// given value.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1;
+    ///
+    /// // Trivial encryption
+    /// let ct1 = sks.create_trivial_small(msg);
+    ///
+    /// let ct_res = cks.decrypt(&ct1);
+    /// assert_eq!(1, ct_res);
+    /// ```
+    pub fn create_trivial_small(&self, value: u64) -> CiphertextSmall {
+        ShortintEngine::with_thread_local_mut(|engine| engine.create_trivial(self, value).unwrap())
+    }
+
+    pub fn create_trivial_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        value: u64,
+    ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.create_trivial_assign(self, ct, value).unwrap()
         })
