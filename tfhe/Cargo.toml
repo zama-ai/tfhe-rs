@@ -116,6 +116,12 @@ rustdoc-args = ["--html-in-header", "katex-header.html"]
 ###########
 
 [[bench]]
+name = "pbs-bench"
+path = "benches/core_crypto/pbs_bench.rs"
+harness = false
+required-features = ["boolean", "shortint", "internal-keycache"]
+
+[[bench]]
 name = "boolean-bench"
 path = "benches/boolean/bench.rs"
 harness = false

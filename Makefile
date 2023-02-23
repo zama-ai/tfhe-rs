@@ -228,6 +228,12 @@ bench_boolean: install_rs_check_toolchain
 	--bench boolean-bench \
 	--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache,$(AVX512_FEATURE) -p tfhe
 
+.PHONY: bench_pbs # Run benchmarks for PBS
+bench_pbs: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench pbs-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,$(AVX512_FEATURE) -p tfhe
+
 .PHONY: measure_shortint_key_sizes # Measure sizes of bootstrapping and key switching keys for shortint
 measure_shortint_key_sizes: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
