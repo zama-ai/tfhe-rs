@@ -11,6 +11,8 @@ import json
 import sys
 
 
+ONE_HOUR_IN_NANOSECONDS = 3600E9
+
 parser = argparse.ArgumentParser()
 parser.add_argument('results',
                     help='Location of criterion benchmark results directory.'
@@ -36,10 +38,14 @@ parser.add_argument('--append-results', dest='append_results', action='store_tru
 parser.add_argument('--walk-subdirs', dest='walk_subdirs', action='store_true',
                     help='Check for results in subdirectories')
 parser.add_argument('--key-sizes', dest='key_sizes', action='store_true',
-                    help='Parse only the results regarding keys size measurments')
+                    help='Parse only the results regarding keys size measurements')
+parser.add_argument('--throughput', dest='throughput', action='store_true',
+                    help='Compute and append number of operations per millisecond and'
+                         'operations per dollar')
 
 
-def recursive_parse(directory, walk_subdirs=False, name_suffix=""):
+def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throughput=False,
+                    hardware_hourly_cost=None):
     """
     Parse all the benchmark results in a directory. It will attempt to parse all the files having a
     .json extension at the top-level of this directory.
@@ -47,11 +53,14 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix=""):
     :param directory: path to directory that contains raw results as :class:`pathlib.Path`
     :param walk_subdirs: traverse results subdirectories if parameters changes for benchmark case.
     :param name_suffix: a :class:`str` suffix to apply to each test name found
+    :param compute_throughput: compute number of operations per millisecond and operations per
+        dollar
+    :param hardware_hourly_cost: hourly cost of the hardware used in dollar
 
     :return: :class:`list` of data points
     """
     excluded_directories = ["child_generate", "fork", "parent_generate", "report"]
-    result_values = list()
+    result_values = []
     for dire in directory.iterdir():
         if dire.name in excluded_directories or not dire.is_dir():
             continue
@@ -67,6 +76,18 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix=""):
             for stat_name, value in parse_estimate_file(subdir).items():
                 test_name_parts = list(filter(None, [test_name, stat_name, name_suffix]))
                 result_values.append({"value": value, "test": "_".join(test_name_parts)})
+
+                if stat_name == "mean" and compute_throughput:
+                    test_name_parts.append("ops-per-ms")
+                    result_values.append({"value": compute_ops_per_millisecond(value),
+                                          "test": "_".join(test_name_parts)})
+                    test_name_parts.pop()
+
+                    if hardware_hourly_cost is not None:
+                        test_name_parts.append("ops-per-dollar")
+                        result_values.append({
+                            "value": compute_ops_per_dollar(value, hardware_hourly_cost),
+                            "test": "_".join(test_name_parts)})
 
     return result_values
 
@@ -106,13 +127,36 @@ def parse_key_sizes(result_file):
 
     :return: :class:`list` of data points
     """
-    result_values = list()
+    result_values = []
     with result_file.open() as csv_file:
         reader = csv.reader(csv_file)
         for (test_name, value) in reader:
             result_values.append({"value": int(value), "test": test_name})
 
     return result_values
+
+
+def compute_ops_per_dollar(data_point, product_hourly_cost):
+    """
+    Compute numbers of operations per dollar for a given ``data_point``.
+
+    :param data_point: timing value measured during benchmark in nanoseconds
+    :param product_hourly_cost: cost in dollar per hour of hardware used
+
+    :return: number of operations per dollar
+    """
+    return ONE_HOUR_IN_NANOSECONDS / (product_hourly_cost * data_point)
+
+
+def compute_ops_per_millisecond(data_point):
+    """
+    Compute numbers of operations per millisecond for a given ``data_point``.
+
+    :param data_point: timing value measured during benchmark in nanoseconds
+
+    :return: number of operations per millisecond
+    """
+    return 1E6 / data_point
 
 
 def _parse_file_to_json(directory, filename):
@@ -156,7 +200,7 @@ def check_mandatory_args(input_args):
     if input_args.append_results:
         return
 
-    missing_args = list()
+    missing_args = []
     for arg_name in vars(input_args):
         if arg_name in ["results_dir", "output_file", "name_suffix",
                         "append_results", "walk_subdirs", "key_sizes"]:
@@ -177,7 +221,14 @@ if __name__ == "__main__":
     raw_results = pathlib.Path(args.results)
     if not args.key_sizes:
         print("Parsing benchmark results... ")
-        results = recursive_parse(raw_results, args.walk_subdirs, args.name_suffix)
+        hardware_cost = None
+        if args.throughput:
+            ec2_costs = json.loads(
+                pathlib.Path("ci/ec2_products_cost.json").read_text(encoding="utf-8"))
+            hardware_cost = abs(ec2_costs[args.hardware])
+
+        results = recursive_parse(raw_results, args.walk_subdirs, args.name_suffix, args.throughput,
+                                  hardware_cost)
     else:
         print("Parsing key sizes results... ")
         results = parse_key_sizes(raw_results)
