@@ -203,7 +203,8 @@ def check_mandatory_args(input_args):
     missing_args = []
     for arg_name in vars(input_args):
         if arg_name in ["results_dir", "output_file", "name_suffix",
-                        "append_results", "walk_subdirs", "key_sizes"]:
+                        "append_results", "walk_subdirs", "key_sizes",
+                        "throughput"]:
             continue
         if not getattr(input_args, arg_name):
             missing_args.append(arg_name)
@@ -223,9 +224,11 @@ if __name__ == "__main__":
         print("Parsing benchmark results... ")
         hardware_cost = None
         if args.throughput:
+            print("Throughput computation enabled")
             ec2_costs = json.loads(
                 pathlib.Path("ci/ec2_products_cost.json").read_text(encoding="utf-8"))
             hardware_cost = abs(ec2_costs[args.hardware])
+            print(f"Hardware hourly cost: {hardware_cost} $/h")
 
         results = recursive_parse(raw_results, args.walk_subdirs, args.name_suffix, args.throughput,
                                   hardware_cost)
