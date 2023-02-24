@@ -77,7 +77,8 @@ jobs:
           --branch ${{ github.ref_name }} \
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${{ env.BENCH_DATE }}" \
-          --walk-subdirs
+          --walk-subdirs \
+          --throughput
 
       - name: Remove previous raw results
         run: |
@@ -92,6 +93,7 @@ jobs:
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
           --walk-subdirs \
           --name-suffix avx512 \
+          --throughput \
           --append-results
 
       - name: Measure key sizes
