@@ -30,7 +30,7 @@ const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
 
 criterion_group!(
     name = pbs_group;
-    config = Criterion::default().sample_size(5000);
+    config = Criterion::default().sample_size(2000);
     targets = mem_optimized_pbs::<u64>, mem_optimized_pbs::<u32>
 );
 
