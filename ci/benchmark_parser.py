@@ -227,8 +227,12 @@ if __name__ == "__main__":
             print("Throughput computation enabled")
             ec2_costs = json.loads(
                 pathlib.Path("ci/ec2_products_cost.json").read_text(encoding="utf-8"))
-            hardware_cost = abs(ec2_costs[args.hardware])
-            print(f"Hardware hourly cost: {hardware_cost} $/h")
+            try:
+                hardware_cost = abs(ec2_costs[args.hardware])
+                print(f"Hardware hourly cost: {hardware_cost} $/h")
+            except KeyError:
+                print(f"Cannot find hardware hourly cost for '{args.hardware}'")
+                sys.exit(1)
 
         results = recursive_parse(raw_results, args.walk_subdirs, args.name_suffix, args.throughput,
                                   hardware_cost)

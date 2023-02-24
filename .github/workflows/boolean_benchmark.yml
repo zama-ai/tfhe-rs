@@ -90,6 +90,7 @@ jobs:
       - name: Parse AVX512 results
         run: |
           python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          --hardware ${{ inputs.instance_type }} \
           --name-suffix avx512 \
           --throughput \
           --append-results
