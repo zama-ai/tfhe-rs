@@ -22,3 +22,8 @@ check_run_name = "Shortint CPU AWS Benchmarks"
 workflow = "boolean_benchmark.yml"
 profile = "bench"
 check_run_name = "Boolean CPU AWS Benchmarks"
+
+[command.pbs_bench]
+workflow = "pbs_benchmark.yml"
+profile = "bench"
+check_run_name = "PBS CPU AWS Benchmarks"
