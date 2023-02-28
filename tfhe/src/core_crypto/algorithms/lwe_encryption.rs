@@ -111,7 +111,7 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 {
     assert!(
         output.lwe_size().to_lwe_dimension() == lwe_secret_key.lwe_dimension(),
-        "Mismatch between LweDimension of output cipertext and input secret key. \
+        "Mismatch between LweDimension of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.lwe_size().to_lwe_dimension(),
         lwe_secret_key.lwe_dimension()
@@ -359,7 +359,7 @@ where
 {
     assert!(
         lwe_ciphertext.lwe_size().to_lwe_dimension() == lwe_secret_key.lwe_dimension(),
-        "Mismatch between LweDimension of output cipertext and input secret key. \
+        "Mismatch between LweDimension of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         lwe_ciphertext.lwe_size().to_lwe_dimension(),
         lwe_secret_key.lwe_dimension()
@@ -456,7 +456,7 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
 {
     assert!(
         output.lwe_ciphertext_count().0 == encoded.plaintext_count().0,
-        "Mismatch between number of output cipertexts and input plaintexts. \
+        "Mismatch between number of output ciphertexts and input plaintexts. \
         Got {:?} plaintexts, and {:?} ciphertext.",
         encoded.plaintext_count(),
         output.lwe_ciphertext_count()
@@ -560,7 +560,7 @@ pub fn par_encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, G
 {
     assert!(
         output.lwe_ciphertext_count().0 == encoded.plaintext_count().0,
-        "Mismatch between number of output cipertexts and input plaintexts. \
+        "Mismatch between number of output ciphertexts and input plaintexts. \
         Got {:?} plaintexts, and {:?} ciphertext.",
         encoded.plaintext_count(),
         output.lwe_ciphertext_count()
@@ -694,7 +694,7 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 {
     assert!(
         output.lwe_size().to_lwe_dimension() == lwe_public_key.lwe_size().to_lwe_dimension(),
-        "Mismatch between LweDimension of output cipertext and input public key. \
+        "Mismatch between LweDimension of output ciphertext and input public key. \
         Got {:?} in output, and {:?} in public key.",
         output.lwe_size().to_lwe_dimension(),
         lwe_public_key.lwe_size().to_lwe_dimension()
@@ -795,7 +795,7 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
 {
     assert!(
         output.lwe_size().to_lwe_dimension() == lwe_public_key.lwe_size().to_lwe_dimension(),
-        "Mismatch between LweDimension of output cipertext and input public key. \
+        "Mismatch between LweDimension of output ciphertext and input public key. \
         Got {:?} in output, and {:?} in public key.",
         output.lwe_size().to_lwe_dimension(),
         lwe_public_key.lwe_size().to_lwe_dimension()
@@ -858,7 +858,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
     );
     assert!(
         output.lwe_ciphertext_count().0 == encoded.plaintext_count().0,
-        "Mismatch between number of output cipertexts and input plaintexts. \
+        "Mismatch between number of output ciphertexts and input plaintexts. \
         Got {:?} plaintexts, and {:?} ciphertext.",
         encoded.plaintext_count(),
         output.lwe_ciphertext_count()
@@ -1013,7 +1013,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
     );
     assert!(
         output.lwe_ciphertext_count().0 == encoded.plaintext_count().0,
-        "Mismatch between number of output cipertexts and input plaintexts. \
+        "Mismatch between number of output ciphertexts and input plaintexts. \
         Got {:?} plaintexts, and {:?} ciphertext.",
         encoded.plaintext_count(),
         output.lwe_ciphertext_count()

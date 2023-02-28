@@ -81,7 +81,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 {
     assert!(
         output.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between polynomial sizes of output cipertexts and input secret key. \
+        "Mismatch between polynomial sizes of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -89,7 +89,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 
     assert!(
         output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertexts and input secret key. \
+        "Mismatch between GlweDimension of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
@@ -213,7 +213,7 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 {
     assert!(
         output.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between polynomial sizes of output cipertexts and input secret key. \
+        "Mismatch between polynomial sizes of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -221,7 +221,7 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
 
     assert!(
         output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertexts and input secret key. \
+        "Mismatch between GlweDimension of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
@@ -457,7 +457,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Nois
 {
     assert!(
         output.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between polynomial sizes of output cipertexts and input secret key. \
+        "Mismatch between polynomial sizes of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -465,7 +465,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Nois
 
     assert!(
         output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertexts and input secret key. \
+        "Mismatch between GlweDimension of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
@@ -627,7 +627,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, 
 {
     assert!(
         output.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between polynomial sizes of output cipertexts and input secret key. \
+        "Mismatch between polynomial sizes of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -635,7 +635,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, 
 
     assert!(
         output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertexts and input secret key. \
+        "Mismatch between GlweDimension of output ciphertexts and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
@@ -773,7 +773,7 @@ where
 {
     assert!(
         ggsw_ciphertext.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between polynomial sizes of input cipertext and input secret key. \
+        "Mismatch between polynomial sizes of input ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         ggsw_ciphertext.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -781,7 +781,7 @@ where
 
     assert!(
         ggsw_ciphertext.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of input cipertext and input secret key. \
+        "Mismatch between GlweDimension of input ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         ggsw_ciphertext.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
