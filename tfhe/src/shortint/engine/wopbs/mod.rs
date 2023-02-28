@@ -368,7 +368,7 @@ impl ShortintEngine {
         // 2. PBS to remove the noise added by the previous KS
         //
         let acc = self.generate_accumulator(&wopbs_key.pbs_server_key, |x| x)?;
-        let (ciphertext_buffers, buffers) = self.buffers_for_key(&wopbs_key.pbs_server_key);
+        let (mut ciphertext_buffers, buffers) = self.buffers_for_key(&wopbs_key.pbs_server_key);
         // Compute a key switch
         keyswitch_lwe_ciphertext(
             &wopbs_key.pbs_server_key.key_switching_key,

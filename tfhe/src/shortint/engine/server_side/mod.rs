@@ -176,7 +176,7 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
-        let (ciphertext_buffers, buffers) = self.buffers_for_key(server_key);
+        let (mut ciphertext_buffers, buffers) = self.buffers_for_key(server_key);
 
         // Compute a keyswitch
         keyswitch_lwe_ciphertext(
@@ -231,7 +231,7 @@ impl ShortintEngine {
         acc: &Accumulator,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
-        let (ciphertext_buffers, buffers) = self.buffers_for_key(server_key);
+        let (mut ciphertext_buffers, buffers) = self.buffers_for_key(server_key);
 
         // Compute a key switch
         keyswitch_lwe_ciphertext(
