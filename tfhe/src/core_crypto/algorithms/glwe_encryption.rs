@@ -124,14 +124,14 @@ pub fn encrypt_glwe_ciphertext_assign<Scalar, KeyCont, OutputCont, Gen>(
 {
     assert!(
         output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        "Mismatch between GlweDimension of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
     );
     assert!(
         output.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        "Mismatch between PolynomialSize of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -171,14 +171,14 @@ pub fn encrypt_seeded_glwe_ciphertext_assign_with_existing_generator<
 {
     assert!(
         output.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        "Mismatch between GlweDimension of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
     );
     assert!(
         output.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        "Mismatch between PolynomialSize of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -325,21 +325,21 @@ pub fn encrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, Gen>(
 {
     assert!(
         output_glwe_ciphertext.polynomial_size().0 == input_plaintext_list.plaintext_count().0,
-        "Mismatch between PolynomialSize of output cipertext PlaintextCount of input. \
+        "Mismatch between PolynomialSize of output ciphertext PlaintextCount of input. \
     Got {:?} in output, and {:?} in input.",
         output_glwe_ciphertext.polynomial_size(),
         input_plaintext_list.plaintext_count()
     );
     assert!(
         output_glwe_ciphertext.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        "Mismatch between GlweDimension of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output_glwe_ciphertext.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
     );
     assert!(
         output_glwe_ciphertext.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        "Mismatch between PolynomialSize of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output_glwe_ciphertext.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -460,14 +460,14 @@ pub fn encrypt_glwe_ciphertext_list<Scalar, KeyCont, InputCont, OutputCont, Gen>
     assert!(
         output_glwe_ciphertext_list.glwe_size().to_glwe_dimension()
             == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        "Mismatch between GlweDimension of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output_glwe_ciphertext_list.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
     );
     assert!(
         output_glwe_ciphertext_list.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        "Mismatch between PolynomialSize of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output_glwe_ciphertext_list.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -764,21 +764,21 @@ pub fn encrypt_seeded_glwe_ciphertext_with_exsiting_generator<
 {
     assert!(
         output_glwe_ciphertext.polynomial_size().0 == input_plaintext_list.plaintext_count().0,
-        "Mismatch between PolynomialSize of output cipertext PlaintextCount of input. \
+        "Mismatch between PolynomialSize of output ciphertext PlaintextCount of input. \
     Got {:?} in output, and {:?} in input.",
         output_glwe_ciphertext.polynomial_size(),
         input_plaintext_list.plaintext_count()
     );
     assert!(
         output_glwe_ciphertext.glwe_size().to_glwe_dimension() == glwe_secret_key.glwe_dimension(),
-        "Mismatch between GlweDimension of output cipertext and input secret key. \
+        "Mismatch between GlweDimension of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output_glwe_ciphertext.glwe_size().to_glwe_dimension(),
         glwe_secret_key.glwe_dimension()
     );
     assert!(
         output_glwe_ciphertext.polynomial_size() == glwe_secret_key.polynomial_size(),
-        "Mismatch between PolynomialSize of output cipertext and input secret key. \
+        "Mismatch between PolynomialSize of output ciphertext and input secret key. \
         Got {:?} in output, and {:?} in secret key.",
         output_glwe_ciphertext.polynomial_size(),
         glwe_secret_key.polynomial_size()
@@ -937,7 +937,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
     assert!(
         output.glwe_ciphertext_count().0 * output.polynomial_size().0
             == encoded.plaintext_count().0,
-        "Mismatch between number of output cipertexts and input plaintexts. \
+        "Mismatch between number of output ciphertexts and input plaintexts. \
         Got {:?} plaintexts while {:?} plaintexts are required to encrypt {:?} ciphertexts.",
         encoded.plaintext_count(),
         output.glwe_ciphertext_count().0 * output.polynomial_size().0,
