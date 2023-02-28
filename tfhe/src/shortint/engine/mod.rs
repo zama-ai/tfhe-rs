@@ -39,7 +39,7 @@ pub struct Buffers {
 /// corresponding to a `ServerKey` in a `BTreeMap`
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq)]
 struct KeyId {
-    lwe_dim_after_pbs: usize,
+    lwe_dim_after_ks: usize,
     // Also accumulator size
     glwe_size: GlweSize,
     poly_size: PolynomialSize,
@@ -49,7 +49,7 @@ impl ServerKey {
     #[inline]
     fn key_id(&self) -> KeyId {
         KeyId {
-            lwe_dim_after_pbs: self.bootstrapping_key.output_lwe_dimension().0,
+            lwe_dim_after_ks: self.key_switching_key.output_key_lwe_dimension().0,
             glwe_size: self.bootstrapping_key.glwe_size(),
             poly_size: self.bootstrapping_key.polynomial_size(),
         }
