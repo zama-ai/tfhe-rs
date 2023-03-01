@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{Ciphertext, Parameters, ServerKey};
 
@@ -8,27 +9,43 @@ use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
 use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6;
 
-macro_rules! named_param {
-    ($param:ident) => {
-        (stringify!($param), $param)
-    };
-}
-
-const SERVER_KEY_BENCH_PARAMS: [(&str, Parameters); 4] = [
-    named_param!(PARAM_MESSAGE_1_CARRY_1),
-    named_param!(PARAM_MESSAGE_2_CARRY_2),
-    named_param!(PARAM_MESSAGE_3_CARRY_3),
-    named_param!(PARAM_MESSAGE_4_CARRY_4),
+const SERVER_KEY_BENCH_PARAMS: [Parameters; 4] = [
+    PARAM_MESSAGE_1_CARRY_1,
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_4,
 ];
 
-fn bench_server_key_binary_function<F>(c: &mut Criterion, bench_name: &str, binary_op: F)
-where
+const SERVER_KEY_BENCH_PARAMS_EXTENDED: [Parameters; 15] = [
+    PARAM_MESSAGE_1_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_1,
+    PARAM_MESSAGE_2_CARRY_0,
+    PARAM_MESSAGE_2_CARRY_1,
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_0,
+    PARAM_MESSAGE_3_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_0,
+    PARAM_MESSAGE_4_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MESSAGE_5_CARRY_0,
+    PARAM_MESSAGE_6_CARRY_0,
+    PARAM_MESSAGE_7_CARRY_0,
+    PARAM_MESSAGE_8_CARRY_0,
+];
+
+fn bench_server_key_binary_function<F>(
+    c: &mut Criterion,
+    bench_name: &str,
+    binary_op: F,
+    params: &[Parameters],
+) where
     F: Fn(&ServerKey, &mut Ciphertext, &mut Ciphertext),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
-    for (param_name, param) in SERVER_KEY_BENCH_PARAMS {
-        let keys = KEY_CACHE.get_from_param(param);
+    for param in params.iter() {
+        let keys = KEY_CACHE.get_from_param(*param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -41,7 +58,7 @@ where
         let mut ct_0 = cks.encrypt(clear_0);
         let mut ct_1 = cks.encrypt(clear_1);
 
-        let bench_id = format!("{bench_name}::{param_name}");
+        let bench_id = format!("{bench_name}::{}", param.name());
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 binary_op(sks, &mut ct_0, &mut ct_1);
@@ -52,14 +69,18 @@ where
     bench_group.finish()
 }
 
-fn bench_server_key_binary_scalar_function<F>(c: &mut Criterion, bench_name: &str, binary_op: F)
-where
+fn bench_server_key_binary_scalar_function<F>(
+    c: &mut Criterion,
+    bench_name: &str,
+    binary_op: F,
+    params: &[Parameters],
+) where
     F: Fn(&ServerKey, &mut Ciphertext, u8),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
-    for (param_name, param) in SERVER_KEY_BENCH_PARAMS {
-        let keys = KEY_CACHE.get_from_param(param);
+    for param in params {
+        let keys = KEY_CACHE.get_from_param(*param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -71,7 +92,7 @@ where
 
         let mut ct_0 = cks.encrypt(clear_0);
 
-        let bench_id = format!("{bench_name}::{param_name}");
+        let bench_id = format!("{bench_name}::{}", param.name());
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 binary_op(sks, &mut ct_0, clear_1 as u8);
@@ -85,7 +106,7 @@ where
 fn carry_extract(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("carry_extract");
 
-    for (param_name, param) in SERVER_KEY_BENCH_PARAMS {
+    for param in SERVER_KEY_BENCH_PARAMS {
         let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -97,7 +118,7 @@ fn carry_extract(c: &mut Criterion) {
 
         let ct_0 = cks.encrypt(clear_0);
 
-        let bench_id = format!("ServerKey::carry_extract::{param_name}");
+        let bench_id = format!("ServerKey::carry_extract::{}", param.name());
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 sks.carry_extract(&ct_0);
@@ -111,7 +132,7 @@ fn carry_extract(c: &mut Criterion) {
 fn programmable_bootstrapping(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("programmable_bootstrap");
 
-    for (param_name, param) in SERVER_KEY_BENCH_PARAMS {
+    for param in SERVER_KEY_BENCH_PARAMS {
         let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -125,7 +146,7 @@ fn programmable_bootstrapping(c: &mut Criterion) {
 
         let ctxt = cks.encrypt(clear_0);
 
-        let id = format!("ServerKey::programmable_bootstrap::{param_name}");
+        let id = format!("ServerKey::programmable_bootstrap::{}", param.name());
 
         bench_group.bench_function(&id, |b| {
             b.iter(|| {
@@ -163,44 +184,45 @@ fn bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
 }
 
 macro_rules! define_server_key_bench_fn (
-  ($server_key_method:ident) => {
+  ($server_key_method:ident, $params:expr) => {
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_function(
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
               |server_key, lhs, rhs| {
-                server_key.$server_key_method(lhs, rhs);
-          })
+                server_key.$server_key_method(lhs, rhs);},
+              $params)
       }
   }
 );
 
 macro_rules! define_server_key_scalar_bench_fn (
-  ($server_key_method:ident) => {
+  ($server_key_method:ident, $params:expr) => {
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_scalar_function(
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
               |server_key, lhs, rhs| {
-                server_key.$server_key_method(lhs, rhs);
-          })
+                server_key.$server_key_method(lhs, rhs);},
+              $params)
       }
   }
 );
 
-define_server_key_bench_fn!(unchecked_add);
-define_server_key_bench_fn!(unchecked_sub);
-define_server_key_bench_fn!(unchecked_mul_lsb);
-define_server_key_bench_fn!(unchecked_mul_msb);
-define_server_key_bench_fn!(smart_bitand);
-define_server_key_bench_fn!(smart_bitor);
-define_server_key_bench_fn!(smart_bitxor);
-define_server_key_bench_fn!(smart_add);
-define_server_key_bench_fn!(smart_sub);
-define_server_key_bench_fn!(smart_mul_lsb);
+define_server_key_bench_fn!(unchecked_add, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
+define_server_key_bench_fn!(unchecked_sub, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
+define_server_key_bench_fn!(unchecked_mul_lsb, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
+define_server_key_bench_fn!(unchecked_mul_msb, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(smart_bitand, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(smart_bitor, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(smart_bitxor, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(smart_add, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(smart_sub, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(smart_mul_lsb, &SERVER_KEY_BENCH_PARAMS);
 
-define_server_key_scalar_bench_fn!(unchecked_scalar_add);
-define_server_key_scalar_bench_fn!(unchecked_scalar_mul);
+define_server_key_scalar_bench_fn!(unchecked_scalar_add, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
+define_server_key_scalar_bench_fn!(unchecked_scalar_mul, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
+define_server_key_scalar_bench_fn!(unchecked_scalar_sub, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
 
 criterion_group!(
     arithmetic_operation,
@@ -227,6 +249,7 @@ criterion_group!(
     arithmetic_scalar_operation,
     unchecked_scalar_add,
     unchecked_scalar_mul,
+    unchecked_scalar_sub,
 );
 
-criterion_main!(arithmetic_operation,); // arithmetic_scalar_operation,);
+criterion_main!(arithmetic_operation, arithmetic_scalar_operation);
