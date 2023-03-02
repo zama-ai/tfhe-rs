@@ -1,6 +1,6 @@
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix, ClearText};
+use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, ClearText};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::PublicKey as ShortintPublicKey;
 
@@ -49,7 +49,7 @@ impl PublicKey {
         F: Fn(&crate::shortint::PublicKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
-        encrypt_words_radix(&self.key, message_words, num_blocks, encrypt_block)
+        encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
     }
 
     pub fn encrypt_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {

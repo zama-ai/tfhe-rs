@@ -42,9 +42,7 @@ fn radix_encrypt_decrypt_128_bits(param: Parameters) {
 
 fn radix_encrypt_decrypt_compressed_128_bits(param: Parameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
-    println!("Compressed public key gen start");
     let public_key = CompressedPublicKey::new(&cks);
-    println!("done");
 
     // RNG
     let mut rng = rand::thread_rng();

@@ -2,8 +2,10 @@ use super::U256;
 use crate::shortint::parameters::MessageModulus;
 
 pub trait ClearText {
+    // words are expected to be in the target endian
     fn as_words(&self) -> &[u64];
 
+    // words are expected to be in the target endian
     fn as_words_mut(&mut self) -> &mut [u64];
 }
 
@@ -63,7 +65,15 @@ impl BlockEncryptionKey for crate::shortint::CompressedPublicKey {
     }
 }
 
-pub(crate) fn encrypt_words_radix<BlockKey, Block, RadixCiphertextType, F>(
+/// Encrypts an arbitrary sized number under radix decomposition
+///
+/// This function encrypts a number represented as a slice of 64bits words
+/// into an integer ciphertext in radix decomposition
+///
+/// - Each block in encrypted under the same `encrypting_key`.
+/// - `message_words` is expected to be in the current machine byte order.
+/// - `num_block` is the number of radix block the final ciphertext will have.
+pub(crate) fn encrypt_words_radix_impl<BlockKey, Block, RadixCiphertextType, F>(
     encrypting_key: &BlockKey,
     message_words: &[u64],
     num_blocks: usize,
@@ -74,33 +84,66 @@ where
     F: Fn(&BlockKey, u64) -> Block,
     RadixCiphertextType: From<Vec<Block>>,
 {
+    // General idea:
+    // Use as a bit buffer, and "cursors" to track the start of next block of bits to encrypt
+    // and until which bit the bits are valid / not garbage.
+    // e.g:
+    // source: [b0, b1, ..., b64, b65..., b128]
+    //              ^             ^
+    //              |             |-> valid_until_power (starting from this bit,
+    //              |                 bit values are not valid and should not be encrypted)
+    //              |-> current_power (start of next block of bits to encrypt (inclusive))
+
     let mask = (encrypting_key.parameters().message_modulus.0 - 1) as u128;
     let block_modulus = encrypting_key.parameters().message_modulus.0 as u128;
 
     let mut blocks = Vec::with_capacity(num_blocks);
-    let mut message_block_iter = message_words.iter().copied();
 
-    let mut source = 0u128; // stores the bits of the word to be encrypted in one of the iteration
+    #[cfg(target_endian = "little")]
+    let mut message_block_iter = message_words.iter().copied();
+    #[cfg(target_endian = "big")]
+    let mut message_block_iter = message_words.iter().rev().copied();
+
+    let mut bit_buffer = 0u128; // stores the bits of the word to be encrypted in one of the iteration
     let mut valid_until_power = 1; // 2^0 = 1, start with nothing valid
     let mut current_power = 1; // where the next bits to encrypt starts
     for _ in 0..num_blocks {
-        // Are we going to encrypt bits that are not valid ?
-        // If so, discard already encrypted bits and fetch bits form the input words
         if (current_power * block_modulus) >= valid_until_power {
-            source /= current_power;
-            valid_until_power /= current_power;
+            // We are going to encrypt bits that are not valid.
+            // e.g:
+            // source: [b0, ..., b63, b64, b65, b66, b67,..., b128]
+            //                   ^         ^          ^
+            //                   |         |          |-> (current_power * block_modulus)
+            //                   |         |              = end of bits to encrypt (not inclusive)
+            //                   |         |-> valid_until_power
+            //                   |             (starting from this bit, bit values are not valid)
+            //                   |-> current_power = start of next block of bits to encrypt
 
-            source += message_block_iter
+            // 1: shift (remove) bits we know we have already encrypted
+            // source: [b0, b1, b2, b3, b4,..., b128]
+            //          ^       ^       ^
+            //          |       |       |->  (current_power * block_modulus)
+            //          |       |-> valid_until_power
+            //          |-> current_power
+            bit_buffer /= current_power;
+            valid_until_power /= current_power;
+            current_power = 1;
+
+            // 2: Append next word (or zero) to the source
+            // source: [b0, b1, b2, b3, b4,..., b67, b128]
+            //          ^               ^        ^
+            //          |               |        |-> valid_until_power
+            //          |               |-> (current_power * block_modulus)
+            //          |-> current_power
+            bit_buffer += message_block_iter
                 .next()
                 .map(u128::from)
                 .unwrap_or_default()
                 * valid_until_power;
-
-            current_power = 1;
             valid_until_power <<= 64;
         }
 
-        let block_value = (source & (mask * current_power)) / current_power;
+        let block_value = (bit_buffer & (mask * current_power)) / current_power;
         let ct = encrypt_block(encrypting_key, block_value as u64);
         blocks.push(ct);
 

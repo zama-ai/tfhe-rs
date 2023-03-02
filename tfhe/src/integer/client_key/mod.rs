@@ -11,7 +11,7 @@ use crate::integer::ciphertext::{
     CompressedCrtCiphertext, CompressedRadixCiphertext, CrtCiphertext, RadixCiphertext,
 };
 use crate::integer::client_key::utils::i_crt;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix, ClearText};
+use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, ClearText};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::{
     Ciphertext as ShortintCiphertext, ClientKey as ShortintClientKey,
@@ -177,7 +177,7 @@ impl ClientKey {
         F: Fn(&crate::shortint::ClientKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
-        encrypt_words_radix(&self.key, message_words, num_blocks, encrypt_block)
+        encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
     }
 
     /// Encrypts one block.
@@ -288,11 +288,16 @@ impl ClientKey {
     ) where
         F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
     {
+        #[cfg(target_endian = "little")]
+        let clear_words_iter = clear_words.iter_mut();
+        #[cfg(target_endian = "big")]
+        let clear_words_iter = clear_words.iter_mut().rev();
+
         let mut cipher_blocks_iter = ctxt.blocks.iter();
         let mut current = 0u128;
         let mut power = 1u128;
         let mut power_excess = 1;
-        for current_clear_word in clear_words.iter_mut() {
+        for current_clear_word in clear_words_iter {
             for cipher_block in cipher_blocks_iter.by_ref() {
                 let block_value = decrypt_block(&self.key, cipher_block) as u128;
 
