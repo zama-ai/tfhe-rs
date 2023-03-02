@@ -34,6 +34,39 @@ const SERVER_KEY_BENCH_PARAMS_EXTENDED: [Parameters; 15] = [
     PARAM_MESSAGE_8_CARRY_0,
 ];
 
+fn bench_server_key_unary_function<F>(
+    c: &mut Criterion,
+    bench_name: &str,
+    unary_op: F,
+    params: &[Parameters],
+) where
+    F: Fn(&ServerKey, &mut Ciphertext),
+{
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    for param in params.iter() {
+        let keys = KEY_CACHE.get_from_param(*param);
+        let (cks, sks) = (keys.client_key(), keys.server_key());
+
+        let mut rng = rand::thread_rng();
+
+        let modulus = cks.parameters.message_modulus.0 as u64;
+
+        let clear_text = rng.gen::<u64>() % modulus;
+
+        let mut ct = cks.encrypt(clear_text);
+
+        let bench_id = format!("{bench_name}::{}", param.name());
+        bench_group.bench_function(&bench_id, |b| {
+            b.iter(|| {
+                unary_op(sks, &mut ct);
+            })
+        });
+    }
+
+    bench_group.finish()
+}
+
 fn bench_server_key_binary_function<F>(
     c: &mut Criterion,
     bench_name: &str,
@@ -50,7 +83,7 @@ fn bench_server_key_binary_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = 1_u64 << cks.parameters.message_modulus.0;
+        let modulus = cks.parameters.message_modulus.0 as u64;
 
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -85,10 +118,48 @@ fn bench_server_key_binary_scalar_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = 1_u64 << cks.parameters.message_modulus.0;
+        let modulus = cks.parameters.message_modulus.0 as u64;
 
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
+
+        let mut ct_0 = cks.encrypt(clear_0);
+
+        let bench_id = format!("{bench_name}::{}", param.name());
+        bench_group.bench_function(&bench_id, |b| {
+            b.iter(|| {
+                binary_op(sks, &mut ct_0, clear_1 as u8);
+            })
+        });
+    }
+
+    bench_group.finish()
+}
+
+fn bench_server_key_binary_scalar_division_function<F>(
+    c: &mut Criterion,
+    bench_name: &str,
+    binary_op: F,
+    params: &[Parameters],
+) where
+    F: Fn(&ServerKey, &mut Ciphertext, u8),
+{
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    for param in params {
+        let keys = KEY_CACHE.get_from_param(*param);
+        let (cks, sks) = (keys.client_key(), keys.server_key());
+
+        let mut rng = rand::thread_rng();
+
+        let modulus = cks.parameters.message_modulus.0 as u64;
+        assert_ne!(modulus, 1);
+
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let mut clear_1 = rng.gen::<u64>() % modulus;
+        while clear_1 == 0 {
+            clear_1 = rng.gen::<u64>() % modulus;
+        }
 
         let mut ct_0 = cks.encrypt(clear_0);
 
@@ -112,7 +183,7 @@ fn carry_extract(c: &mut Criterion) {
 
         let mut rng = rand::thread_rng();
 
-        let modulus = 1_u64 << cks.parameters.message_modulus.0;
+        let modulus = cks.parameters.message_modulus.0 as u64;
 
         let clear_0 = rng.gen::<u64>() % modulus;
 
@@ -183,6 +254,19 @@ fn bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
     bench_group.finish();
 }
 
+macro_rules! define_server_key_unary_bench_fn (
+  ($server_key_method:ident, $params:expr) => {
+      fn $server_key_method(c: &mut Criterion) {
+          bench_server_key_unary_function(
+              c,
+              concat!("ServerKey::", stringify!($server_key_method)),
+              |server_key, lhs| {
+                server_key.$server_key_method(lhs);},
+              $params)
+      }
+  }
+);
+
 macro_rules! define_server_key_bench_fn (
   ($server_key_method:ident, $params:expr) => {
       fn $server_key_method(c: &mut Criterion) {
@@ -209,33 +293,62 @@ macro_rules! define_server_key_scalar_bench_fn (
   }
 );
 
+macro_rules! define_server_key_scalar_div_bench_fn (
+  ($server_key_method:ident, $params:expr) => {
+      fn $server_key_method(c: &mut Criterion) {
+          bench_server_key_binary_scalar_division_function(
+              c,
+              concat!("ServerKey::", stringify!($server_key_method)),
+              |server_key, lhs, rhs| {
+                server_key.$server_key_method(lhs, rhs);},
+              $params)
+      }
+  }
+);
+
+define_server_key_unary_bench_fn!(unchecked_neg, &SERVER_KEY_BENCH_PARAMS);
+
 define_server_key_bench_fn!(unchecked_add, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
 define_server_key_bench_fn!(unchecked_sub, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
 define_server_key_bench_fn!(unchecked_mul_lsb, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
 define_server_key_bench_fn!(unchecked_mul_msb, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(unchecked_div, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
 define_server_key_bench_fn!(smart_bitand, &SERVER_KEY_BENCH_PARAMS);
 define_server_key_bench_fn!(smart_bitor, &SERVER_KEY_BENCH_PARAMS);
 define_server_key_bench_fn!(smart_bitxor, &SERVER_KEY_BENCH_PARAMS);
 define_server_key_bench_fn!(smart_add, &SERVER_KEY_BENCH_PARAMS);
 define_server_key_bench_fn!(smart_sub, &SERVER_KEY_BENCH_PARAMS);
 define_server_key_bench_fn!(smart_mul_lsb, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(unchecked_greater, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(unchecked_less, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(unchecked_equal, &SERVER_KEY_BENCH_PARAMS);
 
 define_server_key_scalar_bench_fn!(unchecked_scalar_add, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
-define_server_key_scalar_bench_fn!(unchecked_scalar_mul, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
 define_server_key_scalar_bench_fn!(unchecked_scalar_sub, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
+define_server_key_scalar_bench_fn!(unchecked_scalar_mul, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
+define_server_key_scalar_bench_fn!(unchecked_scalar_left_shift, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_scalar_bench_fn!(unchecked_scalar_right_shift, &SERVER_KEY_BENCH_PARAMS);
+
+define_server_key_scalar_div_bench_fn!(unchecked_scalar_div, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
+define_server_key_scalar_div_bench_fn!(unchecked_scalar_mod, &SERVER_KEY_BENCH_PARAMS);
 
 criterion_group!(
     arithmetic_operation,
+    unchecked_neg,
     unchecked_add,
     unchecked_sub,
     unchecked_mul_lsb,
     unchecked_mul_msb,
+    unchecked_div,
     smart_bitand,
     smart_bitor,
     smart_bitxor,
     smart_add,
     smart_sub,
     smart_mul_lsb,
+    unchecked_greater,
+    unchecked_less,
+    unchecked_equal,
     carry_extract,
     // programmable_bootstrapping,
     // multivalue_programmable_bootstrapping
@@ -250,6 +363,10 @@ criterion_group!(
     unchecked_scalar_add,
     unchecked_scalar_mul,
     unchecked_scalar_sub,
+    unchecked_scalar_div,
+    unchecked_scalar_mod,
+    unchecked_scalar_left_shift,
+    unchecked_scalar_right_shift,
 );
 
 criterion_main!(arithmetic_operation, arithmetic_scalar_operation);
