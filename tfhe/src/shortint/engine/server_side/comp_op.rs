@@ -19,11 +19,11 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus_carry = ct_right.carry_modulus.0 as u64;
         let modulus_msg = ct_left.message_modulus.0 as u64;
-        let large_mod = modulus * modulus_msg;
+        let large_mod = modulus_carry * modulus_msg;
         self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            (((x % large_mod / modulus) % modulus_msg) > (x % modulus_msg)) as u64
+            (((x % large_mod / modulus_msg) % modulus_msg) > (x % modulus_msg)) as u64
         })?;
 
         ct_left.degree.0 = 1;
@@ -73,11 +73,11 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus_carry = ct_right.carry_modulus.0 as u64;
         let modulus_msg = ct_left.message_modulus.0 as u64;
-        let large_mod = modulus * modulus_msg;
+        let large_mod = modulus_carry * modulus_msg;
         self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            (((x % large_mod / modulus) % modulus_msg) >= (x % modulus_msg)) as u64
+            (((x % large_mod / modulus_msg) % modulus_msg) >= (x % modulus_msg)) as u64
         })?;
 
         ct_left.degree.0 = 1;
@@ -126,11 +126,11 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus_carry = ct_right.carry_modulus.0 as u64;
         let modulus_msg = ct_left.message_modulus.0 as u64;
-        let large_mod = modulus * modulus_msg;
+        let large_mod = modulus_carry * modulus_msg;
         self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            (((x % large_mod / modulus) % modulus_msg) < (x % modulus_msg)) as u64
+            (((x % large_mod / modulus_msg) % modulus_msg) < (x % modulus_msg)) as u64
         })?;
 
         ct_left.degree.0 = 1;
@@ -179,11 +179,11 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus_carry = ct_right.carry_modulus.0 as u64;
         let modulus_msg = ct_left.message_modulus.0 as u64;
-        let large_mod = modulus * modulus_msg;
+        let large_mod = modulus_carry * modulus_msg;
         self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            (((x % large_mod / modulus) % modulus_msg) <= (x % modulus_msg)) as u64
+            (((x % large_mod / modulus_msg) % modulus_msg) <= (x % modulus_msg)) as u64
         })?;
 
         ct_left.degree.0 = 1;
@@ -232,11 +232,11 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus_carry = ct_right.carry_modulus.0 as u64;
         let modulus_msg = ct_left.message_modulus.0 as u64;
-        let large_mod = modulus * modulus_msg;
+        let large_mod = modulus_carry * modulus_msg;
         self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            ((((x % large_mod) / modulus) % modulus_msg) == (x % modulus_msg)) as u64
+            ((((x % large_mod) / modulus_msg) % modulus_msg) == (x % modulus_msg)) as u64
         })?;
         ct_left.degree.0 = 1;
         Ok(())
@@ -309,11 +309,11 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus_carry = ct_right.carry_modulus.0 as u64;
         let modulus_msg = ct_left.message_modulus.0 as u64;
-        let large_mod = modulus * modulus_msg;
+        let large_mod = modulus_carry * modulus_msg;
         self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            ((((x % large_mod) / modulus) % modulus_msg) != (x % modulus_msg)) as u64
+            ((((x % large_mod) / modulus_msg) % modulus_msg) != (x % modulus_msg)) as u64
         })?;
         ct_left.degree.0 = 1;
         Ok(())

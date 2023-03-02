@@ -20,7 +20,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus = ct_right.message_modulus.0 as u64;
 
         //message 1 is shifted to the carry bits
         self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
@@ -59,7 +59,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus = ct_right.message_modulus.0 as u64;
         let deg = (ct_left.degree.0 * ct_right.degree.0) / ct_right.message_modulus.0;
 
         // Message 1 is shifted to the carry bits

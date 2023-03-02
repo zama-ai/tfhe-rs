@@ -166,6 +166,9 @@ create_parametrized_test_bivariate_pbs_compliant!(
     shortint_keyswitch_bivariate_programmable_bootstrap
 );
 create_parametrized_test_bivariate_pbs_compliant!(
+    shortint_keyswitch_bivariate_programmable_bootstrap_on_trivial
+);
+create_parametrized_test_bivariate_pbs_compliant!(
     shortint_encrypt_with_message_modulus_smart_add_and_mul
 );
 
@@ -314,7 +317,35 @@ fn shortint_keyswitch_bivariate_programmable_bootstrap(param: Parameters) {
         let ctxt_0 = cks.encrypt(clear_0);
         let ctxt_1 = cks.encrypt(clear_1);
         //define the accumulator as identity
-        let acc = sks.generate_accumulator_bivariate(|x, y| x * 2 * y % modulus);
+        let acc = sks.generate_accumulator_bivariate(|x, y| (x * 2 * y) % modulus);
+        // add the two ciphertexts
+        let ct_res = sks.keyswitch_programmable_bootstrap_bivariate(&ctxt_0, &ctxt_1, &acc);
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!((2 * clear_0 * clear_1) % modulus, dec_res);
+    }
+}
+
+fn shortint_keyswitch_bivariate_programmable_bootstrap_on_trivial(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = sks.create_trivial(clear_0);
+        let ctxt_1 = sks.create_trivial(clear_1);
+        //define the accumulator as identity
+        let acc = sks.generate_accumulator_bivariate(|x, y| (x * 2 * y) % modulus);
         // add the two ciphertexts
         let ct_res = sks.keyswitch_programmable_bootstrap_bivariate(&ctxt_0, &ctxt_1, &acc);
 

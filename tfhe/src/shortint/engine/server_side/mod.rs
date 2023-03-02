@@ -294,7 +294,7 @@ impl ShortintEngine {
         ct_right: &Ciphertext,
         acc: &Accumulator,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus = ct_left.message_modulus.0 as u64;
 
         // Message 1 is shifted to the carry bits
         self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
@@ -344,19 +344,12 @@ impl ShortintEngine {
     where
         F: Fn(u64) -> u64,
     {
-        let modulus = (ct_right.degree.0 + 1) as u64;
-
-        // Message 1 is shifted to the carry bits
-        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
-
-        // Message 2 is placed in the message bits
-        self.unchecked_add_assign(ct_left, ct_right)?;
-
-        // Generate the accumulator for the function
         let acc = self.generate_accumulator(server_key, f)?;
 
         // Compute the PBS
-        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_bivariate_assign(
+            server_key, ct_left, ct_right, &acc,
+        )?;
         Ok(())
     }
 
@@ -388,28 +381,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_right)?;
         }
 
-        self.unchecked_bivariate_pbs_assign(server_key, ct_left, ct_right, acc)
-    }
-
-    #[cfg_attr(not(feature = "__c_api"), allow(dead_code))]
-    pub(crate) fn unchecked_bivariate_pbs_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
-        acc: &Accumulator,
-    ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
-
-        // Message 1 is shifted to the carry bits
-        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
-
-        // Message 2 is placed in the message bits
-        self.unchecked_add_assign(ct_left, ct_right)?;
-
-        // Compute the PBS
-        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, acc)?;
-        Ok(())
+        self.keyswitch_programmable_bootstrap_bivariate_assign(server_key, ct_left, ct_right, acc)
     }
 
     pub(crate) fn carry_extract_assign(

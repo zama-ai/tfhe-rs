@@ -358,9 +358,10 @@ impl ServerKey {
 
     /// Verify if a bivariate functional pbs can be applied on ct_left and ct_right.
     pub fn is_functional_bivariate_pbs_possible(&self, ct1: &Ciphertext, ct2: &Ciphertext) -> bool {
-        //product of the degree
-        let final_degree = ct1.degree.0 * (ct2.degree.0 + 1) + ct2.degree.0;
-        final_degree < ct1.carry_modulus.0 * ct1.message_modulus.0
+        let ct1_fit_in_carry = ct1.degree.0 < ct1.carry_modulus.0;
+        let ct2_fit_in_message = ct2.degree.0 < ct1.message_modulus.0;
+
+        ct1_fit_in_carry && ct2_fit_in_message
     }
 
     /// Replace the input encrypted message by the value of its carry buffer.

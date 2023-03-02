@@ -19,7 +19,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus = ct_right.message_modulus.0 as u64;
         self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
             (x / modulus) & (x % modulus)
         })?;
@@ -69,7 +69,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus = ct_right.message_modulus.0 as u64;
         self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
             (x / modulus) ^ (x % modulus)
         })?;
@@ -119,7 +119,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
+        let modulus = ct_right.message_modulus.0 as u64;
         self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
             (x / modulus) | (x % modulus)
         })?;
