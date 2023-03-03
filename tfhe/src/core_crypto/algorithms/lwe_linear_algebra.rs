@@ -211,6 +211,72 @@ pub fn lwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
     *body.0 = (*body.0).wrapping_add(rhs.0);
 }
 
+/// Add the right-hand side encoded [`Plaintext`] to the left-hand side [`LWE
+/// ciphertext`](`LweCiphertext`) updating it in-place.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+/// // computations
+/// // Define parameters for LweCiphertext creation
+/// let lwe_dimension = LweDimension(742);
+/// let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
+///
+/// // Create the PRNG
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator =
+///     SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+///
+/// // Create the LweSecretKey
+/// let lwe_secret_key =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+///
+/// // Create the plaintext
+/// let msg = 3u64;
+/// let plaintext = Plaintext(msg << 60);
+///
+/// // Create a new LweCiphertext
+/// let mut lwe = allocate_and_encrypt_new_lwe_ciphertext(
+///     &lwe_secret_key,
+///     plaintext,
+///     lwe_modular_std_dev,
+///     &mut encryption_generator,
+/// );
+///
+/// lwe_ciphertext_plaintext_sub_assign(&mut lwe, plaintext);
+///
+/// let decrypted_plaintext = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe);
+///
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// let rounded = decomposer.closest_representable(decrypted_plaintext.0);
+///
+/// // Remove the encoding
+/// let cleartext = rounded >> 60;
+///
+/// // Check we recovered the expected result
+/// assert_eq!(cleartext, msg - msg);
+/// ```
+pub fn lwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
+    lhs: &mut LweCiphertext<InCont>,
+    rhs: Plaintext<Scalar>,
+) where
+    Scalar: UnsignedInteger,
+    InCont: ContainerMut<Element = Scalar>,
+{
+    let body = lhs.get_mut_body();
+
+    *body.0 = (*body.0).wrapping_sub(rhs.0);
+}
+
 /// Compute the opposite of the input [`LWE ciphertext`](`LweCiphertext`) and update it in place.
 ///
 /// # Example
