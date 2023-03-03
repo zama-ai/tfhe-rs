@@ -147,8 +147,8 @@ impl WopbsKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1;
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(&PARAM_MESSAGE_1_CARRY_1);
-    /// let mut wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1);
+    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_1_CARRY_1);
+    /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1);
     /// ```
     pub fn new_wopbs_key(cks: &ClientKey, sks: &ServerKey, parameters: &Parameters) -> WopbsKey {
         WopbsKey {
@@ -185,8 +185,8 @@ impl WopbsKey {
     ///
     /// let nb_block = 3;
     /// //Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
-    /// let mut wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
+    /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
     ///     moduli *= cks.parameters().message_modulus.0 as u64;
@@ -205,22 +205,47 @@ impl WopbsKey {
     where
         T: IntegerCiphertext,
     {
-        let mut extracted_bits_blocks = Vec::with_capacity(ct_in.blocks().len());
+        let total_bits_extracted = ct_in.blocks().iter().fold(0usize, |acc, block| {
+            acc + f64::log2((block.degree.0 + 1) as f64).ceil() as usize
+        });
+
+        let extract_bits_output_lwe_size = self
+            .wopbs_key
+            .wopbs_server_key
+            .key_switching_key
+            .output_key_lwe_dimension()
+            .to_lwe_size();
+
+        let mut extracted_bits_blocks = LweCiphertextList::new(
+            0u64,
+            extract_bits_output_lwe_size,
+            LweCiphertextCount(total_bits_extracted),
+        );
+
+        let mut bits_extracted_so_far = 0;
+
         // Extraction of each bit for each block
-        for block in ct_in.blocks().iter() {
+        for block in ct_in.blocks().iter().rev() {
             let delta = (1_usize << 63)
                 / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0);
             let delta_log = DeltaLog(f64::log2(delta as f64) as usize);
             let nb_bit_to_extract = f64::log2((block.degree.0 + 1) as f64).ceil() as usize;
 
-            let extracted_bits = self
-                .wopbs_key
-                .extract_bits(delta_log, block, nb_bit_to_extract);
+            let extract_from_bit = bits_extracted_so_far;
+            let extract_to_bit = extract_from_bit + nb_bit_to_extract;
+            bits_extracted_so_far += nb_bit_to_extract;
 
-            extracted_bits_blocks.push(extracted_bits);
+            let mut lwe_sub_list =
+                extracted_bits_blocks.get_sub_mut(extract_from_bit..extract_to_bit);
+
+            self.wopbs_key.extract_bits_assign(
+                delta_log,
+                block,
+                nb_bit_to_extract,
+                &mut lwe_sub_list,
+            );
         }
 
-        extracted_bits_blocks.reverse();
         let vec_ct_out = self
             .wopbs_key
             .circuit_bootstrapping_vertical_packing(lut, &extracted_bits_blocks);
@@ -245,8 +270,8 @@ impl WopbsKey {
     ///
     /// let nb_block = 3;
     /// //Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(&WOPBS_PARAM_MESSAGE_2_CARRY_2);
-    /// let mut wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+    /// let (cks, sks) = gen_keys(&WOPBS_PARAM_MESSAGE_2_CARRY_2);
+    /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
     ///     moduli *= cks.parameters().message_modulus.0 as u64;
@@ -263,22 +288,45 @@ impl WopbsKey {
     where
         T: IntegerCiphertext,
     {
-        let mut extracted_bits_blocks = Vec::with_capacity(ct_in.blocks().len());
-        let mut ct_in = ct_in.clone();
+        let total_bits_extracted = ct_in.blocks().iter().fold(0usize, |acc, block| {
+            acc + f64::log2((block.message_modulus.0 * block.carry_modulus.0) as f64) as usize
+        });
+
+        let extract_bits_output_lwe_size = self
+            .wopbs_key
+            .wopbs_server_key
+            .key_switching_key
+            .output_key_lwe_dimension()
+            .to_lwe_size();
+
+        let mut extracted_bits_blocks = LweCiphertextList::new(
+            0u64,
+            extract_bits_output_lwe_size,
+            LweCiphertextCount(total_bits_extracted),
+        );
+
+        let mut bits_extracted_so_far = 0;
         // Extraction of each bit for each block
-        for block in ct_in.blocks_mut().iter_mut() {
+        for block in ct_in.blocks().iter().rev() {
             let delta = (1_usize << 63) / (block.message_modulus.0 * block.carry_modulus.0 / 2);
             let delta_log = DeltaLog(f64::log2(delta as f64) as usize);
             let nb_bit_to_extract =
                 f64::log2((block.message_modulus.0 * block.carry_modulus.0) as f64) as usize;
 
-            let extracted_bits = self
-                .wopbs_key
-                .extract_bits(delta_log, block, nb_bit_to_extract);
-            extracted_bits_blocks.push(extracted_bits);
-        }
+            let extract_from_bit = bits_extracted_so_far;
+            let extract_to_bit = extract_from_bit + nb_bit_to_extract;
+            bits_extracted_so_far += nb_bit_to_extract;
 
-        extracted_bits_blocks.reverse();
+            let mut lwe_sub_list =
+                extracted_bits_blocks.get_sub_mut(extract_from_bit..extract_to_bit);
+
+            self.wopbs_key.extract_bits_assign(
+                delta_log,
+                block,
+                nb_bit_to_extract,
+                &mut lwe_sub_list,
+            );
+        }
 
         let vec_ct_out = self
             .wopbs_key
@@ -308,7 +356,7 @@ impl WopbsKey {
     /// let param = PARAM_4_BITS_5_BLOCKS;
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(&param);
-    /// let mut wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+    /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let mut msg_space = 1;
     /// for modulus in basis.iter() {
@@ -377,7 +425,7 @@ impl WopbsKey {
     /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
     ///
     /// //Generate wopbs_v0 key    ///
-    /// let mut wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
+    /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
     ///     moduli *= cks.parameters().message_modulus.0 as u64;
@@ -445,7 +493,7 @@ impl WopbsKey {
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
     /// //Generate wopbs_v0 key
-    /// let mut wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
+    /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
     ///     moduli *= cks.parameters().message_modulus.0 as u64;
@@ -510,7 +558,7 @@ impl WopbsKey {
     /// let param = PARAM_4_BITS_5_BLOCKS;
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(&param);
-    /// let mut wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+    /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let mut msg_space = 1;
     /// for modulus in basis.iter() {
@@ -822,7 +870,7 @@ impl WopbsKey {
     /// let param = PARAM_4_BITS_5_BLOCKS;
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(&param);
-    /// let mut wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+    /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let mut msg_space = 1;
     /// for modulus in basis.iter() {
@@ -890,7 +938,7 @@ impl WopbsKey {
     /// let param = PARAM_4_BITS_5_BLOCKS;
     /// //Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(&param);
-    /// let mut wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+    /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let mut msg_space = 1;
     /// for modulus in basis.iter() {
@@ -922,33 +970,60 @@ impl WopbsKey {
     where
         T: IntegerCiphertext,
     {
-        let mut extracted_bits_blocks = vec![];
-        for ct_in in vec_ct_in.iter() {
+        let total_bits_extracted = vec_ct_in.iter().fold(0usize, |acc, ct_in| {
+            acc + ct_in.blocks().iter().fold(0usize, |inner_acc, block| {
+                inner_acc
+                    + f64::log2((block.message_modulus.0 * block.carry_modulus.0) as f64).ceil()
+                        as usize
+            })
+        });
+
+        let extract_bits_output_lwe_size = self
+            .wopbs_key
+            .wopbs_server_key
+            .key_switching_key
+            .output_key_lwe_dimension()
+            .to_lwe_size();
+
+        let mut extracted_bits_blocks = LweCiphertextList::new(
+            0u64,
+            extract_bits_output_lwe_size,
+            LweCiphertextCount(total_bits_extracted),
+        );
+
+        let mut bits_extracted_so_far = 0;
+        for ct_in in vec_ct_in.iter().rev() {
             let mut ct_in = ct_in.clone();
             // Extraction of each bit for each block
-            for block in ct_in.blocks_mut().iter_mut() {
+            for block in ct_in.blocks_mut().iter_mut().rev() {
                 let nb_bit_to_extract =
                     f64::log2((block.message_modulus.0 * block.carry_modulus.0) as f64).ceil()
                         as usize;
                 let delta_log = DeltaLog(64 - nb_bit_to_extract);
 
                 // trick ( ct - delta/2 + delta/2^4  )
-                let lwe_size = block.ct.lwe_size().0;
-                let mut cont = vec![0u64; lwe_size];
-                cont[lwe_size - 1] =
-                    (1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5));
+                lwe_ciphertext_plaintext_sub_assign(
+                    &mut block.ct,
+                    Plaintext(
+                        (1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5)),
+                    ),
+                );
 
-                let tmp_ciphertext = LweCiphertext::from_container(cont);
-                lwe_ciphertext_sub_assign(&mut block.ct, &tmp_ciphertext);
+                let extract_from_bit = bits_extracted_so_far;
+                let extract_to_bit = extract_from_bit + nb_bit_to_extract;
+                bits_extracted_so_far += nb_bit_to_extract;
 
-                let extracted_bits =
-                    self.wopbs_key
-                        .extract_bits(delta_log, block, nb_bit_to_extract);
-                extracted_bits_blocks.push(extracted_bits);
+                let mut lwe_sub_list =
+                    extracted_bits_blocks.get_sub_mut(extract_from_bit..extract_to_bit);
+
+                self.wopbs_key.extract_bits_assign(
+                    delta_log,
+                    block,
+                    nb_bit_to_extract,
+                    &mut lwe_sub_list,
+                );
             }
         }
-
-        extracted_bits_blocks.reverse();
 
         let vec_ct_out = self
             .wopbs_key

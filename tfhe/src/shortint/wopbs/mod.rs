@@ -8,6 +8,7 @@
 //! both uses.
 
 use crate::core_crypto::commons::parameters::*;
+use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ClientKey, Parameters, ServerKey};
@@ -341,14 +342,40 @@ impl WopbsKey {
         })
     }
 
+    /// Extract the given number of bits from a ciphertext.
+    ///
+    /// # Warning Experimental
+    pub fn extract_bits_assign<OutputCont>(
+        &self,
+        delta_log: DeltaLog,
+        ciphertext: &Ciphertext,
+        num_bits_to_extract: usize,
+        output: &mut LweCiphertextList<OutputCont>,
+    ) where
+        OutputCont: ContainerMut<Element = u64>,
+    {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.extract_bits_assign(
+                delta_log,
+                &ciphertext.ct,
+                self,
+                ExtractedBitsCount(num_bits_to_extract),
+                output,
+            )
+        })
+    }
+
     /// Temporary wrapper.
     ///
     /// # Warning Experimental
-    pub fn circuit_bootstrapping_vertical_packing(
+    pub fn circuit_bootstrapping_vertical_packing<InputCont>(
         &self,
         vec_lut: &[Vec<u64>],
-        extracted_bits_blocks: &[LweCiphertextListOwned<u64>],
-    ) -> Vec<LweCiphertextOwned<u64>> {
+        extracted_bits_blocks: &LweCiphertextList<InputCont>,
+    ) -> Vec<LweCiphertextOwned<u64>>
+    where
+        InputCont: Container<Element = u64>,
+    {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.circuit_bootstrapping_vertical_packing(self, vec_lut, extracted_bits_blocks)
         })

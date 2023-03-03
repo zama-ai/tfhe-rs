@@ -173,12 +173,13 @@ pub mod utils {
 
             let try_load_from_memory_and_init = || {
                 // we only hold a read lock for a short duration to find the key
-                let memory_storage = self.memory_storage.read().unwrap();
-                let maybe_shared_cell = memory_storage
-                    .iter()
-                    .find(|(p, _)| *p == param)
-                    .map(|param_key| param_key.1.clone());
-                drop(memory_storage);
+                let maybe_shared_cell = {
+                    let memory_storage = self.memory_storage.read().unwrap();
+                    memory_storage
+                        .iter()
+                        .find(|(p, _)| *p == param)
+                        .map(|param_key| param_key.1.clone())
+                };
 
                 if let Some(shared_cell) = maybe_shared_cell {
                     shared_cell.inner.get_or_init(load_from_persistent_storage);

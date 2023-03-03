@@ -1,6 +1,7 @@
 //! # WARNING: this module is experimental.
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::*;
+use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::math::fft::Fft;
@@ -181,6 +182,29 @@ impl ShortintEngine {
         let mut output =
             LweCiphertextListOwned::new(0u64, lwe_size, LweCiphertextCount(extracted_bit_count.0));
 
+        self.extract_bits_assign(
+            delta_log,
+            lwe_in,
+            wopbs_key,
+            extracted_bit_count,
+            &mut output,
+        );
+
+        Ok(output)
+    }
+
+    pub(crate) fn extract_bits_assign<OutputCont>(
+        &mut self,
+        delta_log: DeltaLog,
+        lwe_in: &LweCiphertextOwned<u64>,
+        wopbs_key: &WopbsKey,
+        extracted_bit_count: ExtractedBitsCount,
+        output: &mut LweCiphertextList<OutputCont>,
+    ) where
+        OutputCont: ContainerMut<Element = u64>,
+    {
+        let server_key = &wopbs_key.wopbs_server_key;
+
         let bsk = &server_key.bootstrapping_key;
         let ksk = &server_key.key_switching_key;
 
@@ -203,7 +227,7 @@ impl ShortintEngine {
 
         extract_bits_from_lwe_ciphertext_mem_optimized(
             lwe_in,
-            &mut output,
+            output,
             bsk,
             ksk,
             delta_log,
@@ -211,17 +235,18 @@ impl ShortintEngine {
             fft,
             stack,
         );
-
-        Ok(output)
     }
 
-    pub(crate) fn circuit_bootstrap_with_bits(
+    pub(crate) fn circuit_bootstrap_with_bits<InputCont>(
         &mut self,
         wopbs_key: &WopbsKey,
-        extracted_bits: &LweCiphertextListView<'_, u64>,
+        extracted_bits: &LweCiphertextList<InputCont>,
         lut: &PlaintextListView<'_, u64>,
         count: LweCiphertextCount,
-    ) -> EngineResult<LweCiphertextListOwned<u64>> {
+    ) -> EngineResult<LweCiphertextListOwned<u64>>
+    where
+        InputCont: Container<Element = u64>,
+    {
         let sks = &wopbs_key.wopbs_server_key;
         let fourier_bsk = &sks.bootstrapping_key;
 
@@ -482,30 +507,21 @@ impl ShortintEngine {
     /// Temporary wrapper.
     ///
     /// # Warning Experimental
-    pub fn circuit_bootstrapping_vertical_packing(
+    pub fn circuit_bootstrapping_vertical_packing<InputCont>(
         &mut self,
         wopbs_key: &WopbsKey,
         vec_lut: &[Vec<u64>],
-        extracted_bits_blocks: &[LweCiphertextListOwned<u64>],
-    ) -> Vec<LweCiphertextOwned<u64>> {
-        let lwe_size = extracted_bits_blocks[0].lwe_size();
-
-        let mut all_datas = vec![];
-        for lwe_vec in extracted_bits_blocks.iter() {
-            let data = lwe_vec.as_ref();
-
-            all_datas.extend_from_slice(data);
-        }
-
-        let flatenned_extracted_bits_view =
-            LweCiphertextListView::from_container(all_datas.as_slice(), lwe_size);
-
+        extracted_bits_blocks: &LweCiphertextList<InputCont>,
+    ) -> Vec<LweCiphertextOwned<u64>>
+    where
+        InputCont: Container<Element = u64>,
+    {
         let flattened_lut: Vec<u64> = vec_lut.iter().flatten().copied().collect();
         let plaintext_lut = PlaintextListView::from_container(&flattened_lut);
         let output_list = self
             .circuit_bootstrap_with_bits(
                 wopbs_key,
-                &flatenned_extracted_bits_view,
+                extracted_bits_blocks,
                 &plaintext_lut,
                 LweCiphertextCount(vec_lut.len()),
             )
