@@ -13,7 +13,7 @@ fn main() {
 
 // We use the client secret key to encrypt a message:
     let ct_1 = client_key.encrypt(true);
-    
+
 // We use the server public key to execute the NOT gate:
     let ct_not = server_key.not(&ct_1);
 
@@ -30,12 +30,12 @@ use tfhe::boolean::prelude::*;
 
 fn main() {
 // We generate a set of client/server keys, using the default parameters:
-    let (mut client_key, mut server_key) = gen_keys();
+    let (client_key, server_key) = gen_keys();
 
 // We use the client secret key to encrypt a message:
     let ct_1 = client_key.encrypt(true);
     let ct_2 = client_key.encrypt(false);
-    
+
 // We use the server public key to execute the XOR gate:
     let ct_xor = server_key.xor(&ct_1, &ct_2);
 
@@ -47,10 +47,10 @@ fn main() {
 
 ## The MUX ternary gate
 
-Let `ct_1, ct_2, ct_3` be three Boolean ciphertexts. Then, the MUX gate (abbreviation of MUtipleXer) is equivalent to the operation:
+Let `ct_1, ct_2, ct_3` be three Boolean ciphertexts. Then, the MUX gate (abbreviation of MUltipleXer) is equivalent to the operation:
 
 ```r
-if ct_1 {  
+if ct_1 {
     return ct_2
 } else {
     return ct_3
@@ -64,12 +64,12 @@ use tfhe::boolean::prelude::*;
 
 fn main() {
 // We generate a set of client/server keys, using the default parameters:
-    let (mut client_key, mut server_key) = gen_keys();
+    let (client_key, server_key) = gen_keys();
 
     let bool1 = true;
     let bool2 = false;
     let bool3 = true;
-    
+
 // We use the client secret key to encrypt a message:
     let ct_1 = client_key.encrypt(true);
     let ct_2 = client_key.encrypt(false);

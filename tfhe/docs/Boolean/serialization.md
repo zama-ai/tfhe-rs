@@ -1,7 +1,7 @@
 # Save and Load Keys From Files
 
 Since the `ServerKey` and `ClientKey` types both implement the `Serialize` and
-`Deserialize` traits, you are free to use any serializer that suits you to save and load the 
+`Deserialize` traits, you are free to use any serializer that suits you to save and load the
 keys to disk.
 
 Here is an example using the `bincode` serialization library, which serializes to a
@@ -48,9 +48,9 @@ fn main() {
     let loaded_client_key: ClientKey = bincode::deserialize(&encoded_client_key[..])
         .expect("failed to deserialize");
 
-    
+
     let ct_1 = client_key.encrypt(false);
-    
+
 // We check for equality:
     assert_eq!(false, loaded_client_key.decrypt(&ct_1));
 }

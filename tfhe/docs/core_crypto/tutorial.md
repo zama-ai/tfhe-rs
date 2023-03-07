@@ -137,7 +137,7 @@ pub fn main() {
     );
 
     // Decrypt the cleartext multiplication result
-    let cleartext_multipliation_plaintext: Plaintext<u64> =
+    let cleartext_multiplication_plaintext: Plaintext<u64> =
         decrypt_lwe_ciphertext(&small_lwe_sk, &cleartext_multiplication_ct);
 
     // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
@@ -148,7 +148,7 @@ pub fn main() {
 
     // Round and remove our encoding
     let cleartext_multiplication_result: u64 =
-        signed_decomposer.closest_representable(cleartext_multipliation_plaintext.0) / delta;
+        signed_decomposer.closest_representable(cleartext_multiplication_plaintext.0) / delta;
 
     println!("Checking result...");
     assert_eq!(6, cleartext_multiplication_result);

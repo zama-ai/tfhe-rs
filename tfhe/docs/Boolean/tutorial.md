@@ -81,7 +81,7 @@ use tfhe::boolean::prelude::*;
 
 fn main() {
     // Don't consider the following line; you should follow the procedure above.
-    let (mut client_key, _) = gen_keys();
+    let (client_key, _) = gen_keys();
 
 //---------------------------- SERVER SIDE
 
@@ -138,7 +138,7 @@ use tfhe::boolean::prelude::*;
 
 fn main() {
     // Don't consider the following lines; you should follow the procedure above.
-    let (mut client_key, mut server_key) = gen_keys();
+    let (client_key, server_key) = gen_keys();
     let ct_1 = client_key.encrypt(true);
     let ct_2 = client_key.encrypt(false);
     let encoded_1: Vec<u8> = bincode::serialize(&ct_1).unwrap();
@@ -180,7 +180,7 @@ use tfhe::boolean::prelude::*;
 
 fn main() {
     // Don't consider the following lines; you should follow the procedure above.
-    let (mut client_key, mut server_key) = gen_keys();
+    let (client_key, server_key) = gen_keys();
     let ct_6 = client_key.encrypt(true);
     let encoded_output: Vec<u8> = bincode::serialize(&ct_6).unwrap();
 
