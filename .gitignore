@@ -29,3 +29,7 @@ tfhe/web_wasm_parallel_tests/server.PID
 
 # Dir used for backward compatibility test data
 tfhe/tfhe-backward-compat-data/
+
+# Sampling tool stuff
+/venv/
+**/*.algo_sample_acquistion
