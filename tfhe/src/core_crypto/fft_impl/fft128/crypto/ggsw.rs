@@ -11,7 +11,7 @@ use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
 use crate::core_crypto::prelude::ContainerMut;
-use aligned_vec::CACHELINE_ALIGN;
+use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::fft128::f128;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
@@ -162,6 +162,38 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
                 DecompositionLevel(i + 1),
             )
         })
+    }
+}
+
+pub type Fourier128GgswCiphertextOwned = Fourier128GgswCiphertext<ABox<[f64]>>;
+
+impl Fourier128GgswCiphertext<ABox<[f64]>> {
+    pub fn new(
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        decomposition_base_log: DecompositionBaseLog,
+        decomposition_level_count: DecompositionLevelCount,
+    ) -> Fourier128GgswCiphertext<ABox<[f64]>> {
+        let container_len = polynomial_size.to_fourier_polynomial_size().0
+            * decomposition_level_count.0
+            * glwe_size.0
+            * glwe_size.0;
+
+        let boxed_re0 = avec![0.0f64; container_len].into_boxed_slice();
+        let boxed_re1 = avec![0.0f64; container_len].into_boxed_slice();
+        let boxed_im0 = avec![0.0f64; container_len].into_boxed_slice();
+        let boxed_im1 = avec![0.0f64; container_len].into_boxed_slice();
+
+        Fourier128GgswCiphertext::from_container(
+            boxed_re0,
+            boxed_re1,
+            boxed_im0,
+            boxed_im1,
+            polynomial_size,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        )
     }
 }
 

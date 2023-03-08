@@ -12,6 +12,6 @@ pub use super::commons::math::random::{ActivatedRandomGenerator, Gaussian, TUnif
 pub use super::commons::parameters::*;
 pub use super::commons::traits::*;
 pub use super::entities::*;
-pub use super::fft_impl::fft128::math::fft::Fft128;
-pub use super::fft_impl::fft64::math::fft::Fft;
+pub use super::fft_impl::fft128::math::fft::{Fft128, Fft128View};
+pub use super::fft_impl::fft64::math::fft::{Fft, FftView};
 pub use super::seeders::*;

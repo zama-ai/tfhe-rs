@@ -6,6 +6,9 @@ members = [
     "apps/trivium",
     "concrete-csprng",
     "backends/tfhe-cuda-backend",
+    "concrete-cpu-noise-model",
+    "tfhe-rs-cost-model",
+    "concrete-security-curves-rust",
 ]
 
 [profile.bench]

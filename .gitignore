@@ -22,3 +22,7 @@ dieharder_run.log
 
 # Cuda local build
 backends/tfhe-cuda-backend/cuda/cmake-build-debug/
+
+# Sampling tool stuff
+/venv/
+**/*.algo_sample_acquistion
