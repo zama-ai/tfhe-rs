@@ -9,7 +9,7 @@ MIN_RUST_VERSION:=1.65
 WASM_RUSTFLAGS:=
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
-export RUSTFLAGS:=-C target-cpu=native
+export RUSTFLAGS?=-C target-cpu=native
 
 .PHONY: rs_check_toolchain # Echo the rust toolchain used for checks
 rs_check_toolchain:
