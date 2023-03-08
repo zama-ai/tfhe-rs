@@ -31,3 +31,7 @@ web-test-runner/
 
 # Dir used for backward compatibility test data
 tfhe/tfhe-backward-compat-data/
+
+# Sampling tool stuff
+/venv/
+**/*.algo_sample_acquistion
