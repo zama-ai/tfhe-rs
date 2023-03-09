@@ -131,6 +131,7 @@ impl<'a> Comparator<'a> {
     ) -> crate::shortint::Ciphertext {
         let low = &chunk[0];
         let mut high = chunk[1].clone();
+        debug_assert!(high.degree.0 < high.message_modulus.0);
         self.pack_block_assign(low, &mut high);
         high
     }
@@ -147,6 +148,7 @@ impl<'a> Comparator<'a> {
         low: &crate::shortint::Ciphertext,
         high: &mut crate::shortint::Ciphertext,
     ) {
+        debug_assert!(high.degree.0 < high.message_modulus.0);
         self.server_key
             .key
             .unchecked_scalar_mul_assign(high, high.message_modulus.0 as u8);
@@ -162,19 +164,25 @@ impl<'a> Comparator<'a> {
         lhs: &mut crate::shortint::Ciphertext,
         rhs: &crate::shortint::Ciphertext,
     ) {
-        // Here we need the true lwe sub, not the one that comes from shortint.
-        //
         // When rhs > lhs, the subtraction will overflow, and the bit of padding will be set to 1
         // meaning that the output of the pbs will be the negative (modulo message space)
-        // eg 1 -> (-1) % (message_modulus * carry_modulus * 2)
-        // eg 1 -> (-1) % (4 * 4 * 2) -> 31
-        // eg 0 -> 0
+        //
+        // Example:
+        // lhs: 1, rhs: 3, message modulus: 4, carry modulus 4
+        // lhs - rhs = -2 % (4 * 4) = 14 = 1|1110 (padding_bit|b4b3b2b1)
+        // Since there was an overflow the bit of padding is 1 and not 0.
+        // When applying the LUT for an input value of 14 we would expect 1,
+        // but since the bit of padding is 1, we will get -1 modulus our message space,
+        // so (-1) % (4 * 4) = 15 = 1|1111
+        // We then add one and get 0 = 0|0000
+
+        // Here we need the true lwe sub, not the one that comes from shortint.
         crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs.ct, &rhs.ct);
         self.server_key
             .key
             .keyswitch_programmable_bootstrap_assign(lhs, &self.sign_accumulator);
 
-        // Here Lhs can have the following values: (-1), 0, 1
+        // Here Lhs can have the following values: (-1) % (message modulus * carry modulus), 0, 1
         // So the output values after the addition will be: 0, 1, 2
         self.server_key.key.unchecked_scalar_add_assign(lhs, 1);
     }
@@ -207,18 +215,22 @@ impl<'a> Comparator<'a> {
             }
             comparisons
         } else {
-            let mut comparisons = Vec::with_capacity(num_block / 2);
-            for (lhs_chunk, rhs_chunk) in lhs.blocks.chunks_exact(2).zip(rhs.blocks.chunks_exact(2))
-            {
+            let mut lhs_chunks_iter = lhs.blocks.chunks_exact(2);
+            let mut rhs_chunks_iter = rhs.blocks.chunks_exact(2);
+            let mut comparisons =
+                Vec::with_capacity(lhs_chunks_iter.len() + lhs_chunks_iter.remainder().len());
+
+            for (lhs_chunk, rhs_chunk) in lhs_chunks_iter.by_ref().zip(rhs_chunks_iter.by_ref()) {
                 let mut packed_lhs = self.pack_block_chunk(lhs_chunk);
                 let packed_rhs = self.pack_block_chunk(rhs_chunk);
                 self.compare_block_assign(&mut packed_lhs, &packed_rhs);
                 comparisons.push(packed_lhs);
             }
 
-            if (num_block % 2) == 1 {
-                let mut last_lhs_block = lhs.blocks[num_block - 1].clone();
-                let last_rhs_block = &rhs.blocks[num_block - 1];
+            if let ([last_lhs_block], [last_rhs_block]) =
+                (lhs_chunks_iter.remainder(), rhs_chunks_iter.remainder())
+            {
+                let mut last_lhs_block = last_lhs_block.clone();
                 self.compare_block_assign(&mut last_lhs_block, last_rhs_block);
                 comparisons.push(last_lhs_block)
             }

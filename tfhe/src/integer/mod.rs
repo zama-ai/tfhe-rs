@@ -64,7 +64,6 @@ pub mod wopbs;
 
 pub use ciphertext::{CrtCiphertext, IntegerCiphertext, RadixCiphertext};
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
-pub use encryption::ClearText;
 pub use public_key::{CompressedPublicKey, PublicKey};
 pub use server_key::{CheckError, ServerKey};
 pub use u256::U256;

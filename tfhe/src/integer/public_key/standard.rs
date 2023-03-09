@@ -1,6 +1,6 @@
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, ClearText};
+use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::PublicKey as ShortintPublicKey;
 
@@ -19,12 +19,12 @@ impl PublicKey {
         self.key.parameters
     }
 
-    pub fn encrypt_radix<T: ClearText>(&self, message: T, num_blocks: usize) -> RadixCiphertext {
-        self.encrypt_words_radix(
-            message.as_words(),
-            num_blocks,
-            crate::shortint::PublicKey::encrypt,
-        )
+    pub fn encrypt_radix<T: AsLittleEndianWords>(
+        &self,
+        message: T,
+        num_blocks: usize,
+    ) -> RadixCiphertext {
+        self.encrypt_words_radix(message, num_blocks, crate::shortint::PublicKey::encrypt)
     }
 
     pub fn encrypt_radix_without_padding(
@@ -33,19 +33,20 @@ impl PublicKey {
         num_blocks: usize,
     ) -> RadixCiphertext {
         self.encrypt_words_radix(
-            message.as_words(),
+            message,
             num_blocks,
             crate::shortint::PublicKey::encrypt_without_padding,
         )
     }
 
-    pub fn encrypt_words_radix<Block, RadixCiphertextType, F>(
+    pub fn encrypt_words_radix<Block, RadixCiphertextType, T, F>(
         &self,
-        message_words: &[u64],
+        message_words: T,
         num_blocks: usize,
         encrypt_block: F,
     ) -> RadixCiphertextType
     where
+        T: AsLittleEndianWords,
         F: Fn(&crate::shortint::PublicKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {

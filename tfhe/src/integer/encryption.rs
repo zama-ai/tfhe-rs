@@ -1,45 +1,111 @@
 use super::U256;
 use crate::shortint::parameters::MessageModulus;
 
-pub trait ClearText {
-    // words are expected to be in the target endian
-    fn as_words(&self) -> &[u64];
+pub trait AsLittleEndianWords {
+    type Iter<'a>: Iterator<Item = &'a u64>
+    where
+        Self: 'a;
 
-    // words are expected to be in the target endian
-    fn as_words_mut(&mut self) -> &mut [u64];
+    type IterMut<'a>: Iterator<Item = &'a mut u64>
+    where
+        Self: 'a;
+
+    fn as_little_endian_iter(&self) -> Self::Iter<'_>;
+
+    fn as_little_endian_iter_mut(&mut self) -> Self::IterMut<'_>;
 }
 
-impl ClearText for u64 {
-    fn as_words(&self) -> &[u64] {
-        std::slice::from_ref(self)
+impl AsLittleEndianWords for u64 {
+    type Iter<'a> = std::slice::Iter<'a, u64>;
+
+    type IterMut<'a> = std::slice::IterMut<'a, u64>;
+
+    fn as_little_endian_iter(&self) -> Self::Iter<'_> {
+        let u64_slc = std::slice::from_ref(self);
+
+        u64_slc.iter()
     }
 
-    fn as_words_mut(&mut self) -> &mut [u64] {
-        std::slice::from_mut(self)
-    }
-}
+    fn as_little_endian_iter_mut(&mut self) -> Self::IterMut<'_> {
+        let u64_slc = std::slice::from_mut(self);
 
-impl ClearText for u128 {
-    fn as_words(&self) -> &[u64] {
-        let u128_slc = std::slice::from_ref(self);
-        unsafe { std::slice::from_raw_parts(u128_slc.as_ptr() as *const u64, 2) }
-    }
-
-    fn as_words_mut(&mut self) -> &mut [u64] {
-        let u128_slc = std::slice::from_mut(self);
-        unsafe { std::slice::from_raw_parts_mut(u128_slc.as_mut_ptr() as *mut u64, 2) }
+        u64_slc.iter_mut()
     }
 }
 
-impl ClearText for U256 {
-    fn as_words(&self) -> &[u64] {
-        let u128_slc = self.0.as_slice();
-        unsafe { std::slice::from_raw_parts(u128_slc.as_ptr() as *const u64, 4) }
+#[cfg(target_endian = "little")]
+impl AsLittleEndianWords for u128 {
+    type Iter<'a> = std::slice::Iter<'a, u64>;
+
+    type IterMut<'a> = std::slice::IterMut<'a, u64>;
+
+    fn as_little_endian_iter(&self) -> Self::Iter<'_> {
+        let slc = std::slice::from_ref(self);
+
+        let u64_slc = unsafe { std::slice::from_raw_parts(slc.as_ptr() as *const u64, 2) };
+
+        u64_slc.iter()
     }
 
-    fn as_words_mut(&mut self) -> &mut [u64] {
-        let u128_slc = self.0.as_mut_slice();
-        unsafe { std::slice::from_raw_parts_mut(u128_slc.as_mut_ptr() as *mut u64, 4) }
+    fn as_little_endian_iter_mut(&mut self) -> Self::IterMut<'_> {
+        let slc = std::slice::from_mut(self);
+
+        let u64_slc = unsafe { std::slice::from_raw_parts_mut(slc.as_ptr() as *mut u64, 2) };
+
+        u64_slc.iter_mut()
+    }
+}
+
+#[cfg(target_endian = "big")]
+impl AsLittleEndianWords for u128 {
+    type Iter<'a> = core::iter::Rev<std::slice::Iter<'a, u64>>;
+
+    type IterMut<'a> = core::iter::Rev<std::slice::IterMut<'a, u64>>;
+
+    fn as_little_endian_iter(&self) -> Self::Iter<'_> {
+        let slc = std::slice::from_ref(self);
+
+        let u64_slc = unsafe { std::slice::from_raw_parts(slc.as_ptr() as *const u64, 2) };
+
+        u64_slc.iter().rev()
+    }
+
+    fn as_little_endian_iter_mut(&mut self) -> Self::IterMut<'_> {
+        let slc = std::slice::from_mut(self);
+
+        let u64_slc = unsafe { std::slice::from_raw_parts_mut(slc.as_ptr() as *mut u64, 2) };
+
+        u64_slc.iter_mut().rev()
+    }
+}
+
+#[cfg(target_endian = "little")]
+impl AsLittleEndianWords for U256 {
+    type Iter<'a> = std::slice::Iter<'a, u64>;
+
+    type IterMut<'a> = std::slice::IterMut<'a, u64>;
+
+    fn as_little_endian_iter(&self) -> Self::Iter<'_> {
+        self.0.as_slice().iter()
+    }
+
+    fn as_little_endian_iter_mut(&mut self) -> Self::IterMut<'_> {
+        self.0.as_mut_slice().iter_mut()
+    }
+}
+
+#[cfg(target_endian = "big")]
+impl AsLittleEndianWords for U256 {
+    type Iter<'a> = core::iter::Rev<std::slice::Iter<'a, u64>>;
+
+    type IterMut<'a> = core::iter::Rev<std::slice::IterMut<'a, u64>>;
+
+    fn as_little_endian_iter(&self) -> Self::Iter<'_> {
+        self.0.as_slice().iter().rev()
+    }
+
+    fn as_little_endian_iter_mut(&mut self) -> Self::IterMut<'_> {
+        self.0.as_mut_slice().iter_mut().rev()
     }
 }
 
@@ -73,13 +139,14 @@ impl BlockEncryptionKey for crate::shortint::CompressedPublicKey {
 /// - Each block in encrypted under the same `encrypting_key`.
 /// - `message_words` is expected to be in the current machine byte order.
 /// - `num_block` is the number of radix block the final ciphertext will have.
-pub(crate) fn encrypt_words_radix_impl<BlockKey, Block, RadixCiphertextType, F>(
+pub(crate) fn encrypt_words_radix_impl<BlockKey, Block, RadixCiphertextType, T, F>(
     encrypting_key: &BlockKey,
-    message_words: &[u64],
+    message_words: T,
     num_blocks: usize,
     encrypt_block: F,
 ) -> RadixCiphertextType
 where
+    T: AsLittleEndianWords,
     BlockKey: BlockEncryptionKey,
     F: Fn(&BlockKey, u64) -> Block,
     RadixCiphertextType: From<Vec<Block>>,
@@ -99,10 +166,7 @@ where
 
     let mut blocks = Vec::with_capacity(num_blocks);
 
-    #[cfg(target_endian = "little")]
-    let mut message_block_iter = message_words.iter().copied();
-    #[cfg(target_endian = "big")]
-    let mut message_block_iter = message_words.iter().rev().copied();
+    let mut message_block_iter = message_words.as_little_endian_iter().copied();
 
     let mut bit_buffer = 0u128; // stores the bits of the word to be encrypted in one of the iteration
     let mut valid_until_power = 1; // 2^0 = 1, start with nothing valid

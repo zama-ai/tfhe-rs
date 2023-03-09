@@ -11,7 +11,7 @@ use crate::integer::ciphertext::{
     CompressedCrtCiphertext, CompressedRadixCiphertext, CrtCiphertext, RadixCiphertext,
 };
 use crate::integer::client_key::utils::i_crt;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, ClearText};
+use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::{
     Ciphertext as ShortintCiphertext, ClientKey as ShortintClientKey,
@@ -97,33 +97,33 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_radix<T: ClearText>(&self, message: T, num_blocks: usize) -> RadixCiphertext {
-        self.encrypt_words_radix(
-            message.as_words(),
-            num_blocks,
-            crate::shortint::ClientKey::encrypt,
-        )
+    pub fn encrypt_radix<T: AsLittleEndianWords>(
+        &self,
+        message: T,
+        num_blocks: usize,
+    ) -> RadixCiphertext {
+        self.encrypt_words_radix(message, num_blocks, crate::shortint::ClientKey::encrypt)
     }
 
-    pub fn encrypt_radix_compressed<T: ClearText>(
+    pub fn encrypt_radix_compressed<T: AsLittleEndianWords>(
         &self,
         message: T,
         num_blocks: usize,
     ) -> CompressedRadixCiphertext {
         self.encrypt_words_radix(
-            message.as_words(),
+            message,
             num_blocks,
             crate::shortint::ClientKey::encrypt_compressed,
         )
     }
 
-    pub fn encrypt_radix_without_padding_compressed<T: ClearText>(
+    pub fn encrypt_radix_without_padding_compressed<T: AsLittleEndianWords>(
         &self,
         message: T,
         num_blocks: usize,
     ) -> CompressedRadixCiphertext {
         self.encrypt_words_radix(
-            message.as_words(),
+            message,
             num_blocks,
             crate::shortint::ClientKey::encrypt_without_padding_compressed,
         )
@@ -155,7 +155,7 @@ impl ClientKey {
         num_blocks: usize,
     ) -> RadixCiphertext {
         self.encrypt_words_radix(
-            message.as_words(),
+            message,
             num_blocks,
             crate::shortint::ClientKey::encrypt_without_padding,
         )
@@ -167,13 +167,14 @@ impl ClientKey {
     ///
     /// If there are not enough words for the requested num_block,
     /// encryptions of zeros will be appended.
-    pub fn encrypt_words_radix<Block, RadixCiphertextType, F>(
+    pub fn encrypt_words_radix<Block, RadixCiphertextType, T, F>(
         &self,
-        message_words: &[u64],
+        message_words: T,
         num_blocks: usize,
         encrypt_block: F,
     ) -> RadixCiphertextType
     where
+        T: AsLittleEndianWords,
         F: Fn(&crate::shortint::ClientKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
@@ -233,16 +234,16 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn decrypt_radix<T: ClearText + Default>(&self, ctxt: &RadixCiphertext) -> T {
+    pub fn decrypt_radix<T: AsLittleEndianWords + Default>(&self, ctxt: &RadixCiphertext) -> T {
         let mut res = T::default();
         self.decrypt_radix_into(ctxt, &mut res);
         res
     }
 
-    pub fn decrypt_radix_into<T: ClearText>(&self, ctxt: &RadixCiphertext, out: &mut T) {
+    pub fn decrypt_radix_into<T: AsLittleEndianWords>(&self, ctxt: &RadixCiphertext, out: &mut T) {
         self.decrypt_radix_into_words(
             ctxt,
-            out.as_words_mut(),
+            out,
             crate::shortint::ClientKey::decrypt_message_and_carry,
         );
     }
@@ -271,7 +272,7 @@ impl ClientKey {
         let mut res = 0u64;
         self.decrypt_radix_into_words(
             ctxt,
-            res.as_words_mut(),
+            &mut res,
             crate::shortint::ClientKey::decrypt_message_and_carry_without_padding,
         );
         res
@@ -280,22 +281,20 @@ impl ClientKey {
     /// Decrypts a ciphertext in radix decomposition into 64bits
     ///
     /// The words are assumed to be in little endian order.
-    pub fn decrypt_radix_into_words<F>(
+    pub fn decrypt_radix_into_words<T, F>(
         &self,
         ctxt: &RadixCiphertext,
-        clear_words: &mut [u64],
+        clear_words: &mut T,
         decrypt_block: F,
     ) where
+        T: AsLittleEndianWords,
         F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
     {
         // limit to know when we have at least 64 bits
         // of decrypted data
         const U64_MODULUS: u128 = 1 << 64;
 
-        #[cfg(target_endian = "little")]
-        let clear_words_iter = clear_words.iter_mut();
-        #[cfg(target_endian = "big")]
-        let clear_words_iter = clear_words.iter_mut().rev();
+        let clear_words_iter = clear_words.as_little_endian_iter_mut();
 
         let mut cipher_blocks_iter = ctxt.blocks.iter();
         let mut bit_buffer = 0u128;
@@ -312,11 +311,11 @@ impl ClientKey {
                 if valid_until_power >= U64_MODULUS {
                     // We have enough data to fill the current word
                     // e.g.
-                    // bit_buffer: [b0, ..., b64, b65, b66, b67,..., b128]
-                    //                            ^          ^
-                    //                            |          |-> valid_until_power
-                    //                            |              = end of decrypted bits (not
-                    // inclusive)                            |-> U64_MODULUS
+                    // bit_buffer: [b0, ..., b64, b66, b67,..., b128]
+                    //                       ^          ^
+                    //                       |          |-> valid_until_power
+                    //                       |              = end of decrypted bits
+                    //                       |-> U64_MODULUS
                     break;
                 }
             }
