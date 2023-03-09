@@ -288,40 +288,46 @@ impl ClientKey {
     ) where
         F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
     {
+        // limit to know when we have at least 64 bits
+        // of decrypted data
+        const U64_MODULUS: u128 = 1 << 64;
+
         #[cfg(target_endian = "little")]
         let clear_words_iter = clear_words.iter_mut();
         #[cfg(target_endian = "big")]
         let clear_words_iter = clear_words.iter_mut().rev();
 
         let mut cipher_blocks_iter = ctxt.blocks.iter();
-        let mut current = 0u128;
-        let mut power = 1u128;
-        let mut power_excess = 1;
+        let mut bit_buffer = 0u128;
+        let mut valid_until_power = 1u128;
         for current_clear_word in clear_words_iter {
             for cipher_block in cipher_blocks_iter.by_ref() {
                 let block_value = decrypt_block(&self.key, cipher_block) as u128;
 
-                let shifted_block_value = block_value * power * power_excess;
-                current += shifted_block_value;
+                let shifted_block_value = block_value * valid_until_power;
+                bit_buffer += shifted_block_value;
 
-                let new_power = power * self.key.parameters.message_modulus.0 as u128;
-                let pow_dif = (new_power * power_excess) / (1u128 << 64);
+                valid_until_power *= self.key.parameters.message_modulus.0 as u128;
 
-                if pow_dif >= 1 {
-                    power_excess = pow_dif;
-                    power = 1;
+                if valid_until_power >= U64_MODULUS {
+                    // We have enough data to fill the current word
+                    // e.g.
+                    // bit_buffer: [b0, ..., b64, b65, b66, b67,..., b128]
+                    //                            ^          ^
+                    //                            |          |-> valid_until_power
+                    //                            |              = end of decrypted bits (not
+                    // inclusive)                            |-> U64_MODULUS
                     break;
-                } else {
-                    power = new_power;
                 }
             }
 
-            if power == 1 {
-                *current_clear_word = (current & u128::from(u64::MAX)) as u64;
-                current = current.wrapping_shr(64);
-            } else {
-                *current_clear_word = (current & ((power * power_excess) - 1)) as u64;
-            }
+            // We want to take at most 64 bits of data from the bit buffer
+            // since our words are 64 bits
+            let power_to_write = std::cmp::min(valid_until_power, U64_MODULUS);
+            let mask = power_to_write - 1;
+            *current_clear_word = (bit_buffer & mask) as u64;
+            bit_buffer /= power_to_write;
+            valid_until_power /= power_to_write;
         }
     }
 
