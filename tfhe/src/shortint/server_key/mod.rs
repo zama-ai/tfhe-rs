@@ -484,10 +484,10 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let clear = 9;
     ///
