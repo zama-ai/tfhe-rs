@@ -315,7 +315,7 @@ fn _bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
 
     bench_group.bench_function(&id, |b| {
         b.iter(|| {
-            let _ = wopbs_key.programmable_bootstrapping_native_crt(&mut ct, &vec_lut);
+            let _ = wopbs_key.programmable_bootstrapping_native_crt(&mut ct, vec_lut.as_ref());
         })
     });
 

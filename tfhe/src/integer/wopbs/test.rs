@@ -168,7 +168,7 @@ pub fn wopbs_crt(params: (Parameters, Parameters)) {
     }
 }
 
-// test wopbs fake crt with different degree for each Ct
+// test wopbs radix with different degree for each Ct
 pub fn wopbs_radix(params: (Parameters, Parameters)) {
     let mut rng = rand::thread_rng();
 
