@@ -65,7 +65,7 @@ where
     );
     assert!(
         output.len() == lhs.len(),
-        "output (len: {}) and rhs (lhs: {}) must have the same length",
+        "output (len: {}) and rhs (len: {}) must have the same length",
         output.len(),
         lhs.len()
     );
@@ -174,7 +174,7 @@ where
     );
     assert!(
         output.len() == lhs.len(),
-        "output (len: {}) and rhs (lhs: {}) must have the same length",
+        "output (len: {}) and rhs (len: {}) must have the same length",
         output.len(),
         lhs.len()
     );
