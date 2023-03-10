@@ -6,6 +6,8 @@ mod crt;
 mod crt_parallel;
 mod radix;
 mod radix_parallel;
+#[cfg(test)]
+mod tests;
 
 use crate::integer::client_key::ClientKey;
 use crate::shortint::server_key::MaxDegree;

@@ -55,3 +55,10 @@ pub struct CrtCiphertext {
     pub(crate) blocks: Vec<ShortintCiphertext>,
     pub(crate) moduli: Vec<u64>,
 }
+
+pub fn crt_ciphertext_from_ciphertext(ct: &ShortintCiphertext) -> CrtCiphertext{
+    CrtCiphertext {
+        blocks: vec![ct.clone(); 1],
+        moduli: vec![ct.message_modulus.0 as u64; 1],
+    }
+}

@@ -7,6 +7,7 @@ use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::parameters::*;
 use tfhe::integer::wopbs::WopbsKey;
 use tfhe::integer::{gen_keys, RadixCiphertext, ServerKey};
+use tfhe::integer::parameters::parameters_benches_joc::ID_1_RADIX_16_BITS_16_BLOCKS;
 use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
 use tfhe::shortint::parameters::parameters_wopbs_message_carry::get_parameters_from_message_and_carry_wopbs;
 use tfhe::shortint::parameters::{get_parameters_from_message_and_carry, DEFAULT_PARAMETERS};
@@ -274,13 +275,16 @@ criterion_group!(
 
 criterion_group!(misc, full_propagate,);
 
+criterion_group!(joc, joc_radix_id1,);
+
 criterion_main!(
-    smart_arithmetic_operation,
-    smart_scalar_arithmetic_operation,
-    unchecked_arithmetic_operation,
-    unchecked_scalar_arithmetic_operation,
-    misc,
-    to_be_reworked,
+    // smart_arithmetic_operation,
+    // smart_scalar_arithmetic_operation,
+    // unchecked_arithmetic_operation,
+    // unchecked_scalar_arithmetic_operation,
+    // misc,
+    // to_be_reworked,
+    joc,
 );
 
 fn smart_block_mul(c: &mut Criterion) {
@@ -907,6 +911,53 @@ fn concrete_integer_unchecked_clean_carry_crt_32_bits(c: &mut Criterion) {
     group.bench_function(id, |b| {
         b.iter(|| {
             sks.pbs_crt_compliant_function_assign(&mut ct_zero, |x| x % basis[0]);
+        })
+    });
+}
+
+
+
+
+fn joc_radix_id1(c: &mut Criterion) {
+    let mut group = c.benchmark_group("{}",stringify!(ID_));
+    group.sample_size(10);
+    let param = ID_1_RADIX_16_BITS_16_BLOCKS;
+    let nb_blocks = 16;
+
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+    println!("Chosen Parameter Set: {param:?}");
+
+    let modulus = 1 << 16;
+
+    let clear_0 = 29 % modulus;
+
+    // encryption of an integer
+    let mut ct_zero = cks.encrypt_radix(clear_0, nb_blocks );
+    let mut ct_one = cks.encrypt_radix(clear_0, nb_blocks );
+
+
+    let id = "(bench_radix_id1_add):";
+    // add the two ciphertexts
+    group.bench_function(id, |b| {
+        b.iter(|| {
+            sks.unchecked_add(&mut ct_zero, &ct_one);
+        })
+    });
+
+    let id = "(bench_radix_id1_mul):";
+    // add the two ciphertexts
+    group.bench_function(id, |b| {
+        b.iter(|| {
+            sks.unchecked_mul(&mut ct_zero, &ct_one);
+        })
+    });
+
+    let id = "(bench_radix_id1_full_propagate):";
+    // add the two ciphertexts
+    group.bench_function(id, |b| {
+        b.iter(|| {
+            sks.full_propagate(&mut ct_zero);
         })
     });
 }

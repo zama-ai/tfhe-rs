@@ -86,7 +86,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         ct1: &mut Ciphertext,
-        ct2: &mut Ciphertext,
+        ct2: &Ciphertext,
     ) -> EngineResult<Ciphertext> {
         //ct1 + ct2
         let mut ct_tmp_left = self.unchecked_add(ct1, ct2)?;
@@ -112,7 +112,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         ct1: &mut Ciphertext,
-        ct2: &mut Ciphertext,
+        ct2: &Ciphertext,
     ) -> EngineResult<()> {
         *ct1 = self.unchecked_mul_lsb_small_carry_modulus(server_key, ct1, ct2)?;
         Ok(())

@@ -12,12 +12,12 @@ use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, RadixCiphertex
 use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
 
-use crate::shortint::Parameters;
+use crate::shortint::{Ciphertext, Parameters};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WopbsKey {
-    wopbs_key: crate::shortint::wopbs::WopbsKey,
+    pub wopbs_key: crate::shortint::wopbs::WopbsKey,
 }
 
 /// ```rust

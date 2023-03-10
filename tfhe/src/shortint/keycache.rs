@@ -3,6 +3,8 @@ use crate::shortint::parameters::parameters_wopbs_message_carry::*;
 use crate::shortint::parameters::parameters_wopbs_prime_moduli::*;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
+use crate::integer::parameters::parameters_benches_joc::*;
+
 use crate::shortint::{ClientKey, ServerKey};
 use lazy_static::*;
 use serde::{Deserialize, Serialize};
@@ -369,6 +371,19 @@ impl NamedParam for Parameters {
                 WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6,
                 WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7,
                 PARAM_4_BITS_5_BLOCKS,
+                ID_1_RADIX_16_BITS_16_BLOCKS,
+                ID_2_RADIX_16_BITS_8_BLOCKS,
+                ID_3_CRT_16_BITS_5_BLOCKS,
+                ID_4_RADIX_32_BITS_32_BLOCKS,
+                ID_5_RADIX_32_BITS_16_BLOCKS,
+                ID_6_RADIX_32_BITS_8_BLOCKS,
+                ID_6_CRT_32_BITS_6_BLOCKS,
+                ID_7_RADIX_16_BITS_16_BLOCKS_WOPBS,
+                ID_8_RADIX_16_BITS_8_BLOCKS_WOPBS,
+                ID_9_CRT_16_BITS_5_BLOCKS_WOPBS,
+                ID_10_NATIF_CRT_16_BITS_5_BLOCKS_WOPBS,
+                ID_11_NATIF_CRT_32_BITS_6_BLOCKS_WOPBS,
+                TEST_WOPBS,
             )
         );
     }

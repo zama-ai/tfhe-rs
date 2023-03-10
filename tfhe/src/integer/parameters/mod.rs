@@ -1,4 +1,7 @@
 #![allow(clippy::excessive_precision)]
+
+pub mod parameters_benches_joc;
+
 pub use crate::shortint::Parameters;
 
 use crate::shortint::parameters::{CarryModulus, MessageModulus};

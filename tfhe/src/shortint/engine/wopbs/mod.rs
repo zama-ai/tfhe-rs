@@ -504,6 +504,40 @@ impl ShortintEngine {
         Ok(ciphertext)
     }
 
+    //
+    // pub(crate) fn programmable_bootstrapping_native_crt_bivariate(
+    //     &mut self,
+    //     wopbs_key: &WopbsKey,
+    //     ct_1: &mut Ciphertext,
+    //     ct_2: &mut Ciphertext,
+    //     lut: &[u64],
+    // ) -> EngineResult<Ciphertext> {
+    //     let nb_bit_to_extract =
+    //         f64::log2((ct_in.message_modulus.0 * ct_in.carry_modulus.0) as f64).ceil() as usize;
+    //     let delta_log = DeltaLog(64 - nb_bit_to_extract);
+    //
+    //     // trick ( ct - delta/2 + delta/2^4  )
+    //     let lwe_size = ct_in.ct.lwe_size().0;
+    //     let mut cont = vec![0u64; lwe_size];
+    //     cont[lwe_size - 1] =
+    //         (1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5));
+    //     let tmp = LweCiphertextOwned::from_container(cont);
+    //
+    //     lwe_ciphertext_sub_assign(&mut ct_in.ct, &tmp);
+    //
+    //     let ciphertext = self.extract_bits_circuit_bootstrapping(
+    //         wopbs_key,
+    //         ct_in,
+    //         lut,
+    //         delta_log,
+    //         ExtractedBitsCount(nb_bit_to_extract),
+    //     )?;
+    //
+    //     Ok(ciphertext)
+    //     Ok(ciphertext)
+    // }
+
+
     /// Temporary wrapper.
     ///
     /// # Warning Experimental

@@ -354,7 +354,7 @@ impl ServerKey {
     pub fn unchecked_mul_lsb_small_carry_assign(
         &self,
         ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_right: &Ciphertext,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine

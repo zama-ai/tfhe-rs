@@ -190,6 +190,50 @@ impl WopbsKey {
         vec_lut
     }
 
+
+    //TODO
+    pub fn generate_lut_bivariate_native_crt<F>(&self, ct_1: &Ciphertext, f: F) -> Vec<u64>
+        where
+            F: Fn(u64, u64) -> u64,
+    {
+        let mut bit = vec![];
+        let mut total_bit = 0;
+        let mut modulus = 1;
+        let basis = ct_1.message_modulus.0 as u64;
+
+        modulus = basis;
+        let b = f64::log2(basis as f64).ceil() as u64;
+        total_bit += b;
+        bit.push(b);
+
+
+        let mut lut_size = 1 << (2 * total_bit);
+        if 1 << (2 * total_bit) < self.param.polynomial_size.0 as u64 {
+            lut_size = self.param.polynomial_size.0;
+        }
+        let mut vec_lut = vec![0; lut_size];
+
+        for value in 0..1 << (2 * total_bit) {
+            let value_1 = (value % (1 << total_bit)) as u64;
+            let value_2 = (value >> total_bit) as u64;
+            let mut index_lut_1 = 0;
+            let mut index_lut_2 = 0;
+            let mut tmp = 1;
+            for bit in bit.iter() {
+                index_lut_1 += (((value_1 % basis) << bit) / basis) * tmp;
+                index_lut_2 += (((value_2 % basis) << bit) / basis) * tmp;
+                tmp <<= bit;
+            }
+            let index = (index_lut_2 << total_bit) + (index_lut_1);
+
+            vec_lut[index as usize] =
+                    (((f(value_1, value_2) % b) as u128 * (1 << 64)) / basis as u128) as u64
+
+        }
+        vec_lut
+    }
+
+
     /// Apply the Look-Up Table homomorphically using the WoPBS approach.
     ///
     /// #Warning: this assumes one bit of padding.
@@ -320,6 +364,39 @@ impl WopbsKey {
                 .unwrap()
         })
     }
+
+    // /// Apply the Look-Up Table homomorphically using the WoPBS approach.
+    // ///
+    // /// # Example
+    // ///
+    // /// ```rust
+    // /// use tfhe::shortint::ciphertext::Ciphertext;
+    // /// use tfhe::shortint::gen_keys;
+    // /// use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_3_NORM2_2;
+    // /// use tfhe::shortint::wopbs::*;
+    // ///
+    // /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_NORM2_2);
+    // /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+    // /// let msg = 2;
+    // /// let modulus = 5;
+    // /// let mut ct = cks.encrypt_native_crt(msg, modulus);
+    // /// let lut = wopbs_key.generate_lut_native_crt(&ct, |x| x);
+    // /// let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&mut ct, &lut);
+    // /// let res = cks.decrypt_message_native_crt(&ct_res, modulus);
+    // /// assert_eq!(res, msg);
+    // /// ```
+    // pub fn programmable_bootstrapping_native_crt_bivariate(
+    //     &self,
+    //     ct_1: &mut Ciphertext,
+    //     ct_2: &mut Ciphertext,
+    //     lut: &[u64],
+    // ) -> Ciphertext {
+    //     ShortintEngine::with_thread_local_mut(|engine| {
+    //         engine
+    //             .programmable_bootstrapping_native_crt_bivariate(self, ct_1, ct_2, lut)
+    //             .unwrap()
+    //     })
+    // }
 
     /// Extract the given number of bits from a ciphertext.
     ///
