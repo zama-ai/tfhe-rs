@@ -52,7 +52,7 @@ where
 {
     let switched_ct = wopbs_key.keyswitch_to_wopbs_params(server_key, ct_in);
     let luts = wopbs_key.generate_lut_radix(&switched_ct, func);
-    let res = wopbs_key.wopbs(&switched_ct, luts.as_slice());
+    let res = wopbs_key.wopbs(&switched_ct, &luts);
     wopbs_key.keyswitch_to_pbs_params(&res)
 }
 
@@ -70,7 +70,7 @@ where
     let switched_lhs = wopbs_key.keyswitch_to_wopbs_params(server_key, lhs);
     let switched_rhs = wopbs_key.keyswitch_to_wopbs_params(server_key, rhs);
     let lut = wopbs_key.generate_lut_bivariate_radix(&switched_lhs, &switched_rhs, func);
-    let res = wopbs_key.bivariate_wopbs_with_degree(&switched_lhs, &switched_rhs, lut.as_slice());
+    let res = wopbs_key.bivariate_wopbs_with_degree(&switched_lhs, &switched_rhs, &lut);
     wopbs_key.keyswitch_to_pbs_params(&res)
 }
 
@@ -82,7 +82,7 @@ pub(crate) fn wopbs_crt(
 ) -> crate::integer::CrtCiphertext {
     let switched_ct = wopbs_key.keyswitch_to_wopbs_params(server_key, ct_in);
     let luts = wopbs_key.generate_lut_crt(&switched_ct, func);
-    let res = wopbs_key.wopbs(&switched_ct, luts.as_slice());
+    let res = wopbs_key.wopbs(&switched_ct, &luts);
     wopbs_key.keyswitch_to_pbs_params(&res)
 }
 
@@ -96,7 +96,7 @@ pub(crate) fn bivariate_wopbs_crt(
     let switched_lhs = wopbs_key.keyswitch_to_wopbs_params(server_key, lhs);
     let switched_rhs = wopbs_key.keyswitch_to_wopbs_params(server_key, rhs);
     let lut = wopbs_key.generate_lut_bivariate_crt(&switched_lhs, &switched_rhs, func);
-    let res = wopbs_key.bivariate_wopbs_native_crt(&switched_lhs, &switched_rhs, lut.as_slice());
+    let res = wopbs_key.bivariate_wopbs_native_crt(&switched_lhs, &switched_rhs, &lut);
     wopbs_key.keyswitch_to_pbs_params(&res)
 }
 

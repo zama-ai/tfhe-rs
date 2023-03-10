@@ -99,7 +99,7 @@ fn generate_lut_modulus_not_power_of_two(params: (Parameters, Parameters)) {
         let mut ct = cks.encrypt_native_crt(m as u64, message_modulus.0 as u8);
         let lut = wopbs_key.generate_lut_native_crt(&ct, |x| (x * x) % message_modulus.0 as u64);
 
-        let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&mut ct, &lut);
+        let ct_res = wopbs_key.programmable_bootstrapping_native_crt(&mut ct, lut.as_ref());
         let res = cks.decrypt_message_native_crt(&ct_res, message_modulus.0 as u8);
         assert_eq!(res as usize, (m * m) % message_modulus.0);
     }

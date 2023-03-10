@@ -8,7 +8,7 @@ use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::server_key::MaxDegree;
-use crate::shortint::wopbs::WopbsKey;
+use crate::shortint::wopbs::{WopbsKey, WopbsLUTBase};
 use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, Parameters, ServerKey};
 
 impl ShortintEngine {
@@ -249,15 +249,16 @@ impl ShortintEngine {
         );
     }
 
-    pub(crate) fn circuit_bootstrap_with_bits<InputCont>(
+    pub(crate) fn circuit_bootstrap_with_bits<InputCont, LutCont>(
         &mut self,
         wopbs_key: &WopbsKey,
         extracted_bits: &LweCiphertextList<InputCont>,
-        lut: &PlaintextListView<'_, u64>,
+        lut: &PlaintextList<LutCont>,
         count: LweCiphertextCount,
     ) -> EngineResult<LweCiphertextListOwned<u64>>
     where
         InputCont: Container<Element = u64>,
+        LutCont: Container<Element = u64>,
     {
         let sks = &wopbs_key.wopbs_server_key;
         let fourier_bsk = &sks.bootstrapping_key;
@@ -311,19 +312,17 @@ impl ShortintEngine {
         &mut self,
         wopbs_key: &WopbsKey,
         ct_in: &CiphertextBase<OpOrder>,
-        lut: &[u64],
+        lut: &WopbsLUTBase,
         delta_log: DeltaLog,
         nb_bit_to_extract: ExtractedBitsCount,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let extracted_bits =
             self.extract_bits(delta_log, &ct_in.ct, wopbs_key, nb_bit_to_extract)?;
 
-        let plaintext_lut = PlaintextList::from_container(lut);
-
         let ciphertext_list = self.circuit_bootstrap_with_bits(
             wopbs_key,
             &extracted_bits.as_view(),
-            &plaintext_lut,
+            lut.lut(),
             LweCiphertextCount(1),
         )?;
 
@@ -350,7 +349,7 @@ impl ShortintEngine {
         &mut self,
         wopbs_key: &WopbsKey,
         ct_in: &CiphertextBase<OpOrder>,
-        lut: &[u64],
+        lut: &WopbsLUTBase,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let sks = &wopbs_key.wopbs_server_key;
         let delta = (1_usize << 63) / (sks.message_modulus.0 * sks.carry_modulus.0) * 2;
@@ -469,7 +468,7 @@ impl ShortintEngine {
         &mut self,
         wopbs_key: &WopbsKey,
         ct_in: &CiphertextBase<OpOrder>,
-        lut: &[u64],
+        lut: &WopbsLUTBase,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let tmp_sks = &wopbs_key.wopbs_server_key;
         let delta = (1_usize << 63) / (tmp_sks.message_modulus.0 * tmp_sks.carry_modulus.0);
@@ -493,7 +492,7 @@ impl ShortintEngine {
         wopbs_key: &WopbsKey,
         sks: &ServerKey,
         ct_in: &CiphertextBase<OpOrder>,
-        lut: &[u64],
+        lut: &WopbsLUTBase,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let ct_wopbs = self.keyswitch_to_wopbs_params(sks, wopbs_key, ct_in)?;
         let result_ct = self.wopbs(wopbs_key, &ct_wopbs, lut)?;
@@ -506,20 +505,17 @@ impl ShortintEngine {
         &mut self,
         wopbs_key: &WopbsKey,
         ct_in: &mut CiphertextBase<OpOrder>,
-        lut: &[u64],
+        lut: &WopbsLUTBase,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let nb_bit_to_extract =
             f64::log2((ct_in.message_modulus.0 * ct_in.carry_modulus.0) as f64).ceil() as usize;
         let delta_log = DeltaLog(64 - nb_bit_to_extract);
 
         // trick ( ct - delta/2 + delta/2^4  )
-        let lwe_size = ct_in.ct.lwe_size().0;
-        let mut cont = vec![0u64; lwe_size];
-        cont[lwe_size - 1] =
-            (1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5));
-        let tmp = LweCiphertextOwned::from_container(cont, wopbs_key.param.ciphertext_modulus);
-
-        lwe_ciphertext_sub_assign(&mut ct_in.ct, &tmp);
+        lwe_ciphertext_plaintext_sub_assign(
+            &mut ct_in.ct,
+            Plaintext((1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5))),
+        );
 
         let ciphertext = self.extract_bits_circuit_bootstrapping(
             wopbs_key,
@@ -538,33 +534,34 @@ impl ShortintEngine {
     pub fn circuit_bootstrapping_vertical_packing<InputCont>(
         &mut self,
         wopbs_key: &WopbsKey,
-        vec_lut: &[Vec<u64>],
+        lut: &WopbsLUTBase,
         extracted_bits_blocks: &LweCiphertextList<InputCont>,
     ) -> Vec<LweCiphertextOwned<u64>>
     where
         InputCont: Container<Element = u64>,
     {
-        let flattened_lut: Vec<u64> = vec_lut.iter().flatten().copied().collect();
-        let plaintext_lut = PlaintextListView::from_container(&flattened_lut);
         let output_list = self
             .circuit_bootstrap_with_bits(
                 wopbs_key,
                 extracted_bits_blocks,
-                &plaintext_lut,
-                LweCiphertextCount(vec_lut.len()),
+                lut.lut(),
+                LweCiphertextCount(lut.output_ciphertext_count().0),
             )
             .unwrap();
 
-        assert_eq!(output_list.lwe_ciphertext_count().0, vec_lut.len());
+        assert_eq!(
+            output_list.lwe_ciphertext_count().0,
+            lut.output_ciphertext_count().0
+        );
 
         let output_container = output_list.into_container();
         let ciphertext_modulus = wopbs_key.param.ciphertext_modulus;
         let lwes: Vec<_> = output_container
-            .chunks_exact(output_container.len() / vec_lut.len())
+            .chunks_exact(output_container.len() / lut.output_ciphertext_count().0)
             .map(|s| LweCiphertextOwned::from_container(s.to_vec(), ciphertext_modulus))
             .collect();
 
-        assert_eq!(lwes.len(), vec_lut.len());
+        assert_eq!(lwes.len(), lut.output_ciphertext_count().0);
         lwes
     }
 }

@@ -6,10 +6,12 @@
 #[cfg(test)]
 mod test;
 
+pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCount};
 use crate::core_crypto::prelude::*;
 use crate::integer::client_key::utils::i_crt;
 use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, ServerKey};
 use crate::shortint::ciphertext::Degree;
+use crate::shortint::wopbs::WopbsLUTBase;
 use rayon::prelude::*;
 
 use crate::shortint::{PBSOrderMarker, Parameters};
@@ -20,6 +22,51 @@ use super::ciphertext::RadixCiphertext;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WopbsKey {
     wopbs_key: crate::shortint::wopbs::WopbsKey,
+}
+
+#[must_use]
+pub struct IntegerWopbsLUT {
+    inner: WopbsLUTBase,
+}
+
+impl IntegerWopbsLUT {
+    pub fn new(small_lut_size: PlaintextCount, output_ciphertext_count: CiphertextCount) -> Self {
+        Self {
+            inner: WopbsLUTBase::new(small_lut_size, output_ciphertext_count),
+        }
+    }
+}
+
+impl TryFrom<Vec<Vec<u64>>> for IntegerWopbsLUT {
+    type Error = &'static str;
+
+    fn try_from(value: Vec<Vec<u64>>) -> Result<Self, Self::Error> {
+        let small_lut_size = value[0].len();
+        if !value.iter().all(|x| x.len() == small_lut_size) {
+            return Err("All small luts must have the same size");
+        }
+
+        let small_lut_count = value.len();
+
+        Ok(Self {
+            inner: WopbsLUTBase::from_vec(
+                value.into_iter().flatten().collect(),
+                CiphertextCount(small_lut_count),
+            ),
+        })
+    }
+}
+
+impl AsRef<WopbsLUTBase> for IntegerWopbsLUT {
+    fn as_ref(&self) -> &WopbsLUTBase {
+        &self.inner
+    }
+}
+
+impl AsMut<WopbsLUTBase> for IntegerWopbsLUT {
+    fn as_mut(&mut self) -> &mut WopbsLUTBase {
+        &mut self.inner
+    }
 }
 
 /// ```rust
@@ -203,7 +250,7 @@ impl WopbsKey {
     ///
     /// assert_eq!(res, clear);
     /// ```
-    pub fn wopbs<T>(&self, ct_in: &T, lut: &[Vec<u64>]) -> T
+    pub fn wopbs<T>(&self, ct_in: &T, lut: &IntegerWopbsLUT) -> T
     where
         T: IntegerCiphertext,
     {
@@ -251,7 +298,7 @@ impl WopbsKey {
 
         let vec_ct_out = self
             .wopbs_key
-            .circuit_bootstrapping_vertical_packing(lut, &extracted_bits_blocks);
+            .circuit_bootstrapping_vertical_packing(lut.as_ref(), &extracted_bits_blocks);
 
         let mut ct_vec_out = vec![];
         for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out.into_iter()) {
@@ -288,7 +335,7 @@ impl WopbsKey {
     ///
     /// assert_eq!(res, (clear * 2) % moduli)
     /// ```
-    pub fn wopbs_without_padding<T>(&self, ct_in: &T, lut: &[Vec<u64>]) -> T
+    pub fn wopbs_without_padding<T>(&self, ct_in: &T, lut: &IntegerWopbsLUT) -> T
     where
         T: IntegerCiphertext,
     {
@@ -335,7 +382,7 @@ impl WopbsKey {
 
         let vec_ct_out = self
             .wopbs_key
-            .circuit_bootstrapping_vertical_packing(lut, &extracted_bits_blocks);
+            .circuit_bootstrapping_vertical_packing(lut.as_ref(), &extracted_bits_blocks);
 
         let mut ct_vec_out = vec![];
         for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out.into_iter()) {
@@ -375,7 +422,7 @@ impl WopbsKey {
     /// let res = cks.decrypt_native_crt(&ct_res);
     /// assert_eq!(res, clear);
     /// ```
-    pub fn wopbs_native_crt(&self, ct1: &CrtCiphertext, lut: &[Vec<u64>]) -> CrtCiphertext {
+    pub fn wopbs_native_crt(&self, ct1: &CrtCiphertext, lut: &IntegerWopbsLUT) -> CrtCiphertext {
         self.circuit_bootstrap_vertical_packing_native_crt(&[ct1.clone()], lut)
     }
 
@@ -410,7 +457,7 @@ impl WopbsKey {
     ///
     /// assert_eq!(res, (2 * clear1 * clear2) % moduli);
     /// ```
-    pub fn bivariate_wopbs_with_degree<T>(&self, ct1: &T, ct2: &T, lut: &[Vec<u64>]) -> T
+    pub fn bivariate_wopbs_with_degree<T>(&self, ct1: &T, ct2: &T, lut: &IntegerWopbsLUT) -> T
     where
         T: IntegerCiphertext,
     {
@@ -446,7 +493,7 @@ impl WopbsKey {
     ///
     /// assert_eq!(res, (2 * clear) % moduli);
     /// ```
-    pub fn generate_lut_radix<F, T>(&self, ct: &T, f: F) -> Vec<Vec<u64>>
+    pub fn generate_lut_radix<F, T>(&self, ct: &T, f: F) -> IntegerWopbsLUT
     where
         F: Fn(u64) -> u64,
         T: IntegerCiphertext,
@@ -469,7 +516,8 @@ impl WopbsKey {
         if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
             lut_size = self.wopbs_key.param.polynomial_size.0;
         }
-        let mut vec_lut = vec![vec![0; lut_size]; ct.blocks().len()];
+        let mut lut =
+            IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(ct.blocks().len()));
 
         let basis = ct.moduli()[0];
         let delta: u64 = (1 << 63)
@@ -481,11 +529,12 @@ impl WopbsKey {
             let decoded_val = decode_radix(encoded_with_deg_val.clone(), basis);
             let f_val = f(decoded_val % modulus) % modulus;
             let encoded_f_val = encode_radix(f_val, basis, block_nb as u64);
-            for lut_number in 0..block_nb {
-                vec_lut[lut_number][lut_index_val as usize] = encoded_f_val[lut_number] * delta;
+            for (lut_number, radix_encoded_val) in encoded_f_val.iter().enumerate().take(block_nb) {
+                lut.as_mut().get_small_lut_mut(lut_number).as_mut()[lut_index_val as usize] =
+                    radix_encoded_val * delta;
             }
         }
-        vec_lut
+        lut
     }
 
     /// # Example
@@ -514,7 +563,7 @@ impl WopbsKey {
     ///
     /// assert_eq!(res, (clear * 2) % moduli)
     /// ```
-    pub fn generate_lut_radix_without_padding<F, T>(&self, ct: &T, f: F) -> Vec<Vec<u64>>
+    pub fn generate_lut_radix_without_padding<F, T>(&self, ct: &T, f: F) -> IntegerWopbsLUT
     where
         F: Fn(u64) -> u64,
         T: IntegerCiphertext,
@@ -529,7 +578,7 @@ impl WopbsKey {
         if lut_size < poly_size {
             lut_size = poly_size;
         }
-        let mut vec_lut = vec![vec![0; lut_size]; nb_block];
+        let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(nb_block));
 
         for index in 0..lut_size {
             // find the value represented by the index
@@ -542,13 +591,15 @@ impl WopbsKey {
             }
 
             // fill the LUTs
-            for (block_index, lut_block) in vec_lut.iter_mut().enumerate().take(nb_block) {
-                lut_block[index] = ((f(value as u64) >> (log_carry_modulus * block_index as u64))
+            for block_index in 0..nb_block {
+                let mut lut_block = lut.as_mut().get_small_lut_mut(block_index);
+                lut_block.as_mut()[index] = ((f(value as u64)
+                    >> (log_carry_modulus * block_index as u64))
                     % (1 << log_message_modulus))
                     << delta
             }
         }
-        vec_lut
+        lut
     }
 
     /// generate lut for native CRT
@@ -577,7 +628,7 @@ impl WopbsKey {
     /// let res = cks.decrypt_native_crt(&ct_res);
     /// assert_eq!(res, clear);
     /// ```
-    pub fn generate_lut_native_crt<F>(&self, ct: &CrtCiphertext, f: F) -> Vec<Vec<u64>>
+    pub fn generate_lut_native_crt<F>(&self, ct: &CrtCiphertext, f: F) -> IntegerWopbsLUT
     where
         F: Fn(u64) -> u64,
     {
@@ -596,7 +647,7 @@ impl WopbsKey {
         if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
             lut_size = self.wopbs_key.param.polynomial_size.0;
         }
-        let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
+        let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
         for value in 0..modulus {
             let mut index_lut = 0;
@@ -606,11 +657,11 @@ impl WopbsKey {
                 tmp <<= bit;
             }
             for (j, b) in basis.iter().enumerate() {
-                vec_lut[j][index_lut as usize] =
+                lut.as_mut().get_small_lut_mut(j).as_mut()[index_lut as usize] =
                     (((f(value) % b) as u128 * (1 << 64)) / *b as u128) as u64
             }
         }
-        vec_lut
+        lut
     }
 
     /// generate LUt for crt
@@ -641,7 +692,7 @@ impl WopbsKey {
     /// let res = cks.decrypt_crt(&ct_res);
     /// assert_eq!(res, clear);
     /// ```
-    pub fn generate_lut_crt<F>(&self, ct: &CrtCiphertext, f: F) -> Vec<Vec<u64>>
+    pub fn generate_lut_crt<F>(&self, ct: &CrtCiphertext, f: F) -> IntegerWopbsLUT
     where
         F: Fn(u64) -> u64,
     {
@@ -660,7 +711,7 @@ impl WopbsKey {
         if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
             lut_size = self.wopbs_key.param.polynomial_size.0;
         }
-        let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
+        let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
         for i in 0..(1 << total_bit) {
             let mut value = i;
@@ -669,14 +720,14 @@ impl WopbsKey {
                 let delta: u64 = (1 << 63)
                     / (self.wopbs_key.param.message_modulus.0
                         * self.wopbs_key.param.carry_modulus.0) as u64;
-                vec_lut[j][i as usize] =
+                lut.as_mut().get_small_lut_mut(j).as_mut()[i as usize] =
                     ((f((value % (1 << deg)) % block.message_modulus.0 as u64))
                         % block.message_modulus.0 as u64)
                         * delta;
                 value >>= deg;
             }
         }
-        vec_lut
+        lut
     }
 
     /// # Example
@@ -716,7 +767,7 @@ impl WopbsKey {
         ct1: &RadixCiphertext<OpOrder>,
         ct2: &RadixCiphertext<OpOrder>,
         f: F,
-    ) -> Vec<Vec<u64>>
+    ) -> IntegerWopbsLUT
     where
         OpOrder: PBSOrderMarker,
         RadixCiphertext<OpOrder>: IntegerCiphertext,
@@ -747,7 +798,7 @@ impl WopbsKey {
         if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
             lut_size = self.wopbs_key.param.polynomial_size.0;
         }
-        let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
+        let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
         let basis = ct1.moduli()[0];
 
         let delta: u64 = (1 << 63)
@@ -766,11 +817,12 @@ impl WopbsKey {
             }
             let f_val = f(decoded_val[0] % modulus, decoded_val[1] % modulus) % modulus;
             let encoded_f_val = encode_radix(f_val, basis, block_nb as u64);
-            for lut_number in 0..block_nb {
-                vec_lut[lut_number][lut_index_val as usize] = encoded_f_val[lut_number] * delta;
+            for (lut_number, radix_encoded_val) in encoded_f_val.iter().enumerate().take(block_nb) {
+                lut.as_mut().get_small_lut_mut(lut_number).as_mut()[lut_index_val as usize] =
+                    radix_encoded_val * delta;
             }
         }
-        vec_lut
+        lut
     }
 
     /// generate bivariate LUT for 'fake' CRT
@@ -811,7 +863,7 @@ impl WopbsKey {
         ct1: &CrtCiphertext,
         ct2: &CrtCiphertext,
         f: F,
-    ) -> Vec<Vec<u64>>
+    ) -> IntegerWopbsLUT
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -837,7 +889,7 @@ impl WopbsKey {
         if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
             lut_size = self.wopbs_key.param.polynomial_size.0;
         }
-        let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
+        let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
         let delta: u64 = (1 << 63)
             / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0)
@@ -858,11 +910,12 @@ impl WopbsKey {
             let value_2 = i_crt(&ct2.moduli(), &crt_value[1]);
             for (j, current_mod) in basis.iter().enumerate() {
                 let value = f(value_1, value_2) % current_mod;
-                vec_lut[j][index as usize] = (value % current_mod) * delta;
+                lut.as_mut().get_small_lut_mut(j).as_mut()[index as usize] =
+                    (value % current_mod) * delta;
             }
         }
 
-        vec_lut
+        lut
     }
 
     /// generate bivariate LUT for 'true' CRT
@@ -893,7 +946,11 @@ impl WopbsKey {
     /// let res = cks.decrypt_native_crt(&ct_res);
     /// assert_eq!(res, (clear1 * clear2 * 2) % msg_space);
     /// ```
-    pub fn generate_lut_bivariate_native_crt<F>(&self, ct_1: &CrtCiphertext, f: F) -> Vec<Vec<u64>>
+    pub fn generate_lut_bivariate_native_crt<F>(
+        &self,
+        ct_1: &CrtCiphertext,
+        f: F,
+    ) -> IntegerWopbsLUT
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -911,7 +968,7 @@ impl WopbsKey {
         if 1 << (2 * total_bit) < self.wopbs_key.param.polynomial_size.0 as u64 {
             lut_size = self.wopbs_key.param.polynomial_size.0;
         }
-        let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
+        let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
         for value in 0..1 << (2 * total_bit) {
             let value_1 = value % (1 << total_bit);
@@ -926,11 +983,11 @@ impl WopbsKey {
             }
             let index = (index_lut_2 << total_bit) + (index_lut_1);
             for (j, b) in basis.iter().enumerate() {
-                vec_lut[j][index as usize] =
+                lut.as_mut().get_small_lut_mut(j).as_mut()[index as usize] =
                     (((f(value_1, value_2) % b) as u128 * (1 << 64)) / *b as u128) as u64
             }
         }
-        vec_lut
+        lut
     }
 
     /// bivariate WOPBS for native CRT
@@ -965,7 +1022,7 @@ impl WopbsKey {
         &self,
         ct1: &CrtCiphertext,
         ct2: &CrtCiphertext,
-        lut: &[Vec<u64>],
+        lut: &IntegerWopbsLUT,
     ) -> CrtCiphertext {
         self.circuit_bootstrap_vertical_packing_native_crt(&[ct1.clone(), ct2.clone()], lut)
     }
@@ -973,7 +1030,7 @@ impl WopbsKey {
     fn circuit_bootstrap_vertical_packing_native_crt<T>(
         &self,
         vec_ct_in: &[T],
-        lut: &[Vec<u64>],
+        lut: &IntegerWopbsLUT,
     ) -> T
     where
         T: IntegerCiphertext,
@@ -1036,7 +1093,7 @@ impl WopbsKey {
 
         let vec_ct_out = self
             .wopbs_key
-            .circuit_bootstrapping_vertical_packing(lut, &extracted_bits_blocks);
+            .circuit_bootstrapping_vertical_packing(lut.as_ref(), &extracted_bits_blocks);
 
         let mut ct_vec_out = Vec::with_capacity(vec_ct_in.len());
         for (block, block_out) in vec_ct_in[0].blocks().iter().zip(vec_ct_out.into_iter()) {
