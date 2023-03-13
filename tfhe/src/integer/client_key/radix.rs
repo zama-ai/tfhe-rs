@@ -69,6 +69,10 @@ impl RadixClientKey {
     pub fn decrypt_one_block(&self, ct: &ShortintCiphertext) -> u64 {
         self.key.decrypt_one_block(ct)
     }
+
+    pub fn num_blocks(&self) -> usize {
+        self.num_blocks
+    }
 }
 
 impl From<(ClientKey, usize)> for RadixClientKey {

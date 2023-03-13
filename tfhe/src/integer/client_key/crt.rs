@@ -58,6 +58,10 @@ impl CrtClientKey {
     pub fn parameters(&self) -> crate::shortint::Parameters {
         self.key.parameters()
     }
+
+    pub fn moduli(&self) -> &[u64] {
+        self.moduli.as_slice()
+    }
 }
 
 impl From<(ClientKey, Vec<u64>)> for CrtClientKey {
