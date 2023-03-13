@@ -8,7 +8,7 @@ use crate::core_crypto::entities::*;
 use serde::{Deserialize, Serialize};
 
 /// A structure containing a public key.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PublicKey {
     pub(crate) lwe_public_key: LwePublicKeyOwned<u32>,
     pub(crate) parameters: BooleanParameters,
