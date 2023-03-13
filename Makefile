@@ -117,27 +117,27 @@ gen_key_cache: install_rs_build_toolchain
 .PHONY: build_boolean # Build with boolean enabled
 build_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe --all-targets
 
 .PHONY: build_shortint # Build with shortint enabled
 build_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),shortint -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),shortint -p tfhe --all-targets
 
 .PHONY: build_integer # Build with integer enabled
 build_integer: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),integer -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),integer -p tfhe --all-targets
 
 .PHONY: build_tfhe_full # Build with boolean, shortint and integer enabled
 build_tfhe_full: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p tfhe --all-targets
 
 .PHONY: build_c_api # Build the C API for boolean and shortint
 build_c_api: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api -p tfhe --all-targets
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
 build_web_js_api: install_rs_build_toolchain
