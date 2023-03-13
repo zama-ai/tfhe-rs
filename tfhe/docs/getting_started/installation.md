@@ -5,7 +5,7 @@
 To use `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
 ```toml
-tfhe = { version = "0.1.10", features = [ "boolean", "shortint", "x86_64-unix" ] }
+tfhe = { version = "0.1.11", features = [ "boolean", "shortint", "x86_64-unix" ] }
 ```
 
 ## Choosing your features
