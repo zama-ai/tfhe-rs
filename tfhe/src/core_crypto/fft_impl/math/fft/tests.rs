@@ -235,7 +235,7 @@ fn f64_to_i64_bit_twiddles() {
         let value = if sign == 0 {
             explicit_mantissa_shift as i64
         } else {
-            -(explicit_mantissa_shift as i64)
+            (explicit_mantissa_shift as i64).wrapping_neg()
         };
 
         let value = if biased_exp == 0 { 0 } else { value };

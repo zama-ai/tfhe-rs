@@ -1368,7 +1368,7 @@ mod test {
             );
             // Create the plaintext
             let msg: Scalar = test_tools::random_uint_between(Scalar::ZERO..Scalar::TWO.shl(2));
-            let encoded_msg = msg << 60;
+            let encoded_msg = msg << (Scalar::BITS - 5);
             let plaintext_list =
                 PlaintextList::new(encoded_msg, PlaintextCount(lwe_ciphertext_count.0));
             // Create a new LweCiphertextList
