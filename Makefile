@@ -156,12 +156,12 @@ build_node_js_api: install_rs_build_toolchain
 .PHONY: test_core_crypto # Run the tests of the core_crypto module
 test_core_crypto: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
-		-- --features=$(TARGET_ARCH_FEATURE) -p tfhe -- core_crypto::
+		--features=$(TARGET_ARCH_FEATURE) -p tfhe -- core_crypto::
 
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
-		-- --features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
+		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
 
 .PHONY: test_c_api # Run the tests for the C API
 test_c_api: build_c_api
