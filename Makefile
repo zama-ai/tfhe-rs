@@ -58,6 +58,15 @@ fmt: install_rs_check_toolchain
 check_fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
 
+.PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
+clippy_core: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=$(TARGET_ARCH_FEATURE) \
+		-p tfhe -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=$(TARGET_ARCH_FEATURE),experimental \
+		-p tfhe -- --no-deps -D warnings
+
 .PHONY: clippy_boolean # Run clippy lints enabling the boolean features
 clippy_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
@@ -107,13 +116,20 @@ clippy_all_targets:
 
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets clippy_c_api \
-clippy_js_wasm_api clippy_tasks
+clippy_js_wasm_api clippy_tasks clippy_core
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --release \
 		--example generates_test_keys \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe
+
+.PHONY: build_core # Build core_crypto with and without experimental features
+build_core: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
+		--features=$(TARGET_ARCH_FEATURE) -p tfhe
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
+		--features=$(TARGET_ARCH_FEATURE),experimental -p tfhe
 
 .PHONY: build_boolean # Build with boolean enabled
 build_boolean: install_rs_build_toolchain
@@ -154,10 +170,10 @@ build_node_js_api: install_rs_build_toolchain
 		wasm-pack build --release --target=nodejs \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api
 
-.PHONY: test_core_crypto # Run the tests of the core_crypto module
+.PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
 test_core_crypto: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
-		--features=$(TARGET_ARCH_FEATURE) -p tfhe -- core_crypto::
+		--features=$(TARGET_ARCH_FEATURE),experimental -p tfhe -- core_crypto::
 
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
@@ -212,7 +228,8 @@ format_doc_latex:
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests: build_c_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p tfhe && \
+		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache \
+		-p tfhe && \
 		./scripts/c_api_tests.sh --build-only
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API

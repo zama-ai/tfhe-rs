@@ -64,6 +64,11 @@ shortint = []
 integer = ["shortint"]
 internal-keycache = ["lazy_static", "fs2", "bincode"]
 
+# Experimental section
+experimental = ["experimental-multi_bit_pbs"]
+experimental-multi_bit_pbs = []
+# End experimental section
+
 __c_api = ["cbindgen", "bincode"]
 boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
@@ -127,7 +132,7 @@ required-features = ["boolean", "shortint", "internal-keycache"]
 name = "dev-bench"
 path = "benches/core_crypto/dev_bench.rs"
 harness = false
-required-features = ["boolean", "shortint", "internal-keycache"]
+required-features = ["experimental", "internal-keycache"]
 
 [[bench]]
 name = "boolean-bench"

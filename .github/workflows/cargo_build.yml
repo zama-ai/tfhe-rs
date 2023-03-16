@@ -32,6 +32,10 @@ jobs:
         run: |
           make pcc
 
+      - name: Build Release core
+        run: |
+          make build_core
+
       - name: Build Release boolean
         run: |
           make build_boolean
