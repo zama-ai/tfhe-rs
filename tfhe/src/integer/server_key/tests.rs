@@ -407,6 +407,156 @@ pub fn joc_native_crt_mul_wopbs() {
     }
 }
 
+
+#[test]
+pub fn joc_hybride_32_bits() {
+    let param = ID_5_RADIX_32_BITS_16_BLOCKS;
+
+    // basis = 2^5 * 3^5* 5^4 * 7^4
+    let basis_32bits = vec![
+        //32,
+        //3*3//243,
+        //625,
+        7//2420
+    ];
+
+    let modulus_vec = [
+        //2,
+        //3,
+        //5,
+        7,
+    ];
+
+    let nb_blocks_vec = [
+        //5,
+        //5,
+        //4,
+        1//4,
+    ];
+
+
+    //println!("Chosen Parameter Set: {param:?}");
+    for _ in 0..2 {
+        for (block_modulus, nb_blocks) in modulus_vec.iter().zip(nb_blocks_vec.iter()) {
+            let (mut cks, mut sks) = KEY_CACHE.get_from_params(param);
+
+            let mut msg_space = *block_modulus;
+            for _ in 1..*nb_blocks {
+                msg_space *= *block_modulus;
+            }
+
+            println!("block_modulus = {block_modulus}");
+            println!("msg_space = {msg_space}");
+
+            let mut rng = rand::thread_rng();
+            let clear_0 = rng.gen::<u64>() % msg_space;
+            let mut cpy_clear_0 = clear_0;
+            let mut blocks_crt_0 = vec![];
+            for _ in 0..*nb_blocks{
+                let tmp = cpy_clear_0 % block_modulus;
+                blocks_crt_0.push((cks.encrypt_crt(tmp, vec![*block_modulus])).blocks[0].clone());
+                cpy_clear_0 = (cpy_clear_0 - tmp)/ block_modulus;
+            }
+            let clear_1 = rng.gen::<u64>() % msg_space;
+            let mut cpy_clear_1 = clear_1;
+            let mut blocks_crt_1 = vec![];
+            for _ in 0..*nb_blocks{
+                let tmp = cpy_clear_1 % block_modulus;
+                blocks_crt_1.push((cks.encrypt_crt(tmp, vec![*block_modulus])).blocks[0].clone());
+                cpy_clear_1 = (cpy_clear_1 - tmp)/ block_modulus;
+            }
+            println!("clear 0 {:?}", clear_0);
+            println!("clear 1 {:?}", clear_1);
+            println!("add     {:?}", clear_0 + clear_1);
+            println!("add mod {:?}", (clear_1 + clear_0) %msg_space );
+
+
+            // TEST_ADD //
+
+            let mut ct_zero_rad = RadixCiphertext::from_blocks(blocks_crt_0);
+            let mut ct_one_rad = RadixCiphertext::from_blocks(blocks_crt_1);
+
+            let mut ct_res = sks.unchecked_add(&ct_zero_rad, &ct_one_rad);
+            let mut result = 0_u64;
+            let mut shift = 1_u64;
+
+            for c_i in ct_res.blocks().iter() {
+                // decrypt the component i of the integer and multiply it by the radix product
+                let block_value = cks.key.decrypt_message_and_carry(c_i);
+                // update the result
+                result = result.wrapping_add(block_value.wrapping_mul(shift));
+
+                // update the shift for the next iteration
+                shift = shift.wrapping_mul(*block_modulus);
+            }
+
+            println!("add");
+            println!("dec add        {:?}", result);
+            println!("dec add mod    {:?}", result% msg_space);
+            assert_eq!(result % msg_space, (clear_0 + clear_1) % msg_space);
+            println!("-----");
+
+            // TEST_CARRY_PROPAGATE //
+
+            sks.full_propagate(&mut ct_res);
+            let mut result = 0_u64;
+            let mut shift = 1_u64;
+            for c_i in ct_res.blocks().iter() {
+                // decrypt the component i of the integer and multiply it by the radix product
+                let block_value = cks.key.decrypt_message_and_carry(c_i);
+                // update the result
+                result = result.wrapping_add(block_value.wrapping_mul(shift));
+
+                // update the shift for the next iteration
+                shift = shift.wrapping_mul(*block_modulus);
+            }
+            println!("propagate");
+            println!("dec propagate        {:?}", result);
+            println!("dec propagate mod    {:?}", result% msg_space);
+            assert_eq!(result % msg_space , (clear_0 + clear_1) % msg_space);
+            println!("-----");
+
+            // TEST_MUL //
+
+            ct_one_rad.blocks[0].message_modulus.0 =  ct_one_rad.blocks[0].message_modulus.0 *2;
+            ct_one_rad.blocks[0].carry_modulus.0 =  ct_one_rad.blocks[0].carry_modulus.0 /2;
+            ct_zero_rad.blocks[0].message_modulus.0 =  ct_zero_rad.blocks[0].message_modulus.0 *2;
+            ct_zero_rad.blocks[0].carry_modulus.0 =  ct_zero_rad.blocks[0].carry_modulus.0 /2;
+
+            sks.key.message_modulus.0 =  sks.key.message_modulus.0*2;
+            sks.key.carry_modulus.0 =  sks.key.carry_modulus.0/2;
+            //cks.parameters().carry_modulus.0 =  cks.parameters().carry_modulus.0/2;
+            //cks.parameters().message_modulus.0 =  cks.parameters().message_modulus.0/2;
+            ct_res = sks.unchecked_mul(&mut ct_one_rad, &mut ct_zero_rad);
+            //sks.full_propagate(&mut ct_res);
+            let mut result = 0_u64;
+            let mut shift = 1_u64;
+            for c_i in ct_res.blocks().iter() {
+                // decrypt the component i of the integer and multiply it by the radix product
+                let block_value = cks.key.decrypt_message_and_carry(c_i);
+                // update the result
+                result = result.wrapping_add(block_value.wrapping_mul(shift));
+
+                // update the shift for the next iteration
+                shift = shift.wrapping_mul(*block_modulus);
+            }
+            println!("mul");
+            println!("dec mul        {:?}", result);
+            println!("dec mul mod    {:?}", result % msg_space);
+            println!("clear mul      {:?}", (clear_0 * clear_1));
+            println!("clear mul mod  {:?}", (clear_0 * clear_1) % msg_space);
+            println!("info deg: {:?}", ct_res.blocks[0].degree);
+            println!("info mm : {:?}", ct_res.blocks[0].message_modulus);
+            println!("info cm : {:?}", ct_res.blocks[0].carry_modulus);
+            assert_eq!(result % msg_space , (clear_0 * clear_1) % msg_space);
+            println!("-----");
+        }
+    }
+    println!("it's OK");
+    panic!()
+}
+
+/*
 #[test]
 pub fn joc_hybride_32_bits() {
     let param = ID_5_RADIX_32_BITS_16_BLOCKS;
@@ -526,3 +676,4 @@ pub fn joc_hybride_32_bits() {
         }
     }
 }
+ */
