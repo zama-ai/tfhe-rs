@@ -13,8 +13,11 @@ pub mod lwe_encryption;
 pub mod lwe_keyswitch;
 pub mod lwe_keyswitch_key_generation;
 pub mod lwe_linear_algebra;
+#[cfg(feature = "experimental-multi_bit_pbs")]
 pub mod lwe_multi_bit_bootstrap_key_conversion;
+#[cfg(feature = "experimental-multi_bit_pbs")]
 pub mod lwe_multi_bit_bootstrap_key_generation;
+#[cfg(feature = "experimental-multi_bit_pbs")]
 pub mod lwe_multi_bit_programmable_bootstrapping;
 pub mod lwe_private_functional_packing_keyswitch;
 pub mod lwe_private_functional_packing_keyswitch_key_generation;
@@ -47,8 +50,11 @@ pub use lwe_encryption::*;
 pub use lwe_keyswitch::*;
 pub use lwe_keyswitch_key_generation::*;
 pub use lwe_linear_algebra::*;
+#[cfg(feature = "experimental-multi_bit_pbs")]
 pub use lwe_multi_bit_bootstrap_key_conversion::*;
+#[cfg(feature = "experimental-multi_bit_pbs")]
 pub use lwe_multi_bit_bootstrap_key_generation::*;
+#[cfg(feature = "experimental-multi_bit_pbs")]
 pub use lwe_multi_bit_programmable_bootstrapping::*;
 pub use lwe_private_functional_packing_keyswitch::*;
 pub use lwe_private_functional_packing_keyswitch_key_generation::*;
