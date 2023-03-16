@@ -1,7 +1,7 @@
 use crate::integer::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 use rand::Rng;
 use crate::integer::ciphertext::crt_ciphertext_from_ciphertext;
-use crate::integer::CrtCiphertext;
+use crate::integer::{CrtCiphertext, IntegerCiphertext, RadixCiphertext};
 use crate::integer::parameters::PARAM_4_BITS_5_BLOCKS;
 use crate::integer::parameters::parameters_benches_joc::*;
 use crate::integer::wopbs::WopbsKey;
@@ -403,6 +403,126 @@ pub fn joc_native_crt_mul_wopbs() {
             }
             let res_wop = cks.decrypt_native_crt(&ct_res);
             assert_eq!(clear1, res_wop);
+        }
+    }
+}
+
+#[test]
+pub fn joc_hybride_32_bits() {
+    let param = ID_5_RADIX_32_BITS_16_BLOCKS;
+
+    // basis = 2^5 * 3^5* 5^4 * 7^4
+    let basis_32bits = vec![32, 243, 625, 2420];
+
+    let modulus_vec = [
+        2,
+        3,
+        5,
+        7,
+    ];
+
+    let nb_blocks_vec = [
+        5,
+        5,
+        4,
+        4,
+    ];
+
+
+    println!("Chosen Parameter Set: {param:?}");
+    for _ in 0..NB_TEST {
+        for (block_modulus, nb_blocks) in modulus_vec.iter().zip(nb_blocks_vec.iter()) {
+            let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+            let mut msg_space = *block_modulus;
+            for _ in 1..*nb_blocks {
+                msg_space *= *block_modulus;
+            }
+
+            println!("block_modulus = {block_modulus}");
+            println!("msg_space = {msg_space}");
+
+            let mut rng = rand::thread_rng();
+            let clear_0 = rng.gen::<u64>() % msg_space;
+
+            println!("Expected Result = {}", (clear_0*clear_0) % msg_space);
+
+            // encryption of an integer using CRT hacking
+            let mut ct_zero = cks.encrypt_crt(clear_0, vec![*block_modulus; *nb_blocks]);
+            let mut ct_one = cks.encrypt_crt(clear_0, vec![*block_modulus; *nb_blocks]);
+
+            let mut ct_zero_rad = RadixCiphertext::from_blocks(ct_zero.blocks().to_vec());
+            let ct_one_rad = RadixCiphertext::from_blocks(ct_one.blocks().to_vec());
+
+            // Test carry progration`
+
+            let mut ct_tmp = sks.unchecked_add(&ct_one_rad, &ct_zero_rad);
+
+            let mut result = 0_u64;
+            let mut shift = 1_u64;
+            let modulus = ct_one_rad.blocks[0].message_modulus.0 as u64;
+
+            for c_i in ct_one_rad.blocks.iter() {
+                // decrypt the component i of the integer and multiply it by the radix product
+                let block_value = cks.key.decrypt_message_and_carry(c_i).wrapping_mul(shift);
+
+                // update the result
+                result = result.wrapping_add(block_value);
+
+                // update the shift for the next iteration
+                shift = shift.wrapping_mul(modulus);
+            }
+
+            let dec_res = cks.decrypt_radix(&ct_zero_rad);
+            println!("FIRST ADD");
+            assert_eq!(dec_res, (clear_0) % msg_space);
+            //
+            // sks.full_propagate(&mut ct_tmp);
+            //
+            // /// DECRYPT //
+            // let mut result = 0_u64;
+            // let mut shift = 1_u64;
+            // let modulus = ct_one_rad.blocks[0].message_modulus.0 as u64;
+            //
+            // for c_i in ct_tmp.blocks.iter() {
+            //     // decrypt the component i of the integer and multiply it by the radix product
+            //     let block_value = cks.key.decrypt_message_and_carry(c_i).wrapping_mul(shift);
+            //
+            //     // update the result
+            //     result = result.wrapping_add(block_value);
+            //
+            //     // update the shift for the next iteration
+            //     shift = shift.wrapping_mul(modulus);
+            // }
+            //
+            // let dec_res = result % msg_space;
+            // println!("FULL PROP");
+            // assert_eq!(dec_res, (clear_0 + clear_0) % msg_space);
+            //
+            //
+            // ////END TEST CARRY /////////
+            //
+            // let ct_res = sks.unchecked_mul(&ct_zero_rad, &ct_one_rad);
+            //
+            // /// DECRYPT //
+            // let mut result = 0_u64;
+            // let mut shift = 1_u64;
+            // let modulus = ct_one_rad.blocks[0].message_modulus.0 as u64;
+            //
+            // for c_i in ct_res.blocks.iter() {
+            //     // decrypt the component i of the integer and multiply it by the radix product
+            //     let block_value = cks.key.decrypt_message_and_carry(c_i).wrapping_mul(shift);
+            //
+            //     // update the result
+            //     result = result.wrapping_add(block_value);
+            //
+            //     // update the shift for the next iteration
+            //     shift = shift.wrapping_mul(modulus);
+            // }
+            //
+            // let dec_res = result % msg_space;
+            // println!("MUL");
+            // assert_eq!(dec_res, (clear_0 * clear_0) % msg_space);
         }
     }
 }

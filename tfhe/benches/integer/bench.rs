@@ -6,9 +6,9 @@ use tfhe::integer::client_key::radix_decomposition;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::parameters::*;
 use tfhe::integer::wopbs::WopbsKey;
-use tfhe::integer::{gen_keys, RadixCiphertext, ServerKey};
-use tfhe::integer::parameters::parameters_benches_joc::ID_1_RADIX_16_BITS_16_BLOCKS;
-use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
+use tfhe::integer::{gen_keys, IntegerCiphertext, RadixCiphertext, ServerKey};
+use tfhe::integer::parameters::parameters_benches_joc::*;
+use tfhe::shortint::keycache::{KEY_CACHE_WOPBS, NamedParam};
 use tfhe::shortint::parameters::parameters_wopbs_message_carry::get_parameters_from_message_and_carry_wopbs;
 use tfhe::shortint::parameters::{get_parameters_from_message_and_carry, DEFAULT_PARAMETERS};
 
@@ -275,7 +275,12 @@ criterion_group!(
 
 criterion_group!(misc, full_propagate,);
 
-criterion_group!(joc, joc_radix_id1,);
+criterion_group!(joc,
+    //joc_radix,
+    // joc_crt,
+    //joc_radix_wopbs,
+    joc_hybrid_32_bits,
+);
 
 criterion_main!(
     // smart_arithmetic_operation,
@@ -918,46 +923,159 @@ fn concrete_integer_unchecked_clean_carry_crt_32_bits(c: &mut Criterion) {
 
 
 
-fn joc_radix_id1(c: &mut Criterion) {
-    let mut group = c.benchmark_group("{}",stringify!(ID_));
-    group.sample_size(10);
-    let param = ID_1_RADIX_16_BITS_16_BLOCKS;
-    let nb_blocks = 16;
+fn joc_radix(c: &mut Criterion) {
+    let param_vec = vec![
+        ID_1_RADIX_16_BITS_16_BLOCKS,
+        ID_2_RADIX_16_BITS_8_BLOCKS,
+        ID_4_RADIX_32_BITS_32_BLOCKS,
+        ID_5_RADIX_32_BITS_16_BLOCKS,
+        ID_6_RADIX_32_BITS_8_BLOCKS
+    ];
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let nb_blocks_vec = [
+        16,
+        8,
+        32,
+        16,
+        8
+    ];
 
-    println!("Chosen Parameter Set: {param:?}");
+    for (param, nb_blocks) in  param_vec.iter().zip(nb_blocks_vec.iter()) {
+        let (cks, sks) = KEY_CACHE.get_from_params(*param);
+        let modulus = param.message_modulus.0.pow(*nb_blocks as u32) as u64;
 
-    let modulus = 1 << 16;
+        let group_name = format!("{}", param.name());
+        let mut group = c.benchmark_group(group_name.clone());
+        group.sample_size(10);
 
-    let clear_0 = 29 % modulus;
+        println!("Chosen Parameter Set: {param:?}");
 
-    // encryption of an integer
-    let mut ct_zero = cks.encrypt_radix(clear_0, nb_blocks );
-    let mut ct_one = cks.encrypt_radix(clear_0, nb_blocks );
+        let clear_0 = 29 % modulus;
+
+        // encryption of an integer
+        let mut ct_zero = cks.encrypt_radix(clear_0, *nb_blocks);
+        let mut ct_one = cks.encrypt_radix(clear_0, *nb_blocks);
 
 
-    let id = "(bench_radix_id1_add):";
-    // add the two ciphertexts
-    group.bench_function(id, |b| {
-        b.iter(|| {
-            sks.unchecked_add(&mut ct_zero, &ct_one);
-        })
-    });
+        let id = format!("{}_add", group_name.clone());
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.unchecked_add(&mut ct_zero, &ct_one);
+            })
+        });
 
-    let id = "(bench_radix_id1_mul):";
-    // add the two ciphertexts
-    group.bench_function(id, |b| {
-        b.iter(|| {
-            sks.unchecked_mul(&mut ct_zero, &ct_one);
-        })
-    });
+        let id = format!("{}_mul", group_name.clone());
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.unchecked_mul(&mut ct_zero, &ct_one);
+            })
+        });
 
-    let id = "(bench_radix_id1_full_propagate):";
-    // add the two ciphertexts
-    group.bench_function(id, |b| {
-        b.iter(|| {
-            sks.full_propagate(&mut ct_zero);
-        })
-    });
+        let id = format!("{}_carry_propagate", group_name);
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.full_propagate(&mut ct_zero);
+            })
+        });
+    }
 }
+
+
+fn joc_radix_wopbs(c: &mut Criterion) {
+
+        let param_vec = vec![
+            ID_7_RADIX_16_BITS_16_BLOCKS_WOPBS,
+            ID_8_RADIX_16_BITS_8_BLOCKS_WOPBS
+        ];
+        let nb_blocks_vec = vec![
+            16,
+            8
+        ];
+
+        for (param, nb_blocks) in  param_vec.iter().zip(nb_blocks_vec.iter()) {
+
+            let group_name = format!("{}", param.name());
+            let mut group = c.benchmark_group(group_name.clone());
+            group.sample_size(10);
+
+            let mut rng = rand::thread_rng();
+
+            let (cks, sks) = KEY_CACHE.get_from_params(*param);
+            let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+
+            let mut msg_space: u64 = param.message_modulus.0 as u64;
+            for _ in 1..*nb_blocks {
+                msg_space *= param.message_modulus.0 as u64;
+            }
+
+            let clear1 = rng.gen::<u64>() % msg_space;
+            let ct1 = cks.encrypt_radix(clear1, *nb_blocks);
+            let lut = wopbs_key.generate_lut_radix(&ct1, |x| x);
+
+            let id = format!("{}_wopbs", group_name.clone());
+            // add the two ciphertexts
+            group.bench_function(id, |b| {
+                b.iter(|| {
+                    let ct_res = wopbs_key.wopbs(&ct1, &lut);
+                })
+            });
+        }
+}
+
+
+fn joc_hybrid_32_bits(c: &mut Criterion) {
+
+    let param =  ID_5_RADIX_32_BITS_16_BLOCKS;
+
+    // basis = 2^5 * 3^5* 5^4 * 7^4
+    let basis_32bits = vec![32,243,625,2420];
+
+    let modulus_vec = [
+        2,
+        3,
+        5,
+        7,
+    ];
+
+    let nb_blocks_vec = [
+        5,
+        5,
+        4,
+        4,
+    ];
+
+    for (block_modulus, nb_blocks) in  modulus_vec.iter().zip(nb_blocks_vec.iter()) {
+
+        let group_name = format!("hybrid_{}^{}_param_{:?}", block_modulus, nb_blocks, param.name());
+
+        let mut group = c.benchmark_group(group_name.clone());
+        group.sample_size(10);
+
+        let (cks, sks) = KEY_CACHE.get_from_params(param);
+        //let modulus = *block_modulus.pow(*nb_blocks as u32) as u64;
+
+        println!("Chosen Parameter Set: {param:?}");
+
+        let clear_0 = 29;
+
+        // encryption of an integer
+        let mut ct_zero = cks.encrypt_crt(clear_0, vec![*block_modulus; *nb_blocks]);
+        let mut ct_one = cks.encrypt_crt(clear_0, vec![*block_modulus; *nb_blocks]);
+
+        let mut ct_zero_rad = RadixCiphertext::from_blocks(ct_zero.blocks().to_vec());
+        let ct_one_rad = RadixCiphertext::from_blocks(ct_one.blocks().to_vec());
+
+
+        let id = format!("{}_mul_hybride", group_name.clone());
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.unchecked_mul(&mut ct_zero_rad, &ct_one_rad);
+            })
+        });
+    }
+}
+
