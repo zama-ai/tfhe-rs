@@ -82,7 +82,7 @@ jobs:
 
       - name: Run shortint tests
         run: |
-          make test_shortint_ci
+          BIG_TESTS_INSTANCE=TRUE make test_shortint_ci
 
       - name: Slack Notification
         if: ${{ always() }}

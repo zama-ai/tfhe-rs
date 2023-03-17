@@ -24,12 +24,13 @@ else
     n_threads=6
 fi
 
-# block pbs are too slow for high params
-# mul_crt_4_4 is extremely flaky (~80% failure)
-# test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
-# same for test_wopbs_bivariate_radix_wopbs_param_message_4_carry_4
-# test_integer_smart_mul_param_message_4_carry_4 is too slow
-filter_expression=''\
+if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
+    # block pbs are too slow for high params
+    # mul_crt_4_4 is extremely flaky (~80% failure)
+    # test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
+    # same for test_wopbs_bivariate_radix_wopbs_param_message_4_carry_4
+    # test_integer_smart_mul_param_message_4_carry_4 is too slow
+    filter_expression=''\
 'test(/^integer::.*$/)'\
 'and not test(/.*_block_pbs(_base)?_param_message_[34]_carry_[34]$/)'\
 'and not test(~mul_crt_param_message_4_carry_4)'\
@@ -37,22 +38,50 @@ filter_expression=''\
 'and not test(/.*test_wopbs_bivariate_radix_wopbs_param_message_4_carry_4$/)'\
 'and not test(/.*test_integer_smart_mul_param_message_4_carry_4$/)'
 
-export RUSTFLAGS="-C target-cpu=native"
+    cargo ${1:+"${1}"} nextest run \
+        --tests \
+        --release \
+        --package tfhe \
+        --profile ci \
+        --features="${ARCH_FEATURE}",integer,internal-keycache \
+        --test-threads "${n_threads}" \
+        -E "$filter_expression"
 
-cargo ${1:+"${1}"} nextest run \
-    --tests \
-    --release \
-    --package tfhe \
-    --profile ci \
-    --features="${ARCH_FEATURE}",integer,internal-keycache \
-    --test-threads "${n_threads}" \
-    -E "$filter_expression"
+    cargo ${1:+"${1}"} test \
+        --release \
+        --package tfhe \
+        --features="${ARCH_FEATURE}",integer,internal-keycache \
+        --doc \
+        integer::
+else
+    # block pbs are too slow for high params
+    # mul_crt_4_4 is extremely flaky (~80% failure)
+    # test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
+    # same for test_wopbs_bivariate_radix_wopbs_param_message_4_carry_4
+    # test_integer_smart_mul_param_message_4_carry_4 is too slow
+    filter_expression=''\
+'test(/^integer::.*$/)'\
+'and not test(/.*_block_pbs(_base)?_param_message_[34]_carry_[34]$/)'\
+'and not test(~mul_crt_param_message_4_carry_4)'\
+'and not test(/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]$/)'\
+'and not test(/.*test_wopbs_bivariate_radix_wopbs_param_message_4_carry_4$/)'\
+'and not test(/.*test_integer_smart_mul_param_message_4_carry_4$/)'
 
-cargo ${1:+"${1}"} test \
-    --release \
-    --package tfhe \
-    --features="${ARCH_FEATURE}",integer,internal-keycache \
-    --doc \
-    integer::
+    cargo ${1:+"${1}"} nextest run \
+        --tests \
+        --release \
+        --package tfhe \
+        --profile ci \
+        --features="${ARCH_FEATURE}",integer,internal-keycache \
+        --test-threads "$(${nproc_bin})" \
+        -E "$filter_expression"
+
+    cargo ${1:+"${1}"} test \
+        --release \
+        --package tfhe \
+        --features="${ARCH_FEATURE}",integer,internal-keycache \
+        --doc \
+        integer:: -- --test-threads="$(${nproc_bin})"
+fi
 
 echo "Test ran in $SECONDS seconds"

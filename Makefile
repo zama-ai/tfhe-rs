@@ -8,6 +8,7 @@ CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
 MIN_RUST_VERSION:=1.65
 AVX512_SUPPORT?=OFF
 WASM_RUSTFLAGS:=
+BIG_TESTS_INSTANCE?=FALSE
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -169,7 +170,8 @@ test_c_api: build_c_api
 
 .PHONY: test_shortint_ci # Run the tests for shortint ci
 test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
-	./scripts/shortint-tests.sh $(CARGO_RS_BUILD_TOOLCHAIN)
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+		./scripts/shortint-tests.sh $(CARGO_RS_BUILD_TOOLCHAIN)
 
 .PHONY: test_shortint # Run all the tests for shortint
 test_shortint: install_rs_build_toolchain
@@ -178,7 +180,8 @@ test_shortint: install_rs_build_toolchain
 
 .PHONY: test_integer_ci # Run the tests for integer ci
 test_integer_ci: install_rs_build_toolchain install_cargo_nextest
-	./scripts/integer-tests.sh $(CARGO_RS_BUILD_TOOLCHAIN)
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+		./scripts/integer-tests.sh $(CARGO_RS_BUILD_TOOLCHAIN)
 
 .PHONY: test_integer # Run all the tests for integer
 test_integer: install_rs_build_toolchain
