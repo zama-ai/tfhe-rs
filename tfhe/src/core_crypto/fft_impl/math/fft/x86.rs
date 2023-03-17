@@ -105,7 +105,7 @@ pub unsafe fn mm512_cvtpd_epi64(x: __m512d) -> __m512i {
 
     // extract the 63rd sign bit
     let sign_is_negative_mask =
-        _mm512_cmpneq_epi64_mask(_mm512_srli_epi64::<63>(bits), _mm512_set1_epi64(1));
+        _mm512_cmpeq_epi64_mask(_mm512_srli_epi64::<63>(bits), _mm512_set1_epi64(1));
 
     // we need to shift the mantissa by some value that may be negative, so we first shift it to
     // the left by the maximum amount, then shift it to the right by our value plus the offset we
