@@ -1,7 +1,7 @@
 [profile.cpu-big]
 region = "eu-west-3"
 image_id = "ami-04deffe45b5b236fd"
-instance_type = "c6i.8xlarge"
+instance_type = "m6i.32xlarge"
 
 [profile.bench]
 region = "eu-west-3"

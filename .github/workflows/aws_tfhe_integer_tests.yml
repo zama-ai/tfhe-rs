@@ -62,7 +62,7 @@ jobs:
 
       - name: Run integer tests
         run: |
-          make test_integer_ci
+          BIG_TESTS_INSTANCE=TRUE make test_integer_ci
 
       - name: Slack Notification
         if: ${{ always() }}
