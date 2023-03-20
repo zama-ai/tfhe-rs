@@ -17,6 +17,9 @@ use crate::shortint::ServerKey;
 use std::cell::RefCell;
 use std::fmt::Debug;
 
+use super::parameters::MessageModulus;
+use super::server_key::BivariateAccumulator;
+
 mod client_side;
 mod public_side;
 mod server_side;
@@ -236,21 +239,32 @@ impl ShortintEngine {
         })
     }
 
+    /// Generates a bivariate accumulator
     fn generate_accumulator_bivariate_with_engine<F>(
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<Accumulator>
+        left_message_scaling: MessageModulus,
+    ) -> EngineResult<BivariateAccumulator>
     where
         F: Fn(u64, u64) -> u64,
     {
-        let modulus = server_key.message_modulus.0 as u64;
+        // Depending on the factor used, rhs and / or lhs may have carries
+        // (degree >= message_modulus) which is why we need to apply the message_modulus
+        // to clear them
+        let factor_u64 = left_message_scaling.0 as u64;
+        let message_modulus = server_key.message_modulus.0 as u64;
         let wrapped_f = |input: u64| -> u64 {
-            let lhs = (input / modulus) % modulus;
-            let rhs = input % modulus;
+            let lhs = (input / factor_u64) % message_modulus;
+            let rhs = (input % factor_u64) % message_modulus;
 
             f(lhs, rhs)
         };
-        ShortintEngine::generate_accumulator_with_engine(server_key, wrapped_f)
+        let accumulator = ShortintEngine::generate_accumulator_with_engine(server_key, wrapped_f)?;
+
+        Ok(BivariateAccumulator {
+            acc: accumulator,
+            ct_right_modulus: left_message_scaling,
+        })
     }
 
     /// Return the [`BuffersRef`] and [`ComputationBuffers`] for the given `ServerKey`

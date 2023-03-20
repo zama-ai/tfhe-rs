@@ -5,7 +5,8 @@ use crate::core_crypto::fft_impl::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::math::fft::Fft;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::EngineResult;
-use crate::shortint::server_key::{Accumulator, MaxDegree};
+use crate::shortint::parameters::MessageModulus;
+use crate::shortint::server_key::{Accumulator, BivariateAccumulator, MaxDegree};
 use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, ServerKey};
 use std::cmp::min;
 
@@ -275,7 +276,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        acc: &Accumulator,
+        acc: &BivariateAccumulator,
     ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct_left.clone();
         self.keyswitch_programmable_bootstrap_bivariate_assign(
@@ -292,31 +293,46 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        acc: &Accumulator,
+        acc: &BivariateAccumulator,
     ) -> EngineResult<()> {
         let modulus = (ct_right.degree.0 + 1) as u64;
+        assert!(modulus <= acc.ct_right_modulus.0 as u64);
 
-        // Message 1 is shifted to the carry bits
-        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
+        // Message 1 is shifted
+        self.unchecked_scalar_mul_assign(ct_left, acc.ct_right_modulus.0 as u8)?;
 
-        // Message 2 is placed in the message bits
         self.unchecked_add_assign(ct_left, ct_right)?;
 
         // Compute the PBS
-        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, acc)?;
+        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc.acc)?;
 
         Ok(())
+    }
+
+    pub(crate) fn generate_accumulator_bivariate_with_factor<F>(
+        &mut self,
+        server_key: &ServerKey,
+        f: F,
+        left_message_scaling: MessageModulus,
+    ) -> EngineResult<BivariateAccumulator>
+    where
+        F: Fn(u64, u64) -> u64,
+    {
+        Self::generate_accumulator_bivariate_with_engine(server_key, f, left_message_scaling)
     }
 
     pub(crate) fn generate_accumulator_bivariate<F>(
         &mut self,
         server_key: &ServerKey,
         f: F,
-    ) -> EngineResult<Accumulator>
+    ) -> EngineResult<BivariateAccumulator>
     where
         F: Fn(u64, u64) -> u64,
     {
-        Self::generate_accumulator_bivariate_with_engine(server_key, f)
+        // We use the message_modulus as the multiplying factor as its the most general one.
+        // It makes it compatible with any pair of ciphertext which have empty carries,
+        // and carries can be emptied with `message_extract`
+        self.generate_accumulator_bivariate_with_factor(server_key, f, server_key.message_modulus)
     }
 
     pub(crate) fn unchecked_functional_bivariate_pbs<F>(
@@ -327,7 +343,7 @@ impl ShortintEngine {
         f: F,
     ) -> EngineResult<Ciphertext>
     where
-        F: Fn(u64) -> u64,
+        F: Fn(u64, u64) -> u64,
     {
         let mut ct_res = ct_left.clone();
         self.unchecked_functional_bivariate_pbs_assign(server_key, &mut ct_res, ct_right, f)?;
@@ -342,22 +358,63 @@ impl ShortintEngine {
         f: F,
     ) -> EngineResult<()>
     where
-        F: Fn(u64) -> u64,
+        F: Fn(u64, u64) -> u64,
     {
-        let modulus = (ct_right.degree.0 + 1) as u64;
-
-        // Message 1 is shifted to the carry bits
-        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
-
-        // Message 2 is placed in the message bits
-        self.unchecked_add_assign(ct_left, ct_right)?;
-
         // Generate the accumulator for the function
-        let acc = self.generate_accumulator(server_key, f)?;
+        let factor = MessageModulus(ct_right.degree.0 + 1);
+        let acc = self.generate_accumulator_bivariate_with_factor(server_key, f, factor)?;
 
         // Compute the PBS
-        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, &acc)?;
+        self.keyswitch_programmable_bootstrap_bivariate_assign(
+            server_key, ct_left, ct_right, &acc,
+        )?;
         Ok(())
+    }
+
+    pub(crate) fn smart_functional_bivariate_pbs_assign<F>(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+        f: F,
+    ) -> EngineResult<()>
+    where
+        F: Fn(u64, u64) -> u64,
+    {
+        // First try to clear carries of ct_right
+        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            self.message_extract_assign(server_key, ct_right)?;
+        }
+
+        // It was not enough, clean the ct_left carries also
+        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            self.message_extract_assign(server_key, ct_left)?;
+        }
+
+        self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, f)
+    }
+
+    pub(crate) fn smart_functional_bivariate_pbs<F>(
+        &mut self,
+        server_key: &ServerKey,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+        f: F,
+    ) -> EngineResult<Ciphertext>
+    where
+        F: Fn(u64, u64) -> u64,
+    {
+        // First try to clear carries of ct_right
+        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            self.message_extract_assign(server_key, ct_right)?;
+        }
+
+        // It was not enough, clean the ct_left carries also
+        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            self.message_extract_assign(server_key, ct_left)?;
+        }
+
+        self.unchecked_functional_bivariate_pbs(server_key, ct_left, ct_right, f)
     }
 
     // Those are currently not used in shortint, we therefore disable the warning when not compiling
@@ -368,7 +425,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &mut Ciphertext,
-        acc: &Accumulator,
+        acc: &BivariateAccumulator,
     ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct_left.clone();
         self.smart_bivariate_pbs_assign(server_key, &mut ct_res, ct_right, acc)?;
@@ -381,35 +438,17 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-        acc: &Accumulator,
+        acc: &BivariateAccumulator,
     ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
+            // so the factor has to be message_modulus
+            assert_eq!(ct_right.message_modulus.0, acc.ct_right_modulus.0);
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
 
-        self.unchecked_bivariate_pbs_assign(server_key, ct_left, ct_right, acc)
-    }
-
-    #[cfg_attr(not(feature = "__c_api"), allow(dead_code))]
-    pub(crate) fn unchecked_bivariate_pbs_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
-        acc: &Accumulator,
-    ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
-
-        // Message 1 is shifted to the carry bits
-        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
-
-        // Message 2 is placed in the message bits
-        self.unchecked_add_assign(ct_left, ct_right)?;
-
-        // Compute the PBS
-        self.keyswitch_programmable_bootstrap_assign(server_key, ct_left, acc)?;
-        Ok(())
+        self.keyswitch_programmable_bootstrap_bivariate_assign(server_key, ct_left, ct_right, acc)
     }
 
     pub(crate) fn carry_extract_assign(

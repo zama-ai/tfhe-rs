@@ -19,10 +19,12 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
-        self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            (x / modulus) & (x % modulus)
-        })?;
+        self.unchecked_functional_bivariate_pbs_assign(
+            server_key,
+            ct_left,
+            ct_right,
+            |lhs, rhs| lhs & rhs,
+        )?;
         ct_left.degree = ct_left.degree.after_bitand(ct_right.degree);
         Ok(())
     }
@@ -69,10 +71,12 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
-        self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            (x / modulus) ^ (x % modulus)
-        })?;
+        self.unchecked_functional_bivariate_pbs_assign(
+            server_key,
+            ct_left,
+            ct_right,
+            |lhs, rhs| lhs ^ rhs,
+        )?;
         ct_left.degree = ct_left.degree.after_bitxor(ct_right.degree);
         Ok(())
     }
@@ -119,10 +123,12 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
-        self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            (x / modulus) | (x % modulus)
-        })?;
+        self.unchecked_functional_bivariate_pbs_assign(
+            server_key,
+            ct_left,
+            ct_right,
+            |lhs, rhs| lhs | rhs,
+        )?;
         ct_left.degree = ct_left.degree.after_bitor(ct_right.degree);
         Ok(())
     }

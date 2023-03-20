@@ -68,9 +68,36 @@ pub struct ServerKey {
     pub max_degree: MaxDegree,
 }
 
+/// Returns whether it is possible to pack lhs and rhs into a unique
+/// ciphertext without exceeding the max storable value using the formula:
+/// `unique_ciphertext = (lhs * factor) + rhs`
+fn ciphertexts_can_be_packed_without_exceeding_space(
+    lhs: &Ciphertext,
+    rhs: &Ciphertext,
+    factor: usize,
+) -> bool {
+    let final_degree = (lhs.degree.0 * factor) + rhs.degree.0;
+    final_degree < lhs.carry_modulus.0 * lhs.message_modulus.0
+}
+
 pub struct Accumulator {
     pub acc: GlweCiphertextOwned<u64>,
     pub degree: Degree,
+}
+
+pub struct BivariateAccumulator {
+    // A bivariate accumulator is an univariate accumulator
+    // where the message space is shared to encode
+    // 2 values
+    pub acc: Accumulator,
+    // By how much we shift the lhs in the LUT
+    pub ct_right_modulus: MessageModulus,
+}
+
+impl BivariateAccumulator {
+    pub fn is_bivariate_pbs_possible(&self, lhs: &Ciphertext, rhs: &Ciphertext) -> bool {
+        ciphertexts_can_be_packed_without_exceeding_space(lhs, rhs, self.ct_right_modulus.0)
+    }
 }
 
 impl ServerKey {
@@ -135,6 +162,21 @@ impl ServerKey {
         })
     }
 
+    pub fn generate_accumulator_bivariate_with_factor<F>(
+        &self,
+        f: F,
+        left_message_scaling: MessageModulus,
+    ) -> BivariateAccumulator
+    where
+        F: Fn(u64, u64) -> u64,
+    {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .generate_accumulator_bivariate_with_factor(self, f, left_message_scaling)
+                .unwrap()
+        })
+    }
+
     /// Constructs the accumulator for a given bivariate function as input.
     ///
     /// # Example
@@ -146,21 +188,22 @@ impl ServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let msg = 3;
+    /// let msg_1 = 3;
+    /// let msg_2 = 2;
     ///
-    /// let ct1 = cks.encrypt(msg);
-    /// let ct2 = cks.encrypt(0);
-    /// // Generate the accumulator for the function f: x -> x^2 mod 2^2
-    /// let f = |x, y| (x + y) ^ 2 % 4;
+    /// let ct1 = cks.encrypt(msg_1);
+    /// let ct2 = cks.encrypt(msg_2);
+    ///
+    /// let f = |x, y| (x + y) % 4;
     ///
     /// let acc = sks.generate_accumulator_bivariate(f);
+    /// assert!(acc.is_bivariate_pbs_possible(&ct1, &ct2));
     /// let ct_res = sks.keyswitch_programmable_bootstrap_bivariate(&ct1, &ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
-    /// // 3^2 mod 4 = 1
-    /// assert_eq!(dec, f(msg, 0));
+    /// assert_eq!(dec, f(msg_1, msg_2));
     /// ```
-    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> Accumulator
+    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> BivariateAccumulator
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -253,7 +296,7 @@ impl ServerKey {
         &self,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-        acc: &Accumulator,
+        acc: &BivariateAccumulator,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -266,7 +309,7 @@ impl ServerKey {
         &self,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-        acc: &Accumulator,
+        acc: &BivariateAccumulator,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -332,7 +375,7 @@ impl ServerKey {
         f: F,
     ) -> Ciphertext
     where
-        F: Fn(u64) -> u64,
+        F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -347,7 +390,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
         f: F,
     ) where
-        F: Fn(u64) -> u64,
+        F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -356,13 +399,41 @@ impl ServerKey {
         })
     }
 
-    /// Verify if a bivariate functional pbs can be applied on ct_left and ct_right.
+    /// Verify if a functional bivariate pbs can be applied on ct_left and ct_right.
     pub fn is_functional_bivariate_pbs_possible(&self, ct1: &Ciphertext, ct2: &Ciphertext) -> bool {
-        //product of the degree
-        let final_degree = ct1.degree.0 * (ct2.degree.0 + 1) + ct2.degree.0;
-        final_degree < ct1.carry_modulus.0 * ct1.message_modulus.0
+        ciphertexts_can_be_packed_without_exceeding_space(ct1, ct2, ct2.degree.0 + 1)
     }
 
+    pub fn smart_functional_bivariate_pbs_assign<F>(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+        f: F,
+    ) where
+        F: Fn(u64, u64) -> u64,
+    {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .smart_functional_bivariate_pbs_assign(self, ct_left, ct_right, f)
+                .unwrap()
+        })
+    }
+
+    pub fn smart_functional_bivariate_pbs<F>(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+        f: F,
+    ) -> Ciphertext
+    where
+        F: Fn(u64, u64) -> u64,
+    {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .smart_functional_bivariate_pbs(self, ct_left, ct_right, f)
+                .unwrap()
+        })
+    }
     /// Replace the input encrypted message by the value of its carry buffer.
     ///
     /// # Example

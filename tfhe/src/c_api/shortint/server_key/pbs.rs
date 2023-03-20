@@ -9,7 +9,7 @@ pub type BivariateAccumulatorCallback = Option<extern "C" fn(u64, u64) -> u64>;
 
 pub struct ShortintPBSAccumulator(pub(in crate::c_api) crate::shortint::server_key::Accumulator);
 pub struct ShortintBivariatePBSAccumulator(
-    pub(in crate::c_api) crate::shortint::server_key::Accumulator,
+    pub(in crate::c_api) crate::shortint::server_key::BivariateAccumulator,
 );
 
 #[no_mangle]

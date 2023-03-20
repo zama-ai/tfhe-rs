@@ -315,7 +315,7 @@ fn shortint_keyswitch_bivariate_programmable_bootstrap(param: Parameters) {
         let ctxt_0 = cks.encrypt(clear_0);
         let ctxt_1 = cks.encrypt(clear_1);
         //define the accumulator as identity
-        let acc = sks.generate_accumulator_bivariate(|x, y| x * 2 * y % modulus);
+        let acc = sks.generate_accumulator_bivariate(|x, y| x * 2 * y);
         // add the two ciphertexts
         let ct_res = sks.keyswitch_programmable_bootstrap_bivariate(&ctxt_0, &ctxt_1, &acc);
 

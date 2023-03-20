@@ -3,11 +3,11 @@ use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
 
 // Specific division function returning 0 in case of a division by 0
-pub(crate) fn division(x: u64, modulus: u64) -> u64 {
-    if x % modulus == 0 {
+pub(crate) fn safe_division(x: u64, y: u64) -> u64 {
+    if y == 0 {
         0
     } else {
-        (x / modulus) / (x % modulus)
+        x / y
     }
 }
 
@@ -29,12 +29,12 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
-
-        //In this case the degree of the result is equal to the degree of ct_left
-        self.unchecked_functional_bivariate_pbs_assign(server_key, ct_left, ct_right, |x| {
-            division(x, modulus)
-        })?;
+        self.unchecked_functional_bivariate_pbs_assign(
+            server_key,
+            ct_left,
+            ct_right,
+            safe_division,
+        )?;
         Ok(())
     }
 
