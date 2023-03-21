@@ -338,7 +338,8 @@ impl ServerKey {
 
             if u_i == 0 {
                 //update the power b^{i+1}
-                b_i *= self.key.message_modulus.0 as u64;
+                let Some(new_power) = b_i.checked_mul(self.key.message_modulus.0 as u64) else {break};
+                b_i = new_power;
                 continue;
             } else if u_i == 1 {
                 // tmp = ctxt * 1 * b^i
@@ -357,7 +358,8 @@ impl ServerKey {
             result = self.smart_add(&mut result, &mut tmp);
 
             //update the power b^{i+1}
-            b_i *= self.key.message_modulus.0 as u64;
+            let Some(new_power) = b_i.checked_mul(self.key.message_modulus.0 as u64) else {break};
+            b_i = new_power;
         }
 
         result

@@ -40,14 +40,19 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_sub_assign(&self, ct: &mut RadixCiphertext, scalar: u64) {
+        // Widen to 128 bits to avoid overflow when doing wrapped negation.
+        let scalar = scalar as u128;
         //Bits of message put to 1
-        let mask = (self.key.message_modulus.0 - 1) as u64;
+        let mask = (self.key.message_modulus.0 - 1) as u128;
 
-        let modulus = self.key.message_modulus.0.pow(ct.blocks.len() as u32) as u64;
+        let modulus = (self.key.message_modulus.0 as u128).checked_pow(ct.blocks.len() as u32);
 
-        let neg_scalar = scalar.wrapping_neg() % modulus;
+        let neg_scalar = match modulus {
+            Some(modul) => scalar.wrapping_neg() % modul,
+            None => scalar.wrapping_neg(),
+        };
 
-        let mut power = 1_u64;
+        let mut power = 1_u128;
         //Put each decomposition into a new ciphertext
         for ct_i in ct.blocks.iter_mut() {
             let mut decomp = neg_scalar & (mask * power);
@@ -56,7 +61,8 @@ impl ServerKey {
             self.key.unchecked_scalar_add_assign(ct_i, decomp as u8);
 
             //modulus to the power i
-            power *= self.key.message_modulus.0 as u64;
+            let Some(new_power) = power.checked_mul(self.key.message_modulus.0 as u128) else {break};
+            power = new_power;
         }
     }
 
@@ -86,7 +92,11 @@ impl ServerKey {
         //Bits of message put to 1
         let mask = (self.key.message_modulus.0 - 1) as u64;
 
-        let modulus = self.key.message_modulus.0.pow(ct.blocks.len() as u32) as u64;
+        let modulus = self
+            .key
+            .message_modulus
+            .0
+            .saturating_pow(ct.blocks.len() as u32) as u64;
 
         let neg_scalar = scalar.wrapping_neg() % modulus;
 
@@ -101,7 +111,8 @@ impl ServerKey {
             }
 
             //modulus to the power i
-            power *= self.key.message_modulus.0 as u64;
+            let Some(new_power) = power.checked_mul(self.key.message_modulus.0 as u64) else {break};
+            power = new_power;
         }
         true
     }

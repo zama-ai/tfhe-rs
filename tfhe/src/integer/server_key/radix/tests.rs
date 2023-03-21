@@ -45,6 +45,8 @@ create_parametrized_test!(integer_smart_scalar_add);
 create_parametrized_test!(integer_unchecked_scalar_sub);
 create_parametrized_test!(integer_unchecked_scalar_add);
 
+create_parametrized_test!(integer_unchecked_scalar_decomposition_overflow);
+
 fn integer_encrypt_decrypt(param: Parameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
 
@@ -1128,4 +1130,66 @@ fn integer_smart_scalar_sub(param: Parameters) {
             assert_eq!(clear, dec_res);
         }
     }
+}
+
+fn integer_unchecked_scalar_decomposition_overflow(param: Parameters) {
+    // This is a regression test. The purpose here is to check if the number of decomposition
+    // blocks doesn't exceed 64 bits. This is why we test only 128 bits size.
+    // If overflow occurs the test case will panic.
+
+    // RNG
+    let mut rng = rand::thread_rng();
+
+    let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+    // Check addition
+    // --------------
+    let scalar = rng.gen::<u64>();
+    let clear_0 = rng.gen::<u128>();
+    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+    let ct_res = sks.unchecked_scalar_add(&ct_0, scalar);
+    // decryption of ct_res
+    let dec_res = cks.decrypt_radix(&ct_res);
+
+    assert_eq!((clear_0 + scalar as u128), dec_res);
+
+    // Check subtraction
+    // -----------------
+    let scalar = rng.gen::<u64>();
+    let clear_0 = rng.gen::<u128>();
+    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+    let ct_res = sks.unchecked_scalar_sub(&ct_0, scalar);
+    let dec_res = cks.decrypt_radix(&ct_res);
+
+    assert_eq!((clear_0 - scalar as u128), dec_res);
+}
+
+#[test]
+fn integer_smart_scalar_mul_decomposition_overflow() {
+    // This is a regression test. The purpose here is to check if the number of decomposition
+    // blocks doesn't exceed 64 bits. This is why we test only 128 bits size.
+    // Since smart_scalar_mul is a slow operation, we test against only one parameters set.
+    // If overflow occurs the test case will panic.
+
+    // RNG
+    let mut rng = rand::thread_rng();
+
+    let param = PARAM_MESSAGE_2_CARRY_2;
+
+    let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+    let scalar = rng.gen::<u64>();
+    let clear_0 = rng.gen::<u128>();
+    let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+    let ct_res = sks.smart_scalar_mul(&mut ct_0, scalar);
+    let dec_res = cks.decrypt_radix(&ct_res);
+
+    assert_eq!((clear_0 * scalar as u128), dec_res);
 }
