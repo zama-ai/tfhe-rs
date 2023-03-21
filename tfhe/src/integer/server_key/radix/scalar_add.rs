@@ -58,7 +58,8 @@ impl ServerKey {
             self.key.unchecked_scalar_add_assign(ct_i, decomp as u8);
 
             //modulus to the power i
-            power *= self.key.message_modulus.0 as u64;
+            let Some(new_power) = power.checked_mul(self.key.message_modulus.0 as u64) else {break};
+            power = new_power;
         }
     }
 
@@ -101,7 +102,8 @@ impl ServerKey {
             }
 
             //modulus to the power i
-            power *= self.key.message_modulus.0 as u64;
+            let Some(new_power) = power.checked_mul(self.key.message_modulus.0 as u64) else {break};
+            power = new_power;
         }
         true
     }
