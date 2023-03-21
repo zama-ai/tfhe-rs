@@ -56,7 +56,7 @@ impl ServerKey {
 
         for i in 0..ctxt.blocks.len() {
             let c_i = &mut ctxt.blocks[i];
-            z = self.key.unchecked_neg_assign_with_z(c_i);
+            z = self.key.unchecked_neg_assign_with_correcting_term(c_i);
 
             // Subtract z/B to the next ciphertext to compensate for the addition of z
             z_b = z / self.key.message_modulus.0 as u64;

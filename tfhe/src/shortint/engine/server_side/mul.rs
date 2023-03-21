@@ -92,7 +92,8 @@ impl ShortintEngine {
         let mut ct_tmp_left = self.unchecked_add(ct1, ct2)?;
 
         //ct1-ct2
-        let (mut ct_tmp_right, z) = self.unchecked_sub_with_z(server_key, ct1, ct2)?;
+        let (mut ct_tmp_right, z) =
+            self.unchecked_sub_with_correcting_term(server_key, ct1, ct2)?;
 
         //Modulus of the msg in the msg bits
         let modulus = ct1.message_modulus.0 as u64;

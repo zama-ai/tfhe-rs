@@ -37,9 +37,9 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_neg(self, ct).unwrap())
     }
 
-    pub fn unchecked_neg_with_z(&self, ct: &Ciphertext) -> (Ciphertext, u64) {
+    pub fn unchecked_neg_with_correcting_term(&self, ct: &Ciphertext) -> (Ciphertext, u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_neg_with_z(self, ct).unwrap()
+            engine.unchecked_neg_with_correcting_term(self, ct).unwrap()
         })
     }
 
@@ -72,9 +72,11 @@ impl ServerKey {
         })
     }
 
-    pub fn unchecked_neg_assign_with_z(&self, ct: &mut Ciphertext) -> u64 {
+    pub fn unchecked_neg_assign_with_correcting_term(&self, ct: &mut Ciphertext) -> u64 {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_neg_assign_with_z(self, ct).unwrap()
+            engine
+                .unchecked_neg_assign_with_correcting_term(self, ct)
+                .unwrap()
         })
     }
 

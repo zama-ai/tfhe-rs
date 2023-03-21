@@ -262,7 +262,7 @@ impl ServerKey {
     ) -> (Ciphertext, u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .unchecked_sub_with_z(self, ct_left, ct_right)
+                .unchecked_sub_with_correcting_term(self, ct_left, ct_right)
                 .unwrap()
         })
     }
@@ -280,7 +280,7 @@ impl ServerKey {
     ) -> u64 {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .unchecked_sub_assign_with_z(self, ct_left, ct_right)
+                .unchecked_sub_assign_with_correcting_term(self, ct_left, ct_right)
                 .unwrap()
         })
     }
@@ -297,7 +297,9 @@ impl ServerKey {
         ct_right: &mut Ciphertext,
     ) -> (Ciphertext, u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_sub_with_z(self, ct_left, ct_right).unwrap()
+            engine
+                .smart_sub_with_correcting_term(self, ct_left, ct_right)
+                .unwrap()
         })
     }
 }

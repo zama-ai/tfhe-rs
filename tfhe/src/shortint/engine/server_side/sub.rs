@@ -22,29 +22,30 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        self.unchecked_sub_assign_with_z(server_key, ct_left, ct_right)?;
+        self.unchecked_sub_assign_with_correcting_term(server_key, ct_left, ct_right)?;
         Ok(())
     }
 
-    pub(crate) fn unchecked_sub_with_z(
+    pub(crate) fn unchecked_sub_with_correcting_term(
         &mut self,
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<(Ciphertext, u64)> {
         let mut result = ct_left.clone();
-        let z = self.unchecked_sub_assign_with_z(server_key, &mut result, ct_right)?;
+        let z =
+            self.unchecked_sub_assign_with_correcting_term(server_key, &mut result, ct_right)?;
 
         Ok((result, z))
     }
 
-    pub(crate) fn unchecked_sub_assign_with_z(
+    pub(crate) fn unchecked_sub_assign_with_correcting_term(
         &mut self,
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<u64> {
-        let (neg_right, z) = self.unchecked_neg_with_z(server_key, ct_right)?;
+        let (neg_right, z) = self.unchecked_neg_with_correcting_term(server_key, ct_right)?;
 
         lwe_ciphertext_add_assign(&mut ct_left.ct, &neg_right.ct);
 
@@ -83,7 +84,7 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_sub_with_z(
+    pub(crate) fn smart_sub_with_correcting_term(
         &mut self,
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
@@ -95,6 +96,6 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_right)?;
         }
 
-        self.unchecked_sub_with_z(server_key, ct_left, ct_right)
+        self.unchecked_sub_with_correcting_term(server_key, ct_left, ct_right)
     }
 }

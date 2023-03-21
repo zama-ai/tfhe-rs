@@ -15,13 +15,13 @@ impl ShortintEngine {
         Ok(result)
     }
 
-    pub(crate) fn unchecked_neg_with_z(
+    pub(crate) fn unchecked_neg_with_correcting_term(
         &mut self,
         server_key: &ServerKey,
         ct: &Ciphertext,
     ) -> EngineResult<(Ciphertext, u64)> {
         let mut result = ct.clone();
-        let z = self.unchecked_neg_assign_with_z(server_key, &mut result)?;
+        let z = self.unchecked_neg_assign_with_correcting_term(server_key, &mut result)?;
         Ok((result, z))
     }
 
@@ -30,11 +30,11 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
     ) -> EngineResult<()> {
-        let _z = self.unchecked_neg_assign_with_z(server_key, ct)?;
+        let _z = self.unchecked_neg_assign_with_correcting_term(server_key, ct)?;
         Ok(())
     }
 
-    pub(crate) fn unchecked_neg_assign_with_z(
+    pub(crate) fn unchecked_neg_assign_with_correcting_term(
         &mut self,
         server_key: &ServerKey,
         ct: &mut Ciphertext,
