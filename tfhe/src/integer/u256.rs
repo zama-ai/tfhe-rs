@@ -68,6 +68,30 @@ impl From<(u128, u128)> for U256 {
     }
 }
 
+impl From<u8> for U256 {
+    fn from(value: u8) -> Self {
+        Self::from(value as u128)
+    }
+}
+
+impl From<u16> for U256 {
+    fn from(value: u16) -> Self {
+        Self::from(value as u128)
+    }
+}
+
+impl From<u32> for U256 {
+    fn from(value: u32) -> Self {
+        Self::from(value as u128)
+    }
+}
+
+impl From<u64> for U256 {
+    fn from(value: u64) -> Self {
+        Self::from(value as u128)
+    }
+}
+
 impl From<u128> for U256 {
     fn from(value: u128) -> Self {
         Self([

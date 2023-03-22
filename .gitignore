@@ -3,9 +3,9 @@ target/
 .vscode/
 
 # Path we use for internal-keycache during tests
-keys/
+./keys/
 # In case of symlinked keys
-keys
+./keys
 
 **/Cargo.lock
 **/*.bin
