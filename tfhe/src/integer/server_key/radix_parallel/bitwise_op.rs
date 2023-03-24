@@ -1,7 +1,32 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use rayon::prelude::*;
 
 impl ServerKey {
+    pub fn unchecked_bitand_parallelized(
+        &self,
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
+        let mut result = ct_left.clone();
+        self.unchecked_bitand_assign_parallelized(&mut result, ct_right);
+        result
+    }
+
+    pub fn unchecked_bitand_assign_parallelized(
+        &self,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) {
+        ct_left
+            .blocks
+            .par_iter_mut()
+            .zip(ct_right.blocks.par_iter())
+            .for_each(|(ct_left_i, ct_right_i)| {
+                self.key.unchecked_bitand_assign(ct_left_i, ct_right_i);
+            });
+    }
+
     /// Computes homomorphically a bitand between two ciphertexts encrypting integer values.
     ///
     /// # Warning
@@ -41,7 +66,7 @@ impl ServerKey {
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        self.unchecked_bitand(ct_left, ct_right)
+        self.unchecked_bitand_parallelized(ct_left, ct_right)
     }
 
     pub fn smart_bitand_assign_parallelized(
@@ -55,7 +80,31 @@ impl ServerKey {
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        self.unchecked_bitand_assign(ct_left, ct_right);
+        self.unchecked_bitand_assign_parallelized(ct_left, ct_right);
+    }
+
+    pub fn unchecked_bitor_parallelized(
+        &self,
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
+        let mut result = ct_left.clone();
+        self.unchecked_bitor_assign_parallelized(&mut result, ct_right);
+        result
+    }
+
+    pub fn unchecked_bitor_assign_parallelized(
+        &self,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) {
+        ct_left
+            .blocks
+            .par_iter_mut()
+            .zip(ct_right.blocks.par_iter())
+            .for_each(|(ct_left_i, ct_right_i)| {
+                self.key.unchecked_bitor_assign(ct_left_i, ct_right_i);
+            });
     }
 
     /// Computes homomorphically a bitor between two ciphertexts encrypting integer values.
@@ -97,7 +146,7 @@ impl ServerKey {
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        self.unchecked_bitor(ct_left, ct_right)
+        self.unchecked_bitor_parallelized(ct_left, ct_right)
     }
 
     pub fn smart_bitor_assign_parallelized(
@@ -111,7 +160,31 @@ impl ServerKey {
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        self.unchecked_bitor_assign(ct_left, ct_right);
+        self.unchecked_bitor_assign_parallelized(ct_left, ct_right);
+    }
+
+    pub fn unchecked_bitxor_parallelized(
+        &self,
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
+        let mut result = ct_left.clone();
+        self.unchecked_bitxor_assign_parallelized(&mut result, ct_right);
+        result
+    }
+
+    pub fn unchecked_bitxor_assign_parallelized(
+        &self,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) {
+        ct_left
+            .blocks
+            .par_iter_mut()
+            .zip(ct_right.blocks.par_iter())
+            .for_each(|(ct_left_i, ct_right_i)| {
+                self.key.unchecked_bitxor_assign(ct_left_i, ct_right_i);
+            });
     }
 
     /// Computes homomorphically a bitxor between two ciphertexts encrypting integer values.
@@ -153,7 +226,7 @@ impl ServerKey {
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        self.unchecked_bitxor(ct_left, ct_right)
+        self.unchecked_bitxor_parallelized(ct_left, ct_right)
     }
 
     pub fn smart_bitxor_assign_parallelized(
@@ -167,6 +240,6 @@ impl ServerKey {
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        self.unchecked_bitxor_assign(ct_left, ct_right);
+        self.unchecked_bitxor_assign_parallelized(ct_left, ct_right);
     }
 }
