@@ -260,6 +260,9 @@ define_server_key_bench_fn!(unchecked_bitor);
 define_server_key_bench_fn!(unchecked_bitxor);
 
 define_server_key_bench_fn!(unchecked_mul_parallelized);
+define_server_key_bench_fn!(unchecked_bitand_parallelized);
+define_server_key_bench_fn!(unchecked_bitor_parallelized);
+define_server_key_bench_fn!(unchecked_bitxor_parallelized);
 
 define_server_key_bench_scalar_fn!(smart_scalar_add);
 define_server_key_bench_scalar_fn!(smart_scalar_sub);
@@ -386,6 +389,9 @@ criterion_group!(
     unchecked_le_parallelized,
     unchecked_gt_parallelized,
     unchecked_ge_parallelized,
+    unchecked_bitand_parallelized,
+    unchecked_bitor_parallelized,
+    unchecked_bitxor_parallelized,
 );
 
 criterion_group!(misc, full_propagate, full_propagate_parallelized);
