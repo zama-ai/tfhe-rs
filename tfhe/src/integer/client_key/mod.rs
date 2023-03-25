@@ -29,7 +29,7 @@ pub use radix::RadixClientKey;
 /// use the same crypto parameters.
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct ClientKey {
-    pub(crate) key: ShortintClientKey,
+    pub key: ShortintClientKey,
 }
 
 impl From<ShortintClientKey> for ClientKey {

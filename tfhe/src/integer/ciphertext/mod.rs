@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Clone, Deserialize)]
 pub struct RadixCiphertext {
     /// The blocks are stored from LSB to MSB
-    pub(crate) blocks: Vec<ShortintCiphertext>,
+    pub blocks: Vec<ShortintCiphertext>,
 }
 
 pub trait IntegerCiphertext: Clone {
@@ -52,7 +52,7 @@ impl IntegerCiphertext for CrtCiphertext {
 /// the same parameters.
 #[derive(Serialize, Clone, Deserialize)]
 pub struct CrtCiphertext {
-    pub(crate) blocks: Vec<ShortintCiphertext>,
+    pub blocks: Vec<ShortintCiphertext>,
     pub(crate) moduli: Vec<u64>,
 }
 

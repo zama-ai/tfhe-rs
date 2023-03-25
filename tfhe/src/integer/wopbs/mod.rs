@@ -12,7 +12,7 @@ use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, RadixCiphertex
 use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
 
-use crate::shortint::{Ciphertext, Parameters};
+use crate::shortint::{Parameters};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]

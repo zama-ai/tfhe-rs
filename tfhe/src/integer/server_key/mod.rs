@@ -22,7 +22,7 @@ pub use crate::shortint::CheckError;
 /// sends it to the server so it can compute homomorphic integer circuits.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ServerKey {
-    pub(crate) key: crate::shortint::ServerKey,
+    pub key: crate::shortint::ServerKey,
 }
 
 impl From<ServerKey> for crate::shortint::ServerKey {

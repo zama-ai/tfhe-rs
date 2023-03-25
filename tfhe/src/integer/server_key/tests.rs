@@ -365,6 +365,43 @@ pub fn joc_native_crt_wopbs() {
 }
 
 #[test]
+pub fn joc_native_crt_add() {
+    let param_vec = vec![
+        ID_10_NATIF_CRT_16_BITS_5_BLOCKS_WOPBS,
+        ID_11_NATIF_CRT_32_BITS_6_BLOCKS_WOPBS
+    ];
+
+    // Define CRT basis, and global modulus
+    let basis_16bits = vec![7,8,9,11,13];
+    let basis_32bits = vec![43,47,37,49,29,41];
+
+    let basis_vec = [
+        basis_16bits,
+        basis_32bits,
+    ];
+
+    for (param, basis)  in param_vec.iter().zip(basis_vec.iter()) {
+        let mut rng = rand::thread_rng();
+        let msg_space = basis.iter().product::<u64>();
+
+        let (cks, sks) = KEY_CACHE.get_from_params(*param);
+
+        for _ in 0..NB_TEST {
+            let clear1 = rng.gen::<u64>() % msg_space;
+            let clear0 = rng.gen::<u64>() % msg_space;
+            let ct1 = cks.encrypt_native_crt(clear1, basis.to_vec());
+            let ct0 = cks.encrypt_native_crt(clear0, basis.to_vec());
+
+            let ct_res = sks.unchecked_crt_add(&ct1, &ct0);
+
+            let res = cks.decrypt_native_crt(&ct_res);
+            assert_eq!((clear0 + clear1) % msg_space, res);
+        }
+    }
+}
+
+
+#[test]
 pub fn joc_native_crt_mul_wopbs() {
     let param_vec = vec![
         ID_11_NATIF_CRT_32_BITS_6_BLOCKS_WOPBS
@@ -415,35 +452,36 @@ pub fn joc_native_crt_mul_wopbs() {
 
 #[test]
 pub fn joc_hybrid_32_bits() {
-    let param = ID_6_RADIX_32_BITS_8_BLOCKS;
+    let param = ID_12_HYBRID_CRT_32_bits;
+    //let param = ID_6_CRT_32_BITS_6_BLOCKS;
 
     // basis = 2^5 * 3^5* 5^4 * 7^4
     let basis_32bits = vec![
-        32,
+         32,
         243,
         625,
-        //2420
+        2401
     ];
 
     let modulus_vec = [
-        8,
+         8,
         3,
         5,
-        //7,
+        7,
     ];
 
     let nb_blocks_vec = [
+         4,
+         5,
+         4,
         4,
-        5,
-        4,
-        //4,
     ];
 
     let message_carry_mod_vec = [
-        (MessageModulus(8), CarryModulus(32)),
-        (MessageModulus(4), CarryModulus(64)),
-        (MessageModulus(8), CarryModulus(32)),
-        //(MessageModulus(8), CarryModulus(32)),
+         (MessageModulus(8), CarryModulus(8)),
+         (MessageModulus(8), CarryModulus(8)),
+         (MessageModulus(8), CarryModulus(8)),
+        (MessageModulus(8), CarryModulus(8)),
     ];
 
 
@@ -485,7 +523,7 @@ pub fn joc_hybrid_32_bits() {
             // }
 
             let mut rng = rand::thread_rng();
-            let clear_0 = rng.gen::<u64>() % msg_space;
+            let clear_0 =  rng.gen::<u64>() % msg_space;
             let clear_1 = rng.gen::<u64>() % msg_space;
 
             println!("clear 0 {:?}", clear_0);
@@ -521,45 +559,45 @@ pub fn joc_hybrid_32_bits() {
 
 
             //
-            //
-            // let result = cks.decrypt_radix_with_message_modulus(&ct_zero_rad);
-            // assert_eq!(result % msg_space, (clear_0) % msg_space);
-            //
-            // let result = cks.decrypt_radix_with_message_modulus(&ct_one_rad);
-            // assert_eq!(result % msg_space, (clear_1) % msg_space);
-            //
-            //
-            // //TEST ADD
-            // let mut ct_res = sks.unchecked_add(&ct_zero_rad, &ct_one_rad);
-            // let mut result = 0_u64;
-            // let mut shift = 1_u64;
-            //
-            // let result = cks.decrypt_radix_with_message_modulus(&ct_res);
-            //
-            //
-            //
-            // println!("add");
-            // println!("dec add        {:?}", result);
-            // println!("dec add mod    {:?}", result% msg_space);
-            // println!("expected    {:?}", (clear_0 + clear_1) % msg_space);
-            // assert_eq!(result % msg_space, (clear_0 + clear_1) % msg_space);
-            // println!("-----");
-            //
-            // // TEST_CARRY_PROPAGATE //
-            //
-            // sks.full_propagate(&mut ct_res);
-            //
-            //
-            //
-            // let result = cks.decrypt_radix_with_message_modulus(&ct_res);
-            // println!("propagate");
-            // println!("dec propagate        {:?}", result);
-            // println!("dec propagate mod    {:?}", result% msg_space);
-            // assert_eq!(result % msg_space , (clear_0 + clear_1) % msg_space);
-            // println!("expected    {:?}", (clear_0 + clear_1) % msg_space);
-            // println!("-----");
-            //
-            //
+
+            let result = cks.decrypt_radix_with_message_modulus(&ct_zero_rad);
+            assert_eq!(result % msg_space, (clear_0) % msg_space);
+
+            let result = cks.decrypt_radix_with_message_modulus(&ct_one_rad);
+            assert_eq!(result % msg_space, (clear_1) % msg_space);
+
+
+            //TEST ADD
+            let mut ct_res = sks.unchecked_add(&ct_zero_rad, &ct_one_rad);
+            let mut result = 0_u64;
+            let mut shift = 1_u64;
+
+            let result = cks.decrypt_radix_with_message_modulus(&ct_res);
+
+
+
+            println!("add");
+            println!("dec add        {:?}", result);
+            println!("dec add mod    {:?}", result% msg_space);
+            println!("expected    {:?}", (clear_0 + clear_1) % msg_space);
+            assert_eq!(result % msg_space, (clear_0 + clear_1) % msg_space);
+            println!("-----");
+
+            // TEST_CARRY_PROPAGATE //
+
+            sks.full_propagate(&mut ct_res);
+
+
+
+            let result = cks.decrypt_radix_with_message_modulus(&ct_res);
+            println!("propagate");
+            println!("dec propagate        {:?}", result);
+            println!("dec propagate mod    {:?}", result% msg_space);
+            assert_eq!(result % msg_space , (clear_0 + clear_1) % msg_space);
+            println!("expected    {:?}", (clear_0 + clear_1) % msg_space);
+            println!("-----");
+
+
             let mut ct_res = sks.unchecked_mul(&mut ct_one_rad, &mut ct_zero_rad);
 
             let result = cks.decrypt_radix_with_message_modulus(&ct_res);

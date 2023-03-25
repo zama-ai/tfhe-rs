@@ -2101,3 +2101,4 @@ fn shortint_mux(param: Parameters) {
     println!("(msg_true - msg_false) * control_bit  + msg_false = {clear_mux}, res = {dec_res}");
     assert_eq!(clear_mux, dec_res);
 }
+
