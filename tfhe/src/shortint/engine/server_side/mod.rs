@@ -8,6 +8,7 @@ use crate::shortint::engine::EngineResult;
 use crate::shortint::server_key::{Accumulator, MaxDegree};
 use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, ServerKey};
 use std::cmp::min;
+use crate::shortint::prelude::{CarryModulus, MessageModulus};
 
 mod add;
 mod bitwise_op;
@@ -492,6 +493,41 @@ impl ShortintEngine {
             degree,
             message_modulus: server_key.message_modulus,
             carry_modulus: server_key.carry_modulus,
+        })
+    }
+
+    // Impossible to call the assign function in this case
+    pub(crate) fn create_trivial_with_message_modulus(
+        &mut self,
+        server_key: &ServerKey,
+        value: u64,
+        message_modulus: MessageModulus
+    ) -> EngineResult<Ciphertext> {
+        let lwe_size = server_key
+            .bootstrapping_key
+            .output_lwe_dimension()
+            .to_lwe_size();
+
+        let modular_value = value as usize % message_modulus.0;
+
+        let delta =
+            (1_u64 << 63) / (server_key.message_modulus.0 * server_key.carry_modulus.0) as u64;
+
+        let shifted_value = (modular_value as u64) * delta;
+
+        let encoded = Plaintext(shifted_value);
+
+        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(lwe_size, encoded);
+
+        let degree = Degree(modular_value);
+
+        Ok(Ciphertext {
+            ct,
+            degree,
+            message_modulus: message_modulus,
+            carry_modulus: CarryModulus(((server_key.message_modulus.0 * server_key.carry_modulus
+                .0) as u64 /(
+                message_modulus.0 as u64)) as usize) ,
         })
     }
 

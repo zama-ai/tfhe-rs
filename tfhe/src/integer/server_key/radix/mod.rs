@@ -11,6 +11,7 @@ mod sub;
 use super::ServerKey;
 
 use crate::integer::RadixCiphertext;
+use crate::shortint::prelude::MessageModulus;
 
 #[cfg(test)]
 mod tests;
@@ -39,6 +40,18 @@ impl ServerKey {
         let mut vec_res = Vec::with_capacity(num_blocks);
         for _ in 0..num_blocks {
             vec_res.push(self.key.create_trivial(0_u64));
+        }
+
+        RadixCiphertext { blocks: vec_res }
+    }
+
+
+    pub fn create_trivial_zero_radix_with_message_modulus(&self, num_blocks: usize,
+                                                          message_modulus: MessageModulus) ->
+                                                                                 RadixCiphertext {
+        let mut vec_res = Vec::with_capacity(num_blocks);
+        for _ in 0..num_blocks {
+            vec_res.push(self.key.create_trivial_with_message_modulus(0_u64, message_modulus));
         }
 
         RadixCiphertext { blocks: vec_res }

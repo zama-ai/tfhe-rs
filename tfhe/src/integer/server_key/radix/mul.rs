@@ -86,15 +86,26 @@ impl ServerKey {
         let mut result_lsb = shifted_ct.clone();
         let mut result_msb = shifted_ct;
 
-        for res_lsb_i in result_lsb.blocks[index..].iter_mut() {
-            self.key.unchecked_mul_lsb_assign(res_lsb_i, ct2);
-        }
+        //if ct1.blocks[0].message_modulus.0 <= ct1.blocks[0].carry_modulus.0 {
+            for res_lsb_i in result_lsb.blocks[index..].iter_mut() {
+                self.key.unchecked_mul_lsb_assign(res_lsb_i, ct2);
+            }
 
-        let len = result_msb.blocks.len() - 1;
-        for res_msb_i in result_msb.blocks[index..len].iter_mut() {
-            self.key.unchecked_mul_msb_assign(res_msb_i, ct2);
-        }
-
+            let len = result_msb.blocks.len() - 1;
+            for res_msb_i in result_msb.blocks[index..len].iter_mut() {
+                self.key.unchecked_mul_msb_assign(res_msb_i, ct2);
+            }
+        //}
+        // else {
+        //     for res_lsb_i in result_lsb.blocks[index..].iter_mut() {
+        //         self.key.unchecked_mul_lsb_small_carry_assign(res_lsb_i, ct2);
+        //     }
+        //
+        //     let len = result_msb.blocks.len() - 1;
+        //     for res_msb_i in result_msb.blocks[index..len].iter_mut() {
+        //         self.key.unchecked_mul_msb_small_carry_assign(res_msb_i, ct2);
+        //     }
+        // }
         result_msb = self.blockshift(&result_msb, 1);
 
         self.unchecked_add(&result_lsb, &result_msb)
@@ -207,7 +218,8 @@ impl ServerKey {
     ///
     /// The result is returned as a new ciphertext.
     pub fn unchecked_mul(&self, ct1: &RadixCiphertext, ct2: &RadixCiphertext) -> RadixCiphertext {
-        let mut result = self.create_trivial_zero_radix(ct1.blocks.len());
+        let mut result = self.create_trivial_zero_radix_with_message_modulus(ct1.blocks.len(),
+                                                                             ct1.blocks[0].message_modulus);
 
         for (i, ct2_i) in ct2.blocks.iter().enumerate() {
             let mut tmp = self.unchecked_block_mul(ct1, ct2_i, i);

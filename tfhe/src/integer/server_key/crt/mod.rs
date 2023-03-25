@@ -83,7 +83,7 @@ impl ServerKey {
         let accumulators = basis
             .iter()
             .copied()
-            .map(|b| self.key.generate_accumulator(|x| f(x) % b));
+            .map(|b| self.key.generate_accumulator(|x| f(x) % b, ));
 
         for (block, acc) in ct1.blocks.iter_mut().zip(accumulators) {
             self.key

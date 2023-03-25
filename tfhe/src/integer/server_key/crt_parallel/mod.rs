@@ -82,7 +82,7 @@ impl ServerKey {
         let accumulators = basis
             .iter()
             .copied()
-            .map(|b| self.key.generate_accumulator(|x| f(x) % b))
+            .map(|b| self.key.generate_accumulator(|x| f(x) % b, ))
             .collect::<Vec<_>>();
 
         ct1.blocks

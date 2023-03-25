@@ -5,6 +5,7 @@ use crate::integer::{CrtCiphertext, IntegerCiphertext, RadixCiphertext};
 use crate::integer::parameters::PARAM_4_BITS_5_BLOCKS;
 use crate::integer::parameters::parameters_benches_joc::*;
 use crate::integer::wopbs::WopbsKey;
+use crate::shortint::prelude::{CarryModulus, MessageModulus};
 
 /// Number of assert in randomized tests
 const NB_TEST: usize = 100;
@@ -49,18 +50,18 @@ fn joc_radix_add() {
 #[test]
 fn joc_radix_mul() {
     let param_vec = vec![
-        // ID_1_RADIX_16_BITS_16_BLOCKS,
-        //                   ID_2_RADIX_16_BITS_8_BLOCKS,
+        ID_1_RADIX_16_BITS_16_BLOCKS,
+                          ID_2_RADIX_16_BITS_8_BLOCKS,
                            ID_4_RADIX_32_BITS_32_BLOCKS, // DOES NOT WORK
-                           // ID_5_RADIX_32_BITS_16_BLOCKS,
-                          // ID_6_RADIX_32_BITS_8_BLOCKS
+                           ID_5_RADIX_32_BITS_16_BLOCKS,
+                          ID_6_RADIX_32_BITS_8_BLOCKS
     ];
     let nb_blocks_vec = vec![
-         // 16
-        //                      8,
+         16,
+                             8,
                               32,
-                             // 16,
-                             // 8
+                             16,
+                             8
     ];
     for (param, nb_blocks) in  param_vec.iter().zip(nb_blocks_vec.iter()) {
 
@@ -87,10 +88,10 @@ fn joc_radix_mul() {
                 .decrypt_radix(&ct_1));
 
             // mul the two ciphertexts
-            //let mut ct_res = sks.unchecked_mul(&mut ct_0, &mut ct_1);
+            let mut ct_res = sks.unchecked_mul(&mut ct_0, &mut ct_1);
 
-            let mut ct_res = sks.unchecked_add(&mut ct_0.clone(), &mut ct_0);
-            sks.full_propagate(&mut ct_res);
+            // let mut ct_res = sks.unchecked_add(&mut ct_0.clone(), &mut ct_0);
+            // sks.full_propagate(&mut ct_res);
 
             // decryption of ct_res
             let dec_res = cks.decrypt_radix(&ct_res);
@@ -104,18 +105,18 @@ fn joc_radix_mul() {
 #[test]
 fn joc_radix_carry_propagate() {
     let param_vec = vec![
-        // ID_1_RADIX_16_BITS_16_BLOCKS,
-        //                  ID_2_RADIX_16_BITS_8_BLOCKS,
+        ID_1_RADIX_16_BITS_16_BLOCKS,
+                         ID_2_RADIX_16_BITS_8_BLOCKS,
                          ID_4_RADIX_32_BITS_32_BLOCKS,
-                         // ID_5_RADIX_32_BITS_16_BLOCKS,
-                         // ID_6_RADIX_32_BITS_8_BLOCKS
+                         ID_5_RADIX_32_BITS_16_BLOCKS,
+                         ID_6_RADIX_32_BITS_8_BLOCKS
     ];
     let nb_blocks_vec = vec![
-        // 16,
-        //                      8,
+        16,
+                             8,
                              32,
-                             // 16,
-                             // 8
+                             16,
+                             8,
         ];
 
     for (param, nb_blocks) in  param_vec.iter().zip(nb_blocks_vec.iter()) {
@@ -150,7 +151,7 @@ pub fn joc_radix_wopbs() {
     ];
     let nb_blocks_vec = vec![
         16,
-        8
+        8,
     ];
 
     for (param, nb_blocks) in  param_vec.iter().zip(nb_blocks_vec.iter()) {
@@ -408,42 +409,223 @@ pub fn joc_native_crt_mul_wopbs() {
 }
 
 
+
+
+
+
 #[test]
-pub fn joc_hybride_32_bits() {
-    let param = ID_5_RADIX_32_BITS_16_BLOCKS;
+pub fn joc_hybrid_32_bits() {
+    let param = ID_6_RADIX_32_BITS_8_BLOCKS;
 
     // basis = 2^5 * 3^5* 5^4 * 7^4
     let basis_32bits = vec![
-        //32,
-        //3*3//243,
-        //625,
-        7//2420
+        32,
+        243,
+        625,
+        //2420
     ];
 
     let modulus_vec = [
-        //2,
-        //3,
-        //5,
+        8,
+        3,
+        5,
+        //7,
+    ];
+
+    let nb_blocks_vec = [
+        4,
+        5,
+        4,
+        //4,
+    ];
+
+    let message_carry_mod_vec = [
+        (MessageModulus(8), CarryModulus(32)),
+        (MessageModulus(4), CarryModulus(64)),
+        (MessageModulus(8), CarryModulus(32)),
+        //(MessageModulus(8), CarryModulus(32)),
+    ];
+
+
+    //println!("Chosen Parameter Set: {param:?}");
+    for _ in 0..10 {
+        let mut i= 0;
+        for (block_modulus, nb_blocks) in modulus_vec.iter().zip(nb_blocks_vec.iter
+        ()) {
+            let (mut cks, mut sks) = KEY_CACHE.get_from_params(param);
+            // sks.key.message_modulus = MessageModulus(*block_modulus);
+            // sks.key.carry_modulus = CarryModulus(*block_modulus);
+
+            cks.key.parameters.message_modulus = message_carry_mod_vec[i].0;
+            cks.key.parameters.carry_modulus = message_carry_mod_vec[i].1;
+            sks.key.message_modulus = message_carry_mod_vec[i].0;
+            sks.key.carry_modulus = message_carry_mod_vec[i].1;
+
+            let mut msg_space = basis_32bits[i];
+            i = i+1;
+            // println!("block_modulus = {block_modulus}");
+            // println!("msg_space = {msg_space}");
+            //
+            // let mut rng = rand::thread_rng();
+            // let clear_0 = rng.gen::<u64>() % msg_space;
+            // let mut cpy_clear_0 = clear_0;
+            // let mut blocks_crt_0 = vec![];
+            // for _ in 0..*nb_blocks{
+            //     let tmp = cpy_clear_0 % block_modulus;
+            //     blocks_crt_0.push((cks.encrypt_crt(tmp, vec![*block_modulus])).blocks[0].clone());
+            //     cpy_clear_0 = (cpy_clear_0 - tmp)/ block_modulus;
+            // }
+            // let clear_1 = rng.gen::<u64>() % msg_space;
+            // let mut cpy_clear_1 = clear_1;
+            // let mut blocks_crt_1 = vec![];
+            // for _ in 0..*nb_blocks{
+            //     let tmp = cpy_clear_1 % block_modulus;
+            //     blocks_crt_1.push((cks.encrypt_crt(tmp, vec![*block_modulus])).blocks[0].clone());
+            //     cpy_clear_1 = (cpy_clear_1 - tmp)/ block_modulus;
+            // }
+
+            let mut rng = rand::thread_rng();
+            let clear_0 = rng.gen::<u64>() % msg_space;
+            let clear_1 = rng.gen::<u64>() % msg_space;
+
+            println!("clear 0 {:?}", clear_0);
+            println!("clear 1 {:?}", clear_1);
+
+
+
+            // TEST_ADD //
+
+            let mut ct_zero_rad = cks.encrypt_radix_with_message_modulus(clear_0, *nb_blocks,
+                                                                         MessageModulus
+                                                                             (*block_modulus));
+
+            let mut ct_one_rad = cks.encrypt_radix_with_message_modulus(clear_1, *nb_blocks,
+                                                                         MessageModulus
+                                                                             (*block_modulus));
+
+            // for (ct0_i, ct1_i) in ct_zero_rad.blocks.iter_mut().zip(ct_one_rad.blocks.iter_mut()) {
+            //     ct0_i.carry_modulus = CarryModulus(ct0_i.message_modulus.0);
+            //     ct1_i.carry_modulus = CarryModulus(ct0_i.message_modulus.0);
+            //
+            // }
+
+            println!("CT0 Msg modulus = {}, CT0 carry modulus = {}", ct_zero_rad.blocks[0]
+                .message_modulus
+                .0.clone(), ct_zero_rad.blocks[0]
+                .carry_modulus.0);
+
+            println!("CT1 Msg modulus = {}, CT1 carry modulus = {}", ct_one_rad.blocks[0]
+                .message_modulus
+                .0.clone(), ct_one_rad.blocks[0]
+                         .carry_modulus.0);
+
+
+            //
+            //
+            // let result = cks.decrypt_radix_with_message_modulus(&ct_zero_rad);
+            // assert_eq!(result % msg_space, (clear_0) % msg_space);
+            //
+            // let result = cks.decrypt_radix_with_message_modulus(&ct_one_rad);
+            // assert_eq!(result % msg_space, (clear_1) % msg_space);
+            //
+            //
+            // //TEST ADD
+            // let mut ct_res = sks.unchecked_add(&ct_zero_rad, &ct_one_rad);
+            // let mut result = 0_u64;
+            // let mut shift = 1_u64;
+            //
+            // let result = cks.decrypt_radix_with_message_modulus(&ct_res);
+            //
+            //
+            //
+            // println!("add");
+            // println!("dec add        {:?}", result);
+            // println!("dec add mod    {:?}", result% msg_space);
+            // println!("expected    {:?}", (clear_0 + clear_1) % msg_space);
+            // assert_eq!(result % msg_space, (clear_0 + clear_1) % msg_space);
+            // println!("-----");
+            //
+            // // TEST_CARRY_PROPAGATE //
+            //
+            // sks.full_propagate(&mut ct_res);
+            //
+            //
+            //
+            // let result = cks.decrypt_radix_with_message_modulus(&ct_res);
+            // println!("propagate");
+            // println!("dec propagate        {:?}", result);
+            // println!("dec propagate mod    {:?}", result% msg_space);
+            // assert_eq!(result % msg_space , (clear_0 + clear_1) % msg_space);
+            // println!("expected    {:?}", (clear_0 + clear_1) % msg_space);
+            // println!("-----");
+            //
+            //
+            let mut ct_res = sks.unchecked_mul(&mut ct_one_rad, &mut ct_zero_rad);
+
+            let result = cks.decrypt_radix_with_message_modulus(&ct_res);
+
+
+
+
+            println!("mul");
+            println!("dec mul        {:?}", result);
+            println!("dec mul mod    {:?}", result % msg_space);
+            println!("clear mul      {:?}", (clear_0 * clear_1));
+            println!("clear mul mod  {:?}", (clear_0 * clear_1) % msg_space);
+            println!("info deg: {:?}", ct_res.blocks[0].degree);
+            println!("info mm : {:?}", ct_res.blocks[0].message_modulus);
+            println!("info cm : {:?}", ct_res.blocks[0].carry_modulus);
+            println!("expected    {:?}", (clear_0 * clear_1) % msg_space);
+            assert_eq!(result % msg_space , (clear_0 * clear_1) % msg_space);
+            println!("-----");
+        }
+    }
+    //println!("it's OK");
+    panic!()
+}
+
+
+
+#[test]
+pub fn EXPERIMETAL_hybride_32_bits() {
+    let param = ID_6_CRT_32_BITS_6_BLOCKS;
+
+    // basis = 2^5 * 3^5* 5^4 * 7^4
+    let basis_32bits = vec![
+        32,
+        243,
+        625,
+        2420
+    ];
+
+    let modulus_vec = [
+        2,
+        3,
+        5,
         7,
     ];
 
     let nb_blocks_vec = [
-        //5,
-        //5,
-        //4,
-        1//4,
+        5,
+        5,
+        4,
+        4,
     ];
 
 
     //println!("Chosen Parameter Set: {param:?}");
     for _ in 0..2 {
-        for (block_modulus, nb_blocks) in modulus_vec.iter().zip(nb_blocks_vec.iter()) {
+        let i= 0;
+        for (block_modulus, nb_blocks) in modulus_vec.iter().zip(nb_blocks_vec.iter
+        ()) {
             let (mut cks, mut sks) = KEY_CACHE.get_from_params(param);
 
-            let mut msg_space = *block_modulus;
-            for _ in 1..*nb_blocks {
-                msg_space *= *block_modulus;
-            }
+            // let mut msg_space = *block_modulus;
+            // for _ in 1..*nb_blocks {
+            //     msg_space *= *block_modulus;
+            // }
+
+            let mut msg_space = basis_32bits[i];
 
             println!("block_modulus = {block_modulus}");
             println!("msg_space = {msg_space}");
@@ -469,7 +651,6 @@ pub fn joc_hybride_32_bits() {
             println!("clear 1 {:?}", clear_1);
             println!("add     {:?}", clear_0 + clear_1);
             println!("add mod {:?}", (clear_1 + clear_0) %msg_space );
-
 
             // TEST_ADD //
 

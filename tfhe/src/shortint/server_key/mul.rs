@@ -363,6 +363,31 @@ impl ServerKey {
         })
     }
 
+    pub fn unchecked_mul_msb_small_carry(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .unchecked_mul_msb_small_carry_modulus(self, ct_left, ct_right)
+                .unwrap()
+        })
+    }
+
+    pub fn unchecked_mul_msb_small_carry_assign(
+        &self,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
+    ) {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .unchecked_mul_msb_small_carry_modulus_assign(self, ct_left, ct_right)
+                .unwrap()
+        })
+    }
+
+
     /// Verify if two ciphertexts can be multiplied together in the case where the carry
     /// modulus is smaller than the message modulus.
     ///

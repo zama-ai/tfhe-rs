@@ -277,9 +277,9 @@ criterion_group!(misc, full_propagate,);
 
 criterion_group!(joc,
     //joc_radix,
-    // joc_crt,
+    joc_crt,
     //joc_radix_wopbs,
-    joc_hybrid_32_bits,
+    //joc_hybrid_32_bits,
 );
 
 criterion_main!(
@@ -1026,9 +1026,116 @@ fn joc_radix_wopbs(c: &mut Criterion) {
 }
 
 
+fn joc_crt(c: &mut Criterion) {
+    let param_vec = vec![ID_3_CRT_16_BITS_5_BLOCKS];
+
+    let basis_16bits = vec![7,8,9,11,13];
+    let basis_32bits = vec![43,47,37,49,29,41];
+
+    let basis_vec = [basis_16bits, basis_32bits];
+
+    for (param, basis) in  param_vec.iter().zip(basis_vec.iter()) {
+        let modulus = basis.iter().product::<u64>();
+        let (cks, sks) = KEY_CACHE.get_from_params(*param);
+
+        let group_name = format!("{}", param.name());
+        let mut group = c.benchmark_group(group_name.clone());
+        group.sample_size(10);
+
+        let mut rng = rand::thread_rng();
+
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let mut ct_zero = cks.encrypt_crt(clear_0, basis.to_vec());
+        let mut ct_one = cks.encrypt_crt(clear_1, basis.to_vec());
+
+        let id = format!("{}_add", group_name.clone());
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.unchecked_crt_add(&mut ct_zero, &ct_one);
+            })
+        });
+
+        let id = format!("{}_mul", group_name.clone());
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.unchecked_crt_mul(&mut ct_zero, &ct_one);
+            })
+        });
+
+        let id = format!("{}_carry_propagate", group_name);
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.full_extract_message_assign(&mut ct_zero);
+            })
+        });
+    }
+}
+
+
+fn joc_crt_wopbs(c: &mut Criterion) {
+    let param_vec = vec![ID_3_CRT_16_BITS_5_BLOCKS];
+
+    let basis_16bits = vec![7,8,9,11,13];
+    let basis_32bits = vec![43,47,37,49,29,41];
+
+    let basis_vec = [basis_16bits, basis_32bits];
+
+    for (param, basis) in  param_vec.iter().zip(basis_vec.iter()) {
+        let modulus = basis.iter().product::<u64>();
+        let (cks, sks) = KEY_CACHE.get_from_params(*param);
+
+        let group_name = format!("{}", param.name());
+        let mut group = c.benchmark_group(group_name.clone());
+        group.sample_size(10);
+
+        let mut rng = rand::thread_rng();
+
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let mut ct_zero = cks.encrypt_crt(clear_0, basis.to_vec());
+        let mut ct_one = cks.encrypt_crt(clear_1, basis.to_vec());
+
+        let id = format!("{}_add", group_name.clone());
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.unchecked_crt_add(&mut ct_zero, &ct_one);
+            })
+        });
+
+        let id = format!("{}_mul", group_name.clone());
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.unchecked_crt_mul(&mut ct_zero, &ct_one);
+            })
+        });
+
+        let id = format!("{}_carry_propagate", group_name);
+        // add the two ciphertexts
+        group.bench_function(id, |b| {
+            b.iter(|| {
+                sks.full_extract_message_assign(&mut ct_zero);
+            })
+        });
+    }
+}
+
+
+
+
+
 fn joc_hybrid_32_bits(c: &mut Criterion) {
 
-    let param =  ID_5_RADIX_32_BITS_16_BLOCKS;
+    let param =  ID_6_CRT_32_BITS_6_BLOCKS;
 
     // basis = 2^5 * 3^5* 5^4 * 7^4
     let basis_32bits = vec![32,243,625,2420];

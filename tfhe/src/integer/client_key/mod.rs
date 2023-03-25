@@ -115,6 +115,23 @@ impl ClientKey {
         RadixCiphertext { blocks }
     }
 
+
+
+    pub fn encrypt_radix_with_message_modulus(&self, message: u64, num_blocks: usize,
+                                              block_message_modulus: MessageModulus) ->
+                                                                                                                              RadixCiphertext {
+        let mut blocks = Vec::with_capacity(num_blocks);
+
+        let mut tmp_clear = message;
+
+        for _ in 0..num_blocks{
+            let tmp = tmp_clear % (block_message_modulus.0 as u64);
+            blocks.push(self.key.encrypt_with_message_modulus(tmp, block_message_modulus));
+            tmp_clear = (tmp_clear - tmp)/ (block_message_modulus.0 as u64);
+        }
+        RadixCiphertext { blocks }
+    }
+
     /// Encrypts an integer in radix decomposition without padding bit
     ///
     /// # Example
@@ -218,6 +235,28 @@ impl ClientKey {
         let mut result = 0_u64;
         let mut shift = 1_u64;
         let modulus = self.parameters().message_modulus.0 as u64;
+
+        for c_i in ctxt.blocks.iter() {
+            // decrypt the component i of the integer and multiply it by the radix product
+            let block_value = self.key.decrypt_message_and_carry(c_i).wrapping_mul(shift);
+
+            // update the result
+            result = result.wrapping_add(block_value);
+
+            // update the shift for the next iteration
+            shift = shift.wrapping_mul(modulus);
+        }
+
+        let whole_modulus = modulus.pow(ctxt.blocks.len() as u32);
+
+        result % whole_modulus
+    }
+
+
+    pub fn decrypt_radix_with_message_modulus(&self, ctxt: &RadixCiphertext) -> u64 {
+        let mut result = 0_u64;
+        let mut shift = 1_u64;
+        let modulus = ctxt.blocks[0].message_modulus.0 as u64;
 
         for c_i in ctxt.blocks.iter() {
             // decrypt the component i of the integer and multiply it by the radix product

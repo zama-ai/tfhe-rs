@@ -34,7 +34,7 @@ pub unsafe extern "C" fn shortint_server_key_generate_pbs_accumulator(
         let heap_allocated_accumulator = Box::new(ShortintPBSAccumulator(
             server_key
                 .0
-                .generate_accumulator(|x: u64| accumulator_callback(x)),
+                .generate_accumulator(|x: u64| accumulator_callback(x), ),
         ));
 
         *result = Box::into_raw(heap_allocated_accumulator);

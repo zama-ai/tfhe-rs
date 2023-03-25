@@ -291,7 +291,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     ///
     /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
-    /// let acc = sks.generate_accumulator(|x| x * x * x % modulus);
+    /// let acc = sks.generate_accumulator(|x| x * x * x % modulus,);
     /// let ct_res = sks.keyswitch_programmable_bootstrap(&ct, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
@@ -537,6 +537,13 @@ impl ServerKey {
     pub fn create_trivial(&self, value: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| engine.create_trivial(self, value).unwrap())
     }
+
+    pub fn create_trivial_with_message_modulus(&self, value: u64, message_modulus: MessageModulus)
+        -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| engine.create_trivial_with_message_modulus
+        (self, value, message_modulus).unwrap())
+    }
+
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
         ShortintEngine::with_thread_local_mut(|engine| {

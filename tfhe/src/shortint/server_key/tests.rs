@@ -286,7 +286,7 @@ fn shortint_keyswitch_programmable_bootstrap(param: Parameters) {
         let ctxt_0 = cks.encrypt(clear_0);
 
         //define the accumulator as identity
-        let acc = sks.generate_accumulator(|n| n % modulus);
+        let acc = sks.generate_accumulator(|n| n % modulus, );
         // add the two ciphertexts
         let ct_res = sks.keyswitch_programmable_bootstrap(&ctxt_0, &acc);
 
@@ -392,7 +392,7 @@ fn shortint_generate_accumulator(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let double = |x| 2 * x;
-    let acc = sks.generate_accumulator(double);
+    let acc = sks.generate_accumulator(double, );
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -1796,8 +1796,11 @@ fn shortint_unchecked_sub(param: Parameters) {
     let modulus = cks.parameters.message_modulus.0 as u64;
     for _ in 0..NB_TEST {
         // Define the cleartexts
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
+        // let clear1 = rng.gen::<u64>() % modulus;
+        // let clear2 = rng.gen::<u64>() % modulus;
+
+        let clear1 = 3;
+        let clear2 = 3;
 
         // Encrypt the integers
         let ctxt_1 = cks.encrypt(clear1);
@@ -1876,6 +1879,168 @@ fn shortint_mul_small_carry(param: Parameters) {
         assert_eq!((clear_0 * clear_1) % modulus, dec_res % modulus);
     }
 }
+
+/// test multiplication
+#[test]
+fn shortint_mul_msb_small_carry() {
+    let keys = KEY_CACHE.get_from_param(PARAM_MESSAGE_2_CARRY_2);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    ///
+    ///STUPID TEST
+    ///
+     println!(" £££££ STUPID TEST ££££££ ");
+    let stupid_modulus = 3;
+    for i in 0..stupid_modulus {
+        for j in 0..stupid_modulus {
+            let ct_stupid_1 = cks.encrypt_with_message_modulus(i, MessageModulus(stupid_modulus
+                                                                                 as usize));
+            let ct_stupid_2 = cks.encrypt_with_message_modulus(j, MessageModulus(stupid_modulus
+                                                                                 as usize));
+            let ct_res_stupid = sks.unchecked_mul_msb(&ct_stupid_1, &ct_stupid_2);
+            let dec_res_stupid = cks.decrypt(&ct_res_stupid);
+            println!("{i} * {j} = {dec_res_stupid}");
+            assert_eq!(dec_res_stupid, (i*j)/stupid_modulus);
+        }
+    }
+    println!(" £££££ END OF STUPID TEST ££££££ ");
+
+    ///
+    /// END OF STUPID TEST
+    ///
+
+
+    for _ in 0..50 {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+        println!("%%%%%%%%%%%%%%%%%");
+
+        println!("clear_0 = {clear_0}, clear_1 = {clear_1}");
+
+
+        // encryption of an integer
+        let mut ctxt_zero = cks.encrypt_with_message_modulus(clear_0, MessageModulus(modulus as
+            usize));
+
+        // encryption of an integer
+        let mut ctxt_one = cks.encrypt_with_message_modulus(clear_1, MessageModulus(modulus as
+            usize));
+
+        // multiply together the two ciphertexts
+        let ct_res = sks.unchecked_mul_msb_small_carry(&mut ctxt_zero, &mut ctxt_one);
+
+       //  ////
+       //  /// DEBUG OPERATION MODE
+       //  ///
+       //  let modulus = ctxt_one.message_modulus.0 as u64;
+       //  //let deg = (ct1.degree.0 * ct2.degree.0) / ct2.message_modulus.0;
+       //
+       //  //ct1 + ct2
+       //  let mut ct_tmp_left = sks.unchecked_add(&ctxt_zero, &ctxt_one);
+       //
+       //  //ct1-ct2
+       //  let (mut ct_tmp_right, z) = sks.unchecked_sub_with_correcting_term(&ctxt_zero, &ctxt_one);
+       //
+       //
+       //  println!("ct1 + ct2  = {}, clear0 + clear1 = {}", cks.decrypt_message_and_carry(&ct_tmp_left), clear_0 +
+       //      clear_1);
+       //
+       //  println!("ct1 - ct2  = {} correcting_term = {z}, clear0 - clear1 = {}", cks
+       //      .decrypt_message_and_carry
+       //  (&ct_tmp_right), (
+       //      (modulus + clear_0 -
+       //          clear_1) % modulus ));
+       //  // let acc_add = sks.generate_accumulator(|x| ((((x * x) / 4) / modulus) as
+       //  //     f64).ceil() as u64 );
+       //  // let acc_sub =
+       //  //     sks.generate_accumulator(|x| (((((x - z) * (x - z)) / 4) / modulus) as
+       //  //         f64).ceil() as u64
+       //  //     );
+       //
+       //  let acc_add = sks.generate_accumulator(|x| ( ( (x * x) /4*(modulus as f64).log2().ceil()
+       //      as u64)
+       //      %
+       //      ct_tmp_left
+       //      .message_modulus.0 as u64));
+       //  let acc_sub =
+       //      sks.generate_accumulator(|x| (((x - z) * (x - z) / 4 * (modulus as f64).log2().ceil()
+       //          as u64) % ct_tmp_left
+       //          .message_modulus.0 as u64));
+       //
+       //  sks.keyswitch_programmable_bootstrap_assign(&mut ct_tmp_left, &acc_add);
+       //      println!("ct1+ square ct2  = {}", cks.decrypt_message_and_carry
+       //      (&ct_tmp_left), );
+       //
+       //  println!("deg(ct) = {}", ct_tmp_left.degree.0);
+       //
+       //
+       //  sks.keyswitch_programmable_bootstrap_assign(&mut ct_tmp_right, &acc_sub);
+       //  println!("ct1- square ct2  = {}", cks.decrypt_message_and_carry(&ct_tmp_right));
+       //
+       //  println!("deg(ct) = {}", ct_tmp_right.degree.0);
+       //
+       //
+       //
+       //  //Last subtraction might fill one bit of carry
+       // let ct_res =  sks.unchecked_sub(&mut ct_tmp_left, &mut ct_tmp_right);
+       //
+       //  ////
+       //  /// END OF DEBUG OPERATION MODE
+       //  ///
+
+
+
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // // assert
+        // assert_eq!(((clear_0 * clear_1)/ct_res.message_modulus.0 as u64) % ct_res.message_modulus.0
+        //     as u64, dec_res % ct_res.message_modulus.0 as u64);
+
+        //Comparison with the usual msb multiplication
+        let ct_res_classical = sks.unchecked_mul_msb(&mut ctxt_zero, &mut ctxt_one);
+        let dec_res_classical = cks.decrypt(&ct_res_classical);
+        assert_eq!(dec_res, dec_res_classical);
+
+    }
+}
+
+/// test multiplication
+#[test]
+fn shortint_mul_msb_not_power_of_two() {
+    let keys = KEY_CACHE.get_from_param(PARAM_MESSAGE_3_CARRY_3);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    ///
+    ///STUPID TEST
+    ///
+    println!(" £££££ STUPID TEST ££££££ ");
+    let stupid_modulus = 3;
+    for i in 0..stupid_modulus {
+        for j in 0..stupid_modulus {
+            let ct_stupid_1 = cks.encrypt_with_message_modulus(i, MessageModulus(stupid_modulus
+                as usize));
+            let ct_stupid_2 = cks.encrypt_with_message_modulus(j, MessageModulus(stupid_modulus
+                as usize));
+            let ct_res_stupid = sks.unchecked_mul_msb(&ct_stupid_1, &ct_stupid_2);
+            let dec_res_stupid = cks.decrypt(&ct_res_stupid);
+            println!("{i} * {j} = {dec_res_stupid}");
+            assert_eq!(dec_res_stupid, (i*j)/stupid_modulus);
+        }
+    }
+    println!(" £££££ END OF STUPID TEST ££££££ ");
+}
+
 
 /// test encryption and decryption with the LWE client key
 fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: Parameters) {

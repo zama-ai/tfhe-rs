@@ -1,3 +1,4 @@
+
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
@@ -69,7 +70,7 @@ impl ShortintEngine {
         self.unchecked_add_assign(ct_left, ct_right)?;
 
         // Modulus of the msg in the msg bits
-        let res_modulus = server_key.message_modulus.0 as u64;
+        let res_modulus = ct_left.message_modulus.0 as u64;
 
         // Generate the accumulator for the multiplication
         let acc = self.generate_accumulator(server_key, |x| {
@@ -108,6 +109,52 @@ impl ShortintEngine {
         self.unchecked_sub(server_key, &ct_tmp_left, &ct_tmp_right)
     }
 
+
+    pub(crate) fn unchecked_mul_msb_small_carry_modulus(
+        &mut self,
+        server_key: &ServerKey,
+        ct1: &mut Ciphertext,
+        ct2: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
+
+        let modulus = ct1.message_modulus.0 as u64;
+        let deg = (ct1.degree.0 * ct2.degree.0) / ct2.message_modulus.0;
+
+        //ct1 + ct2
+        let mut ct_tmp_left = self.unchecked_add(ct1, ct2)?;
+
+        //ct1-ct2
+        let (mut ct_tmp_right, z) = self.unchecked_sub_with_z(server_key, ct1, ct2)?;
+
+
+        // let acc_add = self.generate_accumulator(server_key, |x| ((((x * x) / 4) / modulus) as
+        //     f64).ceil() as u64 )?;
+        // let acc_sub =
+        //     self.generate_accumulator(server_key, |x| (((((x - z) * (x - z)) / 4) / modulus) as
+        //         f64).ceil() as u64
+        //     )?;
+
+        let acc_add = self.generate_accumulator(server_key, |x| (((x * x) / modulus) / 4) %
+            ct_tmp_left
+            .message_modulus.0 as u64)?;
+        let acc_sub = self.generate_accumulator(server_key, |x| (((x - z) * (x - z) / modulus) /
+            4) %
+            ct_tmp_left.message_modulus.0 as u64)?;
+
+        self.keyswitch_programmable_bootstrap_assign(server_key, &mut ct_tmp_left, &acc_add)?;
+
+
+        self.keyswitch_programmable_bootstrap_assign(server_key, &mut ct_tmp_right, &acc_sub)?;
+
+        //Last subtraction might fill one bit of carry
+        let mut ct_sub = self.unchecked_sub(server_key, &ct_tmp_left, &ct_tmp_right)?;
+        let acc_corrective_term = self.generate_accumulator(server_key, |x| (x - x % modulus)/
+                                                            modulus)?;
+
+        self.keyswitch_programmable_bootstrap(server_key, &mut ct_sub, &acc_corrective_term)
+
+    }
+
     pub(crate) fn unchecked_mul_lsb_small_carry_modulus_assign(
         &mut self,
         server_key: &ServerKey,
@@ -117,6 +164,19 @@ impl ShortintEngine {
         *ct1 = self.unchecked_mul_lsb_small_carry_modulus(server_key, ct1, ct2)?;
         Ok(())
     }
+
+
+    pub(crate) fn unchecked_mul_msb_small_carry_modulus_assign(
+        &mut self,
+        server_key: &ServerKey,
+        ct1: &mut Ciphertext,
+        ct2: &Ciphertext,
+    ) -> EngineResult<()> {
+        *ct1 = self.unchecked_mul_msb_small_carry_modulus(server_key, ct1, ct2)?;
+        Ok(())
+    }
+
+
 
     pub(crate) fn smart_mul_lsb_assign(
         &mut self,
