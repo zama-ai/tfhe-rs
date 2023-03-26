@@ -277,11 +277,11 @@ criterion_group!(
 criterion_group!(misc, full_propagate,);
 
 criterion_group!(joc,
-    joc_radix,
-    joc_radix_wopbs,
-    joc_crt,
-    joc_hybrid_32_bits,
-    joc_crt_wopbs,
+    // joc_radix,
+    // joc_radix_wopbs,
+    // joc_crt,
+    // joc_hybrid_32_bits,
+    // joc_crt_wopbs,
     joc_native_crt_wopbs,
     joc_native_crt_mul_wopbs,
     joc_native_crt_add,
@@ -1245,7 +1245,7 @@ fn joc_native_crt_mul_wopbs(c: &mut Criterion) {
             let lut = wopbs_key.generate_lut_bivariate_native_crt(&crt_left, |x, y|
                 x * y);
 
-            let id = format!("{}_native_crt_wopbs", group_name);
+            let id = format!("{}_native_crt_wopbs_mul", group_name);
             group.bench_function(id, |b| {
                 b.iter(|| {
                     crt_res = wopbs_key.bivariate_wopbs_native_crt(&crt_left, &crt_right, &lut);
@@ -1338,7 +1338,7 @@ fn joc_hybrid_32_bits(c: &mut Criterion) {
                 })
             });
 
-            let id = format!("{}_hybrid_add", group_name);
+            let id = format!("{}_hybrid_prop", group_name);
             group.bench_function(id, |b| {
                 b.iter(|| {
                     sks.full_propagate(&mut ct_one_rad);
