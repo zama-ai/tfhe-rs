@@ -15,7 +15,7 @@ use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
-use dyn_stack::{DynStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
@@ -179,7 +179,7 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
         mut self,
         coef_bsk: LweBootstrapKey<&'_ [Scalar]>,
         fft: FftView<'_>,
-        mut stack: DynStack<'_>,
+        mut stack: PodStack<'_>,
     ) {
         for (fourier_ggsw, standard_ggsw) in
             izip!(self.as_mut_view().into_ggsw_iter(), coef_bsk.iter())
@@ -217,7 +217,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         mut lut: GlweCiphertextMutView<'_, Scalar>,
         lwe: &[Scalar],
         fft: FftView<'_>,
-        mut stack: DynStack<'_>,
+        mut stack: PodStack<'_>,
     ) {
         let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
 
@@ -277,7 +277,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         lwe_in: &[Scalar],
         accumulator: GlweCiphertextView<'_, Scalar>,
         fft: FftView<'_>,
-        stack: DynStack<'_>,
+        stack: PodStack<'_>,
     ) where
         // CastInto required for PBS modulus switch which returns a usize
         Scalar: UnsignedTorus + CastInto<usize>,

@@ -1,9 +1,6 @@
-use core::mem::MaybeUninit;
-
 use super::super::math::decomposition::TensorSignedDecompositionLendingIter;
 use super::super::math::fft::{FftView, FourierPolynomialList};
-use super::super::math::polynomial::{FourierPolynomialUninitMutView, FourierPolynomialView};
-use super::super::{as_mut_uninit, assume_init_mut};
+use super::super::math::polynomial::{FourierPolynomialMutView, FourierPolynomialView};
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
@@ -16,7 +13,7 @@ use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
-use dyn_stack::{DynStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
 #[cfg(target_arch = "x86")]
 use core::arch::x86::*;
@@ -261,7 +258,7 @@ impl<'a> FourierGgswCiphertextMutView<'a> {
         self,
         coef_ggsw: GgswCiphertextView<'_, Scalar>,
         fft: FftView<'_>,
-        mut stack: DynStack<'_>,
+        mut stack: PodStack<'_>,
     ) {
         debug_assert_eq!(coef_ggsw.polynomial_size(), self.polynomial_size());
         let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
@@ -270,11 +267,8 @@ impl<'a> FourierGgswCiphertextMutView<'a> {
             self.data().into_chunks(fourier_poly_size),
             coef_ggsw.as_polynomial_list().iter()
         ) {
-            // SAFETY: forward_as_torus doesn't write any uninitialized values into its output
             fft.forward_as_torus(
-                FourierPolynomialUninitMutView {
-                    data: unsafe { as_mut_uninit(fourier_poly) },
-                },
+                FourierPolynomialMutView { data: fourier_poly },
                 coef_poly,
                 stack.rb_mut(),
             );
@@ -342,7 +336,7 @@ pub fn add_external_product_assign<Scalar, InputGlweCont>(
     ggsw: FourierGgswCiphertextView<'_>,
     glwe: GlweCiphertext<InputGlweCont>,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) where
     Scalar: UnsignedTorus,
     InputGlweCont: Container<Element = Scalar>,
@@ -364,7 +358,7 @@ pub fn add_external_product_assign<Scalar, InputGlweCont>(
     );
 
     let (mut output_fft_buffer, mut substack0) =
-        stack.make_aligned_uninit::<c64>(fourier_poly_size * ggsw.glwe_size().0, align);
+        stack.make_aligned_raw::<c64>(fourier_poly_size * ggsw.glwe_size().0, align);
     // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
     // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
     // it has been fully initialized for the first time.
@@ -412,11 +406,11 @@ pub fn add_external_product_assign<Scalar, InputGlweCont>(
             .for_each(|(ggsw_row, glwe_poly)| {
                 let (mut fourier, substack3) = substack2
                     .rb_mut()
-                    .make_aligned_uninit::<c64>(fourier_poly_size, align);
+                    .make_aligned_raw::<c64>(fourier_poly_size, align);
                 // We perform the forward fft transform for the glwe polynomial
                 let fourier = fft
                     .forward_as_integer(
-                        FourierPolynomialUninitMutView { data: &mut fourier },
+                        FourierPolynomialMutView { data: &mut fourier },
                         glwe_poly,
                         substack3,
                     )
@@ -424,16 +418,13 @@ pub fn add_external_product_assign<Scalar, InputGlweCont>(
                 // Now we loop through the polynomials of the output, and add the
                 // corresponding product of polynomials.
 
-                // SAFETY: see comment above definition of `output_fft_buffer`
-                unsafe {
-                    update_with_fmadd(
-                        output_fft_buffer,
-                        ggsw_row.data(),
-                        fourier,
-                        is_output_uninit,
-                        fourier_poly_size,
-                    )
-                };
+                update_with_fmadd(
+                    output_fft_buffer,
+                    ggsw_row.data(),
+                    fourier,
+                    is_output_uninit,
+                    fourier_poly_size,
+                );
 
                 // we initialized `output_fft_buffer, so we can set this to false
                 is_output_uninit = false;
@@ -447,8 +438,6 @@ pub fn add_external_product_assign<Scalar, InputGlweCont>(
     //
     // We iterate over the polynomials in the output.
     if !is_output_uninit {
-        // SAFETY: output_fft_buffer is initialized, since `is_output_uninit` is false
-        let output_fft_buffer = &*unsafe { assume_init_mut(output_fft_buffer) };
         izip!(
             out.as_mut_polynomial_list().iter_mut(),
             output_fft_buffer
@@ -464,25 +453,20 @@ pub fn add_external_product_assign<Scalar, InputGlweCont>(
 #[cfg_attr(__profiling, inline(never))]
 fn collect_next_term<'a, Scalar: UnsignedTorus>(
     decomposition: &mut TensorSignedDecompositionLendingIter<'_, Scalar>,
-    substack1: &'a mut DynStack,
+    substack1: &'a mut PodStack,
     align: usize,
 ) -> (
     DecompositionLevel,
     dyn_stack::DynArray<'a, Scalar>,
-    DynStack<'a>,
+    PodStack<'a>,
 ) {
     let (glwe_level, _, glwe_decomp_term) = decomposition.next_term().unwrap();
     let (glwe_decomp_term, substack2) = substack1.rb_mut().collect_aligned(align, glwe_decomp_term);
     (glwe_level, glwe_decomp_term, substack2)
 }
 
-/// # Note
-///
-/// this function leaves all the elements of `output_fourier` in an initialized state.
-///
 /// # Safety
 ///
-///  - if `is_output_uninit` is false, `output_fourier` must not hold any uninitialized values.
 ///  - `is_x86_feature_detected!("avx512f")` must be true.
 #[cfg(all(
     feature = "nightly-avx512",
@@ -490,7 +474,7 @@ fn collect_next_term<'a, Scalar: UnsignedTorus>(
 ))]
 #[target_feature(enable = "avx512f")]
 unsafe fn update_with_fmadd_avx512(
-    output_fourier: &mut [MaybeUninit<c64>],
+    output_fourier: &mut [c64],
     ggsw_poly: &[c64],
     fourier: &[c64],
     is_output_uninit: bool,
@@ -540,18 +524,13 @@ unsafe fn update_with_fmadd_avx512(
     }
 }
 
-/// # Note
-///
-/// this function leaves all the elements of `output_fourier` in an initialized state.
-///
 /// # Safety
 ///
-///  - if `is_output_uninit` is false, `output_fourier` must not hold any uninitialized values.
 ///  - `is_x86_feature_detected!("fma")` must be true.
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
 #[target_feature(enable = "fma")]
 unsafe fn update_with_fmadd_fma(
-    output_fourier: &mut [MaybeUninit<c64>],
+    output_fourier: &mut [c64],
     ggsw_poly: &[c64],
     fourier: &[c64],
     is_output_uninit: bool,
@@ -601,15 +580,11 @@ unsafe fn update_with_fmadd_fma(
     }
 }
 
-/// # Note
-///
-/// this function leaves all the elements of `output_fourier` in an initialized state.
-///
 /// # Safety
 ///
 ///  - if `is_output_uninit` is false, `output_fourier` must not hold any uninitialized values.
 unsafe fn update_with_fmadd_scalar(
-    output_fourier: &mut [MaybeUninit<c64>],
+    output_fourier: &mut [c64],
     ggsw_poly: &[c64],
     fourier: &[c64],
     is_output_uninit: bool,
@@ -618,34 +593,27 @@ unsafe fn update_with_fmadd_scalar(
         // we're writing to output_fft_buffer for the first time
         // so its contents are uninitialized
         izip!(output_fourier, ggsw_poly, fourier).for_each(|(out_fourier, lhs, rhs)| {
-            out_fourier.write(lhs * rhs);
+            *out_fourier = lhs * rhs;
         });
     } else {
         // we already wrote to output_fft_buffer, so we can assume its contents are
         // initialized.
         izip!(output_fourier, ggsw_poly, fourier).for_each(|(out_fourier, lhs, rhs)| {
-            *{ out_fourier.assume_init_mut() } += lhs * rhs;
+            *out_fourier += lhs * rhs;
         });
     }
 }
 
-/// # Note
-///
-/// this function leaves all the elements of `output_fourier` in an initialized state.
-///
-/// # Safety
-///
-///  - if `is_output_uninit` is false, `output_fourier` must not hold any uninitialized values.
 #[cfg_attr(__profiling, inline(never))]
-pub(crate) unsafe fn update_with_fmadd(
-    output_fft_buffer: &mut [MaybeUninit<c64>],
+pub(crate) fn update_with_fmadd(
+    output_fft_buffer: &mut [c64],
     lhs_polynomial_list: &[c64],
     fourier: &[c64],
     is_output_uninit: bool,
     fourier_poly_size: usize,
 ) {
     #[allow(clippy::type_complexity)]
-    let ptr_fn = || -> unsafe fn(&mut [MaybeUninit<c64>], &[c64], &[c64], bool) {
+    let ptr_fn = || -> unsafe fn(&mut [c64], &[c64], &[c64], bool) {
         #[cfg(all(
             feature = "nightly-avx512",
             any(target_arch = "x86_64", target_arch = "x86")
@@ -667,8 +635,8 @@ pub(crate) unsafe fn update_with_fmadd(
         output_fft_buffer.into_chunks(fourier_poly_size),
         lhs_polynomial_list.into_chunks(fourier_poly_size)
     )
-    .for_each(|(output_fourier, poly_from_list)| {
-        ptr(output_fourier, poly_from_list, fourier, is_output_uninit);
+    .for_each(|(output_fourier, ggsw_poly)| {
+        unsafe { ptr(output_fourier, ggsw_poly, fourier, is_output_uninit) };
     });
 }
 
@@ -687,7 +655,7 @@ pub fn cmux<Scalar: UnsignedTorus>(
     mut ct1: GlweCiphertextMutView<'_, Scalar>,
     ggsw: FourierGgswCiphertextView<'_>,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) {
     izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
         *c1 = c1.wrapping_sub(*c0);

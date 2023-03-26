@@ -1,4 +1,4 @@
-use dyn_stack::{GlobalMemBuffer, ReborrowMut};
+use dyn_stack::{GlobalPodBuffer, ReborrowMut};
 
 use super::super::polynomial::FourierPolynomial;
 use super::*;
@@ -33,23 +33,15 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             *x = generator.random_uniform();
         }
 
-        let mut mem = GlobalMemBuffer::new(
+        let mut mem = GlobalPodBuffer::new(
             fft.forward_scratch()
                 .unwrap()
                 .and(fft.backward_scratch().unwrap()),
         );
-        let mut stack = DynStack::new(&mut mem);
+        let mut stack = PodStack::new(&mut mem);
 
-        fft.forward_as_torus(
-            unsafe { fourier.as_mut_view().into_uninit() },
-            poly.as_view(),
-            stack.rb_mut(),
-        );
-        fft.backward_as_torus(
-            unsafe { roundtrip.as_mut_view().into_uninit() },
-            fourier.as_view(),
-            stack.rb_mut(),
-        );
+        fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack.rb_mut());
+        fft.backward_as_torus(roundtrip.as_mut_view(), fourier.as_view(), stack.rb_mut());
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
@@ -118,33 +110,22 @@ fn test_product<Scalar: UnsignedTorus>() {
                 }
             }
 
-            let mut mem = GlobalMemBuffer::new(
+            let mut mem = GlobalPodBuffer::new(
                 fft.forward_scratch()
                     .unwrap()
                     .and(fft.backward_scratch().unwrap()),
             );
-            let mut stack = DynStack::new(&mut mem);
+            let mut stack = PodStack::new(&mut mem);
 
-            // SAFETY: forward_as_torus doesn't write any uninitialized values into its output
-            fft.forward_as_torus(
-                unsafe { fourier0.as_mut_view().into_uninit() },
-                poly0.as_view(),
-                stack.rb_mut(),
-            );
-            // SAFETY: forward_as_integer doesn't write any uninitialized values into its output
-            fft.forward_as_integer(
-                unsafe { fourier1.as_mut_view().into_uninit() },
-                poly1.as_view(),
-                stack.rb_mut(),
-            );
+            fft.forward_as_torus(fourier0.as_mut_view(), poly0.as_view(), stack.rb_mut());
+            fft.forward_as_integer(fourier1.as_mut_view(), poly1.as_view(), stack.rb_mut());
 
             for (f0, f1) in izip!(&mut *fourier0.data, &*fourier1.data) {
                 *f0 *= *f1;
             }
 
-            // SAFETY: backward_as_torus doesn't write any uninitialized values into its output
             fft.backward_as_torus(
-                unsafe { convolution_from_fft.as_mut_view().into_uninit() },
+                convolution_from_fft.as_mut_view(),
                 fourier0.as_view(),
                 stack.rb_mut(),
             );

@@ -1,8 +1,4 @@
-use super::super::assume_init_mut;
-use super::polynomial::{
-    FourierPolynomialMutView, FourierPolynomialUninitMutView, FourierPolynomialView,
-    PolynomialUninitMutView,
-};
+use super::polynomial::{FourierPolynomialMutView, FourierPolynomialView};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{PolynomialCount, PolynomialSize};
@@ -12,12 +8,12 @@ use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
 use concrete_fft::unordered::{Method, Plan};
-use dyn_stack::{DynStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use once_cell::sync::OnceCell;
 use std::any::TypeId;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::mem::{align_of, size_of, MaybeUninit};
+use std::mem::{align_of, size_of};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -182,7 +178,7 @@ impl Fft {
 
 #[cfg_attr(__profiling, inline(never))]
 fn convert_forward_torus<Scalar: UnsignedTorus>(
-    out: &mut [MaybeUninit<c64>],
+    out: &mut [c64],
     in_re: &[Scalar],
     in_im: &[Scalar],
     twisties: TwistiesView<'_>,
@@ -193,21 +189,19 @@ fn convert_forward_torus<Scalar: UnsignedTorus>(
         |(out, in_re, in_im, w_re, w_im)| {
             let in_re: f64 = in_re.into_signed().cast_into() * normalization;
             let in_im: f64 = in_im.into_signed().cast_into() * normalization;
-            out.write(
-                c64 {
-                    re: in_re,
-                    im: in_im,
-                } * c64 {
-                    re: *w_re,
-                    im: *w_im,
-                },
-            );
+            *out = c64 {
+                re: in_re,
+                im: in_im,
+            } * c64 {
+                re: *w_re,
+                im: *w_im,
+            };
         },
     );
 }
 
 fn convert_forward_integer_scalar<Scalar: UnsignedTorus>(
-    out: &mut [MaybeUninit<c64>],
+    out: &mut [c64],
     in_re: &[Scalar],
     in_im: &[Scalar],
     twisties: TwistiesView<'_>,
@@ -216,22 +210,20 @@ fn convert_forward_integer_scalar<Scalar: UnsignedTorus>(
         |(out, in_re, in_im, w_re, w_im)| {
             let in_re: f64 = in_re.into_signed().cast_into();
             let in_im: f64 = in_im.into_signed().cast_into();
-            out.write(
-                c64 {
-                    re: in_re,
-                    im: in_im,
-                } * c64 {
-                    re: *w_re,
-                    im: *w_im,
-                },
-            );
+            *out = c64 {
+                re: in_re,
+                im: in_im,
+            } * c64 {
+                re: *w_re,
+                im: *w_im,
+            };
         },
     );
 }
 
 #[cfg_attr(__profiling, inline(never))]
 fn convert_forward_integer<Scalar: UnsignedTorus>(
-    out: &mut [MaybeUninit<c64>],
+    out: &mut [c64],
     in_re: &[Scalar],
     in_im: &[Scalar],
     twisties: TwistiesView<'_>,
@@ -247,15 +239,14 @@ fn convert_forward_integer<Scalar: UnsignedTorus>(
         }
     }
 
-    // SAFETY: same as above
     #[cfg(not(any(target_arch = "x86_64", target_arch = "x86")))]
     convert_forward_integer_scalar::<Scalar>(out, in_re, in_im, twisties)
 }
 
 #[cfg_attr(__profiling, inline(never))]
 fn convert_backward_torus<Scalar: UnsignedTorus>(
-    out_re: &mut [MaybeUninit<Scalar>],
-    out_im: &mut [MaybeUninit<Scalar>],
+    out_re: &mut [Scalar],
+    out_im: &mut [Scalar],
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
@@ -268,20 +259,15 @@ fn convert_backward_torus<Scalar: UnsignedTorus>(
                     im: -*w_im,
                 } * normalization);
 
-            out_re.write(Scalar::from_torus(tmp.re));
-            out_im.write(Scalar::from_torus(tmp.im));
+            *out_re = Scalar::from_torus(tmp.re);
+            *out_im = Scalar::from_torus(tmp.im);
         },
     );
 }
 
-/// See [`convert_add_backward_torus`].
-///
-/// # Safety
-///
-///  - Same preconditions as [`convert_add_backward_torus`].
-unsafe fn convert_add_backward_torus_scalar<Scalar: UnsignedTorus>(
-    out_re: &mut [MaybeUninit<Scalar>],
-    out_im: &mut [MaybeUninit<Scalar>],
+fn convert_add_backward_torus_scalar<Scalar: UnsignedTorus>(
+    out_re: &mut [Scalar],
+    out_im: &mut [Scalar],
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
@@ -293,9 +279,6 @@ unsafe fn convert_add_backward_torus_scalar<Scalar: UnsignedTorus>(
                     re: *w_re,
                     im: -*w_im,
                 } * normalization);
-
-            let out_re = out_re.assume_init_mut();
-            let out_im = out_im.assume_init_mut();
 
             *out_re = Scalar::wrapping_add(*out_re, Scalar::from_torus(tmp.re));
             *out_im = Scalar::wrapping_add(*out_im, Scalar::from_torus(tmp.im));
@@ -303,18 +286,10 @@ unsafe fn convert_add_backward_torus_scalar<Scalar: UnsignedTorus>(
     );
 }
 
-/// # Warning
-///
-/// This function is actually unsafe, but can't be marked as such since we need it to implement
-/// `Fn(...)`, as there's no equivalent `unsafe Fn(...)` trait.
-///
-/// # Safety
-///
-/// - `out_re` and `out_im` must not hold any uninitialized values.
 #[cfg_attr(__profiling, inline(never))]
 fn convert_add_backward_torus<Scalar: UnsignedTorus>(
-    out_re: &mut [MaybeUninit<Scalar>],
-    out_im: &mut [MaybeUninit<Scalar>],
+    out_re: &mut [Scalar],
+    out_im: &mut [Scalar],
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
@@ -329,11 +304,8 @@ fn convert_add_backward_torus<Scalar: UnsignedTorus>(
         }
     }
 
-    // SAFETY: same as above
     #[cfg(not(any(target_arch = "x86_64", target_arch = "x86")))]
-    unsafe {
-        convert_add_backward_torus_scalar::<Scalar>(out_re, out_im, inp, twisties)
-    };
+    convert_add_backward_torus_scalar::<Scalar>(out_re, out_im, inp, twisties);
 }
 
 impl<'a> FftView<'a> {
@@ -388,12 +360,11 @@ impl<'a> FftView<'a> {
     /// have size equal to that amount divided by two.
     pub fn forward_as_torus<'out, Scalar: UnsignedTorus>(
         self,
-        fourier: FourierPolynomialUninitMutView<'out>,
+        fourier: FourierPolynomialMutView<'out>,
         standard: PolynomialView<'_, Scalar>,
-        stack: DynStack<'_>,
+        stack: PodStack<'_>,
     ) -> FourierPolynomialMutView<'out> {
-        // SAFETY: `convert_forward_torus` initializes the output slice that is passed to it
-        unsafe { self.forward_with_conv(fourier, standard, convert_forward_torus, stack) }
+        self.forward_with_conv(fourier, standard, convert_forward_torus, stack)
     }
 
     /// Perform a negacyclic real FFT of `standard`, viewed as integers, and stores the result in
@@ -409,12 +380,11 @@ impl<'a> FftView<'a> {
     /// have size equal to that amount divided by two.
     pub fn forward_as_integer<'out, Scalar: UnsignedTorus>(
         self,
-        fourier: FourierPolynomialUninitMutView<'out>,
+        fourier: FourierPolynomialMutView<'out>,
         standard: PolynomialView<'_, Scalar>,
-        stack: DynStack<'_>,
+        stack: PodStack<'_>,
     ) -> FourierPolynomialMutView<'out> {
-        // SAFETY: `convert_forward_integer` initializes the output slice that is passed to it
-        unsafe { self.forward_with_conv(fourier, standard, convert_forward_integer, stack) }
+        self.forward_with_conv(fourier, standard, convert_forward_integer, stack)
     }
 
     /// Perform an inverse negacyclic real FFT of `fourier` and stores the result in `standard`,
@@ -429,12 +399,11 @@ impl<'a> FftView<'a> {
     /// See [`Self::forward_as_torus`]
     pub fn backward_as_torus<Scalar: UnsignedTorus>(
         self,
-        standard: PolynomialUninitMutView<'_, Scalar>,
+        standard: PolynomialMutView<'_, Scalar>,
         fourier: FourierPolynomialView<'_>,
-        stack: DynStack<'_>,
+        stack: PodStack<'_>,
     ) {
-        // SAFETY: `convert_backward_torus` initializes the output slices that are passed to it
-        unsafe { self.backward_with_conv(standard, fourier, convert_backward_torus, stack) }
+        self.backward_with_conv(standard, fourier, convert_backward_torus, stack)
     }
 
     /// Perform an inverse negacyclic real FFT of `fourier` and adds the result to `standard`,
@@ -451,32 +420,21 @@ impl<'a> FftView<'a> {
         self,
         standard: PolynomialMutView<'_, Scalar>,
         fourier: FourierPolynomialView<'_>,
-        stack: DynStack<'_>,
+        stack: PodStack<'_>,
     ) {
-        // SAFETY: `convert_add_backward_torus` initializes the output slices that are passed to it
-        unsafe {
-            self.backward_with_conv(
-                standard.into_uninit(),
-                fourier,
-                convert_add_backward_torus,
-                stack,
-            )
-        }
+        self.backward_with_conv(standard, fourier, convert_add_backward_torus, stack)
     }
 
-    /// # Safety
-    ///
-    /// `conv_fn` must initialize the entirety of the mutable slice that it receives.
-    unsafe fn forward_with_conv<
+    fn forward_with_conv<
         'out,
         Scalar: UnsignedTorus,
-        F: Fn(&mut [MaybeUninit<c64>], &[Scalar], &[Scalar], TwistiesView<'_>),
+        F: Fn(&mut [c64], &[Scalar], &[Scalar], TwistiesView<'_>),
     >(
         self,
-        fourier: FourierPolynomialUninitMutView<'out>,
+        fourier: FourierPolynomialMutView<'out>,
         standard: PolynomialView<'_, Scalar>,
         conv_fn: F,
-        stack: DynStack<'_>,
+        stack: PodStack<'_>,
     ) -> FourierPolynomialMutView<'out> {
         let fourier = fourier.data;
         let standard = standard.as_ref();
@@ -484,23 +442,19 @@ impl<'a> FftView<'a> {
         debug_assert_eq!(n, 2 * fourier.len());
         let (standard_re, standard_im) = standard.split_at(n / 2);
         conv_fn(fourier, standard_re, standard_im, self.twisties);
-        let fourier = assume_init_mut(fourier);
         self.plan.fwd(fourier, stack);
         FourierPolynomialMutView { data: fourier }
     }
 
-    /// # Safety
-    ///
-    /// `conv_fn` must initialize the entirety of the mutable slices that it receives.
-    unsafe fn backward_with_conv<
+    fn backward_with_conv<
         Scalar: UnsignedTorus,
-        F: Fn(&mut [MaybeUninit<Scalar>], &mut [MaybeUninit<Scalar>], &[c64], TwistiesView<'_>),
+        F: Fn(&mut [Scalar], &mut [Scalar], &[c64], TwistiesView<'_>),
     >(
         self,
-        mut standard: PolynomialUninitMutView<'_, Scalar>,
+        mut standard: PolynomialMutView<'_, Scalar>,
         fourier: FourierPolynomialView<'_>,
         conv_fn: F,
-        stack: DynStack<'_>,
+        stack: PodStack<'_>,
     ) {
         let fourier = fourier.data;
         let standard = standard.as_mut();

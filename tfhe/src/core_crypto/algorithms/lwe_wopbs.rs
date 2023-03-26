@@ -13,7 +13,7 @@ use crate::core_crypto::fft_impl::crypto::wop_pbs::{
 };
 use crate::core_crypto::fft_impl::math::fft::FftView;
 use concrete_fft::c64;
-use dyn_stack::{DynStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
 
 /// Allocate a new [`list of LWE private functional packing keyswitch
@@ -275,7 +275,7 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
 /// ciphertext`](`LweCiphertext`), containing the encryption of the bit scaled by q/2 (i.e., the
 /// most significant bit in the plaintext representation).
 ///
-/// The caller must provide a properly configured [`FftView`] object and a `DynStack` used as a
+/// The caller must provide a properly configured [`FftView`] object and a `PodStack` used as a
 /// memory buffer having a capacity at least as large as the result of
 /// [`extract_bits_from_lwe_ciphertext_mem_optimized_requirement`].
 ///
@@ -302,7 +302,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized<
     delta_log: DeltaLog,
     number_of_bits_to_extract: ExtractedBitsCount,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,
@@ -378,7 +378,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// |[          polynomial 1          ]|...|[          polynomial 1          ]|
 /// ```
 ///
-/// The caller must provide a properly configured [`FftView`] object and a `DynStack` used as a
+/// The caller must provide a properly configured [`FftView`] object and a `PodStack` used as a
 /// memory buffer having a capacity at least as large as the result of
 /// [`circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement`].
 ///
@@ -617,7 +617,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimi
     base_log_cbs: DecompositionBaseLog,
     level_cbs: DecompositionLevelCount,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
     Scalar: UnsignedTorus + CastInto<usize>,

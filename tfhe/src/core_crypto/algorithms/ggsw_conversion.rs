@@ -10,7 +10,7 @@ use crate::core_crypto::fft_impl::crypto::ggsw::{
 };
 use crate::core_crypto::fft_impl::math::fft::{Fft, FftView};
 use concrete_fft::c64;
-use dyn_stack::{DynStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
 /// Convert a [`GGSW ciphertext`](`GgswCiphertext`) with standard coefficients to the Fourier
 /// domain.
@@ -51,7 +51,7 @@ pub fn convert_standard_ggsw_ciphertext_to_fourier_mem_optimized<Scalar, InputCo
     input_ggsw: &GgswCiphertext<InputCont>,
     output_ggsw: &mut FourierGgswCiphertext<OutputCont>,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,

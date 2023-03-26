@@ -15,7 +15,7 @@ use crate::core_crypto::fft_impl::math::fft::Fft;
 use crate::core_crypto::seeders::new_seeder;
 use concrete_csprng::generators::SoftwareRandomGenerator;
 use concrete_fft::c64;
-use dyn_stack::{DynStack, GlobalMemBuffer, ReborrowMut, StackReq};
+use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut, StackReq};
 
 // Extract all the bits of a LWE
 #[test]
@@ -96,8 +96,8 @@ pub fn test_extract_bits() {
         ])
     };
     let req = req().unwrap();
-    let mut mem = GlobalMemBuffer::new(req);
-    let mut stack = DynStack::new(&mut mem);
+    let mut mem = GlobalPodBuffer::new(req);
+    let mut stack = PodStack::new(&mut mem);
 
     fourier_bsk
         .as_mut_view()
@@ -225,8 +225,8 @@ fn test_circuit_bootstrapping_binary() {
     let fft = Fft::new(polynomial_size);
     let fft = fft.as_view();
 
-    let mut mem = GlobalMemBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
-    let stack = DynStack::new(&mut mem);
+    let mut mem = GlobalPodBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
+    let stack = PodStack::new(&mut mem);
     fourier_bsk
         .as_mut_view()
         .fill_with_forward_fourier(std_bsk.as_view(), fft, stack);
@@ -269,7 +269,7 @@ fn test_circuit_bootstrapping_binary() {
             level_count_cbs,
         );
 
-        let mut mem = GlobalMemBuffer::new(
+        let mut mem = GlobalPodBuffer::new(
             circuit_bootstrap_boolean_scratch::<u64>(
                 lwe_in.lwe_size(),
                 fourier_bsk.output_lwe_dimension().to_lwe_size(),
@@ -279,7 +279,7 @@ fn test_circuit_bootstrapping_binary() {
             )
             .unwrap(),
         );
-        let stack = DynStack::new(&mut mem);
+        let stack = PodStack::new(&mut mem);
         // Execute the CBS
         circuit_bootstrap_boolean(
             fourier_bsk.as_view(),
@@ -464,15 +464,15 @@ pub fn test_cmux_tree() {
                 &mut encryption_generator,
             );
 
-            let mut mem = GlobalMemBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
-            let stack = DynStack::new(&mut mem);
+            let mut mem = GlobalPodBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
+            let stack = PodStack::new(&mut mem);
             fourier_ggsw
                 .as_mut_view()
                 .fill_with_forward_fourier(ggsw.as_view(), fft, stack);
         }
 
         let mut result_cmux_tree = GlweCiphertextOwned::new(0_u64, glwe_size, polynomial_size);
-        let mut mem = GlobalMemBuffer::new(
+        let mut mem = GlobalPodBuffer::new(
             cmux_tree_memory_optimized_scratch::<u64>(glwe_size, polynomial_size, nb_ggsw, fft)
                 .unwrap(),
         );
@@ -481,7 +481,7 @@ pub fn test_cmux_tree() {
             lut.as_view(),
             ggsw_list.as_view(),
             fft,
-            DynStack::new(&mut mem),
+            PodStack::new(&mut mem),
         );
         let mut decrypted_result =
             PlaintextListOwned::new(0u64, PlaintextCount(glwe_sk.polynomial_size().0));
@@ -568,11 +568,11 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     let fft = Fft::new(polynomial_size);
     let fft = fft.as_view();
 
-    let mut mem = GlobalMemBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
+    let mut mem = GlobalPodBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
     fourier_bsk.as_mut_view().fill_with_forward_fourier(
         std_bsk.as_view(),
         fft,
-        DynStack::new(&mut mem),
+        PodStack::new(&mut mem),
     );
 
     let ksk_lwe_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
@@ -630,7 +630,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             LweCiphertextCount(number_of_values_to_extract.0),
         );
 
-        let mut mem = GlobalMemBuffer::new(
+        let mut mem = GlobalPodBuffer::new(
             extract_bits_scratch::<u64>(
                 lwe_dimension,
                 ksk_lwe_big_to_small.output_key_lwe_dimension(),
@@ -648,7 +648,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             delta_log,
             number_of_values_to_extract,
             fft,
-            DynStack::new(&mut mem),
+            PodStack::new(&mut mem),
         );
 
         // Decrypt all extracted bit for checking purposes in case of problems
@@ -700,7 +700,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         );
 
         // Perform circuit bootstrap + vertical packing
-        let mut mem = GlobalMemBuffer::new(
+        let mut mem = GlobalPodBuffer::new(
             circuit_bootstrap_boolean_vertical_packing_scratch::<u64>(
                 extracted_bits_lwe_list.lwe_ciphertext_count(),
                 vertical_packing_lwe_list_out.lwe_ciphertext_count(),
@@ -723,7 +723,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
             level_cbs,
             base_log_cbs,
             fft,
-            DynStack::new(&mut mem),
+            PodStack::new(&mut mem),
         );
 
         // We have a single output ct

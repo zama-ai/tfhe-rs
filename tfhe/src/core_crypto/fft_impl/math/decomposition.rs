@@ -1,7 +1,7 @@
 pub use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-use dyn_stack::{DynArray, DynStack};
+use dyn_stack::{DynArray, PodStack};
 use std::iter::Map;
 use std::slice::IterMut;
 
@@ -28,8 +28,8 @@ impl<'buffers, Scalar: UnsignedInteger> TensorSignedDecompositionLendingIter<'bu
         input: impl Iterator<Item = Scalar>,
         base_log: DecompositionBaseLog,
         level: DecompositionLevelCount,
-        stack: DynStack<'buffers>,
-    ) -> (Self, DynStack<'buffers>) {
+        stack: PodStack<'buffers>,
+    ) -> (Self, PodStack<'buffers>) {
         let shift = Scalar::BITS - base_log.0 * level.0;
         let (states, stack) =
             stack.collect_aligned(aligned_vec::CACHELINE_ALIGN, input.map(|i| i >> shift));

@@ -1,7 +1,5 @@
-use super::super::as_mut_uninit;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::Polynomial;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
 
@@ -37,24 +35,6 @@ impl FourierPolynomial<ABox<[c64]>> {
     }
 }
 
-/// Polynomial in the standard domain, with possibly uninitialized coefficients.
-///
-/// This is used for the Fourier transforms to avoid the cost of initializing the output buffer,
-/// which can be non negligible.
-pub type PolynomialUninitMutView<'a, Scalar> = Polynomial<&'a mut [core::mem::MaybeUninit<Scalar>]>;
-
-/// Polynomial in the Fourier domain, with possibly uninitialized coefficients.
-///
-/// This is used for the Fourier transforms to avoid the cost of initializing the output buffer,
-/// which can be non negligible.
-///
-/// # Note
-///
-/// Polynomials in the Fourier domain have half the size of the corresponding polynomials in
-/// the standard domain.
-pub type FourierPolynomialUninitMutView<'a> =
-    FourierPolynomial<&'a mut [core::mem::MaybeUninit<c64>]>;
-
 impl<C: Container<Element = c64>> FourierPolynomial<C> {
     pub fn as_view(&self) -> FourierPolynomialView<'_> {
         FourierPolynomial {
@@ -73,25 +53,5 @@ impl<C: Container<Element = c64>> FourierPolynomial<C> {
 
     pub fn polynomial_size(&self) -> PolynomialSize {
         PolynomialSize(self.data.container_len() * 2)
-    }
-}
-
-impl<'a, Scalar> Polynomial<&'a mut [Scalar]> {
-    /// # Safety
-    ///
-    /// No uninitialized values must be written into the output buffer when the borrow ends
-    pub unsafe fn into_uninit(self) -> PolynomialUninitMutView<'a, Scalar> {
-        PolynomialUninitMutView::from_container(as_mut_uninit(self.into_container()))
-    }
-}
-
-impl<'a> FourierPolynomialMutView<'a> {
-    /// # Safety
-    ///
-    /// No uninitialized values must be written into the output buffer when the borrow ends
-    pub unsafe fn into_uninit(self) -> FourierPolynomialUninitMutView<'a> {
-        FourierPolynomialUninitMutView {
-            data: as_mut_uninit(self.data),
-        }
     }
 }
