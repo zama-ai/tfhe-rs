@@ -282,7 +282,7 @@ criterion_group!(joc,
     // joc_crt,
     // joc_hybrid_32_bits,
     // joc_crt_wopbs,
-    //joc_native_crt_wopbs,
+    joc_native_crt_wopbs,
     joc_native_crt_mul_wopbs,
     joc_native_crt_add,
 );
@@ -1302,7 +1302,6 @@ fn joc_hybrid_32_bits(c: &mut Criterion) {
             sks.key.carry_modulus = message_carry_mod_vec[i].1;
 
             let mut msg_space = basis_32bits[i];
-            i = i+1;
 
 
             let mut rng = rand::thread_rng();
@@ -1325,7 +1324,7 @@ fn joc_hybrid_32_bits(c: &mut Criterion) {
                                                                         MessageModulus
                                                                             (*block_modulus));
 
-            let id = format!("{}_hybrid_mul", group_name);
+            let id = format!("{}_hybrid_mul_block_{}", group_name, i);
             group.bench_function(id, |b| {
                 b.iter(|| {
                     let mut ct_res = sks.unchecked_mul(&mut ct_one_rad, &mut ct_zero_rad);
@@ -1333,19 +1332,20 @@ fn joc_hybrid_32_bits(c: &mut Criterion) {
             });
 
 
-            let id = format!("{}_hybrid_add", group_name);
+            let id = format!("{}_hybrid_add_block_{}", group_name, i);
             group.bench_function(id, |b| {
                 b.iter(|| {
                     let mut ct_res = sks.unchecked_add(&mut ct_one_rad, &mut ct_zero_rad);
                 })
             });
 
-            let id = format!("{}_hybrid_prop", group_name);
+            let id = format!("{}_hybrid_prop_block_{}", group_name, i);
             group.bench_function(id, |b| {
                 b.iter(|| {
                     sks.full_propagate(&mut ct_one_rad);
                 })
             });
+            i = i+1;
         }
     }
 
