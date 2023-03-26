@@ -16,7 +16,6 @@ use core::arch::x86_64::*;
 
 use super::super::super::c64;
 use super::TwistiesView;
-use std::mem::MaybeUninit;
 
 /// Convert a vector of f64 values to a vector of i64 values.
 /// See `f64_to_i64_bit_twiddles` in `fft/tests.rs` for the scalar version.
@@ -196,7 +195,7 @@ pub unsafe fn mm512_cvtepi64_pd(x: __m512i) -> __m512d {
 #[cfg(feature = "nightly-avx512")]
 #[target_feature(enable = "avx512f")]
 pub unsafe fn convert_forward_integer_u32_avx512f(
-    out: &mut [MaybeUninit<c64>],
+    out: &mut [c64],
     in_re: &[u32],
     in_im: &[u32],
     twisties: TwistiesView<'_>,
@@ -265,7 +264,7 @@ pub unsafe fn convert_forward_integer_u32_avx512f(
 #[cfg(feature = "nightly-avx512")]
 #[target_feature(enable = "avx512f,avx512dq")]
 pub unsafe fn convert_forward_integer_u64_avx512f_avx512dq(
-    out: &mut [MaybeUninit<c64>],
+    out: &mut [c64],
     in_re: &[u64],
     in_im: &[u64],
     twisties: TwistiesView<'_>,
@@ -332,7 +331,7 @@ pub unsafe fn convert_forward_integer_u64_avx512f_avx512dq(
 ///  - `is_x86_feature_detected!("fma")` must be true.
 #[target_feature(enable = "avx,fma")]
 pub unsafe fn convert_forward_integer_u32_fma(
-    out: &mut [MaybeUninit<c64>],
+    out: &mut [c64],
     in_re: &[u32],
     in_im: &[u32],
     twisties: TwistiesView<'_>,
@@ -399,7 +398,7 @@ pub unsafe fn convert_forward_integer_u32_fma(
 ///  - `is_x86_feature_detected!("fma")` must be true.
 #[target_feature(enable = "avx,avx2,fma")]
 pub unsafe fn convert_forward_integer_u64_avx2_fma(
-    out: &mut [MaybeUninit<c64>],
+    out: &mut [c64],
     in_re: &[u64],
     in_im: &[u64],
     twisties: TwistiesView<'_>,
@@ -523,13 +522,12 @@ pub unsafe fn convert_torus_prologue_avx512f(
 ///
 /// # Safety
 ///
-///  - Same preconditions as [`convert_add_backward_torus`].
 ///  - `is_x86_feature_detected!("avx512f")` must be true.
 #[cfg(feature = "nightly-avx512")]
 #[target_feature(enable = "avx512f")]
 pub unsafe fn convert_add_backward_torus_u32_avx512f(
-    out_re: &mut [MaybeUninit<u32>],
-    out_im: &mut [MaybeUninit<u32>],
+    out_re: &mut [u32],
+    out_im: &mut [u32],
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
@@ -577,13 +575,12 @@ pub unsafe fn convert_add_backward_torus_u32_avx512f(
 ///
 /// # Safety
 ///
-///  - Same preconditions as [`convert_add_backward_torus`].
 ///  - `is_x86_feature_detected!("avx512f")` must be true.
 #[cfg(feature = "nightly-avx512")]
 #[target_feature(enable = "avx512f")]
 pub unsafe fn convert_add_backward_torus_u64_avx512f(
-    out_re: &mut [MaybeUninit<u64>],
-    out_im: &mut [MaybeUninit<u64>],
+    out_re: &mut [u64],
+    out_im: &mut [u64],
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
@@ -693,12 +690,11 @@ pub unsafe fn convert_torus_prologue_fma(
 ///
 /// # Safety
 ///
-///  - Same preconditions as [`convert_add_backward_torus`].
 ///  - `is_x86_feature_detected!("fma")` must be true.
 #[target_feature(enable = "avx,fma")]
 pub unsafe fn convert_add_backward_torus_u32_fma(
-    out_re: &mut [MaybeUninit<u32>],
-    out_im: &mut [MaybeUninit<u32>],
+    out_re: &mut [u32],
+    out_im: &mut [u32],
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
@@ -742,17 +738,14 @@ pub unsafe fn convert_add_backward_torus_u32_fma(
     }
 }
 
-/// See [`convert_add_backward_torus`].
-///
 /// # Safety
 ///
-///  - Same preconditions as [`convert_add_backward_torus`].
 ///  - `is_x86_feature_detected!("avx2")` must be true.
 ///  - `is_x86_feature_detected!("fma")` must be true.
 #[target_feature(enable = "avx2,fma")]
 pub unsafe fn convert_add_backward_torus_u64_fma(
-    out_re: &mut [MaybeUninit<u64>],
-    out_im: &mut [MaybeUninit<u64>],
+    out_re: &mut [u64],
+    out_im: &mut [u64],
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
@@ -797,14 +790,14 @@ pub unsafe fn convert_add_backward_torus_u64_fma(
 }
 
 pub fn convert_forward_integer_u32(
-    out: &mut [MaybeUninit<c64>],
+    out: &mut [c64],
     in_re: &[u32],
     in_im: &[u32],
     twisties: TwistiesView<'_>,
 ) {
     // this is a function that returns a function pointer to the right simd function
     #[allow(clippy::type_complexity)]
-    let ptr_fn = || -> unsafe fn(&mut [MaybeUninit<c64>], &[u32], &[u32], TwistiesView<'_>) {
+    let ptr_fn = || -> unsafe fn(&mut [c64], &[u32], &[u32], TwistiesView<'_>) {
         #[cfg(feature = "nightly-avx512")]
         if is_x86_feature_detected!("avx512f") {
             return convert_forward_integer_u32_avx512f;
@@ -819,21 +812,19 @@ pub fn convert_forward_integer_u32(
     // we call it to get the function pointer to the right simd function
     let ptr = ptr_fn();
 
-    // SAFETY: the target x86 feature availability was checked, and `out_re` and `out_im`
-    // do not hold any uninitialized values since that is a precondition of calling this
-    // function
+    // SAFETY: the target x86 feature availability was checked
     unsafe { ptr(out, in_re, in_im, twisties) }
 }
 
 pub fn convert_forward_integer_u64(
-    out: &mut [MaybeUninit<c64>],
+    out: &mut [c64],
     in_re: &[u64],
     in_im: &[u64],
     twisties: TwistiesView<'_>,
 ) {
     #[allow(clippy::type_complexity)]
     // this is a function that returns a function pointer to the right simd function
-    let ptr_fn = || -> unsafe fn(&mut [MaybeUninit<c64>], &[u64], &[u64], TwistiesView<'_>) {
+    let ptr_fn = || -> unsafe fn(&mut [c64], &[u64], &[u64], TwistiesView<'_>) {
         #[cfg(feature = "nightly-avx512")]
         if is_x86_feature_detected!("avx512f") & is_x86_feature_detected!("avx512dq") {
             return convert_forward_integer_u64_avx512f_avx512dq;
@@ -848,34 +839,19 @@ pub fn convert_forward_integer_u64(
     // we call it to get the function pointer to the right simd function
     let ptr = ptr_fn();
 
-    // SAFETY: the target x86 feature availability was checked, and `out_re` and `out_im`
-    // do not hold any uninitialized values since that is a precondition of calling this
-    // function
+    // SAFETY: the target x86 feature availability was checked
     unsafe { ptr(out, in_re, in_im, twisties) }
 }
 
-/// # Warning
-///
-/// This function is actually unsafe, but can't be marked as such since we need it to implement
-/// `Fn(...)`, as there's no equivalent `unsafe Fn(...)` trait.
-///
-/// # Safety
-///
-/// - `out_re` and `out_im` must not hold any uninitialized values.
 pub fn convert_add_backward_torus_u32(
-    out_re: &mut [MaybeUninit<u32>],
-    out_im: &mut [MaybeUninit<u32>],
+    out_re: &mut [u32],
+    out_im: &mut [u32],
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
     // this is a function that returns a function pointer to the right simd function
     #[allow(clippy::type_complexity)]
-    let ptr_fn = || -> unsafe fn (
-        &mut [MaybeUninit<u32>],
-        &mut [MaybeUninit<u32>],
-        &[c64],
-        TwistiesView<'_>,
-    ) {
+    let ptr_fn = || -> unsafe fn(&mut [u32], &mut [u32], &[c64], TwistiesView<'_>) {
         #[cfg(feature = "nightly-avx512")]
         if is_x86_feature_detected!("avx512f") {
             return convert_add_backward_torus_u32_avx512f;
@@ -890,34 +866,19 @@ pub fn convert_add_backward_torus_u32(
     // we call it to get the function pointer to the right simd function
     let ptr = ptr_fn();
 
-    // SAFETY: the target x86 feature availability was checked, and `out_re` and `out_im`
-    // do not hold any uninitialized values since that is a precondition of calling this
-    // function
+    // SAFETY: the target x86 feature availability was checked
     unsafe { ptr(out_re, out_im, inp, twisties) }
 }
 
-/// # Warning
-///
-/// This function is actually unsafe, but can't be marked as such since we need it to implement
-/// `Fn(...)`, as there's no equivalent `unsafe Fn(...)` trait.
-///
-/// # Safety
-///
-/// - `out_re` and `out_im` must not hold any uninitialized values.
 pub fn convert_add_backward_torus_u64(
-    out_re: &mut [MaybeUninit<u64>],
-    out_im: &mut [MaybeUninit<u64>],
+    out_re: &mut [u64],
+    out_im: &mut [u64],
     inp: &[c64],
     twisties: TwistiesView<'_>,
 ) {
     // this is a function that returns a function pointer to the right simd function
     #[allow(clippy::type_complexity)]
-    let ptr_fn = || -> unsafe fn (
-        &mut [MaybeUninit<u64>],
-        &mut [MaybeUninit<u64>],
-        &[c64],
-        TwistiesView<'_>,
-    ) {
+    let ptr_fn = || -> unsafe fn(&mut [u64], &mut [u64], &[c64], TwistiesView<'_>) {
         #[cfg(feature = "nightly-avx512")]
         if is_x86_feature_detected!("avx512f") {
             return convert_add_backward_torus_u64_avx512f;
@@ -932,18 +893,14 @@ pub fn convert_add_backward_torus_u64(
     // we call it to get the function pointer to the right simd function
     let ptr = ptr_fn();
 
-    // SAFETY: the target x86 feature availability was checked, and `out_re` and `out_im`
-    // do not hold any uninitialized values since that is a precondition of calling this
-    // function
+    // SAFETY: the target x86 feature availability was checked
     unsafe { ptr(out_re, out_im, inp, twisties) }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::mem::transmute;
-
-    use crate::core_crypto::fft_impl::as_mut_uninit;
     use crate::core_crypto::fft_impl::math::fft::{convert_add_backward_torus_scalar, Twisties};
+    use std::mem::transmute;
 
     use super::*;
 
@@ -998,15 +955,15 @@ mod tests {
 
         unsafe {
             convert_add_backward_torus_u64_fma(
-                as_mut_uninit(&mut out_fma_re),
-                as_mut_uninit(&mut out_fma_im),
+                &mut out_fma_re,
+                &mut out_fma_im,
                 &input,
                 twisties.as_view(),
             );
 
             convert_add_backward_torus_scalar(
-                as_mut_uninit(&mut out_scalar_re),
-                as_mut_uninit(&mut out_scalar_im),
+                &mut out_scalar_re,
+                &mut out_scalar_im,
                 &input,
                 twisties.as_view(),
             );
@@ -1035,15 +992,15 @@ mod tests {
 
         unsafe {
             convert_add_backward_torus_u64_avx512f(
-                as_mut_uninit(&mut out_avx_re),
-                as_mut_uninit(&mut out_avx_im),
+                &mut out_avx_re,
+                &mut out_avx_im,
                 &input,
                 twisties.as_view(),
             );
 
             convert_add_backward_torus_scalar(
-                as_mut_uninit(&mut out_scalar_re),
-                as_mut_uninit(&mut out_scalar_im),
+                &mut out_scalar_re,
+                &mut out_scalar_im,
                 &input,
                 twisties.as_view(),
             );

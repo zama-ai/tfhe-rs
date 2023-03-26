@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use aligned_vec::CACHELINE_ALIGN;
-use dyn_stack::{DynStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
 use super::super::math::fft::{FftView, FourierPolynomialList};
 use super::bootstrap::{bootstrap_scratch, FourierLweBootstrapKeyView};
@@ -64,7 +64,7 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
     delta_log: DeltaLog,
     number_of_bits_to_extract: ExtractedBitsCount,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) {
     let ciphertext_n_bits = Scalar::BITS;
     let number_of_bits_to_extract = number_of_bits_to_extract.0;
@@ -217,7 +217,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     delta_log: DeltaLog,
     pfpksk_list: LwePrivateFunctionalPackingKeyswitchKeyList<&[Scalar]>,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) {
     let level_cbs = ggsw_out.decomposition_level_count();
     let base_log_cbs = ggsw_out.decomposition_base_log();
@@ -337,7 +337,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     base_log_cbs: DecompositionBaseLog,
     delta_log: DeltaLog,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) {
     let ciphertext_n_bits = Scalar::BITS;
     let lwe_in_size = lwe_in.lwe_size();
@@ -644,7 +644,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
     lut_per_layer: PolynomialList<&[Scalar]>,
     ggsw_list: FourierGgswCiphertextListView<'_>,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) {
     debug_assert!(lut_per_layer.polynomial_count().0 == 1 << ggsw_list.count());
 
@@ -818,7 +818,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
     level_cbs: DecompositionLevelCount,
     base_log_cbs: DecompositionBaseLog,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) {
     debug_assert!(stack.can_hold(
         circuit_bootstrap_boolean_vertical_packing_scratch::<Scalar>(
@@ -945,7 +945,7 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
     mut lwe_out: LweCiphertext<&mut [Scalar]>,
     ggsw_list: FourierGgswCiphertextListView<'_>,
     fft: FftView<'_>,
-    stack: DynStack<'_>,
+    stack: PodStack<'_>,
 ) {
     let polynomial_size = ggsw_list.polynomial_size();
     let glwe_size = ggsw_list.glwe_size();
@@ -1015,7 +1015,7 @@ pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
     mut lut: GlweCiphertext<&mut [Scalar]>,
     ggsw_list: FourierGgswCiphertextListView<'_>,
     fft: FftView<'_>,
-    mut stack: DynStack<'_>,
+    mut stack: PodStack<'_>,
 ) {
     let mut monomial_degree = MonomialDegree(1);
 

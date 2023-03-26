@@ -4,7 +4,6 @@ use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::as_mut_uninit;
 use crate::core_crypto::fft_impl::crypto::bootstrap::pbs_modulus_switch;
 use crate::core_crypto::fft_impl::crypto::ggsw::{
     add_external_product_assign, add_external_product_assign_scratch, update_with_fmadd,
@@ -359,8 +358,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
                     .data()
                     .copy_from_slice(ggsw_a_none.as_view().data());
 
-                let multi_bit_fourier_ggsw =
-                    unsafe { as_mut_uninit(fourier_ggsw_buffer.as_mut_view().data()) };
+                let multi_bit_fourier_ggsw = fourier_ggsw_buffer.as_mut_view().data();
 
                 for (ggsw_idx, fourier_ggsw) in ggsw_group_iter.enumerate() {
                     // We already processed the first ggsw, advance the index by 1
@@ -394,20 +392,18 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
                     );
 
                     fft.forward_as_integer(
-                        unsafe { fourier_a_monomial.as_mut_view().into_uninit() },
+                        fourier_a_monomial.as_mut_view(),
                         a_monomial.as_view(),
                         buffers.stack(),
                     );
 
-                    unsafe {
-                        update_with_fmadd(
-                            multi_bit_fourier_ggsw,
-                            fourier_ggsw.as_view().data(),
-                            fourier_a_monomial.as_view().data,
-                            false,
-                            lut_poly_size.to_fourier_polynomial_size().0,
-                        );
-                    }
+                    update_with_fmadd(
+                        multi_bit_fourier_ggsw,
+                        fourier_ggsw.as_view().data(),
+                        fourier_a_monomial.as_view().data,
+                        false,
+                        lut_poly_size.to_fourier_polynomial_size().0,
+                    );
                 }
 
                 // Drop the lock before we wake other threads
