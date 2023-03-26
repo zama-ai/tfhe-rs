@@ -277,11 +277,11 @@ criterion_group!(
 criterion_group!(misc, full_propagate,);
 
 criterion_group!(joc,
-    // joc_radix,
-    // joc_radix_wopbs,
-    // joc_crt,
-    // joc_hybrid_32_bits,
-    // joc_crt_wopbs,
+    joc_radix,
+    joc_radix_wopbs,
+    joc_crt,
+    joc_hybrid_32_bits,
+    joc_crt_wopbs,
     joc_native_crt_wopbs,
     joc_native_crt_mul_wopbs,
     joc_native_crt_add,
