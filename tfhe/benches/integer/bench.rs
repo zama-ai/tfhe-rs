@@ -282,7 +282,7 @@ criterion_group!(joc,
     // joc_crt,
     // joc_hybrid_32_bits,
     // joc_crt_wopbs,
-    joc_native_crt_wopbs,
+    //joc_native_crt_wopbs,
     joc_native_crt_mul_wopbs,
     joc_native_crt_add,
 );
@@ -1236,6 +1236,7 @@ fn joc_native_crt_mul_wopbs(c: &mut Criterion) {
         let ct2 = cks.encrypt_native_crt(clear2, basis.to_vec());
 
         let mut ct_res = ct1.clone();
+        let mut i = 0;
         for ((ct_left, ct_right), res) in ct1.blocks.iter().zip(ct2.blocks.iter()).zip
         (ct_res.blocks.iter_mut()) {
             let crt_left = crt_ciphertext_from_ciphertext(&ct_left);
@@ -1245,12 +1246,13 @@ fn joc_native_crt_mul_wopbs(c: &mut Criterion) {
             let lut = wopbs_key.generate_lut_bivariate_native_crt(&crt_left, |x, y|
                 x * y);
 
-            let id = format!("{}_native_crt_wopbs_mul", group_name);
+            let id = format!("{}_native_crt_wopbs_mul_block_{}", group_name, i);
             group.bench_function(id, |b| {
                 b.iter(|| {
                     crt_res = wopbs_key.bivariate_wopbs_native_crt(&crt_left, &crt_right, &lut);
                 })
             });
+            i = i+ 1;
         }
     }
 }
