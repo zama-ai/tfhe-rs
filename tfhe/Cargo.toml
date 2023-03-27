@@ -68,6 +68,7 @@ internal-keycache = ["lazy_static", "fs2", "bincode"]
 # Experimental section
 experimental = ["experimental-multi_bit_pbs"]
 experimental-multi_bit_pbs = []
+experimental-force_fft_algo_dif4 = []
 # End experimental section
 
 __c_api = ["cbindgen", "bincode"]
