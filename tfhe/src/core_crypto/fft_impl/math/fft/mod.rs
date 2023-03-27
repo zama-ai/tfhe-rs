@@ -153,10 +153,26 @@ impl Fft {
 
             plan.map(|p| {
                 p.get_or_init(|| {
-                    Arc::new((
-                        Twisties::new(n / 2),
-                        Plan::new(n / 2, Method::Measure(Duration::from_millis(10))),
-                    ))
+                    #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
+                    {
+                        Arc::new((
+                            Twisties::new(n / 2),
+                            Plan::new(n / 2, Method::Measure(Duration::from_millis(10))),
+                        ))
+                    }
+                    #[cfg(feature = "experimental-force_fft_algo_dif4")]
+                    {
+                        Arc::new((
+                            Twisties::new(n / 2),
+                            Plan::new(
+                                n / 2,
+                                Method::UserProvided {
+                                    base_algo: concrete_fft::ordered::FftAlgo::Dif4,
+                                    base_n: n / 2,
+                                },
+                            ),
+                        ))
+                    }
                 })
                 .clone()
             })
