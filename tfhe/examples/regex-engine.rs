@@ -203,13 +203,6 @@ fn build_binary_dfa_tables(
             ..ascii_depth as usize * ALPHABET_LOG as usize + ALPHABET_LOG as usize];
         // add support for no $
         if !end_anchored && dfa.is_match_state(state) {
-            assert!(
-                !(table[index]
-                    .0
-                    .filter(|state| table[index].1.filter(|other| other != state).is_some())
-                    .is_some()),
-                "oh shiiiiiiiiiiiiiiit"
-            );
             add_binary_transitions_for_all_ascii(
                 &mut table,
                 depth_slice,
