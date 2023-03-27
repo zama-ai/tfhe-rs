@@ -29,7 +29,9 @@ fs2 = { version = "0.4.3" }
 # Used in regex-engine example
 regex-automata = "=0.1.10"
 clap = { version = "4.1.10", features = ["derive"] }
-serde_json = "1.0.94"
+regex = "1.7.3"
+base64 = "0.21.0"
+dashmap = "5.4.0"
 
 [build-dependencies]
 cbindgen = { version = "0.24.3", optional = true }
@@ -167,7 +169,7 @@ required-features = ["boolean"]
 
 [[example]]
 name = "regex-engine"
-required-features = ["shortint"]
+required-features = ["boolean"]
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
