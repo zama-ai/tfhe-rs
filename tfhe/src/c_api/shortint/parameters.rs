@@ -7,7 +7,7 @@ use std::os::raw::c_int;
 
 use crate::shortint;
 
-pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::Parameters);
+pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::ParametersBig);
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_get_parameters(
@@ -138,6 +138,7 @@ pub unsafe extern "C" fn shortint_create_parameters(
                 cbs_base_log: DecompositionBaseLog(cbs_base_log),
                 message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
                 carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
+                _pbs_order_marker: std::marker::PhantomData,
             }));
 
         *result = Box::into_raw(heap_allocated_parameters);

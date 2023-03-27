@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "internal-keycache")]
 use crate::shortint::keycache::KEY_CACHE;
-use crate::shortint::ClientKey;
+use crate::shortint::ClientKeyBig;
 
 use super::parameters::ShortIntegerParameter;
 
@@ -13,7 +13,7 @@ use super::parameters::ShortIntegerParameter;
 /// Can encrypt and decrypt it.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GenericShortIntClientKey<P: ShortIntegerParameter> {
-    pub(super) key: ClientKey,
+    pub(super) key: ClientKeyBig,
     _marker: PhantomData<P>,
 }
 
@@ -28,7 +28,7 @@ where
             .client_key()
             .clone();
         #[cfg(not(feature = "internal-keycache"))]
-        let key = ClientKey::new(parameters.into());
+        let key = ClientKeyBig::new(parameters.into());
 
         Self {
             key,

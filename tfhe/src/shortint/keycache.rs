@@ -212,181 +212,199 @@ pub mod utils {
     }
 }
 
-impl NamedParam for Parameters {
+impl<OpOrder: PBSOrderMarker> NamedParam for Parameters<OpOrder> {
     fn name(&self) -> String {
-        named_params_impl!(
-            self == (
-                PARAM_MESSAGE_1_CARRY_0,
-                PARAM_MESSAGE_1_CARRY_1,
-                PARAM_MESSAGE_1_CARRY_2,
-                PARAM_MESSAGE_1_CARRY_3,
-                PARAM_MESSAGE_1_CARRY_4,
-                PARAM_MESSAGE_1_CARRY_5,
-                PARAM_MESSAGE_1_CARRY_6,
-                PARAM_MESSAGE_1_CARRY_7,
-                PARAM_MESSAGE_2_CARRY_0,
-                PARAM_MESSAGE_2_CARRY_1,
-                PARAM_MESSAGE_2_CARRY_2,
-                PARAM_MESSAGE_2_CARRY_3,
-                PARAM_MESSAGE_2_CARRY_4,
-                PARAM_MESSAGE_2_CARRY_5,
-                PARAM_MESSAGE_2_CARRY_6,
-                PARAM_MESSAGE_3_CARRY_0,
-                PARAM_MESSAGE_3_CARRY_1,
-                PARAM_MESSAGE_3_CARRY_2,
-                PARAM_MESSAGE_3_CARRY_3,
-                PARAM_MESSAGE_3_CARRY_4,
-                PARAM_MESSAGE_3_CARRY_5,
-                PARAM_MESSAGE_4_CARRY_0,
-                PARAM_MESSAGE_4_CARRY_1,
-                PARAM_MESSAGE_4_CARRY_2,
-                PARAM_MESSAGE_4_CARRY_3,
-                PARAM_MESSAGE_4_CARRY_4,
-                PARAM_MESSAGE_5_CARRY_0,
-                PARAM_MESSAGE_5_CARRY_1,
-                PARAM_MESSAGE_5_CARRY_2,
-                PARAM_MESSAGE_5_CARRY_3,
-                PARAM_MESSAGE_6_CARRY_0,
-                PARAM_MESSAGE_6_CARRY_1,
-                PARAM_MESSAGE_6_CARRY_2,
-                PARAM_MESSAGE_7_CARRY_0,
-                PARAM_MESSAGE_7_CARRY_1,
-                PARAM_MESSAGE_8_CARRY_0,
-                WOPBS_PARAM_MESSAGE_1_NORM2_2,
-                WOPBS_PARAM_MESSAGE_1_NORM2_4,
-                WOPBS_PARAM_MESSAGE_1_NORM2_6,
-                WOPBS_PARAM_MESSAGE_1_NORM2_8,
-                WOPBS_PARAM_MESSAGE_2_NORM2_2,
-                WOPBS_PARAM_MESSAGE_2_NORM2_4,
-                WOPBS_PARAM_MESSAGE_2_NORM2_6,
-                WOPBS_PARAM_MESSAGE_2_NORM2_8,
-                WOPBS_PARAM_MESSAGE_3_NORM2_2,
-                WOPBS_PARAM_MESSAGE_3_NORM2_4,
-                WOPBS_PARAM_MESSAGE_3_NORM2_6,
-                WOPBS_PARAM_MESSAGE_3_NORM2_8,
-                WOPBS_PARAM_MESSAGE_4_NORM2_2,
-                WOPBS_PARAM_MESSAGE_4_NORM2_4,
-                WOPBS_PARAM_MESSAGE_4_NORM2_6,
-                WOPBS_PARAM_MESSAGE_4_NORM2_8,
-                WOPBS_PARAM_MESSAGE_5_NORM2_2,
-                WOPBS_PARAM_MESSAGE_5_NORM2_4,
-                WOPBS_PARAM_MESSAGE_5_NORM2_6,
-                WOPBS_PARAM_MESSAGE_5_NORM2_8,
-                WOPBS_PARAM_MESSAGE_6_NORM2_2,
-                WOPBS_PARAM_MESSAGE_6_NORM2_4,
-                WOPBS_PARAM_MESSAGE_6_NORM2_6,
-                WOPBS_PARAM_MESSAGE_6_NORM2_8,
-                WOPBS_PARAM_MESSAGE_7_NORM2_2,
-                WOPBS_PARAM_MESSAGE_7_NORM2_4,
-                WOPBS_PARAM_MESSAGE_7_NORM2_6,
-                WOPBS_PARAM_MESSAGE_7_NORM2_8,
-                WOPBS_PARAM_MESSAGE_8_NORM2_2,
-                WOPBS_PARAM_MESSAGE_8_NORM2_4,
-                //WOPBS_PARAM_MESSAGE_8_NORM2_5,
-                WOPBS_PARAM_MESSAGE_8_NORM2_6,
-                WOPBS_PARAM_MESSAGE_1_CARRY_0,
-                WOPBS_PARAM_MESSAGE_1_CARRY_1,
-                WOPBS_PARAM_MESSAGE_1_CARRY_2,
-                WOPBS_PARAM_MESSAGE_1_CARRY_3,
-                WOPBS_PARAM_MESSAGE_1_CARRY_4,
-                WOPBS_PARAM_MESSAGE_1_CARRY_5,
-                WOPBS_PARAM_MESSAGE_1_CARRY_6,
-                WOPBS_PARAM_MESSAGE_1_CARRY_7,
-                WOPBS_PARAM_MESSAGE_2_CARRY_0,
-                WOPBS_PARAM_MESSAGE_2_CARRY_1,
-                WOPBS_PARAM_MESSAGE_2_CARRY_2,
-                WOPBS_PARAM_MESSAGE_2_CARRY_3,
-                WOPBS_PARAM_MESSAGE_2_CARRY_4,
-                WOPBS_PARAM_MESSAGE_2_CARRY_5,
-                WOPBS_PARAM_MESSAGE_2_CARRY_6,
-                WOPBS_PARAM_MESSAGE_3_CARRY_0,
-                WOPBS_PARAM_MESSAGE_3_CARRY_1,
-                WOPBS_PARAM_MESSAGE_3_CARRY_2,
-                WOPBS_PARAM_MESSAGE_3_CARRY_3,
-                WOPBS_PARAM_MESSAGE_3_CARRY_4,
-                WOPBS_PARAM_MESSAGE_3_CARRY_5,
-                WOPBS_PARAM_MESSAGE_4_CARRY_0,
-                WOPBS_PARAM_MESSAGE_4_CARRY_1,
-                WOPBS_PARAM_MESSAGE_4_CARRY_2,
-                WOPBS_PARAM_MESSAGE_4_CARRY_3,
-                WOPBS_PARAM_MESSAGE_4_CARRY_4,
-                WOPBS_PARAM_MESSAGE_5_CARRY_0,
-                WOPBS_PARAM_MESSAGE_5_CARRY_1,
-                WOPBS_PARAM_MESSAGE_5_CARRY_2,
-                WOPBS_PARAM_MESSAGE_5_CARRY_3,
-                WOPBS_PARAM_MESSAGE_6_CARRY_0,
-                WOPBS_PARAM_MESSAGE_6_CARRY_1,
-                WOPBS_PARAM_MESSAGE_6_CARRY_2,
-                WOPBS_PARAM_MESSAGE_7_CARRY_0,
-                WOPBS_PARAM_MESSAGE_7_CARRY_1,
-                WOPBS_PARAM_MESSAGE_8_CARRY_0,
-                WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2,
-                WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_3,
-                WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_4,
-                WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_5,
-                WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_6,
-                WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_7,
-                WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_8,
-                WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_2,
-                WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_3,
-                WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_4,
-                WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_5,
-                WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_6,
-                WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_7,
-                WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_8,
-                WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_2,
-                WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_3,
-                WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_4,
-                WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_5,
-                WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_6,
-                WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_7,
-                WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_8,
-                WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_2,
-                WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_3,
-                WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_4,
-                WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_5,
-                WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_6,
-                WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_7,
-                WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_8,
-                WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_2,
-                WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_3,
-                WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_4,
-                WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_5,
-                WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_6,
-                WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_7,
-                WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_8,
-                WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_2,
-                WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_3,
-                WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_4,
-                WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_5,
-                WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_6,
-                WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_7,
-                WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_8,
-                WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_2,
-                WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_3,
-                WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_4,
-                WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_5,
-                WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6,
-                WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7,
-                PARAM_4_BITS_5_BLOCKS,
-            )
-        );
+        match OpOrder::pbs_order() {
+            PBSOrder::KeyswitchBootstrap => {
+                let transmuted_self: &ParametersBig = unsafe { std::mem::transmute(self) };
+                named_params_impl!(
+                    transmuted_self
+                        == (
+                            PARAM_MESSAGE_1_CARRY_0,
+                            PARAM_MESSAGE_1_CARRY_1,
+                            PARAM_MESSAGE_1_CARRY_2,
+                            PARAM_MESSAGE_1_CARRY_3,
+                            PARAM_MESSAGE_1_CARRY_4,
+                            PARAM_MESSAGE_1_CARRY_5,
+                            PARAM_MESSAGE_1_CARRY_6,
+                            PARAM_MESSAGE_1_CARRY_7,
+                            PARAM_MESSAGE_2_CARRY_0,
+                            PARAM_MESSAGE_2_CARRY_1,
+                            PARAM_MESSAGE_2_CARRY_2,
+                            PARAM_MESSAGE_2_CARRY_3,
+                            PARAM_MESSAGE_2_CARRY_4,
+                            PARAM_MESSAGE_2_CARRY_5,
+                            PARAM_MESSAGE_2_CARRY_6,
+                            PARAM_MESSAGE_3_CARRY_0,
+                            PARAM_MESSAGE_3_CARRY_1,
+                            PARAM_MESSAGE_3_CARRY_2,
+                            PARAM_MESSAGE_3_CARRY_3,
+                            PARAM_MESSAGE_3_CARRY_4,
+                            PARAM_MESSAGE_3_CARRY_5,
+                            PARAM_MESSAGE_4_CARRY_0,
+                            PARAM_MESSAGE_4_CARRY_1,
+                            PARAM_MESSAGE_4_CARRY_2,
+                            PARAM_MESSAGE_4_CARRY_3,
+                            PARAM_MESSAGE_4_CARRY_4,
+                            PARAM_MESSAGE_5_CARRY_0,
+                            PARAM_MESSAGE_5_CARRY_1,
+                            PARAM_MESSAGE_5_CARRY_2,
+                            PARAM_MESSAGE_5_CARRY_3,
+                            PARAM_MESSAGE_6_CARRY_0,
+                            PARAM_MESSAGE_6_CARRY_1,
+                            PARAM_MESSAGE_6_CARRY_2,
+                            PARAM_MESSAGE_7_CARRY_0,
+                            PARAM_MESSAGE_7_CARRY_1,
+                            PARAM_MESSAGE_8_CARRY_0,
+                            WOPBS_PARAM_MESSAGE_1_NORM2_2,
+                            WOPBS_PARAM_MESSAGE_1_NORM2_4,
+                            WOPBS_PARAM_MESSAGE_1_NORM2_6,
+                            WOPBS_PARAM_MESSAGE_1_NORM2_8,
+                            WOPBS_PARAM_MESSAGE_2_NORM2_2,
+                            WOPBS_PARAM_MESSAGE_2_NORM2_4,
+                            WOPBS_PARAM_MESSAGE_2_NORM2_6,
+                            WOPBS_PARAM_MESSAGE_2_NORM2_8,
+                            WOPBS_PARAM_MESSAGE_3_NORM2_2,
+                            WOPBS_PARAM_MESSAGE_3_NORM2_4,
+                            WOPBS_PARAM_MESSAGE_3_NORM2_6,
+                            WOPBS_PARAM_MESSAGE_3_NORM2_8,
+                            WOPBS_PARAM_MESSAGE_4_NORM2_2,
+                            WOPBS_PARAM_MESSAGE_4_NORM2_4,
+                            WOPBS_PARAM_MESSAGE_4_NORM2_6,
+                            WOPBS_PARAM_MESSAGE_4_NORM2_8,
+                            WOPBS_PARAM_MESSAGE_5_NORM2_2,
+                            WOPBS_PARAM_MESSAGE_5_NORM2_4,
+                            WOPBS_PARAM_MESSAGE_5_NORM2_6,
+                            WOPBS_PARAM_MESSAGE_5_NORM2_8,
+                            WOPBS_PARAM_MESSAGE_6_NORM2_2,
+                            WOPBS_PARAM_MESSAGE_6_NORM2_4,
+                            WOPBS_PARAM_MESSAGE_6_NORM2_6,
+                            WOPBS_PARAM_MESSAGE_6_NORM2_8,
+                            WOPBS_PARAM_MESSAGE_7_NORM2_2,
+                            WOPBS_PARAM_MESSAGE_7_NORM2_4,
+                            WOPBS_PARAM_MESSAGE_7_NORM2_6,
+                            WOPBS_PARAM_MESSAGE_7_NORM2_8,
+                            WOPBS_PARAM_MESSAGE_8_NORM2_2,
+                            WOPBS_PARAM_MESSAGE_8_NORM2_4,
+                            //WOPBS_PARAM_MESSAGE_8_NORM2_5,
+                            WOPBS_PARAM_MESSAGE_8_NORM2_6,
+                            WOPBS_PARAM_MESSAGE_1_CARRY_0,
+                            WOPBS_PARAM_MESSAGE_1_CARRY_1,
+                            WOPBS_PARAM_MESSAGE_1_CARRY_2,
+                            WOPBS_PARAM_MESSAGE_1_CARRY_3,
+                            WOPBS_PARAM_MESSAGE_1_CARRY_4,
+                            WOPBS_PARAM_MESSAGE_1_CARRY_5,
+                            WOPBS_PARAM_MESSAGE_1_CARRY_6,
+                            WOPBS_PARAM_MESSAGE_1_CARRY_7,
+                            WOPBS_PARAM_MESSAGE_2_CARRY_0,
+                            WOPBS_PARAM_MESSAGE_2_CARRY_1,
+                            WOPBS_PARAM_MESSAGE_2_CARRY_2,
+                            WOPBS_PARAM_MESSAGE_2_CARRY_3,
+                            WOPBS_PARAM_MESSAGE_2_CARRY_4,
+                            WOPBS_PARAM_MESSAGE_2_CARRY_5,
+                            WOPBS_PARAM_MESSAGE_2_CARRY_6,
+                            WOPBS_PARAM_MESSAGE_3_CARRY_0,
+                            WOPBS_PARAM_MESSAGE_3_CARRY_1,
+                            WOPBS_PARAM_MESSAGE_3_CARRY_2,
+                            WOPBS_PARAM_MESSAGE_3_CARRY_3,
+                            WOPBS_PARAM_MESSAGE_3_CARRY_4,
+                            WOPBS_PARAM_MESSAGE_3_CARRY_5,
+                            WOPBS_PARAM_MESSAGE_4_CARRY_0,
+                            WOPBS_PARAM_MESSAGE_4_CARRY_1,
+                            WOPBS_PARAM_MESSAGE_4_CARRY_2,
+                            WOPBS_PARAM_MESSAGE_4_CARRY_3,
+                            WOPBS_PARAM_MESSAGE_4_CARRY_4,
+                            WOPBS_PARAM_MESSAGE_5_CARRY_0,
+                            WOPBS_PARAM_MESSAGE_5_CARRY_1,
+                            WOPBS_PARAM_MESSAGE_5_CARRY_2,
+                            WOPBS_PARAM_MESSAGE_5_CARRY_3,
+                            WOPBS_PARAM_MESSAGE_6_CARRY_0,
+                            WOPBS_PARAM_MESSAGE_6_CARRY_1,
+                            WOPBS_PARAM_MESSAGE_6_CARRY_2,
+                            WOPBS_PARAM_MESSAGE_7_CARRY_0,
+                            WOPBS_PARAM_MESSAGE_7_CARRY_1,
+                            WOPBS_PARAM_MESSAGE_8_CARRY_0,
+                            WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2,
+                            WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_3,
+                            WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_4,
+                            WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_5,
+                            WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_6,
+                            WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_7,
+                            WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_8,
+                            WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_2,
+                            WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_3,
+                            WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_4,
+                            WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_5,
+                            WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_6,
+                            WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_7,
+                            WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_8,
+                            WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_2,
+                            WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_3,
+                            WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_4,
+                            WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_5,
+                            WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_6,
+                            WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_7,
+                            WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_8,
+                            WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_2,
+                            WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_3,
+                            WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_4,
+                            WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_5,
+                            WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_6,
+                            WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_7,
+                            WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_8,
+                            WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_2,
+                            WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_3,
+                            WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_4,
+                            WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_5,
+                            WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_6,
+                            WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_7,
+                            WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_8,
+                            WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_2,
+                            WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_3,
+                            WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_4,
+                            WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_5,
+                            WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_6,
+                            WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_7,
+                            WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_8,
+                            WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_2,
+                            WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_3,
+                            WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_4,
+                            WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_5,
+                            WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6,
+                            WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7,
+                            PARAM_4_BITS_5_BLOCKS,
+                        )
+                );
+            }
+            PBSOrder::BootstrapKeyswitch => {
+                let transmuted_self: &ParametersSmall = unsafe { std::mem::transmute(self) };
+                named_params_impl!(
+                    transmuted_self
+                        == (
+                            PARAM_SMALL_MESSAGE_1_CARRY_1,
+                            PARAM_SMALL_MESSAGE_2_CARRY_2,
+                            PARAM_SMALL_MESSAGE_3_CARRY_3,
+                            PARAM_SMALL_MESSAGE_4_CARRY_4,
+                        )
+                );
+            }
+        }
     }
 }
 
-impl From<Parameters> for (ClientKey, ServerKey) {
-    fn from(param: Parameters) -> Self {
+impl<OpOrder: PBSOrderMarker> From<Parameters<OpOrder>> for (ClientKey<OpOrder>, ServerKey) {
+    fn from(param: Parameters<OpOrder>) -> Self {
         let cks = ClientKey::new(param);
         let sks = ServerKey::new(&cks);
         (cks, sks)
     }
 }
 
-pub struct Keycache {
-    inner: ImplKeyCache<Parameters, (ClientKey, ServerKey), FileStorage>,
+pub struct Keycache<OpOrder: PBSOrderMarker> {
+    inner: ImplKeyCache<Parameters<OpOrder>, (ClientKey<OpOrder>, ServerKey), FileStorage>,
 }
 
-impl Default for Keycache {
+impl<OpOrder: PBSOrderMarker> Default for Keycache<OpOrder> {
     fn default() -> Self {
         Self {
             inner: ImplKeyCache::new(FileStorage::new(
@@ -396,17 +414,17 @@ impl Default for Keycache {
     }
 }
 
-pub struct SharedKey {
-    inner: GenericSharedKey<(ClientKey, ServerKey)>,
+pub struct SharedKey<OpOrder: PBSOrderMarker> {
+    inner: GenericSharedKey<(ClientKey<OpOrder>, ServerKey)>,
 }
 
-pub struct SharedWopbsKey {
-    inner: GenericSharedKey<(ClientKey, ServerKey)>,
+pub struct SharedWopbsKey<OpOrder: PBSOrderMarker> {
+    inner: GenericSharedKey<(ClientKey<OpOrder>, ServerKey)>,
     wopbs: GenericSharedKey<WopbsKey>,
 }
 
-impl SharedKey {
-    pub fn client_key(&self) -> &ClientKey {
+impl<OpOrder: PBSOrderMarker> SharedKey<OpOrder> {
+    pub fn client_key(&self) -> &ClientKey<OpOrder> {
         &self.inner.0
     }
     pub fn server_key(&self) -> &ServerKey {
@@ -414,8 +432,8 @@ impl SharedKey {
     }
 }
 
-impl SharedWopbsKey {
-    pub fn client_key(&self) -> &ClientKey {
+impl<OpOrder: PBSOrderMarker> SharedWopbsKey<OpOrder> {
+    pub fn client_key(&self) -> &ClientKey<OpOrder> {
         &self.inner.0
     }
     pub fn server_key(&self) -> &ServerKey {
@@ -426,8 +444,24 @@ impl SharedWopbsKey {
     }
 }
 
-impl Keycache {
-    pub fn get_from_param(&self, param: Parameters) -> SharedKey {
+// // Bullshit traits issues
+// impl<OpOrder: PBSOrderMarker> Keycache<OpOrder> {
+//     pub fn get_from_param(&self, param: Parameters<OpOrder>) -> SharedKey<OpOrder> {
+//         SharedKey {
+//             inner: self.inner.get(param),
+//         }
+//     }
+
+//     pub fn clear_in_memory_cache(&self) {
+//         self.inner.clear_in_memory_cache();
+//     }
+// }
+
+impl Keycache<KeyswitchBootstrap> {
+    pub fn get_from_param(
+        &self,
+        param: Parameters<KeyswitchBootstrap>,
+    ) -> SharedKey<KeyswitchBootstrap> {
         SharedKey {
             inner: self.inner.get(param),
         }
@@ -439,16 +473,22 @@ impl Keycache {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct WopbsParamPair(pub Parameters, pub Parameters);
+pub struct WopbsParamPair<ShortintOpOrder: PBSOrderMarker>(
+    pub Parameters<ShortintOpOrder>,
+    pub Parameters<KeyswitchBootstrap>,
+);
 
-impl From<(Parameters, Parameters)> for WopbsParamPair {
-    fn from(tuple: (Parameters, Parameters)) -> Self {
+impl<ShortintOpOrder: PBSOrderMarker>
+    From<(Parameters<ShortintOpOrder>, Parameters<KeyswitchBootstrap>)>
+    for WopbsParamPair<ShortintOpOrder>
+{
+    fn from(tuple: (Parameters<ShortintOpOrder>, Parameters<KeyswitchBootstrap>)) -> Self {
         Self(tuple.0, tuple.1)
     }
 }
 
-impl From<WopbsParamPair> for WopbsKey {
-    fn from(params: WopbsParamPair) -> Self {
+impl From<WopbsParamPair<KeyswitchBootstrap>> for WopbsKey {
+    fn from(params: WopbsParamPair<KeyswitchBootstrap>) -> Self {
         // use with_key to avoid doing a temporary cloning
         KEY_CACHE.inner.with_key(params.0, |keys| {
             WopbsKey::new_wopbs_key(&keys.0, &keys.1, &params.1)
@@ -456,7 +496,7 @@ impl From<WopbsParamPair> for WopbsKey {
     }
 }
 
-impl NamedParam for WopbsParamPair {
+impl<ShortintOpOrder: PBSOrderMarker> NamedParam for WopbsParamPair<ShortintOpOrder> {
     fn name(&self) -> String {
         self.1.name()
     }
@@ -466,11 +506,11 @@ impl NamedParam for WopbsParamPair {
 ///
 /// You should not create an instance yourself,
 /// but rather use the global variable defined: [KEY_CACHE_WOPBS]
-pub struct KeycacheWopbsV0 {
-    inner: ImplKeyCache<WopbsParamPair, WopbsKey, FileStorage>,
+pub struct KeycacheWopbsV0<ShortintOpOrder: PBSOrderMarker> {
+    inner: ImplKeyCache<WopbsParamPair<ShortintOpOrder>, WopbsKey, FileStorage>,
 }
 
-impl Default for KeycacheWopbsV0 {
+impl<ShortintOpOrder: PBSOrderMarker> Default for KeycacheWopbsV0<ShortintOpOrder> {
     fn default() -> Self {
         Self {
             inner: ImplKeyCache::new(FileStorage::new("../keys/shortint/wopbs_v0".to_string())),
@@ -478,8 +518,11 @@ impl Default for KeycacheWopbsV0 {
     }
 }
 
-impl KeycacheWopbsV0 {
-    pub fn get_from_param<T: Into<WopbsParamPair>>(&self, params: T) -> SharedWopbsKey {
+impl KeycacheWopbsV0<KeyswitchBootstrap> {
+    pub fn get_from_param<T: Into<WopbsParamPair<KeyswitchBootstrap>>>(
+        &self,
+        params: T,
+    ) -> SharedWopbsKey<KeyswitchBootstrap> {
         let params = params.into();
         let key = KEY_CACHE.get_from_param(params.0);
         let wk = self.inner.get(params);
@@ -495,6 +538,6 @@ impl KeycacheWopbsV0 {
 }
 
 lazy_static! {
-    pub static ref KEY_CACHE: Keycache = Default::default();
-    pub static ref KEY_CACHE_WOPBS: KeycacheWopbsV0 = Default::default();
+    pub static ref KEY_CACHE: Keycache<KeyswitchBootstrap> = Default::default();
+    pub static ref KEY_CACHE_WOPBS: KeycacheWopbsV0<KeyswitchBootstrap> = Default::default();
 }

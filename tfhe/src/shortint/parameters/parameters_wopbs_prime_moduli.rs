@@ -3,9 +3,10 @@ pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
-use crate::shortint::Parameters;
+use crate::shortint::{Parameters, ParametersBig};
+use std::marker::PhantomData;
 
-pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2: ParametersBig = Parameters {
     lwe_dimension: LweDimension(689),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -22,8 +23,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_3: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_3: ParametersBig = Parameters {
     lwe_dimension: LweDimension(693),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -40,8 +42,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_4: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_4: ParametersBig = Parameters {
     lwe_dimension: LweDimension(757),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -58,8 +61,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_5: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_5: ParametersBig = Parameters {
     lwe_dimension: LweDimension(689),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -76,8 +80,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_6: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_6: ParametersBig = Parameters {
     lwe_dimension: LweDimension(695),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -94,8 +99,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_7: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_7: ParametersBig = Parameters {
     lwe_dimension: LweDimension(705),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -112,8 +118,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_7: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_8: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_8: ParametersBig = Parameters {
     lwe_dimension: LweDimension(710),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -130,8 +137,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_8: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_2: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_2: ParametersBig = Parameters {
     lwe_dimension: LweDimension(697),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -148,8 +156,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_3: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_3: ParametersBig = Parameters {
     lwe_dimension: LweDimension(728),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -166,8 +175,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_4: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_4: ParametersBig = Parameters {
     lwe_dimension: LweDimension(690),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -184,8 +194,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_5: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_5: ParametersBig = Parameters {
     lwe_dimension: LweDimension(699),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -202,8 +213,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_6: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_6: ParametersBig = Parameters {
     lwe_dimension: LweDimension(694),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -220,8 +232,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_7: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_7: ParametersBig = Parameters {
     lwe_dimension: LweDimension(730),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -238,8 +251,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_7: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_8: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_8: ParametersBig = Parameters {
     lwe_dimension: LweDimension(706),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -256,8 +270,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_8: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_2: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_2: ParametersBig = Parameters {
     lwe_dimension: LweDimension(702),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -274,8 +289,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_3: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_3: ParametersBig = Parameters {
     lwe_dimension: LweDimension(689),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -292,8 +308,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_4: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_4: ParametersBig = Parameters {
     lwe_dimension: LweDimension(696),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -310,8 +327,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_5: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_5: ParametersBig = Parameters {
     lwe_dimension: LweDimension(713),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -328,8 +346,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_6: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_6: ParametersBig = Parameters {
     lwe_dimension: LweDimension(716),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -346,8 +365,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_7: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_7: ParametersBig = Parameters {
     lwe_dimension: LweDimension(745),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -364,8 +384,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_7: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_8: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_8: ParametersBig = Parameters {
     lwe_dimension: LweDimension(692),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -382,8 +403,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_8: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_2: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_2: ParametersBig = Parameters {
     lwe_dimension: LweDimension(702),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -400,8 +422,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_3: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_3: ParametersBig = Parameters {
     lwe_dimension: LweDimension(689),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -418,8 +441,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_4: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_4: ParametersBig = Parameters {
     lwe_dimension: LweDimension(696),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -436,8 +460,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_5: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_5: ParametersBig = Parameters {
     lwe_dimension: LweDimension(713),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -454,8 +479,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_6: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_6: ParametersBig = Parameters {
     lwe_dimension: LweDimension(716),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -472,8 +498,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_7: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_7: ParametersBig = Parameters {
     lwe_dimension: LweDimension(745),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -490,8 +517,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_7: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_8: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_8: ParametersBig = Parameters {
     lwe_dimension: LweDimension(692),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -508,8 +536,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_8: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_2: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_2: ParametersBig = Parameters {
     lwe_dimension: LweDimension(702),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -526,8 +555,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_3: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_3: ParametersBig = Parameters {
     lwe_dimension: LweDimension(689),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -544,8 +574,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_4: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_4: ParametersBig = Parameters {
     lwe_dimension: LweDimension(696),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -562,8 +593,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_5: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_5: ParametersBig = Parameters {
     lwe_dimension: LweDimension(713),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -580,8 +612,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_6: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_6: ParametersBig = Parameters {
     lwe_dimension: LweDimension(716),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -598,8 +631,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_7: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_7: ParametersBig = Parameters {
     lwe_dimension: LweDimension(745),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -616,8 +650,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_7: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_8: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_8: ParametersBig = Parameters {
     lwe_dimension: LweDimension(692),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -634,8 +669,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_8: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_2: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_2: ParametersBig = Parameters {
     lwe_dimension: LweDimension(702),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -652,8 +688,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_3: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_3: ParametersBig = Parameters {
     lwe_dimension: LweDimension(689),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -670,8 +707,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_4: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_4: ParametersBig = Parameters {
     lwe_dimension: LweDimension(696),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -688,8 +726,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_5: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_5: ParametersBig = Parameters {
     lwe_dimension: LweDimension(713),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -706,8 +745,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_6: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_6: ParametersBig = Parameters {
     lwe_dimension: LweDimension(716),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -724,8 +764,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_7: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_7: ParametersBig = Parameters {
     lwe_dimension: LweDimension(745),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -742,8 +783,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_7: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_8: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_8: ParametersBig = Parameters {
     lwe_dimension: LweDimension(692),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -760,8 +802,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_8: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_2: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_2: ParametersBig = Parameters {
     lwe_dimension: LweDimension(702),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -778,8 +821,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_2: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_3: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_3: ParametersBig = Parameters {
     lwe_dimension: LweDimension(689),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -796,8 +840,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_3: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_4: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_4: ParametersBig = Parameters {
     lwe_dimension: LweDimension(696),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -814,8 +859,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_4: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_5: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_5: ParametersBig = Parameters {
     lwe_dimension: LweDimension(713),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -832,8 +878,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_5: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6: ParametersBig = Parameters {
     lwe_dimension: LweDimension(716),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -850,8 +897,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7: ParametersBig = Parameters {
     lwe_dimension: LweDimension(745),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -868,8 +916,9 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };
-pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_8: Parameters = Parameters {
+pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_8: ParametersBig = Parameters {
     lwe_dimension: LweDimension(692),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -886,4 +935,5 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_8: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };

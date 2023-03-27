@@ -1,18 +1,18 @@
 #![allow(clippy::excessive_precision)]
-pub use crate::shortint::Parameters;
-
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 pub use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DispersionParameter, GlweDimension,
-    LweDimension, PolynomialSize, StandardDev,
+    KeyswitchBootstrap, LweDimension, PolynomialSize, StandardDev,
 };
+pub use crate::shortint::{Parameters, ParametersBig};
+use std::marker::PhantomData;
 
-pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [Parameters; 2] = [
+pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [ParametersBig; 2] = [
     PARAM_MESSAGE_4_CARRY_4_16_BITS,
     PARAM_MESSAGE_2_CARRY_2_16_BITS,
 ];
 
-pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: ParametersBig = Parameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -29,9 +29,10 @@ pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(16),
+    _pbs_order_marker: PhantomData,
 };
 
-pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: ParametersBig = Parameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -48,9 +49,10 @@ pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
+    _pbs_order_marker: PhantomData,
 };
 
-pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: ParametersBig = Parameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -67,8 +69,9 @@ pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(6),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(16),
+    _pbs_order_marker: PhantomData,
 };
-pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: ParametersBig = Parameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -85,8 +88,9 @@ pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
+    _pbs_order_marker: PhantomData,
 };
-pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: ParametersBig = Parameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -103,9 +107,10 @@ pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(2),
+    _pbs_order_marker: PhantomData,
 };
 
-pub const PARAM_4_BITS_5_BLOCKS: Parameters = Parameters {
+pub const PARAM_4_BITS_5_BLOCKS: ParametersBig = Parameters {
     lwe_dimension: LweDimension(667),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -122,4 +127,5 @@ pub const PARAM_4_BITS_5_BLOCKS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(4),
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
+    _pbs_order_marker: PhantomData,
 };

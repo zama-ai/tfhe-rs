@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::{CiphertextBig, Parameters, ServerKey};
+use tfhe::shortint::{CiphertextBig, ServerKey};
 
 use rand::Rng;
 use tfhe::shortint::keycache::KEY_CACHE;
@@ -9,14 +9,14 @@ use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
 use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6;
 
-const SERVER_KEY_BENCH_PARAMS: [Parameters; 4] = [
+const SERVER_KEY_BENCH_PARAMS: [ParametersBig; 4] = [
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_3_CARRY_3,
     PARAM_MESSAGE_4_CARRY_4,
 ];
 
-const SERVER_KEY_BENCH_PARAMS_EXTENDED: [Parameters; 15] = [
+const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ParametersBig; 15] = [
     PARAM_MESSAGE_1_CARRY_0,
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_0,
@@ -38,7 +38,7 @@ fn bench_server_key_unary_function<F>(
     c: &mut Criterion,
     bench_name: &str,
     unary_op: F,
-    params: &[Parameters],
+    params: &[ParametersBig],
 ) where
     F: Fn(&ServerKey, &mut CiphertextBig),
 {
@@ -71,7 +71,7 @@ fn bench_server_key_binary_function<F>(
     c: &mut Criterion,
     bench_name: &str,
     binary_op: F,
-    params: &[Parameters],
+    params: &[ParametersBig],
 ) where
     F: Fn(&ServerKey, &mut CiphertextBig, &mut CiphertextBig),
 {
@@ -106,7 +106,7 @@ fn bench_server_key_binary_scalar_function<F>(
     c: &mut Criterion,
     bench_name: &str,
     binary_op: F,
-    params: &[Parameters],
+    params: &[ParametersBig],
 ) where
     F: Fn(&ServerKey, &mut CiphertextBig, u8),
 {
@@ -140,7 +140,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
     c: &mut Criterion,
     bench_name: &str,
     binary_op: F,
-    params: &[Parameters],
+    params: &[ParametersBig],
 ) where
     F: Fn(&ServerKey, &mut CiphertextBig, u8),
 {

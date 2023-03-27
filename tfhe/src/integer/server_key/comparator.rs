@@ -868,7 +868,7 @@ impl<'a> Comparator<'a> {
 mod tests {
     use super::Comparator;
     use crate::integer::{gen_keys, RadixCiphertext, U256};
-    use crate::shortint::Parameters;
+    use crate::shortint::ParametersBig;
     use rand;
     use rand::prelude::*;
 
@@ -877,7 +877,7 @@ mod tests {
     /// This calls the `unchecked_comparator_method` with fresh ciphertexts
     /// and compares that it gives the same results as the `clear_fn`.
     fn test_unchecked_function<UncheckedFn, ClearF>(
-        param: Parameters,
+        param: ParametersBig,
         num_test: usize,
         unchecked_comparator_method: UncheckedFn,
         clear_fn: ClearF,
@@ -919,7 +919,7 @@ mod tests {
     /// that is ciphertexts that have non-zero carries, and compares that the result is
     /// the same as the one of`clear_fn`.
     fn test_smart_function<SmartFn, ClearF>(
-        param: Parameters,
+        param: ParametersBig,
         num_test: usize,
         smart_comparator_method: SmartFn,
         clear_fn: ClearF,
@@ -991,7 +991,7 @@ mod tests {
         }
     }
 
-    fn test_unchecked_min_256_bits(params: crate::shortint::Parameters, num_tests: usize) {
+    fn test_unchecked_min_256_bits(params: crate::shortint::ParametersBig, num_tests: usize) {
         test_unchecked_function(
             params,
             num_tests,
@@ -1000,7 +1000,7 @@ mod tests {
         )
     }
 
-    fn test_unchecked_max_256_bits(params: crate::shortint::Parameters, num_tests: usize) {
+    fn test_unchecked_max_256_bits(params: crate::shortint::ParametersBig, num_tests: usize) {
         test_unchecked_function(
             params,
             num_tests,
@@ -1010,7 +1010,7 @@ mod tests {
     }
 
     fn test_unchecked_min_parallelized_256_bits(
-        params: crate::shortint::Parameters,
+        params: crate::shortint::ParametersBig,
         num_tests: usize,
     ) {
         test_unchecked_function(
@@ -1022,7 +1022,7 @@ mod tests {
     }
 
     fn test_unchecked_max_parallelized_256_bits(
-        params: crate::shortint::Parameters,
+        params: crate::shortint::ParametersBig,
         num_tests: usize,
     ) {
         test_unchecked_function(
@@ -1059,7 +1059,7 @@ mod tests {
     macro_rules! define_comparison_test_functions {
         ($comparison_name:ident) => {
             paste::paste!{
-                fn [<unchecked_ $comparison_name _256_bits>](params: crate::shortint::Parameters) {
+                fn [<unchecked_ $comparison_name _256_bits>](params: crate::shortint::ParametersBig) {
                     let num_tests = 1;
                     test_unchecked_function(
                         params,
@@ -1069,7 +1069,7 @@ mod tests {
                     )
                 }
 
-                fn [<unchecked_ $comparison_name _parallelized_256_bits>](params: crate::shortint::Parameters) {
+                fn [<unchecked_ $comparison_name _parallelized_256_bits>](params: crate::shortint::ParametersBig) {
                     let num_tests = 1;
                     test_unchecked_function(
                         params,
@@ -1079,7 +1079,7 @@ mod tests {
                     )
                 }
 
-                fn [<smart_ $comparison_name _256_bits>](params: crate::shortint::Parameters) {
+                fn [<smart_ $comparison_name _256_bits>](params: crate::shortint::ParametersBig) {
                     let num_tests = 1;
                     test_smart_function(
                         params,
@@ -1089,7 +1089,7 @@ mod tests {
                     )
                 }
 
-                fn [<smart_ $comparison_name _parallelized_256_bits>](params: crate::shortint::Parameters) {
+                fn [<smart_ $comparison_name _parallelized_256_bits>](params: crate::shortint::ParametersBig) {
                     let num_tests = 1;
                     test_smart_function(
                         params,

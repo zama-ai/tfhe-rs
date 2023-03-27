@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 
 use crate::shortint::parameters::{
     CarryModulus, DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension,
-    MessageModulus, Parameters, PolynomialSize, StandardDev,
+    MessageModulus, ParametersBig, PolynomialSize, StandardDev,
 };
 
 use crate::typed_api::shortints::{CompressedGenericShortint, GenericShortInt};
@@ -39,7 +39,7 @@ pub struct ShortIntegerParameterSet<const MESSAGE_BITS: u8> {
 }
 
 impl<const MESSAGE_BITS: u8> ShortIntegerParameterSet<MESSAGE_BITS> {
-    const fn from_static(params: &'static Parameters) -> Self {
+    const fn from_static(params: &'static ParametersBig) -> Self {
         if params.message_modulus.0 != 1 << MESSAGE_BITS as usize {
             panic!("Invalid bit number");
         }
@@ -63,7 +63,7 @@ impl<const MESSAGE_BITS: u8> ShortIntegerParameterSet<MESSAGE_BITS> {
     }
 }
 
-impl<const MESSAGE_BITS: u8> From<ShortIntegerParameterSet<MESSAGE_BITS>> for Parameters {
+impl<const MESSAGE_BITS: u8> From<ShortIntegerParameterSet<MESSAGE_BITS>> for ParametersBig {
     fn from(params: ShortIntegerParameterSet<MESSAGE_BITS>) -> Self {
         Self {
             lwe_dimension: params.lwe_dimension,
@@ -82,6 +82,7 @@ impl<const MESSAGE_BITS: u8> From<ShortIntegerParameterSet<MESSAGE_BITS>> for Pa
             cbs_base_log: params.cbs_base_log,
             message_modulus: MessageModulus(1 << MESSAGE_BITS as usize),
             carry_modulus: params.carry_modulus,
+            _pbs_order_marker: std::marker::PhantomData::default(),
         }
     }
 }

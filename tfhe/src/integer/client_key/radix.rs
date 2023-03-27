@@ -2,7 +2,7 @@
 
 use super::ClientKey;
 use crate::integer::RadixCiphertext;
-use crate::shortint::{CiphertextBig as ShortintCiphertext, Parameters as ShortintParameters};
+use crate::shortint::CiphertextBig as ShortintCiphertext;
 
 use serde::{Deserialize, Serialize};
 
@@ -42,7 +42,10 @@ impl AsRef<ClientKey> for RadixClientKey {
 }
 
 impl RadixClientKey {
-    pub fn new(parameters: ShortintParameters, num_blocks: usize) -> Self {
+    pub fn new(
+        parameters: crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap>,
+        num_blocks: usize,
+    ) -> Self {
         Self {
             key: ClientKey::new(parameters),
             num_blocks,
@@ -58,7 +61,7 @@ impl RadixClientKey {
     }
 
     /// Returns the parameters used by the client key.
-    pub fn parameters(&self) -> ShortintParameters {
+    pub fn parameters(&self) -> crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap> {
         self.key.parameters()
     }
 

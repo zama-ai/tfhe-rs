@@ -109,28 +109,30 @@ impl AsLittleEndianWords for U256 {
     }
 }
 
-pub(crate) trait BlockEncryptionKey {
-    fn parameters(&self) -> &crate::shortint::Parameters;
+pub(crate) trait BlockEncryptionKey<OpOrder: crate::shortint::PBSOrderMarker> {
+    fn parameters(&self) -> &crate::shortint::Parameters<OpOrder>;
 }
 
-impl BlockEncryptionKey for crate::shortint::ClientKey {
-    fn parameters(&self) -> &crate::shortint::Parameters {
+impl<OpOrder: crate::shortint::PBSOrderMarker> BlockEncryptionKey<OpOrder>
+    for crate::shortint::ClientKey<OpOrder>
+{
+    fn parameters(&self) -> &crate::shortint::Parameters<OpOrder> {
         &self.parameters
     }
 }
 
-impl<OpOrder: crate::shortint::PBSOrderMarker> BlockEncryptionKey
+impl<OpOrder: crate::shortint::PBSOrderMarker> BlockEncryptionKey<OpOrder>
     for crate::shortint::PublicKeyBase<OpOrder>
 {
-    fn parameters(&self) -> &crate::shortint::Parameters {
+    fn parameters(&self) -> &crate::shortint::Parameters<OpOrder> {
         &self.parameters
     }
 }
 
-impl<OpOrder: crate::shortint::PBSOrderMarker> BlockEncryptionKey
+impl<OpOrder: crate::shortint::PBSOrderMarker> BlockEncryptionKey<OpOrder>
     for crate::shortint::CompressedPublicKeyBase<OpOrder>
 {
-    fn parameters(&self) -> &crate::shortint::Parameters {
+    fn parameters(&self) -> &crate::shortint::Parameters<OpOrder> {
         &self.parameters
     }
 }
@@ -151,7 +153,7 @@ pub(crate) fn encrypt_words_radix_impl<BlockKey, Block, RadixCiphertextType, T, 
 ) -> RadixCiphertextType
 where
     T: AsLittleEndianWords,
-    BlockKey: BlockEncryptionKey,
+    BlockKey: BlockEncryptionKey<crate::shortint::KeyswitchBootstrap>,
     F: Fn(&BlockKey, u64) -> Block,
     RadixCiphertextType: From<Vec<Block>>,
 {

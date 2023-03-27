@@ -13,10 +13,7 @@ use crate::integer::ciphertext::{
 use crate::integer::client_key::utils::i_crt;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
 use crate::shortint::parameters::MessageModulus;
-use crate::shortint::{
-    CiphertextBig as ShortintCiphertext, ClientKey as ShortintClientKey,
-    Parameters as ShortintParameters,
-};
+use crate::shortint::{CiphertextBig as ShortintCiphertext, ClientKeyBig as ShortintClientKey};
 use serde::{Deserialize, Serialize};
 pub use utils::radix_decomposition;
 
@@ -67,13 +64,15 @@ impl ClientKey {
     /// // have over 2 bits of message modulus.
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     /// ```
-    pub fn new(parameter_set: ShortintParameters) -> Self {
+    pub fn new(
+        parameter_set: crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap>,
+    ) -> Self {
         Self {
             key: ShortintClientKey::new(parameter_set),
         }
     }
 
-    pub fn parameters(&self) -> ShortintParameters {
+    pub fn parameters(&self) -> crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap> {
         self.key.parameters
     }
 
@@ -175,7 +174,7 @@ impl ClientKey {
     ) -> RadixCiphertextType
     where
         T: AsLittleEndianWords,
-        F: Fn(&crate::shortint::ClientKey, u64) -> Block,
+        F: Fn(&crate::shortint::ClientKeyBig, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
         encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
@@ -288,7 +287,7 @@ impl ClientKey {
         decrypt_block: F,
     ) where
         T: AsLittleEndianWords,
-        F: Fn(&crate::shortint::ClientKey, &crate::shortint::CiphertextBig) -> u64,
+        F: Fn(&crate::shortint::ClientKeyBig, &crate::shortint::CiphertextBig) -> u64,
     {
         // limit to know when we have at least 64 bits
         // of decrypted data
@@ -488,7 +487,7 @@ impl ClientKey {
         encrypt_block: F,
     ) -> CrtCiphertextType
     where
-        F: Fn(&crate::shortint::ClientKey, u64, MessageModulus) -> Block,
+        F: Fn(&crate::shortint::ClientKeyBig, u64, MessageModulus) -> Block,
         CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
     {
         encrypt_crt(&self.key, message, base_vec, encrypt_block)

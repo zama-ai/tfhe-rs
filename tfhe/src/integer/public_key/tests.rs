@@ -2,7 +2,6 @@ use rand::Rng;
 
 use crate::integer::{CompressedPublicKey, PublicKey};
 use crate::shortint::parameters::*;
-use crate::shortint::Parameters;
 
 use crate::integer::keycache::KEY_CACHE;
 
@@ -19,7 +18,7 @@ create_parametrized_test!(radix_encrypt_decrypt_compressed_128_bits {
 
 /// Test that the public key can encrypt a 128 bit number
 /// in radix decomposition, and that the client key can decrypt it
-fn radix_encrypt_decrypt_128_bits(param: Parameters) {
+fn radix_encrypt_decrypt_128_bits(param: ParametersBig) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
     let public_key = PublicKey::new(&cks);
 
@@ -40,7 +39,7 @@ fn radix_encrypt_decrypt_128_bits(param: Parameters) {
     assert_eq!(clear, dec);
 }
 
-fn radix_encrypt_decrypt_compressed_128_bits(param: Parameters) {
+fn radix_encrypt_decrypt_compressed_128_bits(param: ParametersBig) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
     let public_key = CompressedPublicKey::new(&cks);
 

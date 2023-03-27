@@ -10,7 +10,10 @@ use crate::shortint::{
 };
 
 impl ShortintEngine {
-    pub fn new_client_key(&mut self, parameters: Parameters) -> EngineResult<ClientKey> {
+    pub fn new_client_key<OpOrder: PBSOrderMarker>(
+        &mut self,
+        parameters: Parameters<OpOrder>,
+    ) -> EngineResult<ClientKey<OpOrder>> {
         // generate the lwe secret key
         let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             parameters.lwe_dimension,
@@ -37,7 +40,7 @@ impl ShortintEngine {
 
     pub fn encrypt<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         message: u64,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         self.encrypt_with_message_modulus(
@@ -49,7 +52,7 @@ impl ShortintEngine {
 
     pub fn encrypt_compressed<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         message: u64,
     ) -> EngineResult<CompressedCiphertextBase<OpOrder>> {
         self.encrypt_with_message_modulus_compressed(
@@ -59,9 +62,9 @@ impl ShortintEngine {
         )
     }
 
-    fn encrypt_inner_ct(
+    fn encrypt_inner_ct<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key_parameters: &Parameters,
+        client_key_parameters: &Parameters<OpOrder>,
         client_lwe_sk: &LweSecretKeyOwned<u64>,
         noise_parameter: impl DispersionParameter,
         message: u64,
@@ -89,7 +92,7 @@ impl ShortintEngine {
 
     pub(crate) fn encrypt_with_message_modulus<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         message: u64,
         message_modulus: MessageModulus,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
@@ -129,7 +132,7 @@ impl ShortintEngine {
 
     pub(crate) fn encrypt_with_message_modulus_compressed<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         message: u64,
         message_modulus: MessageModulus,
     ) -> EngineResult<CompressedCiphertextBase<OpOrder>> {
@@ -180,7 +183,7 @@ impl ShortintEngine {
 
     pub(crate) fn unchecked_encrypt<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         message: u64,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let (encryption_lwe_sk, encryption_noise) = match OpOrder::pbs_order() {
@@ -221,7 +224,7 @@ impl ShortintEngine {
 
     pub(crate) fn decrypt_message_and_carry<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         ct: &CiphertextBase<OpOrder>,
     ) -> EngineResult<u64> {
         let lwe_decryption_key = match OpOrder::pbs_order() {
@@ -249,7 +252,7 @@ impl ShortintEngine {
 
     pub fn decrypt<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         ct: &CiphertextBase<OpOrder>,
     ) -> EngineResult<u64> {
         self.decrypt_message_and_carry(client_key, ct)
@@ -258,7 +261,7 @@ impl ShortintEngine {
 
     pub(crate) fn encrypt_without_padding<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         message: u64,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         //Multiply by 2 to reshift and exclude the padding bit
@@ -300,7 +303,7 @@ impl ShortintEngine {
 
     pub(crate) fn encrypt_without_padding_compressed<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         message: u64,
     ) -> EngineResult<CompressedCiphertextBase<OpOrder>> {
         //Multiply by 2 to reshift and exclude the padding bit
@@ -342,7 +345,7 @@ impl ShortintEngine {
 
     pub(crate) fn decrypt_message_and_carry_without_padding<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         ct: &CiphertextBase<OpOrder>,
     ) -> EngineResult<u64> {
         let lwe_decryption_key = match OpOrder::pbs_order() {
@@ -371,7 +374,7 @@ impl ShortintEngine {
 
     pub(crate) fn decrypt_without_padding<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         ct: &CiphertextBase<OpOrder>,
     ) -> EngineResult<u64> {
         self.decrypt_message_and_carry_without_padding(client_key, ct)
@@ -380,7 +383,7 @@ impl ShortintEngine {
 
     pub(crate) fn encrypt_native_crt<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         message: u64,
         message_modulus: u8,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
@@ -419,7 +422,7 @@ impl ShortintEngine {
 
     pub(crate) fn encrypt_native_crt_compressed<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         message: u64,
         message_modulus: u8,
     ) -> EngineResult<CompressedCiphertextBase<OpOrder>> {
@@ -458,7 +461,7 @@ impl ShortintEngine {
 
     pub(crate) fn decrypt_message_native_crt<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
         ct: &CiphertextBase<OpOrder>,
         basis: u64,
     ) -> EngineResult<u64> {

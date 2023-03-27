@@ -59,11 +59,12 @@ pub mod server_key;
 pub mod wopbs;
 
 pub use ciphertext::{
-    CiphertextBase, CiphertextBig, CiphertextSmall, CompressedCiphertextBase,
-    CompressedCiphertextBig, CompressedCiphertextSmall, PBSOrder, PBSOrderMarker,
+    BootstrapKeyswitch, CiphertextBase, CiphertextBig, CiphertextSmall, CompressedCiphertextBase,
+    CompressedCiphertextBig, CompressedCiphertextSmall, KeyswitchBootstrap, PBSOrder,
+    PBSOrderMarker,
 };
-pub use client_key::ClientKey;
-pub use parameters::Parameters;
+pub use client_key::{ClientKey, ClientKeyBig, ClientKeySmall};
+pub use parameters::{Parameters, ParametersBig, ParametersSmall};
 pub use public_key::{
     CompressedPublicKeyBase, CompressedPublicKeyBig, CompressedPublicKeySmall, PublicKeyBase,
     PublicKeyBig, PublicKeySmall,
@@ -82,7 +83,9 @@ pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 /// // generate the client key and the server key:
 /// let (cks, sks) = gen_keys(Default::default());
 /// ```
-pub fn gen_keys(parameters_set: Parameters) -> (ClientKey, ServerKey) {
+pub fn gen_keys<OpOrder: PBSOrderMarker>(
+    parameters_set: Parameters<OpOrder>,
+) -> (ClientKey<OpOrder>, ServerKey) {
     let cks = ClientKey::new(parameters_set);
     let sks = ServerKey::new(&cks);
 

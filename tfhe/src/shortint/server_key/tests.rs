@@ -171,7 +171,7 @@ create_parametrized_test_bivariate_pbs_compliant!(
 create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal_trivial);
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_decrypt(param: Parameters) {
+fn shortint_encrypt_decrypt(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
@@ -193,7 +193,7 @@ fn shortint_encrypt_decrypt(param: Parameters) {
 }
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_with_message_modulus_decrypt(param: Parameters) {
+fn shortint_encrypt_with_message_modulus_decrypt(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
@@ -217,7 +217,7 @@ fn shortint_encrypt_with_message_modulus_decrypt(param: Parameters) {
     }
 }
 
-fn shortint_encrypt_decrypt_without_padding(param: Parameters) {
+fn shortint_encrypt_decrypt_without_padding(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
@@ -239,7 +239,7 @@ fn shortint_encrypt_decrypt_without_padding(param: Parameters) {
     }
 }
 
-fn shortint_keyswitch_bootstrap(param: Parameters) {
+fn shortint_keyswitch_bootstrap(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -272,7 +272,7 @@ fn shortint_keyswitch_bootstrap(param: Parameters) {
     assert_eq!(0, failures);
 }
 
-fn shortint_keyswitch_programmable_bootstrap(param: Parameters) {
+fn shortint_keyswitch_programmable_bootstrap(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -299,7 +299,7 @@ fn shortint_keyswitch_programmable_bootstrap(param: Parameters) {
     }
 }
 
-fn shortint_keyswitch_bivariate_programmable_bootstrap(param: Parameters) {
+fn shortint_keyswitch_bivariate_programmable_bootstrap(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -328,7 +328,7 @@ fn shortint_keyswitch_bivariate_programmable_bootstrap(param: Parameters) {
 }
 
 /// test extraction of a carry
-fn shortint_carry_extract(param: Parameters) {
+fn shortint_carry_extract(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -361,7 +361,7 @@ fn shortint_carry_extract(param: Parameters) {
 }
 
 /// test extraction of a message
-fn shortint_message_extract(param: Parameters) {
+fn shortint_message_extract(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -389,7 +389,7 @@ fn shortint_message_extract(param: Parameters) {
 }
 
 /// test multiplication with the LWE server key
-fn shortint_generate_accumulator(param: Parameters) {
+fn shortint_generate_accumulator(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let double = |x| 2 * x;
@@ -417,7 +417,7 @@ fn shortint_generate_accumulator(param: Parameters) {
 }
 
 /// test addition with the LWE server key
-fn shortint_unchecked_add(param: Parameters) {
+fn shortint_unchecked_add(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -451,7 +451,7 @@ fn shortint_unchecked_add(param: Parameters) {
 }
 
 /// test addition with the LWE server key
-fn shortint_smart_add(param: Parameters) {
+fn shortint_smart_add(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -490,7 +490,7 @@ fn shortint_smart_add(param: Parameters) {
 }
 
 /// test addition with the LWE server key using the a public key for encryption
-fn shortint_compressed_public_key_smart_add(param: Parameters) {
+fn shortint_compressed_public_key_smart_add(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompressedPublicKeyBig::new(cks);
@@ -530,7 +530,7 @@ fn shortint_compressed_public_key_smart_add(param: Parameters) {
 }
 
 /// test addition with the LWE server key using the a public key for encryption
-fn shortint_public_key_smart_add(param: Parameters) {
+fn shortint_public_key_smart_add(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::PublicKeyBig::new(cks);
@@ -570,7 +570,7 @@ fn shortint_public_key_smart_add(param: Parameters) {
 }
 
 /// test bitwise 'and' with the LWE server key
-fn shortint_unchecked_bitand(param: Parameters) {
+fn shortint_unchecked_bitand(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -600,7 +600,7 @@ fn shortint_unchecked_bitand(param: Parameters) {
 }
 
 /// test bitwise 'or' with the LWE server key
-fn shortint_unchecked_bitor(param: Parameters) {
+fn shortint_unchecked_bitor(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -630,7 +630,7 @@ fn shortint_unchecked_bitor(param: Parameters) {
 }
 
 /// test bitwise 'xor' with the LWE server key
-fn shortint_unchecked_bitxor(param: Parameters) {
+fn shortint_unchecked_bitxor(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -660,7 +660,7 @@ fn shortint_unchecked_bitxor(param: Parameters) {
 }
 
 /// test bitwise 'and' with the LWE server key
-fn shortint_smart_bitand(param: Parameters) {
+fn shortint_smart_bitand(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -698,7 +698,7 @@ fn shortint_smart_bitand(param: Parameters) {
 }
 
 /// test bitwise 'or' with the LWE server key
-fn shortint_smart_bitor(param: Parameters) {
+fn shortint_smart_bitor(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -736,7 +736,7 @@ fn shortint_smart_bitor(param: Parameters) {
 }
 
 /// test bitwise 'xor' with the LWE server key
-fn shortint_smart_bitxor(param: Parameters) {
+fn shortint_smart_bitxor(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -774,7 +774,7 @@ fn shortint_smart_bitxor(param: Parameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_unchecked_greater(param: Parameters) {
+fn shortint_unchecked_greater(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -804,7 +804,7 @@ fn shortint_unchecked_greater(param: Parameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_smart_greater(param: Parameters) {
+fn shortint_smart_greater(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -834,7 +834,7 @@ fn shortint_smart_greater(param: Parameters) {
 }
 
 /// test '>=' with the LWE server key
-fn shortint_unchecked_greater_or_equal(param: Parameters) {
+fn shortint_unchecked_greater_or_equal(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -864,7 +864,7 @@ fn shortint_unchecked_greater_or_equal(param: Parameters) {
 }
 
 /// test '>=' with the LWE server key
-fn shortint_smart_greater_or_equal(param: Parameters) {
+fn shortint_smart_greater_or_equal(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -902,7 +902,7 @@ fn shortint_smart_greater_or_equal(param: Parameters) {
 }
 
 /// test '<' with the LWE server key
-fn shortint_unchecked_less(param: Parameters) {
+fn shortint_unchecked_less(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -932,7 +932,7 @@ fn shortint_unchecked_less(param: Parameters) {
 }
 
 /// test '<' with the LWE server key
-fn shortint_smart_less(param: Parameters) {
+fn shortint_smart_less(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -970,7 +970,7 @@ fn shortint_smart_less(param: Parameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_unchecked_less_or_equal(param: Parameters) {
+fn shortint_unchecked_less_or_equal(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1000,7 +1000,7 @@ fn shortint_unchecked_less_or_equal(param: Parameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_unchecked_less_or_equal_trivial(param: Parameters) {
+fn shortint_unchecked_less_or_equal_trivial(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1030,7 +1030,7 @@ fn shortint_unchecked_less_or_equal_trivial(param: Parameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_smart_less_or_equal(param: Parameters) {
+fn shortint_smart_less_or_equal(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1067,7 +1067,7 @@ fn shortint_smart_less_or_equal(param: Parameters) {
     }
 }
 
-fn shortint_unchecked_equal(param: Parameters) {
+fn shortint_unchecked_equal(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1097,7 +1097,7 @@ fn shortint_unchecked_equal(param: Parameters) {
 }
 
 /// test '==' with the LWE server key
-fn shortint_smart_equal(param: Parameters) {
+fn shortint_smart_equal(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1135,7 +1135,7 @@ fn shortint_smart_equal(param: Parameters) {
 }
 
 /// test '==' with the LWE server key
-fn shortint_smart_scalar_equal(param: Parameters) {
+fn shortint_smart_scalar_equal(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1164,7 +1164,7 @@ fn shortint_smart_scalar_equal(param: Parameters) {
 }
 
 /// test '<' with the LWE server key
-fn shortint_smart_scalar_less(param: Parameters) {
+fn shortint_smart_scalar_less(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1193,7 +1193,7 @@ fn shortint_smart_scalar_less(param: Parameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_smart_scalar_less_or_equal(param: Parameters) {
+fn shortint_smart_scalar_less_or_equal(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1222,7 +1222,7 @@ fn shortint_smart_scalar_less_or_equal(param: Parameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_smart_scalar_greater(param: Parameters) {
+fn shortint_smart_scalar_greater(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1251,7 +1251,7 @@ fn shortint_smart_scalar_greater(param: Parameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_smart_scalar_greater_or_equal(param: Parameters) {
+fn shortint_smart_scalar_greater_or_equal(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1280,7 +1280,7 @@ fn shortint_smart_scalar_greater_or_equal(param: Parameters) {
 }
 
 /// test division with the LWE server key
-fn shortint_unchecked_div(param: Parameters) {
+fn shortint_unchecked_div(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1310,7 +1310,7 @@ fn shortint_unchecked_div(param: Parameters) {
 }
 
 /// test scalar division with the LWE server key
-fn shortint_unchecked_scalar_div(param: Parameters) {
+fn shortint_unchecked_scalar_div(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1337,7 +1337,7 @@ fn shortint_unchecked_scalar_div(param: Parameters) {
 }
 
 /// test modulus with the LWE server key
-fn shortint_unchecked_mod(param: Parameters) {
+fn shortint_unchecked_mod(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1364,7 +1364,7 @@ fn shortint_unchecked_mod(param: Parameters) {
 }
 
 /// test LSB multiplication with the LWE server key
-fn shortint_unchecked_mul_lsb(param: Parameters) {
+fn shortint_unchecked_mul_lsb(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1394,7 +1394,7 @@ fn shortint_unchecked_mul_lsb(param: Parameters) {
 }
 
 /// test MSB multiplication with the LWE server key
-fn shortint_unchecked_mul_msb(param: Parameters) {
+fn shortint_unchecked_mul_msb(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1424,7 +1424,7 @@ fn shortint_unchecked_mul_msb(param: Parameters) {
 }
 
 /// test LSB multiplication with the LWE server key
-fn shortint_smart_mul_lsb(param: Parameters) {
+fn shortint_smart_mul_lsb(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1463,7 +1463,7 @@ fn shortint_smart_mul_lsb(param: Parameters) {
 }
 
 /// test MSB multiplication with the LWE server key
-fn shortint_smart_mul_msb(param: Parameters) {
+fn shortint_smart_mul_msb(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1506,7 +1506,7 @@ fn shortint_smart_mul_msb(param: Parameters) {
 }
 
 /// test unchecked negation
-fn shortint_unchecked_neg(param: Parameters) {
+fn shortint_unchecked_neg(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1535,7 +1535,7 @@ fn shortint_unchecked_neg(param: Parameters) {
 }
 
 /// test smart negation
-fn shortint_smart_neg(param: Parameters) {
+fn shortint_smart_neg(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1568,7 +1568,7 @@ fn shortint_smart_neg(param: Parameters) {
 }
 
 /// test scalar add
-fn shortint_unchecked_scalar_add(param: Parameters) {
+fn shortint_unchecked_scalar_add(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -1596,7 +1596,7 @@ fn shortint_unchecked_scalar_add(param: Parameters) {
 }
 
 /// test smart scalar add
-fn shortint_smart_scalar_add(param: Parameters) {
+fn shortint_smart_scalar_add(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1631,7 +1631,7 @@ fn shortint_smart_scalar_add(param: Parameters) {
 }
 
 /// test unchecked scalar sub
-fn shortint_unchecked_scalar_sub(param: Parameters) {
+fn shortint_unchecked_scalar_sub(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -1658,7 +1658,7 @@ fn shortint_unchecked_scalar_sub(param: Parameters) {
     }
 }
 
-fn shortint_smart_scalar_sub(param: Parameters) {
+fn shortint_smart_scalar_sub(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1699,7 +1699,7 @@ fn shortint_smart_scalar_sub(param: Parameters) {
 }
 
 /// test scalar multiplication with the LWE server key
-fn shortint_unchecked_scalar_mul(param: Parameters) {
+fn shortint_unchecked_scalar_mul(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -1728,7 +1728,7 @@ fn shortint_unchecked_scalar_mul(param: Parameters) {
 }
 
 /// test smart scalar multiplication with the LWE server key
-fn shortint_smart_scalar_mul(param: Parameters) {
+fn shortint_smart_scalar_mul(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1764,7 +1764,7 @@ fn shortint_smart_scalar_mul(param: Parameters) {
 }
 
 /// test unchecked '>>' operation
-fn shortint_unchecked_right_shift(param: Parameters) {
+fn shortint_unchecked_right_shift(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1791,7 +1791,7 @@ fn shortint_unchecked_right_shift(param: Parameters) {
 }
 
 /// test '<<' operation
-fn shortint_unchecked_left_shift(param: Parameters) {
+fn shortint_unchecked_left_shift(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1818,7 +1818,7 @@ fn shortint_unchecked_left_shift(param: Parameters) {
 }
 
 /// test unchecked subtraction
-fn shortint_unchecked_sub(param: Parameters) {
+fn shortint_unchecked_sub(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1846,7 +1846,7 @@ fn shortint_unchecked_sub(param: Parameters) {
     }
 }
 
-fn shortint_smart_sub(param: Parameters) {
+fn shortint_smart_sub(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1878,7 +1878,7 @@ fn shortint_smart_sub(param: Parameters) {
 }
 
 /// test multiplication
-fn shortint_mul_small_carry(param: Parameters) {
+fn shortint_mul_small_carry(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1909,7 +1909,7 @@ fn shortint_mul_small_carry(param: Parameters) {
 }
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: Parameters) {
+fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -1942,7 +1942,7 @@ fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: Parameters) {
 }
 
 /// test simulating a MUX
-fn shortint_mux(param: Parameters) {
+fn shortint_mux(param: ParametersBig) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 

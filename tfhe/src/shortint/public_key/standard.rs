@@ -13,14 +13,13 @@ use std::fmt::Debug;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PublicKeyBase<OpOrder: PBSOrderMarker> {
     pub(crate) lwe_public_key: LwePublicKeyOwned<u64>,
-    pub parameters: Parameters,
-    pub _order_marker: std::marker::PhantomData<OpOrder>,
+    pub parameters: Parameters<OpOrder>,
 }
 
 pub type PublicKeyBig = PublicKeyBase<KeyswitchBootstrap>;
 pub type PublicKeySmall = PublicKeyBase<BootstrapKeyswitch>;
 
-impl PublicKeyBig {
+impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// Generate a public key.
     ///
     /// # Example
@@ -35,32 +34,10 @@ impl PublicKeyBig {
     ///
     /// let pk = PublicKeyBig::new(&cks);
     /// ```
-    pub fn new(client_key: &ClientKey) -> PublicKeyBig {
+    pub fn new(client_key: &ClientKey<OpOrder>) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key).unwrap())
     }
-}
 
-impl PublicKeySmall {
-    /// Generate a public key.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::Parameters;
-    /// use tfhe::shortint::public_key::PublicKeySmall;
-    ///
-    /// // Generate the client key:
-    /// let cks = ClientKey::new(Parameters::default());
-    ///
-    /// let pk = PublicKeySmall::new(&cks);
-    /// ```
-    pub fn new(client_key: &ClientKey) -> PublicKeySmall {
-        ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key).unwrap())
-    }
-}
-
-impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// Encrypt a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus
@@ -285,8 +262,8 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     }
 }
 
-impl<OpOder: PBSOrderMarker> From<CompressedPublicKeyBase<OpOder>> for PublicKeyBase<OpOder> {
-    fn from(compressed_public_key: CompressedPublicKeyBase<OpOder>) -> Self {
+impl<OpOrder: PBSOrderMarker> From<CompressedPublicKeyBase<OpOrder>> for PublicKeyBase<OpOrder> {
+    fn from(compressed_public_key: CompressedPublicKeyBase<OpOrder>) -> Self {
         let parameters = compressed_public_key.parameters;
 
         let decompressed_public_key = compressed_public_key
@@ -296,7 +273,6 @@ impl<OpOder: PBSOrderMarker> From<CompressedPublicKeyBase<OpOder>> for PublicKey
         Self {
             lwe_public_key: decompressed_public_key,
             parameters,
-            _order_marker: Default::default(),
         }
     }
 }

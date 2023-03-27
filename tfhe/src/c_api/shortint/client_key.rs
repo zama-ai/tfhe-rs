@@ -6,7 +6,7 @@ use std::os::raw::c_int;
 use crate::shortint;
 
 use super::{ShortintCiphertext, ShortintCompressedCiphertext};
-pub struct ShortintClientKey(pub(in crate::c_api) shortint::client_key::ClientKey);
+pub struct ShortintClientKey(pub(in crate::c_api) shortint::client_key::ClientKeyBig);
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_gen_client_key(

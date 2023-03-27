@@ -5,7 +5,7 @@ use crate::integer::parameters::*;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_message_carry::*;
-use crate::shortint::parameters::{Parameters, *};
+use crate::shortint::parameters::{ParametersBig, *};
 use rand::Rng;
 use std::cmp::max;
 
@@ -124,7 +124,7 @@ pub fn wopbs_native_crt_bivariate() {
 }
 
 // test wopbs fake crt with different degree for each Ct
-pub fn wopbs_crt(params: (Parameters, Parameters)) {
+pub fn wopbs_crt(params: (ParametersBig, ParametersBig)) {
     let mut rng = rand::thread_rng();
 
     let basis = make_basis(params.1.message_modulus.0);
@@ -169,7 +169,7 @@ pub fn wopbs_crt(params: (Parameters, Parameters)) {
 }
 
 // test wopbs fake crt with different degree for each Ct
-pub fn wopbs_radix(params: (Parameters, Parameters)) {
+pub fn wopbs_radix(params: (ParametersBig, ParametersBig)) {
     let mut rng = rand::thread_rng();
 
     let nb_block = 2;
@@ -206,7 +206,7 @@ pub fn wopbs_radix(params: (Parameters, Parameters)) {
 }
 
 // test wopbs radix with different degree for each Ct
-pub fn wopbs_bivariate_radix(params: (Parameters, Parameters)) {
+pub fn wopbs_bivariate_radix(params: (ParametersBig, ParametersBig)) {
     let mut rng = rand::thread_rng();
 
     let nb_block = 2;
@@ -248,7 +248,7 @@ pub fn wopbs_bivariate_radix(params: (Parameters, Parameters)) {
 }
 
 // test wopbs bivariate fake crt with different degree for each Ct
-pub fn wopbs_bivariate_crt(params: (Parameters, Parameters)) {
+pub fn wopbs_bivariate_crt(params: (ParametersBig, ParametersBig)) {
     let mut rng = rand::thread_rng();
 
     let basis = make_basis(params.1.message_modulus.0);

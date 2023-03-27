@@ -9,13 +9,13 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::server_key::MaxDegree;
 use crate::shortint::wopbs::WopbsKey;
-use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, Parameters, ServerKey};
+use crate::shortint::{CiphertextBase, ClientKeyBig, PBSOrderMarker, ParametersBig, ServerKey};
 
 impl ShortintEngine {
     // Creates a key when ONLY a wopbs is used.
     pub(crate) fn new_wopbs_key_only_for_wopbs(
         &mut self,
-        cks: &ClientKey,
+        cks: &ClientKeyBig,
         sks: &ServerKey,
     ) -> EngineResult<WopbsKey> {
         let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
@@ -33,7 +33,7 @@ impl ShortintEngine {
             wopbs_server_key: sks_cpy.clone(),
             cbs_pfpksk,
             ksk_pbs_to_wopbs: sks.key_switching_key.clone(),
-            param: cks.parameters,
+            client_parameters: cks.parameters,
             pbs_server_key: sks_cpy,
         };
         Ok(wopbs_key)
@@ -42,9 +42,9 @@ impl ShortintEngine {
     //Creates a new WoPBS key.
     pub(crate) fn new_wopbs_key(
         &mut self,
-        cks: &ClientKey,
+        cks: &ClientKeyBig,
         sks: &ServerKey,
-        parameters: &Parameters,
+        parameters: &ParametersBig,
     ) -> EngineResult<WopbsKey> {
         //Independent client key generation dedicated to the WoPBS
         let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -160,7 +160,7 @@ impl ShortintEngine {
             pbs_server_key,
             cbs_pfpksk,
             ksk_pbs_to_wopbs: ksk_pbs_large_to_wopbs_large,
-            param: *parameters,
+            client_parameters: *parameters,
         };
         Ok(wopbs_key)
     }
@@ -266,7 +266,7 @@ impl ShortintEngine {
                 fourier_bsk.output_lwe_dimension().to_lwe_size(),
                 fourier_bsk.glwe_size(),
                 wopbs_key.cbs_pfpksk.output_polynomial_size(),
-                wopbs_key.param.cbs_level,
+                wopbs_key.client_parameters.cbs_level,
                 fft,
             )
             .unwrap()
@@ -281,8 +281,8 @@ impl ShortintEngine {
             &lut,
             &sks.bootstrapping_key,
             &wopbs_key.cbs_pfpksk,
-            wopbs_key.param.cbs_base_log,
-            wopbs_key.param.cbs_level,
+            wopbs_key.client_parameters.cbs_base_log,
+            wopbs_key.client_parameters.cbs_level,
             fft,
             stack,
         );

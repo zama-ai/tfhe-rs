@@ -82,7 +82,7 @@ pub use u256::U256;
 /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
 /// ```
 pub fn gen_keys(
-    parameters_set: &crate::shortint::parameters::Parameters,
+    parameters_set: &crate::shortint::parameters::Parameters<crate::shortint::KeyswitchBootstrap>,
 ) -> (ClientKey, ServerKey) {
     #[cfg(any(test, feature = "internal-keycache"))]
     {
@@ -110,7 +110,7 @@ pub fn gen_keys(
 /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
 /// ```
 pub fn gen_keys_radix(
-    parameters_set: &crate::shortint::parameters::Parameters,
+    parameters_set: &crate::shortint::parameters::Parameters<crate::shortint::KeyswitchBootstrap>,
     num_blocks: usize,
 ) -> (RadixClientKey, ServerKey) {
     let (cks, sks) = gen_keys(parameters_set);
@@ -131,7 +131,7 @@ pub fn gen_keys_radix(
 /// let (cks, sks) = gen_keys_crt(&PARAM_MESSAGE_2_CARRY_2, basis);
 /// ```
 pub fn gen_keys_crt(
-    parameters_set: &crate::shortint::parameters::Parameters,
+    parameters_set: &crate::shortint::parameters::Parameters<crate::shortint::KeyswitchBootstrap>,
     basis: Vec<u64>,
 ) -> (CrtClientKey, ServerKey) {
     let (cks, sks) = gen_keys(parameters_set);

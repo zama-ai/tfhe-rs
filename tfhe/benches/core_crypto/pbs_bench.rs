@@ -3,9 +3,8 @@ use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, TFHE_LIB_
 use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::Parameters;
 
-const SHORTINT_BENCH_PARAMS: [Parameters; 15] = [
+const SHORTINT_BENCH_PARAMS: [ParametersBig; 15] = [
     PARAM_MESSAGE_1_CARRY_0,
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_0,
@@ -58,8 +57,8 @@ impl From<BooleanParameters> for BenchmarkPbsParameters {
     }
 }
 
-impl From<Parameters> for BenchmarkPbsParameters {
-    fn from(params: Parameters) -> Self {
+impl From<ParametersBig> for BenchmarkPbsParameters {
+    fn from(params: ParametersBig) -> Self {
         BenchmarkPbsParameters {
             input_lwe_dimension: params.lwe_dimension,
             lwe_modular_std_dev: params.lwe_modular_std_dev,

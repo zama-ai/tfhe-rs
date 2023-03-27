@@ -15,7 +15,7 @@ impl PublicKey {
             key: ShortintPublicKey::new(&client_key.key),
         }
     }
-    pub fn parameters(&self) -> crate::shortint::Parameters {
+    pub fn parameters(&self) -> crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap> {
         self.key.parameters
     }
 

@@ -13,14 +13,13 @@ use std::fmt::Debug;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompressedPublicKeyBase<OpOrder: PBSOrderMarker> {
     pub(crate) lwe_public_key: SeededLwePublicKeyOwned<u64>,
-    pub parameters: Parameters,
-    pub _order_marker: std::marker::PhantomData<OpOrder>,
+    pub parameters: Parameters<OpOrder>,
 }
 
 pub type CompressedPublicKeyBig = CompressedPublicKeyBase<KeyswitchBootstrap>;
 pub type CompressedPublicKeySmall = CompressedPublicKeyBase<BootstrapKeyswitch>;
 
-impl CompressedPublicKeyBig {
+impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// Generate a public key.
     ///
     /// # Example
@@ -33,38 +32,14 @@ impl CompressedPublicKeyBig {
     /// // Generate the client key:
     /// let cks = ClientKey::new(Parameters::default());
     ///
-    /// let pk = CompressedPublicKeyBig::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     /// ```
-    pub fn new(client_key: &ClientKey) -> Self {
+    pub fn new(client_key: &ClientKey<OpOrder>) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_compressed_public_key(client_key).unwrap()
         })
     }
-}
 
-impl CompressedPublicKeySmall {
-    /// Generate a public key.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::Parameters;
-    /// use tfhe::shortint::public_key::CompressedPublicKeySmall;
-    ///
-    /// // Generate the client key:
-    /// let cks = ClientKey::new(Parameters::default());
-    ///
-    /// let pk = CompressedPublicKeySmall::new(&cks);
-    /// ```
-    pub fn new(client_key: &ClientKey) -> Self {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_compressed_public_key(client_key).unwrap()
-        })
-    }
-}
-
-impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// Encrypts a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus

@@ -1,6 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
-use crate::shortint::Parameters;
 use rand::Rng;
 
 create_parametrized_test!(integer_unchecked_crt_mul);
@@ -31,7 +30,7 @@ fn make_basis(message_modulus: usize) -> Vec<u64> {
     }
 }
 
-fn integer_unchecked_crt_mul(param: Parameters) {
+fn integer_unchecked_crt_mul(param: ParametersBig) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -61,7 +60,7 @@ fn integer_unchecked_crt_mul(param: Parameters) {
     }
 }
 
-fn integer_smart_crt_add(param: Parameters) {
+fn integer_smart_crt_add(param: ParametersBig) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -91,7 +90,7 @@ fn integer_smart_crt_add(param: Parameters) {
     }
 }
 
-fn integer_smart_crt_mul(param: Parameters) {
+fn integer_smart_crt_mul(param: ParametersBig) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -123,7 +122,7 @@ fn integer_smart_crt_mul(param: Parameters) {
     }
 }
 
-fn integer_smart_crt_neg(param: Parameters) {
+fn integer_smart_crt_neg(param: ParametersBig) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -153,7 +152,7 @@ fn integer_smart_crt_neg(param: Parameters) {
     }
 }
 
-fn integer_smart_crt_scalar_add(param: Parameters) {
+fn integer_smart_crt_scalar_add(param: ParametersBig) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -181,7 +180,7 @@ fn integer_smart_crt_scalar_add(param: Parameters) {
     }
 }
 
-fn integer_smart_crt_scalar_mul(param: Parameters) {
+fn integer_smart_crt_scalar_mul(param: ParametersBig) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -209,7 +208,7 @@ fn integer_smart_crt_scalar_mul(param: Parameters) {
     }
 }
 
-fn integer_smart_crt_scalar_sub(param: Parameters) {
+fn integer_smart_crt_scalar_sub(param: ParametersBig) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -240,7 +239,7 @@ fn integer_smart_crt_scalar_sub(param: Parameters) {
     }
 }
 
-fn integer_smart_crt_sub(param: Parameters) {
+fn integer_smart_crt_sub(param: ParametersBig) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();

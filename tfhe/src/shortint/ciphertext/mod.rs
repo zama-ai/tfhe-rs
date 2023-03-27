@@ -31,11 +31,11 @@ mod seal {
 }
 
 /// Trait to mark Ciphertext with the order for the PBS operations
-pub trait PBSOrderMarker: seal::Sealed + Debug + Clone + Copy {
+pub trait PBSOrderMarker: seal::Sealed + Debug + Clone + Copy + PartialEq {
     fn pbs_order() -> PBSOrder;
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct KeyswitchBootstrap;
 
 impl PBSOrderMarker for KeyswitchBootstrap {
@@ -44,7 +44,7 @@ impl PBSOrderMarker for KeyswitchBootstrap {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct BootstrapKeyswitch;
 
 impl PBSOrderMarker for BootstrapKeyswitch {

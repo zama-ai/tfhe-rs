@@ -19,12 +19,12 @@ use tfhe::shortint::parameters::{
 /// in radix decomposition
 struct ParamsAndNumBlocksIter {
     params_and_bit_sizes:
-        itertools::Product<IntoIter<tfhe::shortint::Parameters, 3>, IntoIter<usize, 7>>,
+        itertools::Product<IntoIter<tfhe::shortint::ParametersBig, 3>, IntoIter<usize, 7>>,
 }
 
 impl Default for ParamsAndNumBlocksIter {
     fn default() -> Self {
-        const PARAMS: [tfhe::shortint::Parameters; 3] = [
+        const PARAMS: [tfhe::shortint::ParametersBig; 3] = [
             PARAM_MESSAGE_2_CARRY_2,
             PARAM_MESSAGE_3_CARRY_3,
             PARAM_MESSAGE_4_CARRY_4,
@@ -37,7 +37,7 @@ impl Default for ParamsAndNumBlocksIter {
     }
 }
 impl Iterator for ParamsAndNumBlocksIter {
-    type Item = (tfhe::shortint::Parameters, usize, usize);
+    type Item = (tfhe::shortint::ParametersBig, usize, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
         let (param, bit_size) = self.params_and_bit_sizes.next()?;

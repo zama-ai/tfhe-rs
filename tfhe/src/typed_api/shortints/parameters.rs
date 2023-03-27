@@ -1,4 +1,6 @@
-pub trait ShortIntegerParameter: Copy + Into<crate::shortint::Parameters> {
+pub trait ShortIntegerParameter:
+    Copy + Into<crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap>>
+{
     type Id: Copy;
 }
 

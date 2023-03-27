@@ -11,9 +11,9 @@ use serde::{Deserialize, Serialize};
 /// for 2bits shortints, with have a 4 * 2 = 8 bit integer.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct RadixParameters {
-    pub block_parameters: crate::shortint::Parameters,
+    pub block_parameters: crate::shortint::ParametersBig,
     pub num_block: usize,
-    pub wopbs_block_parameters: crate::shortint::Parameters,
+    pub wopbs_block_parameters: crate::shortint::ParametersBig,
 }
 
 /// Parameters for 'CRT' decomposition
@@ -21,9 +21,9 @@ pub struct RadixParameters {
 /// (Chinese Remainder Theorem)
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CrtParameters {
-    pub block_parameters: crate::shortint::Parameters,
+    pub block_parameters: crate::shortint::ParametersBig,
     pub moduli: Vec<u64>,
-    pub wopbs_block_parameters: crate::shortint::Parameters,
+    pub wopbs_block_parameters: crate::shortint::ParametersBig,
 }
 
 /// Meant to be implemented on the inner server key
@@ -34,7 +34,7 @@ pub trait EvaluationIntegerKey<ClientKey> {
     fn new_wopbs_key(
         client_key: &ClientKey,
         server_key: &Self,
-        wopbs_block_parameters: crate::shortint::Parameters,
+        wopbs_block_parameters: crate::shortint::ParametersBig,
     ) -> crate::integer::wopbs::WopbsKey;
 }
 
@@ -78,9 +78,9 @@ where
 
 /// Trait to mark parameters type for integers
 pub trait IntegerParameter: ParameterType {
-    fn wopbs_block_parameters(&self) -> crate::shortint::Parameters;
+    fn wopbs_block_parameters(&self) -> crate::shortint::ParametersBig;
 
-    fn block_parameters(&self) -> crate::shortint::Parameters;
+    fn block_parameters(&self) -> crate::shortint::ParametersBig;
 }
 
 /// Marker struct for the RadixRepresentation

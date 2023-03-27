@@ -57,11 +57,11 @@ macro_rules! define_static_integer_parameters {
             }
 
             impl IntegerParameter for [<FheUint $num_bits Parameters>] {
-                fn wopbs_block_parameters(&self) -> crate::shortint::Parameters {
+                fn wopbs_block_parameters(&self) -> crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap> {
                     self.0.wopbs_block_parameters
                 }
 
-                fn block_parameters(&self) -> crate::shortint::Parameters {
+                fn block_parameters(&self) -> crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap> {
                     self.0.block_parameters
                 }
             }
@@ -118,11 +118,11 @@ macro_rules! define_static_integer_parameters {
             }
 
             impl IntegerParameter for [<FheUint $num_bits Parameters>] {
-                fn wopbs_block_parameters(&self) -> crate::shortint::Parameters {
+                fn wopbs_block_parameters(&self) -> crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap> {
                     self.0.wopbs_block_parameters
                 }
 
-                fn block_parameters(&self) -> crate::shortint::Parameters {
+                fn block_parameters(&self) -> crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap> {
                     self.0.block_parameters
                 }
             }
@@ -289,7 +289,7 @@ where
     fn new_wopbs_key(
         client_key: &C,
         server_key: &Self,
-        wopbs_block_parameters: crate::shortint::Parameters,
+        wopbs_block_parameters: crate::shortint::Parameters<crate::shortint::KeyswitchBootstrap>,
     ) -> WopbsKey {
         #[cfg(not(feature = "internal-keycache"))]
         {

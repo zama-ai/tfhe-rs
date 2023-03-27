@@ -132,12 +132,15 @@ impl ServerKey {
     /// // Generate the server key:
     /// let sks = ServerKey::new(&cks);
     /// ```
-    pub fn new(cks: &ClientKey) -> ServerKey {
+    pub fn new<OpOrder: PBSOrderMarker>(cks: &ClientKey<OpOrder>) -> ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_server_key(cks).unwrap())
     }
 
     /// Generate a server key with a chosen maximum degree
-    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> ServerKey {
+    pub fn new_with_max_degree<OpOrder: PBSOrderMarker>(
+        cks: &ClientKey<OpOrder>,
+        max_degree: MaxDegree,
+    ) -> ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .new_server_key_with_max_degree(cks, max_degree)

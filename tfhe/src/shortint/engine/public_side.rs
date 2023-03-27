@@ -24,7 +24,7 @@ pub fn shortint_public_key_zero_encryption_count(
 impl ShortintEngine {
     pub(crate) fn new_public_key<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
     ) -> EngineResult<PublicKeyBase<OpOrder>> {
         let client_parameters = client_key.parameters;
 
@@ -62,13 +62,12 @@ impl ShortintEngine {
         Ok(PublicKeyBase {
             lwe_public_key,
             parameters: client_key.parameters.to_owned(),
-            _order_marker: Default::default(),
         })
     }
 
     pub(crate) fn new_compressed_public_key<OpOrder: PBSOrderMarker>(
         &mut self,
-        client_key: &ClientKey,
+        client_key: &ClientKey<OpOrder>,
     ) -> EngineResult<CompressedPublicKeyBase<OpOrder>> {
         let client_parameters = client_key.parameters;
 
@@ -106,7 +105,6 @@ impl ShortintEngine {
         Ok(CompressedPublicKeyBase {
             lwe_public_key: compressed_public_key,
             parameters: client_key.parameters.to_owned(),
-            _order_marker: Default::default(),
         })
     }
 
@@ -329,12 +327,12 @@ impl ShortintEngine {
         })
     }
 
-    pub(crate) fn encrypt_native_crt_with_compressed_public_key<OpOder: PBSOrderMarker>(
+    pub(crate) fn encrypt_native_crt_with_compressed_public_key<OpOrder: PBSOrderMarker>(
         &mut self,
-        public_key: &CompressedPublicKeyBase<OpOder>,
+        public_key: &CompressedPublicKeyBase<OpOrder>,
         message: u64,
         message_modulus: u8,
-    ) -> EngineResult<CiphertextBase<OpOder>> {
+    ) -> EngineResult<CiphertextBase<OpOrder>> {
         let carry_modulus = 1;
         let m = (message % message_modulus as u64) as u128;
         let shifted_message = m * (1 << 64) / message_modulus as u128;

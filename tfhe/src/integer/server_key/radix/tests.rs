@@ -1,6 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
-use crate::shortint::Parameters;
+use crate::shortint::ParametersBig;
 use rand::Rng;
 
 /// Number of loop iteration within randomized tests
@@ -47,7 +47,7 @@ create_parametrized_test!(integer_unchecked_scalar_add);
 
 create_parametrized_test!(integer_unchecked_scalar_decomposition_overflow);
 
-fn integer_encrypt_decrypt(param: Parameters) {
+fn integer_encrypt_decrypt(param: ParametersBig) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
 
     // RNG
@@ -70,7 +70,7 @@ fn integer_encrypt_decrypt(param: Parameters) {
     }
 }
 
-fn integer_encrypt_decrypt_128_bits(param: Parameters) {
+fn integer_encrypt_decrypt_128_bits(param: ParametersBig) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
 
     // RNG
@@ -91,7 +91,7 @@ fn integer_encrypt_decrypt_128_bits(param: Parameters) {
     }
 }
 
-fn integer_encrypt_decrypt_128_bits_specific_values(param: Parameters) {
+fn integer_encrypt_decrypt_128_bits_specific_values(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
@@ -147,7 +147,7 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: Parameters) {
     }
 }
 
-fn integer_encrypt_decrypt_256_bits_specific_values(param: Parameters) {
+fn integer_encrypt_decrypt_256_bits_specific_values(param: ParametersBig) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
 
     let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
@@ -175,7 +175,7 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: Parameters) {
     }
 }
 
-fn integer_encrypt_decrypt_256_bits(param: Parameters) {
+fn integer_encrypt_decrypt_256_bits(param: ParametersBig) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
 
     // RNG
@@ -200,7 +200,7 @@ fn integer_encrypt_decrypt_256_bits(param: Parameters) {
     }
 }
 
-fn integer_smart_add_128_bits(param: Parameters) {
+fn integer_smart_add_128_bits(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
@@ -239,7 +239,7 @@ fn integer_smart_add_128_bits(param: Parameters) {
     }
 }
 
-fn integer_unchecked_add(param: Parameters) {
+fn integer_unchecked_add(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -270,7 +270,7 @@ fn integer_unchecked_add(param: Parameters) {
     }
 }
 
-fn integer_smart_add(param: Parameters) {
+fn integer_smart_add(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -313,7 +313,7 @@ fn integer_smart_add(param: Parameters) {
     }
 }
 
-fn integer_unchecked_bitand(param: Parameters) {
+fn integer_unchecked_bitand(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -344,7 +344,7 @@ fn integer_unchecked_bitand(param: Parameters) {
     }
 }
 
-fn integer_unchecked_bitor(param: Parameters) {
+fn integer_unchecked_bitor(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -375,7 +375,7 @@ fn integer_unchecked_bitor(param: Parameters) {
     }
 }
 
-fn integer_unchecked_bitxor(param: Parameters) {
+fn integer_unchecked_bitxor(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -406,7 +406,7 @@ fn integer_unchecked_bitxor(param: Parameters) {
     }
 }
 
-fn integer_smart_bitand(param: Parameters) {
+fn integer_smart_bitand(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -451,7 +451,7 @@ fn integer_smart_bitand(param: Parameters) {
     }
 }
 
-fn integer_smart_bitor(param: Parameters) {
+fn integer_smart_bitor(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -496,7 +496,7 @@ fn integer_smart_bitor(param: Parameters) {
     }
 }
 
-fn integer_smart_bitxor(param: Parameters) {
+fn integer_smart_bitxor(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -541,7 +541,7 @@ fn integer_smart_bitxor(param: Parameters) {
     }
 }
 
-fn integer_unchecked_small_scalar_mul(param: Parameters) {
+fn integer_unchecked_small_scalar_mul(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -571,7 +571,7 @@ fn integer_unchecked_small_scalar_mul(param: Parameters) {
     }
 }
 
-fn integer_smart_small_scalar_mul(param: Parameters) {
+fn integer_smart_small_scalar_mul(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -608,7 +608,7 @@ fn integer_smart_small_scalar_mul(param: Parameters) {
     }
 }
 
-fn integer_blockshift(param: Parameters) {
+fn integer_blockshift(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -639,7 +639,7 @@ fn integer_blockshift(param: Parameters) {
     }
 }
 
-fn integer_blockshift_right(param: Parameters) {
+fn integer_blockshift_right(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -670,7 +670,7 @@ fn integer_blockshift_right(param: Parameters) {
     }
 }
 
-fn integer_smart_scalar_mul(param: Parameters) {
+fn integer_smart_scalar_mul(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -698,7 +698,7 @@ fn integer_smart_scalar_mul(param: Parameters) {
     }
 }
 
-fn integer_unchecked_scalar_left_shift(param: Parameters) {
+fn integer_unchecked_scalar_left_shift(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -730,7 +730,7 @@ fn integer_unchecked_scalar_left_shift(param: Parameters) {
     }
 }
 
-fn integer_unchecked_scalar_right_shift(param: Parameters) {
+fn integer_unchecked_scalar_right_shift(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -762,7 +762,7 @@ fn integer_unchecked_scalar_right_shift(param: Parameters) {
     }
 }
 
-fn integer_unchecked_negation(param: Parameters) {
+fn integer_unchecked_negation(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -794,7 +794,7 @@ fn integer_unchecked_negation(param: Parameters) {
     }
 }
 
-fn integer_smart_neg(param: Parameters) {
+fn integer_smart_neg(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -823,7 +823,7 @@ fn integer_smart_neg(param: Parameters) {
     }
 }
 
-fn integer_unchecked_sub(param: Parameters) {
+fn integer_unchecked_sub(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     // RNG
@@ -853,7 +853,7 @@ fn integer_unchecked_sub(param: Parameters) {
     }
 }
 
-fn integer_smart_sub(param: Parameters) {
+fn integer_smart_sub(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -887,7 +887,7 @@ fn integer_smart_sub(param: Parameters) {
     }
 }
 
-fn integer_unchecked_block_mul(param: Parameters) {
+fn integer_unchecked_block_mul(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -920,7 +920,7 @@ fn integer_unchecked_block_mul(param: Parameters) {
     }
 }
 
-fn integer_smart_block_mul(param: Parameters) {
+fn integer_smart_block_mul(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -957,7 +957,7 @@ fn integer_smart_block_mul(param: Parameters) {
     }
 }
 
-fn integer_smart_mul(param: Parameters) {
+fn integer_smart_mul(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -994,7 +994,7 @@ fn integer_smart_mul(param: Parameters) {
     }
 }
 
-fn integer_unchecked_scalar_add(param: Parameters) {
+fn integer_unchecked_scalar_add(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -1022,7 +1022,7 @@ fn integer_unchecked_scalar_add(param: Parameters) {
     }
 }
 
-fn integer_smart_scalar_add(param: Parameters) {
+fn integer_smart_scalar_add(param: ParametersBig) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -1063,7 +1063,7 @@ fn integer_smart_scalar_add(param: Parameters) {
     }
 }
 
-fn integer_unchecked_scalar_sub(param: Parameters) {
+fn integer_unchecked_scalar_sub(param: ParametersBig) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     //RNG
@@ -1091,7 +1091,7 @@ fn integer_unchecked_scalar_sub(param: Parameters) {
     }
 }
 
-fn integer_smart_scalar_sub(param: Parameters) {
+fn integer_smart_scalar_sub(param: ParametersBig) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -1132,7 +1132,7 @@ fn integer_smart_scalar_sub(param: Parameters) {
     }
 }
 
-fn integer_unchecked_scalar_decomposition_overflow(param: Parameters) {
+fn integer_unchecked_scalar_decomposition_overflow(param: ParametersBig) {
     // This is a regression test. The purpose here is to check if the number of decomposition
     // blocks doesn't exceed 64 bits. This is why we test only 128 bits size.
     // If overflow occurs the test case will panic.

@@ -4,7 +4,7 @@ use super::MaxDegree;
 use crate::core_crypto::prelude::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
-use crate::shortint::ClientKey;
+use crate::shortint::{ClientKey, PBSOrderMarker};
 use serde::{Deserialize, Serialize};
 
 /// A structure containing a compressed server public key.
@@ -38,7 +38,7 @@ impl CompressedServerKey {
     ///
     /// let sks = CompressedServerKey::new(&cks);
     /// ```
-    pub fn new(client_key: &ClientKey) -> CompressedServerKey {
+    pub fn new<OpOrder: PBSOrderMarker>(client_key: &ClientKey<OpOrder>) -> CompressedServerKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_compressed_server_key(client_key).unwrap()
         })

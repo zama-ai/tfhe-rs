@@ -12,7 +12,7 @@ use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, RadixCiphertex
 use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
 
-use crate::shortint::Parameters;
+use crate::shortint::ParametersBig;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -150,7 +150,7 @@ impl WopbsKey {
     /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_1_CARRY_1);
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1);
     /// ```
-    pub fn new_wopbs_key(cks: &ClientKey, sks: &ServerKey, parameters: &Parameters) -> WopbsKey {
+    pub fn new_wopbs_key(cks: &ClientKey, sks: &ServerKey, parameters: &ParametersBig) -> WopbsKey {
         WopbsKey {
             wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key(
                 &cks.key, &sks.key, parameters,
@@ -227,7 +227,8 @@ impl WopbsKey {
         // Extraction of each bit for each block
         for block in ct_in.blocks().iter().rev() {
             let delta = (1_usize << 63)
-                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0);
+                / (self.wopbs_key.client_parameters.message_modulus.0
+                    * self.wopbs_key.client_parameters.carry_modulus.0);
             let delta_log = DeltaLog(f64::log2(delta as f64) as usize);
             let nb_bit_to_extract = f64::log2((block.degree.0 + 1) as f64).ceil() as usize;
 
@@ -462,15 +463,15 @@ impl WopbsKey {
         }
 
         let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
+        if 1 << total_bit < self.wopbs_key.client_parameters.polynomial_size.0 as u64 {
+            lut_size = self.wopbs_key.client_parameters.polynomial_size.0;
         }
         let mut vec_lut = vec![vec![0; lut_size]; ct.blocks().len()];
 
         let basis = ct.moduli()[0];
         let delta: u64 = (1 << 63)
-            / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0)
-                as u64;
+            / (self.wopbs_key.client_parameters.message_modulus.0
+                * self.wopbs_key.client_parameters.carry_modulus.0) as u64;
 
         for lut_index_val in 0..(1 << total_bit) {
             let encoded_with_deg_val = encode_mix_radix(lut_index_val, &vec_deg_basis, basis);
@@ -515,12 +516,14 @@ impl WopbsKey {
         F: Fn(u64) -> u64,
         T: IntegerCiphertext,
     {
-        let log_message_modulus = f64::log2((self.wopbs_key.param.message_modulus.0) as f64) as u64;
-        let log_carry_modulus = f64::log2((self.wopbs_key.param.carry_modulus.0) as f64) as u64;
+        let log_message_modulus =
+            f64::log2((self.wopbs_key.client_parameters.message_modulus.0) as f64) as u64;
+        let log_carry_modulus =
+            f64::log2((self.wopbs_key.client_parameters.carry_modulus.0) as f64) as u64;
         let log_basis = log_message_modulus + log_carry_modulus;
         let delta = 64 - log_basis;
         let nb_block = ct.blocks().len();
-        let poly_size = self.wopbs_key.param.polynomial_size.0;
+        let poly_size = self.wopbs_key.client_parameters.polynomial_size.0;
         let mut lut_size = 1 << (nb_block * log_basis as usize);
         if lut_size < poly_size {
             lut_size = poly_size;
@@ -589,8 +592,8 @@ impl WopbsKey {
             bit.push(b);
         }
         let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
+        if 1 << total_bit < self.wopbs_key.client_parameters.polynomial_size.0 as u64 {
+            lut_size = self.wopbs_key.client_parameters.polynomial_size.0;
         }
         let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
 
@@ -653,8 +656,8 @@ impl WopbsKey {
             bit.push(b);
         }
         let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
+        if 1 << total_bit < self.wopbs_key.client_parameters.polynomial_size.0 as u64 {
+            lut_size = self.wopbs_key.client_parameters.polynomial_size.0;
         }
         let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
 
@@ -663,8 +666,9 @@ impl WopbsKey {
             for (j, block) in ct.blocks.iter().enumerate() {
                 let deg = f64::log2((block.degree.0 + 1) as f64).ceil() as u64;
                 let delta: u64 = (1 << 63)
-                    / (self.wopbs_key.param.message_modulus.0
-                        * self.wopbs_key.param.carry_modulus.0) as u64;
+                    / (self.wopbs_key.client_parameters.message_modulus.0
+                        * self.wopbs_key.client_parameters.carry_modulus.0)
+                        as u64;
                 vec_lut[j][i as usize] =
                     ((f((value % (1 << deg)) % block.message_modulus.0 as u64))
                         % block.message_modulus.0 as u64)
@@ -728,7 +732,7 @@ impl WopbsKey {
         for (ct_num, ct) in [ct1, ct2].iter().enumerate() {
             modulus = 1;
             for deg in ct.blocks.iter() {
-                modulus *= self.wopbs_key.param.message_modulus.0 as u64;
+                modulus *= self.wopbs_key.client_parameters.message_modulus.0 as u64;
                 let b = f64::log2((deg.degree.0 + 1) as f64).ceil() as u64;
                 vec_deg_basis[ct_num].push(b);
                 nb_bit_to_extract[ct_num] += b;
@@ -738,15 +742,15 @@ impl WopbsKey {
         let total_bit: u64 = nb_bit_to_extract.iter().sum();
 
         let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
+        if 1 << total_bit < self.wopbs_key.client_parameters.polynomial_size.0 as u64 {
+            lut_size = self.wopbs_key.client_parameters.polynomial_size.0;
         }
         let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
         let basis = ct1.moduli()[0];
 
         let delta: u64 = (1 << 63)
-            / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0)
-                as u64;
+            / (self.wopbs_key.client_parameters.message_modulus.0
+                * self.wopbs_key.client_parameters.carry_modulus.0) as u64;
 
         for lut_index_val in 0..(1 << total_bit) {
             let split = vec![
@@ -828,14 +832,14 @@ impl WopbsKey {
         let total_bit: u64 = nb_bit_to_extract.iter().sum();
 
         let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
+        if 1 << total_bit < self.wopbs_key.client_parameters.polynomial_size.0 as u64 {
+            lut_size = self.wopbs_key.client_parameters.polynomial_size.0;
         }
         let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
 
         let delta: u64 = (1 << 63)
-            / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0)
-                as u64;
+            / (self.wopbs_key.client_parameters.message_modulus.0
+                * self.wopbs_key.client_parameters.carry_modulus.0) as u64;
 
         for index in 0..(1 << total_bit) {
             let mut split = encode_radix(index, 1 << nb_bit_to_extract[0], 2);
@@ -902,8 +906,8 @@ impl WopbsKey {
             bit.push(b);
         }
         let mut lut_size = 1 << (2 * total_bit);
-        if 1 << (2 * total_bit) < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
+        if 1 << (2 * total_bit) < self.wopbs_key.client_parameters.polynomial_size.0 as u64 {
+            lut_size = self.wopbs_key.client_parameters.polynomial_size.0;
         }
         let mut vec_lut = vec![vec![0; lut_size]; basis.len()];
 

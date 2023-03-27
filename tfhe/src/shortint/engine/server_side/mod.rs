@@ -25,7 +25,10 @@ mod shift;
 mod sub;
 
 impl ShortintEngine {
-    pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> EngineResult<ServerKey> {
+    pub(crate) fn new_server_key<OpOrder: PBSOrderMarker>(
+        &mut self,
+        cks: &ClientKey<OpOrder>,
+    ) -> EngineResult<ServerKey> {
         // Plaintext Max Value
         let max_value = cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0 - 1;
 
@@ -34,9 +37,9 @@ impl ShortintEngine {
         self.new_server_key_with_max_degree(cks, max)
     }
 
-    pub(crate) fn new_server_key_with_max_degree(
+    pub(crate) fn new_server_key_with_max_degree<OpOrder: PBSOrderMarker>(
         &mut self,
-        cks: &ClientKey,
+        cks: &ClientKey<OpOrder>,
         max_degree: MaxDegree,
     ) -> EngineResult<ServerKey> {
         let bootstrap_key: LweBootstrapKeyOwned<u64> =
@@ -95,9 +98,9 @@ impl ShortintEngine {
         })
     }
 
-    pub(crate) fn new_compressed_server_key(
+    pub(crate) fn new_compressed_server_key<OpOrder: PBSOrderMarker>(
         &mut self,
-        cks: &ClientKey,
+        cks: &ClientKey<OpOrder>,
     ) -> EngineResult<CompressedServerKey> {
         // Plaintext Max Value
         let max_value = cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0 - 1;
@@ -107,9 +110,9 @@ impl ShortintEngine {
         self.new_compressed_server_key_with_max_degree(cks, max)
     }
 
-    pub(crate) fn new_compressed_server_key_with_max_degree(
+    pub(crate) fn new_compressed_server_key_with_max_degree<OpOrder: PBSOrderMarker>(
         &mut self,
-        cks: &ClientKey,
+        cks: &ClientKey<OpOrder>,
         max_degree: MaxDegree,
     ) -> EngineResult<CompressedServerKey> {
         #[cfg(not(feature = "__wasm_api"))]
