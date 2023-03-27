@@ -32,7 +32,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > install-rustup.s
     chmod +x install-wasm-pack.sh && \
     . "$HOME/.cargo/env" && \
     ./install-wasm-pack.sh -y && \
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh > install-node.sh && \
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh > install-node.sh && \
     chmod +x install-node.sh && \
     ./install-node.sh && \
     . "$HOME/.nvm/nvm.sh" && \
