@@ -100,6 +100,7 @@ create_parametrized_test!(shortint_message_extract);
 create_parametrized_test!(shortint_generate_accumulator);
 create_parametrized_test!(shortint_unchecked_add);
 create_parametrized_test!(shortint_smart_add);
+create_parametrized_test!(shortint_default_add);
 create_parametrized_test!(shortint_smart_mul_lsb);
 create_parametrized_test!(shortint_unchecked_neg);
 create_parametrized_test!(shortint_smart_neg);
@@ -479,6 +480,45 @@ fn shortint_smart_add(param: Parameters) {
         //add multiple times to raise the degree and test the smart operation
         for _ in 0..40 {
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
+            clear += clear_0;
+
+            // decryption of ct_res
+            let dec_res = cks.decrypt(&ct_res);
+
+            // assert
+            assert_eq!(clear % modulus, dec_res);
+        }
+    }
+}
+
+/// test default addition with the LWE server key
+fn shortint_default_add(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..10 {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // encryption of an integer
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.add(&ctxt_0, &ctxt_1);
+        let mut clear = clear_0 + clear_1;
+
+        //add multiple times to raise the degree and test the smart operation
+        for _ in 0..40 {
+            ct_res = sks.add(&ct_res, &ctxt_0);
             clear += clear_0;
 
             // decryption of ct_res
