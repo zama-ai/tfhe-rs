@@ -131,6 +131,12 @@ pub struct CiphertextBase<OpOrder: PBSOrderMarker> {
 pub type CiphertextBig = CiphertextBase<KeyswitchBootstrap>;
 pub type CiphertextSmall = CiphertextBase<BootstrapKeyswitch>;
 
+impl<OpOrder: PBSOrderMarker> CiphertextBase<OpOrder> {
+    pub fn carry_is_empty(&self) -> bool {
+        self.degree.0 < self.message_modulus.0
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct SerialiazableCiphertextBase {
     pub ct: LweCiphertextOwned<u64>,
