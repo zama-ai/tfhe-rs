@@ -146,8 +146,11 @@ create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_equal);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_bitand);
+create_parametrized_test_bivariate_pbs_compliant!(shortint_default_bitand);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_bitor);
+create_parametrized_test_bivariate_pbs_compliant!(shortint_default_bitor);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_bitxor);
+create_parametrized_test_bivariate_pbs_compliant!(shortint_default_bitxor);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_greater);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_greater_or_equal);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_smart_less);
@@ -738,6 +741,44 @@ fn shortint_smart_bitand(param: Parameters) {
     }
 }
 
+/// test default bitwise 'and' with the LWE server key
+fn shortint_default_bitand(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+
+    for _ in 0..NB_TEST {
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let mut clear_1 = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u8>() % mod_scalar;
+
+        // encryption of an integer
+        let mut ctxt_0 = cks.encrypt(clear_0);
+
+        // encryption of an integer
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        sks.unchecked_scalar_mul_assign(&mut ctxt_0, scalar);
+        sks.unchecked_scalar_mul_assign(&mut ctxt_1, scalar);
+
+        clear_0 *= scalar as u64;
+        clear_1 *= scalar as u64;
+
+        // add the two ciphertexts
+        let ct_res = sks.bitand(&ctxt_0, &ctxt_1);
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!((clear_0 & clear_1) % modulus, dec_res);
+    }
+}
+
 /// test bitwise 'or' with the LWE server key
 fn shortint_smart_bitor(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
@@ -776,6 +817,44 @@ fn shortint_smart_bitor(param: Parameters) {
     }
 }
 
+/// test default bitwise 'or' with the LWE server key
+fn shortint_default_bitor(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+
+    for _ in 0..NB_TEST {
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let mut clear_1 = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u8>() % mod_scalar;
+
+        // encryption of an integer
+        let mut ctxt_0 = cks.encrypt(clear_0);
+
+        // encryption of an integer
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        sks.unchecked_scalar_mul_assign(&mut ctxt_0, scalar);
+        sks.unchecked_scalar_mul_assign(&mut ctxt_1, scalar);
+
+        clear_0 *= scalar as u64;
+        clear_1 *= scalar as u64;
+
+        // add the two ciphertexts
+        let ct_res = sks.bitor(&ctxt_0, &ctxt_1);
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!((clear_0 | clear_1) % modulus, dec_res);
+    }
+}
+
 /// test bitwise 'xor' with the LWE server key
 fn shortint_smart_bitxor(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
@@ -805,6 +884,44 @@ fn shortint_smart_bitxor(param: Parameters) {
 
         // add the two ciphertexts
         let ct_res = sks.smart_bitxor(&mut ctxt_0, &mut ctxt_1);
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!((clear_0 ^ clear_1) % modulus, dec_res);
+    }
+}
+
+/// test default bitwise 'xor' with the LWE server key
+fn shortint_default_bitxor(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+
+    for _ in 0..NB_TEST {
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let mut clear_1 = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u8>() % mod_scalar;
+
+        // encryption of an integer
+        let mut ctxt_0 = cks.encrypt(clear_0);
+
+        // encryption of an integer
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        sks.unchecked_scalar_mul_assign(&mut ctxt_0, scalar);
+        sks.unchecked_scalar_mul_assign(&mut ctxt_1, scalar);
+
+        clear_0 *= scalar as u64;
+        clear_1 *= scalar as u64;
+
+        // add the two ciphertexts
+        let ct_res = sks.bitxor(&ctxt_0, &ctxt_1);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
