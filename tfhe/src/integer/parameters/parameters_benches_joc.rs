@@ -223,6 +223,24 @@ pub const ID_11_NATIF_CRT_32_BITS_6_BLOCKS_WOPBS: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
 };
+pub const ID_11_BIS_NATIF_CRT_32_BITS_8_BLOCKS_WOPBS: Parameters = Parameters {
+    lwe_dimension: LweDimension(781),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.0000044043577651404615),
+    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    pbs_base_log: DecompositionBaseLog(5),
+    pbs_level: DecompositionLevelCount(8),
+    ks_level: DecompositionLevelCount(16),
+    ks_base_log: DecompositionBaseLog(1),
+    pfks_level: DecompositionLevelCount(3),
+    pfks_base_log: DecompositionBaseLog(13),
+    pfks_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    cbs_level: DecompositionLevelCount(4),
+    cbs_base_log: DecompositionBaseLog(6),
+    message_modulus: MessageModulus(32),
+    carry_modulus: CarryModulus(1),
+};
 
     pub const ID_12_HYBRID_CRT_32_bits: Parameters = Parameters {
     lwe_dimension: LweDimension(838),

@@ -384,6 +384,7 @@ impl NamedParam for Parameters {
                 ID_10_NATIF_CRT_16_BITS_5_BLOCKS_WOPBS,
                 ID_11_NATIF_CRT_32_BITS_6_BLOCKS_WOPBS,
                 ID_12_HYBRID_CRT_32_bits,
+                ID_11_BIS_NATIF_CRT_32_BITS_8_BLOCKS_WOPBS,
                 TEST_WOPBS,
             )
         );

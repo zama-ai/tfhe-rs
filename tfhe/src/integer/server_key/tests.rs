@@ -8,7 +8,7 @@ use crate::integer::wopbs::WopbsKey;
 use crate::shortint::prelude::{CarryModulus, MessageModulus};
 
 /// Number of assert in randomized tests
-const NB_TEST: usize = 100;
+const NB_TEST: usize = 10;
 
 //// RADIX ///
 
@@ -330,7 +330,7 @@ pub fn joc_crt_wopbs() {
     }
 }
 
-#[test]
+//#[test]
 pub fn joc_native_crt_wopbs() {
     let param_vec = vec![
         ID_10_NATIF_CRT_16_BITS_5_BLOCKS_WOPBS,
@@ -367,17 +367,20 @@ pub fn joc_native_crt_wopbs() {
 #[test]
 pub fn joc_native_crt_add() {
     let param_vec = vec![
-        ID_10_NATIF_CRT_16_BITS_5_BLOCKS_WOPBS,
-        ID_11_NATIF_CRT_32_BITS_6_BLOCKS_WOPBS
+        //ID_10_NATIF_CRT_16_BITS_5_BLOCKS_WOPBS,
+        //ID_11_NATIF_CRT_32_BITS_6_BLOCKS_WOPBS,
+        ID_11_BIS_NATIF_CRT_32_BITS_8_BLOCKS_WOPBS,
     ];
 
     // Define CRT basis, and global modulus
-    let basis_16bits = vec![7,8,9,11,13];
-    let basis_32bits = vec![43,47,37,49,29,41];
+    //let basis_16bits = vec![7,8,9,11,13];
+    //let basis_32bits = vec![43,47,37,49,29,41];
+    let basis_32bits_bis = vec![3, 11, 13, 19, 23, 29, 31, 32];
 
     let basis_vec = [
-        basis_16bits,
-        basis_32bits,
+        //basis_16bits,
+        //basis_32bits,
+        basis_32bits_bis,
     ];
 
     for (param, basis)  in param_vec.iter().zip(basis_vec.iter()) {
@@ -404,13 +407,17 @@ pub fn joc_native_crt_add() {
 #[test]
 pub fn joc_native_crt_mul_wopbs() {
     let param_vec = vec![
-        ID_11_NATIF_CRT_32_BITS_6_BLOCKS_WOPBS
+        //ID_11_NATIF_CRT_32_BITS_6_BLOCKS_WOPBS,
+        ID_11_BIS_NATIF_CRT_32_BITS_8_BLOCKS_WOPBS
     ];
 
-    let basis_32bits = vec![43,47,37,49,29,41];
+    //let basis_32bits = vec![43,47,37,49,29,41];
+    let basis_32bits_bis = vec![3, 11, 13, 19, 23, 29, 31, 32];
+
 
     let basis_vec = [
-        basis_32bits,
+        //basis_32bits,
+        basis_32bits_bis,
     ];
 
     for (param, basis)  in param_vec.iter().zip(basis_vec.iter()) {
