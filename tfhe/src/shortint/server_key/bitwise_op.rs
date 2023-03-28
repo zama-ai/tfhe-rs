@@ -4,6 +4,133 @@ use crate::shortint::CheckError::CarryFull;
 use crate::shortint::{CheckError, CiphertextBase, PBSOrderMarker};
 
 impl ServerKey {
+    /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1;
+    ///
+    /// // Encrypt two messages:
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically an AND:
+    /// let ct_res = sks.bitand(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!(msg & msg, res);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct1 = cks.encrypt_small(msg);
+    /// let ct2 = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically an AND:
+    /// let ct_res = sks.bitand(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!(msg & msg, res);
+    /// ```
+    pub fn bitand<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct_left.clone();
+        self.bitand_assign(&mut ct_res, ct_right);
+        ct_res
+    }
+
+    /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
+    ///
+    /// The result is stored in the `ct_left` cipher text.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let modulus = 4;
+    ///
+    /// let msg1 = 15;
+    /// let msg2 = 3;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct1 = cks.unchecked_encrypt(msg1);
+    /// let ct2 = cks.encrypt(msg2);
+    ///
+    /// // Compute homomorphically an AND:
+    /// sks.bitand_assign(&mut ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct1);
+    ///
+    /// assert_eq!((msg2 & msg1) % modulus, res);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// let mut ct1 = cks.unchecked_encrypt_small(msg1);
+    /// let ct2 = cks.encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically an AND:
+    /// sks.bitand_assign(&mut ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct1);
+    ///
+    /// assert_eq!((msg2 & msg1) % modulus, res);
+    /// ```
+    pub fn bitand_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
+        let tmp_rhs: CiphertextBase<OpOrder>;
+
+        if !ct_left.carry_is_empty() {
+            self.clear_carry_assign(ct_left);
+        }
+
+        let rhs = if ct_right.carry_is_empty() {
+            ct_right
+        } else {
+            tmp_rhs = self.clear_carry(ct_right);
+            &tmp_rhs
+        };
+
+        self.unchecked_bitand_assign(ct_left, rhs);
+    }
+
     /// Compute bitwise AND between two ciphertexts without checks.
     ///
     /// The result is returned in a _new_ ciphertext.
@@ -307,6 +434,133 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_bitand_assign(self, ct_left, ct_right).unwrap()
         })
+    }
+
+    /// Compute homomorphically an XOR between two ciphertexts encrypting integer values.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1;
+    ///
+    /// // Encrypt two messages:
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a XOR:
+    /// let ct_res = sks.bitxor(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!(msg ^ msg, res);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct1 = cks.encrypt_small(msg);
+    /// let ct2 = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically a XOR:
+    /// let ct_res = sks.bitxor(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!(msg ^ msg, res);
+    /// ```
+    pub fn bitxor<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct_left.clone();
+        self.bitxor_assign(&mut ct_res, ct_right);
+        ct_res
+    }
+
+    /// Compute homomorphically a XOR between two ciphertexts encrypting integer values.
+    ///
+    /// The result is stored in the `ct_left` cipher text.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let modulus = 4;
+    ///
+    /// let msg1 = 15;
+    /// let msg2 = 3;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct1 = cks.unchecked_encrypt(msg1);
+    /// let ct2 = cks.encrypt(msg2);
+    ///
+    /// // Compute homomorphically a XOR:
+    /// sks.bitxor_assign(&mut ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct1);
+    ///
+    /// assert_eq!((msg2 ^ msg1) % modulus, res);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// let mut ct1 = cks.unchecked_encrypt_small(msg1);
+    /// let ct2 = cks.encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically a XOR:
+    /// sks.bitxor_assign(&mut ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct1);
+    ///
+    /// assert_eq!((msg2 ^ msg1) % modulus, res);
+    /// ```
+    pub fn bitxor_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
+        let tmp_rhs: CiphertextBase<OpOrder>;
+
+        if !ct_left.carry_is_empty() {
+            self.clear_carry_assign(ct_left);
+        }
+
+        let rhs = if ct_right.carry_is_empty() {
+            ct_right
+        } else {
+            tmp_rhs = self.clear_carry(ct_right);
+            &tmp_rhs
+        };
+
+        self.unchecked_bitxor_assign(ct_left, rhs);
     }
 
     /// Compute bitwise XOR between two ciphertexts without checks.
@@ -616,6 +870,133 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_bitxor_assign(self, ct_left, ct_right).unwrap()
         })
+    }
+
+    /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1;
+    ///
+    /// // Encrypt two messages:
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically an OR:
+    /// let ct_res = sks.bitor(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!(msg | msg, res);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct1 = cks.encrypt_small(msg);
+    /// let ct2 = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically an OR:
+    /// let ct_res = sks.bitor(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct_res);
+    /// assert_eq!(msg | msg, res);
+    /// ```
+    pub fn bitor<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct_left.clone();
+        self.bitor_assign(&mut ct_res, ct_right);
+        ct_res
+    }
+
+    /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
+    ///
+    /// The result is stored in the `ct_left` cipher text.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let modulus = 4;
+    ///
+    /// let msg1 = 15;
+    /// let msg2 = 3;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct1 = cks.unchecked_encrypt(msg1);
+    /// let ct2 = cks.encrypt(msg2);
+    ///
+    /// // Compute homomorphically an OR:
+    /// sks.bitor_assign(&mut ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct1);
+    ///
+    /// assert_eq!((msg2 | msg1) % modulus, res);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// let mut ct1 = cks.unchecked_encrypt_small(msg1);
+    /// let ct2 = cks.encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically an OR:
+    /// sks.bitor_assign(&mut ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt(&ct1);
+    ///
+    /// assert_eq!((msg2 | msg1) % modulus, res);
+    /// ```
+    pub fn bitor_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
+        let tmp_rhs: CiphertextBase<OpOrder>;
+
+        if !ct_left.carry_is_empty() {
+            self.clear_carry_assign(ct_left);
+        }
+
+        let rhs = if ct_right.carry_is_empty() {
+            ct_right
+        } else {
+            tmp_rhs = self.clear_carry(ct_right);
+            &tmp_rhs
+        };
+
+        self.unchecked_bitor_assign(ct_left, rhs);
     }
 
     /// Compute bitwise OR between two ciphertexts.
