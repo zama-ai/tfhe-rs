@@ -7,6 +7,137 @@ use crate::shortint::{CiphertextBase, PBSOrderMarker};
 impl ServerKey {
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1;
+    ///
+    /// // Encrypt two messages:
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically an addition:
+    /// let ct_res = sks.add(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let two = cks.decrypt(&ct_res);
+    /// assert_eq!(msg + msg, two);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct1 = cks.encrypt_small(msg);
+    /// let ct2 = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically an addition:
+    /// let ct_res = sks.add(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let two = cks.decrypt(&ct_res);
+    /// assert_eq!(msg + msg, two);
+    /// ```
+    pub fn add<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct_left.clone();
+        self.add_assign(&mut ct_res, ct_right);
+        ct_res
+    }
+
+    /// Compute homomorphically an addition between two ciphertexts
+    ///
+    /// The result is stored in the `ct_left` ciphertext.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg1 = 15;
+    /// let msg2 = 3;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct1 = cks.unchecked_encrypt(msg1);
+    /// let ct2 = cks.encrypt(msg2);
+    ///
+    /// // Compute homomorphically an addition:
+    /// sks.add_assign(&mut ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let two = cks.decrypt(&ct1);
+    ///
+    /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!((msg2 + msg1) % modulus, two);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct1 = cks.unchecked_encrypt_small(msg1);
+    /// let ct2 = cks.encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically an addition:
+    /// sks.add_assign(&mut ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let two = cks.decrypt(&ct1);
+    ///
+    /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!((msg2 + msg1) % modulus, two);
+    /// ```
+    pub fn add_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
+        let tmp_rhs: CiphertextBase<OpOrder>;
+
+        if !ct_left.carry_is_empty() {
+            self.clear_carry_assign(ct_left);
+        }
+
+        let rhs = if ct_right.carry_is_empty() {
+            ct_right
+        } else {
+            tmp_rhs = self.clear_carry(ct_right);
+            &tmp_rhs
+        };
+
+        self.unchecked_add_assign(ct_left, rhs);
+        self.message_extract_assign(ct_left);
+    }
+
+    /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
+    ///
     /// The result is returned in a _new_ ciphertext.
     ///
     /// This function computes the addition without checking if it exceeds the capacity of the
