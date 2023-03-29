@@ -1,4 +1,5 @@
 SHELL:=$(shell /usr/bin/env which bash)
+OS:=$(shell uname)
 RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
 TARGET_ARCH_FEATURE:=$(shell ./scripts/get_arch_feature.sh)
@@ -229,8 +230,10 @@ format_doc_latex:
 check_compile_tests: build_c_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
 		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache \
-		-p tfhe && \
-		./scripts/c_api_tests.sh --build-only
+		-p tfhe
+		@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
+			./scripts/c_api_tests.sh --build-only; \
+		fi
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
 build_nodejs_test_docker:

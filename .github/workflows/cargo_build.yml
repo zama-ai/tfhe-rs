@@ -17,16 +17,11 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
       fail-fast: false
 
     steps:
       - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3
-
-      - name: Get rust toolchain to use for checks and lints
-        id: toolchain
-        run: |
-          echo "rs-toolchain=$(make rs_toolchain)" >> "${GITHUB_OUTPUT}"
 
       - name: Run pcc checks
         run: |
