@@ -125,7 +125,7 @@ fn integer_smart_add_sequence_multi_thread(param: Parameters) {
             let ct_res = sks
                 .smart_binary_op_seq_parallelized(&mut ctxts, ServerKey::smart_add_parallelized)
                 .unwrap();
-            let ct_res = cks.decrypt(&ct_res);
+            let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
             assert_eq!(ct_res, clear);
@@ -166,7 +166,7 @@ fn integer_smart_add_sequence_single_thread(param: Parameters) {
                 sks.smart_binary_op_seq_parallelized(&mut ctxts, ServerKey::smart_add_parallelized)
                     .unwrap()
             });
-            let ct_res = cks.decrypt(&ct_res);
+            let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
             assert_eq!(ct_res, clear);
