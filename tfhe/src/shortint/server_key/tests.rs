@@ -121,6 +121,7 @@ create_parametrized_test!(shortint_unchecked_left_shift);
 create_parametrized_test!(shortint_default_left_shift);
 create_parametrized_test!(shortint_unchecked_sub);
 create_parametrized_test!(shortint_smart_sub);
+create_parametrized_test!(shortint_default_sub);
 create_parametrized_test!(shortint_mul_small_carry);
 create_parametrized_test!(shortint_mux);
 
@@ -2501,6 +2502,37 @@ fn shortint_smart_sub(param: Parameters) {
             // scalar multiplication
             ct_res = sks.smart_sub(&mut ct_res, &mut ct2);
             clear_res = (clear_res - clear2) % modulus;
+        }
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(clear_res, dec_res);
+    }
+}
+
+fn shortint_default_sub(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..10 {
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % modulus;
+
+        let ct1 = cks.encrypt(clear1);
+        let ct2 = cks.encrypt(clear2);
+
+        let mut ct_res = sks.sub(&ct1, &ct2);
+
+        let mut clear_res = (clear1.wrapping_sub(clear2)) % modulus;
+        for _ in 0..10 {
+            // scalar multiplication
+            ct_res = sks.sub(&ct_res, &ct2);
+            clear_res = (clear_res.wrapping_sub(clear2)) % modulus;
         }
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
