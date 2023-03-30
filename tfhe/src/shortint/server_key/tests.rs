@@ -105,6 +105,7 @@ create_parametrized_test!(shortint_smart_mul_lsb);
 create_parametrized_test!(shortint_default_mul_lsb);
 create_parametrized_test!(shortint_unchecked_neg);
 create_parametrized_test!(shortint_smart_neg);
+create_parametrized_test!(shortint_default_neg);
 create_parametrized_test!(shortint_unchecked_scalar_add);
 create_parametrized_test!(shortint_smart_scalar_add);
 create_parametrized_test!(shortint_unchecked_scalar_sub);
@@ -1984,6 +1985,39 @@ fn shortint_smart_neg(param: Parameters) {
         for _ in 0..30 {
             // scalar multiplication
             ct_res = sks.smart_neg(&mut ct_res);
+
+            clear_result = clear_result.wrapping_neg() % modulus;
+
+            // decryption of ct_res
+            let dec_res = cks.decrypt(&ct_res);
+
+            // assert
+            assert_eq!(clear_result, dec_res);
+        }
+    }
+}
+
+/// test default negation
+fn shortint_default_neg(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..10 {
+        let clear1 = rng.gen::<u64>() % modulus;
+
+        let ct1 = cks.encrypt(clear1);
+
+        let mut ct_res = sks.neg(&ct1);
+
+        let mut clear_result = clear1.wrapping_neg() % modulus;
+
+        for _ in 0..30 {
+            // scalar multiplication
+            ct_res = sks.neg(&ct_res);
 
             clear_result = clear_result.wrapping_neg() % modulus;
 
