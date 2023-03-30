@@ -55,7 +55,7 @@ impl ClientKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, mut sks) = gen_keys();
+    /// let (cks, sks) = gen_keys();
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt(true);
@@ -78,7 +78,7 @@ impl ClientKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, mut sks) = gen_keys();
+    /// let (cks, sks) = gen_keys();
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt_compressed(true);
@@ -103,7 +103,7 @@ impl ClientKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, mut sks) = gen_keys();
+    /// let (cks, sks) = gen_keys();
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt(true);

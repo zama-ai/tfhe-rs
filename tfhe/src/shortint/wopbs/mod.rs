@@ -43,7 +43,7 @@ impl WopbsKey {
     /// use tfhe::shortint::wopbs::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(WOPBS_PARAM_MESSAGE_1_CARRY_1);
+    /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_1_CARRY_1);
     /// let mut wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// ```
     pub fn new_wopbs_key_only_for_wopbs(cks: &ClientKey, sks: &ServerKey) -> WopbsKey {
@@ -62,7 +62,7 @@ impl WopbsKey {
     /// use tfhe::shortint::wopbs::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
     /// let mut wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1);
     /// ```
     pub fn new_wopbs_key(cks: &ClientKey, sks: &ServerKey, parameters: &Parameters) -> WopbsKey {
@@ -85,13 +85,13 @@ impl WopbsKey {
     /// use tfhe::shortint::wopbs::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     /// let mut wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let message_modulus = WOPBS_PARAM_MESSAGE_2_CARRY_2.message_modulus.0 as u64;
     /// let m = 2;
     /// let mut ct = cks.encrypt(m);
     /// let lut = wopbs_key.generate_lut(&ct, |x| x * x % message_modulus);
-    /// let ct_res = wopbs_key.programmable_bootstrapping(&mut sks, &mut ct, &lut);
+    /// let ct_res = wopbs_key.programmable_bootstrapping(&sks, &mut ct, &lut);
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(res, (m * m) % message_modulus);
     /// ```
@@ -127,7 +127,7 @@ impl WopbsKey {
     /// use tfhe::shortint::wopbs::WopbsKey;
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(WOPBS_PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let message_modulus = WOPBS_PARAM_MESSAGE_2_CARRY_2.message_modulus.0 as u64;
     /// let m = 2;
