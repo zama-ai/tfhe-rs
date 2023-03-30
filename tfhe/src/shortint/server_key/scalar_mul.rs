@@ -7,6 +7,122 @@ use crate::shortint::{CiphertextBase, PBSOrderMarker};
 impl ServerKey {
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1_u64;
+    /// let scalar = 3_u8;
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a scalar multiplication:
+    /// let ct_res = sks.scalar_mul(&mut ct, scalar);
+    ///
+    /// // Our result is what we expect
+    /// let clear = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(msg * scalar as u64 % modulus, clear);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically a scalar multiplication:
+    /// let ct_res = sks.scalar_mul(&mut ct, scalar);
+    ///
+    /// // Our result is what we expect
+    /// let clear = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(msg * scalar as u64 % modulus, clear);
+    /// ```
+    pub fn scalar_mul<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+        scalar: u8,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct.clone();
+        self.scalar_mul_assign(&mut ct_res, scalar);
+        ct_res
+    }
+
+    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1_u64;
+    /// let scalar = 3_u8;
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a scalar multiplication:
+    /// sks.scalar_mul_assign(&mut ct, scalar);
+    ///
+    /// // Our result is what we expect
+    /// let clear = cks.decrypt(&ct);
+    /// assert_eq!(
+    ///     msg * scalar as u64 % cks.parameters.message_modulus.0 as u64,
+    ///     clear
+    /// );
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically a scalar multiplication:
+    /// sks.scalar_mul_assign(&mut ct, scalar);
+    ///
+    /// // Our result is what we expect
+    /// let clear = cks.decrypt(&ct);
+    /// assert_eq!(
+    ///     msg * scalar as u64 % cks.parameters.message_modulus.0 as u64,
+    ///     clear
+    /// );
+    /// ```
+    pub fn scalar_mul_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        scalar: u8,
+    ) {
+        let modulus = self.message_modulus.0 as u64;
+        let acc = self.generate_accumulator(|x| (scalar as u64 * x) % modulus);
+        self.apply_lookup_table_assign(ct, &acc);
+    }
+
+    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
+    ///
     /// The result is returned in a _new_ ciphertext.
     ///
     /// The operation is modulo the the precision bits to the power of two.
