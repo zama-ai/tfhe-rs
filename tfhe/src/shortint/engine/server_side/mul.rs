@@ -86,7 +86,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         ct1: &mut CiphertextBase<OpOrder>,
-        ct2: &mut CiphertextBase<OpOrder>,
+        ct2: &CiphertextBase<OpOrder>,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         //ct1 + ct2
         let mut ct_tmp_left = self.unchecked_add(ct1, ct2)?;
@@ -98,9 +98,11 @@ impl ShortintEngine {
         //Modulus of the msg in the msg bits
         let modulus = ct1.message_modulus.0 as u64;
 
-        let acc_add = self.generate_accumulator(server_key, |x| ((x * x) / 4) % modulus)?;
-        let acc_sub =
-            self.generate_accumulator(server_key, |x| (((x - z) * (x - z)) / 4) % modulus)?;
+        let acc_add =
+            self.generate_accumulator(server_key, |x| ((x.wrapping_mul(x)) / 4) % modulus)?;
+        let acc_sub = self.generate_accumulator(server_key, |x| {
+            (((x.wrapping_sub(z)).wrapping_mul(x.wrapping_sub(z))) / 4) % modulus
+        })?;
 
         self.apply_lookup_table_assign(server_key, &mut ct_tmp_left, &acc_add)?;
         self.apply_lookup_table_assign(server_key, &mut ct_tmp_right, &acc_sub)?;
@@ -113,7 +115,7 @@ impl ShortintEngine {
         &mut self,
         server_key: &ServerKey,
         ct1: &mut CiphertextBase<OpOrder>,
-        ct2: &mut CiphertextBase<OpOrder>,
+        ct2: &CiphertextBase<OpOrder>,
     ) -> EngineResult<()> {
         *ct1 = self.unchecked_mul_lsb_small_carry_modulus(server_key, ct1, ct2)?;
         Ok(())
