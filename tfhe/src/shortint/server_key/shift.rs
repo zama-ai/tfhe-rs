@@ -5,6 +5,153 @@ use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::{CiphertextBase, PBSOrderMarker};
 
 impl ServerKey {
+    /// Compute homomorphically a right shift of the bits.
+    ///
+    /// This returns a new ciphertext.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 2;
+    ///
+    /// // Encrypt a message
+    /// let ct = cks.encrypt(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Compute homomorphically a right shift
+    /// let shift: u8 = 1;
+    /// let ct_res = sks.scalar_right_shift(&ct, shift);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// // Decrypt:
+    /// let dec = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(msg >> shift, dec);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let ct = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Compute homomorphically a right shift
+    /// let shift: u8 = 1;
+    /// let ct_res = sks.scalar_right_shift(&ct, shift);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// // Decrypt:
+    /// let dec = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(msg >> shift, dec);
+    /// ```
+    pub fn scalar_right_shift<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+        shift: u8,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct.clone();
+        self.scalar_right_shift_assign(&mut ct_res, shift);
+        ct_res
+    }
+
+    /// Compute homomorphically a right shift of the bits.
+    ///
+    /// This stores the result in `ct`.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 2;
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Compute homomorphically a right shift
+    /// let shift: u8 = 1;
+    /// sks.scalar_right_shift_assign(&mut ct, shift);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// // Decrypt:
+    /// let dec = cks.decrypt(&ct);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(msg >> shift, dec);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Compute homomorphically a right shift
+    /// let shift: u8 = 1;
+    /// sks.scalar_right_shift_assign(&mut ct, shift);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// // Decrypt:
+    /// let dec = cks.decrypt(&ct);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(msg >> shift, dec);
+    /// ```
+    pub fn scalar_right_shift_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        shift: u8,
+    ) {
+        let modulus = self.message_modulus.0 as u64;
+        let acc = self.generate_accumulator(|x| (x >> shift) % modulus);
+        self.apply_lookup_table_assign(ct, &acc);
+    }
+
     /// Compute homomorphically a right shift of the bits without checks.
     ///
     /// # Example
@@ -135,6 +282,152 @@ impl ServerKey {
                 .unchecked_scalar_right_shift_assign(self, ct, shift)
                 .unwrap()
         })
+    }
+
+    /// Compute homomorphically a left shift of the bits.
+    ///
+    /// This returns a new ciphertext.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1;
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// let shift: u8 = 1;
+    /// let ct_res = sks.scalar_left_shift(&mut ct, shift);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Decrypt:
+    /// let msg_only = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// assert_eq!((msg << shift) % modulus, msg_only);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// let shift: u8 = 1;
+    /// let ct_res = sks.scalar_left_shift(&mut ct, shift);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Decrypt:
+    /// let msg_only = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// ```
+    pub fn scalar_left_shift<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+        shift: u8,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct.clone();
+        self.scalar_left_shift_assign(&mut ct_res, shift);
+        ct_res
+    }
+
+    /// Compute homomorphically a left shift of the bits.
+    ///
+    /// This writes the resul in `ct`.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 1;
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// let shift: u8 = 1;
+    /// sks.scalar_left_shift_assign(&mut ct, shift);
+    /// // |      ct         |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Decrypt:
+    /// let msg_only = cks.decrypt(&ct);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// assert_eq!((msg << shift) % modulus, msg_only);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    /// // |       ct        |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 1   |
+    ///
+    /// let shift: u8 = 1;
+    /// sks.scalar_left_shift_assign(&mut ct, shift);
+    /// // |      ct         |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   1 0   |
+    ///
+    /// // Decrypt:
+    /// let msg_only = cks.decrypt(&ct);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    ///
+    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// ```
+    pub fn scalar_left_shift_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut CiphertextBase<OpOrder>,
+        shift: u8,
+    ) {
+        let modulus = self.message_modulus.0 as u64;
+        let acc = self.generate_accumulator(|x| (x << shift) % modulus);
+        self.apply_lookup_table_assign(ct, &acc);
     }
 
     /// Compute homomorphically a left shift of the bits without checks.
