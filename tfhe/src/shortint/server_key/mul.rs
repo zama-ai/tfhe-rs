@@ -645,6 +645,441 @@ impl ServerKey {
         }
     }
 
+    /// Multiply two ciphertexts together
+    ///
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// message_modulus.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg1 = 12;
+    /// let msg2 = 13;
+    ///
+    /// // Encrypt two messages:
+    /// let ct_left = cks.unchecked_encrypt(msg1);
+    /// // |      ct_left    |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 0   |
+    /// let ct_right = cks.unchecked_encrypt(msg2);
+    /// // |      ct_right   |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 1   |
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.mul_lsb(&ct_left, &ct_right);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 0   |
+    ///
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = sks.message_modulus.0;
+    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct_left = cks.unchecked_encrypt_small(msg1);
+    /// // |      ct_left    |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 0   |
+    /// let ct_right = cks.unchecked_encrypt_small(msg2);
+    /// // |      ct_right   |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 1   |
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.mul_lsb(&ct_left, &ct_right);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 0   |
+    ///
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = sks.message_modulus.0;
+    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// ```
+    pub fn mul_lsb<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct_left.clone();
+        self.mul_lsb_assign(&mut ct_res, ct_right);
+        ct_res
+    }
+
+    /// Multiply two ciphertexts together
+    ///
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// message_modulus.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg1 = 12;
+    /// let msg2 = 13;
+    ///
+    /// // Encrypt two messages:
+    /// let ct_left = cks.unchecked_encrypt(msg1);
+    /// // |      ct_left    |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 0   |
+    /// let ct_right = cks.unchecked_encrypt(msg2);
+    /// // |      ct_right   |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 1   |
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.mul(&ct_left, &ct_right);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 0   |
+    ///
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = sks.message_modulus.0;
+    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct_left = cks.unchecked_encrypt_small(msg1);
+    /// // |      ct_left    |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 0   |
+    /// let ct_right = cks.unchecked_encrypt_small(msg2);
+    /// // |      ct_right   |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  1 1  |   0 1   |
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.mul(&ct_left, &ct_right);
+    /// // |      ct_res     |
+    /// // | carry | message |
+    /// // |-------|---------|
+    /// // |  0 0  |   0 0   |
+    ///
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = sks.message_modulus.0;
+    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// ```
+    pub fn mul<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        self.mul_lsb(ct_left, ct_right)
+    }
+
+    /// Multiply two ciphertexts.
+    ///
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// message_modulus.
+    ///
+    /// The result is _assigned_ in the first ciphertext
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    ///  # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_1;
+    /// use tfhe::shortint::{gen_keys, Parameters};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_1);
+    ///
+    /// let msg1 = 5;
+    /// let msg2 = 3;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt(msg1);
+    /// let ct_2 = cks.unchecked_encrypt(msg2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// sks.mul_lsb_assign(&mut ct_1, &ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt_small(msg1);
+    /// let ct_2 = cks.unchecked_encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// sks.mul_lsb_assign(&mut ct_1, &ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    /// ```
+    pub fn mul_lsb_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
+        let tmp_rhs: CiphertextBase<OpOrder>;
+
+        if !ct_left.carry_is_empty() {
+            self.clear_carry_assign(ct_left);
+        }
+
+        let rhs = if ct_right.carry_is_empty() {
+            ct_right
+        } else {
+            tmp_rhs = self.clear_carry(ct_right);
+            &tmp_rhs
+        };
+
+        if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
+            ShortintEngine::with_thread_local_mut(|engine| {
+                engine
+                    .unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, rhs)
+                    .unwrap()
+            });
+            self.clear_carry_assign(ct_left);
+        } else {
+            ShortintEngine::with_thread_local_mut(|engine| {
+                engine.unchecked_mul_lsb_assign(self, ct_left, rhs).unwrap()
+            });
+        }
+    }
+
+    /// Multiply two ciphertexts.
+    ///
+    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
+    /// message_modulus.
+    ///
+    /// The result is _assigned_ in the first ciphertext
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    ///  # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_1;
+    /// use tfhe::shortint::{gen_keys, Parameters};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_1);
+    ///
+    /// let msg1 = 5;
+    /// let msg2 = 3;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt(msg1);
+    /// let ct_2 = cks.unchecked_encrypt(msg2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// sks.mul_assign(&mut ct_1, &ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt_small(msg1);
+    /// let ct_2 = cks.unchecked_encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// sks.mul_assign(&mut ct_1, &ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    /// ```
+    pub fn mul_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
+        self.mul_lsb_assign(ct_left, ct_right)
+    }
+
+    /// Multiply two ciphertexts together
+    ///
+    /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
+    /// buffer.
+    ///
+    /// The result is _assigned_ in the first ciphertext
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg1 = 12;
+    /// let msg2 = 12;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt(msg1);
+    /// let ct_2 = cks.unchecked_encrypt(msg2);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// sks.mul_msb_assign(&mut ct_1, &ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt_small(msg1);
+    /// let ct_2 = cks.unchecked_encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// sks.mul_msb_assign(&mut ct_1, &ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
+    /// ```
+    pub fn mul_msb_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
+        let tmp_rhs: CiphertextBase<OpOrder>;
+
+        if !ct_left.carry_is_empty() {
+            self.clear_carry_assign(ct_left);
+        }
+
+        let rhs = if ct_right.carry_is_empty() {
+            ct_right
+        } else {
+            tmp_rhs = self.clear_carry(ct_right);
+            &tmp_rhs
+        };
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.unchecked_mul_msb_assign(self, ct_left, rhs).unwrap()
+        });
+    }
+
+    /// Multiply two ciphertexts together
+    ///
+    /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
+    /// buffer.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg1 = 12;
+    /// let msg2 = 12;
+    ///
+    /// // Encrypt two messages:
+    /// let ct_1 = cks.unchecked_encrypt(msg1);
+    /// let ct_2 = cks.unchecked_encrypt(msg2);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.mul_msb(&ct_1, &ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let ct_1 = cks.unchecked_encrypt_small(msg1);
+    /// let ct_2 = cks.unchecked_encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// let ct_res = sks.mul_msb(&ct_1, &ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_res);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
+    /// ```
+    pub fn mul_msb<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct_left.clone();
+        self.mul_msb_assign(&mut ct_res, ct_right);
+        ct_res
+    }
+
     /// Multiply two ciphertexts.
     ///
     /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
@@ -698,6 +1133,49 @@ impl ServerKey {
         })
     }
 
+    /// Multiply two ciphertexts together
+    ///
+    /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
+    /// buffer.
+    ///
+    /// The result is _assigned_ in the first ciphertext
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg1 = 12;
+    /// let msg2 = 12;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt(msg1);
+    /// let mut ct_2 = cks.unchecked_encrypt(msg2);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// sks.smart_mul_msb_assign(&mut ct_1, &mut ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
+    ///
+    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.unchecked_encrypt_small(msg1);
+    /// let mut ct_2 = cks.unchecked_encrypt_small(msg2);
+    ///
+    /// // Compute homomorphically a multiplication:
+    /// sks.smart_mul_msb_assign(&mut ct_1, &mut ct_2);
+    ///
+    /// let res = cks.decrypt(&ct_1);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
+    /// ```
     pub fn smart_mul_msb_assign<OpOrder: PBSOrderMarker>(
         &self,
         ct_left: &mut CiphertextBase<OpOrder>,
@@ -810,8 +1288,8 @@ impl ServerKey {
     /// let ct_res = sks.smart_mul_msb(&mut ct_1, &mut ct_2);
     ///
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = sks.carry_modulus.0;
-    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
@@ -823,8 +1301,8 @@ impl ServerKey {
     /// let ct_res = sks.smart_mul_msb(&mut ct_1, &mut ct_2);
     ///
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = sks.carry_modulus.0;
-    /// assert_eq!(res, (msg1 * msg2) % modulus as u64);
+    /// let modulus = sks.message_modulus.0 as u64;
+    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     /// ```
     pub fn smart_mul_msb<OpOrder: PBSOrderMarker>(
         &self,
