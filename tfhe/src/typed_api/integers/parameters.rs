@@ -1,4 +1,4 @@
-use crate::integer::{CrtCiphertext, CrtClientKey, RadixCiphertextBig, RadixClientKey};
+use crate::integer::CrtClientKey;
 use crate::typed_api::internal_traits::{FromParameters, ParameterType};
 use serde::{Deserialize, Serialize};
 
@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 pub struct RadixParameters {
     pub block_parameters: crate::shortint::Parameters,
     pub num_block: usize,
+    pub pbs_order: crate::shortint::PBSOrder,
     pub wopbs_block_parameters: crate::shortint::Parameters,
 }
 
@@ -36,25 +37,6 @@ pub trait EvaluationIntegerKey<ClientKey> {
         server_key: &Self,
         wopbs_block_parameters: crate::shortint::Parameters,
     ) -> crate::integer::wopbs::WopbsKey;
-}
-
-impl<P> FromParameters<P> for crate::integer::RadixClientKey
-where
-    P: Into<RadixParameters>,
-{
-    fn from_parameters(parameters: P) -> Self {
-        let params = parameters.into();
-        #[cfg(feature = "internal-keycache")]
-        {
-            use crate::integer::keycache::KEY_CACHE;
-            let key = KEY_CACHE.get_from_params(params.block_parameters).0;
-            crate::integer::RadixClientKey::from((key, params.num_block))
-        }
-        #[cfg(not(feature = "internal-keycache"))]
-        {
-            crate::integer::RadixClientKey::new(params.block_parameters, params.num_block)
-        }
-    }
 }
 
 impl<P> FromParameters<P> for crate::integer::CrtClientKey
@@ -105,18 +87,14 @@ pub trait StaticRadixParameter:
     StaticIntegerParameter<Representation = RadixRepresentation>
 where
     Self: IntegerParameter<
-        InnerClientKey = RadixClientKey,
+        InnerClientKey = crate::typed_api::integers::client_key::RadixClientKey,
         InnerServerKey = crate::integer::ServerKey,
-        InnerCiphertext = RadixCiphertextBig,
     >,
 {
 }
 pub trait StaticCrtParameter: StaticIntegerParameter<Representation = CrtRepresentation>
 where
-    Self: IntegerParameter<
-        InnerClientKey = CrtClientKey,
-        InnerServerKey = crate::integer::ServerKey,
-        InnerCiphertext = CrtCiphertext,
-    >,
+    Self:
+        IntegerParameter<InnerClientKey = CrtClientKey, InnerServerKey = crate::integer::ServerKey>,
 {
 }

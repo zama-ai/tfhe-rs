@@ -40,7 +40,7 @@ fn main() {
     let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
 
     // decryption
-    let res = cks.decrypt(&ct_res);
+    let res: u64 = cks.decrypt(&ct_res);
 
     let clear = f(msg) % modulus;
     assert_eq!(res, clear);

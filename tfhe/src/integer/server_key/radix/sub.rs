@@ -32,7 +32,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_sub(&ctxt_1, &ctxt_2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ct_res);
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg_1 - msg_2);
     /// ```
     pub fn unchecked_sub<PBSOrder: PBSOrderMarker>(
@@ -73,7 +73,7 @@ impl ServerKey {
     /// sks.unchecked_sub_assign(&mut ctxt_1, &ctxt_2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ctxt_1);
+    /// let dec_result: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(dec_result, msg_1 - msg_2);
     /// ```
     pub fn unchecked_sub_assign<PBSOrder: PBSOrderMarker>(
@@ -97,8 +97,8 @@ impl ServerKey {
     /// let num_blocks = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg_1 = 182;
-    /// let msg_2 = 120;
+    /// let msg_1 = 182u64;
+    /// let msg_2 = 120u64;
     ///
     /// // Encrypt two messages:
     /// let ctxt_1 = cks.encrypt(msg_1);
@@ -139,7 +139,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg = 1;
+    /// let msg = 1u64;
     ///
     /// // Encrypt two messages:
     /// let ctxt_1 = cks.encrypt(msg);
@@ -151,7 +151,7 @@ impl ServerKey {
     /// match ct_res {
     ///     Err(x) => panic!("{:?}", x),
     ///     Ok(y) => {
-    ///         let clear = cks.decrypt(&y);
+    ///         let clear: u64 = cks.decrypt(&y);
     ///         assert_eq!(0, clear);
     ///     }
     /// }
@@ -197,7 +197,7 @@ impl ServerKey {
     ///
     /// assert!(res.is_ok());
     ///
-    /// let clear = cks.decrypt(&ct1);
+    /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1.wrapping_sub(msg2) as u64, clear);
     /// ```
     pub fn checked_sub_assign<PBSOrder: PBSOrderMarker>(
@@ -236,7 +236,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_sub(&mut ctxt_1, &mut ctxt_2);
     ///
     /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
+    /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
     pub fn smart_sub<PBSOrder: PBSOrderMarker>(
@@ -284,7 +284,7 @@ impl ServerKey {
     /// sks.smart_sub_assign(&mut ctxt_1, &mut ctxt_2);
     ///
     /// // Decrypt:
-    /// let res = cks.decrypt(&ctxt_1);
+    /// let res: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
     pub fn smart_sub_assign<PBSOrder: PBSOrderMarker>(

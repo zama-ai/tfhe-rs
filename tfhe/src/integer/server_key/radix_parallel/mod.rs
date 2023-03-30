@@ -30,7 +30,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg = 7;
+    /// let msg = 7u64;
     ///
     /// let ct1 = cks.encrypt(msg);
     /// let ct2 = cks.encrypt(msg);
@@ -40,7 +40,7 @@ impl ServerKey {
     /// sks.propagate_parallelized(&mut ct_res, 0);
     ///
     /// // Decrypt one block:
-    /// let res = cks.decrypt_one_block(&ct_res.blocks()[1]);
+    /// let res: u64 = cks.decrypt_one_block(&ct_res.blocks()[1]);
     /// assert_eq!(3, res);
     /// ```
     pub fn propagate_parallelized<PBSOrder: PBSOrderMarker>(
@@ -73,7 +73,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg = 10;
+    /// let msg = 10u64;
     ///
     /// let mut ct1 = cks.encrypt(msg);
     /// let mut ct2 = cks.encrypt(msg);
@@ -83,7 +83,7 @@ impl ServerKey {
     /// sks.full_propagate_parallelized(&mut ct_res);
     ///
     /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
+    /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + msg, res);
     /// ```
     pub fn full_propagate_parallelized<PBSOrder: PBSOrderMarker>(

@@ -1,12 +1,14 @@
+#[cfg(feature = "integer")]
+use crate::integer::U256;
 use crate::typed_api::prelude::*;
 #[cfg(feature = "boolean")]
 use crate::typed_api::FheBool;
 #[cfg(feature = "shortint")]
 use crate::typed_api::FheUint2;
-#[cfg(feature = "integer")]
-use crate::typed_api::FheUint8;
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 use crate::typed_api::{generate_keys, ClientKey, ConfigBuilder, PublicKey};
+#[cfg(feature = "integer")]
+use crate::typed_api::{FheUint256, FheUint8};
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 use std::fmt::Debug;
 
@@ -66,6 +68,39 @@ fn test_integer_public_key() {
     assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint8, u8>(235, &pks, &cks);
 }
 
+#[cfg(feature = "integer")]
+#[test]
+fn test_small_uint8() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_uint8_small()
+        .build();
+
+    let (cks, _sks) = generate_keys(config);
+
+    let pks = PublicKey::new(&cks);
+
+    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint8, u8>(235, &pks, &cks);
+}
+
+#[cfg(feature = "integer")]
+#[test]
+fn test_small_uint256() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_uint256_small()
+        .build();
+
+    let (cks, _sks) = generate_keys(config);
+
+    let pks = PublicKey::new(&cks);
+
+    use rand::prelude::*;
+    let mut rng = rand::thread_rng();
+    let value = rng.gen::<U256>();
+    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint256, U256>(
+        value, &pks, &cks,
+    );
+}
+
 #[cfg(feature = "boolean")]
 #[test]
 fn test_with_context() {
@@ -78,5 +113,5 @@ fn test_with_context() {
 
     let (r, _) = crate::typed_api::with_server_key_as_context(sks, move || a & b);
     let d = r.decrypt(&cks);
-    assert!(d);
+    assert!(!d);
 }

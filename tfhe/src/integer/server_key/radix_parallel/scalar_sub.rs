@@ -24,7 +24,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_scalar_sub_parallelized(&mut ct, scalar);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
     pub fn smart_scalar_sub_parallelized<PBSOrder: PBSOrderMarker>(

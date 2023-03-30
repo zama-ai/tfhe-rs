@@ -21,8 +21,8 @@ impl ServerKey {
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
     ///
-    /// let msg1 = 201;
-    /// let msg2 = 1;
+    /// let msg1 = 201u64;
+    /// let msg2 = 1u64;
     ///
     /// let ct1 = cks.encrypt(msg1);
     /// let ct2 = cks.encrypt(msg2);
@@ -31,7 +31,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_bitand(&ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 & msg2);
     /// ```
     pub fn unchecked_bitand<PBSOrder: PBSOrderMarker>(
@@ -67,8 +67,8 @@ impl ServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
     ///
-    /// let msg1 = 46;
-    /// let msg2 = 87;
+    /// let msg1 = 46u64;
+    /// let msg2 = 87u64;
     ///
     /// let ct1 = cks.encrypt(msg1);
     /// let ct2 = cks.encrypt(msg2);
@@ -120,7 +120,7 @@ impl ServerKey {
     /// match ct_res {
     ///     Err(x) => panic!("{:?}", x),
     ///     Ok(y) => {
-    ///         let clear = cks.decrypt(&y);
+    ///         let clear: u64 = cks.decrypt(&y);
     ///         assert_eq!(msg1 & msg2, clear);
     ///     }
     /// }
@@ -163,7 +163,7 @@ impl ServerKey {
     ///
     /// assert!(res.is_ok());
     ///
-    /// let clear = cks.decrypt(&ct1);
+    /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 & msg2, clear);
     /// ```
     pub fn checked_bitand_assign<PBSOrder: PBSOrderMarker>(
@@ -201,7 +201,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_bitand(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ct_res);
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 & msg2);
     /// ```
     pub fn smart_bitand<PBSOrder: PBSOrderMarker>(
@@ -255,7 +255,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_bitor(&ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 | msg2);
     /// ```
     pub fn unchecked_bitor<PBSOrder: PBSOrderMarker>(
@@ -306,7 +306,7 @@ impl ServerKey {
     /// match ct_res {
     ///     Err(x) => panic!("{:?}", x),
     ///     Ok(y) => {
-    ///         let clear = cks.decrypt(&y);
+    ///         let clear: u64 = cks.decrypt(&y);
     ///         assert_eq!(msg1 | msg2, clear);
     ///     }
     /// }
@@ -350,7 +350,7 @@ impl ServerKey {
     ///
     /// assert!(res.is_ok());
     ///
-    /// let clear = cks.decrypt(&ct1);
+    /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 | msg2, clear);
     /// ```
     pub fn checked_bitor_assign<PBSOrder: PBSOrderMarker>(
@@ -388,7 +388,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_bitor(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ct_res);
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 | msg2);
     /// ```
     pub fn smart_bitor<PBSOrder: PBSOrderMarker>(
@@ -442,7 +442,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_bitxor(&ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg1 ^ msg2, dec);
     /// ```
     pub fn unchecked_bitxor<PBSOrder: PBSOrderMarker>(
@@ -493,7 +493,7 @@ impl ServerKey {
     /// match ct_res {
     ///     Err(x) => panic!("{:?}", x),
     ///     Ok(y) => {
-    ///         let clear = cks.decrypt(&y);
+    ///         let clear: u64 = cks.decrypt(&y);
     ///         assert_eq!(msg1 ^ msg2, clear);
     ///     }
     /// }
@@ -537,7 +537,7 @@ impl ServerKey {
     ///
     /// assert!(res.is_ok());
     ///
-    /// let clear = cks.decrypt(&ct1);
+    /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 ^ msg2, clear);
     /// ```
     pub fn checked_bitxor_assign<PBSOrder: PBSOrderMarker>(
@@ -575,7 +575,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_bitxor(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ct_res);
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 ^ msg2);
     /// ```
     pub fn smart_bitxor<PBSOrder: PBSOrderMarker>(

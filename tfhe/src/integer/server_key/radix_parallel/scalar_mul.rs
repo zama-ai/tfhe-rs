@@ -33,7 +33,7 @@ impl ServerKey {
     /// // Compute homomorphically a scalar multiplication:
     /// let ct_res = sks.unchecked_small_scalar_mul_parallelized(&ct, scalar);
     ///
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(scalar * msg, clear);
     /// ```
     pub fn unchecked_small_scalar_mul_parallelized<PBSOrder: PBSOrderMarker>(
@@ -82,7 +82,7 @@ impl ServerKey {
     /// match ct_res {
     ///     Err(x) => panic!("{:?}", x),
     ///     Ok(y) => {
-    ///         let clear = cks.decrypt(&y);
+    ///         let clear: u64 = cks.decrypt(&y);
     ///         assert_eq!(msg * scalar, clear);
     ///     }
     /// }
@@ -124,7 +124,7 @@ impl ServerKey {
     /// // Compute homomorphically a scalar multiplication:
     /// sks.checked_small_scalar_mul_assign_parallelized(&mut ct, scalar);
     ///
-    /// let clear_res = cks.decrypt(&ct);
+    /// let clear_res: u64 = cks.decrypt(&ct);
     /// assert_eq!(clear_res, msg * scalar);
     /// ```
     pub fn checked_small_scalar_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
@@ -169,7 +169,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_small_scalar_mul_parallelized(&mut ct, scalar);
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
     pub fn smart_small_scalar_mul_parallelized<PBSOrder: PBSOrderMarker>(
@@ -211,7 +211,7 @@ impl ServerKey {
     /// sks.smart_small_scalar_mul_assign_parallelized(&mut ct, scalar);
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct);
+    /// let clear: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
     pub fn smart_small_scalar_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
@@ -248,7 +248,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_scalar_mul_parallelized(&mut ct, scalar);
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
     pub fn smart_scalar_mul_parallelized<PBSOrder: PBSOrderMarker>(

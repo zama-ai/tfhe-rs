@@ -53,7 +53,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_bitand_parallelized(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ct_res);
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 & msg2);
     /// ```
     pub fn smart_bitand_parallelized<PBSOrder: PBSOrderMarker>(
@@ -133,7 +133,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_bitor(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ct_res);
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 | msg2);
     /// ```
     pub fn smart_bitor_parallelized<PBSOrder: PBSOrderMarker>(
@@ -213,7 +213,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_bitxor_parallelized(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ct_res);
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 ^ msg2);
     /// ```
     pub fn smart_bitxor_parallelized<PBSOrder: PBSOrderMarker>(

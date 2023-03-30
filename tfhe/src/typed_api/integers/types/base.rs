@@ -5,14 +5,10 @@ use std::ops::{
     Neg, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
-use crate::integer::wopbs::WopbsKey;
-use crate::integer::{CrtCiphertext, RadixCiphertextBig, U256};
+use crate::integer::U256;
 use crate::typed_api::global_state::WithGlobalKey;
 use crate::typed_api::integers::client_key::GenericIntegerClientKey;
-use crate::typed_api::integers::parameters::{
-    CrtRepresentation, IntegerParameter, RadixRepresentation, StaticCrtParameter,
-    StaticIntegerParameter, StaticRadixParameter,
-};
+use crate::typed_api::integers::parameters::IntegerParameter;
 use crate::typed_api::integers::public_key::GenericIntegerPublicKey;
 use crate::typed_api::integers::server_key::{
     GenericIntegerServerKey, SmartAdd, SmartAddAssign, SmartBitAnd, SmartBitAndAssign, SmartBitOr,
@@ -76,7 +72,7 @@ impl<P> FheDecrypt<u64> for GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: RefKeyFromKeyChain<Key = GenericIntegerClientKey<P>>,
-    P::InnerClientKey: DecryptionKey<u64, Ciphertext = P::InnerCiphertext>,
+    P::InnerClientKey: DecryptionKey<P::InnerCiphertext, u64>,
 {
     fn decrypt(&self, key: &ClientKey) -> u64 {
         let key = self.id.unwrapped_ref_key(key);
@@ -88,7 +84,7 @@ impl<P> FheDecrypt<U256> for GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: RefKeyFromKeyChain<Key = GenericIntegerClientKey<P>>,
-    P::InnerClientKey: DecryptionKey<U256, Ciphertext = P::InnerCiphertext>,
+    P::InnerClientKey: DecryptionKey<P::InnerCiphertext, U256>,
 {
     fn decrypt(&self, key: &ClientKey) -> U256 {
         let key = self.id.unwrapped_ref_key(key);
@@ -99,9 +95,9 @@ where
 impl<P, T> FheTryEncrypt<T, ClientKey> for GenericInteger<P>
 where
     T: Into<U256>,
-    P: StaticIntegerParameter,
+    P: IntegerParameter,
     P::Id: RefKeyFromKeyChain<Key = GenericIntegerClientKey<P>> + Default,
-    P::InnerClientKey: EncryptionKey<U256, Ciphertext = P::InnerCiphertext>,
+    P::InnerClientKey: EncryptionKey<U256, P::InnerCiphertext>,
 {
     type Error = crate::typed_api::errors::Error;
 
@@ -117,9 +113,9 @@ where
 impl<P, T> FheTryEncrypt<T, PublicKey> for GenericInteger<P>
 where
     T: Into<U256>,
-    P: StaticIntegerParameter,
+    P: IntegerParameter,
     P::Id: RefKeyFromPublicKeyChain<Key = GenericIntegerPublicKey<P>> + Default,
-    P::InnerPublicKey: EncryptionKey<U256, Ciphertext = P::InnerCiphertext>,
+    P::InnerPublicKey: EncryptionKey<U256, P::InnerCiphertext>,
 {
     type Error = crate::typed_api::errors::Error;
 
@@ -343,157 +339,22 @@ where
     }
 }
 
-// This extra trait is needed as otherwise
-//
-// impl<P> FheBootstrap for GenericInteger<P>
-//     where P: StaticCrtParameters,
-//           P: IntegerParameter<InnerCiphertext=CrtCiphertext>,
-// { /* sutff */ }
-//
-// impl<P> FheBootstrap for GenericInteger<P>
-//     where P: StaticRadixParameters,
-//         P: IntegerParameter<InnerCiphertext=RadixCiphertext>,
-//       P::Id: WithGlobalKey<Key=GenericIntegerServerKey<P>>,
-// { /* sutff */ }
-//
-// Leads to errors about conflicting impl
-pub trait WopbsExecutor<
-    P: StaticIntegerParameter,
-    R = <P as StaticIntegerParameter>::Representation,
->
-{
-    fn execute_wopbs<F: Fn(u64) -> u64>(
-        &self,
-        ct_in: &GenericInteger<P>,
-        func: F,
-    ) -> GenericInteger<P>;
-
-    fn execute_bivariate_wopbs<F: Fn(u64, u64) -> u64>(
-        &self,
-        lhs: &GenericInteger<P>,
-        rhs: &GenericInteger<P>,
-        func: F,
-    ) -> GenericInteger<P>;
-}
-
-pub(crate) fn wopbs_radix(
-    wopbs_key: &WopbsKey,
-    server_key: &crate::integer::ServerKey,
-    ct_in: &RadixCiphertextBig,
-    func: impl Fn(u64) -> u64,
-) -> RadixCiphertextBig {
-    let switched_ct = wopbs_key.keyswitch_to_wopbs_params(server_key, ct_in);
-    let luts = wopbs_key.generate_lut_radix(&switched_ct, func);
-    let res = wopbs_key.wopbs(&switched_ct, luts.as_slice());
-    wopbs_key.keyswitch_to_pbs_params(&res)
-}
-
-pub(crate) fn bivariate_wopbs_radix(
-    wopbs_key: &WopbsKey,
-    server_key: &crate::integer::ServerKey,
-    lhs: &RadixCiphertextBig,
-    rhs: &RadixCiphertextBig,
-    func: impl Fn(u64, u64) -> u64,
-) -> RadixCiphertextBig {
-    let switched_lhs = wopbs_key.keyswitch_to_wopbs_params(server_key, lhs);
-    let switched_rhs = wopbs_key.keyswitch_to_wopbs_params(server_key, rhs);
-    let lut = wopbs_key.generate_lut_bivariate_radix(&switched_lhs, &switched_rhs, func);
-    let res = wopbs_key.bivariate_wopbs_with_degree(&switched_lhs, &switched_rhs, lut.as_slice());
-    wopbs_key.keyswitch_to_pbs_params(&res)
-}
-
-pub(crate) fn wopbs_crt(
-    wopbs_key: &WopbsKey,
-    server_key: &crate::integer::ServerKey,
-    ct_in: &CrtCiphertext,
-    func: impl Fn(u64) -> u64,
-) -> CrtCiphertext {
-    let switched_ct = wopbs_key.keyswitch_to_wopbs_params(server_key, ct_in);
-    let luts = wopbs_key.generate_lut_crt(&switched_ct, func);
-    let res = wopbs_key.wopbs(&switched_ct, luts.as_slice());
-    wopbs_key.keyswitch_to_pbs_params(&res)
-}
-
-pub(crate) fn bivariate_wopbs_crt(
-    wopbs_key: &WopbsKey,
-    server_key: &crate::integer::ServerKey,
-    lhs: &CrtCiphertext,
-    rhs: &CrtCiphertext,
-    func: impl Fn(u64, u64) -> u64,
-) -> CrtCiphertext {
-    let switched_lhs = wopbs_key.keyswitch_to_wopbs_params(server_key, lhs);
-    let switched_rhs = wopbs_key.keyswitch_to_wopbs_params(server_key, rhs);
-    let lut = wopbs_key.generate_lut_bivariate_crt(&switched_lhs, &switched_rhs, func);
-    let res = wopbs_key.bivariate_wopbs_native_crt(&switched_lhs, &switched_rhs, lut.as_slice());
-    wopbs_key.keyswitch_to_pbs_params(&res)
-}
-
-impl<P> WopbsExecutor<P, RadixRepresentation> for GenericIntegerServerKey<P>
-where
-    P: StaticRadixParameter,
-{
-    fn execute_wopbs<F: Fn(u64) -> u64>(
-        &self,
-        ct_in: &GenericInteger<P>,
-        func: F,
-    ) -> GenericInteger<P> {
-        let ct = ct_in.ciphertext.borrow();
-        let res = wopbs_radix(&self.wopbs_key, &self.inner, &ct, func);
-        GenericInteger::<P>::new(res, ct_in.id)
-    }
-
-    fn execute_bivariate_wopbs<F: Fn(u64, u64) -> u64>(
-        &self,
-        lhs: &GenericInteger<P>,
-        rhs: &GenericInteger<P>,
-        func: F,
-    ) -> GenericInteger<P> {
-        let lhs_ct = lhs.ciphertext.borrow();
-        let rhs_ct = rhs.ciphertext.borrow();
-
-        let res_ct = bivariate_wopbs_radix(&self.wopbs_key, &self.inner, &lhs_ct, &rhs_ct, func);
-
-        GenericInteger::<P>::new(res_ct, lhs.id)
-    }
-}
-
-impl<P> WopbsExecutor<P, CrtRepresentation> for GenericIntegerServerKey<P>
-where
-    P: StaticCrtParameter,
-{
-    fn execute_wopbs<F: Fn(u64) -> u64>(
-        &self,
-        ct_in: &GenericInteger<P>,
-        func: F,
-    ) -> GenericInteger<P> {
-        let ct = ct_in.ciphertext.borrow();
-        let res = wopbs_crt(&self.wopbs_key, &self.inner, &ct, func);
-        GenericInteger::<P>::new(res, ct_in.id)
-    }
-
-    fn execute_bivariate_wopbs<F: Fn(u64, u64) -> u64>(
-        &self,
-        lhs: &GenericInteger<P>,
-        rhs: &GenericInteger<P>,
-        func: F,
-    ) -> GenericInteger<P> {
-        let lhs_ct = lhs.ciphertext.borrow();
-        let rhs_ct = rhs.ciphertext.borrow();
-
-        let res_ct = bivariate_wopbs_crt(&self.wopbs_key, &self.inner, &lhs_ct, &rhs_ct, func);
-        GenericInteger::<P>::new(res_ct, lhs.id)
-    }
-}
-
 impl<P> FheBootstrap for GenericInteger<P>
 where
-    P: StaticIntegerParameter,
+    P: IntegerParameter,
     P::Id: WithGlobalKey<Key = GenericIntegerServerKey<P>>,
-    GenericIntegerServerKey<P>: WopbsExecutor<P, <P as StaticIntegerParameter>::Representation>,
+    crate::integer::wopbs::WopbsKey: crate::typed_api::integers::server_key::WopbsEvaluationKey<
+        P::InnerServerKey,
+        P::InnerCiphertext,
+    >,
 {
     fn map<F: Fn(u64) -> u64>(&self, func: F) -> Self {
-        self.id
-            .with_unwrapped_global(|key| key.execute_wopbs(self, func))
+        use crate::typed_api::integers::server_key::WopbsEvaluationKey;
+        self.id.with_unwrapped_global(|key| {
+            let ct = self.ciphertext.borrow();
+            let res = key.wopbs_key.apply_wopbs(&key.inner, &ct, func);
+            GenericInteger::<P>::new(res, self.id)
+        })
     }
 
     fn apply<F: Fn(u64) -> u64>(&mut self, func: F) {
@@ -504,16 +365,26 @@ where
 
 impl<P> GenericInteger<P>
 where
-    P: StaticIntegerParameter,
+    P: IntegerParameter,
     P::Id: WithGlobalKey<Key = GenericIntegerServerKey<P>>,
-    GenericIntegerServerKey<P>: WopbsExecutor<P, <P as StaticIntegerParameter>::Representation>,
+    crate::integer::wopbs::WopbsKey: crate::typed_api::integers::server_key::WopbsEvaluationKey<
+        P::InnerServerKey,
+        P::InnerCiphertext,
+    >,
 {
     pub fn bivariate_function<F>(&self, other: &Self, func: F) -> Self
     where
         F: Fn(u64, u64) -> u64,
     {
-        self.id
-            .with_unwrapped_global(|key| key.execute_bivariate_wopbs(self, other, func))
+        self.id.with_unwrapped_global(|key| {
+            use crate::typed_api::integers::server_key::WopbsEvaluationKey;
+            let lhs = self.ciphertext.borrow();
+            let rhs = other.ciphertext.borrow();
+            let res = key
+                .wopbs_key
+                .apply_bivariate_wopbs(&key.inner, &lhs, &rhs, func);
+            GenericInteger::<P>::new(res, self.id)
+        })
     }
 }
 

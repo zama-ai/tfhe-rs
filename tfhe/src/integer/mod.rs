@@ -14,8 +14,8 @@
 //! homomorphically.
 //!
 //! ```rust
-//! use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 //! use tfhe::integer::gen_keys_radix;
+//! use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 //!
 //! //4 blocks for the radix decomposition
 //! let number_of_blocks = 4;

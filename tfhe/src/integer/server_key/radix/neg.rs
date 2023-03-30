@@ -24,7 +24,7 @@ impl ServerKey {
     /// let modulus = 1 << 8;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
     ///
-    /// let msg = 159;
+    /// let msg = 159u64;
     ///
     /// // Encrypt a message
     /// let mut ctxt = cks.encrypt(msg);
@@ -33,7 +33,7 @@ impl ServerKey {
     /// sks.unchecked_neg_assign(&mut ctxt);
     ///
     /// // Decrypt
-    /// let dec = cks.decrypt(&ctxt);
+    /// let dec: u64 = cks.decrypt(&ctxt);
     /// assert_eq!(modulus - msg, dec);
     /// ```
     pub fn unchecked_neg<PBSOrder: PBSOrderMarker>(
@@ -87,7 +87,7 @@ impl ServerKey {
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
     ///
-    /// let msg = 2;
+    /// let msg = 2u64;
     ///
     /// // Encrypt a message
     /// let ctxt = cks.encrypt(msg);
@@ -126,7 +126,7 @@ impl ServerKey {
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
     ///
-    /// let msg = 1;
+    /// let msg = 1u64;
     ///
     /// // Encrypt a message
     /// let ctxt = cks.encrypt(msg);
@@ -137,7 +137,7 @@ impl ServerKey {
     /// match ct_res {
     ///     Err(x) => panic!("{:?}", x),
     ///     Ok(y) => {
-    ///         let clear = cks.decrypt(&y);
+    ///         let clear: u64 = cks.decrypt(&y);
     ///         assert_eq!(255, clear);
     ///     }
     /// }
@@ -180,7 +180,7 @@ impl ServerKey {
     /// // Compute homomorphically a negation:
     /// sks.checked_neg_assign(&mut ct);
     ///
-    /// let clear_res = cks.decrypt(&ct);
+    /// let clear_res: u64 = cks.decrypt(&ct);
     /// assert_eq!(clear_res, (modulus - msg));
     /// ```
     pub fn checked_neg_assign<PBSOrder: PBSOrderMarker>(
@@ -210,7 +210,7 @@ impl ServerKey {
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
     ///
-    /// let msg = 1;
+    /// let msg = 1u64;
     ///
     /// // Encrypt two messages:
     /// let mut ctxt = cks.encrypt(msg);
@@ -219,7 +219,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_neg(&mut ctxt);
     ///
     /// // Decrypt
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(255, dec);
     /// ```
     pub fn smart_neg<PBSOrder: PBSOrderMarker>(

@@ -32,7 +32,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_add(&ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ct_res);
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
     pub fn unchecked_add<PBSOrder: PBSOrderMarker>(
@@ -68,7 +68,7 @@ impl ServerKey {
     /// sks.unchecked_add_assign(&mut ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec_ct1 = cks.decrypt(&ct1);
+    /// let dec_ct1: u64 = cks.decrypt(&ct1);
     /// assert_eq!(dec_ct1, msg1 + msg2);
     /// ```
     pub fn unchecked_add_assign<PBSOrder: PBSOrderMarker>(
@@ -93,8 +93,8 @@ impl ServerKey {
     /// let num_blocks = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg1 = 46;
-    /// let msg2 = 87;
+    /// let msg1 = 46u64;
+    /// let msg2 = 87u64;
     ///
     /// let ct1 = cks.encrypt(msg1);
     /// let ct2 = cks.encrypt(msg2);
@@ -144,7 +144,7 @@ impl ServerKey {
     /// match ct_res {
     ///     Err(x) => panic!("{:?}", x),
     ///     Ok(y) => {
-    ///         let clear = cks.decrypt(&y);
+    ///         let clear: u64 = cks.decrypt(&y);
     ///         assert_eq!(msg1 + msg2, clear);
     ///     }
     /// }
@@ -190,7 +190,7 @@ impl ServerKey {
     ///
     /// assert!(res.is_ok());
     ///
-    /// let clear = cks.decrypt(&ct1);
+    /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 + msg2, clear);
     /// ```
     pub fn checked_add_assign<PBSOrder: PBSOrderMarker>(
@@ -228,7 +228,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_add(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result = cks.decrypt(&ct_res);
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
     pub fn smart_add<PBSOrder: PBSOrderMarker>(

@@ -252,6 +252,12 @@ impl NamedParam for Parameters {
                 PARAM_MESSAGE_7_CARRY_0,
                 PARAM_MESSAGE_7_CARRY_1,
                 PARAM_MESSAGE_8_CARRY_0,
+                // Small
+                PARAM_SMALL_MESSAGE_1_CARRY_1,
+                PARAM_SMALL_MESSAGE_2_CARRY_2,
+                PARAM_SMALL_MESSAGE_3_CARRY_3,
+                PARAM_SMALL_MESSAGE_4_CARRY_4,
+                // Wops
                 WOPBS_PARAM_MESSAGE_1_NORM2_2,
                 WOPBS_PARAM_MESSAGE_1_NORM2_4,
                 WOPBS_PARAM_MESSAGE_1_NORM2_6,

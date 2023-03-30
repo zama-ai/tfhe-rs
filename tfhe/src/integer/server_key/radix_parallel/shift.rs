@@ -26,7 +26,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_scalar_right_shift_parallelized(&ct, shift);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn unchecked_scalar_right_shift_parallelized<PBSOrder: PBSOrderMarker>(
@@ -62,7 +62,7 @@ impl ServerKey {
     /// sks.unchecked_scalar_right_shift_assign_parallelized(&mut ct, shift);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct);
+    /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn unchecked_scalar_right_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
@@ -134,7 +134,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_scalar_left_shift_parallelized(&ct1, shift);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg << shift, dec);
     /// ```
     pub fn unchecked_scalar_left_shift_parallelized<PBSOrder: PBSOrderMarker>(
@@ -170,7 +170,7 @@ impl ServerKey {
     /// sks.unchecked_scalar_left_shift_assign_parallelized(&mut ct, shift);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct);
+    /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg << shift, dec);
     /// ```
     pub fn unchecked_scalar_left_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(

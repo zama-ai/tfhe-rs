@@ -39,7 +39,7 @@ impl ServerKey {
     /// sks.unchecked_block_mul_assign_parallelized(&mut ct_left, &ct_right, 0);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt(&ct_left);
+    /// let res: u64 = cks.decrypt(&ct_left);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
     pub fn unchecked_block_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
@@ -84,7 +84,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_block_mul_parallelized(&ct_left, &ct_right, 0);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
+    /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
     pub fn unchecked_block_mul_parallelized<PBSOrder: PBSOrderMarker>(
@@ -133,7 +133,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_block_mul_parallelized(&mut ctxt_1, &ctxt_2, 0);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
+    /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
     pub fn smart_block_mul_parallelized<PBSOrder: PBSOrderMarker>(
@@ -222,7 +222,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_mul_parallelized(&mut ctxt_1, &ctxt_2);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
+    /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
     pub fn unchecked_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
@@ -294,7 +294,7 @@ impl ServerKey {
     /// // Compute homomorphically a multiplication
     /// let ct_res = sks.smart_mul_parallelized(&mut ctxt_1, &mut ctxt_2);
     /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
+    /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
     pub fn smart_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(

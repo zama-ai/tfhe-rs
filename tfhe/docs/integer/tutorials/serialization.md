@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let serialized_result = server_function(&serialized_data)?;
     let result: RadixCiphertextBig = bincode::deserialize(&serialized_result)?;
 
-    let output = client_key.decrypt(&result);
+    let output: u64 = client_key.decrypt(&result);
     assert_eq!(output, (msg1 + msg2) % modulus);
     Ok(())
 }

@@ -122,7 +122,7 @@ impl ServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let msg = 2;
+    /// let msg = 2u64;
     ///
     /// // Encrypt two messages:
     /// let ct_left = cks.encrypt(msg);

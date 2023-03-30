@@ -1,19 +1,13 @@
 /// Trait to be implemented on keys that encrypts clear values into ciphertexts
-pub(crate) trait EncryptionKey<ClearType> {
-    /// The type of ciphertext returned as a result of the encryption
-    type Ciphertext;
-
+pub(crate) trait EncryptionKey<ClearType, CiphertextType> {
     /// The encryption process
-    fn encrypt(&self, value: ClearType) -> Self::Ciphertext;
+    fn encrypt(&self, value: ClearType) -> CiphertextType;
 }
 
 /// Trait to be implemented on keys that decrypts ciphertext into clear values
-pub(crate) trait DecryptionKey<ClearType> {
-    /// The type of ciphertext that this key decrypts
-    type Ciphertext;
-
+pub(crate) trait DecryptionKey<CiphertextType, ClearType> {
     /// The decryption process
-    fn decrypt(&self, ciphertext: &Self::Ciphertext) -> ClearType;
+    fn decrypt(&self, ciphertext: &CiphertextType) -> ClearType;
 }
 
 pub trait FromParameters<P> {

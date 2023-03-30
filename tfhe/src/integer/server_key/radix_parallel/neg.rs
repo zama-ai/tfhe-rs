@@ -17,7 +17,7 @@ impl ServerKey {
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
     ///
-    /// let msg = 1;
+    /// let msg = 1u64;
     ///
     /// // Encrypt two messages:
     /// let mut ctxt = cks.encrypt(msg);
@@ -26,7 +26,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_neg_parallelized(&mut ctxt);
     ///
     /// // Decrypt
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(255, dec);
     /// ```
     pub fn smart_neg_parallelized<PBSOrder: PBSOrderMarker>(

@@ -34,7 +34,7 @@ impl ServerKey {
     /// let ctxt: RadixCiphertextBig = sks.create_trivial_zero_radix(num_blocks);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ctxt);
+    /// let dec: u64 = cks.decrypt(&ctxt);
     /// assert_eq!(0, dec);
     /// ```
     pub fn create_trivial_zero_radix<PBSOrder: PBSOrderMarker>(
@@ -62,7 +62,7 @@ impl ServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg = 7;
+    /// let msg = 7u64;
     ///
     /// let ct1 = cks.encrypt(msg);
     /// let ct2 = cks.encrypt(msg);
@@ -72,7 +72,7 @@ impl ServerKey {
     /// sks.propagate(&mut ct_res, 0);
     ///
     /// // Decrypt one block:
-    /// let res = cks.decrypt_one_block(&ct_res.blocks()[1]);
+    /// let res: u64 = cks.decrypt_one_block(&ct_res.blocks()[1]);
     /// assert_eq!(3, res);
     /// ```
     pub fn propagate<PBSOrder: PBSOrderMarker>(
@@ -114,7 +114,7 @@ impl ServerKey {
     /// sks.full_propagate(&mut ct_res);
     ///
     /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
+    /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + msg, res);
     /// ```
     pub fn full_propagate<PBSOrder: PBSOrderMarker>(&self, ctxt: &mut RadixCiphertext<PBSOrder>) {

@@ -31,7 +31,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_scalar_add(&ct, scalar);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
     pub fn unchecked_scalar_add<PBSOrder: PBSOrderMarker>(
@@ -84,7 +84,7 @@ impl ServerKey {
     /// let size = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
     ///
-    /// let msg = 2;
+    /// let msg = 2u64;
     /// let scalar = 40;
     ///
     /// // Encrypt two messages:
@@ -146,7 +146,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_scalar_add(&mut ct, scalar)?;
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// # Ok(())
     /// # }
@@ -203,7 +203,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_scalar_add(&mut ct, scalar);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
     pub fn smart_scalar_add<PBSOrder: PBSOrderMarker>(
@@ -243,7 +243,7 @@ impl ServerKey {
     /// sks.smart_scalar_add_assign(&mut ct, scalar);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct);
+    /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
     pub fn smart_scalar_add_assign<PBSOrder: PBSOrderMarker>(

@@ -61,8 +61,8 @@ fn main() {
     let num_block = 4;
     let (client_key, server_key) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_block);
 
-    let msg1 = 128;
-    let msg2 = 13;
+    let msg1 = 128u64;
+    let msg2 = 13u64;
 
     // We use the client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);
@@ -98,7 +98,7 @@ fn main() {
     let ct_3 = server_key.unchecked_add(&ct_1, &ct_2);
 
     // We use the client key to decrypt the output of the circuit:
-    let output = client_key.decrypt(&ct_3);
+    let output: u64 = client_key.decrypt(&ct_3);
 
     assert_eq!(output, (msg1 + msg2) % modulus);
 }

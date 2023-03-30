@@ -15,14 +15,15 @@ use super::base::GenericInteger;
 #[cfg(feature = "internal-keycache")]
 use crate::integer::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 use crate::integer::wopbs::WopbsKey;
-use crate::typed_api::internal_traits::ParameterType;
+use crate::typed_api::internal_traits::{DecryptionKey, EncryptionKey, ParameterType};
 use paste::paste;
 
 macro_rules! define_static_integer_parameters {
     (
         Radix {
             num_bits: $num_bits:literal,
-            block_parameters: $block_parameters:expr,
+            big_block_parameters: $big_block_parameters:expr,
+            small_block_parameters: $small_block_parameters:expr,
             num_block: $num_block:literal,
             wopbs_block_parameters: $wopbs_block_parameters:expr,
         }
@@ -34,24 +35,42 @@ macro_rules! define_static_integer_parameters {
 
             #[doc = concat!("Parameters for the [FheUint", stringify!($num_bits), "] data type.")]
             #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-            pub struct [<FheUint $num_bits Parameters>](RadixParameters);
+            pub struct [<FheUint $num_bits Parameters>](pub(in crate::typed_api) RadixParameters);
 
             impl Default for [<FheUint $num_bits Parameters>] {
                 fn default() -> Self {
+                    Self::big()
+                }
+            }
+
+            impl [<FheUint $num_bits Parameters>] {
+                pub fn big() -> Self {
                     Self(
                         RadixParameters {
-                            block_parameters: $block_parameters,
+                            block_parameters: $big_block_parameters,
                             num_block: $num_block,
                             wopbs_block_parameters: $wopbs_block_parameters,
+                            pbs_order: crate::shortint::PBSOrder::KeyswitchBootstrap,
                         },
+                    )
+                }
+
+                pub fn small() -> Self {
+                    Self(
+                        RadixParameters {
+                            block_parameters: $small_block_parameters,
+                            num_block: $num_block,
+                            wopbs_block_parameters: $wopbs_block_parameters,
+                            pbs_order: crate::shortint::PBSOrder::BootstrapKeyswitch,
+                        }
                     )
                 }
             }
 
             impl ParameterType for [<FheUint $num_bits Parameters>] {
                 type Id = [<FheUint $num_bits Id>];
-                type InnerCiphertext = crate::integer::RadixCiphertextBig;
-                type InnerClientKey = crate::integer::RadixClientKey;
+                type InnerCiphertext = crate::typed_api::integers::server_key::RadixCiphertextDyn;
+                type InnerClientKey = crate::typed_api::integers::client_key::RadixClientKey;
                 type InnerPublicKey = crate::typed_api::integers::public_key::RadixPublicKey;
                 type InnerServerKey = crate::integer::ServerKey;
             }
@@ -206,7 +225,8 @@ macro_rules! static_int_type {
             num_bits: $num_bits:literal,
             keychain_member: $($member:ident).*,
             parameters: Radix {
-                block_parameters: $block_parameters:expr,
+                big_block_parameters: $big_block_parameters:expr,
+                small_block_parameters: $small_block_parameters:expr,
                 num_block: $num_block:literal,
                 wopbs_block_parameters: $wopbs_block_parameters:expr,
             },
@@ -215,7 +235,8 @@ macro_rules! static_int_type {
         define_static_integer_parameters!(
             Radix {
                 num_bits: $num_bits,
-                block_parameters: $block_parameters,
+                big_block_parameters: $big_block_parameters,
+                small_block_parameters: $small_block_parameters,
                 num_block: $num_block,
                 wopbs_block_parameters: $wopbs_block_parameters,
             }
@@ -309,7 +330,8 @@ static_int_type! {
         num_bits: 8,
         keychain_member: integer_key.uint8_key,
         parameters: Radix {
-            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
             num_block: 4,
             wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
         },
@@ -321,7 +343,8 @@ static_int_type! {
         num_bits: 10,
         keychain_member: integer_key.uint10_key,
         parameters: Radix {
-            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
             num_block: 5,
             wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
         },
@@ -333,7 +356,8 @@ static_int_type! {
         num_bits: 12,
         keychain_member: integer_key.uint12_key,
         parameters: Radix {
-            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
             num_block: 6,
             wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
         },
@@ -345,7 +369,8 @@ static_int_type! {
         num_bits: 14,
         keychain_member: integer_key.uint14_key,
         parameters: Radix {
-            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
             num_block: 7,
             wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
         },
@@ -357,7 +382,8 @@ static_int_type! {
         num_bits: 16,
         keychain_member: integer_key.uint16_key,
         parameters: Radix {
-            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
             num_block: 8,
             wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
         },
@@ -369,7 +395,8 @@ static_int_type! {
         num_bits: 256,
         keychain_member: integer_key.uint256_key,
         parameters: Radix {
-            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
             num_block: 128,
             wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
         },
@@ -391,7 +418,8 @@ impl FheDecrypt<u8> for FheUint8 {
     fn decrypt(&self, key: &ClientKey) -> u8 {
         let id = <FheUint8Parameters as ParameterType>::Id::default();
         let key = id.unwrapped_ref_key(key);
-        key.inner.decrypt(&self.ciphertext.borrow()) as u8
+        let clear: u64 = key.inner.decrypt(&*self.ciphertext.borrow());
+        clear as u8
     }
 }
 
@@ -410,6 +438,7 @@ impl FheDecrypt<u16> for FheUint16 {
     fn decrypt(&self, key: &ClientKey) -> u16 {
         let id = <FheUint16Parameters as ParameterType>::Id::default();
         let key = id.unwrapped_ref_key(key);
-        key.inner.decrypt(&self.ciphertext.borrow()) as u16
+        let clear: u64 = key.inner.decrypt(&*self.ciphertext.borrow());
+        clear as u16
     }
 }

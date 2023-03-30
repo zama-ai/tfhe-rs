@@ -26,7 +26,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_sub_parallelized(&mut ctxt_1, &mut ctxt_2);
     ///
     /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
+    /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
     pub fn smart_sub_parallelized<PBSOrder: PBSOrderMarker>(
@@ -76,7 +76,7 @@ impl ServerKey {
     /// sks.smart_sub_assign_parallelized(&mut ctxt_1, &mut ctxt_2);
     ///
     /// // Decrypt:
-    /// let res = cks.decrypt(&ctxt_1);
+    /// let res: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
     pub fn smart_sub_assign_parallelized<PBSOrder: PBSOrderMarker>(
