@@ -116,7 +116,9 @@ create_parametrized_test!(shortint_unchecked_scalar_mul);
 create_parametrized_test!(shortint_smart_scalar_mul);
 create_parametrized_test!(shortint_default_scalar_mul);
 create_parametrized_test!(shortint_unchecked_right_shift);
+create_parametrized_test!(shortint_default_right_shift);
 create_parametrized_test!(shortint_unchecked_left_shift);
+create_parametrized_test!(shortint_default_left_shift);
 create_parametrized_test!(shortint_unchecked_sub);
 create_parametrized_test!(shortint_smart_sub);
 create_parametrized_test!(shortint_mul_small_carry);
@@ -2367,6 +2369,33 @@ fn shortint_unchecked_right_shift(param: Parameters) {
     }
 }
 
+/// test default unchecked '>>' operation
+fn shortint_default_right_shift(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let shift = rng.gen::<u64>() % 2;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // add the two ciphertexts
+        let ct_res = sks.scalar_right_shift(&ctxt_0, shift as u8);
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(clear_0 >> shift, dec_res);
+    }
+}
+
 /// test '<<' operation
 fn shortint_unchecked_left_shift(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
@@ -2385,6 +2414,33 @@ fn shortint_unchecked_left_shift(param: Parameters) {
 
         // add the two ciphertexts
         let ct_res = sks.unchecked_scalar_left_shift(&ctxt_0, shift as u8);
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!((clear_0 << shift) % modulus, dec_res);
+    }
+}
+
+/// test default '<<' operation
+fn shortint_default_left_shift(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u64;
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let shift = rng.gen::<u64>() % 2;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // add the two ciphertexts
+        let ct_res = sks.scalar_left_shift(&ctxt_0, shift as u8);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
