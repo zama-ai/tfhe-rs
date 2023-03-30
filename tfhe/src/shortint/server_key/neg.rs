@@ -5,6 +5,119 @@ use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::{CiphertextBase, PBSOrderMarker};
 
 impl ServerKey {
+    /// Compute homomorphically a negation of a ciphertext.
+    ///
+    /// This checks that the negation is possible. In the case where the carry buffers are full,
+    /// then it is automatically cleared to allow the operation.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 3;
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a negation
+    /// let ct_res = sks.neg(&mut ct);
+    ///
+    /// // Decrypt
+    /// let clear_res = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(clear_res, modulus - msg);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically a negation
+    /// let ct_res = sks.neg(&mut ct);
+    ///
+    /// // Decrypt
+    /// let clear_res = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(clear_res, modulus - msg);
+    /// ```
+    pub fn neg<OpOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct.clone();
+        self.neg_assign(&mut ct_res);
+        ct_res
+    }
+
+    /// Compute homomorphically a negation of a ciphertext.
+    ///
+    /// This checks that the negation is possible. In the case where the carry buffers are full,
+    /// then it is automatically cleared to allow the operation.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 3;
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a negation
+    /// sks.neg_assign(&mut ct);
+    ///
+    /// // Decrypt
+    /// let clear_res = cks.decrypt(&ct);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(clear_res, modulus - msg);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt a message
+    /// let mut ct = cks.encrypt_small(msg);
+    ///
+    /// // Compute homomorphically a negation
+    /// sks.neg_assign(&mut ct);
+    ///
+    /// // Decrypt
+    /// let clear_res = cks.decrypt(&ct);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(clear_res, modulus - msg);
+    /// ```
+    pub fn neg_assign<OpOrder: PBSOrderMarker>(&self, ct: &mut CiphertextBase<OpOrder>) {
+        if !ct.carry_is_empty() {
+            self.clear_carry_assign(ct);
+        }
+        self.unchecked_neg_assign(ct);
+        self.clear_carry_assign(ct);
+    }
+
     /// Homomorphically negates a message without checks.
     ///
     /// Negation here means the opposite value in the modulo set.
