@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
@@ -33,11 +34,11 @@ impl ServerKey {
     /// let dec_result = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
-    pub fn smart_add_parallelized(
+    pub fn smart_add_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_add_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -47,10 +48,10 @@ impl ServerKey {
         self.unchecked_add(ct_left, ct_right)
     }
 
-    pub fn smart_add_assign_parallelized(
+    pub fn smart_add_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &mut RadixCiphertext<PBSOrder>,
     ) {
         if !self.is_add_possible(ct_left, ct_right) {
             rayon::join(
@@ -62,22 +63,22 @@ impl ServerKey {
     }
 
     /// op must be associative and commutative
-    pub fn smart_binary_op_seq_parallelized<'this, 'item>(
+    pub fn smart_binary_op_seq_parallelized<'this, 'item, PBSOrder: PBSOrderMarker + 'item>(
         &'this self,
-        ct_seq: impl IntoIterator<Item = &'item mut RadixCiphertext>,
+        ct_seq: impl IntoIterator<Item = &'item mut RadixCiphertext<PBSOrder>>,
         op: impl for<'a> Fn(
                 &'a ServerKey,
-                &'a mut RadixCiphertext,
-                &'a mut RadixCiphertext,
-            ) -> RadixCiphertext
+                &'a mut RadixCiphertext<PBSOrder>,
+                &'a mut RadixCiphertext<PBSOrder>,
+            ) -> RadixCiphertext<PBSOrder>
             + Sync,
-    ) -> Option<RadixCiphertext> {
-        enum CiphertextCow<'a> {
-            Borrowed(&'a mut RadixCiphertext),
-            Owned(RadixCiphertext),
+    ) -> Option<RadixCiphertext<PBSOrder>> {
+        enum CiphertextCow<'a, O: PBSOrderMarker> {
+            Borrowed(&'a mut RadixCiphertext<O>),
+            Owned(RadixCiphertext<O>),
         }
-        impl CiphertextCow<'_> {
-            fn as_mut(&mut self) -> &mut RadixCiphertext {
+        impl<O: PBSOrderMarker> CiphertextCow<'_, O> {
+            fn as_mut(&mut self) -> &mut RadixCiphertext<O> {
                 match self {
                     CiphertextCow::Borrowed(b) => b,
                     CiphertextCow::Owned(o) => o,
@@ -94,16 +95,17 @@ impl ServerKey {
         // overhead of dynamic dispatch is negligible compared to multithreading, PBS, etc.
         // we defer all calls to a single implementation to avoid code bloat and long compile
         // times
-        fn reduce_impl(
+        #[allow(clippy::type_complexity)]
+        fn reduce_impl<PBSOrder: PBSOrderMarker>(
             sks: &ServerKey,
-            mut ct_seq: Vec<CiphertextCow>,
+            mut ct_seq: Vec<CiphertextCow<PBSOrder>>,
             op: &(dyn for<'a> Fn(
                 &'a ServerKey,
-                &'a mut RadixCiphertext,
-                &'a mut RadixCiphertext,
-            ) -> RadixCiphertext
+                &'a mut RadixCiphertext<PBSOrder>,
+                &'a mut RadixCiphertext<PBSOrder>,
+            ) -> RadixCiphertext<PBSOrder>
                   + Sync),
-        ) -> Option<RadixCiphertext> {
+        ) -> Option<RadixCiphertext<PBSOrder>> {
             use rayon::prelude::*;
 
             if ct_seq.is_empty() {
@@ -112,8 +114,9 @@ impl ServerKey {
                 // we repeatedly divide the number of terms by two by iteratively reducing
                 // consecutive terms in the array
                 while ct_seq.len() > 1 {
-                    let results =
-                        Mutex::new(Vec::<RadixCiphertext>::with_capacity(ct_seq.len() / 2));
+                    let results = Mutex::new(Vec::<RadixCiphertext<PBSOrder>>::with_capacity(
+                        ct_seq.len() / 2,
+                    ));
 
                     // if the number of elements is odd, we skip the first element
                     let untouched_prefix = ct_seq.len() % 2;

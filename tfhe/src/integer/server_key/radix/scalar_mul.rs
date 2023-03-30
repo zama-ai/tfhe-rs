@@ -2,6 +2,7 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 use std::collections::BTreeMap;
 
 impl ServerKey {
@@ -33,18 +34,22 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(scalar * msg, clear);
     /// ```
-    pub fn unchecked_small_scalar_mul(
+    pub fn unchecked_small_scalar_mul<PBSOrder: PBSOrderMarker>(
         &self,
-        ctxt: &RadixCiphertext,
+        ctxt: &RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         let mut ct_result = ctxt.clone();
         self.unchecked_small_scalar_mul_assign(&mut ct_result, scalar);
 
         ct_result
     }
 
-    pub fn unchecked_small_scalar_mul_assign(&self, ctxt: &mut RadixCiphertext, scalar: u64) {
+    pub fn unchecked_small_scalar_mul_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         for ct_i in ctxt.blocks.iter_mut() {
             self.key.unchecked_scalar_mul_assign(ct_i, scalar as u8);
         }
@@ -77,7 +82,11 @@ impl ServerKey {
     /// let res = sks.is_small_scalar_mul_possible(&ct, scalar2);
     /// assert_eq!(false, res);
     /// ```
-    pub fn is_small_scalar_mul_possible(&self, ctxt: &RadixCiphertext, scalar: u64) -> bool {
+    pub fn is_small_scalar_mul_possible<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) -> bool {
         for ct_i in ctxt.blocks.iter() {
             if !self.key.is_scalar_mul_possible(ct_i, scalar as u8) {
                 return false;
@@ -117,11 +126,11 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_small_scalar_mul(
+    pub fn checked_small_scalar_mul<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &RadixCiphertext,
+        ct: &RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> Result<RadixCiphertext, CheckError> {
+    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
         let mut ct_result = ct.clone();
 
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
@@ -161,9 +170,9 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct);
     /// assert_eq!(clear_res, msg * scalar);
     /// ```
-    pub fn checked_small_scalar_mul_assign(
+    pub fn checked_small_scalar_mul_assign<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
     ) -> Result<(), CheckError> {
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
@@ -206,11 +215,11 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_small_scalar_mul(
+    pub fn smart_small_scalar_mul<PBSOrder: PBSOrderMarker>(
         &self,
-        ctxt: &mut RadixCiphertext,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
             self.full_propagate(ctxt);
         }
@@ -248,7 +257,11 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_small_scalar_mul_assign(&self, ctxt: &mut RadixCiphertext, scalar: u64) {
+    pub fn smart_small_scalar_mul_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
             self.full_propagate(ctxt);
         }
@@ -277,7 +290,11 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(16, clear);
     /// ```
-    pub fn blockshift(&self, ctxt: &RadixCiphertext, shift: usize) -> RadixCiphertext {
+    pub fn blockshift<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &RadixCiphertext<PBSOrder>,
+        shift: usize,
+    ) -> RadixCiphertext<PBSOrder> {
         let ctxt_zero = self.key.create_trivial(0_u64);
         let mut result = ctxt.clone();
 
@@ -317,14 +334,18 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_scalar_mul(&self, ctxt: &mut RadixCiphertext, scalar: u64) -> RadixCiphertext {
+    pub fn smart_scalar_mul<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) -> RadixCiphertext<PBSOrder> {
         let mask = (self.key.message_modulus.0 - 1) as u64;
 
         //Propagate the carries before doing the multiplications
         self.full_propagate(ctxt);
 
         //Store the computations
-        let mut map: BTreeMap<u64, RadixCiphertext> = BTreeMap::new();
+        let mut map: BTreeMap<u64, RadixCiphertext<PBSOrder>> = BTreeMap::new();
 
         let mut result = self.create_trivial_zero_radix(ctxt.blocks.len());
 
@@ -365,7 +386,11 @@ impl ServerKey {
         result
     }
 
-    pub fn smart_scalar_mul_assign(&self, ctxt: &mut RadixCiphertext, scalar: u64) {
+    pub fn smart_scalar_mul_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         *ctxt = self.smart_scalar_mul(ctxt, scalar);
     }
 }

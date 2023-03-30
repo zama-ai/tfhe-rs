@@ -2,6 +2,7 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -35,19 +36,19 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(scalar * msg, clear);
     /// ```
-    pub fn unchecked_small_scalar_mul_parallelized(
+    pub fn unchecked_small_scalar_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ctxt: &RadixCiphertext,
+        ctxt: &RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         let mut ct_result = ctxt.clone();
         self.unchecked_small_scalar_mul_assign_parallelized(&mut ct_result, scalar);
         ct_result
     }
 
-    pub fn unchecked_small_scalar_mul_assign_parallelized(
+    pub fn unchecked_small_scalar_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ctxt: &mut RadixCiphertext,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
     ) {
         ctxt.blocks.par_iter_mut().for_each(|ct_i| {
@@ -86,11 +87,11 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_small_scalar_mul_parallelized(
+    pub fn checked_small_scalar_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &RadixCiphertext,
+        ct: &RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> Result<RadixCiphertext, CheckError> {
+    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
         if self.is_small_scalar_mul_possible(ct, scalar) {
             Ok(self.unchecked_small_scalar_mul_parallelized(ct, scalar))
@@ -126,9 +127,9 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct);
     /// assert_eq!(clear_res, msg * scalar);
     /// ```
-    pub fn checked_small_scalar_mul_assign_parallelized(
+    pub fn checked_small_scalar_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
     ) -> Result<(), CheckError> {
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
@@ -171,11 +172,11 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_small_scalar_mul_parallelized(
+    pub fn smart_small_scalar_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ctxt: &mut RadixCiphertext,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
             self.full_propagate_parallelized(ctxt);
         }
@@ -213,9 +214,9 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_small_scalar_mul_assign_parallelized(
+    pub fn smart_small_scalar_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ctxt: &mut RadixCiphertext,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
     ) {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
@@ -250,11 +251,11 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_scalar_mul_parallelized(
+    pub fn smart_scalar_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         let zero = self.create_trivial_zero_radix(ct.blocks.len());
         if scalar == 0 || ct.blocks.is_empty() {
             return zero;
@@ -278,7 +279,7 @@ impl ServerKey {
             b_i *= b;
         }
 
-        let terms = Mutex::new(Vec::<RadixCiphertext>::new());
+        let terms = Mutex::new(Vec::<RadixCiphertext<PBSOrder>>::new());
         task_map.par_iter().for_each(|(&u_i, blockshifts)| {
             if u_i == 0 {
                 return;
@@ -305,7 +306,11 @@ impl ServerKey {
             .unwrap_or(zero)
     }
 
-    pub fn smart_scalar_mul_assign_parallelized(&self, ctxt: &mut RadixCiphertext, scalar: u64) {
+    pub fn smart_scalar_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         *ctxt = self.smart_scalar_mul_parallelized(ctxt, scalar);
     }
 }

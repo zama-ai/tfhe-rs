@@ -2,6 +2,7 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically a subtraction between a ciphertext and a scalar.
@@ -33,13 +34,21 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn unchecked_scalar_sub(&self, ct: &RadixCiphertext, scalar: u64) -> RadixCiphertext {
+    pub fn unchecked_scalar_sub<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) -> RadixCiphertext<PBSOrder> {
         let mut result = ct.clone();
         self.unchecked_scalar_sub_assign(&mut result, scalar);
         result
     }
 
-    pub fn unchecked_scalar_sub_assign(&self, ct: &mut RadixCiphertext, scalar: u64) {
+    pub fn unchecked_scalar_sub_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         // Widen to 128 bits to avoid overflow when doing wrapped negation.
         let scalar = scalar as u128;
         //Bits of message put to 1
@@ -88,7 +97,11 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_scalar_sub_possible(&self, ct: &RadixCiphertext, scalar: u64) -> bool {
+    pub fn is_scalar_sub_possible<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) -> bool {
         //Bits of message put to 1
         let mask = (self.key.message_modulus.0 - 1) as u64;
 
@@ -147,11 +160,11 @@ impl ServerKey {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn checked_scalar_sub(
+    pub fn checked_scalar_sub<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &RadixCiphertext,
+        ct: &RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> Result<RadixCiphertext, CheckError> {
+    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
         if self.is_scalar_sub_possible(ct, scalar) {
             Ok(self.unchecked_scalar_sub(ct, scalar))
         } else {
@@ -189,9 +202,9 @@ impl ServerKey {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn checked_scalar_sub_assign(
+    pub fn checked_scalar_sub_assign<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
     ) -> Result<(), CheckError> {
         if self.is_scalar_sub_possible(ct, scalar) {
@@ -226,7 +239,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn smart_scalar_sub(&self, ct: &mut RadixCiphertext, scalar: u64) -> RadixCiphertext {
+    pub fn smart_scalar_sub<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate(ct);
         }
@@ -234,7 +251,11 @@ impl ServerKey {
         self.unchecked_scalar_sub(ct, scalar)
     }
 
-    pub fn smart_scalar_sub_assign(&self, ct: &mut RadixCiphertext, scalar: u64) {
+    pub fn smart_scalar_sub_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate(ct);
         }

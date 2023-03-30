@@ -1,8 +1,12 @@
 //! Definition of the client key for radix decomposition
 
 use super::ClientKey;
-use crate::integer::RadixCiphertext;
-use crate::shortint::{CiphertextBig as ShortintCiphertext, Parameters as ShortintParameters};
+use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::{RadixCiphertextBig, RadixCiphertextSmall};
+use crate::shortint::{
+    CiphertextBase, CiphertextBig as ShortintCiphertext, PBSOrderMarker,
+    Parameters as ShortintParameters,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -49,11 +53,15 @@ impl RadixClientKey {
         }
     }
 
-    pub fn encrypt(&self, message: u64) -> RadixCiphertext {
+    pub fn encrypt(&self, message: u64) -> RadixCiphertextBig {
         self.key.encrypt_radix(message, self.num_blocks)
     }
 
-    pub fn decrypt(&self, ciphertext: &RadixCiphertext) -> u64 {
+    pub fn encrypt_small(&self, message: u64) -> RadixCiphertextSmall {
+        self.key.encrypt_radix_small(message, self.num_blocks)
+    }
+
+    pub fn decrypt<PBSOrder: PBSOrderMarker>(&self, ciphertext: &RadixCiphertext<PBSOrder>) -> u64 {
         self.key.decrypt_radix(ciphertext)
     }
 
@@ -66,7 +74,10 @@ impl RadixClientKey {
         self.key.encrypt_one_block(message)
     }
 
-    pub fn decrypt_one_block(&self, ct: &ShortintCiphertext) -> u64 {
+    pub fn decrypt_one_block<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &CiphertextBase<PBSOrder>,
+    ) -> u64 {
         self.key.decrypt_one_block(ct)
     }
 

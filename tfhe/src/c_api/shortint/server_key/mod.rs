@@ -63,9 +63,7 @@ pub unsafe extern "C" fn shortint_server_key_create_trivial(
                 server_key.0.create_trivial(value_to_trivially_encrypt),
             ),
             ShortintCiphertextKind::ShortintCiphertextSmall => ShortintCiphertextInner::Small(
-                server_key
-                    .0
-                    .create_trivial_small(value_to_trivially_encrypt),
+                server_key.0.create_trivial(value_to_trivially_encrypt),
             ),
         };
 

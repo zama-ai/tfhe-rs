@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -41,10 +42,10 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_left);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul_assign_parallelized(
+    pub fn unchecked_block_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &crate::shortint::CiphertextBig,
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &crate::shortint::CiphertextBase<PBSOrder>,
         index: usize,
     ) {
         *ct_left = self.unchecked_block_mul_parallelized(ct_left, ct_right, index);
@@ -86,12 +87,12 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul_parallelized(
+    pub fn unchecked_block_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &RadixCiphertext,
-        ct2: &crate::shortint::CiphertextBig,
+        ct1: &RadixCiphertext<PBSOrder>,
+        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
         index: usize,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         let shifted_ct = self.blockshift(ct1, index);
 
         let mut result_lsb = shifted_ct.clone();
@@ -135,12 +136,12 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn smart_block_mul_parallelized(
+    pub fn smart_block_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::CiphertextBig,
+        ct1: &mut RadixCiphertext<PBSOrder>,
+        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
         index: usize,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         //Makes sure we can do the multiplications
         self.full_propagate_parallelized(ct1);
 
@@ -154,11 +155,11 @@ impl ServerKey {
         self.smart_add_parallelized(&mut result_lsb, &mut result_msb)
     }
 
-    fn unchecked_block_mul_lsb_msb_parallelized(
+    fn unchecked_block_mul_lsb_msb_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        result_lsb: &mut RadixCiphertext,
-        result_msb: &mut RadixCiphertext,
-        ct2: &crate::shortint::CiphertextBig,
+        result_lsb: &mut RadixCiphertext<PBSOrder>,
+        result_msb: &mut RadixCiphertext<PBSOrder>,
+        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
         index: usize,
     ) {
         let len = result_msb.blocks.len() - 1;
@@ -180,10 +181,10 @@ impl ServerKey {
         );
     }
 
-    pub fn smart_block_mul_assign_parallelized(
+    pub fn smart_block_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::CiphertextBig,
+        ct1: &mut RadixCiphertext<PBSOrder>,
+        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
         index: usize,
     ) {
         *ct1 = self.smart_block_mul_parallelized(ct1, ct2, index);
@@ -224,10 +225,10 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_mul_assign_parallelized(
+    pub fn unchecked_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext,
-        ct2: &RadixCiphertext,
+        ct1: &mut RadixCiphertext<PBSOrder>,
+        ct2: &RadixCiphertext<PBSOrder>,
     ) {
         *ct1 = self.unchecked_mul_parallelized(ct1, ct2);
     }
@@ -242,11 +243,11 @@ impl ServerKey {
     /// # Warning
     ///
     /// - Multithreaded
-    pub fn unchecked_mul_parallelized(
+    pub fn unchecked_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext,
-        ct2: &RadixCiphertext,
-    ) -> RadixCiphertext {
+        ct1: &mut RadixCiphertext<PBSOrder>,
+        ct2: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         let mut result = self.create_trivial_zero_radix(ct1.blocks.len());
 
         let terms = Mutex::new(Vec::new());
@@ -296,10 +297,10 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn smart_mul_assign_parallelized(
+    pub fn smart_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext,
-        ct2: &mut RadixCiphertext,
+        ct1: &mut RadixCiphertext<PBSOrder>,
+        ct2: &mut RadixCiphertext<PBSOrder>,
     ) {
         *ct1 = self.smart_mul_parallelized(ct1, ct2);
     }
@@ -311,11 +312,11 @@ impl ServerKey {
     /// # Warning
     ///
     /// - Multithreaded
-    pub fn smart_mul_parallelized(
+    pub fn smart_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext,
-        ct2: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        ct1: &mut RadixCiphertext<PBSOrder>,
+        ct2: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         rayon::join(
             || self.full_propagate_parallelized(ct1),
             || self.full_propagate_parallelized(ct2),

@@ -11,7 +11,8 @@ mod sub;
 
 use super::ServerKey;
 
-use crate::integer::RadixCiphertext;
+use crate::integer::ciphertext::RadixCiphertext;
+use crate::shortint::PBSOrderMarker;
 
 #[cfg(test)]
 mod tests;
@@ -22,7 +23,7 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::integer::{gen_keys_radix, RadixCiphertextBig};
     /// use tfhe::shortint::parameters::DEFAULT_PARAMETERS;
     ///
     /// let num_blocks = 4;
@@ -30,19 +31,22 @@ impl ServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix(&DEFAULT_PARAMETERS, num_blocks);
     ///
-    /// let ctxt = sks.create_trivial_zero_radix(num_blocks);
+    /// let ctxt: RadixCiphertextBig = sks.create_trivial_zero_radix(num_blocks);
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ctxt);
     /// assert_eq!(0, dec);
     /// ```
-    pub fn create_trivial_zero_radix(&self, num_blocks: usize) -> RadixCiphertext {
+    pub fn create_trivial_zero_radix<PBSOrder: PBSOrderMarker>(
+        &self,
+        num_blocks: usize,
+    ) -> RadixCiphertext<PBSOrder> {
         let mut vec_res = Vec::with_capacity(num_blocks);
         for _ in 0..num_blocks {
             vec_res.push(self.key.create_trivial(0_u64));
         }
 
-        RadixCiphertext { blocks: vec_res }
+        RadixCiphertext::from(vec_res)
     }
 
     /// Propagate the carry of the 'index' block to the next one.
@@ -71,7 +75,11 @@ impl ServerKey {
     /// let res = cks.decrypt_one_block(&ct_res.blocks()[1]);
     /// assert_eq!(3, res);
     /// ```
-    pub fn propagate(&self, ctxt: &mut RadixCiphertext, index: usize) {
+    pub fn propagate<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        index: usize,
+    ) {
         let carry = self.key.carry_extract(&ctxt.blocks[index]);
 
         ctxt.blocks[index] = self.key.message_extract(&ctxt.blocks[index]);
@@ -109,7 +117,7 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(msg + msg, res);
     /// ```
-    pub fn full_propagate(&self, ctxt: &mut RadixCiphertext) {
+    pub fn full_propagate<PBSOrder: PBSOrderMarker>(&self, ctxt: &mut RadixCiphertext<PBSOrder>) {
         let len = ctxt.blocks.len();
         for i in 0..len {
             self.propagate(ctxt, i);

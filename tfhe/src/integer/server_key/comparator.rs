@@ -1,8 +1,9 @@
 use rayon::prelude::*;
 
 use super::ServerKey;
-use crate::integer::RadixCiphertext;
+use crate::integer::ciphertext::RadixCiphertext;
 use crate::shortint::server_key::LookupTableOwned;
+use crate::shortint::{CiphertextBase, PBSOrderMarker};
 
 /// Simple enum to select whether we are looking for the min or the max
 enum MinMaxSelector {
@@ -10,7 +11,7 @@ enum MinMaxSelector {
     Min,
 }
 
-fn has_non_zero_carries(ct: &RadixCiphertext) -> bool {
+fn has_non_zero_carries<PBSOrder: PBSOrderMarker>(ct: &RadixCiphertext<PBSOrder>) -> bool {
     ct.blocks
         .iter()
         .any(|block| block.degree.0 >= block.message_modulus.0)
@@ -125,10 +126,10 @@ impl<'a> Comparator<'a> {
     /// so at least as many carry modulus as the message modulus
     ///
     /// Expects the carry buffer to be empty
-    fn pack_block_chunk(
+    fn pack_block_chunk<PBSOrder: PBSOrderMarker>(
         &self,
-        chunk: &[crate::shortint::CiphertextBig],
-    ) -> crate::shortint::CiphertextBig {
+        chunk: &[crate::shortint::CiphertextBase<PBSOrder>],
+    ) -> crate::shortint::CiphertextBase<PBSOrder> {
         let low = &chunk[0];
         let mut high = chunk[1].clone();
         debug_assert!(high.degree.0 < high.message_modulus.0);
@@ -143,10 +144,10 @@ impl<'a> Comparator<'a> {
     /// so at least as many carry modulus as the message modulus
     ///
     /// Expects the carry buffer to be empty
-    fn pack_block_assign(
+    fn pack_block_assign<PBSOrder: PBSOrderMarker>(
         &self,
-        low: &crate::shortint::CiphertextBig,
-        high: &mut crate::shortint::CiphertextBig,
+        low: &crate::shortint::CiphertextBase<PBSOrder>,
+        high: &mut crate::shortint::CiphertextBase<PBSOrder>,
     ) {
         debug_assert!(high.degree.0 < high.message_modulus.0);
         self.server_key
@@ -159,10 +160,10 @@ impl<'a> Comparator<'a> {
     // - 0 if lhs < rhs
     // - 1 if lhs == rhs
     // - 2 if lhs > rhs
-    fn compare_block_assign(
+    fn compare_block_assign<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut crate::shortint::CiphertextBig,
-        rhs: &crate::shortint::CiphertextBig,
+        lhs: &mut crate::shortint::CiphertextBase<PBSOrder>,
+        rhs: &crate::shortint::CiphertextBase<PBSOrder>,
     ) {
         // When rhs > lhs, the subtraction will overflow, and the bit of padding will be set to 1
         // meaning that the output of the pbs will be the negative (modulo message space)
@@ -196,11 +197,11 @@ impl<'a> Comparator<'a> {
     /// Expects the carry buffers to be empty
     ///
     /// Requires that the RadixCiphertext block have 4 bits minimum (carry + message)
-    fn unchecked_compare(
+    fn unchecked_compare<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> crate::shortint::CiphertextBig {
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> crate::shortint::CiphertextBase<PBSOrder> {
         assert_eq!(lhs.blocks.len(), rhs.blocks.len());
         let num_block = lhs.blocks.len();
 
@@ -259,11 +260,16 @@ impl<'a> Comparator<'a> {
     /// Expects the carry buffers to be empty
     ///
     /// Requires that the RadixCiphertext block have 4 bits minimum (carry + message)
-    fn unchecked_compare_parallelized(
+    fn unchecked_compare_parallelized<'b, PBSOrder>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> crate::shortint::CiphertextBig {
+        lhs: &'b RadixCiphertext<PBSOrder>,
+        rhs: &'b RadixCiphertext<PBSOrder>,
+    ) -> crate::shortint::CiphertextBase<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        &'b [CiphertextBase<PBSOrder>]:
+            rayon::iter::IntoParallelIterator<Item = &'b CiphertextBase<PBSOrder>>,
+    {
         assert_eq!(lhs.blocks.len(), rhs.blocks.len());
 
         let num_block = lhs.blocks.len();
@@ -339,11 +345,11 @@ impl<'a> Comparator<'a> {
         selection
     }
 
-    fn smart_compare(
+    fn smart_compare<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> crate::shortint::CiphertextBig {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> crate::shortint::CiphertextBase<PBSOrder> {
         if has_non_zero_carries(lhs) {
             self.server_key.full_propagate(lhs);
         }
@@ -353,11 +359,11 @@ impl<'a> Comparator<'a> {
         self.unchecked_compare(lhs, rhs)
     }
 
-    fn smart_compare_parallelized(
+    fn smart_compare_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> crate::shortint::CiphertextBig {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> crate::shortint::CiphertextBase<PBSOrder> {
         rayon::join(
             || {
                 if has_non_zero_carries(lhs) {
@@ -374,12 +380,12 @@ impl<'a> Comparator<'a> {
     }
 
     /// Expects the carry buffers to be empty
-    fn unchecked_min_or_max(
+    fn unchecked_min_or_max<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
         selector: MinMaxSelector,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         let (x_accumulator, y_accumulator) = match selector {
             MinMaxSelector::Max => (&self.x_accumulator, &self.y_accumulator),
             MinMaxSelector::Min => (&self.y_accumulator, &self.x_accumulator),
@@ -413,12 +419,12 @@ impl<'a> Comparator<'a> {
     }
 
     /// Expects the carry buffers to be empty
-    fn unchecked_min_or_max_parallelized(
+    fn unchecked_min_or_max_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
         selector: MinMaxSelector,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         let (x_accumulator, y_accumulator) = match selector {
             MinMaxSelector::Max => (&self.x_accumulator, &self.y_accumulator),
             MinMaxSelector::Min => (&self.y_accumulator, &self.x_accumulator),
@@ -458,12 +464,12 @@ impl<'a> Comparator<'a> {
         RadixCiphertext { blocks }
     }
 
-    fn smart_min_or_max(
+    fn smart_min_or_max<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
         selector: MinMaxSelector,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         if has_non_zero_carries(lhs) {
             self.server_key.full_propagate_parallelized(lhs);
         }
@@ -473,12 +479,12 @@ impl<'a> Comparator<'a> {
         self.unchecked_min_or_max(lhs, rhs, selector)
     }
 
-    fn smart_min_or_max_parallelized(
+    fn smart_min_or_max_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
         selector: MinMaxSelector,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         rayon::join(
             || {
                 if has_non_zero_carries(lhs) {
@@ -494,14 +500,15 @@ impl<'a> Comparator<'a> {
         self.unchecked_min_or_max_parallelized(lhs, rhs, selector)
     }
 
-    fn map_comparison_result<F>(
+    fn map_comparison_result<F, PBSOrder>(
         &self,
-        comparison: crate::shortint::CiphertextBig,
+        comparison: crate::shortint::CiphertextBase<PBSOrder>,
         sign_result_handler_fn: F,
         num_blocks: usize,
-    ) -> RadixCiphertext
+    ) -> RadixCiphertext<PBSOrder>
     where
         F: Fn(u64) -> u64,
+        PBSOrder: PBSOrderMarker,
     {
         let acc = self
             .server_key
@@ -519,33 +526,42 @@ impl<'a> Comparator<'a> {
     }
 
     /// Expects the carry buffers to be empty
-    fn unchecked_comparison_impl<CmpFn, F>(
+    fn unchecked_comparison_impl<'b, CmpFn, F, PBSOrder>(
         &self,
         comparison_fn: CmpFn,
         sign_result_handler_fn: F,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext
+        lhs: &'b RadixCiphertext<PBSOrder>,
+        rhs: &'b RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder>
     where
-        CmpFn: Fn(&Self, &RadixCiphertext, &RadixCiphertext) -> crate::shortint::CiphertextBig,
+        CmpFn: Fn(
+            &Self,
+            &'b RadixCiphertext<PBSOrder>,
+            &'b RadixCiphertext<PBSOrder>,
+        ) -> crate::shortint::CiphertextBase<PBSOrder>,
         F: Fn(u64) -> u64,
+        PBSOrder: PBSOrderMarker,
     {
         let comparison = comparison_fn(self, lhs, rhs);
         self.map_comparison_result(comparison, sign_result_handler_fn, lhs.blocks.len())
     }
 
     /// Expects the carry buffers to be empty
-    fn smart_comparison_impl<CmpFn, F>(
+    fn smart_comparison_impl<CmpFn, F, PBSOrder>(
         &self,
         smart_comparison_fn: CmpFn,
         sign_result_handler_fn: F,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder>
     where
-        CmpFn:
-            Fn(&Self, &mut RadixCiphertext, &mut RadixCiphertext) -> crate::shortint::CiphertextBig,
+        CmpFn: Fn(
+            &Self,
+            &mut RadixCiphertext<PBSOrder>,
+            &mut RadixCiphertext<PBSOrder>,
+        ) -> crate::shortint::CiphertextBase<PBSOrder>,
         F: Fn(u64) -> u64,
+        PBSOrder: PBSOrderMarker,
     {
         let comparison = smart_comparison_fn(self, lhs, rhs);
         self.map_comparison_result(comparison, sign_result_handler_fn, lhs.blocks.len())
@@ -555,7 +571,11 @@ impl<'a> Comparator<'a> {
     // Unchecked Single-Threaded operations
     //======================================
 
-    pub fn unchecked_eq(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_eq<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare,
             |x| u64::from(x == Self::IS_EQUAL),
@@ -564,7 +584,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_gt(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_gt<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare,
             |x| u64::from(x == Self::IS_SUPERIOR),
@@ -573,7 +597,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_ge(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_ge<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare,
             |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR),
@@ -582,7 +610,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_lt(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_lt<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare,
             |x| u64::from(x == Self::IS_INFERIOR),
@@ -591,7 +623,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_le(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_le<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare,
             |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR),
@@ -600,11 +636,19 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_max(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_max<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_min_or_max(lhs, rhs, MinMaxSelector::Max)
     }
 
-    pub fn unchecked_min(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_min<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_min_or_max(lhs, rhs, MinMaxSelector::Min)
     }
 
@@ -612,11 +656,11 @@ impl<'a> Comparator<'a> {
     // Unchecked Multi-Threaded operations
     //======================================
 
-    pub fn unchecked_eq_parallelized(
+    pub fn unchecked_eq_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare_parallelized,
             |x| u64::from(x == Self::IS_EQUAL),
@@ -625,11 +669,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_gt_parallelized(
+    pub fn unchecked_gt_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare_parallelized,
             |x| u64::from(x == Self::IS_SUPERIOR),
@@ -638,11 +682,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_ge_parallelized(
+    pub fn unchecked_ge_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare_parallelized,
             |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR),
@@ -651,11 +695,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_lt_parallelized(
+    pub fn unchecked_lt_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare_parallelized,
             |x| u64::from(x == Self::IS_INFERIOR),
@@ -664,11 +708,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_le_parallelized(
+    pub fn unchecked_le_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
             Self::unchecked_compare_parallelized,
             |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR),
@@ -677,19 +721,19 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn unchecked_max_parallelized(
+    pub fn unchecked_max_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Max)
     }
 
-    pub fn unchecked_min_parallelized(
+    pub fn unchecked_min_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Min)
     }
 
@@ -697,11 +741,11 @@ impl<'a> Comparator<'a> {
     // Smart Single-Threaded operations
     //======================================
 
-    pub fn smart_eq(
+    pub fn smart_eq<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare,
             |x| u64::from(x == Self::IS_EQUAL),
@@ -710,11 +754,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_gt(
+    pub fn smart_gt<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare,
             |x| u64::from(x == Self::IS_SUPERIOR),
@@ -723,11 +767,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_ge(
+    pub fn smart_ge<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare,
             |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR),
@@ -736,11 +780,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_lt(
+    pub fn smart_lt<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare,
             |x| u64::from(x == Self::IS_INFERIOR),
@@ -749,11 +793,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_le(
+    pub fn smart_le<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare,
             |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR),
@@ -762,19 +806,19 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_max(
+    pub fn smart_max<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_min_or_max(lhs, rhs, MinMaxSelector::Max)
     }
 
-    pub fn smart_min(
+    pub fn smart_min<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_min_or_max(lhs, rhs, MinMaxSelector::Min)
     }
 
@@ -782,11 +826,11 @@ impl<'a> Comparator<'a> {
     // Smart Multi-Threaded operations
     //======================================
 
-    pub fn smart_eq_parallelized(
+    pub fn smart_eq_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare_parallelized,
             |x| u64::from(x == Self::IS_EQUAL),
@@ -795,11 +839,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_gt_parallelized(
+    pub fn smart_gt_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare_parallelized,
             |x| u64::from(x == Self::IS_SUPERIOR),
@@ -808,11 +852,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_ge_parallelized(
+    pub fn smart_ge_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare_parallelized,
             |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR),
@@ -821,11 +865,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_lt_parallelized(
+    pub fn smart_lt_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare_parallelized,
             |x| u64::from(x == Self::IS_INFERIOR),
@@ -834,11 +878,11 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_le_parallelized(
+    pub fn smart_le_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare_parallelized,
             |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR),
@@ -847,19 +891,19 @@ impl<'a> Comparator<'a> {
         )
     }
 
-    pub fn smart_max_parallelized(
+    pub fn smart_max_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Max)
     }
 
-    pub fn smart_min_parallelized(
+    pub fn smart_min_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         self.smart_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Min)
     }
 }
@@ -867,7 +911,7 @@ impl<'a> Comparator<'a> {
 #[cfg(test)]
 mod tests {
     use super::Comparator;
-    use crate::integer::{gen_keys, RadixCiphertext, U256};
+    use crate::integer::{gen_keys, RadixCiphertextBig, U256};
     use crate::shortint::Parameters;
     use rand;
     use rand::prelude::*;
@@ -884,9 +928,9 @@ mod tests {
     ) where
         UncheckedFn: for<'a, 'b> Fn(
             &'a Comparator<'b>,
-            &'a RadixCiphertext,
-            &'a RadixCiphertext,
-        ) -> RadixCiphertext,
+            &'a RadixCiphertextBig,
+            &'a RadixCiphertextBig,
+        ) -> RadixCiphertextBig,
         ClearF: Fn(U256, U256) -> U256,
     {
         let mut rng = rand::thread_rng();
@@ -926,9 +970,9 @@ mod tests {
     ) where
         SmartFn: for<'a, 'b> Fn(
             &'a Comparator<'b>,
-            &'a mut RadixCiphertext,
-            &'a mut RadixCiphertext,
-        ) -> RadixCiphertext,
+            &'a mut RadixCiphertextBig,
+            &'a mut RadixCiphertextBig,
+        ) -> RadixCiphertextBig,
         ClearF: Fn(U256, U256) -> U256,
     {
         let (cks, sks) = gen_keys(&param);

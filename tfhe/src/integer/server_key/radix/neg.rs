@@ -2,6 +2,7 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
@@ -35,7 +36,10 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ctxt);
     /// assert_eq!(modulus - msg, dec);
     /// ```
-    pub fn unchecked_neg(&self, ctxt: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_neg<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         let mut result = ctxt.clone();
 
         self.unchecked_neg_assign(&mut result);
@@ -49,7 +53,10 @@ impl ServerKey {
     /// capacity of the ciphertext.
     ///
     /// The result is assigned to the `ct_left` ciphertext.
-    pub fn unchecked_neg_assign(&self, ctxt: &mut RadixCiphertext) {
+    pub fn unchecked_neg_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+    ) {
         //z is used to make sure the negation doesn't fill the padding bit
         let mut z;
         let mut z_b;
@@ -90,7 +97,10 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_neg_possible(&self, ctxt: &RadixCiphertext) -> bool {
+    pub fn is_neg_possible<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &RadixCiphertext<PBSOrder>,
+    ) -> bool {
         for ct_i in ctxt.blocks.iter() {
             if !self.key.is_neg_possible(ct_i) {
                 return false;
@@ -132,7 +142,10 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_neg(&self, ctxt: &RadixCiphertext) -> Result<RadixCiphertext, CheckError> {
+    pub fn checked_neg<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &RadixCiphertext<PBSOrder>,
+    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
         //If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if self.is_neg_possible(ctxt) {
             let mut result = ctxt.clone();
@@ -170,7 +183,10 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct);
     /// assert_eq!(clear_res, (modulus - msg));
     /// ```
-    pub fn checked_neg_assign(&self, ctxt: &mut RadixCiphertext) -> Result<(), CheckError> {
+    pub fn checked_neg_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+    ) -> Result<(), CheckError> {
         //If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if self.is_neg_possible(ctxt) {
             self.unchecked_neg_assign(ctxt);
@@ -206,7 +222,10 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(255, dec);
     /// ```
-    pub fn smart_neg(&self, ctxt: &mut RadixCiphertext) -> RadixCiphertext {
+    pub fn smart_neg<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_neg_possible(ctxt) {
             self.full_propagate(ctxt);
         }

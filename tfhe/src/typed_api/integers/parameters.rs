@@ -1,4 +1,4 @@
-use crate::integer::{CrtCiphertext, CrtClientKey, RadixCiphertext, RadixClientKey};
+use crate::integer::{CrtCiphertext, CrtClientKey, RadixCiphertextBig, RadixClientKey};
 use crate::typed_api::internal_traits::{FromParameters, ParameterType};
 use serde::{Deserialize, Serialize};
 
@@ -107,7 +107,7 @@ where
     Self: IntegerParameter<
         InnerClientKey = RadixClientKey,
         InnerServerKey = crate::integer::ServerKey,
-        InnerCiphertext = RadixCiphertext,
+        InnerCiphertext = RadixCiphertextBig,
     >,
 {
 }

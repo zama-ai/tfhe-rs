@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
@@ -28,7 +29,10 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(255, dec);
     /// ```
-    pub fn smart_neg_parallelized(&self, ctxt: &mut RadixCiphertext) -> RadixCiphertext {
+    pub fn smart_neg_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_neg_possible(ctxt) {
             self.full_propagate_parallelized(ctxt);
         }

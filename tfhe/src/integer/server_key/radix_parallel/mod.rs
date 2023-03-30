@@ -13,7 +13,8 @@ mod sub;
 mod tests;
 
 use super::ServerKey;
-use crate::integer::RadixCiphertext;
+use crate::integer::ciphertext::RadixCiphertext;
+use crate::shortint::PBSOrderMarker;
 
 // parallelized versions
 impl ServerKey {
@@ -42,7 +43,11 @@ impl ServerKey {
     /// let res = cks.decrypt_one_block(&ct_res.blocks()[1]);
     /// assert_eq!(3, res);
     /// ```
-    pub fn propagate_parallelized(&self, ctxt: &mut RadixCiphertext, index: usize) {
+    pub fn propagate_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        index: usize,
+    ) {
         let (carry, message) = rayon::join(
             || self.key.carry_extract(&ctxt.blocks[index]),
             || self.key.message_extract(&ctxt.blocks[index]),
@@ -81,7 +86,10 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(msg + msg, res);
     /// ```
-    pub fn full_propagate_parallelized(&self, ctxt: &mut RadixCiphertext) {
+    pub fn full_propagate_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+    ) {
         let len = ctxt.blocks.len();
         for i in 0..len {
             self.propagate_parallelized(ctxt, i);

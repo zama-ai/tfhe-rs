@@ -8,12 +8,14 @@ mod test;
 
 use crate::core_crypto::prelude::*;
 use crate::integer::client_key::utils::i_crt;
-use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, RadixCiphertext, ServerKey};
+use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, ServerKey};
 use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
 
-use crate::shortint::Parameters;
+use crate::shortint::{PBSOrderMarker, Parameters};
 use serde::{Deserialize, Serialize};
+
+use super::ciphertext::RadixCiphertext;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WopbsKey {
@@ -252,7 +254,7 @@ impl WopbsKey {
 
         let mut ct_vec_out = vec![];
         for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out.into_iter()) {
-            ct_vec_out.push(crate::shortint::CiphertextBig {
+            ct_vec_out.push(crate::shortint::CiphertextBase {
                 ct: block_out,
                 degree: Degree(block.message_modulus.0 - 1),
                 message_modulus: block.message_modulus,
@@ -335,7 +337,7 @@ impl WopbsKey {
 
         let mut ct_vec_out = vec![];
         for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out.into_iter()) {
-            ct_vec_out.push(crate::shortint::CiphertextBig {
+            ct_vec_out.push(crate::shortint::CiphertextBase {
                 ct: block_out,
                 degree: Degree(block.message_modulus.0 - 1),
                 message_modulus: block.message_modulus,
@@ -707,13 +709,15 @@ impl WopbsKey {
     ///
     /// assert_eq!(res, (2 * clear1 * clear2) % moduli);
     /// ```
-    pub fn generate_lut_bivariate_radix<F>(
+    pub fn generate_lut_bivariate_radix<F, OpOrder>(
         &self,
-        ct1: &RadixCiphertext,
-        ct2: &RadixCiphertext,
+        ct1: &RadixCiphertext<OpOrder>,
+        ct2: &RadixCiphertext<OpOrder>,
         f: F,
     ) -> Vec<Vec<u64>>
     where
+        OpOrder: PBSOrderMarker,
+        RadixCiphertext<OpOrder>: IntegerCiphertext,
         F: Fn(u64, u64) -> u64,
     {
         let mut nb_bit_to_extract = vec![0; 2];
@@ -1031,9 +1035,9 @@ impl WopbsKey {
             .wopbs_key
             .circuit_bootstrapping_vertical_packing(lut, &extracted_bits_blocks);
 
-        let mut ct_vec_out: Vec<crate::shortint::CiphertextBig> = vec![];
+        let mut ct_vec_out = Vec::with_capacity(vec_ct_in.len());
         for (block, block_out) in vec_ct_in[0].blocks().iter().zip(vec_ct_out.into_iter()) {
-            ct_vec_out.push(crate::shortint::CiphertextBig {
+            ct_vec_out.push(crate::shortint::CiphertextBase {
                 ct: block_out,
                 degree: Degree(block.message_modulus.0 - 1),
                 message_modulus: block.message_modulus,
@@ -1044,9 +1048,12 @@ impl WopbsKey {
         T::from_blocks(ct_vec_out)
     }
 
-    pub fn keyswitch_to_wopbs_params<T>(&self, sks: &ServerKey, ct_in: &T) -> T
+    pub fn keyswitch_to_wopbs_params<'a, T>(&self, sks: &ServerKey, ct_in: &'a T) -> T
     where
         T: IntegerCiphertext,
+        T::PBSOrder: Send,
+        &'a [crate::shortint::CiphertextBase<T::PBSOrder>]:
+            IntoParallelIterator<Item = &'a crate::shortint::CiphertextBase<T::PBSOrder>>,
     {
         let blocks: Vec<_> = ct_in
             .blocks()
@@ -1056,9 +1063,12 @@ impl WopbsKey {
         T::from_blocks(blocks)
     }
 
-    pub fn keyswitch_to_pbs_params<T>(&self, ct_in: &T) -> T
+    pub fn keyswitch_to_pbs_params<'a, T>(&self, ct_in: &'a T) -> T
     where
         T: IntegerCiphertext,
+        T::PBSOrder: Send,
+        &'a [crate::shortint::CiphertextBase<T::PBSOrder>]:
+            IntoParallelIterator<Item = &'a crate::shortint::CiphertextBase<T::PBSOrder>>,
     {
         let blocks: Vec<_> = ct_in
             .blocks()

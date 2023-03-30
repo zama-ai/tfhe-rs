@@ -50,7 +50,7 @@ macro_rules! define_static_integer_parameters {
 
             impl ParameterType for [<FheUint $num_bits Parameters>] {
                 type Id = [<FheUint $num_bits Id>];
-                type InnerCiphertext = crate::integer::RadixCiphertext;
+                type InnerCiphertext = crate::integer::RadixCiphertextBig;
                 type InnerClientKey = crate::integer::RadixClientKey;
                 type InnerPublicKey = crate::typed_api::integers::public_key::RadixPublicKey;
                 type InnerServerKey = crate::integer::ServerKey;

@@ -6,7 +6,7 @@ use std::ops::{
 };
 
 use crate::integer::wopbs::WopbsKey;
-use crate::integer::{CrtCiphertext, RadixCiphertext, U256};
+use crate::integer::{CrtCiphertext, RadixCiphertextBig, U256};
 use crate::typed_api::global_state::WithGlobalKey;
 use crate::typed_api::integers::client_key::GenericIntegerClientKey;
 use crate::typed_api::integers::parameters::{
@@ -379,9 +379,9 @@ pub trait WopbsExecutor<
 pub(crate) fn wopbs_radix(
     wopbs_key: &WopbsKey,
     server_key: &crate::integer::ServerKey,
-    ct_in: &RadixCiphertext,
+    ct_in: &RadixCiphertextBig,
     func: impl Fn(u64) -> u64,
-) -> RadixCiphertext {
+) -> RadixCiphertextBig {
     let switched_ct = wopbs_key.keyswitch_to_wopbs_params(server_key, ct_in);
     let luts = wopbs_key.generate_lut_radix(&switched_ct, func);
     let res = wopbs_key.wopbs(&switched_ct, luts.as_slice());
@@ -391,10 +391,10 @@ pub(crate) fn wopbs_radix(
 pub(crate) fn bivariate_wopbs_radix(
     wopbs_key: &WopbsKey,
     server_key: &crate::integer::ServerKey,
-    lhs: &RadixCiphertext,
-    rhs: &RadixCiphertext,
+    lhs: &RadixCiphertextBig,
+    rhs: &RadixCiphertextBig,
     func: impl Fn(u64, u64) -> u64,
-) -> RadixCiphertext {
+) -> RadixCiphertextBig {
     let switched_lhs = wopbs_key.keyswitch_to_wopbs_params(server_key, lhs);
     let switched_rhs = wopbs_key.keyswitch_to_wopbs_params(server_key, rhs);
     let lut = wopbs_key.generate_lut_bivariate_radix(&switched_lhs, &switched_rhs, func);

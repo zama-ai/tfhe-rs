@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Shifts the blocks to the right.
@@ -30,7 +31,11 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(msg / div, clear);
     /// ```
-    pub fn blockshift_right(&self, ctxt: &RadixCiphertext, shift: usize) -> RadixCiphertext {
+    pub fn blockshift_right<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &RadixCiphertext<PBSOrder>,
+        shift: usize,
+    ) -> RadixCiphertext<PBSOrder> {
         let mut result = self.create_trivial_zero_radix(ctxt.blocks.len());
 
         let limit = result.blocks.len() - shift;
@@ -45,7 +50,11 @@ impl ServerKey {
         result
     }
 
-    pub fn blockshift_right_assign(&self, ctxt: &mut RadixCiphertext, shift: usize) {
+    pub fn blockshift_right_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        shift: usize,
+    ) {
         *ctxt = self.blockshift_right(ctxt, shift);
     }
 
@@ -75,11 +84,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn unchecked_scalar_right_shift(
+    pub fn unchecked_scalar_right_shift<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &RadixCiphertext,
+        ct: &RadixCiphertext<PBSOrder>,
         shift: usize,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         let mut result = ct.clone();
         self.unchecked_scalar_right_shift_assign(&mut result, shift);
         result
@@ -111,7 +120,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn unchecked_scalar_right_shift_assign(&self, ct: &mut RadixCiphertext, shift: usize) {
+    pub fn unchecked_scalar_right_shift_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        shift: usize,
+    ) {
         let tmp = self.key.message_modulus.0 as f64;
 
         //number of bits of message
@@ -143,7 +156,7 @@ impl ServerKey {
 
     /// Propagates all carries except the last one.
     /// For development purpose only.
-    fn partial_propagate(&self, ctxt: &mut RadixCiphertext) {
+    fn partial_propagate<PBSOrder: PBSOrderMarker>(&self, ctxt: &mut RadixCiphertext<PBSOrder>) {
         let len = ctxt.blocks.len() - 1;
         for i in 0..len {
             self.propagate(ctxt, i);
@@ -176,11 +189,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg << shift, dec);
     /// ```
-    pub fn unchecked_scalar_left_shift(
+    pub fn unchecked_scalar_left_shift<PBSOrder: PBSOrderMarker>(
         &self,
-        ct_left: &RadixCiphertext,
+        ct_left: &RadixCiphertext<PBSOrder>,
         shift: usize,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         let mut result = ct_left.clone();
         self.unchecked_scalar_left_shift_assign(&mut result, shift);
         result
@@ -212,7 +225,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg << shift, dec);
     /// ```
-    pub fn unchecked_scalar_left_shift_assign(&self, ct: &mut RadixCiphertext, shift: usize) {
+    pub fn unchecked_scalar_left_shift_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        shift: usize,
+    ) {
         let tmp = 1_u64 << shift;
         self.smart_scalar_mul_assign(ct, tmp);
     }

@@ -5,7 +5,7 @@ use itertools::iproduct;
 use rand::Rng;
 use std::array::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
-use tfhe::integer::{RadixCiphertext, ServerKey};
+use tfhe::integer::{RadixCiphertextBig, ServerKey};
 use tfhe::shortint::keycache::NamedParam;
 
 #[allow(unused_imports)]
@@ -51,7 +51,7 @@ impl Iterator for ParamsAndNumBlocksIter {
 /// Base function to bench a server key function that is a binary operation
 fn bench_server_key_binary_function<F>(c: &mut Criterion, bench_name: &str, binary_op: F)
 where
-    F: Fn(&ServerKey, &mut RadixCiphertext, &mut RadixCiphertext),
+    F: Fn(&ServerKey, &mut RadixCiphertextBig, &mut RadixCiphertextBig),
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -110,7 +110,7 @@ where
 /// Base function to bench a server key function that is a unary operation
 fn bench_server_key_unary_function<F>(c: &mut Criterion, group_name: &str, unary_fn: F)
 where
-    F: Fn(&ServerKey, &mut RadixCiphertext),
+    F: Fn(&ServerKey, &mut RadixCiphertextBig),
 {
     let mut bench_group = c.benchmark_group(group_name);
 
@@ -162,7 +162,7 @@ where
 
 fn bench_server_key_binary_scalar_function<F>(c: &mut Criterion, bench_name: &str, binary_op: F)
 where
-    F: Fn(&ServerKey, &mut RadixCiphertext, u64),
+    F: Fn(&ServerKey, &mut RadixCiphertextBig, u64),
 {
     let mut bench_group = c.benchmark_group(bench_name);
     let mut rng = rand::thread_rng();

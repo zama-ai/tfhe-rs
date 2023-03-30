@@ -1,6 +1,6 @@
 use crate::typed_api::integers::client_key::GenericIntegerClientKey;
 
-use crate::integer::{CrtCiphertext, CrtClientKey, RadixCiphertext, RadixClientKey, U256};
+use crate::integer::{CrtCiphertext, CrtClientKey, RadixCiphertextBig, RadixClientKey, U256};
 use crate::typed_api::internal_traits::{EncryptionKey, ParameterType};
 use serde::{Deserialize, Serialize};
 
@@ -8,13 +8,13 @@ use super::parameters::IntegerParameter;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RadixPublicKey {
-    key: crate::integer::PublicKey,
+    key: crate::integer::PublicKeyBig,
     num_blocks: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CrtPublicKey {
-    key: crate::integer::PublicKey,
+    key: crate::integer::PublicKeyBig,
     moduli: Vec<u64>,
 }
 
@@ -29,14 +29,14 @@ impl IntegerPublicKey for RadixPublicKey {
 
     fn new(client_key: &Self::ClientKey) -> Self {
         Self {
-            key: crate::integer::PublicKey::new(client_key.as_ref()),
+            key: crate::integer::PublicKeyBig::new(client_key.as_ref()),
             num_blocks: client_key.num_blocks(),
         }
     }
 }
 
 impl EncryptionKey<u64> for RadixPublicKey {
-    type Ciphertext = RadixCiphertext;
+    type Ciphertext = RadixCiphertextBig;
 
     fn encrypt(&self, value: u64) -> Self::Ciphertext {
         self.key.encrypt_radix(value, self.num_blocks)
@@ -44,7 +44,7 @@ impl EncryptionKey<u64> for RadixPublicKey {
 }
 
 impl EncryptionKey<U256> for RadixPublicKey {
-    type Ciphertext = RadixCiphertext;
+    type Ciphertext = RadixCiphertextBig;
 
     fn encrypt(&self, value: U256) -> Self::Ciphertext {
         self.key.encrypt_radix(value, self.num_blocks)
@@ -56,7 +56,7 @@ impl IntegerPublicKey for CrtPublicKey {
 
     fn new(client_key: &Self::ClientKey) -> Self {
         Self {
-            key: crate::integer::PublicKey::new(client_key.as_ref()),
+            key: crate::integer::PublicKeyBig::new(client_key.as_ref()),
             moduli: client_key.moduli().to_vec(),
         }
     }

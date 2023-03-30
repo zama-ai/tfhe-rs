@@ -31,7 +31,7 @@ mod seal {
 }
 
 /// Trait to mark Ciphertext with the order for the PBS operations
-pub trait PBSOrderMarker: seal::Sealed + Debug + Clone + Copy {
+pub trait PBSOrderMarker: seal::Sealed + Debug + Clone + Copy + Send + Sync {
     fn pbs_order() -> PBSOrder;
 }
 

@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
@@ -26,18 +27,22 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn smart_scalar_sub_parallelized(
+    pub fn smart_scalar_sub_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
         self.unchecked_scalar_sub(ct, scalar)
     }
 
-    pub fn smart_scalar_sub_assign_parallelized(&self, ct: &mut RadixCiphertext, scalar: u64) {
+    pub fn smart_scalar_sub_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }

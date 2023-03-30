@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically the addition of ciphertext with a scalar.
@@ -28,11 +29,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_parallelized(
+    pub fn smart_scalar_add_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> RadixCiphertext {
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
@@ -65,7 +66,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_assign_parallelized(&self, ct: &mut RadixCiphertext, scalar: u64) {
+    pub fn smart_scalar_add_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }

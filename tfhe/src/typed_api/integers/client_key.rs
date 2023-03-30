@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::integer::{CrtCiphertext, CrtClientKey, RadixCiphertext, RadixClientKey, U256};
+use crate::integer::{CrtCiphertext, CrtClientKey, RadixCiphertextBig, RadixClientKey, U256};
 use crate::typed_api::integers::parameters::IntegerParameter;
 use crate::typed_api::internal_traits::{DecryptionKey, EncryptionKey, FromParameters};
 
 impl EncryptionKey<u64> for RadixClientKey {
-    type Ciphertext = RadixCiphertext;
+    type Ciphertext = RadixCiphertextBig;
 
     fn encrypt(&self, value: u64) -> Self::Ciphertext {
         self.encrypt(value)
@@ -13,7 +13,7 @@ impl EncryptionKey<u64> for RadixClientKey {
 }
 
 impl EncryptionKey<U256> for RadixClientKey {
-    type Ciphertext = RadixCiphertext;
+    type Ciphertext = RadixCiphertextBig;
 
     fn encrypt(&self, value: U256) -> Self::Ciphertext {
         self.as_ref().encrypt_radix(value, self.num_blocks())
@@ -21,7 +21,7 @@ impl EncryptionKey<U256> for RadixClientKey {
 }
 
 impl DecryptionKey<u64> for RadixClientKey {
-    type Ciphertext = RadixCiphertext;
+    type Ciphertext = RadixCiphertextBig;
 
     fn decrypt(&self, ciphertext: &Self::Ciphertext) -> u64 {
         self.decrypt(ciphertext)
@@ -29,7 +29,7 @@ impl DecryptionKey<u64> for RadixClientKey {
 }
 
 impl DecryptionKey<U256> for RadixClientKey {
-    type Ciphertext = RadixCiphertext;
+    type Ciphertext = RadixCiphertextBig;
 
     fn decrypt(&self, ciphertext: &Self::Ciphertext) -> U256 {
         let mut r = U256::default();

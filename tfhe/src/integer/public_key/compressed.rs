@@ -1,63 +1,30 @@
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
+use crate::shortint::ciphertext::{BootstrapKeyswitch, KeyswitchBootstrap};
 use crate::shortint::parameters::MessageModulus;
-use crate::shortint::CompressedPublicKeyBig as ShortintCompressedPublicKey;
+use crate::shortint::PBSOrderMarker;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct CompressedPublicKey {
-    key: ShortintCompressedPublicKey,
+pub struct CompressedPublicKeyBase<OpOrder: PBSOrderMarker> {
+    key: crate::shortint::CompressedPublicKeyBase<OpOrder>,
 }
 
-impl CompressedPublicKey {
+pub type CompressedPublicKeyBig = CompressedPublicKeyBase<KeyswitchBootstrap>;
+pub type CompressedPublicKeySmall = CompressedPublicKeyBase<BootstrapKeyswitch>;
+
+impl CompressedPublicKeyBig {
     pub fn new(client_key: &ClientKey) -> Self {
         Self {
-            key: ShortintCompressedPublicKey::new(&client_key.key),
+            key: crate::shortint::CompressedPublicKeyBig::new(&client_key.key),
         }
-    }
-    pub fn parameters(&self) -> crate::shortint::Parameters {
-        self.key.parameters
-    }
-
-    pub fn encrypt_radix<T: AsLittleEndianWords>(
-        &self,
-        message: T,
-        num_blocks: usize,
-    ) -> RadixCiphertext {
-        self.encrypt_words_radix(message, num_blocks, ShortintCompressedPublicKey::encrypt)
-    }
-
-    pub fn encrypt_radix_without_padding(
-        &self,
-        message: u64,
-        num_blocks: usize,
-    ) -> RadixCiphertext {
-        self.encrypt_words_radix(
-            message,
-            num_blocks,
-            ShortintCompressedPublicKey::encrypt_without_padding,
-        )
-    }
-
-    pub fn encrypt_words_radix<Block, RadixCiphertextType, T, F>(
-        &self,
-        message_words: T,
-        num_blocks: usize,
-        encrypt_block: F,
-    ) -> RadixCiphertextType
-    where
-        T: AsLittleEndianWords,
-        F: Fn(&ShortintCompressedPublicKey, u64) -> Block,
-        RadixCiphertextType: From<Vec<Block>>,
-    {
-        encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
     }
 
     pub fn encrypt_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
         self.encrypt_crt_impl(
             message,
             base_vec,
-            ShortintCompressedPublicKey::encrypt_with_message_modulus,
+            crate::shortint::CompressedPublicKeyBig::encrypt_with_message_modulus,
         )
     }
 
@@ -74,9 +41,61 @@ impl CompressedPublicKey {
         encrypt_block: F,
     ) -> CrtCiphertextType
     where
-        F: Fn(&ShortintCompressedPublicKey, u64, MessageModulus) -> Block,
+        F: Fn(&crate::shortint::CompressedPublicKeyBig, u64, MessageModulus) -> Block,
         CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
     {
         encrypt_crt(&self.key, message, base_vec, encrypt_block)
+    }
+}
+
+impl CompressedPublicKeySmall {
+    pub fn new(client_key: &ClientKey) -> Self {
+        Self {
+            key: crate::shortint::CompressedPublicKeySmall::new(&client_key.key),
+        }
+    }
+}
+
+impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
+    pub fn parameters(&self) -> crate::shortint::Parameters {
+        self.key.parameters
+    }
+
+    pub fn encrypt_radix<T: AsLittleEndianWords>(
+        &self,
+        message: T,
+        num_blocks: usize,
+    ) -> RadixCiphertext<OpOrder> {
+        self.encrypt_words_radix(
+            message,
+            num_blocks,
+            crate::shortint::CompressedPublicKeyBase::encrypt,
+        )
+    }
+
+    pub fn encrypt_radix_without_padding(
+        &self,
+        message: u64,
+        num_blocks: usize,
+    ) -> RadixCiphertext<OpOrder> {
+        self.encrypt_words_radix(
+            message,
+            num_blocks,
+            crate::shortint::CompressedPublicKeyBase::encrypt_without_padding,
+        )
+    }
+
+    pub fn encrypt_words_radix<Block, RadixCiphertextType, T, F>(
+        &self,
+        message_words: T,
+        num_blocks: usize,
+        encrypt_block: F,
+    ) -> RadixCiphertextType
+    where
+        T: AsLittleEndianWords,
+        F: Fn(&crate::shortint::CompressedPublicKeyBase<OpOrder>, u64) -> Block,
+        RadixCiphertextType: From<Vec<Block>>,
+    {
+        encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
     }
 }

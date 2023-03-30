@@ -120,45 +120,45 @@ macro_rules! impl_smart_scalar_assign_op_for_tfhe_integer_server_key {
     };
 }
 
-impl SmartNeg<&mut crate::integer::RadixCiphertext> for crate::integer::ServerKey {
-    type Output = crate::integer::RadixCiphertext;
-    fn smart_neg(&self, lhs: &mut crate::integer::RadixCiphertext) -> Self::Output {
+impl SmartNeg<&mut crate::integer::RadixCiphertextBig> for crate::integer::ServerKey {
+    type Output = crate::integer::RadixCiphertextBig;
+    fn smart_neg(&self, lhs: &mut crate::integer::RadixCiphertextBig) -> Self::Output {
         self.smart_neg_parallelized(lhs)
     }
 }
 
-impl_smart_op_for_tfhe_integer_server_key!(SmartAdd(smart_add) => (crate::integer::RadixCiphertext, smart_add_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartSub(smart_sub) => (crate::integer::RadixCiphertext, smart_sub_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartMul(smart_mul) => (crate::integer::RadixCiphertext, smart_mul_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartBitAnd(smart_bitand) => (crate::integer::RadixCiphertext, smart_bitand_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartBitOr(smart_bitor) => (crate::integer::RadixCiphertext, smart_bitor_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartBitXor(smart_bitxor) => (crate::integer::RadixCiphertext, smart_bitxor_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartEq(smart_eq) => (crate::integer::RadixCiphertext, smart_eq_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartGe(smart_ge) => (crate::integer::RadixCiphertext, smart_ge_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartGt(smart_gt) => (crate::integer::RadixCiphertext, smart_gt_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartLe(smart_le) => (crate::integer::RadixCiphertext, smart_le_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartLt(smart_lt) => (crate::integer::RadixCiphertext, smart_lt_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartMax(smart_max) => (crate::integer::RadixCiphertext, smart_max_parallelized));
-impl_smart_op_for_tfhe_integer_server_key!(SmartMin(smart_min) => (crate::integer::RadixCiphertext, smart_min_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartAdd(smart_add) => (crate::integer::RadixCiphertextBig, smart_add_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartSub(smart_sub) => (crate::integer::RadixCiphertextBig, smart_sub_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartMul(smart_mul) => (crate::integer::RadixCiphertextBig, smart_mul_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartBitAnd(smart_bitand) => (crate::integer::RadixCiphertextBig, smart_bitand_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartBitOr(smart_bitor) => (crate::integer::RadixCiphertextBig, smart_bitor_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartBitXor(smart_bitxor) => (crate::integer::RadixCiphertextBig, smart_bitxor_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartEq(smart_eq) => (crate::integer::RadixCiphertextBig, smart_eq_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartGe(smart_ge) => (crate::integer::RadixCiphertextBig, smart_ge_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartGt(smart_gt) => (crate::integer::RadixCiphertextBig, smart_gt_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartLe(smart_le) => (crate::integer::RadixCiphertextBig, smart_le_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartLt(smart_lt) => (crate::integer::RadixCiphertextBig, smart_lt_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartMax(smart_max) => (crate::integer::RadixCiphertextBig, smart_max_parallelized));
+impl_smart_op_for_tfhe_integer_server_key!(SmartMin(smart_min) => (crate::integer::RadixCiphertextBig, smart_min_parallelized));
 
-impl_smart_assign_op_for_tfhe_integer_server_key!(SmartAddAssign(smart_add_assign) => (crate::integer::RadixCiphertext, smart_add_assign_parallelized));
-impl_smart_assign_op_for_tfhe_integer_server_key!(SmartSubAssign(smart_sub_assign) => (crate::integer::RadixCiphertext, smart_sub_assign_parallelized));
-impl_smart_assign_op_for_tfhe_integer_server_key!(SmartMulAssign(smart_mul_assign) => (crate::integer::RadixCiphertext, smart_mul_assign_parallelized));
-impl_smart_assign_op_for_tfhe_integer_server_key!(SmartBitAndAssign(smart_bitand_assign) => (crate::integer::RadixCiphertext, smart_bitand_assign_parallelized));
-impl_smart_assign_op_for_tfhe_integer_server_key!(SmartBitOrAssign(smart_bitor_assign) => (crate::integer::RadixCiphertext, smart_bitor_assign_parallelized));
-impl_smart_assign_op_for_tfhe_integer_server_key!(SmartBitXorAssign(smart_bitxor_assign) => (crate::integer::RadixCiphertext, smart_bitxor_assign_parallelized));
+impl_smart_assign_op_for_tfhe_integer_server_key!(SmartAddAssign(smart_add_assign) => (crate::integer::RadixCiphertextBig, smart_add_assign_parallelized));
+impl_smart_assign_op_for_tfhe_integer_server_key!(SmartSubAssign(smart_sub_assign) => (crate::integer::RadixCiphertextBig, smart_sub_assign_parallelized));
+impl_smart_assign_op_for_tfhe_integer_server_key!(SmartMulAssign(smart_mul_assign) => (crate::integer::RadixCiphertextBig, smart_mul_assign_parallelized));
+impl_smart_assign_op_for_tfhe_integer_server_key!(SmartBitAndAssign(smart_bitand_assign) => (crate::integer::RadixCiphertextBig, smart_bitand_assign_parallelized));
+impl_smart_assign_op_for_tfhe_integer_server_key!(SmartBitOrAssign(smart_bitor_assign) => (crate::integer::RadixCiphertextBig, smart_bitor_assign_parallelized));
+impl_smart_assign_op_for_tfhe_integer_server_key!(SmartBitXorAssign(smart_bitxor_assign) => (crate::integer::RadixCiphertextBig, smart_bitxor_assign_parallelized));
 
-impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartAdd(smart_add) => (crate::integer::RadixCiphertext, smart_scalar_add_parallelized));
-impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartSub(smart_sub) => (crate::integer::RadixCiphertext, smart_scalar_sub_parallelized));
-impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartMul(smart_mul) => (crate::integer::RadixCiphertext, smart_scalar_mul_parallelized));
-impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartShl(smart_shl) => (crate::integer::RadixCiphertext, unchecked_scalar_left_shift_parallelized));
-impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartShr(smart_shr) => (crate::integer::RadixCiphertext, unchecked_scalar_right_shift_parallelized));
+impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartAdd(smart_add) => (crate::integer::RadixCiphertextBig, smart_scalar_add_parallelized));
+impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartSub(smart_sub) => (crate::integer::RadixCiphertextBig, smart_scalar_sub_parallelized));
+impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartMul(smart_mul) => (crate::integer::RadixCiphertextBig, smart_scalar_mul_parallelized));
+impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartShl(smart_shl) => (crate::integer::RadixCiphertextBig, unchecked_scalar_left_shift_parallelized));
+impl_smart_scalar_op_for_tfhe_integer_server_key!(SmartShr(smart_shr) => (crate::integer::RadixCiphertextBig, unchecked_scalar_right_shift_parallelized));
 
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartAddAssign(smart_add_assign) => (crate::integer::RadixCiphertext, smart_scalar_add_assign_parallelized));
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartSubAssign(smart_sub_assign) => (crate::integer::RadixCiphertext, smart_scalar_sub_assign_parallelized));
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartMulAssign(smart_mul_assign) => (crate::integer::RadixCiphertext, smart_scalar_mul_assign_parallelized));
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartShlAssign(smart_shl_assign) => (crate::integer::RadixCiphertext, unchecked_scalar_left_shift_assign_parallelized));
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartShrAssign(smart_shr_assign) => (crate::integer::RadixCiphertext, unchecked_scalar_right_shift_assign_parallelized));
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartAddAssign(smart_add_assign) => (crate::integer::RadixCiphertextBig, smart_scalar_add_assign_parallelized));
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartSubAssign(smart_sub_assign) => (crate::integer::RadixCiphertextBig, smart_scalar_sub_assign_parallelized));
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartMulAssign(smart_mul_assign) => (crate::integer::RadixCiphertextBig, smart_scalar_mul_assign_parallelized));
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartShlAssign(smart_shl_assign) => (crate::integer::RadixCiphertextBig, unchecked_scalar_left_shift_assign_parallelized));
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key!(SmartShrAssign(smart_shr_assign) => (crate::integer::RadixCiphertextBig, unchecked_scalar_right_shift_assign_parallelized));
 
 // Crt
 

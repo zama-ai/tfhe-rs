@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically the subtraction between ct_left and ct_right.
@@ -28,11 +29,11 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub_parallelized(
+    pub fn smart_sub_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ctxt_left: &mut RadixCiphertext,
-        ctxt_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        ctxt_left: &mut RadixCiphertext<PBSOrder>,
+        ctxt_right: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {
             self.full_propagate_parallelized(ctxt_right);
@@ -78,10 +79,10 @@ impl ServerKey {
     /// let res = cks.decrypt(&ctxt_1);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub_assign_parallelized(
+    pub fn smart_sub_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ctxt_left: &mut RadixCiphertext,
-        ctxt_right: &mut RadixCiphertext,
+        ctxt_left: &mut RadixCiphertext<PBSOrder>,
+        ctxt_right: &mut RadixCiphertext<PBSOrder>,
     ) {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {

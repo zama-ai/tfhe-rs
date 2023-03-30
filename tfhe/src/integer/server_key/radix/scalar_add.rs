@@ -3,6 +3,7 @@ use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
 
+use crate::shortint::PBSOrderMarker;
 impl ServerKey {
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
@@ -33,7 +34,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn unchecked_scalar_add(&self, ct: &RadixCiphertext, scalar: u64) -> RadixCiphertext {
+    pub fn unchecked_scalar_add<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) -> RadixCiphertext<PBSOrder> {
         let mut result = ct.clone();
         self.unchecked_scalar_add_assign(&mut result, scalar);
         result
@@ -45,7 +50,11 @@ impl ServerKey {
     /// ciphertext.
     ///
     /// The result is assigned to the `ct_left` ciphertext.
-    pub fn unchecked_scalar_add_assign(&self, ct: &mut RadixCiphertext, scalar: u64) {
+    pub fn unchecked_scalar_add_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         // Bits of message put to 1
         let mask = (self.key.message_modulus.0 - 1) as u64;
 
@@ -87,7 +96,11 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_scalar_add_possible(&self, ct: &RadixCiphertext, scalar: u64) -> bool {
+    pub fn is_scalar_add_possible<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) -> bool {
         //Bits of message put to 1
         let mask = (self.key.message_modulus.0 - 1) as u64;
 
@@ -138,11 +151,11 @@ impl ServerKey {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn checked_scalar_add(
+    pub fn checked_scalar_add<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &RadixCiphertext,
+        ct: &RadixCiphertext<PBSOrder>,
         scalar: u64,
-    ) -> Result<RadixCiphertext, CheckError> {
+    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
         if self.is_scalar_add_possible(ct, scalar) {
             Ok(self.unchecked_scalar_add(ct, scalar))
         } else {
@@ -154,9 +167,9 @@ impl ServerKey {
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
-    pub fn checked_scalar_add_assign(
+    pub fn checked_scalar_add_assign<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
     ) -> Result<(), CheckError> {
         if self.is_scalar_add_possible(ct, scalar) {
@@ -193,7 +206,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add(&self, ct: &mut RadixCiphertext, scalar: u64) -> RadixCiphertext {
+    pub fn smart_scalar_add<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) -> RadixCiphertext<PBSOrder> {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate(ct);
         }
@@ -229,7 +246,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_assign(&self, ct: &mut RadixCiphertext, scalar: u64) {
+    pub fn smart_scalar_add_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate(ct);
         }

@@ -1,5 +1,6 @@
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
+use crate::shortint::CiphertextBig;
 use paste::paste;
 use rand::Rng;
 
@@ -1013,7 +1014,7 @@ fn shortint_unchecked_less_or_equal_trivial(param: Parameters) {
         let clear_1 = rng.gen::<u64>() % modulus;
 
         // encryption of an integer
-        let ctxt_0 = sks.create_trivial(clear_0);
+        let ctxt_0: CiphertextBig = sks.create_trivial(clear_0);
 
         // encryption of an integer
         let ctxt_1 = sks.create_trivial(clear_1);
