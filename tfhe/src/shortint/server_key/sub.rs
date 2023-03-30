@@ -5,6 +5,100 @@ use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::{CiphertextBase, PBSOrderMarker};
 
 impl ServerKey {
+    /// Compute homomorphically a subtraction between two ciphertexts.
+    ///
+    /// This returns a new ciphertext.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.encrypt(3);
+    /// let ct_2 = cks.encrypt(1);
+    ///
+    /// // Compute homomorphically a subtraction:
+    /// let ct_res = sks.sub(&mut ct_1, &ct_2);
+    ///
+    /// let clear_res = cks.decrypt(&ct_res);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(clear_res % modulus, 2);
+    /// ```
+    pub fn sub<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) -> CiphertextBase<OpOrder> {
+        let mut ct_res = ct_left.clone();
+        self.sub_assign(&mut ct_res, ct_right);
+        ct_res
+    }
+
+    /// Compute homomorphically a subtraction between two ciphertexts.
+    ///
+    /// This stores the result in `ct_left`
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// // Encrypt two messages:
+    /// let mut ct_1 = cks.encrypt(3);
+    /// let ct_2 = cks.encrypt(1);
+    ///
+    /// // Compute homomorphically a subtraction:
+    /// sks.sub_assign(&mut ct_1, &ct_2);
+    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
+    /// ```
+    pub fn sub_assign<OpOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut CiphertextBase<OpOrder>,
+        ct_right: &CiphertextBase<OpOrder>,
+    ) {
+        let tmp_rhs: CiphertextBase<OpOrder>;
+
+        if !ct_left.carry_is_empty() {
+            self.clear_carry_assign(ct_left);
+        }
+
+        let rhs = if ct_right.carry_is_empty() {
+            ct_right
+        } else {
+            tmp_rhs = self.clear_carry(ct_right);
+            &tmp_rhs
+        };
+
+        self.unchecked_sub_assign(ct_left, rhs);
+        self.clear_carry_assign(ct_left);
+    }
+
     /// Homomorphically subtracts ct_right to ct_left.
     ///
     /// The result is returned in a _new_ ciphertext.
