@@ -379,7 +379,7 @@ impl ClientKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
     /// // Generate the client key and the server key:
-    /// let mut cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 27_u64;
     /// let basis: Vec<u64> = vec![2, 3, 5];

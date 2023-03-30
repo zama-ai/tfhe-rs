@@ -51,7 +51,7 @@ impl PublicKey {
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, mut sks) = gen_keys();
+    /// let (cks, sks) = gen_keys();
     ///
     /// let pks = PublicKey::new(&cks);
     /// # }

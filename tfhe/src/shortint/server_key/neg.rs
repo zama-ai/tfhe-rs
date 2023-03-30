@@ -19,7 +19,7 @@ impl ServerKey {
     /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     ///
     /// // Generate the client key and the server key:
-    /// let (mut cks, mut sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 1;
     ///
@@ -34,7 +34,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(modulus - msg, three);
     ///
-    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
     /// let ct = cks.encrypt_small(msg);
@@ -88,7 +88,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(modulus - msg, cks.decrypt(&ct));
     ///
-    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt_small(msg);
@@ -138,7 +138,7 @@ impl ServerKey {
     ///
     /// assert_eq!(can_be_negated, true);
     ///
-    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
     /// let ct = cks.encrypt_small(msg);
@@ -188,7 +188,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
-    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
     /// let ct = cks.encrypt_small(msg);
@@ -245,7 +245,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
-    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt_small(msg);
@@ -298,7 +298,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
-    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt_small(msg);
@@ -344,7 +344,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus.0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
-    /// let (mut cks, mut sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt_small(msg);
