@@ -180,6 +180,31 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         self.try_fork(lwe_mask_count.0, mask_bytes, noise_bytes)
     }
 
+    // Forks the generator, when splitting a tpksk into chunks
+    pub(crate) fn fork_tpksk_to_tpksk_chunks<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
+        let mask_bytes = mask_bytes_per_tpksk_chunk::<T>(level, glwe_size, poly_size);
+        let noise_bytes = noise_bytes_per_tpksk_chunk(level, poly_size);
+        self.try_fork(poly_size.log2().0, mask_bytes, noise_bytes)
+    }
+
+    // Forks the generator, when splitting a glwe keyswitch into chunks
+    pub(crate) fn fork_glweks_to_glweks_chunks<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        input_glwe_dimension: GlweDimension,
+        output_glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
+        let mask_bytes = mask_bytes_per_glweks_chunk::<T>(level, output_glwe_size, poly_size);
+        let noise_bytes = noise_bytes_per_glweks_chunk(level, poly_size);
+        self.try_fork(input_glwe_dimension.0, mask_bytes, noise_bytes)
+    }
+
     // Forks both generators into an iterator
     fn try_fork(
         &mut self,
@@ -452,6 +477,22 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
         self.par_try_fork(lwe_mask_count.0, mask_bytes, noise_bytes)
     }
 
+    // Forks the generator, when splitting a tpksk into chunks
+    pub(crate) fn par_fork_tpksk_to_tpksk_chunks<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl IndexedParallelIterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
+        let mask_bytes = mask_bytes_per_tpksk_chunk::<T>(level, glwe_size, poly_size);
+        let noise_bytes = noise_bytes_per_tpksk_chunk(level, poly_size);
+        self.par_try_fork(
+            poly_size.log2().0 * glwe_size.to_glwe_dimension().0,
+            mask_bytes,
+            noise_bytes,
+        )
+    }
+
     // Forks both generators into a parallel iterator.
     fn par_try_fork(
         &mut self,
@@ -531,6 +572,32 @@ fn mask_bytes_per_lwe_compact_ciphertext_bin<T: UnsignedInteger>(
     lwe_dimension.0 * mask_bytes_per_coef::<T>()
 }
 
+fn mask_bytes_per_tpksk_chunk<T: UnsignedInteger>(
+    level: DecompositionLevelCount,
+    glwe_size: GlweSize,
+    poly_size: PolynomialSize,
+) -> usize {
+    glwe_size.to_glwe_dimension().0 * mask_bytes_per_glweks_chunk::<T>(level, glwe_size, poly_size)
+}
+
+fn mask_bytes_per_tpksk<T: UnsignedInteger>(
+    level: DecompositionLevelCount,
+    glwe_size: GlweSize,
+    poly_size: PolynomialSize,
+) -> usize {
+    poly_size.log2().0 * mask_bytes_per_tpksk_chunk::<T>(level, glwe_size, poly_size)
+}
+
+fn mask_bytes_per_glweks_chunk<T: UnsignedInteger>(
+    level: DecompositionLevelCount,
+    glwe_size: GlweSize,
+    poly_size: PolynomialSize,
+) -> usize {
+    glwe_size.to_glwe_dimension().0
+        * level.0
+        * mask_bytes_per_glwe::<T>(glwe_size.to_glwe_dimension(), poly_size)
+}
+
 fn noise_bytes_per_coef() -> usize {
     // We use f64 to sample the noise for every precision, and we need 4/pi inputs to generate
     // such an output (here we take 32 to keep a safety margin).
@@ -582,6 +649,27 @@ fn noise_bytes_per_pfpksk(
 
 fn noise_bytes_per_lwe_compact_ciphertext_bin(lwe_dimension: LweDimension) -> usize {
     lwe_dimension.0 * noise_bytes_per_coef()
+}
+
+fn noise_bytes_per_tpksk_chunk(level: DecompositionLevelCount, poly_size: PolynomialSize) -> usize {
+    level.0 * noise_bytes_per_glwe(poly_size)
+}
+
+fn noise_bytes_per_tpksk(
+    level: DecompositionLevelCount,
+    poly_size: PolynomialSize,
+    glwe_size: GlweSize,
+) -> usize {
+    glwe_size.to_glwe_dimension().0
+        * poly_size.log2().0
+        * noise_bytes_per_tpksk_chunk(level, poly_size)
+}
+
+fn noise_bytes_per_glweks_chunk(
+    level: DecompositionLevelCount,
+    poly_size: PolynomialSize,
+) -> usize {
+    level.0 * noise_bytes_per_glwe(poly_size)
 }
 
 #[cfg(test)]
