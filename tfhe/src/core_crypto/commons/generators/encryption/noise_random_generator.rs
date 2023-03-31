@@ -8,8 +8,9 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweSize,
-    LweBskGroupingFactor, LweCiphertextCount, LweDimension, LweMaskCount, LweSize, PolynomialSize,
+    CiphertextModulus, DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweDimension,
+    GlweSize, LweBskGroupingFactor, LweCiphertextCount, LweDimension, LweMaskCount, LweSize,
+    PolynomialSize,
 };
 use concrete_csprng::generators::ForkError;
 use rayon::prelude::*;
@@ -272,6 +273,27 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         self.try_fork(lwe_mask_count.0, noise_bytes)
     }
 
+    // Forks the generator, when splitting a tpksk into chunks
+    pub(crate) fn fork_tpksk_to_tpksk_chunks(
+        &mut self,
+        level: DecompositionLevelCount,
+        poly_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let noise_bytes = noise_bytes_per_tpksk_chunk(level, poly_size);
+        self.try_fork(poly_size.log2().0, noise_bytes)
+    }
+
+    // Forks the generator, when splitting a glwe keyswitch into chunks
+    pub(crate) fn fork_glweks_to_glweks_chunks(
+        &mut self,
+        level: DecompositionLevelCount,
+        input_glwe_dimension: GlweDimension,
+        poly_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let noise_bytes = noise_bytes_per_glweks_chunk(level, poly_size);
+        self.try_fork(input_glwe_dimension.0, noise_bytes)
+    }
+
     pub(crate) fn try_fork(
         &mut self,
         n_child: usize,
@@ -411,6 +433,20 @@ impl<G: ParallelByteRandomGenerator> NoiseRandomGenerator<G> {
         self.par_try_fork(lwe_mask_count.0, noise_bytes)
     }
 
+    // Forks the generator, when splitting a tpksk into chunks
+    pub(crate) fn par_fork_tpksk_to_tpksk_chunks(
+        &mut self,
+        level: DecompositionLevelCount,
+        glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
+        let noise_bytes = noise_bytes_per_tpksk_chunk(level, poly_size);
+        self.par_try_fork(
+            poly_size.log2().0 * glwe_size.to_glwe_dimension().0,
+            noise_bytes,
+        )
+    }
+
     // Forks both generators into a parallel iterator.
     pub(crate) fn par_try_fork(
         &mut self,
@@ -486,4 +522,25 @@ fn noise_bytes_per_pfpksk(
 
 fn noise_bytes_per_lwe_compact_ciphertext_bin(lwe_dimension: LweDimension) -> usize {
     lwe_dimension.0 * noise_bytes_per_coef()
+}
+
+fn noise_bytes_per_tpksk_chunk(level: DecompositionLevelCount, poly_size: PolynomialSize) -> usize {
+    level.0 * noise_bytes_per_glwe(poly_size)
+}
+
+fn noise_bytes_per_tpksk(
+    level: DecompositionLevelCount,
+    poly_size: PolynomialSize,
+    glwe_size: GlweSize,
+) -> usize {
+    glwe_size.to_glwe_dimension().0
+        * poly_size.log2().0
+        * noise_bytes_per_tpksk_chunk(level, poly_size)
+}
+
+fn noise_bytes_per_glweks_chunk(
+    level: DecompositionLevelCount,
+    poly_size: PolynomialSize,
+) -> usize {
+    level.0 * noise_bytes_per_glwe(poly_size)
 }

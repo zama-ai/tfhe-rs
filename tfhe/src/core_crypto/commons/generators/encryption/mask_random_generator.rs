@@ -188,6 +188,29 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         self.try_fork(lwe_mask_count.0, mask_bytes)
     }
 
+    // Forks the generator, when splitting a tpksk into chunks
+    pub(crate) fn fork_tpksk_to_tpksk_chunks<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let mask_bytes = mask_bytes_per_tpksk_chunk::<T>(level, glwe_size, poly_size);
+        self.try_fork(poly_size.log2().0, mask_bytes)
+    }
+
+    // Forks the generator, when splitting a glwe keyswitch into chunks
+    pub(crate) fn fork_glweks_to_glweks_chunks<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        input_glwe_dimension: GlweDimension,
+        output_glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let mask_bytes = mask_bytes_per_glweks_chunk::<T>(level, output_glwe_size, poly_size);
+        self.try_fork(input_glwe_dimension.0, mask_bytes)
+    }
+
     pub(crate) fn try_fork(
         &mut self,
         n_child: usize,
@@ -330,6 +353,20 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         self.par_try_fork(lwe_mask_count.0, mask_bytes)
     }
 
+    // Forks the generator, when splitting a tpksk into chunks
+    pub(crate) fn par_fork_tpksk_to_tpksk_chunks<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
+        let mask_bytes = mask_bytes_per_tpksk_chunk::<T>(level, glwe_size, poly_size);
+        self.par_try_fork(
+            poly_size.log2().0 * glwe_size.to_glwe_dimension().0,
+            mask_bytes,
+        )
+    }
+
     // Forks both generators into a parallel iterator.
     pub(crate) fn par_try_fork(
         &mut self,
@@ -413,4 +450,30 @@ fn mask_bytes_per_lwe_compact_ciphertext_bin<T: UnsignedInteger>(
     lwe_dimension: LweDimension,
 ) -> usize {
     lwe_dimension.0 * mask_bytes_per_coef::<T>()
+}
+
+fn mask_bytes_per_tpksk_chunk<T: UnsignedInteger>(
+    level: DecompositionLevelCount,
+    glwe_size: GlweSize,
+    poly_size: PolynomialSize,
+) -> usize {
+    glwe_size.to_glwe_dimension().0 * mask_bytes_per_glweks_chunk::<T>(level, glwe_size, poly_size)
+}
+
+fn mask_bytes_per_tpksk<T: UnsignedInteger>(
+    level: DecompositionLevelCount,
+    glwe_size: GlweSize,
+    poly_size: PolynomialSize,
+) -> usize {
+    poly_size.log2().0 * mask_bytes_per_tpksk_chunk::<T>(level, glwe_size, poly_size)
+}
+
+fn mask_bytes_per_glweks_chunk<T: UnsignedInteger>(
+    level: DecompositionLevelCount,
+    glwe_size: GlweSize,
+    poly_size: PolynomialSize,
+) -> usize {
+    glwe_size.to_glwe_dimension().0
+        * level.0
+        * mask_bytes_per_glwe::<T>(glwe_size.to_glwe_dimension(), poly_size)
 }

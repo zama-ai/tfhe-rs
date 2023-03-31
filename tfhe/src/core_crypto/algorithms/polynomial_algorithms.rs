@@ -658,6 +658,33 @@ pub fn polynomial_wrapping_mul<Scalar, OutputCont, LhsCont, RhsCont>(
     polynomial_wrapping_add_mul_assign(output, lhs, rhs);
 }
 
+/// Multiply a polynomial by a scalar.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::entities::*;
+/// let mut pol = Polynomial::from_container(vec![1u8, 2, 3, 4, 5, 6]);
+/// let scalar = 127u8;
+/// polynomial_wrapping_scalar_mul_assign(&mut pol, scalar);
+/// assert_eq!(pol.as_ref(), &[127u8, 254, 125, 252, 123, 250]);
+/// ```
+pub fn polynomial_wrapping_scalar_mul_assign<Scalar, PolyCont>(
+    output: &mut Polynomial<PolyCont>,
+    scalar: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    PolyCont: ContainerMut<Element = Scalar>,
+{
+    slice_wrapping_scalar_mul_assign(output.as_mut(), scalar)
+}
+
 /// Fill the output polynomial, with the result of the product of two polynomials, reduced modulo
 /// $(X^{N} + 1)$ with the Karatsuba algorithm Complexity: $O(N^{1.58})$
 ///
@@ -779,6 +806,70 @@ where
         slice_wrapping_sub_assign(&mut res[(poly_size / 4)..(3 * poly_size / 4)], &a1);
         slice_wrapping_add_assign(&mut res[0..(poly_size / 2)], &a0);
         slice_wrapping_add_assign(&mut res[(poly_size / 2)..poly_size], &a1);
+    }
+}
+
+///
+pub fn apply_automorphism_wrapping_add_assign<Scalar, OutputCont, PolyCont>(
+    output: &mut Polynomial<OutputCont>,
+    input: &Polynomial<PolyCont>,
+    automorphism_exponent: usize,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    // check input and output polynomials have the same size
+    assert_eq!(input.polynomial_size(), output.polynomial_size());
+    // check the automorphism exponent is odd so the function X -> X^automorphism_exponent is an
+    // automorphism (assumes polysize is a power of 2)
+    assert_eq!(automorphism_exponent % 2, 1);
+
+    let poly_size = input.polynomial_size().0;
+
+    for (index, coef) in input.iter().enumerate() {
+        let new_index = (index * automorphism_exponent) % poly_size;
+        if (index * automorphism_exponent) % (2 * poly_size) == new_index {
+            output[new_index] = output[new_index].wrapping_add(*coef);
+        } else {
+            output[new_index] = output[new_index].wrapping_sub(*coef);
+        }
+    }
+}
+
+pub fn apply_automorphism_assign<Scalar, PolyCont>(
+    input: &mut Polynomial<PolyCont>,
+    automorphism_exponent: usize,
+) where
+    Scalar: UnsignedInteger,
+    PolyCont: ContainerMut<Element = Scalar>,
+{
+    let mut temp = Polynomial::new(Scalar::ZERO, input.polynomial_size());
+    apply_automorphism_wrapping_add_assign(&mut temp, input, automorphism_exponent);
+    input.as_mut().fill(Scalar::ZERO);
+    polynomial_wrapping_add_assign(input, &temp);
+}
+
+pub fn polynomial_list_wrapping_sub_scalar_mul_assign<Scalar, InputCont, OutputCont, PolyCont>(
+    output_poly_list: &mut PolynomialList<OutputCont>,
+    input_poly_list: &PolynomialList<InputCont>,
+    scalar_poly: &Polynomial<PolyCont>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        output_poly_list.polynomial_size(),
+        input_poly_list.polynomial_size()
+    );
+    assert_eq!(
+        output_poly_list.polynomial_count(),
+        input_poly_list.polynomial_count()
+    );
+    for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip(input_poly_list.iter()) {
+        polynomial_wrapping_sub_mul_assign(&mut output_poly, &input_poly, scalar_poly)
     }
 }
 

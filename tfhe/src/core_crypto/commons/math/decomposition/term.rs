@@ -201,3 +201,115 @@ where
         DecompositionLevel(self.level)
     }
 }
+
+/// A tensor whose elements are the terms of the decomposition of another tensor.
+///
+/// If we decompose each elements of a set of values $(\theta^{(a)})\_{a\in\mathbb{N}}$ as a set of
+/// sums $(\sum\_{i=1}^l\tilde{\theta}^{(a)}\_i\frac{q}{B^i})\_{a\in\mathbb{N}}$, this represents a
+/// set of $(\tilde{\theta}^{(a)}\_i)\_{a\in\mathbb{N}}$.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct DecompositionTermSlice<'a, Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    level: usize,
+    base_log: usize,
+    slice: &'a [Scalar],
+}
+
+impl<'a, Scalar> DecompositionTermSlice<'a, Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    // Creates a new tensor decomposition term.
+    pub(crate) fn new(
+        level: DecompositionLevel,
+        base_log: DecompositionBaseLog,
+        slice: &'a [Scalar],
+    ) -> DecompositionTermSlice<Scalar> {
+        DecompositionTermSlice {
+            level: level.0,
+            base_log: base_log.0,
+            slice,
+        }
+    }
+
+    /// Fills the output tensor with the terms turned to summands.
+    ///
+    /// If our term tensor represents a set of $(\tilde{\theta}^{(a)}\_i)\_{a\in\mathbb{N}}$ of the
+    /// decomposition, this method fills the output tensor with a set of
+    /// $(\tilde{\theta}^{(a)}\_i\frac{q}{B^i})\_{a\in\mathbb{N}}$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer =
+    ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
+    /// let input = vec![2u32.pow(19); 2];
+    /// let mut decomp = decomposer.decompose_slice(&input);
+    /// let term = decomp.next_term().unwrap();
+    /// let mut output = vec![0, 2];
+    /// term.fill_slice_with_recomposition_summand(&mut output);
+    /// assert!(output.iter().all(|&x| x == 1048576));
+    /// ```
+    pub fn fill_slice_with_recomposition_summand(&self, output: &mut [Scalar]) {
+        output
+            .iter_mut()
+            .zip(self.slice.iter())
+            .for_each(|(dst, &value)| {
+                let shift: usize = <Scalar as Numeric>::BITS - self.base_log * self.level;
+                *dst = value << shift
+            });
+    }
+
+    pub(crate) fn update_slice_with_recomposition_summand_wrapping_addition(
+        &self,
+        output: &mut [Scalar],
+    ) {
+        output
+            .iter_mut()
+            .zip(self.slice.iter())
+            .for_each(|(out, &value)| {
+                let shift: usize = <Scalar as Numeric>::BITS - self.base_log * self.level;
+                *out = (*out).wrapping_add(value << shift);
+            });
+    }
+
+    /// Returns a tensor with the values of term.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer =
+    ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
+    /// let input = vec![2u32.pow(19); 2];
+    /// let mut decomp = decomposer.decompose_slice(&input);
+    /// let term = decomp.next_term().unwrap();
+    /// assert_eq!(term.as_slice()[0], 1);
+    /// ```
+    pub fn as_slice(&self) -> &'a [Scalar] {
+        self.slice
+    }
+
+    /// Returns the level of this decomposition term tensor.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
+    /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer =
+    ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
+    /// let input = vec![2u32.pow(19); 2];
+    /// let mut decomp = decomposer.decompose_slice(&input);
+    /// let term = decomp.next_term().unwrap();
+    /// assert_eq!(term.level(), DecompositionLevel(3));
+    /// ```
+    pub fn level(&self) -> DecompositionLevel {
+        DecompositionLevel(self.level)
+    }
+}

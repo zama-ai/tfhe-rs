@@ -12,8 +12,9 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweSize,
-    LweBskGroupingFactor, LweCiphertextCount, LweDimension, LweMaskCount, LweSize, PolynomialSize,
+    CiphertextModulus, DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweDimension,
+    GlweSize, LweBskGroupingFactor, LweCiphertextCount, LweDimension, LweMaskCount, LweSize,
+    PolynomialSize,
 };
 use concrete_csprng::generators::ForkError;
 use mask_random_generator::MaskRandomGenerator;
@@ -231,6 +232,40 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter = self
             .noise
             .fork_lwe_compact_ciphertext_list_to_bin(lwe_mask_count, lwe_dimension)?;
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
+    }
+
+    // Forks the generator, when splitting a tpksk into chunks
+    pub(crate) fn fork_tpksk_to_tpksk_chunks<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let mask_iter = self
+            .mask
+            .fork_tpksk_to_tpksk_chunks::<T>(level, glwe_size, poly_size)?;
+        let noise_iter = self.noise.fork_tpksk_to_tpksk_chunks(level, poly_size)?;
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
+    }
+
+    // Forks the generator, when splitting a glwe keyswitch into chunks
+    pub(crate) fn fork_glweks_to_glweks_chunks<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        input_glwe_dimension: GlweDimension,
+        output_glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let mask_iter = self.mask.fork_glweks_to_glweks_chunks::<T>(
+            level,
+            input_glwe_dimension,
+            output_glwe_size,
+            poly_size,
+        )?;
+        let noise_iter =
+            self.noise
+                .fork_glweks_to_glweks_chunks(level, input_glwe_dimension, poly_size)?;
         Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
@@ -529,6 +564,22 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter = self
             .noise
             .par_fork_lwe_compact_ciphertext_list_to_bin(lwe_mask_count, lwe_dimension)?;
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
+    }
+
+    // Forks the generator, when splitting a tpksk into chunks
+    pub(crate) fn par_fork_tpksk_to_tpksk_chunks<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        glwe_size: GlweSize,
+        poly_size: PolynomialSize,
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
+        let mask_iter = self
+            .mask
+            .par_fork_tpksk_to_tpksk_chunks::<T>(level, glwe_size, poly_size)?;
+        let noise_iter = self
+            .noise
+            .par_fork_tpksk_to_tpksk_chunks(level, glwe_size, poly_size)?;
         Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 }
