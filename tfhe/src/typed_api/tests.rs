@@ -115,3 +115,22 @@ fn test_with_context() {
     let d = r.decrypt(&cks);
     assert!(!d);
 }
+
+/// The purpose of this test is to assert that
+/// the deserialize and serialize traits are implemented
+#[test]
+fn test_serialize_deserialize_are_implemented() {
+    let config = ConfigBuilder::all_disabled().build();
+
+    fn can_be_deserialized<T: serde::de::DeserializeOwned + serde::Serialize>(object: &T) {
+        let data = bincode::serialize(object).unwrap();
+        let _o: T = bincode::deserialize_from(data.as_slice()).unwrap();
+    }
+
+    let (cks, sks) = generate_keys(config);
+    let pks = PublicKey::new(&cks);
+
+    can_be_deserialized(&cks);
+    can_be_deserialized(&sks);
+    can_be_deserialized(&pks);
+}

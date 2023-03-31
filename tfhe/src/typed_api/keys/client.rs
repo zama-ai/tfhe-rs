@@ -19,7 +19,7 @@ use super::ServerKey;
 /// as they will allow to encrypt and decrypt data.
 ///
 /// This key **MUST NOT** be sent to the server.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ClientKey {
     #[cfg(feature = "boolean")]
     pub(crate) boolean_key: BooleanClientKey,

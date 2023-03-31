@@ -20,7 +20,7 @@ macro_rules! define_key_structs {
             )*
 
             ///////////////////////
-            /// Config
+            // Config
             ///////////////////////
             #[derive(Clone, Debug)]
             pub(crate) struct [<$base_struct_name Config>] {
@@ -48,9 +48,9 @@ macro_rules! define_key_structs {
             }
 
             ///////////////////////
-            /// Client Key
+            // Client Key
             ///////////////////////
-            #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+            #[derive(Clone, Debug, ::serde::Deserialize, ::serde::Serialize)]
             pub(crate) struct [<$base_struct_name ClientKey>] {
                 $(
                     pub(super) [<$name _key>]: Option<[<$base_ty_name ClientKey>]>,
@@ -68,9 +68,9 @@ macro_rules! define_key_structs {
             }
 
             ///////////////////////
-            /// Public Key
+            // Public Key
             ///////////////////////
-            #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+            #[derive(Clone, Debug, ::serde::Deserialize, ::serde::Serialize)]
             pub(crate) struct [<$base_struct_name PublicKey>] {
                 $(
                     pub(super) [<$name _key>]: Option<[<$base_ty_name PublicKey>]>,
@@ -91,9 +91,9 @@ macro_rules! define_key_structs {
             }
 
             ///////////////////////
-            /// Server Key
+            // Server Key
             ///////////////////////
-            #[derive(Clone, serde::Deserialize, serde::Serialize)]
+            #[derive(Clone, ::serde::Deserialize, ::serde::Serialize)]
             pub(crate) struct [<$base_struct_name ServerKey>] {
                 $(
                     pub(super) [<$name _key>]: Option<[<$base_ty_name ServerKey>]>,
