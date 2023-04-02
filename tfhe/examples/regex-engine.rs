@@ -92,7 +92,7 @@ fn add_binary_transitions_for_all_ascii(
 ) {
     // loop over bits, LSB first
     let mut curr_state_index = state_index;
-    for bit in 0..=(ALPHABET_LOG - 1) {
+    for bit in 0..ALPHABET_LOG {
         let last = bit == (ALPHABET_LOG - 1);
         let bit_index = bit as usize;
         let to_state = if last {
@@ -119,8 +119,117 @@ fn add_binary_transitions_for_all_ascii(
     }
 }
 
-// TODO: take in a slice of all bytes and construct intermediate states optimally based on how many
-// can be under the same mask
+fn minimize_binary_dfa(
+    transitions: Vec<(Option<usize>, Option<usize>)>,
+    final_states: HashSet<usize>,
+) -> (Vec<(Option<usize>, Option<usize>)>, HashSet<usize>) {
+    let num_states = transitions.len();
+
+    // partition states into two initial groups: final and non-final states
+    let mut partitions: Vec<HashSet<usize>> = vec![HashSet::new(), final_states.clone()];
+    for state in 0..num_states {
+        if !final_states.contains(&state) {
+            partitions[0].insert(state);
+        }
+    }
+
+    // refine partitions
+    let mut work_list = VecDeque::from([0, 1]);
+
+    while let Some(partition_id) = work_list.pop_front() {
+        for symbol in 0..2 {
+            let mut affected_states: HashSet<usize> = HashSet::new();
+
+            for state in 0..num_states {
+                let next_state = match symbol {
+                    0 => transitions[state].0,
+                    _ => transitions[state].1,
+                };
+
+                if let Some(next_state) = next_state {
+                    if partitions[partition_id].contains(&next_state) {
+                        affected_states.insert(state);
+                    }
+                }
+            }
+
+            if affected_states.is_empty() {
+                continue;
+            }
+
+            let mut new_partitions = vec![];
+            let work_list_set = work_list.into_iter().collect::<HashSet<_>>();
+            let mut new_work_list = VecDeque::new();
+
+            for (i, partition) in partitions.into_iter().enumerate() {
+                let intersection: HashSet<usize> =
+                    partition.intersection(&affected_states).copied().collect();
+                let difference: HashSet<usize> =
+                    partition.difference(&affected_states).copied().collect();
+
+                if !intersection.is_empty() && !difference.is_empty() {
+                    // split on symbol
+                    let intersection_index = new_partitions.len();
+                    let difference_index = new_partitions.len() + 1;
+                    let smaller_index = if intersection.len() <= difference.len() {
+                        intersection_index
+                    } else {
+                        difference_index
+                    };
+                    new_partitions.push(intersection);
+                    new_partitions.push(difference);
+
+                    if work_list_set.contains(&i) {
+                        new_work_list.push_back(intersection_index);
+                        new_work_list.push_back(difference_index);
+                    } else {
+                        new_work_list.push_back(smaller_index);
+                    }
+                } else {
+                    // cannot split on symbol
+                    new_partitions.push(partition);
+                    if work_list_set.contains(&i) {
+                        new_work_list.push_back(new_partitions.len() - 1);
+                    }
+                }
+            }
+
+            partitions = new_partitions;
+            work_list = new_work_list;
+        }
+    }
+
+    // build the minimized dfa
+    let mut minimized_transitions = vec![(None, None); partitions.len()];
+    let mut new_final_states = HashSet::new();
+
+    for (new_state_id, partition) in partitions.iter().enumerate() {
+        let repr_state = *partition.iter().next().unwrap();
+
+        minimized_transitions[new_state_id] = (
+            transitions[repr_state]
+                .0
+                .map(|s| find_partition_id(&partitions, s)),
+            transitions[repr_state]
+                .1
+                .map(|s| find_partition_id(&partitions, s)),
+        );
+
+        if final_states.contains(&repr_state) {
+            new_final_states.insert(new_state_id);
+        }
+    }
+
+    (minimized_transitions, new_final_states)
+}
+
+fn find_partition_id(partitions: &Vec<HashSet<usize>>, state: usize) -> usize {
+    partitions
+        .iter()
+        .position(|part| part.contains(&state))
+        .expect("State must be in one of the partitions")
+}
+
 fn add_binary_transitions_for_byte(
     table: &mut Vec<(Option<usize>, Option<usize>)>,
     depth_slice: &mut [HashSet<usize>],
@@ -131,7 +240,7 @@ fn add_binary_transitions_for_byte(
 ) {
     // loop over bits, LSB first
     let mut curr_state_index = state_index;
-    for bit in 0..=(ALPHABET_LOG - 1) {
+    for bit in 0..ALPHABET_LOG - 1 {
         let last = bit == (ALPHABET_LOG - 1);
         let bit_index = bit as usize;
         let bit = ((byte & (1 << bit)) >> bit) != 0;
@@ -215,7 +324,7 @@ fn build_binary_dfa_tables(
         }
         // ascii-only: 7 bits
         let mut seen_successors = [false; ALPHABET_LEN as usize];
-        for input in 0..=(ALPHABET_LEN - 1) {
+        for input in 0..ALPHABET_LEN {
             let successor = dfa.next_state(state, input);
             if dfa.is_dead_state(successor) {
                 continue;
@@ -361,6 +470,8 @@ fn main() {
                     u8_to_bits_le(c)
                         .into_par_iter()
                         .take(ALPHABET_LOG.into())
+                        // for testing
+                        // .map(|bit| server_key.trivial_encrypt(bit))
                         .map(|bit| client_key.encrypt(bit))
                 })
                 .collect();
