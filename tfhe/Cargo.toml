@@ -30,6 +30,11 @@ itertools = "0.10.5"
 num_cpus = "1.15"
 # For erf and normality test
 libm = "0.2.6"
+test-case = "*"
+combine = "*"
+anyhow = "*"
+env_logger = "*"
+log = "*"
 
 [build-dependencies]
 cbindgen = { version = "0.24.3", optional = true }
@@ -191,6 +196,10 @@ required-features = ["shortint", "internal-keycache"]
 [[example]]
 name = "micro_bench_and"
 required-features = ["boolean"]
+
+[[example]]
+name = "regex_engine"
+required-features = ["integer"]
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
