@@ -29,7 +29,8 @@ jobs:
 
       - name: Build Release core
         run: |
-          make build_core
+          make build_core AVX512_SUPPORT=ON
+          make build_core_experimental AVX512_SUPPORT=ON
 
       - name: Build Release boolean
         run: |
