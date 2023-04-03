@@ -58,7 +58,7 @@ jobs:
 
       - name: Run core tests
         run: |
-          make test_core_crypto
+          AVX512_SUPPORT=ON make test_core_crypto
 
       - name: Run boolean tests
         run: |

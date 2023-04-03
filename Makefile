@@ -125,12 +125,23 @@ gen_key_cache: install_rs_build_toolchain
 		--example generates_test_keys \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe
 
-.PHONY: build_core # Build core_crypto with and without experimental features
-build_core: install_rs_build_toolchain
+.PHONY: build_core # Build core_crypto without experimental features
+build_core: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
 		--features=$(TARGET_ARCH_FEATURE) -p tfhe
+	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --release \
+			--features=$(TARGET_ARCH_FEATURE),$(AVX512_FEATURE) -p tfhe; \
+	fi
+
+.PHONY: build_core_experimental # Build core_crypto with experimental features
+build_core_experimental: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
 		--features=$(TARGET_ARCH_FEATURE),experimental -p tfhe
+	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --release \
+			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p tfhe; \
+	fi
 
 .PHONY: build_boolean # Build with boolean enabled
 build_boolean: install_rs_build_toolchain
@@ -172,9 +183,13 @@ build_node_js_api: install_rs_build_toolchain
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api
 
 .PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
-test_core_crypto: install_rs_build_toolchain
+test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
 		--features=$(TARGET_ARCH_FEATURE),experimental -p tfhe -- core_crypto::
+	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --release \
+			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p tfhe -- core_crypto::; \
+	fi
 
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
