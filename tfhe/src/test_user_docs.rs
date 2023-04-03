@@ -30,12 +30,9 @@ doctest!("../docs/core_crypto/tutorial.md", core_crypto_turorial);
 // );
 
 // Integer
+doctest!("../docs/integer/tutorial.md", integer_first_circuit);
 doctest!(
-    "../docs/integer/getting_started/first_circuit.md",
-    integer_first_circuit
-);
-doctest!(
-    "../docs/integer/tutorials/serialization.md",
+    "../docs/integer/serialization.md",
     integer_serialization_tuto
 );
 doctest!(

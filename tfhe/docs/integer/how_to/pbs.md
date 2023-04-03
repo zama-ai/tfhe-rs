@@ -1,16 +1,4 @@
-# The tree programmable bootstrapping
-
-In `integer`, the user can evaluate any function on an encrypted ciphertext. To do so the user must first
-create a `treepbs key`, choose a function to evaluate and give them as parameters to the `tree programmable bootstrapping`.
-
-Two versions of the tree pbs are implemented: the `standard` version that computes a result according to every encrypted
-bit (message and carry), and the `base` version that only takes into account the message bits of each block.
-
-{% hint style="warning" %}
-
-The `tree pbs` is quite slow, therefore its use is currently restricted to two and three blocks integer ciphertexts.
-
-{% endhint %}
+# The WOP programmable bootstrapping
 
 ```rust
 use tfhe::integer::gen_keys_radix;
@@ -47,5 +35,4 @@ fn main() {
 }
 ```
 
-# The WOP programmable bootstrapping
 

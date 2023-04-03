@@ -23,7 +23,16 @@
 * [Serialization/Deserialization](shortint/serialization.md)
 
 ## Integer
-* [Summary](integer/SUMMARY.md)
+* [Tutorial](integer/tutorial.md)
+* [Operations](integer/operations.md)
+* [Representations](integer/representations.md)
+* [Cryptographic Parameters](integer/parameters.md)
+* [Serialization/Deserialization](integer/serialization.md)
+* How To
+  * [PBS](integer/how_to/pbs.md)
+* Tutorials
+  * [Circuit Evaluation](integer/tutorials/circuit_evaluation.md)
+
 
 ## C API
 * [Tutorial](c_api/tutorial.md)
