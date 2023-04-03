@@ -66,8 +66,7 @@ integer = ["shortint"]
 internal-keycache = ["lazy_static", "fs2", "bincode"]
 
 # Experimental section
-experimental = ["experimental-multi_bit_pbs"]
-experimental-multi_bit_pbs = []
+experimental = []
 experimental-force_fft_algo_dif4 = []
 # End experimental section
 

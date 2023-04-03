@@ -14,7 +14,6 @@ pub mod lwe_bootstrap_key;
 pub mod lwe_ciphertext;
 pub mod lwe_ciphertext_list;
 pub mod lwe_keyswitch_key;
-#[cfg(feature = "experimental-multi_bit_pbs")]
 pub mod lwe_multi_bit_bootstrap_key;
 pub mod lwe_private_functional_packing_keyswitch_key;
 pub mod lwe_private_functional_packing_keyswitch_key_list;
@@ -50,7 +49,6 @@ pub use lwe_bootstrap_key::*;
 pub use lwe_ciphertext::*;
 pub use lwe_ciphertext_list::*;
 pub use lwe_keyswitch_key::*;
-#[cfg(feature = "experimental-multi_bit_pbs")]
 pub use lwe_multi_bit_bootstrap_key::*;
 pub use lwe_private_functional_packing_keyswitch_key::*;
 pub use lwe_private_functional_packing_keyswitch_key_list::*;
