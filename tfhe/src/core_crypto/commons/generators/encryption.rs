@@ -7,11 +7,9 @@ use crate::core_crypto::commons::math::random::{
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
-#[cfg(feature = "experimental-multi_bit_pbs")]
-use crate::core_crypto::commons::parameters::LweBskGroupingFactor;
 use crate::core_crypto::commons::parameters::{
     DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweDimension, GlweSize,
-    LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
+    LweBskGroupingFactor, LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
 };
 use concrete_csprng::generators::ForkError;
 use rayon::prelude::*;
@@ -75,7 +73,6 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Forks the generator, when splitting a multi_bit bootstrap key into ggsw ciphertext groups.
-    #[cfg(feature = "experimental-multi_bit_pbs")]
     pub(crate) fn fork_multi_bit_bsk_to_ggsw_group<T: UnsignedInteger>(
         &mut self,
         lwe_dimension: LweDimension,
@@ -265,7 +262,6 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 
     // Forks the generator, when splitting a multi_bit bootstrap key into ggsw ct.
-    #[cfg(feature = "experimental-multi_bit_pbs")]
     pub(crate) fn par_fork_multi_bit_bsk_to_ggsw_group<T: UnsignedInteger>(
         &mut self,
         lwe_dimension: LweDimension,
