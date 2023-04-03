@@ -752,17 +752,20 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
 mod test {
     use crate::core_crypto::prelude::*;
 
-    fn multi_bit_pbs(grouping_factor: LweBskGroupingFactor, thread_count: ThreadCount) {
-        // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
-        // computations
-        // Define parameters for LweBootstrapKey creation
-        let mut input_lwe_dimension = LweDimension(742);
-        let lwe_modular_std_dev = StandardDev(0.000007069849454709433);
-        let decomp_base_log = DecompositionBaseLog(3);
-        let decomp_level_count = DecompositionLevelCount(5);
-        let glwe_dimension = GlweDimension(1);
-        let polynomial_size = PolynomialSize(1024);
-        let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+    fn multi_bit_pbs(
+        multi_bit_params: MultiBitParams,
+        grouping_factor: LweBskGroupingFactor,
+        thread_count: ThreadCount,
+    ) {
+        let MultiBitParams {
+            mut input_lwe_dimension,
+            lwe_modular_std_dev,
+            decomp_base_log,
+            decomp_level_count,
+            glwe_dimension,
+            polynomial_size,
+            glwe_modular_std_dev,
+        } = multi_bit_params;
 
         while input_lwe_dimension.0 % grouping_factor.0 != 0 {
             input_lwe_dimension = LweDimension(input_lwe_dimension.0 + 1);
@@ -929,13 +932,51 @@ mod test {
         }
     }
 
+    pub struct MultiBitParams {
+        pub input_lwe_dimension: LweDimension,
+        pub lwe_modular_std_dev: StandardDev,
+        pub decomp_base_log: DecompositionBaseLog,
+        pub decomp_level_count: DecompositionLevelCount,
+        pub glwe_dimension: GlweDimension,
+        pub polynomial_size: PolynomialSize,
+        pub glwe_modular_std_dev: StandardDev,
+    }
+
     #[test]
     fn multi_bit_pbs_test_factor_2_thread_5() {
-        multi_bit_pbs(LweBskGroupingFactor(2), ThreadCount(5));
+        multi_bit_pbs(
+            // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield
+            // correct computations
+            MultiBitParams {
+                input_lwe_dimension: LweDimension(724),
+                lwe_modular_std_dev: StandardDev(0.000012597809688976246),
+                decomp_base_log: DecompositionBaseLog(1),
+                decomp_level_count: DecompositionLevelCount(18),
+                glwe_dimension: GlweDimension(3),
+                polynomial_size: PolynomialSize(512),
+                glwe_modular_std_dev: StandardDev(0.0000000000039666089171633006),
+            },
+            LweBskGroupingFactor(2),
+            ThreadCount(5),
+        );
     }
 
     #[test]
     fn multi_bit_pbs_test_factor_3_thread_12() {
-        multi_bit_pbs(LweBskGroupingFactor(3), ThreadCount(12));
+        multi_bit_pbs(
+            // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield
+            // correct computations
+            MultiBitParams {
+                input_lwe_dimension: LweDimension(732),
+                lwe_modular_std_dev: StandardDev(0.000010870190497167995),
+                decomp_base_log: DecompositionBaseLog(1),
+                decomp_level_count: DecompositionLevelCount(18),
+                glwe_dimension: GlweDimension(3),
+                polynomial_size: PolynomialSize(512),
+                glwe_modular_std_dev: StandardDev(0.0000000000039666089171633006),
+            },
+            LweBskGroupingFactor(3),
+            ThreadCount(12),
+        );
     }
 }
