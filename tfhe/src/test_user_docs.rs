@@ -1,5 +1,8 @@
 use doc_comment::doctest;
 
+// readme
+doctest!("../../README.md", readme);
+
 // Getting started
 doctest!("../docs/getting_started/quick_start.md", quick_start);
 doctest!("../docs/getting_started/operations.md", operations);

@@ -5,8 +5,14 @@
 To use `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
 ```toml
-tfhe = { version = "0.2.0", features = [ "boolean", "shortint", "x86_64-unix" ] }
+tfhe = { version = "0.2.0", features = [ "boolean", "shortint", "integer", "x86_64-unix" ] }
 ```
+
+{% hint style="info" %}
+When running code that uses `tfhe-rs`, it is highly recommended
+to run in release mode with cargo's `--release` flag to have the best performances possible,
+eg: `cargo run --release`.
+{% endhint %}
 
 ## Choosing your features
 
@@ -16,10 +22,11 @@ tfhe = { version = "0.2.0", features = [ "boolean", "shortint", "x86_64-unix" ] 
 
 This crate exposes two kinds of data types. Each kind is enabled by activating its corresponding feature in the TOML line. Each kind may have multiple types:
 
-| Kind      | Features   | Type(s)                 |
-| --------- | ---------- | ----------------------- |
-| Booleans  | `boolean`  | Booleans                |
-| ShortInts | `shortint` | Short unsigned integers |
+| Kind      | Features   | Type(s)                           |
+| --------- | ---------- | --------------------------------- |
+| Booleans  | `boolean`  | Booleans                          |
+| ShortInts | `shortint` | Short unsigned integers           |
+| Integers  | `integer`  | Arbitrary-sized unsigned integers |
 
 ### Serialization.
 

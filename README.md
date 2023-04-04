@@ -25,7 +25,7 @@
   </a>
 </p>
 
-**TFHE-rs** is a pure Rust implementation of TFHE for boolean and small integer
+**TFHE-rs** is a pure Rust implementation of TFHE for boolean and integer
 arithmetics over encrypted data. It includes:
  - a **Rust** API
  - a **C** API
@@ -63,27 +63,31 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] 
 
 Note: aarch64-based machines are not yet supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs
 
+Note that when running code that uses `tfhe-rs`, it is highly recommended
+to run in release mode with cargo`s `--release` flag to have the best performances possible,
+eg: `cargo run --release`.
+
 Here is a full example evaluating a Boolean circuit:
 
 ```rust
 use tfhe::boolean::prelude::*;
 
 fn main() {
-// We generate a set of client/server keys, using the default parameters:
+    // We generate a set of client/server keys, using the default parameters:
     let (mut client_key, mut server_key) = gen_keys();
 
-// We use the client secret key to encrypt two messages:
+    // We use the client secret key to encrypt two messages:
     let ct_1 = client_key.encrypt(true);
     let ct_2 = client_key.encrypt(false);
 
-// We use the server public key to execute a boolean circuit:
-// if ((NOT ct_2) NAND (ct_1 AND ct_2)) then (NOT ct_2) else (ct_1 AND ct_2)
+    // We use the server public key to execute a boolean circuit:
+    // if ((NOT ct_2) NAND (ct_1 AND ct_2)) then (NOT ct_2) else (ct_1 AND ct_2)
     let ct_3 = server_key.not(&ct_2);
     let ct_4 = server_key.and(&ct_1, &ct_2);
     let ct_5 = server_key.nand(&ct_3, &ct_4);
     let ct_6 = server_key.mux(&ct_5, &ct_3, &ct_4);
 
-// We use the client key to decrypt the output of the circuit:
+    // We use the client key to decrypt the output of the circuit:
     let output = client_key.decrypt(&ct_6);
     assert_eq!(output, true);
 }
@@ -121,6 +125,30 @@ fn main() {
     // Decrypt the ciphertext using the (private) client key
     let output = client_key.decrypt(&ct_res);
     assert_eq!(output, f(msg1 + msg2));
+}
+```
+
+An example using integer:
+
+```rust
+use tfhe::integer::gen_keys_radix;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+
+fn main() {
+    // We create keys to create 16 bits integers
+    // using 8 blocks of 2 bits
+    let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, 8);
+
+    let clear_a = 2382u16;
+    let clear_b = 29374u16;
+
+    let mut a = cks.encrypt(clear_a as u64);
+    let mut b = cks.encrypt(clear_b as u64);
+
+    let encrypted_max = sks.smart_max_parallelized(&mut a, &mut b);
+    let decrypted_max: u64 = cks.decrypt(&encrypted_max);
+
+    assert_eq!(decrypted_max as u16, clear_a.max(clear_b))
 }
 ```
 
