@@ -15,7 +15,63 @@ The overall process to write an homomorphic program is the same for both Boolean
 * Compute over encrypted data using the server key
 * Decrypt data with the client key
 
-### Boolean example.
+
+### API Levels
+
+This library has different modules, with different level of abstraction.
+
+There is a the core_crypto module which is the lowest level API, with the primitive
+functions and types of the TFHE scheme.
+
+The are the boolean, shortint and integer modules which are based on the core_crypto,
+to allow construction of respectively, booleans, short integers, and integers circuits.
+
+Then there is the high-level module built on top of the boolean, shortint, integer modules,
+this module is meant to abstract as much as possible the TFHE part and allow quick development of
+FHE applications.
+
+#### High Level API
+
+tfhe-rs by default exposes a High Level API, that manages the server_key and proposes datatypes
+that try to match Rust's native types by having overloaded operators (+, -, ...).
+
+Here is an example to illustrate how the high level API is used.
+
+{% hint style="info" %}
+Use the `--release` flag to run this example (eg: `cargo run --release`)
+{% endhint %}
+
+
+```rust
+use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8};
+use tfhe::prelude::*;
+
+fn main() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_uint8()
+        .build();
+
+    let (client_key, server_key) = generate_keys(config);
+
+    set_server_key(server_key);
+
+    let clear_a = 27u8;
+    let clear_b = 128u8;
+
+    let a = FheUint8::encrypt(clear_a, &client_key);
+    let b = FheUint8::encrypt(clear_b, &client_key);
+
+    let result = a + b;
+
+    let decrypted_result: u8 = result.decrypt(&client_key);
+
+    let clear_result = clear_a + clear_b;
+
+    assert_eq!(decrypted_result, clear_result);
+}
+```
+
+#### Boolean example.
 
 Here is an example to illustrate how the library can be used to evaluate a Boolean circuit:
 
@@ -47,7 +103,7 @@ fn main() {
 }
 ```
 
-### Shortint example.
+#### Shortint example.
 
 And here is a full example using shortint:
 
@@ -80,7 +136,7 @@ fn main() {
 }
 ```
 
-### Integer example.
+#### Integer example.
 
 {% hint style="info" %}
 Use the `--release` flag to run this example (eg: `cargo run --release`)

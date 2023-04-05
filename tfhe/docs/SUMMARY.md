@@ -10,6 +10,14 @@
 * [Benchmarks](getting\_started/benchmarks.md)
 * [Security and Cryptography](getting\_started/security\_and\_cryptography.md)
 
+## High Level API
+* [Tutorial](typed_api/tutorial.md)
+* [Operations](typed_api/operations.md)
+* [Serialization/Deserialization](typed_api/serialization.md)
+* Tutorials
+  * [Parity Bit](typed_api/tutorials/parity_bit.md)
+  * [Latin String](typed_api/tutorials/latin_string.md)
+
 ## Boolean
 * [Tutorial](Boolean/tutorial.md)
 * [Operations](Boolean/operations.md)

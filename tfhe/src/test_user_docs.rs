@@ -26,12 +26,6 @@ doctest!(
 );
 doctest!("../docs/core_crypto/tutorial.md", core_crypto_turorial);
 
-// doctest!("../docs/tutorials/serialization.md", serialization_tuto);
-// doctest!(
-//     "../docs/tutorials/circuit_evaluation.md",
-//     circuit_evaluation
-// );
-
 // Integer
 doctest!("../docs/integer/tutorial.md", integer_first_circuit);
 doctest!(
@@ -43,3 +37,19 @@ doctest!(
     integer_circuit_evaluation
 );
 doctest!("../docs/integer/how_to/pbs.md", integer_pbs);
+
+// typed_api
+doctest!("../docs/typed_api/tutorial.md", typed_api_first_circuit);
+doctest!("../docs/typed_api/operations.md", typed_api_operations);
+doctest!(
+    "../docs/typed_api/serialization.md",
+    typed_api_serialization_tuto
+);
+doctest!(
+    "../docs/typed_api/tutorials/parity_bit.md",
+    typed_api_parity_bit
+);
+doctest!(
+    "../docs/typed_api/tutorials/latin_string.md",
+    typed_api_latin_string
+);
