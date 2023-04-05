@@ -7,6 +7,7 @@ use crate::typed_api::integers::parameters::{
 };
 use crate::typed_api::integers::public_key::GenericIntegerPublicKey;
 use crate::typed_api::integers::server_key::GenericIntegerServerKey;
+use crate::typed_api::integers::types::compressed::CompressedGenericInteger;
 use crate::typed_api::keys::RefKeyFromKeyChain;
 use crate::typed_api::traits::{FheDecrypt, FheEncrypt};
 use crate::typed_api::ClientKey;
@@ -190,6 +191,9 @@ macro_rules! static_int_type {
             $(#[$outer])*
             #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type $name = GenericInteger<[<$name Parameters>]>;
+
+            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
+            pub type [<Compressed $name>] = CompressedGenericInteger<[<$name Parameters>]>;
 
             impl_ref_key_from_keychain!(
                 for <[<$name Parameters>] as ParameterType>::Id {

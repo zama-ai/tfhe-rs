@@ -11,8 +11,9 @@ mod tests;
 pub use crate::typed_api::booleans::{CompressedFheBool, FheBool, FheBoolParameters};
 #[cfg(feature = "integer")]
 pub use crate::typed_api::integers::{
-    CrtParameters, FheUint10, FheUint12, FheUint14, FheUint16, FheUint256, FheUint8,
-    GenericInteger, RadixParameters,
+    CompressedFheUint10, CompressedFheUint12, CompressedFheUint14, CompressedFheUint16,
+    CompressedFheUint256, CompressedFheUint8, CrtParameters, FheUint10, FheUint12, FheUint14,
+    FheUint16, FheUint256, FheUint8, GenericInteger, RadixParameters,
 };
 #[cfg(feature = "shortint")]
 pub use crate::typed_api::shortints::{
