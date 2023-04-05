@@ -1,12 +1,12 @@
 # Benchmarks
 
-Due to their nature, homomorphic operations are obviously slower than their clear equivalent. In what follows, some timings are exposed for basic operations. For completeness, some benchmarks of other libraries are also given.
+Due to their nature, homomorphic operations are obviously slower than their clear equivalent. Some timings are exposed for basic operations. For completeness, some benchmarks of other libraries are also given.
 
 All the benchmarks had been launched on an AWS m6i.metal with the following specifications: Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz and 512GB of RAM.
 
 ## Boolean
 
-This measures the execution time of a single binary boolean gate.
+This measures the execution time of a single binary Boolean gate.
 
 ### tfhe.rs::boolean.
 

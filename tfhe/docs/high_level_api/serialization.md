@@ -1,10 +1,10 @@
-# Serialization
+# Serialization/Deserialization
 
 As explained in the Introduction, most types are meant to be shared with the server that performs the computations.
 
-The easiest way to send these data to a server is to use the `serialization` and `deserialization` features. `tfhe` uses the [serde](https://crates.io/crates/serde) framework. Serde's `Serialize` and `Deserialize` functions are implemented on tfhe's types.
+The easiest way to send these data to a server is to use the `serialization` and `deserialization` features. `tfhe` uses the [serde](https://crates.io/crates/serde) framework. Serde's `Serialize` and `Deserialize` functions are implemented on TFHE's types.
 
-To be able to serialize our data, we need to pick a [data format](https://serde.rs/#data-formats). For our use case, [bincode](https://crates.io/crates/bincode) is a good choice, mainly because it is a binary format.
+To serialize our data, a [data format](https://serde.rs/#data-formats) should be picked. Here, [bincode](https://crates.io/crates/bincode) is a good choice, mainly because it is a binary format.
 
 ```toml
 # Cargo.toml

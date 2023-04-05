@@ -2,9 +2,9 @@
 
 ## Using the `core_crypto` primitives
 
-Welcome to this tutorial about TFHE-rs `core_crypto` module!
+Welcome to this tutorial about TFHE-rs `core_crypto` module.
 
-### Setting-up TFHE-rs to use the `core_crypto` module
+### Setting up TFHE-rs to use the `core_crypto` module
 
 To use `TFHE-rs`, first it has to be added as a dependency in the `Cargo.toml`:
 
@@ -12,12 +12,11 @@ To use `TFHE-rs`, first it has to be added as a dependency in the `Cargo.toml`:
 tfhe = { version = "0.2.0", features = [ "x86_64-unix" ] }
 ```
 
-Here, this enables the `x86_64-unix` feature to have efficient implementations of various algorithms for `x86_64` CPUs on a Unix-like system. The 'unix' suffix indicates that the `UnixSeeder`, which uses `/dev/random` to generate random numbers, is actived as a fallback if no hardware number generator is available, like `rdseed` on `x86_64` or if the [`Randomization Services`](https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc) on Apple platforms are not available. To avoid having the `UnixSeeder` as a potential fallback or to run on non-Unix systems (e.g., Windows), the `x86_64` feature is sufficient.
+This enables the `x86_64-unix` feature to have efficient implementations of various algorithms for `x86_64` CPUs on a Unix-like system. The 'unix' suffix indicates that the `UnixSeeder`, which uses `/dev/random` to generate random numbers, is activated as a fallback if no hardware number generator is available, like `rdseed` on `x86_64` or if the [`Randomization Services`](https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc) on Apple platforms are not available. To avoid having the `UnixSeeder` as a potential fallback or to run on non-Unix systems (e.g., Windows), the `x86_64` feature is sufficient.
 
-For Apple Silicon, the `aarch64-unix` or `aarch64` feature should be enabled. Note that `aarch64` is not supported on Windows as it's currently missing an entropy source required to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
+For Apple Silicon, the `aarch64-unix` or `aarch64` feature should be enabled. `aarch64` is not supported on Windows as it's currently missing an entropy source required to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically\_secure\_pseudorandom\_number\_generator) used in TFHE-rs.
 
-In short:
-For x86_64-based machines running Unix-like OSes:
+In short: For x86\_64-based machines running Unix-like OSes:
 
 ```toml
 tfhe = { version = "0.2.0", features = ["x86_64-unix"] }
@@ -29,15 +28,15 @@ For Apple Silicon or aarch64-based machines running Unix-like OSes:
 tfhe = { version = "0.2.0", features = ["aarch64-unix"] }
 ```
 
-For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
+For x86\_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
 
 ```toml
 tfhe = { version = "0.2.0", features = ["x86_64"] }
 ```
 
-### Commented code to double a 2 bits message in a leveled fashion and using a PBS with the `core_crypto` module.
+### Commented code to double a 2-bits message in a leveled fashion and using a PBS with the `core_crypto` module.
 
-As a complete example showing the usage of some common primitives of the `core_crypto` APIs, the following Rust code homomorphically computes 2 * 3 using two different methods. First using a cleartext multiplication and second using a PBS.
+As a complete example showing the usage of some common primitives of the `core_crypto` APIs, the following Rust code homomorphically computes 2 \* 3 using two different methods. First using a cleartext multiplication and then using a PBS.
 
 ```rust
 use tfhe::core_crypto::prelude::*;

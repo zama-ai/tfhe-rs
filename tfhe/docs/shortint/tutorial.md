@@ -1,19 +1,22 @@
 # Tutorial
 
-## Writing an homomorphic circuit using shortint
+The steps to homomorphically evaluate a circuit are described below.
 
-## Key Generation
+## Key generation
 
-`tfhe::shortint` provides 2 key types:
+`tfhe::shortint` provides 3 key types:
 
 * `ClientKey`
 * `ServerKey`
+* `PublicKey`
 
-The `ClientKey` is the key that encrypts and decrypts messages (integer values up to 8 bits here), thus this key is meant to be kept private and should never be shared. This key is created from parameter values that will dictate both the security and efficiency of computations. The parameters also set the maximum number of bits of message encrypted in a ciphertext.
+The `ClientKey` is the key that encrypts and decrypts messages (integer values up to 8 bits here). It is meant to be kept private and should never be shared. This key is created from parameter values that will dictate both the security and efficiency of computations. The parameters also set the maximum number of bits of message encrypted in a ciphertext.
 
-The `ServerKey` is the key that is used to actually do the FHE computations. It contains (among other things) a bootstrapping key and a keyswitching key. This key is created from a `ClientKey` that needs to be shared to the server, therefore it is not meant to be kept private. A user with a `ServerKey` can compute on the encrypted data sent by the owner of the associated `ClientKey`.
+The `ServerKey` is the key that is used to actually do the FHE computations. Most importantly, it contains a bootstrapping key and a keyswitching key. This key is created from a `ClientKey` that needs to be shared to the server, therefore it is not meant to be kept private. A user with a `ServerKey` can compute on the encrypted data sent by the owner of the associated `ClientKey`.
 
-To reflect that, computation/operation methods are tied to the `ServerKey` type.
+Computation/operation methods are tied to the `ServerKey` type.
+
+The `PublicKey` is the key used to encrypt messages. It can be publicly shared to allow users to encrypt data such that only the `ClientKey` holder will be able to decrypt. Encrypting with the `PublicKey` does not alter the homomorphic capabilities associated to the `ServerKey`.
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -67,7 +70,7 @@ fn main() {
 
 ## Computing and decrypting
 
-With our `server_key` and encrypted values, we can now do an addition and then decrypt the result.
+With the `server_key`, addition is now possible over encrypted values. The resulting plaintext is recovered after the decryption with the secret client key.
 
 ```rust
 use tfhe::shortint::prelude::*;

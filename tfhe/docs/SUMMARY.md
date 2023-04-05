@@ -14,9 +14,6 @@
 * [Tutorial](high_level_api/tutorial.md)
 * [Operations](high_level_api/operations.md)
 * [Serialization/Deserialization](high_level_api/serialization.md)
-* Tutorials
-  * [Parity Bit](high_level_api/tutorials/parity_bit.md)
-  * [Latin String](high_level_api/tutorials/latin_string.md)
 
 ## Boolean
 * [Tutorial](Boolean/tutorial.md)
@@ -33,17 +30,12 @@
 ## Integer
 * [Tutorial](integer/tutorial.md)
 * [Operations](integer/operations.md)
-* [Representations](integer/representations.md)
 * [Cryptographic Parameters](integer/parameters.md)
 * [Serialization/Deserialization](integer/serialization.md)
-* How To
-  * [PBS](integer/how_to/pbs.md)
-* Tutorials
-  * [Circuit Evaluation](integer/tutorials/circuit_evaluation.md)
-
 
 ## C API
-* [Tutorial](c_api/tutorial.md)
+* [High-Level API](c_api/high-level-api.md)
+* [Shortint API](c_api/shortint-api.md)
 
 ## JS on WASM API
 * [Tutorial](js_on_wasm_api/tutorial.md)

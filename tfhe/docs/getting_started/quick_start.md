@@ -1,46 +1,39 @@
 # Quick Start
 
-This library makes it possible to execute **homomorphic operations over encrypted data**, where the data are either Booleans or short integers (named shortint in the rest of this documentation). It allows one to execute a circuit on an **untrusted server** because both circuit inputs and outputs are kept **private**. Data are indeed encrypted on the client side, before being sent to the server. On the server side, every computation is performed on ciphertexts.
+This library makes it possible to execute **homomorphic operations over encrypted data**, where the data are either Booleans, short integers (named shortint in the rest of this documentation), or integers up to 256 bits. It allows you to execute a circuit on an **untrusted server** because both circuit inputs and outputs are kept **private**. Data are indeed encrypted on the client side, before being sent to the server. On the server side, every computation is performed on ciphertexts.
 
-The server, however, has to know the circuit to be evaluated. At the end of the computation, the server returns the encryption of the result to the user. She can then decrypt it with her `secret key`.
+The server, however, has to know the circuit to be evaluated. At the end of the computation, the server returns the encryption of the result to the user. Then the user can decrypt it with the `secret key`.
 
 ## General method to write an homomorphic circuit program
 
-The overall process to write an homomorphic program is the same for both Boolean and shortint types. In a nutshell, the basic steps for using the TFHE-rs library are the following:
+The overall process to write an homomorphic program is the same for all types. The basic steps for using the TFHE-rs library are the following:
 
-* Choose a data type (Boolean or shortint)
-* Import the library
-* Create client and server keys
-* Encrypt data with the client key
-* Compute over encrypted data using the server key
-* Decrypt data with the client key
+1. Choose a data type (Boolean, shortint, integer)
+2. Import the library
+3. Create client and server keys
+4. Encrypt data with the client key
+5. Compute over encrypted data using the server key
+6. Decrypt data with the client key
 
+### API levels.
 
-### API Levels
+This library has different modules, with different levels of abstraction.
 
-This library has different modules, with different level of abstraction.
+There is the **core\_crypto** module, which is the lowest level API with the primitive functions and types of the TFHE scheme.
 
-There is a the core_crypto module which is the lowest level API, with the primitive
-functions and types of the TFHE scheme.
+Above the core\_crypto module, there are the B**oolean**, **shortint**, and **integer** modules, which simply allow evaluation of Boolean, short integer, and integer circuits.
 
-The are the boolean, shortint and integer modules which are based on the core_crypto,
-to allow construction of respectively, booleans, short integers, and integers circuits.
+Finally, there is the high-level module built on top of the Boolean, shortint, integer modules. This module is meant to abstract cryptographic complexities: no cryptographical knowledge is required to start developing an FHE application. Another benefit of the high-level module is the drastically simplified development process compared to lower level modules.
 
-Then there is the high-level module built on top of the boolean, shortint, integer modules,
-this module is meant to abstract as much as possible the TFHE part and allow quick development of
-FHE applications.
+#### high-level API
 
-#### High Level API
+TFHE-rs exposes a high-level API by default that includes datatypes that try to match Rust's native types by having overloaded operators (+, -, ...).
 
-tfhe-rs by default exposes a High Level API, that manages the server_key and proposes datatypes
-that try to match Rust's native types by having overloaded operators (+, -, ...).
+Here is an example of how the high-level API is used:
 
-Here is an example to illustrate how the high level API is used.
-
-{% hint style="info" %}
+{% hint style="warning" %}
 Use the `--release` flag to run this example (eg: `cargo run --release`)
 {% endhint %}
-
 
 ```rust
 use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8};
@@ -71,11 +64,11 @@ fn main() {
 }
 ```
 
-#### Boolean example.
+#### Boolean example
 
-Here is an example to illustrate how the library can be used to evaluate a Boolean circuit:
+Here is an example of how the library can be used to evaluate a Boolean circuit:
 
-{% hint style="info" %}
+{% hint style="warning" %}
 Use the `--release` flag to run this example (eg: `cargo run --release`)
 {% endhint %}
 
@@ -103,11 +96,11 @@ fn main() {
 }
 ```
 
-#### Shortint example.
+#### shortint example
 
-And here is a full example using shortint:
+Here is a full example using shortint:
 
-{% hint style="info" %}
+{% hint style="warning" %}
 Use the `--release` flag to run this example (eg: `cargo run --release`)
 {% endhint %}
 
@@ -137,9 +130,9 @@ fn main() {
 }
 ```
 
-#### Integer example.
+#### integer example
 
-{% hint style="info" %}
+{% hint style="warning" %}
 Use the `--release` flag to run this example (eg: `cargo run --release`)
 {% endhint %}
 
@@ -165,4 +158,4 @@ fn main() {
 }
 ```
 
-The library is pretty simple to use, and can evaluate **homomorphic circuits of arbitrary length**. The description of the algorithms can be found in the [TFHE](https://doi.org/10.1007/s00145-019-09319-x) paper (also available as [ePrint 2018/421](https://ia.cr/2018/421)).
+The library is simple to use and can evaluate **homomorphic circuits of arbitrary length**. The description of the algorithms can be found in the [TFHE](https://doi.org/10.1007/s00145-019-09319-x) paper (also available as [ePrint 2018/421](https://ia.cr/2018/421)).

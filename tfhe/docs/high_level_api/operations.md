@@ -1,8 +1,10 @@
-# Operations and simple examples
+# Operations
+
+The structure and operations related to all types (ì.e., Booleans, shortint and integer) are described in this section.
 
 ## Booleans
 
-Native homomorphic booleans support common boolean operations. 
+Native homomorphic Booleans support common Boolean operations.
 
 The list of supported operations is:
 
@@ -13,42 +15,31 @@ The list of supported operations is:
 | [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html) | `^`    | Binary |
 | [Neg](https://doc.rust-lang.org/std/ops/trait.Neg.html)       | `!`    | Unary  |
 
-
-
 ## ShortInt
 
-Native small homomorphic integer types (e.g., FheUint3 or FheUint4) allow to easily
-compute various operations. In general, computing over encrypted data
-is as easy as computing over clear data, since the same operation symbol is
-used. For instance, the addition between two ciphertexts is done using the
-symbol `+` between two FheUint. Similarly, many operations can be computed
-between a clear value (i.e. a scalar) and a ciphertext.
+Native small homomorphic integer types (e.g., FheUint3 or FheUint4) easily compute various operations. In general, computing over encrypted data is as easy as computing over clear data, since the same operation symbol is used. The addition between two ciphertexts is done using the symbol `+` between two FheUint. Many operations can be computed between a clear value (i.e. a scalar) and a ciphertext.
 
-In Rust native types, any operation is modular. In Rust, `u8`, computations are
-done modulus 2^8. The similar idea is applied for FheUintX, where operations are
-done modulus 2^X. For instance, in the type FheUint3, operations are done
-modulus 8.
+In Rust native types, any operation is modular. In Rust, `u8`, computations are done modulus 2^8. The similar idea is applied for FheUintX, where operations are done modulus 2^X. In the type FheUint3, operations are done modulo 8.
 
-### Arithmetic operations
+### Arithmetic operations.
 
 Small homomorphic integer types support all common arithmetic operations, meaning `+`, `-`, `x`, `/`, `mod`.
 
-The division operation implements a subtlety: since data is encrypted, it might be possible to 
-compute a division by 0. In this case, the division is tweaked so that dividing by 0 returns 0. 
+The division operation implements a subtlety: since data is encrypted, it might be possible to compute a division by 0. In this case, the division is tweaked so that dividing by 0 returns 0.
 
 The list of supported operations is:
 
-| name                                                          | symbol | type   |
-| ------------------------------------------------------------- | ------ | ------ |
-| [Add](https://doc.rust-lang.org/std/ops/trait.Add.html)       | `+`    | Binary |
-| [Sub](https://doc.rust-lang.org/std/ops/trait.Sub.html)       | `-`    | Binary |
-| [Mul](https://doc.rust-lang.org/std/ops/trait.Mul.html)       | `*`    | Binary |
-| [Div](https://doc.rust-lang.org/std/ops/trait.Div.html)       | `/`    | Binary |
-| [Rem](https://doc.rust-lang.org/std/ops/trait.Rem.html)       | `%`    | Binary |
-| [Neg](https://doc.rust-lang.org/std/ops/trait.Neg.html)       | `!`    | Unary  |
-
+| name                                                    | symbol | type   |
+| ------------------------------------------------------- | ------ | ------ |
+| [Add](https://doc.rust-lang.org/std/ops/trait.Add.html) | `+`    | Binary |
+| [Sub](https://doc.rust-lang.org/std/ops/trait.Sub.html) | `-`    | Binary |
+| [Mul](https://doc.rust-lang.org/std/ops/trait.Mul.html) | `*`    | Binary |
+| [Div](https://doc.rust-lang.org/std/ops/trait.Div.html) | `/`    | Binary |
+| [Rem](https://doc.rust-lang.org/std/ops/trait.Rem.html) | `%`    | Binary |
+| [Neg](https://doc.rust-lang.org/std/ops/trait.Neg.html) | `!`    | Unary  |
 
 A simple example on how to use these operations:
+
 ```rust
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint3};
@@ -82,22 +73,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Bitwise operations
+### Bitwise operations.
 
-Small homomorphic integer types support some bitwise operations. 
+Small homomorphic integer types support some bitwise operations.
 
 The list of supported operations is:
 
-| name                                                          | symbol  | type   |
-| ------------------------------------------------------------- | ------  | ------ |
-| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html) | `&`     | Binary |
-| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)   | `\|`    | Binary |
-| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html) | `^`     | Binary |
-| [Shr](https://doc.rust-lang.org/std/ops/trait.Shr.html)       | `>>`    | Binary |
-| [Shl](https://doc.rust-lang.org/std/ops/trait.Shl.html)       | `<<`    | Binary |
-
+| name                                                          | symbol | type   |
+| ------------------------------------------------------------- | ------ | ------ |
+| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html) | `&`    | Binary |
+| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)   | `\|`   | Binary |
+| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html) | `^`    | Binary |
+| [Shr](https://doc.rust-lang.org/std/ops/trait.Shr.html)       | `>>`   | Binary |
+| [Shl](https://doc.rust-lang.org/std/ops/trait.Shl.html)       | `<<`   | Binary |
 
 A simple example on how to use these operations:
+
 ```rust
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint3};
@@ -128,20 +119,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Comparisons
+### Comparisons.
 
-Small homomorphic integer types support comparison operations. 
+Small homomorphic integer types support comparison operations.
 
-However, due to some Rust limitations, this is not possible to overload the comparison symbols 
-because of the inner  definition of the operations.
-To be precise, Rust expects to have a boolean as output, 
-whereas a ciphertext encrypted the result is returned when using homomorphic types. 
+Due to some Rust limitations, it is not possible to overload the comparison symbols because of the inner definition of the operations. Rust expects to have a Boolean as an output, whereas a ciphertext encrypted result is returned when using homomorphic types.
 
-So instead of using symbols for the comparisons, you will need to use
-the different methods. These methods follow the same naming that the 2 standard Rust trait
+You will need to use the different methods instead of using symbols for the comparisons. These methods follow the same naming conventions as the two standard Rust traits:
 
-- [PartialOrd](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)
-- [PartialEq](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)
+* [PartialOrd](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html)
+* [PartialEq](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)
 
 A simple example on how to use these operations:
 
@@ -167,11 +154,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Univariate function evaluations.
 
-### Univariate function evaluations
-
-Shortints type also support the computation of univariate functions,
-which deep down uses TFHE's _programmable bootstrapping_.
+The shortint type also supports the computation of univariate functions, which deep down uses TFHE's _programmable bootstrapping_.
 
 A simple example on how to use these operations:
 
@@ -199,12 +184,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Bivariate function evaluations
+### Bivariate function evaluations.
 
-Using the shortint types offers the possibility to evaluate bivariate functions, i.e.,
-functions that takes two ciphertexts as input. 
+Using the shortint type allows you to evaluate bivariate functions (i.e., functions that takes two ciphertexts as input).
 
-In what follows, a simple code example:
+A simple code example:
 
 ```rust
 use tfhe::prelude::*;
@@ -229,14 +213,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Integer
 
-## Integer.
+In TFHE-rs, integers are used to encrypt any messages larger than 4 bits. All supported operations are listed below.
 
-In the same vein, native homomorphic types supports modular operations. At the moment, integers 
-are more limited than shortint, but operations will be added soon. 
-
-
-### Arithmetic operations
+### Arithmetic operations.
 
 Homomorphic integer types support arithmetic operations.
 
@@ -283,20 +264,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Bitwise operations
+### Bitwise operations.
 
 Homomorphic integer types support some bitwise operations.
 
 The list of supported operations is:
 
-| name                                                          | symbol  | type   |
-| ------------------------------------------------------------- | ------  | ------ |
-| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html) | `&`     | Binary |
-| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)   | `\|`    | Binary |
-| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html) | `^`     | Binary |
-| [Shr](https://doc.rust-lang.org/std/ops/trait.Shr.html)       | `>>`    | Binary |
-| [Shl](https://doc.rust-lang.org/std/ops/trait.Shl.html)       | `<<`    | Binary |
-
+| name                                                          | symbol | type   |
+| ------------------------------------------------------------- | ------ | ------ |
+| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html) | `&`    | Binary |
+| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)   | `\|`   | Binary |
+| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html) | `^`    | Binary |
+| [Shr](https://doc.rust-lang.org/std/ops/trait.Shr.html)       | `>>`   | Binary |
+| [Shl](https://doc.rust-lang.org/std/ops/trait.Shl.html)       | `<<`   | Binary |
 
 A simple example on how to use these operations:
 
@@ -330,7 +310,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Univariate function evaluations
+### Comparisons.
+
+Homomorphic integers support comparison operations. Since Rust does not allow the overloading of these operations, a simple function has been associated to each one.
+
+The list of supported operations is:
+
+| name                  | symbol | type   |
+| --------------------- | ------ | ------ |
+| Greater than          | `gt`   | Binary |
+| Greater or equal than | `ge`   | Binary |
+| Lower than            | `lt`   | Binary |
+| Lower or equal than   | `le`   | Binary |
+| Equal                 | `eq`   | Binary |
+
+A simple example on how to use these operations:
 
 ```rust
 use tfhe::prelude::*;
@@ -341,16 +335,71 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
 
-    let pow_5 = |value: u64| value.pow(2) as u64 % 256;
+    let clear_a:u8 = 164;
+    let clear_b:u8 = 212;
 
-    let clear_a = 12u64;
-    let a = FheUint8::try_encrypt(clear_a, &keys)?;
+    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
+    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
 
-    let c = a.map(pow_5);
-    let decrypted: u8 = c.decrypt(&keys);
-    assert_eq!(decrypted, pow_5(clear_a) as u8);
+    let greater = a.gt(&b);
+    let greater_or_equal = a.ge(&b);
+    let lower = a.lt(&b);
+    let lower_or_equal = a.le(&b);
+    let equal = a.eq(&b);
+
+    let dec_gt : u8 = greater.decrypt(&keys);
+    let dec_ge : u8 = greater_or_equal.decrypt(&keys);
+    let dec_lt : u8 = lower.decrypt(&keys);
+    let dec_le : u8 = lower_or_equal.decrypt(&keys);
+    let dec_eq : u8 = equal.decrypt(&keys);
+
+    // We homomorphically swapped values using bitwise operations
+    assert_eq!(dec_gt, (clear_a > clear_b ) as u8);
+    assert_eq!(dec_ge, (clear_a >= clear_b) as u8);
+    assert_eq!(dec_lt, (clear_a < clear_b ) as u8);
+    assert_eq!(dec_le, (clear_a <= clear_b) as u8);
+    assert_eq!(dec_eq, (clear_a == clear_b) as u8);
 
     Ok(())
 }
 ```
 
+### Min/Max.
+
+Homomorphic integers support the min/max operations.
+
+| name | symbol | type   |
+| ---- | ------ | ------ |
+| Min  | `min`  | Binary |
+| Max  | `max`  | Binary |
+
+A simple example on how to use these operations:
+
+```rust
+use tfhe::prelude::*;
+use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ConfigBuilder::all_disabled().enable_default_uint8().build();
+    let (keys, server_keys) = generate_keys(config);
+    set_server_key(server_keys);
+
+    let clear_a:u8 = 164;
+    let clear_b:u8 = 212;
+
+    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
+    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
+
+    let min = a.min(&b);
+    let max = a.max(&b);
+
+    let dec_min : u8 = min.decrypt(&keys);
+    let dec_max : u8 = max.decrypt(&keys);
+
+    // We homomorphically swapped values using bitwise operations
+    assert_eq!(dec_min, u8::min(clear_a, clear_b));
+    assert_eq!(dec_max, u8::max(clear_a, clear_b));
+
+    Ok(())
+}
+```
