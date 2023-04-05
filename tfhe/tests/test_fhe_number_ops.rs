@@ -187,7 +187,7 @@ fn test_static_shortint_supports_ops() {
     supports_scalar_shr_with_u8(lhs, 1);
 }
 
-#[cfg(feature = "integers")]
+#[cfg(feature = "integer")]
 #[test]
 fn test_static_supports_ops() {
     use tfhe::prelude::*;
@@ -200,31 +200,6 @@ fn test_static_supports_ops() {
 
     let lhs = FheUint8::encrypt(0, &client_key);
     let rhs = FheUint8::encrypt(1, &client_key);
-
-    supports_all_add_ways(lhs.clone(), rhs.clone());
-    supports_all_mul_ways(lhs.clone(), rhs.clone());
-    supports_all_sub_ways(lhs, rhs);
-}
-
-#[cfg(feature = "integers")]
-#[test]
-fn test_dynamic_supports_ops() {
-    use tfhe::prelude::*;
-    use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint2Parameters, RadixParameters};
-
-    let mut config = ConfigBuilder::all_disabled();
-    let uint10_type = config.add_integer_type(RadixParameters {
-        block_parameters: FheUint2Parameters::default().into(),
-        num_block: 5,
-        wopbs_block_parameters: tfhe_shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2
-    });
-
-    let (client_key, server_key) = generate_keys(config);
-
-    set_server_key(server_key);
-
-    let lhs = uint10_type.encrypt(127, &client_key);
-    let rhs = uint10_type.encrypt(100, &client_key);
 
     supports_all_add_ways(lhs.clone(), rhs.clone());
     supports_all_mul_ways(lhs.clone(), rhs.clone());

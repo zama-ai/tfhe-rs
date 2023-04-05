@@ -51,6 +51,12 @@ install_cargo_nextest: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-nextest --locked || \
 	( echo "Unable to install cargo nextest, unknown error." && exit 1 )
 
+.PHONY: install_cbindgen # Install cbindgen to generate the C API header
+install_cbindgen: install_rs_check_toolchain
+	@cbingen --version > /dev/null 2>&1 || \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) install cbindgen --locked || \
+	( echo "Unable to install cbindgen, unknown error." && exit 1 )
+
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
@@ -164,9 +170,14 @@ build_tfhe_full: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p tfhe --all-targets
 
 .PHONY: build_c_api # Build the C API for boolean and shortint
-build_c_api: install_rs_build_toolchain
+build_c_api: install_cbindgen install_rs_check_toolchain install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api -p tfhe --all-targets
+		--features=$(TARGET_ARCH_FEATURE),shortint,integer,internal-keycache,boolean,__c_api,boolean-c-api,shortint-c-api \
+		-p tfhe \
+		--all-targets
+	RUSTUP_TOOLCHAIN=$(RS_CHECK_TOOLCHAIN) cbindgen -c ./tfhe/cbindgen.toml ./tfhe/ -o target/release/tfhe.h
+
+
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
 build_web_js_api: install_rs_build_toolchain

@@ -52,6 +52,7 @@ where
     pub(in crate::typed_api::booleans) id: P::Id,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct CompressedBool<P>
 where
     P: BooleanParameterSet,

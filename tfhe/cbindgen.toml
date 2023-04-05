@@ -107,8 +107,8 @@ allow_static_const = true
 allow_constexpr = false
 sort_by = "Name"
 
-
 [macro_expansion]
+
 bitflags = false
 
 
@@ -123,7 +123,7 @@ extra_bindings = []
 
 
 [parse.expand]
-crates = []
+crates = ["tfhe"]
 all_features = false
 default_features = true
-features = []
+features = ["__c_api", "shortint-c-api", "boolean-c-api", "shortint", "integer", "boolean"]
