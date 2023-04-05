@@ -127,9 +127,8 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
         .zip(input_lwe_ciphertext.get_mask().as_ref())
     {
         let decomposition_iter = decomposer.decompose(input_mask_element);
-        // loop over the number of levels in reverse (from highest to lowest)
-        for (level_key_ciphertext, decomposed) in
-            keyswitch_key_block.iter().rev().zip(decomposition_iter)
+        // Loop over the levels
+        for (level_key_ciphertext, decomposed) in keyswitch_key_block.iter().zip(decomposition_iter)
         {
             slice_wrapping_sub_scalar_mul_assign(
                 output_lwe_ciphertext.as_mut(),
