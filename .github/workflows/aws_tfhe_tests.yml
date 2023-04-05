@@ -84,6 +84,10 @@ jobs:
         run: |
           BIG_TESTS_INSTANCE=TRUE make test_shortint_ci
 
+      - name: Run high-level API tests
+        run: |
+          BIG_TESTS_INSTANCE=TRUE make test_typed_api
+
       - name: Slack Notification
         if: ${{ always() }}
         continue-on-error: true
