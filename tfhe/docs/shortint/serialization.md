@@ -4,7 +4,7 @@ As explained in the introduction, some types (`Serverkey`, `Ciphertext`) are mea
 
 The easiest way to send these data to a server is to use the serialization and deserialization features. tfhe::shortint uses the [serde](https://crates.io/crates/serde) framework. Serde's Serialize and Deserialize are then implemented on tfhe::shortint's types.
 
-To be able to serialize our data, we need to pick a [data format](https://serde.rs/#data-formats). For our use case, [bincode](https://crates.io/crates/bincode) is a good choice, mainly because it is binary format.
+To serialize the data, we need to pick a [data format](https://serde.rs/#data-formats). For our use case, [bincode](https://crates.io/crates/bincode) is a good choice, mainly because it is binary format.
 
 ```toml
 # Cargo.toml

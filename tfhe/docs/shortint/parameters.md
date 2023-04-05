@@ -1,6 +1,6 @@
 # Cryptographic Parameters
 
-All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-40}$$ when computing a programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../getting\_started/security\_and\_cryptography.md) for more details about the encryption process).
+All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-40}$$ when computing using programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../getting\_started/security\_and\_cryptography.md) for more details about the encryption process).
 
 ## Parameters and message precision
 
@@ -10,9 +10,9 @@ The user is allowed to choose which set of parameters to use when creating the p
 
 The difference between the parameter sets is the total amount of space dedicated to the plaintext and how it is split between the message buffer and the carry buffer. The syntax chosen for the name of a parameter is: `PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}`. For example, the set of parameters for a message buffer of 5 bits and a carry buffer of 2 bits is `PARAM_MESSAGE_5_CARRY_2`.
 
-In what follows, there is an example where keys are generated to have messages encoded over 2 bits i.e., computations are done modulus $$2^2 = 4$$), with 2 bits of carry.
+This example contains keys that are generated to have messages encoded over 2 bits (i.e., computations are done modulus $$2^2 = 4$$) with 2 bits of carry.
 
-Note that the `PARAM_MESSAGE_2_CARRY_2` parameter set is the default `shortint` parameter set that you can also use through the `tfhe::shortint::prelude::DEFAULT_PARAMETERS` constant.
+The `PARAM_MESSAGE_2_CARRY_2` parameter set is the default `shortint` parameter set that you can also use through the `tfhe::shortint::prelude::DEFAULT_PARAMETERS` constant.
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -36,15 +36,15 @@ As shown [here](../getting\_started/benchmarks.md), the choice of the parameter 
 
 ### Generic bi-variate functions.
 
-The computations of bi-variate functions is based on a trick, _concatenating_ two ciphertexts into one. In the case where the carry buffer is not at least as large as the message one, this trick no longer works. Then, many bi-variate operations, such as comparisons cannot be correctly computed. The only exception concerns the multiplication.
+The computations of bi-variate functions is based on a trick: _concatenating_ two ciphertexts into one. Where the carry buffer is not at least as large as the message one, this trick no longer works. Many bi-variate operations, such as comparisons, then cannot be correctly computed. The only exception concerns multiplication.
 
 ### Multiplication.
 
-In the case of the multiplication, two algorithms are implemented: the first one relies on the bi-variate function trick, where the other one is based on the [quarter square method](https://en.wikipedia.org/wiki/Multiplication\_algorithm#Quarter\_square\_multiplication). In order to correctly compute a multiplication, the only requirement is to have at least one bit of carry (i.e., using parameter sets PARAM\_MESSAGE\_X\_CARRY\_Y with Y>=1). This method is, in general, slower than using the other one. Note that using the `smart` version of the multiplication automatically chooses which algorithm is used depending on the chosen parameters.
+In the case of multiplication, two algorithms are implemented: the first one relies on the bi-variate function trick, where the other one is based on the [quarter square method](https://en.wikipedia.org/wiki/Multiplication\_algorithm#Quarter\_square\_multiplication). To correctly compute a multiplication, the only requirement is to have at least one bit of carry (i.e., using parameter sets PARAM\_MESSAGE\_X\_CARRY\_Y with Y>=1). This method is slower than using the other one. Using the `smart` version of the multiplication automatically chooses which algorithm is used depending on the chosen parameters.
 
 ## User-defined parameter sets
 
-Beyond the predefined parameter sets, it is possible to define new parameter sets. To do so, it is sufficient to use the function `unsecure_parameters()` or to manually fill the `Parameter` structure fields.
+It is possible to define new parameter sets. To do so, it is sufficient to use the function `unsecure_parameters()` or to manually fill the `Parameter` structure fields.
 
 For instance:
 

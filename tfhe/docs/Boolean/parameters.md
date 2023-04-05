@@ -2,13 +2,13 @@
 
 ## Default parameters
 
-The TFHE cryptographic scheme relies on a variant of [Regev cryptosystem](https://cims.nyu.edu/\~regev/papers/lwesurvey.pdf), and is based on a problem so hard to solve that it is even post-quantum resistant.
+The TFHE cryptographic scheme relies on a variant of [Regev cryptosystem](https://cims.nyu.edu/\~regev/papers/lwesurvey.pdf) and is based on a problem so difficult that it is even post-quantum resistant.
 
-In practice, you need to tune some cryptographic parameters in order to ensure both the correctness of the result and the security of the computation.
+Some cryptographic parameters will require tuning to ensure both the correctness of the result and the security of the computation.
 
-To make it simpler, **we provide two sets of parameters**, which ensure correct computations for a certain probability with the standard security of 128 bits. There exists an error probability due to the probabilistic nature of the encryption, which requires adding randomness (called noise) following a Gaussian distribution. If this noise is too large, the decryption will not give a correct result. There is a trade-off between efficiency and correctness: generally, using a less efficient parameter set (in terms of computation time) leads to a smaller risk of having an error during homomorphic evaluation.
+To make it simpler, **we've provided two sets of parameters**, which ensure correct computations for a certain probability with the standard security of 128 bits. There exists an error probability due to the probabilistic nature of the encryption, which requires adding randomness (noise) following a Gaussian distribution. If this noise is too large, the decryption will not give a correct result. There is a trade-off between efficiency and correctness: generally, using a less efficient parameter set (in terms of computation time) leads to a smaller risk of having an error during homomorphic evaluation.
 
-In the two proposed sets of parameters, the only difference lies in this probability error. The default parameter set ensures a probability error of at most $$2^{-40}$$ when computing a programmable bootstrapping (i.e., any gates but the `not`). The other one is closer to the error probability claimed into the original [TFHE paper](https://eprint.iacr.org/2018/421), namely $$2^{-165}$$, but it is up-to-date regarding security requirements.
+In the two proposed sets of parameters, the only difference lies in this probability error. The default parameter set ensures a probability error of at most $$2^{-40}$$ when computing a programmable bootstrapping (i.e., any gates but the `not`). The other one is closer to the error probability claimed in the original [TFHE paper](https://eprint.iacr.org/2018/421), namely $$2^{-165}$$, but it is up-to-date regarding security requirements.
 
 The following array summarizes this:
 
@@ -19,7 +19,7 @@ The following array summarizes this:
 
 ## User-defined parameters
 
-Note that, if you desire, you can also create your own set of parameters. This is an `unsafe` operation as failing to properly fix the parameters will potentially result in an incorrect and/or insecure computation:
+You can also create your own set of parameters. This is an `unsafe` operation as failing to properly fix the parameters will result in an incorrect and/or insecure computation:
 
 ```rust
 use tfhe::boolean::prelude::*;

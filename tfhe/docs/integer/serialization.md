@@ -1,14 +1,10 @@
-# Serialization / Deserialization
+# Serialization/Deserialization
 
-As explained in the introduction, some types (`Serverkey`, `Ciphertext`) are meant to be shared
-with the server that does the computations.
+As explained in the introduction, some types (`Serverkey`, `Ciphertext`) are meant to be shared with the server that does the computations.
 
-The easiest way to send these data to a server is to use the serialization and deserialization features.
-concrete-integer uses the serde framework, serde's Serialize and Deserialize are implemented.
+The easiest way to send these data to a server is to use the serialization and deserialization features. Concrete integer uses the serde framework, so serde's Serialize and Deserialize are implemented.
 
-To be able to serialize our data, we need to pick a [data format], for our use case,
-[bincode] is a good choice, mainly because it is binary format.
-
+To be able to serialize our data, a [data format](https://serde.rs/#data-formats) needs to be picked. Here, [bincode](https://crates.io/crates/bincode) is a good choice, mainly because it is binary format.
 
 ```toml
 # Cargo.toml
@@ -17,7 +13,6 @@ To be able to serialize our data, we need to pick a [data format], for our use c
 # ...
 bincode = "1.3.3"
 ```
-
 
 ```rust
 // main.rs
@@ -72,7 +67,3 @@ fn server_function(serialized_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error
     Ok(serialized_result)
 }
 ```
-
-[serde]: https://crates.io/crates/serde
-[data format]: https://serde.rs/#data-formats
-[bincode]: https://crates.io/crates/bincode 

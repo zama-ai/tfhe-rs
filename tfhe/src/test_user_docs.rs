@@ -28,15 +28,11 @@ doctest!("../docs/core_crypto/tutorial.md", core_crypto_turorial);
 
 // Integer
 doctest!("../docs/integer/tutorial.md", integer_first_circuit);
+doctest!("../docs/integer/operations.md", integer_operations);
 doctest!(
     "../docs/integer/serialization.md",
     integer_serialization_tuto
 );
-doctest!(
-    "../docs/integer/tutorials/circuit_evaluation.md",
-    integer_circuit_evaluation
-);
-doctest!("../docs/integer/how_to/pbs.md", integer_pbs);
 
 // high_level_api
 doctest!(
@@ -52,10 +48,6 @@ doctest!(
     high_level_api_serialization_tuto
 );
 doctest!(
-    "../docs/high_level_api/tutorials/parity_bit.md",
-    high_level_api_parity_bit
-);
-doctest!(
-    "../docs/high_level_api/tutorials/latin_string.md",
-    high_level_api_latin_string
+    "../docs/high_level_api/tutorial.md",
+    high_level_api_tutorial
 );
