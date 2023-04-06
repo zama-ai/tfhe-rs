@@ -63,7 +63,7 @@ fn integer_encrypt_decrypt(param: Parameters) {
         let ct = cks.encrypt_radix(clear, NB_CTXT);
 
         // decryption
-        let dec = cks.decrypt_radix(&ct);
+        let dec: u64 = cks.decrypt_radix(&ct);
 
         // assert
         assert_eq!(clear, dec);
@@ -263,7 +263,7 @@ fn integer_unchecked_add(param: Parameters) {
         let ct_res = sks.unchecked_add(&ctxt_0, &ctxt_1);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!((clear_0 + clear_1) % modulus, dec_res);
@@ -304,7 +304,7 @@ fn integer_smart_add(param: Parameters) {
             clear = (clear + clear_0) % modulus;
 
             // decryption of ct_res
-            let dec_res = cks.decrypt_radix(&ct_res);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
             // println!("clear = {}, dec_res = {}", clear, dec_res);
             // assert
@@ -337,7 +337,7 @@ fn integer_unchecked_bitand(param: Parameters) {
         let ct_res = sks.unchecked_bitand(&ctxt_0, &ctxt_1);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!(clear_0 & clear_1, dec_res);
@@ -368,7 +368,7 @@ fn integer_unchecked_bitor(param: Parameters) {
         let ct_res = sks.unchecked_bitor(&ctxt_0, &ctxt_1);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!(clear_0 | clear_1, dec_res);
@@ -399,7 +399,7 @@ fn integer_unchecked_bitxor(param: Parameters) {
         let ct_res = sks.unchecked_bitxor(&ctxt_0, &ctxt_1);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!(clear_0 ^ clear_1, dec_res);
@@ -443,7 +443,7 @@ fn integer_smart_bitand(param: Parameters) {
             clear &= clear_2;
 
             // decryption of ct_res
-            let dec_res = cks.decrypt_radix(&ct_res);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
             // assert
             assert_eq!(clear, dec_res);
@@ -488,7 +488,7 @@ fn integer_smart_bitor(param: Parameters) {
             clear = (clear | clear_2) % modulus;
 
             // decryption of ct_res
-            let dec_res = cks.decrypt_radix(&ct_res);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
             // assert
             assert_eq!(clear, dec_res);
@@ -533,7 +533,7 @@ fn integer_smart_bitxor(param: Parameters) {
             clear = (clear ^ clear_2) % modulus;
 
             // decryption of ct_res
-            let dec_res = cks.decrypt_radix(&ct_res);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
             // assert
             assert_eq!(clear, dec_res);
@@ -564,7 +564,7 @@ fn integer_unchecked_small_scalar_mul(param: Parameters) {
         let ct_res = sks.unchecked_small_scalar_mul(&ct, scalar);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!((clear * scalar) % modulus, dec_res);
@@ -601,7 +601,7 @@ fn integer_smart_small_scalar_mul(param: Parameters) {
         }
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!(clear_res % modulus, dec_res);
@@ -629,7 +629,7 @@ fn integer_blockshift(param: Parameters) {
         let ct_res = sks.blockshift(&ct, power as usize);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!(
@@ -660,7 +660,7 @@ fn integer_blockshift_right(param: Parameters) {
         let ct_res = sks.blockshift_right(&ct, power as usize);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!(
@@ -691,7 +691,7 @@ fn integer_smart_scalar_mul(param: Parameters) {
         let ct_res = sks.smart_scalar_mul(&mut ct, scalar);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!((clear * scalar) % modulus, dec_res);
@@ -723,7 +723,7 @@ fn integer_unchecked_scalar_left_shift(param: Parameters) {
         let ct_res = sks.unchecked_scalar_left_shift(&ct, scalar);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!((clear << scalar) % modulus, dec_res);
@@ -755,7 +755,7 @@ fn integer_unchecked_scalar_right_shift(param: Parameters) {
         let ct_res = sks.unchecked_scalar_right_shift(&ct, scalar);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!(clear >> scalar, dec_res);
@@ -784,7 +784,7 @@ fn integer_unchecked_negation(param: Parameters) {
         let ct_tmp = sks.unchecked_neg(&ctxt);
 
         // Decrypt the result
-        let dec = cks.decrypt_radix(&ct_tmp);
+        let dec: u64 = cks.decrypt_radix(&ct_tmp);
 
         // Check the correctness
         let clear_result = clear.wrapping_neg() % modulus;
@@ -814,7 +814,7 @@ fn integer_smart_neg(param: Parameters) {
         let ct_tmp = sks.smart_neg(&mut ctxt);
 
         // Decrypt the result
-        let dec = cks.decrypt_radix(&ct_tmp);
+        let dec: u64 = cks.decrypt_radix(&ct_tmp);
 
         // Check the correctness
         let clear_result = clear.wrapping_neg() % modulus;
@@ -845,7 +845,7 @@ fn integer_unchecked_sub(param: Parameters) {
         let ct_tmp = sks.unchecked_sub(&ctxt_1, &ctxt_2);
 
         // Decrypt the result
-        let dec = cks.decrypt_radix(&ct_tmp);
+        let dec: u64 = cks.decrypt_radix(&ct_tmp);
 
         // Check the correctness
         let clear_result = (clear1 - clear2) % modulus;
@@ -880,7 +880,7 @@ fn integer_smart_sub(param: Parameters) {
             clear = (clear - clear2) % modulus;
             // println!("clear = {}, clear2 = {}", clear, cks.decrypt(&res));
         }
-        let dec = cks.decrypt_radix(&res);
+        let dec: u64 = cks.decrypt_radix(&res);
 
         // Check the correctness
         assert_eq!(clear, dec);
@@ -913,7 +913,7 @@ fn integer_unchecked_block_mul(param: Parameters) {
         let ct_res = sks.unchecked_block_mul(&ct_zero, &ct_one, 0);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!((clear_0 * clear_1) % modulus, dec_res);
@@ -948,7 +948,7 @@ fn integer_smart_block_mul(param: Parameters) {
             res = sks.smart_block_mul(&mut res, &ctxt_2, 0);
             clear = (clear * clear2) % modulus;
         }
-        let dec = cks.decrypt_radix(&res);
+        let dec: u64 = cks.decrypt_radix(&res);
 
         clear = (clear * clear2) % modulus;
 
@@ -985,7 +985,7 @@ fn integer_smart_mul(param: Parameters) {
             res = sks.smart_mul(&mut res, &mut ctxt_2);
             clear = (clear * clear2) % modulus;
         }
-        let dec = cks.decrypt_radix(&res);
+        let dec: u64 = cks.decrypt_radix(&res);
 
         clear = (clear * clear2) % modulus;
 
@@ -1015,7 +1015,7 @@ fn integer_unchecked_scalar_add(param: Parameters) {
         let ct_res = sks.unchecked_scalar_add(&ctxt_0, clear_1);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!((clear_0 + clear_1) % modulus, dec_res);
@@ -1054,7 +1054,7 @@ fn integer_smart_scalar_add(param: Parameters) {
             clear = (clear + clear_1) % modulus;
 
             // decryption of ct_res
-            let dec_res = cks.decrypt_radix(&ct_res);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
             // println!("clear = {}, dec_res = {}", clear, dec_res);
             // assert
@@ -1084,7 +1084,7 @@ fn integer_unchecked_scalar_sub(param: Parameters) {
         let ct_res = sks.unchecked_scalar_sub(&ctxt_0, clear_1);
 
         // decryption of ct_res
-        let dec_res = cks.decrypt_radix(&ct_res);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
         assert_eq!((clear_0 - clear_1) % modulus, dec_res);
@@ -1123,7 +1123,7 @@ fn integer_smart_scalar_sub(param: Parameters) {
             clear = (clear - clear_1) % modulus;
 
             // decryption of ct_res
-            let dec_res = cks.decrypt_radix(&ct_res);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
             // println!("clear = {}, dec_res = {}", clear, dec_res);
             // assert
