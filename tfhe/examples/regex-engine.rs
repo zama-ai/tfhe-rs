@@ -509,6 +509,7 @@ fn evaluate_binary_dfa(
     bit_ciphertexts: &[Ciphertext],
 ) -> Ciphertext {
     // Algorithm 6 from https://eprint.iacr.org/2018/421.pdf
+    // Note: Remark 6 is used to evaluate the wfa as a dfa
     let max_depth = bit_ciphertexts.len();
     assert_eq!(
         depth_table.len(),
@@ -535,6 +536,7 @@ fn evaluate_binary_dfa(
                         &ciphertexts
                             .get(&one_case)
                             .map_or(false_ciphertext.clone(), |r| r.clone()),
+                        // Remark 6
                         &server_key.trivial_encrypt(
                             depth == max_depth - 1 && final_states.contains(&one_case),
                         ),
@@ -546,6 +548,7 @@ fn evaluate_binary_dfa(
                         &ciphertexts
                             .get(&zero_case)
                             .map_or(false_ciphertext.clone(), |r| r.clone()),
+                        // Remark 6
                         &server_key.trivial_encrypt(
                             depth == max_depth - 1 && final_states.contains(&zero_case),
                         ),
