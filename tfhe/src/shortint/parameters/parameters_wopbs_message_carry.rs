@@ -6,7 +6,7 @@ pub use crate::core_crypto::commons::parameters::{
 };
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_prime_moduli::*;
-use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::parameters::{CarryModulus, MessageModulus, PARAM_MESSAGE_2_CARRY_2};
 use crate::shortint::Parameters;
 
 pub const ALL_PARAMETER_VEC_WOPBS: [Parameters; 116] = [
@@ -943,7 +943,7 @@ pub fn get_parameters_from_message_and_carry_wopbs(
     msg_space: usize,
     carry_space: usize,
 ) -> Parameters {
-    let mut out = Parameters::default();
+    let mut out = PARAM_MESSAGE_2_CARRY_2;
     let mut flag: bool = false;
     let mut rescaled_message_space = f64::ceil(f64::log2(msg_space as f64)) as usize;
     rescaled_message_space = 1 << rescaled_message_space;

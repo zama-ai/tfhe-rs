@@ -30,7 +30,7 @@
 //! use tfhe::shortint::{gen_keys, Parameters};
 //!
 //! // We generate a set of client/server keys, using the default parameters:
-//! let (mut client_key, mut server_key) = gen_keys(Parameters::default());
+//! let (mut client_key, mut server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 //!
 //! let msg1 = 1;
 //! let msg2 = 0;
@@ -78,9 +78,10 @@ pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 ///
 /// ```rust
 /// use tfhe::shortint::gen_keys;
+/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 ///
 /// // generate the client key and the server key:
-/// let (cks, sks) = gen_keys(Default::default());
+/// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 /// ```
 pub fn gen_keys(parameters_set: Parameters) -> (ClientKey, ServerKey) {
     let cks = ClientKey::new(parameters_set);

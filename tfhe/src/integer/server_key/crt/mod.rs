@@ -57,11 +57,11 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::DEFAULT_PARAMETERS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
-    /// let (cks, sks) = gen_keys_crt(&DEFAULT_PARAMETERS, basis);
+    /// let (cks, sks) = gen_keys_crt(&PARAM_MESSAGE_2_CARRY_2, basis);
     ///
     /// let clear_1 = 28;
     ///

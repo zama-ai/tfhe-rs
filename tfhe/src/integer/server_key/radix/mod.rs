@@ -24,12 +24,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{gen_keys_radix, RadixCiphertextBig};
-    /// use tfhe::shortint::parameters::DEFAULT_PARAMETERS;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&DEFAULT_PARAMETERS, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let ctxt: RadixCiphertextBig = sks.create_trivial_zero_radix(num_blocks);
     ///

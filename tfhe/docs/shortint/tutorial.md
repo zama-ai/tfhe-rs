@@ -19,8 +19,8 @@ To reflect that, computation/operation methods are tied to the `ServerKey` type.
 use tfhe::shortint::prelude::*;
 
 fn main()  {
-    // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys(Parameters::default());
+    // We generate a set of client/server keys
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 }
 ```
 
@@ -32,8 +32,8 @@ Once the keys have been generated, the client key is used to encrypt data:
 use tfhe::shortint::prelude::*;
 
 fn main() {
-    // We generate a set of client/server keys, using the default parameters:
-   let (client_key, server_key) = gen_keys(Parameters::default());
+    // We generate a set of client/server keys
+   let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
     let msg1 = 1;
     let msg2 = 0;
@@ -52,8 +52,8 @@ Once the keys have been generated, the client key is used to encrypt data:
 use tfhe::shortint::prelude::*;
 
 fn main() {
-    // We generate a set of client/server keys, using the default parameters:
-   let (client_key, _) = gen_keys(Parameters::default());
+    // We generate a set of client/server keys
+   let (client_key, _) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
    let public_key = PublicKeyBig::new(&client_key);
 
     let msg1 = 1;
@@ -73,8 +73,8 @@ With our `server_key` and encrypted values, we can now do an addition and then d
 use tfhe::shortint::prelude::*;
 
 fn main() {
-    // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys(Parameters::default());
+    // We generate a set of client/server keys
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
     let msg1 = 1;
     let msg2 = 0;

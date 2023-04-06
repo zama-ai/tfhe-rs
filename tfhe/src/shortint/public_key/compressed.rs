@@ -27,11 +27,11 @@ impl CompressedPublicKeyBig {
     ///
     /// ```rust
     /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::Parameters;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::shortint::public_key::CompressedPublicKeyBig;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(Parameters::default());
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let pk = CompressedPublicKeyBig::new(&cks);
     /// ```
@@ -49,11 +49,11 @@ impl CompressedPublicKeySmall {
     ///
     /// ```rust
     /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::Parameters;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     /// use tfhe::shortint::public_key::CompressedPublicKeySmall;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(Parameters::default());
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let pk = CompressedPublicKeySmall::new(&cks);
     /// ```
@@ -125,11 +125,11 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::MessageModulus;
-    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall, Parameters};
+    /// use tfhe::shortint::parameters::{MessageModulus, PARAM_MESSAGE_2_CARRY_2};
+    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall};
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(Parameters::default());
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let pk = CompressedPublicKeyBig::new(&cks);
     ///
@@ -174,10 +174,11 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall, Parameters};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall};
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(Parameters::default());
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let pk = CompressedPublicKeyBig::new(&cks);
     ///
@@ -256,10 +257,11 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall, Parameters};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall};
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(Parameters::default());
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let pk = CompressedPublicKeyBig::new(&cks);
     ///

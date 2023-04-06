@@ -99,8 +99,9 @@ Another example of how the library can be used with shortints:
 use tfhe::shortint::prelude::*;
 
 fn main() {
-    // Generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys(Parameters::default());
+    // Generate a set of client/server keys
+    // with 2 bits of message and 2 bits of carry
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
     let msg1 = 3;
     let msg2 = 2;

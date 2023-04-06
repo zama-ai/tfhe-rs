@@ -115,8 +115,9 @@ Use the `--release` flag to run this example (eg: `cargo run --release`)
 use tfhe::shortint::prelude::*;
 
 fn main() {
-    // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys(Parameters::default());
+    // We generate a set of client/server keys
+    // using parameters with 2 bits of message and 2 bits of carry
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
     let msg1 = 1;
     let msg2 = 0;
