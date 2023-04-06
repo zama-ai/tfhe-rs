@@ -23,7 +23,7 @@ use tfhe::shortint::prelude::*;
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (client_key, server_key) = gen_keys(Parameters::default());
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
     let msg1 = 1;
     let msg2 = 0;

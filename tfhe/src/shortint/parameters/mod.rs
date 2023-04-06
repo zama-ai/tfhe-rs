@@ -93,12 +93,6 @@ impl Parameters {
     }
 }
 
-impl Default for Parameters {
-    fn default() -> Self {
-        DEFAULT_PARAMETERS
-    }
-}
-
 /// Vector containing all parameter sets
 pub const ALL_PARAMETER_VEC: [Parameters; 28] = WITH_CARRY_PARAMETERS_VEC;
 
@@ -153,9 +147,6 @@ pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [Parameters; 16] = [
     PARAM_MESSAGE_3_CARRY_5,
     PARAM_MESSAGE_4_CARRY_4,
 ];
-
-/// Default parameter set
-pub const DEFAULT_PARAMETERS: Parameters = PARAM_MESSAGE_2_CARRY_2;
 
 /// Nomenclature: PARAM_MESSAGE_X_CARRY_Y: the message (respectively carry) modulus is
 /// encoded over X (reps. Y) bits, i.e., message_modulus = 2^{X} (resp. carry_modulus = 2^{Y}).
@@ -900,7 +891,7 @@ pub const PARAM_SMALL_MESSAGE_4_CARRY_4: Parameters = Parameters {
 /// assert_eq!(param, PARAM_MESSAGE_3_CARRY_1);
 /// ```
 pub fn get_parameters_from_message_and_carry(msg_space: usize, carry_space: usize) -> Parameters {
-    let mut out = Parameters::default();
+    let mut out = PARAM_MESSAGE_2_CARRY_2;
     let mut flag: bool = false;
     let mut rescaled_message_space = f64::ceil(f64::log2(msg_space as f64)) as usize;
     rescaled_message_space = 1 << rescaled_message_space;
