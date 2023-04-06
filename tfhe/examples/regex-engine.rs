@@ -64,88 +64,89 @@ struct ExecutionArgs {
     client_key_file: Option<PathBuf>,
 }
 
-const ALPHABET_LEN: u8 = 128;
-const ALPHABET_LOG: u8 = 7;
+const ALPHABET_LEN: usize = 128;
+const ALPHABET_LOG: usize = 7;
 
-// TODO: create newtypes for original dfa state ids and binary dfa state ids
+type AsciiDfaStateId = u8;
+type BinaryDfaStateId = usize;
 
-fn u8_to_bits_le(n: u8) -> [bool; 8] {
+fn u8_to_bits_be(n: u8) -> [bool; 8] {
     let mut bits = [false; 8];
-    let mut mask = 0b0000_0001;
 
     for i in 0..8 {
-        if n & mask != 0 {
-            bits[i] = true;
-        }
-        mask <<= 1;
+        bits[i] = (n >> (7 - i)) & 1 != 0;
     }
 
     bits
 }
 
 fn add_binary_transitions_for_all_ascii(
-    table: &mut Vec<(Option<usize>, Option<usize>)>,
-    depth_slice: &mut [HashSet<usize>],
-    state_to_table_index: &mut HashMap<u8, usize>,
-    state_index: usize,
-    successor: u8,
-) {
-    // loop over bits, LSB first
-    let mut curr_state_index = state_index;
+    table: &mut Vec<(Option<BinaryDfaStateId>, Option<BinaryDfaStateId>)>,
+    binary_state: BinaryDfaStateId,
+    binary_successor: BinaryDfaStateId,
+) -> Vec<HashSet<BinaryDfaStateId>> {
+    // loop over bits
+    let mut depth_slice = vec![HashSet::new(); ALPHABET_LOG];
+    let mut curr_binary_state = binary_state;
     for bit in 0..ALPHABET_LOG {
         let last = bit == (ALPHABET_LOG - 1);
-        let bit_index = bit as usize;
+        let bit_index = bit;
         let to_state = if last {
-            *state_to_table_index.entry(successor).or_insert_with(|| {
-                table.push((None, None));
-                table.len() - 1
-            })
+            binary_successor
         } else {
             // check if an intermediate state already exists
             // if so, then route through the existing intermediate state
             // prefer 0-transition arbitrarily
-            if let Some(to_state) = table[curr_state_index].0 {
+            if let Some(to_state) = table[curr_binary_state].0 {
                 to_state
-            } else if let Some(to_state) = table[curr_state_index].1 {
+            } else if let Some(to_state) = table[curr_binary_state].1 {
                 to_state
             } else {
                 table.push((None, None));
                 table.len() - 1
             }
         };
-        table[curr_state_index] = (Some(to_state), Some(to_state));
-        depth_slice[bit_index].insert(curr_state_index);
-        curr_state_index = to_state;
+        depth_slice[bit_index].insert(curr_binary_state);
+        table[curr_binary_state] = (Some(to_state), Some(to_state));
+        curr_binary_state = to_state;
     }
+
+    depth_slice
 }
 
+// Hopcroft's Algorithm: O(n log n), but O(1) since n = 8
 fn minimize_binary_dfa(
-    transitions: Vec<(Option<usize>, Option<usize>)>,
-    final_states: HashSet<usize>,
-) -> (Vec<(Option<usize>, Option<usize>)>, HashSet<usize>) {
-    let num_states = transitions.len();
+    dfa: Vec<(Option<BinaryDfaStateId>, Option<BinaryDfaStateId>)>,
+    final_states: &HashSet<BinaryDfaStateId>,
+) -> (
+    Vec<(Option<BinaryDfaStateId>, Option<BinaryDfaStateId>)>,
+    Vec<BinaryDfaStateId>,
+) {
+    let num_states = dfa.len();
 
-    // partition states into two initial groups: final and non-final states
-    let mut partitions: Vec<HashSet<usize>> = vec![HashSet::new(), final_states.clone()];
+    // partition states into initial groups: distinctly final and non-final states
+    let mut partitions: Vec<HashSet<_>> = vec![HashSet::new()];
     for state in 0..num_states {
-        if !final_states.contains(&state) {
+        if final_states.contains(&state) {
+            partitions.push(HashSet::from([state]));
+        } else {
             partitions[0].insert(state);
         }
     }
 
     // refine partitions
-    let mut work_list = VecDeque::from([0, 1]);
+    let mut work_list: VecDeque<_> = (0..partitions.len()).collect();
 
     while let Some(partition_id) = work_list.pop_front() {
         for symbol in 0..2 {
             let mut affected_states: HashSet<usize> = HashSet::new();
 
             for state in 0..num_states {
-                let next_state = match symbol {
-                    0 => transitions[state].0,
-                    _ => transitions[state].1,
+                let next_state = if symbol == 0 {
+                    dfa[state].0
+                } else {
+                    dfa[state].1
                 };
-
                 if let Some(next_state) = next_state {
                     if partitions[partition_id].contains(&next_state) {
                         affected_states.insert(state);
@@ -158,13 +159,13 @@ fn minimize_binary_dfa(
             }
 
             let mut new_partitions = vec![];
-            let work_list_set = work_list.into_iter().collect::<HashSet<_>>();
+            let work_list_set: HashSet<_> = work_list.into_iter().collect();
             let mut new_work_list = VecDeque::new();
 
             for (i, partition) in partitions.into_iter().enumerate() {
-                let intersection: HashSet<usize> =
+                let intersection: HashSet<_> =
                     partition.intersection(&affected_states).copied().collect();
-                let difference: HashSet<usize> =
+                let difference: HashSet<_> =
                     partition.difference(&affected_states).copied().collect();
 
                 if !intersection.is_empty() && !difference.is_empty() {
@@ -199,52 +200,183 @@ fn minimize_binary_dfa(
         }
     }
 
+    // pin the initial state to 0
+    let initial_partition_index = find_partition_id(&partitions, 0);
+    if initial_partition_index != 0 {
+        partitions.swap(0, initial_partition_index);
+    }
+
     // build the minimized dfa
-    let mut minimized_transitions = vec![(None, None); partitions.len()];
-    let mut new_final_states = HashSet::new();
+    let mut minimized_dfa = vec![(None, None); partitions.len()];
+    let mut state_mapping = vec![0; num_states];
 
     for (new_state_id, partition) in partitions.iter().enumerate() {
         let repr_state = *partition.iter().next().unwrap();
 
-        minimized_transitions[new_state_id] = (
-            transitions[repr_state]
-                .0
-                .map(|s| find_partition_id(&partitions, s)),
-            transitions[repr_state]
-                .1
-                .map(|s| find_partition_id(&partitions, s)),
-        );
-
-        if final_states.contains(&repr_state) {
-            new_final_states.insert(new_state_id);
+        for &original_state in partition {
+            state_mapping[original_state] = new_state_id;
         }
+
+        minimized_dfa[new_state_id] = (
+            dfa[repr_state].0.map(|s| find_partition_id(&partitions, s)),
+            dfa[repr_state].1.map(|s| find_partition_id(&partitions, s)),
+        );
     }
 
-    (minimized_transitions, new_final_states)
+    (minimized_dfa, state_mapping)
 }
 
-fn find_partition_id(partitions: &Vec<HashSet<usize>>, state: usize) -> usize {
+fn find_partition_id(
+    partitions: &Vec<HashSet<BinaryDfaStateId>>,
+    state: BinaryDfaStateId,
+) -> usize {
     partitions
         .iter()
         .position(|part| part.contains(&state))
-        .expect("State must be in one of the partitions")
+        .expect("state must be in one of the partitions")
+}
+
+fn combine_depth_slices(dst: &mut [HashSet<BinaryDfaStateId>], src: &[HashSet<BinaryDfaStateId>]) {
+    dst.iter_mut()
+        .zip(src.iter())
+        .for_each(|(dst_set, src_set)| dst_set.extend(src_set.iter()));
+}
+
+fn add_new_binary_transitions_for_bytes(
+    global_table: &mut Vec<(Option<BinaryDfaStateId>, Option<BinaryDfaStateId>)>,
+    ascii_to_global_binary_state: &mut HashMap<AsciiDfaStateId, BinaryDfaStateId>,
+    ascii_state: AsciiDfaStateId,
+    byte_successors: &[(u8, AsciiDfaStateId)],
+) -> Vec<HashSet<BinaryDfaStateId>> {
+    // note: assumes state has not been processed before
+    // create preliminary local binary dfa table
+    let mut local_table = vec![(None, None)];
+    let mut ascii_to_local_binary_state = HashMap::from([(ascii_state, 0)]);
+    let mut binary_successors = HashSet::new();
+    for &(byte, ascii_successor) in byte_successors {
+        let binary_successor = *ascii_to_local_binary_state
+            .entry(ascii_successor)
+            .or_insert_with(|| {
+                local_table.push((None, None));
+                local_table.len() - 1
+            });
+        add_binary_transitions_for_byte(&mut local_table, 0, byte, binary_successor);
+        binary_successors.insert(binary_successor);
+    }
+
+    // minimize local dfa
+    // initial state is pinned to 0
+    let (local_table, state_mapping) = minimize_binary_dfa(local_table, &binary_successors);
+
+    // create rev local binary state to ascii state map with new minimized mapping
+    let local_binary_to_ascii_state: HashMap<BinaryDfaStateId, AsciiDfaStateId> =
+        ascii_to_local_binary_state
+            .iter()
+            .map(|(&ascii_state, &local_binary_state)| {
+                (state_mapping[local_binary_state], ascii_state)
+            })
+            .collect();
+
+    // update global table
+    let mut local_binary_to_global_binary_state = HashMap::new();
+    let get_global_binary_state =
+        |local_binary_state,
+         local_binary_to_global_binary_state: &mut HashMap<BinaryDfaStateId, BinaryDfaStateId>,
+         local_binary_to_ascii_state: &HashMap<BinaryDfaStateId, AsciiDfaStateId>,
+         ascii_to_global_binary_state: &mut HashMap<AsciiDfaStateId, BinaryDfaStateId>,
+         global_table: &mut Vec<(Option<BinaryDfaStateId>, Option<BinaryDfaStateId>)>| {
+            *local_binary_to_global_binary_state
+                .entry(local_binary_state)
+                .or_insert_with(|| {
+                    if let Some(&state) = local_binary_to_ascii_state.get(&local_binary_state) {
+                        *ascii_to_global_binary_state
+                            .entry(state)
+                            .or_insert_with(|| {
+                                global_table.push((None, None));
+                                global_table.len() - 1
+                            })
+                    } else {
+                        global_table.push((None, None));
+                        global_table.len() - 1
+                    }
+                })
+        };
+    for (local_binary_state, (transition0, transition1)) in local_table.into_iter().enumerate() {
+        // do not overwrite a final state if it already exists in the table
+        // exception: always overwrite initial state, because of our assumption that state has not
+        // been processed before
+        if local_binary_state != 0 {
+            if let Some(state) = local_binary_to_ascii_state.get(&local_binary_state) {
+                if ascii_to_global_binary_state.contains_key(state) {
+                    continue;
+                }
+            }
+        }
+
+        let global_binary_state = get_global_binary_state(
+            local_binary_state,
+            &mut local_binary_to_global_binary_state,
+            &local_binary_to_ascii_state,
+            ascii_to_global_binary_state,
+            global_table,
+        );
+
+        let transition0 = transition0.map(|local_binary_state| {
+            get_global_binary_state(
+                local_binary_state,
+                &mut local_binary_to_global_binary_state,
+                &local_binary_to_ascii_state,
+                ascii_to_global_binary_state,
+                global_table,
+            )
+        });
+        let transition1 = transition1.map(|local_binary_state| {
+            get_global_binary_state(
+                local_binary_state,
+                &mut local_binary_to_global_binary_state,
+                &local_binary_to_ascii_state,
+                ascii_to_global_binary_state,
+                global_table,
+            )
+        });
+
+        global_table[global_binary_state] = (transition0, transition1);
+    }
+
+    // update depth slice
+    // perform bfs to update depth slice
+    let mut depth_slice = vec![HashSet::new(); ALPHABET_LOG];
+    let mut queue = VecDeque::from([(0, local_binary_to_global_binary_state[&0])]);
+    while let Some((depth, state)) = queue.pop_front() {
+        if depth >= depth_slice.len() {
+            continue;
+        }
+        if depth_slice[depth].insert(state) {
+            let (transition0, transition1) = global_table[state];
+            if let Some(transition0) = transition0 {
+                queue.push_back((depth + 1, transition0));
+            }
+            if let Some(transition1) = transition1 {
+                queue.push_back((depth + 1, transition1));
+            }
+        }
+    }
+
+    depth_slice
 }
 
 fn add_binary_transitions_for_byte(
-    table: &mut Vec<(Option<usize>, Option<usize>)>,
-    depth_slice: &mut [HashSet<usize>],
-    state_to_table_index: &mut HashMap<u8, usize>,
-    state_index: usize,
+    table: &mut Vec<(Option<BinaryDfaStateId>, Option<BinaryDfaStateId>)>,
+    binary_state: BinaryDfaStateId,
     byte: u8,
-    successor: u8,
+    binary_successor: BinaryDfaStateId,
 ) {
-    // loop over bits, LSB first
-    let mut curr_state_index = state_index;
-    for bit in 0..ALPHABET_LOG - 1 {
+    // loop over bits, MSB first
+    let mut curr_binary_state = binary_state;
+    for bit in 0..ALPHABET_LOG {
         let last = bit == (ALPHABET_LOG - 1);
-        let bit_index = bit as usize;
-        let bit = ((byte & (1 << bit)) >> bit) != 0;
-        let mut transitions = table[curr_state_index];
+        let bit = (byte >> (ALPHABET_LOG - bit - 1)) & 1 != 0;
+        let mut transitions = table[curr_binary_state];
         let transition = if !bit {
             let (ref mut val0, _) = transitions;
             val0
@@ -252,20 +384,16 @@ fn add_binary_transitions_for_byte(
             let (_, ref mut val1) = transitions;
             val1
         };
-        depth_slice[bit_index].insert(curr_state_index);
-        curr_state_index = match *transition {
+        curr_binary_state = match *transition {
             None => {
                 let to_state = if last {
-                    *state_to_table_index.entry(successor).or_insert_with(|| {
-                        table.push((None, None));
-                        table.len() - 1
-                    })
+                    binary_successor
                 } else {
                     table.push((None, None));
                     table.len() - 1
                 };
                 *transition = Some(to_state);
-                table[curr_state_index] = transitions;
+                table[curr_binary_state] = transitions;
                 to_state
             }
             Some(to_state) => to_state,
@@ -273,86 +401,110 @@ fn add_binary_transitions_for_byte(
     }
 }
 
+// note: this produces a "piecewise-minimized" binary dfa since it minimizes each (state,
+// byte_successors) pair (state is a single state, byte_successors is a list of all (byte,
+// successor) transitions from state) as its own separate binary dfa before being combined with
+// other states into the final binary dfa
+// the reason why this is done is if we simply attempted to minimize the entire binary dfa
+// at the end, it would simply collapse all of the states into 8 total states, which is not what we
+// want, since we want to be able to traverse the dfa with the full length of the bit string with
+// length > 8
 fn build_binary_dfa_tables(
     dfa: &dense::DenseDFA<Vec<u8>, u8>,
     end_anchored: bool,
     ascii_max_depth: usize,
 ) -> (
-    (Vec<(Option<usize>, Option<usize>)>, HashSet<usize>),
-    Vec<HashSet<usize>>,
+    (
+        Vec<(Option<BinaryDfaStateId>, Option<BinaryDfaStateId>)>,
+        HashSet<BinaryDfaStateId>,
+    ),
+    Vec<HashSet<BinaryDfaStateId>>,
 ) {
     let mut table = vec![];
-    let mut depth_table = vec![HashSet::new(); ascii_max_depth * 7];
+    let mut depth_table = vec![HashSet::new(); ascii_max_depth * ALPHABET_LOG];
     let mut final_states = HashSet::new();
     let mut queue = VecDeque::from([(0, dfa.start_state())]);
-    let mut state_to_table_index = HashMap::new();
+    let mut ascii_to_binary_state = HashMap::new();
+    let mut ascii_state_to_depth_slice = HashMap::new();
     let mut visited = HashSet::new();
-    // TODO: deal with non-ascii chars by explicitly transitioning to dead state
     // perform depth-limited bfs to traverse the ascii dfa
-    while !queue.is_empty() {
-        let elem = queue.pop_front().unwrap();
+    while let Some(elem) = queue.pop_front() {
         if visited.contains(&elem) {
             continue;
         }
         visited.insert(elem);
-        let (ascii_depth, state) = elem;
-        let index = *state_to_table_index.entry(state).or_insert_with(|| {
+        let (ascii_depth, ascii_state) = elem;
+        let binary_state = *ascii_to_binary_state.entry(ascii_state).or_insert_with(|| {
             table.push((None, None));
             table.len() - 1
         });
-        if dfa.is_match_state(state) {
-            final_states.insert(index);
+        if dfa.is_match_state(ascii_state) {
+            final_states.insert(binary_state);
         }
 
         // begin processing of successors
         if ascii_depth == ascii_max_depth {
             continue;
         }
-        let depth_slice = &mut depth_table[ascii_depth as usize * ALPHABET_LOG as usize
-            ..ascii_depth as usize * ALPHABET_LOG as usize + ALPHABET_LOG as usize];
+        let depth_slice =
+            &mut depth_table[ascii_depth * ALPHABET_LOG..ascii_depth * ALPHABET_LOG + ALPHABET_LOG];
         // add support for no $
-        if !end_anchored && dfa.is_match_state(state) {
-            add_binary_transitions_for_all_ascii(
-                &mut table,
-                depth_slice,
-                &mut state_to_table_index,
-                index,
-                state,
-            );
-            queue.push_back((ascii_depth + 1, state));
+        if !end_anchored && dfa.is_match_state(ascii_state) {
+            queue.push_back((ascii_depth + 1, ascii_state));
+            let curr_depth_slice = ascii_state_to_depth_slice
+                .entry(ascii_state)
+                .or_insert_with(|| {
+                    add_binary_transitions_for_all_ascii(&mut table, binary_state, binary_state)
+                });
+            combine_depth_slices(depth_slice, &curr_depth_slice);
             continue;
         }
         // ascii-only: 7 bits
-        let mut seen_successors = [false; ALPHABET_LEN as usize];
-        for input in 0..ALPHABET_LEN {
-            let successor = dfa.next_state(state, input);
-            if dfa.is_dead_state(successor) {
-                continue;
-            }
-            add_binary_transitions_for_byte(
-                &mut table,
-                depth_slice,
-                &mut state_to_table_index,
-                index,
-                // for consistent endianness across machines
-                input.to_le(),
-                successor,
-            );
-            if seen_successors[successor as usize] {
-                continue;
-            }
-            seen_successors[successor as usize] = true;
-            queue.push_back((ascii_depth + 1, successor));
-        }
+        let mut seen_successors = HashSet::new();
+        let byte_successors: Vec<_> = (0..ALPHABET_LEN.try_into().unwrap())
+            .filter_map(|input| {
+                let ascii_successor = dfa.next_state(ascii_state, input);
+                if !dfa.is_dead_state(ascii_successor) {
+                    if seen_successors.insert(ascii_successor) {
+                        queue.push_back((ascii_depth + 1, ascii_successor));
+                    }
+                    Some((input, ascii_successor))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let curr_depth_slice = ascii_state_to_depth_slice
+            .entry(ascii_state)
+            .or_insert_with(|| {
+                if byte_successors.len() == ALPHABET_LEN && seen_successors.len() == 1 {
+                    let binary_successor = *ascii_to_binary_state
+                        .entry(seen_successors.into_iter().next().unwrap())
+                        .or_insert_with(|| {
+                            table.push((None, None));
+                            table.len() - 1
+                        });
+                    add_binary_transitions_for_all_ascii(&mut table, binary_state, binary_successor)
+                } else {
+                    add_new_binary_transitions_for_bytes(
+                        &mut table,
+                        &mut ascii_to_binary_state,
+                        ascii_state,
+                        &byte_successors,
+                    )
+                }
+            });
+        combine_depth_slices(depth_slice, &curr_depth_slice);
     }
+
     ((table, final_states), depth_table)
 }
 
 fn evaluate_binary_dfa(
-    table: &[(Option<usize>, Option<usize>)],
-    final_states: &HashSet<usize>,
-    depth_table: &[HashSet<usize>],
-    initial: usize,
+    table: &[(Option<BinaryDfaStateId>, Option<BinaryDfaStateId>)],
+    final_states: &HashSet<BinaryDfaStateId>,
+    depth_table: &[HashSet<BinaryDfaStateId>],
+    initial: BinaryDfaStateId,
     server_key: &ServerKey,
     bit_ciphertexts: &[Ciphertext],
 ) -> Ciphertext {
@@ -467,10 +619,10 @@ fn main() {
                 .par_chars()
                 .flat_map(|c| {
                     let c: u8 = c.try_into().expect("expected a UTF-8 value");
-                    u8_to_bits_le(c)
+                    u8_to_bits_be(c)
                         .into_par_iter()
-                        .take(ALPHABET_LOG.into())
-                        // for testing
+                        .skip(1)
+                        // for correctness testing
                         // .map(|bit| server_key.trivial_encrypt(bit))
                         .map(|bit| client_key.encrypt(bit))
                 })
@@ -540,7 +692,7 @@ fn main() {
     );
     let ascii_depth = encrypted_string.len() / 7;
 
-    println!("Constructing minimized ascii dfa from input regex");
+    println!("Constructing piecewise-minimized ascii dfa from input regex");
     let now = Instant::now();
     // build minimized ascii-only dfa
     let dfa = dense::Builder::new()
