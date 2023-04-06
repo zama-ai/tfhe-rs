@@ -949,12 +949,12 @@ mod test {
             // correct computations
             MultiBitParams {
                 input_lwe_dimension: LweDimension(724),
-                lwe_modular_std_dev: StandardDev(0.000012597809688976246),
+                lwe_modular_std_dev: StandardDev(1.58705e-10),
                 decomp_base_log: DecompositionBaseLog(1),
                 decomp_level_count: DecompositionLevelCount(18),
                 glwe_dimension: GlweDimension(3),
                 polynomial_size: PolynomialSize(512),
-                glwe_modular_std_dev: StandardDev(0.0000000000039666089171633006),
+                glwe_modular_std_dev: StandardDev(1.5734e-23),
             },
             LweBskGroupingFactor(2),
             ThreadCount(5),
@@ -968,12 +968,12 @@ mod test {
             // correct computations
             MultiBitParams {
                 input_lwe_dimension: LweDimension(732),
-                lwe_modular_std_dev: StandardDev(0.000010870190497167995),
+                lwe_modular_std_dev: StandardDev(1.18161e-10),
                 decomp_base_log: DecompositionBaseLog(1),
                 decomp_level_count: DecompositionLevelCount(18),
                 glwe_dimension: GlweDimension(3),
                 polynomial_size: PolynomialSize(512),
-                glwe_modular_std_dev: StandardDev(0.0000000000039666089171633006),
+                glwe_modular_std_dev: StandardDev(1.5734e-23),
             },
             LweBskGroupingFactor(3),
             ThreadCount(12),
