@@ -30,6 +30,12 @@ pub type RadixCiphertextSmall = BaseRadixCiphertext<CiphertextSmall>;
 pub type CompressedRadixCiphertextBig = BaseRadixCiphertext<CompressedCiphertextBig>;
 pub type CompressedRadixCiphertextSmall = BaseRadixCiphertext<CompressedCiphertextSmall>;
 
+impl<PBSOrder: PBSOrderMarker> RadixCiphertext<PBSOrder> {
+    pub fn block_carries_are_empty(&self) -> bool {
+        self.blocks.iter().all(|block| block.carry_is_empty())
+    }
+}
+
 impl From<CompressedRadixCiphertextBig> for RadixCiphertextBig {
     fn from(compressed: CompressedRadixCiphertextBig) -> Self {
         Self::from(
