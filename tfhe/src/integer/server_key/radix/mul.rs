@@ -219,9 +219,9 @@ impl ServerKey {
         let mut result = self.create_trivial_zero_radix(ct1.blocks.len());
 
         for (i, ct2_i) in ct2.blocks.iter().enumerate() {
-            let tmp = self.unchecked_block_mul(ct1, ct2_i, i);
+            let mut tmp = self.unchecked_block_mul(ct1, ct2_i, i);
 
-            self.unchecked_add_assign(&mut result, &tmp);
+            self.smart_add_assign(&mut result, &mut tmp);
         }
 
         result
