@@ -906,6 +906,246 @@ impl<'a> Comparator<'a> {
     ) -> RadixCiphertext<PBSOrder> {
         self.smart_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Min)
     }
+
+    //======================================
+    // "Default" Multi-Threaded operations
+    //======================================
+    pub fn eq_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                tmp_rhs = rhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
+                (lhs, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = lhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, rhs)
+            }
+            (false, false) => {
+                tmp_lhs = lhs.clone();
+                tmp_rhs = rhs.clone();
+                rayon::join(
+                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
+                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_eq_parallelized(lhs, rhs)
+    }
+
+    pub fn gt_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                tmp_rhs = rhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
+                (lhs, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = lhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, rhs)
+            }
+            (false, false) => {
+                tmp_lhs = lhs.clone();
+                tmp_rhs = rhs.clone();
+                rayon::join(
+                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
+                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_gt_parallelized(lhs, rhs)
+    }
+
+    pub fn ge_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                tmp_rhs = rhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
+                (lhs, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = lhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, rhs)
+            }
+            (false, false) => {
+                tmp_lhs = lhs.clone();
+                tmp_rhs = rhs.clone();
+                rayon::join(
+                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
+                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_ge_parallelized(lhs, rhs)
+    }
+
+    pub fn lt_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                tmp_rhs = rhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
+                (lhs, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = lhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, rhs)
+            }
+            (false, false) => {
+                tmp_lhs = lhs.clone();
+                tmp_rhs = rhs.clone();
+                rayon::join(
+                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
+                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_lt_parallelized(lhs, rhs)
+    }
+
+    pub fn le_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                tmp_rhs = rhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
+                (lhs, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = lhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, rhs)
+            }
+            (false, false) => {
+                tmp_lhs = lhs.clone();
+                tmp_rhs = rhs.clone();
+                rayon::join(
+                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
+                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_le_parallelized(lhs, rhs)
+    }
+
+    pub fn max_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+
+        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                tmp_rhs = rhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
+                (lhs, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = lhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, rhs)
+            }
+            (false, false) => {
+                tmp_lhs = lhs.clone();
+                tmp_rhs = rhs.clone();
+                rayon::join(
+                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
+                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        let mut res = self.unchecked_max_parallelized(lhs, rhs);
+        self.server_key.full_propagate_parallelized(&mut res);
+        res
+    }
+
+    pub fn min_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+
+        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                tmp_rhs = rhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
+                (lhs, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = lhs.clone();
+                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, rhs)
+            }
+            (false, false) => {
+                tmp_lhs = lhs.clone();
+                tmp_rhs = rhs.clone();
+                rayon::join(
+                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
+                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        let mut res = self.unchecked_min_parallelized(lhs, rhs);
+        self.server_key.full_propagate_parallelized(&mut res);
+        res
+    }
 }
 
 #[cfg(test)]
@@ -1035,6 +1275,83 @@ mod tests {
         }
     }
 
+    /// Function to test a "default" comparator function.
+    ///
+    /// This calls the `comparator_method` with non-fresh ciphertexts,
+    /// that is ciphertexts that have non-zero carries, and compares that the result is
+    /// the same as the one of`clear_fn`.
+    fn test_default_function<SmartFn, ClearF>(
+        param: Parameters,
+        num_test: usize,
+        default_comparator_method: SmartFn,
+        clear_fn: ClearF,
+    ) where
+        SmartFn: for<'a, 'b> Fn(
+            &'a Comparator<'b>,
+            &'a RadixCiphertextBig,
+            &'a RadixCiphertextBig,
+        ) -> RadixCiphertextBig,
+        ClearF: Fn(U256, U256) -> U256,
+    {
+        let (cks, sks) = gen_keys(&param);
+        let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+        let comparator = Comparator::new(&sks);
+
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..num_test {
+            let mut clear_0 = rng.gen::<U256>();
+            let mut clear_1 = rng.gen::<U256>();
+            let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+            let mut ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+            // Raise the degree, so as to ensure worst case path in operations
+            while !super::has_non_zero_carries(&ct_0) {
+                let clear_2 = rng.gen::<U256>();
+                let ct_2 = cks.encrypt_radix(clear_2, num_block);
+                sks.unchecked_add_assign(&mut ct_0, &ct_2);
+                clear_0 += clear_2;
+            }
+
+            while !super::has_non_zero_carries(&ct_1) {
+                let clear_2 = rng.gen::<U256>();
+                let ct_2 = cks.encrypt_radix(clear_2, num_block);
+                sks.unchecked_add_assign(&mut ct_1, &ct_2);
+                clear_1 += clear_2;
+            }
+
+            // Sanity decryption checks
+            {
+                let mut a = U256::default();
+                cks.decrypt_radix_into(&ct_0, &mut a);
+                assert_eq!(a, clear_0);
+
+                cks.decrypt_radix_into(&ct_1, &mut a);
+                assert_eq!(a, clear_1);
+            }
+
+            assert!(super::has_non_zero_carries(&ct_0));
+            assert!(super::has_non_zero_carries(&ct_1));
+            let encrypted_result = default_comparator_method(&comparator, &ct_0, &ct_1);
+            // assert!(!super::has_non_zero_carries(&encrypted_result));
+
+            // Sanity decryption checks
+            {
+                let mut a = U256::default();
+                cks.decrypt_radix_into(&ct_0, &mut a);
+                assert_eq!(a, clear_0);
+                cks.decrypt_radix_into(&ct_1, &mut a);
+                assert_eq!(a, clear_1);
+            }
+
+            let mut decrypted_result = U256::default();
+            cks.decrypt_radix_into(&encrypted_result, &mut decrypted_result);
+
+            let expected_result = clear_fn(clear_0, clear_1);
+            assert_eq!(decrypted_result, expected_result);
+        }
+    }
+
     fn test_unchecked_min_256_bits(params: crate::shortint::Parameters, num_tests: usize) {
         test_unchecked_function(
             params,
@@ -1077,6 +1394,24 @@ mod tests {
         )
     }
 
+    fn test_min_parallelized_256_bits(params: crate::shortint::Parameters, num_tests: usize) {
+        test_default_function(
+            params,
+            num_tests,
+            |comparator, lhs, rhs| comparator.min_parallelized(lhs, rhs),
+            std::cmp::min,
+        )
+    }
+
+    fn test_max_parallelized_256_bits(params: crate::shortint::Parameters, num_tests: usize) {
+        test_default_function(
+            params,
+            num_tests,
+            |comparator, lhs, rhs| comparator.max_parallelized(lhs, rhs),
+            std::cmp::max,
+        )
+    }
+
     macro_rules! create_parametrized_test{
         ($name:ident { $($param:ident),* }) => {
             ::paste::paste! {
@@ -1092,14 +1427,15 @@ mod tests {
 
     /// This macro generates the tests for a given comparison fn
     ///
-    /// All our comparison function have 4 variants:
+    /// All our comparison function have 5 variants:
     /// - unchecked_$comparison_name
     /// - unchecked_$comparison_name_parallelized
     /// - smart_$comparison_name
     /// - smart_$comparison_name_parallelized
+    /// - $comparison_name_parallelized
     ///
     /// So, for example, for the `gt` comparison fn, this macro will generate the tests for
-    /// the 4 variants described above
+    /// the 5 variants described above
     macro_rules! define_comparison_test_functions {
         ($comparison_name:ident) => {
             paste::paste!{
@@ -1143,6 +1479,16 @@ mod tests {
                     )
                 }
 
+                fn [<$comparison_name _parallelized_256_bits>](params: crate::shortint::Parameters) {
+                    let num_tests = 1;
+                    test_default_function(
+                        params,
+                        num_tests,
+                        |comparator, lhs, rhs| comparator.[<$comparison_name _parallelized>](lhs, rhs),
+                        |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
+                    )
+                }
+
                 create_parametrized_test!([<unchecked_ $comparison_name _256_bits>]
                 {
                     PARAM_MESSAGE_2_CARRY_2,
@@ -1165,6 +1511,7 @@ mod tests {
                     // of message so the overflow behaviour is not the same, leading to false negatives
                     PARAM_MESSAGE_4_CARRY_4
                 });
+
                 create_parametrized_test!([<smart_ $comparison_name _parallelized_256_bits>]
                 {
                     PARAM_MESSAGE_2_CARRY_2,
@@ -1174,6 +1521,16 @@ mod tests {
                     // of message so the overflow behaviour is not the same, leading to false negatives
                     PARAM_MESSAGE_4_CARRY_4
                 });
+
+                create_parametrized_test!([<$comparison_name _parallelized_256_bits>]
+                    {
+                        PARAM_MESSAGE_2_CARRY_2,
+                        // We don't use PARAM_MESSAGE_3_CARRY_3,
+                        // as default test might overflow values
+                        // and when using 3_3 to represent 256 we actually have more than 256 bits
+                        // of message so the overflow behaviour is not the same, leading to false negatives
+                        PARAM_MESSAGE_4_CARRY_4
+                    });
             }
         };
     }
@@ -1231,6 +1588,21 @@ mod tests {
         )
     }
 
+    #[test]
+    fn test_min_parallelized_256_bits_param_message_2_carry_2() {
+        test_min_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
+    }
+
+    #[test]
+    fn test_min_parallelized_256_bits_param_message_3_carry_3() {
+        test_min_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
+    }
+
+    #[test]
+    fn test_min_parallelized_256_bits_param_message_4_carry_4() {
+        test_min_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4, 2)
+    }
+
     //================
     // Max
     //================
@@ -1272,5 +1644,20 @@ mod tests {
             crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
             2,
         )
+    }
+
+    #[test]
+    fn test_max_parallelized_256_bits_param_message_2_carry_2() {
+        test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
+    }
+
+    #[test]
+    fn test_max_parallelized_256_bits_param_message_3_carry_3() {
+        test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
+    }
+
+    #[test]
+    fn test_max_parallelized_256_bits_param_message_4_carry_4() {
+        test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4, 2)
     }
 }
