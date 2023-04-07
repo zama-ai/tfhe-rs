@@ -39,6 +39,7 @@ create_parametrized_test!(integer_smart_sub);
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
 create_parametrized_test!(integer_smart_mul);
+create_parametrized_test!(integer_unchecked_mul);
 
 create_parametrized_test!(integer_smart_scalar_sub);
 create_parametrized_test!(integer_smart_scalar_add);
@@ -954,6 +955,35 @@ fn integer_smart_block_mul(param: Parameters) {
 
         // Check the correctness
         assert_eq!(clear, dec);
+    }
+}
+
+fn integer_unchecked_mul(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..1 {
+        // Define the cleartexts
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % modulus;
+
+        // Encrypt the integers;;
+        let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
+        let ctxt_2 = cks.encrypt_radix(clear2, NB_CTXT);
+
+        let res = sks.unchecked_mul(&ctxt_1, &ctxt_2);
+
+        let dec: u64 = cks.decrypt_radix(&res);
+
+        let expected = (clear1 * clear2) % modulus;
+
+        // Check the correctness
+        assert_eq!(expected, dec);
     }
 }
 
