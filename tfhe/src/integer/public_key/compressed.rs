@@ -14,9 +14,14 @@ pub type CompressedPublicKeyBig = CompressedPublicKeyBase<KeyswitchBootstrap>;
 pub type CompressedPublicKeySmall = CompressedPublicKeyBase<BootstrapKeyswitch>;
 
 impl CompressedPublicKeyBig {
-    pub fn new(client_key: &ClientKey) -> Self {
+    pub fn new<C>(client_key: &C) -> Self
+    where
+        C: AsRef<ClientKey>,
+    {
         Self {
-            key: crate::shortint::CompressedPublicKeyBig::new(&client_key.key),
+            key: crate::shortint::CompressedPublicKeyBase::<KeyswitchBootstrap>::new(
+                &client_key.as_ref().key,
+            ),
         }
     }
 
@@ -49,9 +54,14 @@ impl CompressedPublicKeyBig {
 }
 
 impl CompressedPublicKeySmall {
-    pub fn new(client_key: &ClientKey) -> Self {
+    pub fn new<C>(client_key: &C) -> Self
+    where
+        C: AsRef<ClientKey>,
+    {
         Self {
-            key: crate::shortint::CompressedPublicKeySmall::new(&client_key.key),
+            key: crate::shortint::CompressedPublicKeyBase::<BootstrapKeyswitch>::new(
+                &client_key.as_ref().key,
+            ),
         }
     }
 }

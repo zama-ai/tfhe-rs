@@ -14,9 +14,12 @@ pub type PublicKeyBig = PublicKey<KeyswitchBootstrap>;
 pub type PublicKeySmall = PublicKey<BootstrapKeyswitch>;
 
 impl PublicKeyBig {
-    pub fn new(client_key: &ClientKey) -> Self {
+    pub fn new<C>(client_key: &C) -> Self
+    where
+        C: AsRef<ClientKey>,
+    {
         Self {
-            key: PublicKeyBase::<KeyswitchBootstrap>::new(&client_key.key),
+            key: PublicKeyBase::<KeyswitchBootstrap>::new(&client_key.as_ref().key),
         }
     }
 
@@ -49,9 +52,12 @@ impl PublicKeyBig {
 }
 
 impl PublicKeySmall {
-    pub fn new(client_key: &ClientKey) -> Self {
+    pub fn new<C>(client_key: &C) -> Self
+    where
+        C: AsRef<ClientKey>,
+    {
         Self {
-            key: PublicKeyBase::<BootstrapKeyswitch>::new(&client_key.key),
+            key: PublicKeyBase::<BootstrapKeyswitch>::new(&client_key.as_ref().key),
         }
     }
 }
