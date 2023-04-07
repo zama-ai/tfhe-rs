@@ -48,6 +48,9 @@ fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2() {
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
 create_parametrized_test!(integer_smart_bitxor);
+create_parametrized_test!(integer_default_bitand);
+create_parametrized_test!(integer_default_bitor);
+create_parametrized_test!(integer_default_bitxor);
 create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
 create_parametrized_test!(integer_smart_scalar_mul);
@@ -379,7 +382,7 @@ fn integer_smart_bitor(param: Parameters) {
 
         clear = (clear_0 | clear_1) % modulus;
 
-        for _ in 0..1 {
+        for _ in 0..NB_TEST_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             // encryption of an integer
@@ -432,6 +435,150 @@ fn integer_smart_bitxor(param: Parameters) {
             let mut ctxt_2 = cks.encrypt(clear_2);
 
             ct_res = sks.smart_bitxor_parallelized(&mut ct_res, &mut ctxt_2);
+            clear = (clear ^ clear_2) % modulus;
+
+            // decryption of ct_res
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            // assert
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+fn integer_default_bitand(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // encryption of an integer
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.bitand_parallelized(&ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = clear_0 & clear_1;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            // encryption of an integer
+            let ctxt_2 = cks.encrypt(clear_2);
+
+            ct_res = sks.bitand_parallelized(&ct_res, &ctxt_2);
+            assert!(ct_res.block_carries_are_empty());
+            clear &= clear_2;
+
+            // decryption of ct_res
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            // assert
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+fn integer_default_bitor(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // encryption of an integer
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.bitor_parallelized(&ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = (clear_0 | clear_1) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            // encryption of an integer
+            let ctxt_2 = cks.encrypt(clear_2);
+
+            ct_res = sks.bitor_parallelized(&ct_res, &ctxt_2);
+            assert!(ct_res.block_carries_are_empty());
+            clear = (clear | clear_2) % modulus;
+
+            // decryption of ct_res
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            // assert
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+fn integer_default_bitxor(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // encryption of an integer
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.bitxor_parallelized(&ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = (clear_0 ^ clear_1) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            // encryption of an integer
+            let ctxt_2 = cks.encrypt(clear_2);
+
+            ct_res = sks.bitxor_parallelized(&ct_res, &ctxt_2);
+            assert!(ct_res.block_carries_are_empty());
             clear = (clear ^ clear_2) % modulus;
 
             // decryption of ct_res

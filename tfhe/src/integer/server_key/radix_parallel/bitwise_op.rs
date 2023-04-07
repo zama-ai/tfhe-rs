@@ -84,6 +84,87 @@ impl ServerKey {
         self.unchecked_bitand_assign_parallelized(ct_left, ct_right);
     }
 
+    /// Computes homomorphically a bitand between two ciphertexts encrypting integer values.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Warning
+    ///
+    /// - Multithreaded
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg1 = 14;
+    /// let msg2 = 97;
+    ///
+    /// let ct1 = cks.encrypt(msg1);
+    /// let ct2 = cks.encrypt(msg2);
+    ///
+    /// let ct_res = sks.bitand_parallelized(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(dec_result, msg1 & msg2);
+    /// ```
+    pub fn bitand_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &RadixCiphertext<PBSOrder>,
+        ct_right: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut ct_res = ct_left.clone();
+        self.bitand_assign_parallelized(&mut ct_res, ct_right);
+        ct_res
+    }
+
+    pub fn bitand_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &RadixCiphertext<PBSOrder>,
+    ) {
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+
+        let (lhs, rhs) = match (
+            ct_left.block_carries_are_empty(),
+            ct_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = ct_right.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                self.full_propagate_parallelized(ct_left);
+                (ct_left, ct_right)
+            }
+            (false, false) => {
+                tmp_rhs = ct_right.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(ct_left),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (ct_left, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_bitand_assign_parallelized(lhs, rhs);
+    }
+
     pub fn unchecked_bitor_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
         ct_left: &RadixCiphertext<PBSOrder>,
@@ -164,6 +245,87 @@ impl ServerKey {
         self.unchecked_bitor_assign_parallelized(ct_left, ct_right);
     }
 
+    /// Computes homomorphically a bitor between two ciphertexts encrypting integer values.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Warning
+    ///
+    /// - Multithreaded
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg1 = 14;
+    /// let msg2 = 97;
+    ///
+    /// let ct1 = cks.encrypt(msg1);
+    /// let ct2 = cks.encrypt(msg2);
+    ///
+    /// let ct_res = sks.bitor_parallelized(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(dec_result, msg1 | msg2);
+    /// ```
+    pub fn bitor_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &RadixCiphertext<PBSOrder>,
+        ct_right: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut ct_res = ct_left.clone();
+        self.bitor_assign_parallelized(&mut ct_res, ct_right);
+        ct_res
+    }
+
+    pub fn bitor_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &RadixCiphertext<PBSOrder>,
+    ) {
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+
+        let (lhs, rhs) = match (
+            ct_left.block_carries_are_empty(),
+            ct_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = ct_right.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                self.full_propagate_parallelized(ct_left);
+                (ct_left, ct_right)
+            }
+            (false, false) => {
+                tmp_rhs = ct_right.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(ct_left),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (ct_left, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_bitor_assign_parallelized(lhs, rhs);
+    }
+
     pub fn unchecked_bitxor_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
         ct_left: &RadixCiphertext<PBSOrder>,
@@ -242,5 +404,86 @@ impl ServerKey {
             );
         }
         self.unchecked_bitxor_assign_parallelized(ct_left, ct_right);
+    }
+
+    /// Computes homomorphically a bitxor between two ciphertexts encrypting integer values.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Warning
+    ///
+    /// - Multithreaded
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg1 = 14;
+    /// let msg2 = 97;
+    ///
+    /// let ct1 = cks.encrypt(msg1);
+    /// let ct2 = cks.encrypt(msg2);
+    ///
+    /// let ct_res = sks.bitxor_parallelized(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(dec_result, msg1 ^ msg2);
+    /// ```
+    pub fn bitxor_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &RadixCiphertext<PBSOrder>,
+        ct_right: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut ct_res = ct_left.clone();
+        self.bitxor_assign_parallelized(&mut ct_res, ct_right);
+        ct_res
+    }
+
+    pub fn bitxor_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &mut RadixCiphertext<PBSOrder>,
+        ct_right: &RadixCiphertext<PBSOrder>,
+    ) {
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+
+        let (lhs, rhs) = match (
+            ct_left.block_carries_are_empty(),
+            ct_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = ct_right.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                self.full_propagate_parallelized(ct_left);
+                (ct_left, ct_right)
+            }
+            (false, false) => {
+                tmp_rhs = ct_right.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(ct_left),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (ct_left, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_bitxor_assign_parallelized(lhs, rhs);
     }
 }
