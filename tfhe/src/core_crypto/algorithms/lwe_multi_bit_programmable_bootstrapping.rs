@@ -948,13 +948,13 @@ mod test {
             // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield
             // correct computations
             MultiBitParams {
-                input_lwe_dimension: LweDimension(724),
-                lwe_modular_std_dev: StandardDev(1.58705e-10),
-                decomp_base_log: DecompositionBaseLog(1),
-                decomp_level_count: DecompositionLevelCount(18),
-                glwe_dimension: GlweDimension(3),
-                polynomial_size: PolynomialSize(512),
-                glwe_modular_std_dev: StandardDev(1.5734e-23),
+                input_lwe_dimension: LweDimension(788),
+                lwe_modular_std_dev: StandardDev(0.000003871078133364534),
+                decomp_base_log: DecompositionBaseLog(22),
+                decomp_level_count: DecompositionLevelCount(1),
+                glwe_dimension: GlweDimension(2),
+                polynomial_size: PolynomialSize(1024),
+                glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
             },
             LweBskGroupingFactor(2),
             ThreadCount(5),
@@ -967,13 +967,13 @@ mod test {
             // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield
             // correct computations
             MultiBitParams {
-                input_lwe_dimension: LweDimension(732),
-                lwe_modular_std_dev: StandardDev(1.18161e-10),
-                decomp_base_log: DecompositionBaseLog(1),
-                decomp_level_count: DecompositionLevelCount(18),
-                glwe_dimension: GlweDimension(3),
-                polynomial_size: PolynomialSize(512),
-                glwe_modular_std_dev: StandardDev(1.5734e-23),
+                input_lwe_dimension: LweDimension(789),
+                lwe_modular_std_dev: StandardDev(0.0000038003596741624174),
+                decomp_base_log: DecompositionBaseLog(22),
+                decomp_level_count: DecompositionLevelCount(1),
+                glwe_dimension: GlweDimension(2),
+                polynomial_size: PolynomialSize(1024),
+                glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
             },
             LweBskGroupingFactor(3),
             ThreadCount(12),
