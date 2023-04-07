@@ -2,8 +2,8 @@ use crate::integer::U256;
 use crate::typed_api::prelude::*;
 use crate::typed_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::{
-    CompressedFheUint16, CompressedFheUint256, FheUint128, FheUint16, FheUint256, FheUint32,
-    FheUint64,
+    CompressedFheUint16, CompressedFheUint256, CompressedPublicKey, FheUint128, FheUint16,
+    FheUint256, FheUint32, FheUint64,
 };
 
 #[test]
@@ -188,4 +188,16 @@ fn test_small_uint128() {
 
     let decrypted: u128 = c.decrypt(&cks);
     assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+}
+
+#[test]
+fn test_integer_compressed_public_key() {
+    let config = ConfigBuilder::all_disabled().enable_default_uint8().build();
+    let (client_key, _) = generate_keys(config);
+
+    let public_key = CompressedPublicKey::new(&client_key);
+
+    let a = FheUint8::try_encrypt(213u8, &public_key).unwrap();
+    let clear: u8 = a.decrypt(&client_key);
+    assert_eq!(clear, 213u8);
 }

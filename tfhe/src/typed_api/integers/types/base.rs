@@ -9,15 +9,19 @@ use crate::integer::U256;
 use crate::typed_api::global_state::WithGlobalKey;
 use crate::typed_api::integers::client_key::GenericIntegerClientKey;
 use crate::typed_api::integers::parameters::IntegerParameter;
+use crate::typed_api::integers::public_key::compressed::GenericIntegerCompressedPublicKey;
 use crate::typed_api::integers::public_key::GenericIntegerPublicKey;
 use crate::typed_api::integers::server_key::{
-    GenericIntegerServerKey, SmartAdd, SmartAddAssign, SmartBitAnd, SmartBitAndAssign, SmartBitOr,
-    SmartBitOrAssign, SmartBitXor, SmartBitXorAssign, SmartEq, SmartGe, SmartGt, SmartLe, SmartLt,
-    SmartMax, SmartMin, SmartMul, SmartMulAssign, SmartNeg, SmartShl, SmartShlAssign, SmartShr,
-    SmartShrAssign, SmartSub, SmartSubAssign,
+    GenericIntegerServerKey, RadixCiphertextDyn, SmartAdd, SmartAddAssign, SmartBitAnd,
+    SmartBitAndAssign, SmartBitOr, SmartBitOrAssign, SmartBitXor, SmartBitXorAssign, SmartEq,
+    SmartGe, SmartGt, SmartLe, SmartLt, SmartMax, SmartMin, SmartMul, SmartMulAssign, SmartNeg,
+    SmartShl, SmartShlAssign, SmartShr, SmartShrAssign, SmartSub, SmartSubAssign,
 };
 use crate::typed_api::internal_traits::{DecryptionKey, EncryptionKey};
-use crate::typed_api::keys::{RefKeyFromKeyChain, RefKeyFromPublicKeyChain};
+use crate::typed_api::keys::{
+    CompressedPublicKey, RefKeyFromCompressedPublicKeyChain, RefKeyFromKeyChain,
+    RefKeyFromPublicKeyChain,
+};
 use crate::typed_api::traits::{FheBootstrap, FheDecrypt, FheEq, FheOrd, FheTryEncrypt};
 use crate::typed_api::{ClientKey, PublicKey};
 
@@ -133,6 +137,24 @@ where
     type Error = crate::typed_api::errors::Error;
 
     fn try_encrypt(value: T, key: &PublicKey) -> Result<Self, Self::Error> {
+        let value = value.into();
+        let id = P::Id::default();
+        let key = id.ref_key(key)?;
+        let ciphertext = key.inner.encrypt(value);
+        Ok(Self::new(ciphertext, id))
+    }
+}
+
+impl<P, T> FheTryEncrypt<T, CompressedPublicKey> for GenericInteger<P>
+where
+    T: Into<U256>,
+    P: IntegerParameter<InnerCiphertext = RadixCiphertextDyn>,
+    P::Id: RefKeyFromCompressedPublicKeyChain<Key = GenericIntegerCompressedPublicKey<P>> + Default,
+    P::InnerPublicKey: EncryptionKey<U256, P::InnerCiphertext>,
+{
+    type Error = crate::typed_api::errors::Error;
+
+    fn try_encrypt(value: T, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let value = value.into();
         let id = P::Id::default();
         let key = id.ref_key(key)?;

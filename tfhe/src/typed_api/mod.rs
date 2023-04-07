@@ -2,7 +2,7 @@
 pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, OutOfRangeError};
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
-pub use keys::{generate_keys, ClientKey, PublicKey, ServerKey};
+pub use keys::{generate_keys, ClientKey, CompressedPublicKey, PublicKey, ServerKey};
 
 #[cfg(test)]
 mod tests;

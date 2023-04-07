@@ -9,6 +9,7 @@ use crate::typed_api::FheUint2;
 use crate::typed_api::{generate_keys, ClientKey, ConfigBuilder, PublicKey};
 #[cfg(feature = "integer")]
 use crate::typed_api::{FheUint256, FheUint8};
+use crate::CompressedPublicKey;
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 use std::fmt::Debug;
 
@@ -129,8 +130,10 @@ fn test_serialize_deserialize_are_implemented() {
 
     let (cks, sks) = generate_keys(config);
     let pks = PublicKey::new(&cks);
+    let cpks = CompressedPublicKey::new(&cks);
 
     can_be_deserialized(&cks);
     can_be_deserialized(&sks);
     can_be_deserialized(&pks);
+    can_be_deserialized(&cpks);
 }

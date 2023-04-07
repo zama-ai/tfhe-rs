@@ -1,4 +1,6 @@
-pub(crate) use keys::{IntegerClientKey, IntegerConfig, IntegerPublicKey, IntegerServerKey};
+pub(crate) use keys::{
+    IntegerClientKey, IntegerCompressedPublicKey, IntegerConfig, IntegerPublicKey, IntegerServerKey,
+};
 pub use parameters::{CrtParameters, RadixParameters};
 pub(in crate::typed_api) use types::static_::{
     FheUint10Parameters, FheUint128Parameters, FheUint12Parameters, FheUint14Parameters,

@@ -11,7 +11,11 @@ use crate::shortint::ciphertext::CiphertextBig as ShortintCiphertext;
 
 use crate::typed_api::errors::OutOfRangeError;
 use crate::typed_api::global_state::WithGlobalKey;
-use crate::typed_api::keys::{ClientKey, RefKeyFromKeyChain, RefKeyFromPublicKeyChain};
+use crate::typed_api::keys::{
+    ClientKey, CompressedPublicKey, RefKeyFromCompressedPublicKeyChain, RefKeyFromKeyChain,
+    RefKeyFromPublicKeyChain,
+};
+use crate::typed_api::shortints::public_key::compressed::GenericShortIntCompressedPublicKey;
 use crate::typed_api::traits::{
     FheBootstrap, FheDecrypt, FheEq, FheNumberConstant, FheOrd, FheTryEncrypt, FheTryTrivialEncrypt,
 };
@@ -239,6 +243,32 @@ where
     /// ```
     #[track_caller]
     fn try_encrypt(value: T, key: &PublicKey) -> Result<Self, Self::Error> {
+        let value = value.try_into().map_err(|_err| OutOfRangeError)?;
+        if value > Self::MAX {
+            Err(OutOfRangeError.into())
+        } else {
+            let id = P::Id::default();
+            let key = id.unwrapped_ref_key(key);
+            let ciphertext = key.key.encrypt(u64::from(value));
+            Ok(Self {
+                ciphertext: RefCell::new(ciphertext),
+                id,
+            })
+        }
+    }
+}
+
+impl<T, P> FheTryEncrypt<T, CompressedPublicKey> for GenericShortInt<P>
+where
+    T: TryInto<u8>,
+    P: StaticShortIntegerParameter,
+    P::Id:
+        Default + RefKeyFromCompressedPublicKeyChain<Key = GenericShortIntCompressedPublicKey<P>>,
+{
+    type Error = crate::typed_api::errors::Error;
+
+    #[track_caller]
+    fn try_encrypt(value: T, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let value = value.try_into().map_err(|_err| OutOfRangeError)?;
         if value > Self::MAX {
             Err(OutOfRangeError.into())

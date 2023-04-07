@@ -1,4 +1,6 @@
-pub(crate) use keys::{BooleanClientKey, BooleanConfig, BooleanPublicKey, BooleanServerKey};
+pub(crate) use keys::{
+    BooleanClientKey, BooleanCompressedPublicKey, BooleanConfig, BooleanPublicKey, BooleanServerKey,
+};
 pub use parameters::FheBoolParameters;
 pub use types::{CompressedFheBool, FheBool, GenericBool};
 

@@ -15,6 +15,7 @@ macro_rules! define_key_structs {
                     [<$base_ty_name Parameters>],
                     [<$base_ty_name ClientKey>],
                     [<$base_ty_name PublicKey>],
+                    [<$base_ty_name CompressedPublicKey>],
                     [<$base_ty_name ServerKey>]
                 };
             )*
@@ -85,6 +86,29 @@ macro_rules! define_key_structs {
                                 .[<$name _key>]
                                 .as_ref()
                                 .map(<[<$base_ty_name PublicKey>]>::new),
+                        )*
+                    }
+                }
+            }
+
+            ///////////////////////
+            // Compressed Public Key
+            ///////////////////////
+            #[derive(Clone, Debug, ::serde::Deserialize, ::serde::Serialize)]
+            pub(crate) struct [<$base_struct_name CompressedPublicKey>] {
+                $(
+                    pub(super) [<$name _key>]: Option<[<$base_ty_name CompressedPublicKey>]>,
+                )*
+            }
+
+            impl [<$base_struct_name CompressedPublicKey>] {
+                pub(crate) fn new(client_key: &[<$base_struct_name ClientKey>]) -> Self {
+                    Self {
+                        $(
+                            [<$name _key>]: client_key
+                                .[<$name _key>]
+                                .as_ref()
+                                .map(<[<$base_ty_name CompressedPublicKey>]>::new),
                         )*
                     }
                 }

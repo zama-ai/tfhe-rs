@@ -5,6 +5,7 @@ use crate::typed_api::integers::parameters::{
     EvaluationIntegerKey, IntegerParameter, RadixParameters, RadixRepresentation,
     StaticIntegerParameter, StaticRadixParameter,
 };
+use crate::typed_api::integers::public_key::compressed::GenericIntegerCompressedPublicKey;
 use crate::typed_api::integers::public_key::GenericIntegerPublicKey;
 use crate::typed_api::integers::server_key::GenericIntegerServerKey;
 use crate::typed_api::integers::types::compressed::CompressedGenericInteger;
@@ -184,6 +185,9 @@ macro_rules! static_int_type {
             #[doc = concat!("PublicKey for the [", stringify!($name), "] data type.")]
             pub(in crate::typed_api::integers) type [<$name PublicKey>] = GenericIntegerPublicKey<[<$name Parameters>]>;
 
+            #[doc = concat!("CompressedPublicKey for the [", stringify!($name), "] data type.")]
+            pub(in crate::typed_api::integers) type [<$name CompressedPublicKey>] = GenericIntegerCompressedPublicKey<[<$name Parameters>]>;
+
             #[doc = concat!("ServerKey for the [", stringify!($name), "] data type.")]
             pub(in crate::typed_api::integers) type [<$name ServerKey>] = GenericIntegerServerKey<[<$name Parameters>]>;
 
@@ -206,6 +210,14 @@ macro_rules! static_int_type {
             impl_ref_key_from_public_keychain!(
                 for <[<$name Parameters>] as ParameterType>::Id {
                     key_type: [<$name PublicKey>],
+                    keychain_member: $($member).*,
+                    type_variant: crate::typed_api::errors::Type::$name,
+                }
+            );
+
+            impl_ref_key_from_compressed_public_keychain!(
+                for <[<$name Parameters>] as ParameterType>::Id {
+                    key_type: [<$name CompressedPublicKey>],
                     keychain_member: $($member).*,
                     type_variant: crate::typed_api::errors::Type::$name,
                 }

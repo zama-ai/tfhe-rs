@@ -4,11 +4,12 @@ mod client;
 mod public;
 mod server;
 
-pub use client::{ClientKey, RefKeyFromKeyChain};
-pub use public::{PublicKey, RefKeyFromPublicKeyChain};
-pub use server::ServerKey;
-
 use crate::typed_api::config::Config;
+pub use client::{ClientKey, RefKeyFromKeyChain};
+pub use public::{
+    CompressedPublicKey, PublicKey, RefKeyFromCompressedPublicKeyChain, RefKeyFromPublicKeyChain,
+};
+pub use server::ServerKey;
 
 /// Generates keys using the provided config.
 ///

@@ -58,6 +58,15 @@ pub(in crate::typed_api::booleans) type FheBoolServerKey =
 pub(in crate::typed_api::booleans) type FheBoolPublicKey =
     GenericBoolPublicKey<StaticBoolParameters>;
 
+#[derive(Clone, Debug, ::serde::Deserialize, ::serde::Serialize)]
+pub(in crate::typed_api::booleans) struct FheBoolCompressedPublicKey;
+
+impl FheBoolCompressedPublicKey {
+    pub(crate) fn new(_client_key: &FheBoolClientKey) -> Self {
+        Self
+    }
+}
+
 impl_with_global_key!(
     for FheBoolId {
         key_type: FheBoolServerKey,
