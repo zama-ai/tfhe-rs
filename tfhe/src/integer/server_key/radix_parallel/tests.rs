@@ -38,6 +38,13 @@ macro_rules! create_parametrized_test{
 create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_smart_add_sequence_multi_thread);
 create_parametrized_test!(integer_smart_add_sequence_single_thread);
+create_parametrized_test!(integer_default_add);
+create_parametrized_test!(integer_default_add_sequence_multi_thread);
+// Other tests are pretty slow, and the code is the same as a smart add but slower
+#[test]
+fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2() {
+    integer_default_add_sequence_single_thread(PARAM_MESSAGE_2_CARRY_2)
+}
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
 create_parametrized_test!(integer_smart_bitxor);
@@ -166,6 +173,130 @@ fn integer_smart_add_sequence_single_thread(param: Parameters) {
                 sks.smart_binary_op_seq_parallelized(&mut ctxts, ServerKey::smart_add_parallelized)
                     .unwrap()
             });
+            let ct_res: u64 = cks.decrypt(&ct_res);
+            let clear = clears.iter().sum::<u64>() % modulus;
+
+            assert_eq!(ct_res, clear);
+        }
+    }
+}
+
+fn integer_default_add(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // encryption of an integer
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.add_parallelized(&ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = (clear_0 + clear_1) % modulus;
+
+        // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
+        //add multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = sks.add_parallelized(&ct_res, &ctxt_0);
+            assert!(ct_res.block_carries_are_empty());
+            clear = (clear + clear_0) % modulus;
+
+            // decryption of ct_res
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            // println!("clear = {}, dec_res = {}", clear, dec_res);
+            // assert
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+fn integer_default_add_sequence_multi_thread(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    for len in [1, 2, 15, 16, 17, 64, 65] {
+        for _ in 0..NB_TEST_SMALLER {
+            let clears = (0..len)
+                .map(|_| rng.gen::<u64>() % modulus)
+                .collect::<Vec<_>>();
+
+            // encryption of integers
+            let ctxts = clears
+                .iter()
+                .copied()
+                .map(|clear| cks.encrypt(clear))
+                .collect::<Vec<_>>();
+
+            // add the ciphertexts
+            let ct_res = sks
+                .default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
+                .unwrap();
+            assert!(ct_res.block_carries_are_empty());
+            let ct_res: u64 = cks.decrypt(&ct_res);
+            let clear = clears.iter().sum::<u64>() % modulus;
+
+            assert_eq!(ct_res, clear);
+        }
+    }
+}
+
+fn integer_default_add_sequence_single_thread(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    for len in [1, 2, 15, 16, 17] {
+        for _ in 0..NB_TEST_SMALLER {
+            let clears = (0..len)
+                .map(|_| rng.gen::<u64>() % modulus)
+                .collect::<Vec<_>>();
+
+            // encryption of integers
+            let ctxts = clears
+                .iter()
+                .copied()
+                .map(|clear| cks.encrypt(clear))
+                .collect::<Vec<_>>();
+
+            // add the ciphertexts
+            let threadpool = rayon::ThreadPoolBuilder::new()
+                .num_threads(1)
+                .build()
+                .unwrap();
+
+            let ct_res = threadpool.install(|| {
+                sks.default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
+                    .unwrap()
+            });
+            assert!(ct_res.block_carries_are_empty());
             let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
