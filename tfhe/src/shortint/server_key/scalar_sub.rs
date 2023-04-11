@@ -121,7 +121,7 @@ impl ServerKey {
         scalar: u8,
     ) {
         let modulus = self.message_modulus.0 as u64;
-        let acc = self.generate_accumulator(|x| (x - scalar as u64) % modulus);
+        let acc = self.generate_accumulator(|x| (x.wrapping_sub(scalar as u64)) % modulus);
         self.apply_lookup_table_assign(ct, &acc);
     }
 
