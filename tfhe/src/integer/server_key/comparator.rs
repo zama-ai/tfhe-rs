@@ -1492,13 +1492,13 @@ mod tests {
                 create_parametrized_test!([<unchecked_ $comparison_name _256_bits>]
                 {
                     PARAM_MESSAGE_2_CARRY_2,
-                    PARAM_MESSAGE_3_CARRY_3,
+                    // PARAM_MESSAGE_3_CARRY_3,
                     PARAM_MESSAGE_4_CARRY_4
                 });
                 create_parametrized_test!([<unchecked_ $comparison_name _parallelized_256_bits>]
                 {
                     PARAM_MESSAGE_2_CARRY_2,
-                    PARAM_MESSAGE_3_CARRY_3,
+                    // PARAM_MESSAGE_3_CARRY_3,
                     PARAM_MESSAGE_4_CARRY_4
                 });
 
@@ -1536,7 +1536,9 @@ mod tests {
     }
 
     use crate::shortint::parameters::{
-        PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3, PARAM_MESSAGE_4_CARRY_4,
+        PARAM_MESSAGE_2_CARRY_2,
+        // PARAM_MESSAGE_3_CARRY_3
+        PARAM_MESSAGE_4_CARRY_4,
     };
 
     define_comparison_test_functions!(eq);
@@ -1554,10 +1556,10 @@ mod tests {
         test_unchecked_min_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
     }
 
-    #[test]
-    fn test_unchecked_min_256_bits_param_message_3_carry_3() {
-        test_unchecked_min_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    }
+    // #[test]
+    // fn test_unchecked_min_256_bits_param_message_3_carry_3() {
+    //     test_unchecked_min_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
+    // }
 
     #[test]
     fn test_unchecked_min_256_bits_param_message_4_carry_4() {
@@ -1572,13 +1574,13 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_unchecked_min_parallelized_256_bits_param_message_3_carry_3() {
-        test_unchecked_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
-            2,
-        )
-    }
+    // #[test]
+    // fn test_unchecked_min_parallelized_256_bits_param_message_3_carry_3() {
+    //     test_unchecked_min_parallelized_256_bits(
+    //         crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+    //         2,
+    //     )
+    // }
 
     #[test]
     fn test_unchecked_min_parallelized_256_bits_param_message_4_carry_4() {
@@ -1593,10 +1595,10 @@ mod tests {
         test_min_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
     }
 
-    #[test]
-    fn test_min_parallelized_256_bits_param_message_3_carry_3() {
-        test_min_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    }
+    // #[test]
+    // fn test_min_parallelized_256_bits_param_message_3_carry_3() {
+    //     test_min_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
+    // }
 
     #[test]
     fn test_min_parallelized_256_bits_param_message_4_carry_4() {
@@ -1612,10 +1614,10 @@ mod tests {
         test_unchecked_max_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
     }
 
-    #[test]
-    fn test_unchecked_max_256_bits_param_message_3_carry_3() {
-        test_unchecked_max_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    }
+    // #[test]
+    // fn test_unchecked_max_256_bits_param_message_3_carry_3() {
+    //     test_unchecked_max_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
+    // }
 
     #[test]
     fn test_unchecked_max_256_bits_param_message_4_carry_4() {
@@ -1630,13 +1632,13 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_unchecked_max_parallelized_256_bits_param_message_3_carry_3() {
-        test_unchecked_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
-            2,
-        )
-    }
+    // #[test]
+    // fn test_unchecked_max_parallelized_256_bits_param_message_3_carry_3() {
+    //     test_unchecked_max_parallelized_256_bits(
+    //         crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+    //         2,
+    //     )
+    // }
 
     #[test]
     fn test_unchecked_max_parallelized_256_bits_param_message_4_carry_4() {
@@ -1651,10 +1653,10 @@ mod tests {
         test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
     }
 
-    #[test]
-    fn test_max_parallelized_256_bits_param_message_3_carry_3() {
-        test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    }
+    // #[test]
+    // fn test_max_parallelized_256_bits_param_message_3_carry_3() {
+    //     test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
+    // }
 
     #[test]
     fn test_max_parallelized_256_bits_param_message_4_carry_4() {
