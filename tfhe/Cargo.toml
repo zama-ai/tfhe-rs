@@ -9,6 +9,7 @@ documentation = "https://docs.zama.ai/tfhe-rs"
 repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
 description = "TFHE-rs is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE."
+build = "build.rs"
 exclude = ["/docs/", "/c_api_tests/", "/CMakeLists.txt", "/js_on_wasm_tests/"]
 rust-version = "1.65"
 
@@ -26,6 +27,9 @@ doc-comment = "0.3.3"
 bincode = "1.3.3"
 fs2 = { version = "0.4.3" }
 itertools = "0.10.5"
+
+[build-dependencies]
+cbindgen = { version = "0.24.3", optional = true }
 
 [dependencies]
 concrete-csprng = { version = "0.3.0", features = [
@@ -67,11 +71,20 @@ experimental = []
 experimental-force_fft_algo_dif4 = []
 # End experimental section
 
-__c_api = ["bincode"]
+__c_api = ["cbindgen", "bincode"]
 boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
+high-level-c-api = ["boolean", "shortint", "integer", "__c_api"]
 
-__wasm_api = ["wasm-bindgen", "js-sys", "console_error_panic_hook", "serde-wasm-bindgen", "getrandom", "getrandom/js", "bincode"]
+__wasm_api = [
+    "wasm-bindgen",
+    "js-sys",
+    "console_error_panic_hook",
+    "serde-wasm-bindgen",
+    "getrandom",
+    "getrandom/js",
+    "bincode",
+]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
 
