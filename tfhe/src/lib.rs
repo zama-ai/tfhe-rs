@@ -53,6 +53,7 @@ pub use js_on_wasm_api::*;
 mod test_user_docs;
 
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
+/// cbindgen:ignore
 pub(crate) mod typed_api;
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 pub use typed_api::*;

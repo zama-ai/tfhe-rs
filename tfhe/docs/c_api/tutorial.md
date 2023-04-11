@@ -13,13 +13,13 @@ This library exposes a C binding to the TFHE-rs primitives to implement _Fully H
 TFHE-rs C API can be built on a Unix x86\_64 machine using the following command:
 
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo build --release --features=x86_64-unix,boolean-c-api,shortint-c-api -p tfhe
+RUSTFLAGS="-C target-cpu=native" cargo +nightly build --release --features=x86_64-unix,boolean-c-api,shortint-c-api -p tfhe
 ```
 
 or on a Unix aarch64 machine using the following command
 
 ```shell
-RUSTFLAGS="-C target-cpu=native" cargo build --release --features=aarch64-unix,boolean-c-api,shortint-c-api -p tfhe
+RUSTFLAGS="-C target-cpu=native" cargo build +nightly --release --features=aarch64-unix,boolean-c-api,shortint-c-api -p tfhe
 ```
 
 All features are opt-in, but for simplicity here, the C API is enabled for boolean and shortint.
