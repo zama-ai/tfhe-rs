@@ -57,6 +57,7 @@ create_parametrized_test!(integer_smart_scalar_mul);
 create_parametrized_test!(integer_unchecked_scalar_left_shift);
 create_parametrized_test!(integer_unchecked_scalar_right_shift);
 create_parametrized_test!(integer_smart_neg);
+create_parametrized_test!(integer_default_neg);
 create_parametrized_test!(integer_smart_sub);
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
@@ -775,6 +776,37 @@ fn integer_smart_neg(param: Parameters) {
 
         // Negates the ctxt
         let ct_tmp = sks.smart_neg_parallelized(&mut ctxt);
+
+        // Decrypt the result
+        let dec: u64 = cks.decrypt(&ct_tmp);
+
+        // Check the correctness
+        let clear_result = clear.wrapping_neg() % modulus;
+
+        assert_eq!(clear_result, dec);
+    }
+}
+
+fn integer_default_neg(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST {
+        // Define the cleartexts
+        let clear = rng.gen::<u64>() % modulus;
+
+        // Encrypt the integers
+        let ctxt = cks.encrypt(clear);
+
+        // Negates the ctxt
+        let ct_tmp = sks.neg_parallelized(&ctxt);
+        assert!(ct_tmp.block_carries_are_empty());
 
         // Decrypt the result
         let dec: u64 = cks.decrypt(&ct_tmp);
