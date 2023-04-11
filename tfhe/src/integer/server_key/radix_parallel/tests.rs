@@ -60,7 +60,9 @@ create_parametrized_test!(integer_smart_neg);
 create_parametrized_test!(integer_smart_sub);
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
+create_parametrized_test!(integer_default_block_mul);
 create_parametrized_test!(integer_smart_mul);
+create_parametrized_test!(integer_default_mul);
 create_parametrized_test!(integer_smart_scalar_sub);
 create_parametrized_test!(integer_smart_scalar_add);
 
@@ -891,6 +893,46 @@ fn integer_smart_block_mul(param: Parameters) {
     }
 }
 
+fn integer_default_block_mul(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    let block_modulus = param.message_modulus.0 as u64;
+
+    for _ in 0..5 {
+        // Define the cleartexts
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % block_modulus;
+
+        // Encrypt the integers
+        let ctxt_1 = cks.encrypt(clear1);
+        let ctxt_2 = cks.encrypt_one_block(clear2);
+
+        let mut res = ctxt_1.clone();
+        let mut clear = clear1;
+
+        res = sks.block_mul_parallelized(&res, &ctxt_2, 0);
+        assert!(res.block_carries_are_empty());
+        for _ in 0..5 {
+            res = sks.block_mul_parallelized(&res, &ctxt_2, 0);
+            assert!(res.block_carries_are_empty());
+            clear = (clear * clear2) % modulus;
+        }
+        let dec: u64 = cks.decrypt(&res);
+
+        clear = (clear * clear2) % modulus;
+
+        // Check the correctness
+        assert_eq!(clear, dec);
+    }
+}
+
 fn integer_smart_mul(param: Parameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -918,6 +960,46 @@ fn integer_smart_mul(param: Parameters) {
         res = sks.smart_mul_parallelized(&mut res, &mut ctxt_2);
         for _ in 0..5 {
             res = sks.smart_mul_parallelized(&mut res, &mut ctxt_2);
+            clear = (clear * clear2) % modulus;
+        }
+        let dec: u64 = cks.decrypt(&res);
+
+        clear = (clear * clear2) % modulus;
+
+        // Check the correctness
+        assert_eq!(clear, dec);
+    }
+}
+
+fn integer_default_mul(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST_SMALLER {
+        // Define the cleartexts
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % modulus;
+
+        // println!("clear1 = {}, clear2 = {}", clear1, clear2);
+
+        // Encrypt the integers
+        let ctxt_1 = cks.encrypt(clear1);
+        let ctxt_2 = cks.encrypt(clear2);
+
+        let mut res = ctxt_1.clone();
+        let mut clear = clear1;
+
+        res = sks.mul_parallelized(&res, &ctxt_2);
+        assert!(res.block_carries_are_empty());
+        for _ in 0..5 {
+            res = sks.mul_parallelized(&res, &ctxt_2);
+            assert!(res.block_carries_are_empty());
             clear = (clear * clear2) % modulus;
         }
         let dec: u64 = cks.decrypt(&res);
