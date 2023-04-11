@@ -1,3 +1,4 @@
+use crate::integer::gen_keys_radix;
 use crate::integer::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
 use crate::shortint::Parameters;
@@ -1222,4 +1223,25 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
     let dec_res = cks.decrypt_radix(&ct_res);
 
     assert_eq!((clear_0 * scalar as u128), dec_res);
+}
+
+#[test]
+fn min_blog_post_example() {
+    let param = PARAM_MESSAGE_2_CARRY_2;
+
+    //Radix-based integers over 8 bits
+    let num_block = 4;
+    let (cks, sks) = gen_keys_radix(&param, num_block);
+
+    let clear_0 = 157;
+    let clear_1 = 127;
+
+    let mut ct_0 = cks.encrypt(clear_0);
+    let mut ct_1 = cks.encrypt(clear_1);
+
+    let ct_res = sks.smart_min_parallelized(&mut ct_0, &mut ct_1);
+
+    let dec_res = cks.decrypt(&ct_res);
+
+    assert_eq!(u64::min(clear_0, clear_1), dec_res);
 }

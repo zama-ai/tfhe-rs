@@ -1,3 +1,4 @@
+use crate::integer::gen_keys_crt;
 use crate::integer::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
 use crate::shortint::Parameters;
@@ -270,4 +271,30 @@ fn integer_smart_crt_sub(param: Parameters) {
         clear_0 = (clear_0 + modulus - clear_1) % modulus;
         assert_eq!(clear_0, dec_res);
     }
+}
+
+#[test]
+fn mul_blog_post() {
+    //CRT-based integer modulus 3*4*5*7 = 420
+    //To work with homomorphic unsigned integers > 8 bits
+    let basis = vec![3, 4, 5, 7];
+
+    let param = PARAM_MESSAGE_3_CARRY_3;
+    let (cks, sks) = gen_keys_crt(&param, basis.clone());
+
+    let clear_0 = 234;
+    let clear_1 = 123;
+
+    // encryption of an integer
+    let mut ct_zero = cks.encrypt(clear_0);
+    let mut ct_one = cks.encrypt(clear_1);
+
+    // mul the two ciphertexts
+    let ct_res = sks.smart_crt_mul(&mut ct_zero, &mut ct_one);
+
+    // decryption of ct_res
+    let dec_res = cks.decrypt(&ct_res);
+
+    let modulus = 420;
+    assert_eq!((clear_0 * clear_1) % modulus, dec_res % modulus);
 }
