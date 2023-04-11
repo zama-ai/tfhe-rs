@@ -18,7 +18,15 @@ create_parametrized_test!(integer_encrypt_decrypt_256_bits_specific_values);
 create_parametrized_test!(integer_encrypt_decrypt_256_bits);
 create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_smart_add);
-create_parametrized_test!(integer_smart_add_128_bits);
+create_parametrized_test! {
+    integer_smart_add_128_bits {
+        // Skip the 1_1 params for the smart add 128 bits which proved to be the slowest test in our test
+        // suite
+        PARAM_MESSAGE_2_CARRY_2,
+        PARAM_MESSAGE_3_CARRY_3,
+        PARAM_MESSAGE_4_CARRY_4
+    }
+}
 create_parametrized_test!(integer_unchecked_bitand);
 create_parametrized_test!(integer_unchecked_bitor);
 create_parametrized_test!(integer_unchecked_bitxor);
