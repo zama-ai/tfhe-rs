@@ -57,7 +57,9 @@ create_parametrized_test!(integer_default_small_scalar_mul);
 create_parametrized_test!(integer_smart_scalar_mul);
 create_parametrized_test!(integer_default_scalar_mul);
 create_parametrized_test!(integer_unchecked_scalar_left_shift);
+create_parametrized_test!(integer_default_scalar_left_shift);
 create_parametrized_test!(integer_unchecked_scalar_right_shift);
+create_parametrized_test!(integer_default_scalar_right_shift);
 create_parametrized_test!(integer_smart_neg);
 create_parametrized_test!(integer_default_neg);
 create_parametrized_test!(integer_smart_sub);
@@ -799,6 +801,40 @@ fn integer_unchecked_scalar_left_shift(param: Parameters) {
     }
 }
 
+fn integer_default_scalar_left_shift(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    //Nb of bits to shift
+    let tmp_f64 = param.message_modulus.0 as f64;
+    let nb_bits = tmp_f64.log2().floor() as usize * NB_CTXT;
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+
+        let scalar = rng.gen::<usize>() % nb_bits;
+
+        // encryption of an integer
+        let ct = cks.encrypt(clear);
+
+        // add the two ciphertexts
+        let ct_res = sks.scalar_left_shift_parallelized(&ct, scalar);
+        assert!(ct_res.block_carries_are_empty());
+
+        // decryption of ct_res
+        let dec_res: u64 = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!((clear << scalar) % modulus, dec_res);
+    }
+}
+
 fn integer_unchecked_scalar_right_shift(param: Parameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -823,6 +859,40 @@ fn integer_unchecked_scalar_right_shift(param: Parameters) {
 
         // add the two ciphertexts
         let ct_res = sks.unchecked_scalar_right_shift_parallelized(&ct, scalar);
+
+        // decryption of ct_res
+        let dec_res: u64 = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(clear >> scalar, dec_res);
+    }
+}
+
+fn integer_default_scalar_right_shift(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    //Nb of bits to shift
+    let tmp_f64 = param.message_modulus.0 as f64;
+    let nb_bits = tmp_f64.log2().floor() as usize * NB_CTXT;
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+
+        let scalar = rng.gen::<usize>() % nb_bits;
+
+        // encryption of an integer
+        let ct = cks.encrypt(clear);
+
+        // add the two ciphertexts
+        let ct_res = sks.scalar_right_shift_parallelized(&ct, scalar);
+        assert!(ct_res.block_carries_are_empty());
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt(&ct_res);

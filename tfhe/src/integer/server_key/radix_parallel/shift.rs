@@ -99,6 +99,98 @@ impl ServerKey {
         }
     }
 
+    /// Computes homomorphically a right shift.
+    ///
+    /// The result is returned as a new ciphertext.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    ///
+    /// let msg = 128;
+    /// let shift = 2;
+    ///
+    /// let ct = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a right shift:
+    /// let ct_res = sks.scalar_right_shift_parallelized(&ct, shift);
+    ///
+    /// // Decrypt:
+    /// let dec: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(msg >> shift, dec);
+    /// ```
+    pub fn scalar_right_shift_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        shift: usize,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut result = ct.clone();
+        self.scalar_right_shift_assign_parallelized(&mut result, shift);
+        result
+    }
+
+    /// Computes homomorphically a right shift.
+    ///
+    /// The result is returned as a new ciphertext.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    ///
+    /// let msg = 18;
+    /// let shift = 4;
+    ///
+    /// let mut ct = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a right shift:
+    /// sks.scalar_right_shift_assign_parallelized(&mut ct, shift);
+    ///
+    /// // Decrypt:
+    /// let dec: u64 = cks.decrypt(&ct);
+    /// assert_eq!(msg >> shift, dec);
+    /// ```
+    pub fn scalar_right_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        shift: usize,
+    ) {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct);
+        }
+        self.unchecked_scalar_right_shift_assign_parallelized(ct, shift);
+        self.full_propagate_parallelized(ct);
+    }
+
     /// Propagates all carries except the last one.
     /// For development purpose only.
     fn partial_propagate_parallelized<PBSOrder: PBSOrderMarker>(
@@ -130,7 +222,7 @@ impl ServerKey {
     ///
     /// let ct1 = cks.encrypt(msg);
     ///
-    /// // Compute homomorphically a right shift:
+    /// // Compute homomorphically a left shift:
     /// let ct_res = sks.unchecked_scalar_left_shift_parallelized(&ct1, shift);
     ///
     /// // Decrypt:
@@ -166,7 +258,7 @@ impl ServerKey {
     ///
     /// let mut ct = cks.encrypt(msg);
     ///
-    /// // Compute homomorphically a right shift:
+    /// // Compute homomorphically a left shift:
     /// sks.unchecked_scalar_left_shift_assign_parallelized(&mut ct, shift);
     ///
     /// // Decrypt:
@@ -180,5 +272,97 @@ impl ServerKey {
     ) {
         let tmp = 1_u64 << shift;
         self.smart_scalar_mul_assign_parallelized(ct, tmp);
+    }
+
+    /// Computes homomorphically a left shift by a scalar.
+    ///
+    /// The result is returned as a new ciphertext.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    ///
+    /// let msg = 21;
+    /// let shift = 2;
+    ///
+    /// let ct1 = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a left shift:
+    /// let ct_res = sks.scalar_left_shift_parallelized(&ct1, shift);
+    ///
+    /// // Decrypt:
+    /// let dec: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(msg << shift, dec);
+    /// ```
+    pub fn scalar_left_shift_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct_left: &RadixCiphertext<PBSOrder>,
+        shift: usize,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut result = ct_left.clone();
+        self.scalar_left_shift_assign_parallelized(&mut result, shift);
+        result
+    }
+
+    /// Computes homomorphically a left shift by a scalar.
+    ///
+    /// The result is assigned in the input ciphertext
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    ///
+    /// let msg = 13;
+    /// let shift = 2;
+    ///
+    /// let mut ct = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically a right shift:
+    /// sks.scalar_left_shift_assign_parallelized(&mut ct, shift);
+    ///
+    /// // Decrypt:
+    /// let dec: u64 = cks.decrypt(&ct);
+    /// assert_eq!(msg << shift, dec);
+    /// ```
+    pub fn scalar_left_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        shift: usize,
+    ) {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct);
+        }
+        self.unchecked_scalar_left_shift_assign_parallelized(ct, shift);
+        self.full_propagate_parallelized(ct);
     }
 }
