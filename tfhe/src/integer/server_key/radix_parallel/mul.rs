@@ -155,6 +155,91 @@ impl ServerKey {
         self.smart_add_parallelized(&mut result_lsb, &mut result_msb)
     }
 
+    /// Computes homomorphically a multiplication between a ciphertext encrypting integer value
+    /// and another encrypting a shortint value.
+    ///
+    /// The result is returned as a new ciphertext.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Warning
+    ///
+    /// - Multithreaded
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let clear_1 = 170;
+    /// let clear_2 = 3;
+    ///
+    /// // Encrypt two messages
+    /// let ctxt_1 = cks.encrypt(clear_1);
+    /// let ctxt_2 = cks.encrypt_one_block(clear_2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// let ct_res = sks.block_mul_parallelized(&ctxt_1, &ctxt_2, 0);
+    ///
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!((clear_1 * clear_2) % 256, res);
+    /// ```
+    pub fn block_mul_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct1: &RadixCiphertext<PBSOrder>,
+        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        index: usize,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut ct_res = ct1.clone();
+        self.block_mul_assign_parallelized(&mut ct_res, ct2, index);
+        ct_res
+    }
+
+    pub fn block_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct1: &mut RadixCiphertext<PBSOrder>,
+        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        index: usize,
+    ) {
+        let mut tmp_rhs: crate::shortint::CiphertextBase<PBSOrder>;
+
+        let (lhs, rhs) = match (ct1.block_carries_are_empty(), ct2.carry_is_empty()) {
+            (true, true) => (ct1, ct2),
+            (true, false) => {
+                tmp_rhs = ct2.clone();
+                self.key.clear_carry_assign(&mut tmp_rhs);
+                (ct1, &tmp_rhs)
+            }
+            (false, true) => {
+                self.full_propagate_parallelized(ct1);
+                (ct1, ct2)
+            }
+            (false, false) => {
+                tmp_rhs = ct2.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(ct1),
+                    || self.key.clear_carry_assign(&mut tmp_rhs),
+                );
+                (ct1, &tmp_rhs)
+            }
+        };
+        self.unchecked_block_mul_assign_parallelized(lhs, rhs, index);
+        self.full_propagate_parallelized(lhs);
+    }
+
     fn unchecked_block_mul_lsb_msb_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
         result_lsb: &mut RadixCiphertext<PBSOrder>,
@@ -331,5 +416,86 @@ impl ServerKey {
 
         self.smart_binary_op_seq_parallelized(&mut terms, ServerKey::smart_add_parallelized)
             .unwrap_or_else(|| self.create_trivial_zero_radix(ct1.blocks.len()))
+    }
+
+    /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
+    ///
+    /// The result is assigned to the `ct_left` ciphertext.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Warning
+    ///
+    /// - Multithreaded
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let clear_1 = 170;
+    /// let clear_2 = 6;
+    ///
+    /// // Encrypt two messages
+    /// let ctxt_1 = cks.encrypt(clear_1);
+    /// let ctxt_2 = cks.encrypt(clear_2);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// let ct_res = sks.mul_parallelized(&ctxt_1, &ctxt_2);
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!((clear_1 * clear_2) % 256, res);
+    /// ```
+    pub fn mul_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct1: &RadixCiphertext<PBSOrder>,
+        ct2: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut ct_res = ct1.clone();
+        self.mul_assign_parallelized(&mut ct_res, ct2);
+        ct_res
+    }
+
+    pub fn mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct1: &mut RadixCiphertext<PBSOrder>,
+        ct2: &RadixCiphertext<PBSOrder>,
+    ) {
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+
+        let (lhs, rhs) = match (ct1.block_carries_are_empty(), ct2.block_carries_are_empty()) {
+            (true, true) => (ct1, ct2),
+            (true, false) => {
+                tmp_rhs = ct2.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ct1, &tmp_rhs)
+            }
+            (false, true) => {
+                self.full_propagate_parallelized(ct1);
+                (ct1, ct2)
+            }
+            (false, false) => {
+                tmp_rhs = ct2.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(ct1),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (ct1, &tmp_rhs)
+            }
+        };
+        self.unchecked_mul_assign_parallelized(lhs, rhs);
+        self.full_propagate_parallelized(lhs);
     }
 }
