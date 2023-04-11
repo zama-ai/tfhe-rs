@@ -296,6 +296,13 @@ define_server_key_bench_fn!(method_name: smart_bitand_parallelized, display_name
 define_server_key_bench_fn!(method_name: smart_bitxor_parallelized, display_name: bitxor);
 define_server_key_bench_fn!(method_name: smart_bitor_parallelized, display_name: bitor);
 
+define_server_key_bench_fn!(method_name: add_parallelized, display_name: add);
+define_server_key_bench_fn!(method_name: sub_parallelized, display_name: sub);
+define_server_key_bench_fn!(method_name: mul_parallelized, display_name: mul);
+define_server_key_bench_fn!(method_name: bitand_parallelized, display_name: bitand);
+define_server_key_bench_fn!(method_name: bitxor_parallelized, display_name: bitxor);
+define_server_key_bench_fn!(method_name: bitor_parallelized, display_name: bitor);
+
 define_server_key_bench_fn!(method_name: unchecked_add, display_name: add);
 define_server_key_bench_fn!(method_name: unchecked_sub, display_name: sub);
 define_server_key_bench_fn!(method_name: unchecked_mul, display_name: mul);
@@ -334,11 +341,18 @@ define_server_key_bench_scalar_fn!(
     display_name: mul
 );
 
+define_server_key_bench_scalar_fn!(method_name: scalar_add_parallelized, display_name: add);
+define_server_key_bench_scalar_fn!(method_name: scalar_sub_parallelized, display_name: sub);
+define_server_key_bench_scalar_fn!(method_name: scalar_mul_parallelized, display_name: mul);
+
 define_server_key_bench_scalar_fn!(method_name: unchecked_scalar_add, display_name: add);
 define_server_key_bench_scalar_fn!(method_name: unchecked_scalar_sub, display_name: sub);
 define_server_key_bench_scalar_fn!(method_name: unchecked_small_scalar_mul, display_name: mul);
 
 define_server_key_bench_unary_fn!(method_name: smart_neg, display_name: negation);
+define_server_key_bench_unary_fn!(method_name: smart_neg_parallelized, display_name: negation);
+define_server_key_bench_unary_fn!(method_name: neg_parallelized, display_name: negation);
+
 define_server_key_bench_unary_fn!(method_name: full_propagate, display_name: carry_propagation);
 define_server_key_bench_unary_fn!(
     method_name: full_propagate_parallelized,
@@ -398,6 +412,14 @@ define_server_key_bench_fn!(
     display_name: greater_or_equal
 );
 
+define_server_key_bench_fn!(method_name: max_parallelized, display_name: max);
+define_server_key_bench_fn!(method_name: min_parallelized, display_name: min);
+define_server_key_bench_fn!(method_name: eq_parallelized, display_name: equal);
+define_server_key_bench_fn!(method_name: lt_parallelized, display_name: less_than);
+define_server_key_bench_fn!(method_name: le_parallelized, display_name: less_or_equal);
+define_server_key_bench_fn!(method_name: gt_parallelized, display_name: greater_than);
+define_server_key_bench_fn!(method_name: ge_parallelized, display_name: greater_or_equal);
+
 criterion_group!(
     smart_arithmetic_operation,
     smart_neg,
@@ -433,6 +455,23 @@ criterion_group!(
 );
 
 criterion_group!(
+    arithmetic_parallelized_operation,
+    add_parallelized,
+    sub_parallelized,
+    mul_parallelized,
+    bitand_parallelized,
+    bitor_parallelized,
+    bitxor_parallelized,
+    max_parallelized,
+    min_parallelized,
+    eq_parallelized,
+    lt_parallelized,
+    le_parallelized,
+    gt_parallelized,
+    ge_parallelized,
+);
+
+criterion_group!(
     smart_scalar_arithmetic_operation,
     smart_scalar_add,
     smart_scalar_sub,
@@ -444,6 +483,13 @@ criterion_group!(
     smart_scalar_add_parallelized,
     smart_scalar_sub_parallelized,
     smart_scalar_mul_parallelized,
+);
+
+criterion_group!(
+    scalar_arithmetic_parallel_operation,
+    scalar_add_parallelized,
+    scalar_sub_parallelized,
+    scalar_mul_parallelized,
 );
 
 criterion_group!(
@@ -486,20 +532,20 @@ criterion_group!(misc, full_propagate, full_propagate_parallelized);
 // This gather all the operations that a high-level user could use.
 criterion_group!(
     fast_integer_benchmarks,
-    smart_bitand_parallelized,
-    smart_bitor_parallelized,
-    smart_bitxor_parallelized,
-    smart_add_parallelized,
-    smart_sub_parallelized,
-    smart_mul_parallelized,
-    smart_neg,
-    smart_min_parallelized,
-    smart_max_parallelized,
-    smart_eq_parallelized,
-    smart_lt_parallelized,
-    smart_le_parallelized,
-    smart_gt_parallelized,
-    smart_ge_parallelized,
+    bitand_parallelized,
+    bitor_parallelized,
+    bitxor_parallelized,
+    add_parallelized,
+    sub_parallelized,
+    mul_parallelized,
+    neg_parallelized,
+    min_parallelized,
+    max_parallelized,
+    eq_parallelized,
+    lt_parallelized,
+    le_parallelized,
+    gt_parallelized,
+    ge_parallelized,
 );
 
 criterion_main!(
