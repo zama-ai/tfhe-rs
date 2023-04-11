@@ -280,6 +280,12 @@ test_nodejs_wasm_api: build_node_js_api
 no_tfhe_typo:
 	@./scripts/no_tfhe_typo.sh
 
+.PHONY: bench_integer # Run benchmarks for integer
+bench_integer: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-bench \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p tfhe
+
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
