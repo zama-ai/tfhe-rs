@@ -86,7 +86,7 @@ jobs:
 
       - name: Run high-level API tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_typed_api
+          BIG_TESTS_INSTANCE=TRUE make test_high_level_api
 
       - name: Slack Notification
         if: ${{ always() }}
