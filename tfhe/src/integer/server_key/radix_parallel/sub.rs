@@ -99,4 +99,118 @@ impl ServerKey {
 
         self.unchecked_sub_assign(ctxt_left, ctxt_right);
     }
+
+    /// Computes homomorphically the subtraction between ct_left and ct_right.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    ///
+    /// let msg_1 = 120u8;
+    /// let msg_2 = 181u8;
+    ///
+    /// // Encrypt two messages:
+    /// let ctxt_1 = cks.encrypt(msg_1 as u64);
+    /// let ctxt_2 = cks.encrypt(msg_2 as u64);
+    ///
+    /// // Compute homomorphically a subtraction
+    /// let ct_res = sks.sub_parallelized(&ctxt_1, &ctxt_2);
+    ///
+    /// // Decrypt:
+    /// let res: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
+    /// ```
+    pub fn sub_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt_left: &RadixCiphertext<PBSOrder>,
+        ctxt_right: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut ct_res = ctxt_left.clone();
+        self.sub_assign_parallelized(&mut ct_res, ctxt_right);
+        ct_res
+    }
+
+    /// Computes homomorphically the subtraction between ct_left and ct_right.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertexts block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    ///
+    /// let msg_1 = 120u8;
+    /// let msg_2 = 181u8;
+    ///
+    /// // Encrypt two messages:
+    /// let mut ctxt_1 = cks.encrypt(msg_1 as u64);
+    /// let ctxt_2 = cks.encrypt(msg_2 as u64);
+    ///
+    /// // Compute homomorphically a subtraction
+    /// sks.sub_assign_parallelized(&mut ctxt_1, &ctxt_2);
+    ///
+    /// // Decrypt:
+    /// let res: u64 = cks.decrypt(&ctxt_1);
+    /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
+    /// ```
+    pub fn sub_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt_left: &mut RadixCiphertext<PBSOrder>,
+        ctxt_right: &RadixCiphertext<PBSOrder>,
+    ) {
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+
+        let (lhs, rhs) = match (
+            ctxt_left.block_carries_are_empty(),
+            ctxt_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ctxt_left, ctxt_right),
+            (true, false) => {
+                tmp_rhs = ctxt_right.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ctxt_left, &tmp_rhs)
+            }
+            (false, true) => {
+                self.full_propagate_parallelized(ctxt_left);
+                (ctxt_left, ctxt_right)
+            }
+            (false, false) => {
+                tmp_rhs = ctxt_right.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(ctxt_left),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (ctxt_left, &tmp_rhs)
+            }
+        };
+        self.unchecked_sub_assign(lhs, rhs);
+        self.full_propagate_parallelized(lhs);
+    }
 }
