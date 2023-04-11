@@ -53,7 +53,9 @@ create_parametrized_test!(integer_default_bitor);
 create_parametrized_test!(integer_default_bitxor);
 create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
+create_parametrized_test!(integer_default_small_scalar_mul);
 create_parametrized_test!(integer_smart_scalar_mul);
+create_parametrized_test!(integer_default_scalar_mul);
 create_parametrized_test!(integer_unchecked_scalar_left_shift);
 create_parametrized_test!(integer_unchecked_scalar_right_shift);
 create_parametrized_test!(integer_smart_neg);
@@ -65,7 +67,9 @@ create_parametrized_test!(integer_default_block_mul);
 create_parametrized_test!(integer_smart_mul);
 create_parametrized_test!(integer_default_mul);
 create_parametrized_test!(integer_smart_scalar_sub);
+create_parametrized_test!(integer_default_scalar_sub);
 create_parametrized_test!(integer_smart_scalar_add);
+create_parametrized_test!(integer_default_scalar_add);
 
 fn integer_smart_add(param: Parameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
@@ -662,6 +666,46 @@ fn integer_smart_small_scalar_mul(param: Parameters) {
     }
 }
 
+fn integer_default_small_scalar_mul(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    let scalar_modulus = param.message_modulus.0 as u64;
+
+    let mut clear_res;
+    for _ in 0..NB_TEST_SMALLER {
+        let clear = rng.gen::<u64>() % modulus;
+
+        let scalar = rng.gen::<u64>() % scalar_modulus;
+
+        // encryption of an integer
+        let ct = cks.encrypt(clear);
+
+        let mut ct_res = sks.small_scalar_mul_parallelized(&ct, scalar);
+        assert!(ct_res.block_carries_are_empty());
+
+        clear_res = clear * scalar;
+        for _ in 0..NB_TEST_SMALLER {
+            // scalar multiplication
+            ct_res = sks.small_scalar_mul_parallelized(&ct_res, scalar);
+            assert!(ct_res.block_carries_are_empty());
+            clear_res *= scalar;
+        }
+
+        // decryption of ct_res
+        let dec_res: u64 = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(clear_res % modulus, dec_res);
+    }
+}
+
 fn integer_smart_scalar_mul(param: Parameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -682,6 +726,36 @@ fn integer_smart_scalar_mul(param: Parameters) {
 
         // scalar mul
         let ct_res = sks.smart_scalar_mul_parallelized(&mut ct, scalar);
+
+        // decryption of ct_res
+        let dec_res: u64 = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!((clear * scalar) % modulus, dec_res);
+    }
+}
+
+fn integer_default_scalar_mul(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+
+        let scalar = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ct = cks.encrypt(clear);
+
+        // scalar mul
+        let ct_res = sks.scalar_mul_parallelized(&ct, scalar);
+        assert!(ct_res.block_carries_are_empty());
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt(&ct_res);
@@ -1085,6 +1159,50 @@ fn integer_smart_scalar_add(param: Parameters) {
     }
 }
 
+fn integer_default_scalar_add(param: Parameters) {
+    // generate the server-client key set
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    // RNG
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.scalar_add_parallelized(&ctxt_0, clear_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = (clear_0 + clear_1) % modulus;
+
+        // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
+        //add multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = sks.scalar_add_parallelized(&ct_res, clear_1);
+            assert!(ct_res.block_carries_are_empty());
+            clear = (clear + clear_1) % modulus;
+
+            // decryption of ct_res
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            // println!("clear = {}, dec_res = {}", clear, dec_res);
+            // assert
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
 fn integer_smart_scalar_sub(param: Parameters) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
@@ -1116,6 +1234,50 @@ fn integer_smart_scalar_sub(param: Parameters) {
         for _ in 0..NB_TEST_SMALLER {
             ct_res = sks.smart_scalar_sub_parallelized(&mut ct_res, clear_1);
             clear = (clear - clear_1) % modulus;
+
+            // decryption of ct_res
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            // println!("clear = {}, dec_res = {}", clear, dec_res);
+            // assert
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+fn integer_default_scalar_sub(param: Parameters) {
+    // generate the server-client key set
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    // RNG
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.scalar_sub_parallelized(&ctxt_0, clear_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = (clear_0.wrapping_sub(clear_1)) % modulus;
+
+        // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
+        //add multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = sks.scalar_sub_parallelized(&ct_res, clear_1);
+            assert!(ct_res.block_carries_are_empty());
+            clear = (clear.wrapping_sub(clear_1)) % modulus;
 
             // decryption of ct_res
             let dec_res: u64 = cks.decrypt(&ct_res);
