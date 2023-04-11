@@ -318,35 +318,35 @@ macro_rules! impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn {
     };
 }
 
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartAdd(smart_add) => smart_add_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartSub(smart_sub) => smart_sub_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartMul(smart_mul) => smart_mul_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartBitAnd(smart_bitand) => smart_bitand_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartBitOr(smart_bitor) => smart_bitor_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartBitXor(smart_bitxor) => smart_bitxor_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartEq(smart_eq) => smart_eq_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartGe(smart_ge) => smart_ge_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartGt(smart_gt) => smart_gt_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartLe(smart_le) => smart_le_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartLt(smart_lt) => smart_lt_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartMax(smart_max) => smart_max_parallelized);
-impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartMin(smart_min) => smart_min_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartAdd(smart_add) => add_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartSub(smart_sub) => sub_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartMul(smart_mul) => mul_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartBitAnd(smart_bitand) => bitand_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartBitOr(smart_bitor) => bitor_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartBitXor(smart_bitxor) => bitxor_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartEq(smart_eq) => eq_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartGe(smart_ge) => ge_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartGt(smart_gt) => gt_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartLe(smart_le) => le_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartLt(smart_lt) => lt_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartMax(smart_max) => max_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(SmartMin(smart_min) => min_parallelized);
 
-impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartAddAssign(smart_add_assign) => smart_add_assign_parallelized);
-impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartSubAssign(smart_sub_assign) => smart_sub_assign_parallelized);
-impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartMulAssign(smart_mul_assign) => smart_mul_assign_parallelized);
-impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartBitAndAssign(smart_bitand_assign) => smart_bitand_assign_parallelized);
-impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartBitOrAssign(smart_bitor_assign) => smart_bitor_assign_parallelized);
-impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartBitXorAssign(smart_bitxor_assign) => smart_bitxor_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartAddAssign(smart_add_assign) => add_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartSubAssign(smart_sub_assign) => sub_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartMulAssign(smart_mul_assign) => mul_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartBitAndAssign(smart_bitand_assign) => bitand_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartBitOrAssign(smart_bitor_assign) => bitor_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(SmartBitXorAssign(smart_bitxor_assign) => bitxor_assign_parallelized);
 
-impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartAdd(smart_add) => smart_scalar_add_parallelized);
-impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartSub(smart_sub) => smart_scalar_sub_parallelized);
-impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartMul(smart_mul) => smart_scalar_mul_parallelized);
-impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartShl(smart_shl) => unchecked_scalar_left_shift_parallelized);
-impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartShr(smart_shr) => unchecked_scalar_right_shift_parallelized);
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartAdd(smart_add) => scalar_add_parallelized);
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartSub(smart_sub) => scalar_sub_parallelized);
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartMul(smart_mul) => scalar_mul_parallelized);
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartShl(smart_shl) => scalar_left_shift_parallelized);
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(SmartShr(smart_shr) => scalar_right_shift_parallelized);
 
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartAddAssign(smart_add_assign) => smart_scalar_add_assign_parallelized);
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartSubAssign(smart_sub_assign) => smart_scalar_sub_assign_parallelized);
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartMulAssign(smart_mul_assign) => smart_scalar_mul_assign_parallelized);
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartShlAssign(smart_shl_assign) => unchecked_scalar_left_shift_assign_parallelized);
-impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartShrAssign(smart_shr_assign) => unchecked_scalar_right_shift_assign_parallelized);
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartAddAssign(smart_add_assign) => scalar_add_assign_parallelized);
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartSubAssign(smart_sub_assign) => scalar_sub_assign_parallelized);
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartMulAssign(smart_mul_assign) => scalar_mul_assign_parallelized);
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartShlAssign(smart_shl_assign) => scalar_left_shift_assign_parallelized);
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(SmartShrAssign(smart_shr_assign) => scalar_right_shift_assign_parallelized);

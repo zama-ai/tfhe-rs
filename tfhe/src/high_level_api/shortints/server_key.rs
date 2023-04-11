@@ -41,406 +41,346 @@ where
         }
     }
 
-    pub(crate) fn smart_add(
+    pub(crate) fn add(
         &self,
         lhs: &GenericShortInt<P>,
         rhs: &GenericShortInt<P>,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_add(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-        GenericShortInt {
-            ciphertext: RefCell::new(ciphertext),
-            id: lhs.id,
-        }
-    }
-
-    pub(crate) fn smart_sub(
-        &self,
-        lhs: &GenericShortInt<P>,
-        rhs: &GenericShortInt<P>,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_sub(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-        GenericShortInt {
-            ciphertext: RefCell::new(ciphertext),
-            id: lhs.id,
-        }
-    }
-
-    pub(crate) fn smart_mul(
-        &self,
-        lhs: &GenericShortInt<P>,
-        rhs: &GenericShortInt<P>,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_mul_lsb(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-        GenericShortInt {
-            ciphertext: RefCell::new(ciphertext),
-            id: lhs.id,
-        }
-    }
-
-    pub(crate) fn smart_div(
-        &self,
-        lhs: &GenericShortInt<P>,
-        rhs: &GenericShortInt<P>,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_div(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-        GenericShortInt {
-            ciphertext: RefCell::new(ciphertext),
-            id: lhs.id,
-        }
-    }
-
-    pub(crate) fn smart_add_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
-        self.key.smart_add_assign(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-    }
-
-    pub(crate) fn smart_sub_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
-        self.key.smart_sub_assign(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-    }
-
-    pub(crate) fn smart_mul_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
-        self.key.smart_mul_lsb_assign(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-    }
-
-    pub(crate) fn smart_div_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
-        self.key.smart_div_assign(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        )
-    }
-
-    pub(crate) fn smart_bitand_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
-        self.key.smart_bitand_assign(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-    }
-
-    pub(crate) fn smart_bitor_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
-        self.key.smart_bitor_assign(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-    }
-
-    pub(crate) fn smart_bitxor_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
-        self.key.smart_bitxor_assign(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
-    }
-
-    pub(crate) fn smart_scalar_sub(&self, lhs: &GenericShortInt<P>, rhs: u8) -> GenericShortInt<P> {
-        let ciphertext = self
-            .key
-            .smart_scalar_sub(&mut lhs.ciphertext.borrow_mut(), rhs);
-        GenericShortInt {
-            ciphertext: RefCell::new(ciphertext),
-            id: lhs.id,
-        }
-    }
-
-    pub(crate) fn smart_scalar_mul(&self, lhs: &GenericShortInt<P>, rhs: u8) -> GenericShortInt<P> {
-        let ciphertext = self
-            .key
-            .smart_scalar_mul(&mut lhs.ciphertext.borrow_mut(), rhs);
-        GenericShortInt {
-            ciphertext: RefCell::new(ciphertext),
-            id: lhs.id,
-        }
-    }
-
-    pub(crate) fn smart_scalar_add(
-        &self,
-        lhs: &GenericShortInt<P>,
-        scalar: u8,
     ) -> GenericShortInt<P> {
         let ciphertext = self
             .key
-            .smart_scalar_add(&mut lhs.ciphertext.borrow_mut(), scalar);
+            .add(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_scalar_add_assign(&self, lhs: &mut GenericShortInt<P>, rhs: u8) {
+    pub(crate) fn sub(
+        &self,
+        lhs: &GenericShortInt<P>,
+        rhs: &GenericShortInt<P>,
+    ) -> GenericShortInt<P> {
+        let ciphertext = self
+            .key
+            .sub(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
+        GenericShortInt {
+            ciphertext: RefCell::new(ciphertext),
+            id: lhs.id,
+        }
+    }
+
+    pub(crate) fn mul(
+        &self,
+        lhs: &GenericShortInt<P>,
+        rhs: &GenericShortInt<P>,
+    ) -> GenericShortInt<P> {
+        let ciphertext = self
+            .key
+            .mul_lsb(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
+        GenericShortInt {
+            ciphertext: RefCell::new(ciphertext),
+            id: lhs.id,
+        }
+    }
+
+    pub(crate) fn div(
+        &self,
+        lhs: &GenericShortInt<P>,
+        rhs: &GenericShortInt<P>,
+    ) -> GenericShortInt<P> {
+        let ciphertext = self
+            .key
+            .div(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
+        GenericShortInt {
+            ciphertext: RefCell::new(ciphertext),
+            id: lhs.id,
+        }
+    }
+
+    pub(crate) fn add_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
         self.key
-            .smart_scalar_add_assign(&mut lhs.ciphertext.borrow_mut(), rhs)
+            .add_assign(&mut lhs.ciphertext.borrow_mut(), &rhs.ciphertext.borrow());
     }
 
-    pub(crate) fn smart_scalar_mul_assign(&self, lhs: &mut GenericShortInt<P>, rhs: u8) {
+    pub(crate) fn sub_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
         self.key
-            .smart_scalar_mul_assign(&mut lhs.ciphertext.borrow_mut(), rhs)
+            .sub_assign(&mut lhs.ciphertext.borrow_mut(), &rhs.ciphertext.borrow());
     }
 
-    pub(crate) fn smart_scalar_sub_assign(&self, lhs: &mut GenericShortInt<P>, rhs: u8) {
+    pub(crate) fn mul_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
         self.key
-            .smart_scalar_sub_assign(&mut lhs.ciphertext.borrow_mut(), rhs)
+            .mul_lsb_assign(&mut lhs.ciphertext.borrow_mut(), &rhs.ciphertext.borrow());
     }
 
-    pub(crate) fn smart_bitand(
-        &self,
-        lhs: &GenericShortInt<P>,
-        rhs: &GenericShortInt<P>,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_bitand(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
+    pub(crate) fn div_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
+        self.key
+            .div_assign(&mut lhs.ciphertext.borrow_mut(), &rhs.ciphertext.borrow())
+    }
+
+    pub(crate) fn bitand_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
+        self.key
+            .bitand_assign(&mut lhs.ciphertext.borrow_mut(), &rhs.ciphertext.borrow());
+    }
+
+    pub(crate) fn bitor_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
+        self.key
+            .bitor_assign(&mut lhs.ciphertext.borrow_mut(), &rhs.ciphertext.borrow());
+    }
+
+    pub(crate) fn bitxor_assign(&self, lhs: &GenericShortInt<P>, rhs: &GenericShortInt<P>) {
+        self.key
+            .bitxor_assign(&mut lhs.ciphertext.borrow_mut(), &rhs.ciphertext.borrow());
+    }
+
+    pub(crate) fn scalar_sub(&self, lhs: &GenericShortInt<P>, rhs: u8) -> GenericShortInt<P> {
+        let ciphertext = self.key.scalar_sub(&lhs.ciphertext.borrow(), rhs);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_bitor(
-        &self,
-        lhs: &GenericShortInt<P>,
-        rhs: &GenericShortInt<P>,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_bitor(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
+    pub(crate) fn scalar_mul(&self, lhs: &GenericShortInt<P>, rhs: u8) -> GenericShortInt<P> {
+        let ciphertext = self.key.scalar_mul(&lhs.ciphertext.borrow(), rhs);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_bitxor(
-        &self,
-        lhs: &GenericShortInt<P>,
-        rhs: &GenericShortInt<P>,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_bitxor(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
+    pub(crate) fn scalar_add(&self, lhs: &GenericShortInt<P>, scalar: u8) -> GenericShortInt<P> {
+        let ciphertext = self.key.scalar_add(&lhs.ciphertext.borrow(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_less(
+    pub(crate) fn scalar_add_assign(&self, lhs: &mut GenericShortInt<P>, rhs: u8) {
+        self.key
+            .scalar_add_assign(&mut lhs.ciphertext.borrow_mut(), rhs)
+    }
+
+    pub(crate) fn scalar_mul_assign(&self, lhs: &mut GenericShortInt<P>, rhs: u8) {
+        self.key
+            .scalar_mul_assign(&mut lhs.ciphertext.borrow_mut(), rhs)
+    }
+
+    pub(crate) fn scalar_sub_assign(&self, lhs: &mut GenericShortInt<P>, rhs: u8) {
+        self.key
+            .scalar_sub_assign(&mut lhs.ciphertext.borrow_mut(), rhs)
+    }
+
+    pub(crate) fn bitand(
         &self,
         lhs: &GenericShortInt<P>,
         rhs: &GenericShortInt<P>,
     ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_less(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
+        let ciphertext = self
+            .key
+            .bitand(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_less_or_equal(
+    pub(crate) fn bitor(
         &self,
         lhs: &GenericShortInt<P>,
         rhs: &GenericShortInt<P>,
     ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_less_or_equal(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
+        let ciphertext = self
+            .key
+            .bitor(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_greater(
+    pub(crate) fn bitxor(
         &self,
         lhs: &GenericShortInt<P>,
         rhs: &GenericShortInt<P>,
     ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_greater(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
+        let ciphertext = self
+            .key
+            .bitxor(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_greater_or_equal(
+    pub(crate) fn less(
         &self,
         lhs: &GenericShortInt<P>,
         rhs: &GenericShortInt<P>,
     ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_greater_or_equal(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
+        let ciphertext = self
+            .key
+            .less(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_equal(
+    pub(crate) fn less_or_equal(
         &self,
         lhs: &GenericShortInt<P>,
         rhs: &GenericShortInt<P>,
     ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_equal(
-            &mut lhs.ciphertext.borrow_mut(),
-            &mut rhs.ciphertext.borrow_mut(),
-        );
+        let ciphertext = self
+            .key
+            .less_or_equal(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_scalar_equal(
+    pub(crate) fn greater(
+        &self,
+        lhs: &GenericShortInt<P>,
+        rhs: &GenericShortInt<P>,
+    ) -> GenericShortInt<P> {
+        let ciphertext = self
+            .key
+            .greater(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
+        GenericShortInt {
+            ciphertext: RefCell::new(ciphertext),
+            id: lhs.id,
+        }
+    }
+
+    pub(crate) fn greater_or_equal(
+        &self,
+        lhs: &GenericShortInt<P>,
+        rhs: &GenericShortInt<P>,
+    ) -> GenericShortInt<P> {
+        let ciphertext = self
+            .key
+            .greater_or_equal(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
+        GenericShortInt {
+            ciphertext: RefCell::new(ciphertext),
+            id: lhs.id,
+        }
+    }
+
+    pub(crate) fn equal(
+        &self,
+        lhs: &GenericShortInt<P>,
+        rhs: &GenericShortInt<P>,
+    ) -> GenericShortInt<P> {
+        let ciphertext = self
+            .key
+            .equal(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
+        GenericShortInt {
+            ciphertext: RefCell::new(ciphertext),
+            id: lhs.id,
+        }
+    }
+
+    pub(crate) fn scalar_equal(&self, lhs: &GenericShortInt<P>, scalar: u8) -> GenericShortInt<P> {
+        let ciphertext = self.key.scalar_equal(&lhs.ciphertext.borrow(), scalar);
+        GenericShortInt {
+            ciphertext: RefCell::new(ciphertext),
+            id: lhs.id,
+        }
+    }
+
+    pub(crate) fn scalar_greater_or_equal(
         &self,
         lhs: &GenericShortInt<P>,
         scalar: u8,
     ) -> GenericShortInt<P> {
         let ciphertext = self
             .key
-            .smart_scalar_equal(&lhs.ciphertext.borrow(), scalar);
+            .scalar_greater_or_equal(&lhs.ciphertext.borrow(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_scalar_greater_or_equal(
+    pub(crate) fn scalar_less_or_equal(
         &self,
         lhs: &GenericShortInt<P>,
         scalar: u8,
     ) -> GenericShortInt<P> {
         let ciphertext = self
             .key
-            .smart_scalar_greater_or_equal(&lhs.ciphertext.borrow(), scalar);
+            .scalar_less_or_equal(&lhs.ciphertext.borrow(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_scalar_less_or_equal(
+    pub(crate) fn scalar_greater(
         &self,
         lhs: &GenericShortInt<P>,
         scalar: u8,
     ) -> GenericShortInt<P> {
-        let ciphertext = self
-            .key
-            .smart_scalar_less_or_equal(&lhs.ciphertext.borrow(), scalar);
+        let ciphertext = self.key.scalar_greater(&lhs.ciphertext.borrow(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_scalar_greater(
-        &self,
-        lhs: &GenericShortInt<P>,
-        scalar: u8,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self
-            .key
-            .smart_scalar_greater(&lhs.ciphertext.borrow(), scalar);
+    pub(crate) fn scalar_less(&self, lhs: &GenericShortInt<P>, scalar: u8) -> GenericShortInt<P> {
+        let ciphertext = self.key.scalar_less(&lhs.ciphertext.borrow(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_scalar_less(
-        &self,
-        lhs: &GenericShortInt<P>,
-        scalar: u8,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_scalar_less(&lhs.ciphertext.borrow(), scalar);
-        GenericShortInt {
-            ciphertext: RefCell::new(ciphertext),
-            id: lhs.id,
-        }
-    }
-
-    pub(crate) fn smart_scalar_left_shift(
+    pub(crate) fn scalar_left_shift(
         &self,
         lhs: &GenericShortInt<P>,
         rhs: u8,
     ) -> GenericShortInt<P> {
-        let ciphertext = self
-            .key
-            .smart_scalar_left_shift(&mut lhs.ciphertext.borrow_mut(), rhs);
+        let ciphertext = self.key.scalar_left_shift(&lhs.ciphertext.borrow(), rhs);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn unchecked_scalar_right_shift(
+    pub(crate) fn scalar_right_shift(
         &self,
         lhs: &GenericShortInt<P>,
         rhs: u8,
     ) -> GenericShortInt<P> {
-        let ciphertext = self
-            .key
-            .unchecked_scalar_right_shift(&lhs.ciphertext.borrow(), rhs);
+        let ciphertext = self.key.scalar_right_shift(&lhs.ciphertext.borrow(), rhs);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn unchecked_scalar_div(
-        &self,
-        lhs: &GenericShortInt<P>,
-        rhs: u8,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.unchecked_scalar_div(&lhs.ciphertext.borrow(), rhs);
+    pub(crate) fn scalar_div(&self, lhs: &GenericShortInt<P>, rhs: u8) -> GenericShortInt<P> {
+        let ciphertext = self.key.scalar_div(&lhs.ciphertext.borrow(), rhs);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn unchecked_scalar_mod(
-        &self,
-        lhs: &GenericShortInt<P>,
-        rhs: u8,
-    ) -> GenericShortInt<P> {
-        let ciphertext = self.key.unchecked_scalar_mod(&lhs.ciphertext.borrow(), rhs);
+    pub(crate) fn scalar_mod(&self, lhs: &GenericShortInt<P>, rhs: u8) -> GenericShortInt<P> {
+        let ciphertext = self.key.scalar_mod(&lhs.ciphertext.borrow(), rhs);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
         }
     }
 
-    pub(crate) fn smart_neg(&self, lhs: &GenericShortInt<P>) -> GenericShortInt<P> {
-        let ciphertext = self.key.smart_neg(&mut lhs.ciphertext.borrow_mut());
+    pub(crate) fn neg(&self, lhs: &GenericShortInt<P>) -> GenericShortInt<P> {
+        let ciphertext = self.key.neg(&lhs.ciphertext.borrow());
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,

@@ -334,22 +334,22 @@ where
 
     fn lt(&self, rhs: u8) -> Self {
         self.id
-            .with_unwrapped_global(|server_key| server_key.smart_scalar_less(self, rhs))
+            .with_unwrapped_global(|server_key| server_key.scalar_less(self, rhs))
     }
 
     fn le(&self, rhs: u8) -> Self {
         self.id
-            .with_unwrapped_global(|server_key| server_key.smart_scalar_less_or_equal(self, rhs))
+            .with_unwrapped_global(|server_key| server_key.scalar_less_or_equal(self, rhs))
     }
 
     fn gt(&self, rhs: u8) -> Self {
         self.id
-            .with_unwrapped_global(|server_key| server_key.smart_scalar_greater(self, rhs))
+            .with_unwrapped_global(|server_key| server_key.scalar_greater(self, rhs))
     }
 
     fn ge(&self, rhs: u8) -> Self {
         self.id
-            .with_unwrapped_global(|server_key| server_key.smart_scalar_greater_or_equal(self, rhs))
+            .with_unwrapped_global(|server_key| server_key.scalar_greater_or_equal(self, rhs))
     }
 }
 
@@ -362,7 +362,7 @@ where
 
     fn eq(&self, rhs: u8) -> Self::Output {
         self.id
-            .with_unwrapped_global(|server_key| server_key.smart_scalar_equal(self, rhs))
+            .with_unwrapped_global(|server_key| server_key.scalar_equal(self, rhs))
     }
 }
 
@@ -376,24 +376,22 @@ where
 
     fn lt(&self, other: B) -> Self::Output {
         self.id
-            .with_unwrapped_global(|server_key| server_key.smart_less(self, other.borrow()))
+            .with_unwrapped_global(|server_key| server_key.less(self, other.borrow()))
     }
 
     fn le(&self, other: B) -> Self::Output {
-        self.id.with_unwrapped_global(|server_key| {
-            server_key.smart_less_or_equal(self, other.borrow())
-        })
+        self.id
+            .with_unwrapped_global(|server_key| server_key.less_or_equal(self, other.borrow()))
     }
 
     fn gt(&self, other: B) -> Self::Output {
         self.id
-            .with_unwrapped_global(|server_key| server_key.smart_greater(self, other.borrow()))
+            .with_unwrapped_global(|server_key| server_key.greater(self, other.borrow()))
     }
 
     fn ge(&self, other: B) -> Self::Output {
-        self.id.with_unwrapped_global(|server_key| {
-            server_key.smart_greater_or_equal(self, other.borrow())
-        })
+        self.id
+            .with_unwrapped_global(|server_key| server_key.greater_or_equal(self, other.borrow()))
     }
 }
 
@@ -407,7 +405,7 @@ where
 
     fn eq(&self, other: B) -> Self {
         self.id
-            .with_unwrapped_global(|server_key| server_key.smart_equal(self, other.borrow()))
+            .with_unwrapped_global(|server_key| server_key.equal(self, other.borrow()))
     }
 }
 
@@ -794,7 +792,7 @@ where
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        self.id.with_unwrapped_global(|key| key.smart_neg(&self))
+        self.id.with_unwrapped_global(|key| key.neg(&self))
     }
 }
 
@@ -806,34 +804,34 @@ where
     type Output = GenericShortInt<P>;
 
     fn neg(self) -> Self::Output {
-        self.id.with_unwrapped_global(|key| key.smart_neg(self))
+        self.id.with_unwrapped_global(|key| key.neg(self))
     }
 }
 
-short_int_impl_operation!(Add(add,+) => smart_add);
-short_int_impl_operation!(Sub(sub,-) => smart_sub);
-short_int_impl_operation!(Mul(mul,*) => smart_mul);
-short_int_impl_operation!(Div(div,/) => smart_div);
-short_int_impl_operation!(BitAnd(bitand,&) => smart_bitand);
-short_int_impl_operation!(BitOr(bitor,|) => smart_bitor);
-short_int_impl_operation!(BitXor(bitxor,^) => smart_bitxor);
+short_int_impl_operation!(Add(add,+) => add);
+short_int_impl_operation!(Sub(sub,-) => sub);
+short_int_impl_operation!(Mul(mul,*) => mul);
+short_int_impl_operation!(Div(div,/) => div);
+short_int_impl_operation!(BitAnd(bitand,&) => bitand);
+short_int_impl_operation!(BitOr(bitor,|) => bitor);
+short_int_impl_operation!(BitXor(bitxor,^) => bitxor);
 
-short_int_impl_operation_assign!(AddAssign(add_assign,+=) => smart_add_assign);
-short_int_impl_operation_assign!(SubAssign(sub_assign,-=) => smart_sub_assign);
-short_int_impl_operation_assign!(MulAssign(mul_assign,*=) => smart_mul_assign);
-short_int_impl_operation_assign!(DivAssign(div_assign,/=) => smart_div_assign);
-short_int_impl_operation_assign!(BitAndAssign(bitand_assign,&=) => smart_bitand_assign);
-short_int_impl_operation_assign!(BitOrAssign(bitor_assign,|=) => smart_bitor_assign);
-short_int_impl_operation_assign!(BitXorAssign(bitxor_assign,^=) => smart_bitxor_assign);
+short_int_impl_operation_assign!(AddAssign(add_assign,+=) => add_assign);
+short_int_impl_operation_assign!(SubAssign(sub_assign,-=) => sub_assign);
+short_int_impl_operation_assign!(MulAssign(mul_assign,*=) => mul_assign);
+short_int_impl_operation_assign!(DivAssign(div_assign,/=) => div_assign);
+short_int_impl_operation_assign!(BitAndAssign(bitand_assign,&=) => bitand_assign);
+short_int_impl_operation_assign!(BitOrAssign(bitor_assign,|=) => bitor_assign);
+short_int_impl_operation_assign!(BitXorAssign(bitxor_assign,^=) => bitxor_assign);
 
-short_int_impl_scalar_operation!(Add(add) => smart_scalar_add);
-short_int_impl_scalar_operation!(Sub(sub) => smart_scalar_sub);
-short_int_impl_scalar_operation!(Mul(mul) => smart_scalar_mul);
-short_int_impl_scalar_operation!(Div(div) => unchecked_scalar_div);
-short_int_impl_scalar_operation!(Rem(rem) => unchecked_scalar_mod);
-short_int_impl_scalar_operation!(Shl(shl) => smart_scalar_left_shift);
-short_int_impl_scalar_operation!(Shr(shr) => unchecked_scalar_right_shift);
+short_int_impl_scalar_operation!(Add(add) => scalar_add);
+short_int_impl_scalar_operation!(Sub(sub) => scalar_sub);
+short_int_impl_scalar_operation!(Mul(mul) => scalar_mul);
+short_int_impl_scalar_operation!(Div(div) => scalar_div);
+short_int_impl_scalar_operation!(Rem(rem) => scalar_mod);
+short_int_impl_scalar_operation!(Shl(shl) => scalar_left_shift);
+short_int_impl_scalar_operation!(Shr(shr) => scalar_right_shift);
 
-short_int_impl_scalar_operation_assign!(AddAssign(add_assign) => smart_scalar_add_assign);
-short_int_impl_scalar_operation_assign!(SubAssign(sub_assign) => smart_scalar_sub_assign);
-short_int_impl_scalar_operation_assign!(MulAssign(mul_assign) => smart_scalar_mul_assign);
+short_int_impl_scalar_operation_assign!(AddAssign(add_assign) => scalar_add_assign);
+short_int_impl_scalar_operation_assign!(SubAssign(sub_assign) => scalar_sub_assign);
+short_int_impl_scalar_operation_assign!(MulAssign(mul_assign) => scalar_mul_assign);
