@@ -108,10 +108,13 @@ create_parametrized_test!(shortint_smart_neg);
 create_parametrized_test!(shortint_default_neg);
 create_parametrized_test!(shortint_unchecked_scalar_add);
 create_parametrized_test!(shortint_smart_scalar_add);
+create_parametrized_test!(shortint_default_scalar_add);
 create_parametrized_test!(shortint_unchecked_scalar_sub);
 create_parametrized_test!(shortint_smart_scalar_sub);
+create_parametrized_test!(shortint_default_scalar_sub);
 create_parametrized_test!(shortint_unchecked_scalar_mul);
 create_parametrized_test!(shortint_smart_scalar_mul);
+create_parametrized_test!(shortint_default_scalar_mul);
 create_parametrized_test!(shortint_unchecked_right_shift);
 create_parametrized_test!(shortint_unchecked_left_shift);
 create_parametrized_test!(shortint_unchecked_sub);
@@ -2093,6 +2096,41 @@ fn shortint_smart_scalar_add(param: Parameters) {
     }
 }
 
+/// test default smart scalar add
+fn shortint_default_scalar_add(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u8;
+
+    for _ in 0..10 {
+        let clear_0 = rng.gen::<u8>() % modulus;
+
+        let clear_1 = rng.gen::<u8>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0 as u64);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.scalar_add(&ctxt_0, clear_1);
+
+        let mut clear = (clear_0 + clear_1) % modulus;
+
+        //add multiple times to raise the degree
+        for _ in 0..30 {
+            ct_res = sks.scalar_add(&ct_res, clear_1);
+            clear = (clear + clear_1) % modulus;
+
+            // decryption of ct_res
+            let dec_res = cks.decrypt(&ct_res);
+
+            assert_eq!(clear, dec_res as u8);
+        }
+    }
+}
+
 /// test unchecked scalar sub
 fn shortint_unchecked_scalar_sub(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
@@ -2161,6 +2199,46 @@ fn shortint_smart_scalar_sub(param: Parameters) {
     }
 }
 
+fn shortint_default_scalar_sub(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u8;
+
+    for _ in 0..10 {
+        let clear_0 = rng.gen::<u8>() % modulus;
+
+        let clear_1 = rng.gen::<u8>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0 as u64);
+
+        // add the two ciphertexts
+        let mut ct_res = sks.scalar_sub(&ctxt_0, clear_1);
+
+        let mut clear = (clear_0.wrapping_sub(clear_1)) % modulus;
+
+        // let dec_res = cks.decrypt(&ct_res);
+        // println!("clear_0 = {}, clear_1 = {}, dec = {}, clear = {}", clear_0, clear_1, dec_res,
+        // clear);
+
+        //add multiple times to raise the degree
+        for _ in 0..30 {
+            ct_res = sks.scalar_sub(&ct_res, clear_1);
+            clear = (clear.wrapping_sub(clear_1)) % modulus;
+
+            // decryption of ct_res
+            let dec_res = cks.decrypt(&ct_res);
+
+            // println!("clear_1 = {}, dec = {}, clear = {}", clear_1, dec_res, clear);
+            // assert
+            assert_eq!(clear, dec_res as u8);
+        }
+    }
+}
+
 /// test scalar multiplication with the LWE server key
 fn shortint_unchecked_scalar_mul(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
@@ -2190,7 +2268,7 @@ fn shortint_unchecked_scalar_mul(param: Parameters) {
     }
 }
 
-/// test smart scalar multiplication with the LWE server key
+/// test default smart scalar multiplication with the LWE server key
 fn shortint_smart_scalar_mul(param: Parameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
@@ -2215,6 +2293,42 @@ fn shortint_smart_scalar_mul(param: Parameters) {
         for _ in 0..10 {
             // scalar multiplication
             ct_res = sks.smart_scalar_mul(&mut ct_res, scalar);
+            clear_res = (clear_res * scalar) % modulus;
+        }
+
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
+
+        // assert
+        assert_eq!(clear_res, dec_res as u8);
+    }
+}
+
+/// test default smart scalar multiplication with the LWE server key
+fn shortint_default_scalar_mul(param: Parameters) {
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters.message_modulus.0 as u8;
+
+    let scalar_modulus = cks.parameters.carry_modulus.0 as u8;
+
+    for _ in 0..10 {
+        let clear = rng.gen::<u8>() % modulus;
+
+        let scalar = rng.gen::<u8>() % scalar_modulus;
+
+        // encryption of an integer
+        let ct = cks.encrypt(clear as u64);
+
+        let mut ct_res = sks.scalar_mul(&ct, scalar);
+
+        let mut clear_res = clear * scalar;
+        for _ in 0..10 {
+            // scalar multiplication
+            ct_res = sks.scalar_mul(&ct_res, scalar);
             clear_res = (clear_res * scalar) % modulus;
         }
 
