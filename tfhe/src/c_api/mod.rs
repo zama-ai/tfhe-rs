@@ -2,8 +2,8 @@
 #[cfg(feature = "boolean-c-api")]
 pub mod boolean;
 pub mod buffer;
+#[cfg(feature = "high-level-c-api")]
+pub mod high_level_api;
 #[cfg(feature = "shortint-c-api")]
 pub mod shortint;
-#[cfg(feature = "high-level-c-api")]
-pub mod typed_api;
 pub(crate) mod utils;

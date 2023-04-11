@@ -221,10 +221,10 @@ test_integer: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
 		--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache -p tfhe -- integer::
 
-.PHONY: test_typed_api # Run all the tests for typed_api
-test_typed_api: install_rs_build_toolchain
+.PHONY: test_high_level_api # Run all the tests for high_level_api
+test_high_level_api: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p tfhe -- typed_api::
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p tfhe -- high_level_api::
 
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
