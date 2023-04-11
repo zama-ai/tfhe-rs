@@ -50,7 +50,7 @@ extern crate core;
 #[cfg(test)]
 #[macro_use]
 mod tests;
-mod encryption;
+pub(crate) mod encryption;
 
 pub mod ciphertext;
 pub mod client_key;

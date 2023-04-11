@@ -80,17 +80,33 @@ impl EncryptionKey<U256, RadixCiphertextDyn> for RadixClientKey {
     }
 }
 
-impl DecryptionKey<RadixCiphertextDyn, u64> for RadixClientKey {
-    fn decrypt(&self, ciphertext: &RadixCiphertextDyn) -> u64 {
-        match ciphertext {
+impl DecryptionKey<RadixCiphertextDyn, u16> for RadixClientKey {
+    fn decrypt(&self, ciphertext: &RadixCiphertextDyn) -> u16 {
+        let clear: u64 = match ciphertext {
             RadixCiphertextDyn::Big(ct) => self.inner.decrypt(ct),
             RadixCiphertextDyn::Small(ct) => self.inner.decrypt(ct),
-        }
+        };
+
+        clear as u16
     }
 }
 
-impl DecryptionKey<RadixCiphertextDyn, U256> for RadixClientKey {
-    fn decrypt(&self, ciphertext: &RadixCiphertextDyn) -> U256 {
+impl DecryptionKey<RadixCiphertextDyn, u32> for RadixClientKey {
+    fn decrypt(&self, ciphertext: &RadixCiphertextDyn) -> u32 {
+        let clear: u64 = match ciphertext {
+            RadixCiphertextDyn::Big(ct) => self.inner.decrypt(ct),
+            RadixCiphertextDyn::Small(ct) => self.inner.decrypt(ct),
+        };
+
+        clear as u32
+    }
+}
+
+impl<ClearType> DecryptionKey<RadixCiphertextDyn, ClearType> for RadixClientKey
+where
+    ClearType: crate::integer::encryption::AsLittleEndianWords + Default,
+{
+    fn decrypt(&self, ciphertext: &RadixCiphertextDyn) -> ClearType {
         match ciphertext {
             RadixCiphertextDyn::Big(ct) => self.inner.decrypt(ct),
             RadixCiphertextDyn::Small(ct) => self.inner.decrypt(ct),

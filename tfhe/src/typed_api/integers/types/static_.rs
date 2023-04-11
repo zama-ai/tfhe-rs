@@ -396,6 +396,45 @@ static_int_type! {
 
 static_int_type! {
     {
+        num_bits: 32,
+        keychain_member: integer_key.uint32_key,
+        parameters: Radix {
+            big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
+            num_block: 32,
+            wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
+        },
+    }
+}
+
+static_int_type! {
+    {
+        num_bits: 64,
+        keychain_member: integer_key.uint64_key,
+        parameters: Radix {
+            big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
+            num_block: 32,
+            wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
+        },
+    }
+}
+
+static_int_type! {
+    {
+        num_bits: 128,
+        keychain_member: integer_key.uint128_key,
+        parameters: Radix {
+            big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
+            num_block: 64,
+            wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
+        },
+    }
+}
+
+static_int_type! {
+    {
         num_bits: 256,
         keychain_member: integer_key.uint256_key,
         parameters: Radix {
@@ -434,15 +473,5 @@ impl FheEncrypt<u16, ClientKey> for FheUint16 {
         let key = id.unwrapped_ref_key(key);
         let ciphertext = key.inner.encrypt(u64::from(value));
         Self::new(ciphertext, id)
-    }
-}
-
-impl FheDecrypt<u16> for FheUint16 {
-    #[track_caller]
-    fn decrypt(&self, key: &ClientKey) -> u16 {
-        let id = <FheUint16Parameters as ParameterType>::Id::default();
-        let key = id.unwrapped_ref_key(key);
-        let clear: u64 = key.inner.decrypt(&*self.ciphertext.borrow());
-        clear as u16
     }
 }

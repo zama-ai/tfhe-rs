@@ -127,6 +127,25 @@ impl ConfigBuilder {
     }
 
     #[cfg(feature = "integer")]
+    pub fn enable_default_uint10(mut self) -> Self {
+        self.config.integer_config.uint10_params = Some(Default::default());
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn enable_default_uint10_small(mut self) -> Self {
+        let params = crate::typed_api::integers::FheUint10Parameters::small();
+        self.config.integer_config.uint10_params = Some(params);
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn disable_uint10(mut self) -> Self {
+        self.config.integer_config.uint10_params = None;
+        self
+    }
+
+    #[cfg(feature = "integer")]
     pub fn enable_default_uint12(mut self) -> Self {
         self.config.integer_config.uint12_params = Some(Default::default());
         self
@@ -146,6 +165,25 @@ impl ConfigBuilder {
     }
 
     #[cfg(feature = "integer")]
+    pub fn enable_default_uint14(mut self) -> Self {
+        self.config.integer_config.uint14_params = Some(Default::default());
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn enable_default_uint14_small(mut self) -> Self {
+        let params = crate::typed_api::integers::FheUint14Parameters::small();
+        self.config.integer_config.uint14_params = Some(params);
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn disable_uint14(mut self) -> Self {
+        self.config.integer_config.uint14_params = None;
+        self
+    }
+
+    #[cfg(feature = "integer")]
     pub fn enable_default_uint16(mut self) -> Self {
         self.config.integer_config.uint16_params = Some(Default::default());
         self
@@ -161,6 +199,45 @@ impl ConfigBuilder {
     #[cfg(feature = "integer")]
     pub fn disable_uint16(mut self) -> Self {
         self.config.integer_config.uint16_params = None;
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn enable_default_uint32(mut self) -> Self {
+        self.config.integer_config.uint32_params = Some(Default::default());
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn enable_default_uint32_small(mut self) -> Self {
+        let params = crate::typed_api::integers::FheUint32Parameters::small();
+        self.config.integer_config.uint32_params = Some(params);
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn enable_default_uint64(mut self) -> Self {
+        self.config.integer_config.uint64_params = Some(Default::default());
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn enable_default_uint64_small(mut self) -> Self {
+        let params = crate::typed_api::integers::FheUint64Parameters::small();
+        self.config.integer_config.uint64_params = Some(params);
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn enable_default_uint128(mut self) -> Self {
+        self.config.integer_config.uint128_params = Some(Default::default());
+        self
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn enable_default_uint128_small(mut self) -> Self {
+        let params = crate::typed_api::integers::FheUint128Parameters::small();
+        self.config.integer_config.uint128_params = Some(params);
         self
     }
 

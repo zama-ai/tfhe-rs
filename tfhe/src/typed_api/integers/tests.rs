@@ -1,7 +1,10 @@
 use crate::integer::U256;
 use crate::typed_api::prelude::*;
 use crate::typed_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
-use crate::{CompressedFheUint16, CompressedFheUint256, FheUint16, FheUint256};
+use crate::{
+    CompressedFheUint16, CompressedFheUint256, FheUint128, FheUint16, FheUint256, FheUint32,
+    FheUint64,
+};
 
 #[test]
 fn test_quickstart_uint8() {
@@ -110,4 +113,79 @@ fn test_integer_compressed_small() {
     let decompressed = FheUint16::from(compressed);
     let clear_decompressed: u16 = decompressed.decrypt(&client_key);
     assert_eq!(clear_decompressed, clear);
+}
+
+#[test]
+fn test_uint32() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_uint32()
+        .build();
+
+    let (cks, sks) = generate_keys(config);
+
+    use rand::prelude::*;
+
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
+
+    let a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+    let b = FheUint32::try_encrypt(clear_b, &cks).unwrap();
+
+    set_server_key(sks);
+
+    let c = a + b;
+
+    let decrypted: u32 = c.decrypt(&cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+}
+
+#[test]
+fn test_uint64() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_uint64()
+        .build();
+
+    let (cks, sks) = generate_keys(config);
+
+    use rand::prelude::*;
+
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u64>();
+    let clear_b = rng.gen::<u64>();
+
+    let a = FheUint64::try_encrypt(clear_a, &cks).unwrap();
+    let b = FheUint64::try_encrypt(clear_b, &cks).unwrap();
+
+    set_server_key(sks);
+
+    let c = a + b;
+
+    let decrypted: u64 = c.decrypt(&cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+}
+
+#[test]
+fn test_small_uint128() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_uint128_small()
+        .build();
+
+    let (cks, sks) = generate_keys(config);
+
+    use rand::prelude::*;
+
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u128>();
+    let clear_b = rng.gen::<u128>();
+
+    let a = FheUint128::try_encrypt(clear_a, &cks).unwrap();
+    let b = FheUint128::try_encrypt(clear_b, &cks).unwrap();
+
+    set_server_key(sks);
+
+    let c = a + b;
+
+    let decrypted: u128 = c.decrypt(&cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
 }
