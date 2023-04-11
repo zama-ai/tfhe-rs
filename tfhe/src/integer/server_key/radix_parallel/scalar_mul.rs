@@ -514,5 +514,6 @@ impl ServerKey {
         *ct = self
             .default_binary_op_seq_parallelized(&terms, ServerKey::add_parallelized)
             .unwrap_or(zero);
+        self.full_propagate_parallelized(ct);
     }
 }
