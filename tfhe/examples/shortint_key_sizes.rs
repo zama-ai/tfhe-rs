@@ -1,3 +1,7 @@
+#[path = "../benches/utilities.rs"]
+mod utilities;
+use crate::utilities::{write_to_json, OperatorType};
+
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -26,13 +30,15 @@ fn client_server_key_sizes(results_file: &Path) {
         .open(results_file)
         .expect("cannot open results file");
 
+    let operator = OperatorType::Atomic;
+
     println!("Generating shortint (ClientKey, ServerKey)");
     for (i, params) in shortint_params_vec.iter().enumerate() {
         println!(
             "Generating [{} / {}] : {}",
             i + 1,
             shortint_params_vec.len(),
-            params.name()
+            params.name().to_lowercase()
         );
 
         let keys = KEY_CACHE.get_from_param(*params);
@@ -41,11 +47,11 @@ fn client_server_key_sizes(results_file: &Path) {
         // let cks = keys.client_key();
         let sks = keys.server_key();
         let ksk_size = sks.key_switching_key_size_bytes();
-        write_result(
-            &mut file,
-            &format!("shortint_{}_ksk", params.name().to_lowercase()),
-            ksk_size,
-        );
+        let test_name = format!("shortint_key_sizes_{}_ksk", params.name());
+
+        write_result(&mut file, &test_name, ksk_size);
+        write_to_json(&test_name, *params, params.name(), "KSK", &operator);
+
         println!(
             "Element in KSK: {}, size in bytes: {}",
             sks.key_switching_key_size_elements(),
@@ -53,11 +59,11 @@ fn client_server_key_sizes(results_file: &Path) {
         );
 
         let bsk_size = sks.bootstrapping_key_size_bytes();
-        write_result(
-            &mut file,
-            &format!("shortint_{}_bsk", params.name().to_lowercase()),
-            bsk_size,
-        );
+        let test_name = format!("shortint_key_sizes_{}_bsk", params.name());
+
+        write_result(&mut file, &test_name, bsk_size);
+        write_to_json(&test_name, *params, params.name(), "BSK", &operator);
+
         println!(
             "Element in BSK: {}, size in bytes: {}",
             sks.bootstrapping_key_size_elements(),

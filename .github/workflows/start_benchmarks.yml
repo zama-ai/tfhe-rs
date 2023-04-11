@@ -11,7 +11,7 @@ jobs:
   start-benchmarks:
     strategy:
       matrix:
-        command: [boolean_bench, shortint_bench, pbs_bench]
+        command: [boolean_bench, shortint_bench, integer_bench, pbs_bench]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Slab repo

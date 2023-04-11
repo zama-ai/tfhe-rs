@@ -1,3 +1,7 @@
+#[path = "../utilities.rs"]
+mod utilities;
+use crate::utilities::{write_to_json, OperatorType};
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
@@ -37,6 +41,7 @@ const SERVER_KEY_BENCH_PARAMS_EXTENDED: [Parameters; 15] = [
 fn bench_server_key_unary_function<F>(
     c: &mut Criterion,
     bench_name: &str,
+    display_name: &str,
     unary_op: F,
     params: &[Parameters],
 ) where
@@ -62,6 +67,14 @@ fn bench_server_key_unary_function<F>(
                 unary_op(sks, &mut ct);
             })
         });
+
+        write_to_json(
+            &bench_id,
+            *param,
+            param.name(),
+            display_name,
+            &OperatorType::Atomic,
+        );
     }
 
     bench_group.finish()
@@ -70,6 +83,7 @@ fn bench_server_key_unary_function<F>(
 fn bench_server_key_binary_function<F>(
     c: &mut Criterion,
     bench_name: &str,
+    display_name: &str,
     binary_op: F,
     params: &[Parameters],
 ) where
@@ -97,6 +111,14 @@ fn bench_server_key_binary_function<F>(
                 binary_op(sks, &mut ct_0, &mut ct_1);
             })
         });
+
+        write_to_json(
+            &bench_id,
+            *param,
+            param.name(),
+            display_name,
+            &OperatorType::Atomic,
+        );
     }
 
     bench_group.finish()
@@ -105,6 +127,7 @@ fn bench_server_key_binary_function<F>(
 fn bench_server_key_binary_scalar_function<F>(
     c: &mut Criterion,
     bench_name: &str,
+    display_name: &str,
     binary_op: F,
     params: &[Parameters],
 ) where
@@ -131,6 +154,14 @@ fn bench_server_key_binary_scalar_function<F>(
                 binary_op(sks, &mut ct_0, clear_1 as u8);
             })
         });
+
+        write_to_json(
+            &bench_id,
+            *param,
+            param.name(),
+            display_name,
+            &OperatorType::Atomic,
+        );
     }
 
     bench_group.finish()
@@ -139,6 +170,7 @@ fn bench_server_key_binary_scalar_function<F>(
 fn bench_server_key_binary_scalar_division_function<F>(
     c: &mut Criterion,
     bench_name: &str,
+    display_name: &str,
     binary_op: F,
     params: &[Parameters],
 ) where
@@ -169,6 +201,14 @@ fn bench_server_key_binary_scalar_division_function<F>(
                 binary_op(sks, &mut ct_0, clear_1 as u8);
             })
         });
+
+        write_to_json(
+            &bench_id,
+            *param,
+            param.name(),
+            display_name,
+            &OperatorType::Atomic,
+        );
     }
 
     bench_group.finish()
@@ -195,6 +235,14 @@ fn carry_extract(c: &mut Criterion) {
                 let _ = sks.carry_extract(&ct_0);
             })
         });
+
+        write_to_json(
+            &bench_id,
+            param,
+            param.name(),
+            "carry_extract",
+            &OperatorType::Atomic,
+        );
     }
 
     bench_group.finish()
@@ -217,19 +265,21 @@ fn programmable_bootstrapping(c: &mut Criterion) {
 
         let ctxt = cks.encrypt(clear_0);
 
-        let id = format!("ServerKey::programmable_bootstrap::{}", param.name());
+        let bench_id = format!("ServerKey::programmable_bootstrap::{}", param.name());
 
-        bench_group.bench_function(&id, |b| {
+        bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let _ = sks.apply_lookup_table(&ctxt, &acc);
             })
         });
+
+        write_to_json(&bench_id, param, param.name(), "pbs", &OperatorType::Atomic);
     }
 
     bench_group.finish();
 }
 
-fn bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
+fn _bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("programmable_bootstrap");
 
     let param = WOPBS_PARAM_MESSAGE_4_NORM2_6;
@@ -255,11 +305,12 @@ fn bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
 }
 
 macro_rules! define_server_key_unary_bench_fn (
-  ($server_key_method:ident, $params:expr) => {
+  (method_name:$server_key_method:ident, display_name:$name:ident, $params:expr) => {
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_unary_function(
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
+              stringify!($name),
               |server_key, lhs| {
                 let _ = server_key.$server_key_method(lhs);},
               $params)
@@ -268,11 +319,12 @@ macro_rules! define_server_key_unary_bench_fn (
 );
 
 macro_rules! define_server_key_bench_fn (
-  ($server_key_method:ident, $params:expr) => {
+  (method_name:$server_key_method:ident, display_name:$name:ident, $params:expr) => {
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_function(
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
+              stringify!($name),
               |server_key, lhs, rhs| {
                 let _ = server_key.$server_key_method(lhs, rhs);},
               $params)
@@ -281,11 +333,12 @@ macro_rules! define_server_key_bench_fn (
 );
 
 macro_rules! define_server_key_scalar_bench_fn (
-  ($server_key_method:ident, $params:expr) => {
+  (method_name:$server_key_method:ident, display_name:$name:ident, $params:expr) => {
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_scalar_function(
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
+              stringify!($name),
               |server_key, lhs, rhs| {
                 let _ = server_key.$server_key_method(lhs, rhs);},
               $params)
@@ -294,11 +347,12 @@ macro_rules! define_server_key_scalar_bench_fn (
 );
 
 macro_rules! define_server_key_scalar_div_bench_fn (
-  ($server_key_method:ident, $params:expr) => {
+  (method_name:$server_key_method:ident, display_name:$name:ident, $params:expr) => {
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_scalar_division_function(
               c,
               concat!("ServerKey::", stringify!($server_key_method)),
+              stringify!($name),
               |server_key, lhs, rhs| {
                 let _ = server_key.$server_key_method(lhs, rhs);},
               $params)
@@ -306,31 +360,119 @@ macro_rules! define_server_key_scalar_div_bench_fn (
   }
 );
 
-define_server_key_unary_bench_fn!(unchecked_neg, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_unary_bench_fn!(
+    method_name: unchecked_neg,
+    display_name: negation,
+    &SERVER_KEY_BENCH_PARAMS
+);
 
-define_server_key_bench_fn!(unchecked_add, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
-define_server_key_bench_fn!(unchecked_sub, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
-define_server_key_bench_fn!(unchecked_mul_lsb, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
-define_server_key_bench_fn!(unchecked_mul_msb, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_bench_fn!(unchecked_div, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
-define_server_key_bench_fn!(smart_bitand, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_bench_fn!(smart_bitor, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_bench_fn!(smart_bitxor, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_bench_fn!(smart_add, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_bench_fn!(smart_sub, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_bench_fn!(smart_mul_lsb, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_bench_fn!(unchecked_greater, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_bench_fn!(unchecked_less, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_bench_fn!(unchecked_equal, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_bench_fn!(
+    method_name: unchecked_add,
+    display_name: add,
+    &SERVER_KEY_BENCH_PARAMS_EXTENDED
+);
+define_server_key_bench_fn!(
+    method_name: unchecked_sub,
+    display_name: sub,
+    &SERVER_KEY_BENCH_PARAMS_EXTENDED
+);
+define_server_key_bench_fn!(
+    method_name: unchecked_mul_lsb,
+    display_name: mul,
+    &SERVER_KEY_BENCH_PARAMS_EXTENDED
+);
+define_server_key_bench_fn!(
+    method_name: unchecked_mul_msb,
+    display_name: mul,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: unchecked_div,
+    display_name: div,
+    &SERVER_KEY_BENCH_PARAMS_EXTENDED
+);
+define_server_key_bench_fn!(
+    method_name: smart_bitand,
+    display_name: bitand,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: smart_bitor,
+    display_name: bitor,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: smart_bitxor,
+    display_name: bitxor,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: smart_add,
+    display_name: add,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: smart_sub,
+    display_name: sub,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: smart_mul_lsb,
+    display_name: mul,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: unchecked_greater,
+    display_name: greater_than,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: unchecked_less,
+    display_name: less_than,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: unchecked_equal,
+    display_name: equal,
+    &SERVER_KEY_BENCH_PARAMS
+);
 
-define_server_key_scalar_bench_fn!(unchecked_scalar_add, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
-define_server_key_scalar_bench_fn!(unchecked_scalar_sub, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
-define_server_key_scalar_bench_fn!(unchecked_scalar_mul, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
-define_server_key_scalar_bench_fn!(unchecked_scalar_left_shift, &SERVER_KEY_BENCH_PARAMS);
-define_server_key_scalar_bench_fn!(unchecked_scalar_right_shift, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_scalar_bench_fn!(
+    method_name: unchecked_scalar_add,
+    display_name: add,
+    &SERVER_KEY_BENCH_PARAMS_EXTENDED
+);
+define_server_key_scalar_bench_fn!(
+    method_name: unchecked_scalar_sub,
+    display_name: sub,
+    &SERVER_KEY_BENCH_PARAMS_EXTENDED
+);
+define_server_key_scalar_bench_fn!(
+    method_name: unchecked_scalar_mul,
+    display_name: mul,
+    &SERVER_KEY_BENCH_PARAMS_EXTENDED
+);
+define_server_key_scalar_bench_fn!(
+    method_name: unchecked_scalar_left_shift,
+    display_name: left_shift,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_bench_fn!(
+    method_name: unchecked_scalar_right_shift,
+    display_name: right_shift,
+    &SERVER_KEY_BENCH_PARAMS
+);
 
-define_server_key_scalar_div_bench_fn!(unchecked_scalar_div, &SERVER_KEY_BENCH_PARAMS_EXTENDED);
-define_server_key_scalar_div_bench_fn!(unchecked_scalar_mod, &SERVER_KEY_BENCH_PARAMS);
+define_server_key_scalar_div_bench_fn!(
+    method_name: unchecked_scalar_div,
+    display_name: div,
+    &SERVER_KEY_BENCH_PARAMS_EXTENDED
+);
+define_server_key_scalar_div_bench_fn!(
+    method_name: unchecked_scalar_mod,
+    display_name: modulo,
+    &SERVER_KEY_BENCH_PARAMS
+);
 
 criterion_group!(
     arithmetic_operation,
@@ -354,7 +496,7 @@ criterion_group!(
     // multivalue_programmable_bootstrapping
     //bench_two_block_pbs
     //wopbs_v0_norm2_2,
-    bench_wopbs_param_message_8_norm2_5,
+    //bench_wopbs_param_message_8_norm2_5,
     programmable_bootstrapping
 );
 

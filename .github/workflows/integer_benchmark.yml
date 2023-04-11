@@ -1,5 +1,5 @@
-# Run shortint benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: Shortint benchmarks
+# Run integer benchmarks on an AWS instance and return parsed results to Slab CI bot.
+name: Integer benchmarks
 
 on:
   workflow_dispatch:
@@ -20,14 +20,13 @@ on:
         description: 'Slab request ID'
         type: string
 
-
 env:
   CARGO_TERM_COLOR: always
   RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
 
 jobs:
-  run-shortint-benchmarks:
-    name: Execute shortint benchmarks in EC2
+  run-integer-benchmarks:
+    name: Execute integer benchmarks in EC2
     runs-on: ${{ github.event.inputs.runner_name }}
     if: ${{ !cancelled() }}
     steps:
@@ -60,7 +59,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make bench_shortint
+          make bench_integer
 
       - name: Parse results
         run: |
@@ -82,7 +81,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make AVX512_SUPPORT=ON bench_shortint
+          make AVX512_SUPPORT=ON bench_integer
 
       - name: Parse AVX512 results
         run: |
@@ -93,20 +92,10 @@ jobs:
           --throughput \
           --append-results
 
-      - name: Measure key sizes
-        run: |
-          make measure_shortint_key_sizes
-
-      - name: Parse key sizes results
-        run: |
-          python3 ./ci/benchmark_parser.py tfhe/shortint_key_sizes.csv ${{ env.RESULTS_FILENAME }} \
-          --key-sizes \
-          --append-results
-
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce
         with:
-          name: ${{ github.sha }}_shortint
+          name: ${{ github.sha }}_integer
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo

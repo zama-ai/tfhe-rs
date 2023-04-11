@@ -1,3 +1,7 @@
+#[path = "../benches/utilities.rs"]
+mod utilities;
+use crate::utilities::{write_to_json, OperatorType};
+
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -12,8 +16,8 @@ fn write_result(file: &mut File, name: &str, value: usize) {
 
 fn client_server_key_sizes(results_file: &Path) {
     let boolean_params_vec = vec![
-        (DEFAULT_PARAMETERS, "default"),
-        (TFHE_LIB_PARAMETERS, "tfhe_lib"),
+        (DEFAULT_PARAMETERS, "DEFAULT_PARAMETERS"),
+        (TFHE_LIB_PARAMETERS, "TFHE_LIB_PARAMETERS"),
     ];
     File::create(results_file).expect("create results file failed");
     let mut file = OpenOptions::new()
@@ -21,19 +25,25 @@ fn client_server_key_sizes(results_file: &Path) {
         .open(results_file)
         .expect("cannot open results file");
 
+    let operator = OperatorType::Atomic;
+
     println!("Generating boolean (ClientKey, ServerKey)");
-    for (i, (params, name)) in boolean_params_vec.iter().enumerate() {
+    for (i, (params, params_name)) in boolean_params_vec.iter().enumerate() {
         println!(
             "Generating [{} / {}] : {}",
             i + 1,
             boolean_params_vec.len(),
-            name
+            params_name.to_lowercase()
         );
 
         let cks = client_key::ClientKey::new(params);
         let sks = server_key::ServerKey::new(&cks);
         let ksk_size = sks.key_switching_key_size_bytes();
-        write_result(&mut file, &format!("boolean_{}_{}", name, "ksk"), ksk_size);
+        let test_name = format!("boolean_key_sizes_{params_name}_ksk");
+
+        write_result(&mut file, &test_name, ksk_size);
+        write_to_json(&test_name, *params, *params_name, "KSK", &operator);
+
         println!(
             "Element in KSK: {}, size in bytes: {}",
             sks.key_switching_key_size_elements(),
@@ -41,7 +51,11 @@ fn client_server_key_sizes(results_file: &Path) {
         );
 
         let bsk_size = sks.bootstrapping_key_size_bytes();
-        write_result(&mut file, &format!("boolean_{}_{}", name, "bsk"), bsk_size);
+        let test_name = format!("boolean_key_sizes_{params_name}_bsk");
+
+        write_result(&mut file, &test_name, bsk_size);
+        write_to_json(&test_name, *params, *params_name, "BSK", &operator);
+
         println!(
             "Element in BSK: {}, size in bytes: {}",
             sks.bootstrapping_key_size_elements(),
