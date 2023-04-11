@@ -23,15 +23,16 @@ use tfhe::shortint::parameters::{
 /// in radix decomposition
 struct ParamsAndNumBlocksIter {
     params_and_bit_sizes:
-        itertools::Product<IntoIter<tfhe::shortint::Parameters, 3>, IntoIter<usize, 7>>,
+        itertools::Product<IntoIter<tfhe::shortint::Parameters, 1>, IntoIter<usize, 7>>,
 }
 
 impl Default for ParamsAndNumBlocksIter {
     fn default() -> Self {
-        const PARAMS: [tfhe::shortint::Parameters; 3] = [
+        // FIXME One set of parameter is tested since we want to benchmark only quickest operations.
+        const PARAMS: [tfhe::shortint::Parameters; 1] = [
             PARAM_MESSAGE_2_CARRY_2,
-            PARAM_MESSAGE_3_CARRY_3,
-            PARAM_MESSAGE_4_CARRY_4,
+            // PARAM_MESSAGE_3_CARRY_3,
+            // PARAM_MESSAGE_4_CARRY_4,
         ];
         const BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
         let params_and_bit_sizes = iproduct!(PARAMS, BIT_SIZES);
@@ -481,12 +482,33 @@ criterion_group!(
 
 criterion_group!(misc, full_propagate, full_propagate_parallelized);
 
+// User-oriented benchmark group.
+// This gather all the operations that a high-level user could use.
+criterion_group!(
+    fast_integer_benchmarks,
+    smart_bitand_parallelized,
+    smart_bitor_parallelized,
+    smart_bitxor_parallelized,
+    smart_add_parallelized,
+    smart_sub_parallelized,
+    smart_mul_parallelized,
+    smart_neg,
+    smart_min_parallelized,
+    smart_max_parallelized,
+    smart_eq_parallelized,
+    smart_lt_parallelized,
+    smart_le_parallelized,
+    smart_gt_parallelized,
+    smart_ge_parallelized,
+);
+
 criterion_main!(
-    smart_arithmetic_operation,
-    smart_arithmetic_parallelized_operation,
-    smart_scalar_arithmetic_operation,
-    smart_scalar_arithmetic_parallel_operation,
-    unchecked_arithmetic_operation,
-    unchecked_scalar_arithmetic_operation,
-    misc,
+    fast_integer_benchmarks,
+    // smart_arithmetic_operation,
+    // smart_arithmetic_parallelized_operation,
+    // smart_scalar_arithmetic_operation,
+    // smart_scalar_arithmetic_parallel_operation,
+    // unchecked_arithmetic_operation,
+    // unchecked_scalar_arithmetic_operation,
+    // misc,
 );
