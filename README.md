@@ -1,29 +1,23 @@
 <p align="center">
 <!-- product name logo -->
-  <img width=600 src="https://user-images.githubusercontent.com/86411313/201107820-b1b861be-6b3f-46cc-bccd-ed051201781a.png">
+  <img width=600 src="https://user-images.githubusercontent.com/5758427/231206749-8f146b97-3c5a-4201-8388-3ffa88580415.png">
+</p>
+<hr/>
+<p align="center">
+  <a href="https://docs.zama.ai/tfhe-rs"> 📒 Read documentation</a> | <a href="https://zama.ai/community"> 💛 Community support</a>
 </p>
 <p align="center">
 <!-- Version badge using shields.io -->
   <a href="https://github.com/zama-ai/tfhe-rs/releases">
     <img src="https://img.shields.io/github/v/release/zama-ai/tfhe-rs?style=flat-square">
   </a>
-<!-- Link to docs badge using shields.io -->
-  <a href="https://docs.zama.ai/tfhe-rs">
-    <img src="https://img.shields.io/badge/read-documentation-yellow?style=flat-square">
-  </a>
-<!-- Community forum badge using shields.io -->
-  <a href="https://community.zama.ai">
-    <img src="https://img.shields.io/badge/community%20forum-online-brightgreen?style=flat-square">
-  </a>
-<!-- Open source badge using shields.io -->
-  <a href="https://docs.zama.ai/tfhe-rs/developers/contributing">
-    <img src="https://img.shields.io/badge/we're%20open%20source-contributing.md-blue?style=flat-square">
-  </a>
-<!-- Follow on twitter badge using shields.io -->
-  <a href="https://twitter.com/zama_fhe">
-    <img src="https://img.shields.io/badge/follow-zama_fhe-blue?logo=twitter&style=flat-square">
+<!-- Zama Bounty Program -->
+  <a href="https://github.com/zama-ai/bounty-program">
+    <img src="https://img.shields.io/badge/Contribute-Zama%20Bounty%20Program-yellow?style=flat-square">
   </a>
 </p>
+<hr/>
+
 
 **TFHE-rs** is a pure Rust implementation of TFHE for boolean and integer
 arithmetics over encrypted data. It includes:
@@ -167,6 +161,11 @@ Only approved contributors can send pull requests, so please make sure to get in
 
 This library uses several dependencies and we would like to thank the contributors of those
 libraries.
+
+## Need support?
+<a target="_blank" href="https://community.zama.ai">
+  <img src="https://user-images.githubusercontent.com/5758427/231115030-21195b55-2629-4c01-9809-be5059243999.png">
+</a>
 
 ## License
 
