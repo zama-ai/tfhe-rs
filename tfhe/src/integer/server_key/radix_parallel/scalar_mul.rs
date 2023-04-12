@@ -374,11 +374,15 @@ impl ServerKey {
         // value is the vector of blockshifts
         let mut task_map = HashMap::<u64, Vec<usize>>::new();
 
-        let mut b_i = 1_u64;
+        // Divide scalar progressively towards zero
+        let mut scalar_i = scalar;
         for i in 0..n {
-            let u_i = (scalar / b_i) % b;
+            let u_i = scalar_i % b;
             task_map.entry(u_i).or_insert_with(Vec::new).push(i);
-            b_i *= b;
+            scalar_i /= b;
+            if scalar_i == 0 {
+                break;
+            }
         }
 
         let terms = Mutex::new(Vec::<RadixCiphertext<PBSOrder>>::new());
@@ -481,11 +485,14 @@ impl ServerKey {
         // value is the vector of blockshifts
         let mut task_map = HashMap::<u64, Vec<usize>>::new();
 
-        let mut b_i = 1_u64;
+        let mut scalar_i = scalar;
         for i in 0..n {
-            let u_i = (scalar / b_i) % b;
+            let u_i = scalar_i % b;
             task_map.entry(u_i).or_insert_with(Vec::new).push(i);
-            b_i *= b;
+            scalar_i /= b;
+            if scalar_i == 0 {
+                break;
+            }
         }
 
         let terms = Mutex::new(Vec::<RadixCiphertext<PBSOrder>>::new());

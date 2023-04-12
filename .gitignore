@@ -9,3 +9,6 @@ target/
 
 **/Cargo.lock
 **/*.bin
+
+# Some of our bench outputs
+/tfhe/benchmarks_parameters
