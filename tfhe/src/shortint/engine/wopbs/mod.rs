@@ -396,9 +396,11 @@ impl ShortintEngine {
             &mut buffer_lwe_after_ks,
         );
 
+        // The identity lut wrongly sets the max degree in the ciphertext, when in reality the
+        // degree of the ciphertext has no changed, we manage this case manually here
         Ok(CiphertextBase {
             ct: buffer_lwe_after_ks,
-            degree: ct_clean.degree,
+            degree: ct_in.degree,
             message_modulus: ct_clean.message_modulus,
             carry_modulus: ct_clean.carry_modulus,
             _order_marker: Default::default(),
