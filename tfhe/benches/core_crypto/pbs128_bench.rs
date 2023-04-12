@@ -7,10 +7,7 @@ fn sqr(x: f64) -> f64 {
 
 fn criterion_bench(c: &mut Criterion) {
     {
-        use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::{
-            bootstrap_scratch, Fourier128LweBootstrapKey,
-        };
-        use tfhe::core_crypto::fft_impl::fft128::math::fft::Fft128;
+        use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
         use tfhe::core_crypto::prelude::*;
         type Scalar = u128;
 
