@@ -605,17 +605,6 @@ fn main() {
             println!("--------------------TEST MODE--------------------");
             println!("regex: {}", args.regex);
             println!("plaintext string: {}", test.plaintext_string);
-            if test.plaintext_string.len() == 0 {
-                println!(
-                    "Trivial short circuit: only pattern that can match an empty string is ^, $, or ^$, got {}",
-                    if (start_anchored || end_anchored) && input_regex_bounds.1 - input_regex_bounds.0 == 0 {
-                        "match"
-                    } else {
-                        "no match"
-                    },
-                );
-                return;
-            }
             let (client_key, server_key) = gen_keys();
             let encrypted_string = test
                 .plaintext_string
@@ -654,17 +643,6 @@ fn main() {
             .into_iter()
             .map(Into::into)
             .collect();
-            if encrypted_string.len() == 0 {
-                println!(
-                    "Trivial short circuit: only pattern that can match an empty string is ^, $, or ^$, got {}",
-                    if (start_anchored || end_anchored) && input_regex_bounds.1 - input_regex_bounds.0 == 0 {
-                        "match"
-                    } else {
-                        "no match"
-                    },
-                );
-                return;
-            }
             let server_key: ServerKey = bincode::deserialize::<CompressedServerKey>(
                 &fs::read(&execution.server_key_file)
                     .expect("error reading compressed server key file"),
@@ -713,6 +691,18 @@ fn main() {
         matches!(dfa, dense::DenseDFA::Standard(_)),
         "expected standard dfa without premultiplication or byte classes"
     );
+
+    if ascii_depth == 0 {
+        println!(
+            "Trivial short circuit: can evaluate regex on a \"plaintext\" empty string, got {}",
+            if dfa.is_match("".as_bytes()) {
+                "match"
+            } else {
+                "no match"
+            },
+        );
+        return;
+    }
 
     println!("Converting to binary dfa look up table");
     // does not support $, so must inject support into the binary dfa
