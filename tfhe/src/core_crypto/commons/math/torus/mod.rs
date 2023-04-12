@@ -15,7 +15,8 @@
 use crate::core_crypto::commons::math::random::{
     Gaussian, RandomGenerable, Uniform, UniformBinary, UniformTernary,
 };
-pub use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint, Numeric, UnsignedInteger};
+pub use crate::core_crypto::commons::numeric::{CastFrom, CastInto, FloatingPoint, Numeric,
+                                               UnsignedInteger};
 use std::fmt::{Debug, Display};
 
 /// A trait that converts a torus element in unsigned integer representation to the closest
@@ -38,6 +39,8 @@ where
 {
     /// Consume `input` and returns its closest unsigned integer representation.
     fn from_torus(input: F) -> Self;
+    /// Consume `input` and returns its closest unsigned integer representation for a given modulus.
+    fn from_torus_custom_modulus(input: F, custom_modulus: u128) -> Self;
 }
 
 macro_rules! implement {
@@ -55,7 +58,7 @@ macro_rules! implement {
         }
         impl<F> FromTorus<F> for $Type
         where
-            F: FloatingPoint + CastInto<Self> + CastInto<Self::Signed>,
+            F: FloatingPoint + CastInto<Self> + CastInto<Self::Signed> + CastFrom<u128>,
             Self: CastInto<F>,
         {
             #[inline]
@@ -64,6 +67,19 @@ macro_rules! implement {
                 fract *= F::TWO.powi(<Self as Numeric>::BITS as i32);
                 fract = F::round(fract);
                 let signed: Self::Signed = fract.cast_into();
+                return signed.cast_into();
+            }
+            #[inline]
+            fn from_torus_custom_modulus(input: F, custom_modulus: u128) -> Self {
+                let mut fract = input - F::round(input);
+                let custom_modulus_float: F = custom_modulus.cast_into();
+                fract *= custom_modulus_float;
+                fract = F::round(fract);
+                let mut signed: Self::Signed = fract.cast_into();
+                if signed < 0 {
+                    let cm = custom_modulus as Self::Signed;
+                    signed +=  cm;
+                }
                 return signed.cast_into();
             }
         }
@@ -85,6 +101,10 @@ pub trait UnsignedTorus:
     + RandomGenerable<UniformBinary>
     + RandomGenerable<UniformTernary>
     + RandomGenerable<Uniform>
+    + RandomGenerable<Gaussian<f64>, CustomModulus = u128>
+    + RandomGenerable<UniformBinary, CustomModulus = Self>
+    + RandomGenerable<UniformTernary, CustomModulus = Self>
+    + RandomGenerable<Uniform, CustomModulus = Self>
     + Display
     + Debug
 {

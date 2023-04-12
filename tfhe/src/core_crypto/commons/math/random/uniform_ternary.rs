@@ -7,6 +7,7 @@ pub struct UniformTernary;
 macro_rules! implement_uniform_ternary {
     ($T:ty) => {
         impl RandomGenerable<UniformTernary> for $T {
+            type CustomModulus = $T;
             #[allow(unused)]
             fn generate_one<G: ByteRandomGenerator>(
                 generator: &mut RandomGenerator<G>,

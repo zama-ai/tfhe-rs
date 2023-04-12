@@ -6,12 +6,12 @@ use crate::core_crypto::commons::math::random::{
     Seed, Seeder, Uniform,
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::UnsignedInteger;
+use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 #[cfg(feature = "experimental-multi_bit_pbs")]
 use crate::core_crypto::commons::parameters::LweBskGroupingFactor;
 use crate::core_crypto::commons::parameters::{
-    DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweDimension, GlweSize,
-    LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
+    CiphertextModulus, DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweDimension,
+    GlweSize, LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
 };
 use concrete_csprng::generators::ForkError;
 use rayon::prelude::*;
@@ -197,6 +197,18 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         self.mask.fill_slice_with_random_uniform(output)
     }
 
+    // Fills the slice with random uniform values, using the mask generator
+    pub(crate) fn fill_slice_with_random_mask_custom_mod<Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) where
+        Scalar: UnsignedInteger + RandomGenerable<Uniform>,
+    {
+        self.mask
+            .fill_slice_with_random_uniform_custom_mod(output, ciphertext_modulus);
+    }
+
     // Sample a noise value, using the noise generator.
     pub(crate) fn random_noise<Scalar>(&mut self, std: impl DispersionParameter) -> Scalar
     where
@@ -211,6 +223,26 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         )
     }
 
+    // Sample a noise value, using the noise generator.
+    pub(crate) fn random_noise_custom_mod<Scalar>(
+        &mut self,
+        std: impl DispersionParameter,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) -> Scalar
+        where
+            Scalar: UnsignedInteger + RandomGenerable<Gaussian<f64>, CustomModulus = u128>,
+    {
+        let custom_modulus_u128 = custom_modulus.get().cast_into();
+        Scalar::generate_one_custom_modulus(
+            &mut self.noise,
+            Gaussian {
+                std: std.get_standard_dev(),
+                mean: 0.,
+            },
+            custom_modulus_u128,
+        )
+    }
+
     // Fills the input slice with random noise, using the noise generator.
     pub(crate) fn fill_slice_with_random_noise<Scalar>(
         &mut self,
@@ -221,6 +253,24 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     {
         self.noise
             .fill_slice_with_random_gaussian(output, 0., std.get_standard_dev());
+    }
+
+    // Fills the input slice with random noise, using the noise generator.
+    pub(crate) fn fill_slice_with_random_noise_custom_mod<Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        std: impl DispersionParameter,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) where
+        Scalar: UnsignedInteger,
+        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = f64>,
+    {
+        self.noise.fill_slice_with_random_gaussian_custom_mod(
+            output,
+            0.,
+            std.get_standard_dev(),
+            custom_modulus,
+        );
     }
 
     // Adds noise on top of existing data for in place encryption
@@ -237,6 +287,25 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
                 output,
                 0.,
                 std.get_standard_dev(),
+            );
+    }
+
+    // Adds noise on top of existing data for in place encryption
+    pub(crate) fn unsigned_torus_slice_wrapping_add_random_noise_custom_mod_assign<Scalar>(
+        &mut self,
+        output: &mut [Scalar],
+        std: impl DispersionParameter,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) where
+        Scalar: UnsignedTorus,
+        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = f64>,
+    {
+        self.noise
+            .unsigned_torus_slice_wrapping_add_random_gaussian_custom_mod_assign(
+                output,
+                0.,
+                std.get_standard_dev(),
+                custom_modulus,
             );
     }
 }

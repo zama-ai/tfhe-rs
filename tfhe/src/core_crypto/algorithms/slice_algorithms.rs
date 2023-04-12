@@ -299,6 +299,7 @@ pub fn slice_wrapping_sub_scalar_mul_assign_custom_modulus<Scalar>(
     );
     lhs.iter_mut().zip(rhs.iter()).for_each(|(lhs, &rhs)| {
         *lhs = (*lhs)
+            .wrapping_add(modulus)
             .wrapping_sub(rhs.wrapping_mul(scalar).wrapping_rem(modulus))
             .wrapping_rem(modulus)
     });
@@ -334,10 +335,9 @@ where
     Scalar: UnsignedInteger,
 {
     slice.as_mut().iter_mut().for_each(|x| {
-        let half_q = modulus / Scalar::TWO;
-        *x = half_q
-            .wrapping_add(Scalar::ONE)
-            .wrapping_sub((*x).wrapping_sub(half_q.wrapping_add(Scalar::ONE)))
+        *x = modulus
+            .wrapping_sub(*x)
+            .wrapping_rem(modulus)
     });
 }
 

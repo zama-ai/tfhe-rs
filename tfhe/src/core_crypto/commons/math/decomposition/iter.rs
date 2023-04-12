@@ -135,7 +135,7 @@ fn decompose_one_level<S: UnsignedInteger>(base_log: usize, state: &mut S, mod_b
 ///
 /// This iterator yields the decomposition in reverse order. That means that the highest level
 /// will be yielded first.
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct SignedDecompositionIterNonNative<T>
 where
     T: UnsignedInteger,
@@ -251,8 +251,12 @@ where
             return None;
         }
         // We decompose the current level
-        let output =
-            decompose_one_level_non_native(self.base_log, &mut self.state, self.mod_b_mask);
+        let output = decompose_one_level_non_native(
+            self.base_log,
+            &mut self.state,
+            self.mod_b_mask,
+            T::cast_from(self.ciphertext_modulus.get()),
+        );
         self.current_level -= 1;
         // We return the output for this level
         Some(DecompositionTermNonNative::new(
@@ -268,11 +272,14 @@ fn decompose_one_level_non_native<S: UnsignedInteger>(
     base_log: usize,
     state: &mut S,
     mod_b_mask: S,
+    ciphertext_modulus: S,
 ) -> S {
     let res = *state & mod_b_mask;
     *state >>= base_log;
     let mut carry = (res.wrapping_sub(S::ONE) | *state) & res;
     carry >>= base_log - 1;
     *state += carry;
-    res.wrapping_sub(carry << base_log)
+    res.wrapping_add(ciphertext_modulus)
+        .wrapping_sub(carry << base_log)
+        .wrapping_rem(ciphertext_modulus)
 }

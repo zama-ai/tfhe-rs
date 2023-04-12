@@ -40,7 +40,7 @@ pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
     generator.fill_slice_with_random_mask(output_mask.as_mut());
 
     // generate an error from the normal distribution described by std_dev
-    *output_body.data = generator.random_noise(noise_parameters);
+    *output_body.data = generator.random_noise_custom_mod(noise_parameters, ciphertext_modulus);
 
     // If the modulus is compatible with the native one then we just apply wrapping computation and
     // enjoy the perf gain
@@ -494,6 +494,7 @@ where
         let ciphertext_modulus = lwe_ciphertext.ciphertext_modulus().get();
 
         let decrypted: Scalar = (*body_128.data)
+            .wrapping_add(ciphertext_modulus)
             .wrapping_sub(slice_wrapping_dot_product_custom_modulus(
                 mask_128.as_ref(),
                 key_128.as_ref(),

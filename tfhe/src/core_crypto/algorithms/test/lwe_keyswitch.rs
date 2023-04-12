@@ -90,3 +90,8 @@ fn lwe_encrypt_ks_decrypt_native_mod() {
 fn lwe_encrypt_ks_decrypt_non_native_mod() {
     lwe_encrypt_ks_decrypt_custom_mod(TEST_PARAMS_3_BITS_63_U64);
 }
+
+#[test]
+fn lwe_encrypt_ks_decrypt_solinas_mod() {
+    lwe_encrypt_ks_decrypt_custom_mod(TEST_PARAMS_3_BITS_SOLINAS_U64);
+}

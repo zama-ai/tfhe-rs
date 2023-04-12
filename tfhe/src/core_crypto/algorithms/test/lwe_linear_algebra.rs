@@ -423,7 +423,13 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Test
                 &mut rsc.secret_random_generator,
             );
 
-            let mut ct = LweCiphertext::new(
+            let mut ct1 = LweCiphertext::new(
+                Scalar::ZERO,
+                lwe_dimension.to_lwe_size(),
+                ciphertext_modulus,
+            );
+
+            let mut ct2 = LweCiphertext::new(
                 Scalar::ZERO,
                 lwe_dimension.to_lwe_size(),
                 ciphertext_modulus,
@@ -433,27 +439,36 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Test
 
             encrypt_lwe_ciphertext(
                 &lwe_sk,
-                &mut ct,
+                &mut ct1,
                 plaintext,
                 lwe_modular_std_dev,
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            let plaintext2 = Plaintext(Scalar::ONE * delta);
 
-            let rhs = ct.clone();
+            encrypt_lwe_ciphertext(
+                &lwe_sk,
+                &mut ct2,
+                plaintext2,
+                lwe_modular_std_dev,
+                &mut rsc.encryption_random_generator,
+            );
 
-            lwe_ciphertext_sub_assign(&mut ct, &rhs);
+            assert!(check_content_respects_mod(&ct1, ciphertext_modulus));
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            lwe_ciphertext_sub_assign(&mut ct1, &ct2);
 
-            let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
+            assert!(check_content_respects_mod(&ct1, ciphertext_modulus));
+
+            let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct1);
 
             let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
-            assert_eq!(Scalar::ZERO, decoded);
+            assert_eq!((msg - Scalar::ONE) % msg_modulus, decoded);
         }
     }
+    assert!(false);
 }
 
 create_parametrized_test!(lwe_encrypt_sub_assign_decrypt_custom_mod);
