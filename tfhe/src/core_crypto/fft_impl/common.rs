@@ -1,12 +1,11 @@
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
+use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LutCountLog, LweDimension,
     ModulusSwitchOffset, PolynomialSize,
 };
 use crate::core_crypto::commons::traits::Container;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::ContainerMut;
+use crate::core_crypto::prelude::{ContainerMut, UnsignedInteger};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
 /// This function switches modulus for a single coefficient of a ciphertext,
@@ -14,7 +13,7 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 ///
 /// offset: the number of msb discarded
 /// lut_count_log: the right padding
-pub fn pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
+pub fn pbs_modulus_switch<Scalar: UnsignedInteger + CastInto<usize>>(
     input: Scalar,
     poly_size: PolynomialSize,
     offset: ModulusSwitchOffset,
@@ -285,5 +284,104 @@ pub mod tests {
         println!(
             "Mulitplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
         );
+    }
+}
+
+fn collect_to_array<const N: usize, I: Iterator>(iter: I) -> [I::Item; N] {
+    // TODO: avoid allocating here
+    match iter.collect::<Vec<_>>().try_into() {
+        Ok(arr) => arr,
+        Err(_) => unreachable!(),
+    }
+}
+
+pub fn chain_array_with_context<Ctx, T, const N: usize>(
+    ctx: Ctx,
+    f: impl FnMut(Ctx) -> (T, Ctx),
+) -> ([T; N], Ctx) {
+    let mut ctx = Some(ctx);
+    let mut f = f;
+    (
+        [(); N].map(|()| {
+            let local_ctx = ctx.take().unwrap();
+            let (val, local_ctx) = f(local_ctx);
+            ctx = Some(local_ctx);
+            val
+        }),
+        ctx.unwrap(),
+    )
+}
+
+pub fn as_ref_array<T, const N: usize>(array: &[T; N]) -> [&T; N] {
+    collect_to_array(array.iter())
+}
+pub fn as_mut_array<T, const N: usize>(array: &mut [T; N]) -> [&mut T; N] {
+    collect_to_array(array.iter_mut())
+}
+pub fn zip_array<T, U, const N: usize>(first: [T; N], second: [U; N]) -> [(T, U); N] {
+    collect_to_array(core::iter::zip(first, second))
+}
+
+pub struct ArrayIter<I, const N: usize> {
+    iters: [I; N],
+}
+
+impl<I: Iterator, const N: usize> Iterator for ArrayIter<I, N> {
+    type Item = [I::Item; N];
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let items = as_mut_array(&mut self.iters).map(|iter| iter.next());
+        if items.iter().all(|item| item.is_some()) {
+            Some(items.map(|item| item.unwrap()))
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // taken from core::iter::Zip's size_hint impl
+        self.iters.iter().fold((usize::MAX, None), |acc, iter| {
+            let (a_lower, a_upper) = acc;
+            let (b_lower, b_upper) = iter.size_hint();
+
+            let lower = core::cmp::min(a_lower, b_lower);
+
+            let upper = match (a_upper, b_upper) {
+                (Some(x), Some(y)) => Some(core::cmp::min(x, y)),
+                (Some(x), None) => Some(x),
+                (None, Some(y)) => Some(y),
+                (None, None) => None,
+            };
+
+            (lower, upper)
+        })
+    }
+}
+
+impl<I: DoubleEndedIterator, const N: usize> DoubleEndedIterator for ArrayIter<I, N> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let items = as_mut_array(&mut self.iters).map(|iter| iter.next_back());
+        if items.iter().all(|item| item.is_some()) {
+            Some(items.map(|item| item.unwrap()))
+        } else {
+            None
+        }
+    }
+}
+
+impl<I: ExactSizeIterator, const N: usize> ExactSizeIterator for ArrayIter<I, N> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.iters
+            .iter()
+            .fold(usize::MAX, |acc, iter| acc.min(iter.len()))
+    }
+}
+
+pub fn iter_array<I: IntoIterator, const N: usize>(iters: [I; N]) -> ArrayIter<I::IntoIter, N> {
+    ArrayIter {
+        iters: iters.map(|iter| iter.into_iter()),
     }
 }

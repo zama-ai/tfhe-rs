@@ -59,6 +59,7 @@ rayon = { version = "1.5.0" }
 bincode = { version = "1.3.3", optional = true }
 concrete-fft = { version = "0.3.0", features = ["serde", "fft128"] }
 pulp = "0.13"
+concrete-ntt = "0.1.0"
 aligned-vec = { version = "0.5", features = ["serde"] }
 dyn-stack = { version = "0.9" }
 paste = { version = "1.0.7", optional = true }
@@ -162,6 +163,11 @@ required-features = ["experimental", "internal-keycache"]
 [[bench]]
 name = "pbs128-bench"
 path = "benches/core_crypto/pbs128_bench.rs"
+harness = false
+
+[[bench]]
+name = "pbs-crt-bench"
+path = "benches/core_crypto/pbs_crt_bench.rs"
 harness = false
 
 [[bench]]
