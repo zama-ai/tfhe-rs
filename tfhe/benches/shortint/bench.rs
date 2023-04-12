@@ -422,6 +422,76 @@ define_server_key_bench_fn!(
     &SERVER_KEY_BENCH_PARAMS
 );
 define_server_key_bench_fn!(
+    method_name: bitand,
+    display_name: bitand,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: bitor,
+    display_name: bitor,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: bitxor,
+    display_name: bitxor,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: add,
+    display_name: add,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: sub,
+    display_name: sub,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: mul,
+    display_name: mul,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: div,
+    display_name: div,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: greater,
+    display_name: greater,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: greater_or_equal,
+    display_name: greater_or_equal,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: less,
+    display_name: less,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: less_or_equal,
+    display_name: less_or_equal,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: equal,
+    display_name: equal,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
+    method_name: not_equal,
+    display_name: not_equal,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_unary_bench_fn!(
+    method_name: neg,
+    display_name: negation,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_bench_fn!(
     method_name: unchecked_greater,
     display_name: greater_than,
     &SERVER_KEY_BENCH_PARAMS
@@ -473,6 +543,72 @@ define_server_key_scalar_div_bench_fn!(
     display_name: modulo,
     &SERVER_KEY_BENCH_PARAMS
 );
+define_server_key_scalar_bench_fn!(
+    method_name: scalar_add,
+    display_name: add,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_bench_fn!(
+    method_name: scalar_sub,
+    display_name: sub,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_bench_fn!(
+    method_name: scalar_mul,
+    display_name: mul,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_bench_fn!(
+    method_name: scalar_left_shift,
+    display_name: left_shift,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_bench_fn!(
+    method_name: scalar_right_shift,
+    display_name: right_shift,
+    &SERVER_KEY_BENCH_PARAMS
+);
+
+define_server_key_scalar_div_bench_fn!(
+    method_name: scalar_div,
+    display_name: div,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_div_bench_fn!(
+    method_name: scalar_mod,
+    display_name: modulo,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_bench_fn!(
+    method_name: scalar_greater,
+    display_name: greater,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_bench_fn!(
+    method_name: scalar_greater_or_equal,
+    display_name: greater_or_equal,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_bench_fn!(
+    method_name: scalar_less,
+    display_name: less,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_bench_fn!(
+    method_name: scalar_less_or_equal,
+    display_name: less_or_equal,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_div_bench_fn!(
+    method_name: scalar_equal,
+    display_name: equal,
+    &SERVER_KEY_BENCH_PARAMS
+);
+define_server_key_scalar_div_bench_fn!(
+    method_name: scalar_not_equal,
+    display_name: not_equal,
+    &SERVER_KEY_BENCH_PARAMS
+);
 
 criterion_group!(
     arithmetic_operation,
@@ -511,4 +647,44 @@ criterion_group!(
     unchecked_scalar_right_shift,
 );
 
-criterion_main!(arithmetic_operation, arithmetic_scalar_operation);
+criterion_group!(
+    default_ops,
+    neg,
+    bitand,
+    bitor,
+    bitxor,
+    add,
+    sub,
+    div,
+    mul,
+    greater,
+    greater_or_equal,
+    less,
+    less_or_equal,
+    equal,
+    not_equal
+);
+
+criterion_group!(
+    default_scalar_ops,
+    scalar_add,
+    scalar_sub,
+    scalar_div,
+    scalar_mul,
+    scalar_mod,
+    scalar_left_shift,
+    scalar_right_shift,
+    scalar_greater,
+    scalar_greater_or_equal,
+    scalar_less,
+    scalar_less_or_equal,
+    scalar_equal,
+    scalar_not_equal
+);
+
+criterion_main!(
+    // arithmetic_operation,
+    // arithmetic_scalar_operation,
+    default_ops,
+    default_scalar_ops,
+);
