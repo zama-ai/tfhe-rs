@@ -194,6 +194,9 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
     F: Fn(&ServerKey, &mut RadixCiphertextBig),
 {
     let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
 
     let mut rng = rand::thread_rng();
 
@@ -260,6 +263,9 @@ fn bench_server_key_unary_function_clean_inputs<F>(
     F: Fn(&ServerKey, &mut RadixCiphertextBig),
 {
     let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
 
     let mut rng = rand::thread_rng();
 
@@ -309,6 +315,9 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F>(
     F: Fn(&ServerKey, &mut RadixCiphertextBig, u64),
 {
     let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
     let mut rng = rand::thread_rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
@@ -373,6 +382,9 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F>(
     F: Fn(&ServerKey, &mut RadixCiphertextBig, u64),
 {
     let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
     let mut rng = rand::thread_rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
