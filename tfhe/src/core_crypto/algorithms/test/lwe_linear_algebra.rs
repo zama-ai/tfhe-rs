@@ -447,10 +447,13 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Test
                 ciphertext_modulus,
             );
 
+            let rhs_plaintext =
+                Plaintext(msg.wrapping_sub(Scalar::ONE).wrapping_rem(msg_modulus) * delta);
+
             encrypt_lwe_ciphertext(
                 &lwe_sk,
                 &mut rhs,
-                plaintext,
+                rhs_plaintext,
                 lwe_modular_std_dev,
                 &mut rsc.encryption_random_generator,
             );
@@ -465,7 +468,7 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Test
 
             let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
-            assert_eq!(Scalar::ZERO, decoded);
+            assert_eq!(Scalar::ONE, decoded);
         }
     }
 }
@@ -518,10 +521,13 @@ fn lwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<
                 ciphertext_modulus,
             );
 
+            let rhs_plaintext =
+                Plaintext(msg.wrapping_sub(Scalar::ONE).wrapping_rem(msg_modulus) * delta);
+
             encrypt_lwe_ciphertext(
                 &lwe_sk,
                 &mut rhs,
-                plaintext,
+                rhs_plaintext,
                 lwe_modular_std_dev,
                 &mut rsc.encryption_random_generator,
             );
@@ -538,7 +544,7 @@ fn lwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<
 
             let decoded = round_decode(decrypted.0, delta) % msg_modulus;
 
-            assert_eq!(Scalar::ZERO, decoded);
+            assert_eq!(Scalar::ONE, decoded);
         }
     }
 }
