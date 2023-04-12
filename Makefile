@@ -119,6 +119,9 @@ clippy_all_targets:
 clippy_all: clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets clippy_c_api \
 clippy_js_wasm_api clippy_tasks clippy_core
 
+.PHONY: clippy_fast # Run main clippy targets
+clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core
+
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --release \
@@ -318,6 +321,9 @@ measure_boolean_key_sizes: install_rs_check_toolchain
 
 .PHONY: pcc # pcc stands for pre commit checks
 pcc: no_tfhe_typo check_fmt doc clippy_all check_compile_tests
+
+.PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
+fpcc: no_tfhe_typo check_fmt doc clippy_fast check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fmt
