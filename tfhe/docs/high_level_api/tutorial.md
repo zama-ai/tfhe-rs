@@ -461,7 +461,7 @@ To make the `compute_parity_bit` function compatible with both `FheBool` and `bo
 
 Writing a generic function that accepts `FHE` types as well as clear types can help test the function to see if it is correct. If the function is generic, it can run with clear data, allowing the use of print-debugging or a debugger to spot errors.
 
-Writing generic functions that use operator overloading for our FHE types can be trickier than normal, since, as explained in [Generic Bounds How To](../how\_to/generic\_bounds.md), `FHE` types are not copy. So using the reference `&` is mandatory, even though this is not the case when using native types, which are all `Copy`.
+Writing generic functions that use operator overloading for our FHE types can be trickier than normal, since `FHE` types are not copy. So using the reference `&` is mandatory, even though this is not the case when using native types, which are all `Copy`.
 
 This will make the generic bounds trickier at first.
 
@@ -549,7 +549,7 @@ help: consider adding an explicit lifetime bound...
    |
 ```
 
-The way to fix this is to use `Higher-Rank Trait Bounds`, as shown in the [Generic Bounds How To](../how\_to/generic\_bounds.md):
+The way to fix this is to use `Higher-Rank Trait Bounds`:
 
 ```Rust
 where
