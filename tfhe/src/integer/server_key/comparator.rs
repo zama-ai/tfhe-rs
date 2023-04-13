@@ -1107,7 +1107,9 @@ impl<'a> Comparator<'a> {
         };
 
         let mut res = self.unchecked_max_parallelized(lhs, rhs);
-        self.server_key.full_propagate_parallelized(&mut res);
+        res.blocks
+            .par_iter_mut()
+            .for_each(|block| self.server_key.key.message_extract_assign(block));
         res
     }
 
@@ -1143,7 +1145,9 @@ impl<'a> Comparator<'a> {
         };
 
         let mut res = self.unchecked_min_parallelized(lhs, rhs);
-        self.server_key.full_propagate_parallelized(&mut res);
+        res.blocks
+            .par_iter_mut()
+            .for_each(|block| self.server_key.key.message_extract_assign(block));
         res
     }
 }
@@ -1333,7 +1337,7 @@ mod tests {
             assert!(super::has_non_zero_carries(&ct_0));
             assert!(super::has_non_zero_carries(&ct_1));
             let encrypted_result = default_comparator_method(&comparator, &ct_0, &ct_1);
-            // assert!(!super::has_non_zero_carries(&encrypted_result));
+            assert!(!super::has_non_zero_carries(&encrypted_result));
 
             // Sanity decryption checks
             {
