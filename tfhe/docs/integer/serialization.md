@@ -2,7 +2,7 @@
 
 As explained in the introduction, some types (`Serverkey`, `Ciphertext`) are meant to be shared with the server that does the computations.
 
-The easiest way to send these data to a server is to use the serialization and deserialization features. Concrete integer uses the serde framework, so serde's Serialize and Deserialize are implemented.
+The easiest way to send these data to a server is to use the serialization and deserialization features. TFHE-rs  uses the serde framework, so serde's Serialize and Deserialize are implemented.
 
 To be able to serialize our data, a [data format](https://serde.rs/#data-formats) needs to be picked. Here, [bincode](https://crates.io/crates/bincode) is a good choice, mainly because it is binary format.
 
