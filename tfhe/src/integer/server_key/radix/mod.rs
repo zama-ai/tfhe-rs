@@ -12,6 +12,7 @@ mod sub;
 use super::ServerKey;
 
 use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::encryption::{encrypt_words_radix_impl, AsLittleEndianWords};
 use crate::shortint::PBSOrderMarker;
 
 #[cfg(test)]
@@ -47,6 +48,44 @@ impl ServerKey {
         }
 
         RadixCiphertext::from(vec_res)
+    }
+
+    /// Create a trivial radix ciphertext
+    ///
+    /// Trivial means that the value is not encrypted
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::{gen_keys_radix, RadixCiphertextBig};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let ctxt: RadixCiphertextBig = sks.create_trivial__radix(212u64, num_blocks);
+    ///
+    /// // Decrypt:
+    /// let dec: u64 = cks.decrypt(&ctxt);
+    /// assert_eq!(212, dec);
+    /// ```
+    pub fn create_trivial_radix<T, PBSOrder>(
+        &self,
+        value: T,
+        num_blocks: usize,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: AsLittleEndianWords,
+    {
+        encrypt_words_radix_impl(
+            &self.key,
+            value,
+            num_blocks,
+            crate::shortint::ServerKey::create_trivial,
+        )
     }
 
     /// Propagate the carry of the 'index' block to the next one.
