@@ -44,9 +44,12 @@ fn main() {
 }
 ```
 
+Default configuration for x86 Unix machines:
 ```toml
-tfhe = { version = "0.2.0", features = ["integer"]}
+tfhe = { version = "0.2.0", features = ["integer", "x86_64-unix"]}
 ```
+
+Other configurations can be found [here](../getting_started/installation.md).
 
 ### Imports.
 
@@ -64,13 +67,8 @@ The first step is the creation of the configuration. The configuration is used t
 
 Creating a configuration is done using the ConfigBuilder type.
 
-In this example, 8-bit unsigned integers with default parameters are used. The `integers` feature must also be enabled, as per the table on the Getting Started page.
-
-{% hint style="info" %}
-```toml
-tfhe = { version = "0.2.0", features = ["integer"]}
-```
-{% endhint %}
+In this example, 8-bit unsigned integers with default parameters are used. The `integers` 
+feature must also be enabled, as per the table on the [Getting Started page](../getting_started/installation.md).
 
 The config is done by first creating a builder with all types deactivated. Then, the `uint8` type with default parameters is activated.
 
@@ -191,9 +189,12 @@ To use the `FheUint8` type, the `integer` feature must be activated:
 # Cargo.toml
 
 [dependencies]
-# ...
-tfhe = { version = "0.2.0", features = ["integer"]}
+# Default configuration for x86 Unix machines:
+tfhe = { version = "0.2.0", features = ["integer", "x86_64-unix"]}
 ```
+
+Other configurations can be found [here](../getting_started/installation.md).
+
 
 ```rust
 use tfhe::{FheUint8, ConfigBuilder, generate_keys, set_server_key, ClientKey};
@@ -317,10 +318,12 @@ To use Booleans, the `booleans` feature in our Cargo.toml must be enabled:
 ```toml
 # Cargo.toml
 
-[dependencies]
-# ...
-tfhe = { version = "0.2.0", features = ["booleans"]}
+# Default configuration for x86 Unix machines:
+tfhe = { version = "0.2.0", features = ["boolean", "x86_64-unix"]}
 ```
+
+Other configurations can be found [here](../getting_started/installation.md).
+
 
 #### function definition
 
