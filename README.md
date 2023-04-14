@@ -58,7 +58,7 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] 
 Note: aarch64-based machines are not yet supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs
 
 Note that when running code that uses `tfhe-rs`, it is highly recommended
-to run in release mode with cargo`s `--release` flag to have the best performances possible,
+to run in release mode with cargo's `--release` flag to have the best performances possible,
 eg: `cargo run --release`.
 
 Here is a full example evaluating a Boolean circuit:
