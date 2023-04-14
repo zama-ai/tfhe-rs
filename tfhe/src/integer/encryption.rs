@@ -109,29 +109,35 @@ impl AsLittleEndianWords for U256 {
     }
 }
 
-pub(crate) trait BlockEncryptionKey {
-    fn parameters(&self) -> &crate::shortint::Parameters;
+pub(crate) trait KnowsMessageModulus {
+    fn message_modulus(&self) -> MessageModulus;
 }
 
-impl BlockEncryptionKey for crate::shortint::ClientKey {
-    fn parameters(&self) -> &crate::shortint::Parameters {
-        &self.parameters
+impl KnowsMessageModulus for crate::shortint::ClientKey {
+    fn message_modulus(&self) -> MessageModulus {
+        self.parameters.message_modulus
     }
 }
 
-impl<OpOrder: crate::shortint::PBSOrderMarker> BlockEncryptionKey
+impl<OpOrder: crate::shortint::PBSOrderMarker> KnowsMessageModulus
     for crate::shortint::PublicKeyBase<OpOrder>
 {
-    fn parameters(&self) -> &crate::shortint::Parameters {
-        &self.parameters
+    fn message_modulus(&self) -> MessageModulus {
+        self.parameters.message_modulus
     }
 }
 
-impl<OpOrder: crate::shortint::PBSOrderMarker> BlockEncryptionKey
+impl<OpOrder: crate::shortint::PBSOrderMarker> KnowsMessageModulus
     for crate::shortint::CompressedPublicKeyBase<OpOrder>
 {
-    fn parameters(&self) -> &crate::shortint::Parameters {
-        &self.parameters
+    fn message_modulus(&self) -> MessageModulus {
+        self.parameters.message_modulus
+    }
+}
+
+impl KnowsMessageModulus for crate::shortint::ServerKey {
+    fn message_modulus(&self) -> MessageModulus {
+        self.message_modulus
     }
 }
 
@@ -151,7 +157,7 @@ pub(crate) fn encrypt_words_radix_impl<BlockKey, Block, RadixCiphertextType, T, 
 ) -> RadixCiphertextType
 where
     T: AsLittleEndianWords,
-    BlockKey: BlockEncryptionKey,
+    BlockKey: KnowsMessageModulus,
     F: Fn(&BlockKey, u64) -> Block,
     RadixCiphertextType: From<Vec<Block>>,
 {
@@ -165,8 +171,8 @@ where
     //              |                 bit values are not valid and should not be encrypted)
     //              |-> current_power (start of next block of bits to encrypt (inclusive))
 
-    let mask = (encrypting_key.parameters().message_modulus.0 - 1) as u128;
-    let block_modulus = encrypting_key.parameters().message_modulus.0 as u128;
+    let mask = (encrypting_key.message_modulus().0 - 1) as u128;
+    let block_modulus = encrypting_key.message_modulus().0 as u128;
 
     let mut blocks = Vec::with_capacity(num_blocks);
 
