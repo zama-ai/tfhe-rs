@@ -9,7 +9,7 @@ The basic steps for using the high-level API of TFHE-rs are:
 3. Client-side: Encrypting data;
 4. Server-side: Setting the server key;
 5. Server-side: Computing over encrypted data;
-6. Client-side: Encrypting data.
+6. Client-side: Decrypting data.
 
 Here is the full example (mixing client and server parts):
 
