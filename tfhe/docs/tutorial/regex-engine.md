@@ -108,6 +108,7 @@ As briefly mentioned, this approach can be viewed as the "naive" approach to hom
 
 ## Future Work
 
+- Bruh just minimize the entire DFA (no piecewise), but just set the initial partitions (equivalence classes) to be singletons of each state in the ASCII DFA (easy fix)
 - Evaluate an ASCII DFA directly, without translating to the equivalent binary DFA, based on CMUXing on the encrypted bit `input_char == a` for each character `a` in the ASCII input alphabet and or-ing the results of the CMUXes together
 - Encrypted regex
 
