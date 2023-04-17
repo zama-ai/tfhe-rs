@@ -54,6 +54,12 @@ create_parametrized_test!(integer_default_bitxor);
 create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
 create_parametrized_test!(integer_default_small_scalar_mul);
+create_parametrized_test!(integer_smart_scalar_mul_u128_fix_non_reg_test {
+    PARAM_MESSAGE_2_CARRY_2
+});
+create_parametrized_test!(integer_default_scalar_mul_u128_fix_non_reg_test {
+    PARAM_MESSAGE_2_CARRY_2
+});
 create_parametrized_test!(integer_smart_scalar_mul);
 create_parametrized_test!(integer_default_scalar_mul);
 create_parametrized_test!(integer_unchecked_scalar_left_shift);
@@ -766,6 +772,56 @@ fn integer_default_scalar_mul(param: Parameters) {
         // assert
         assert_eq!((clear * scalar) % modulus, dec_res);
     }
+}
+
+fn integer_smart_scalar_mul_u128_fix_non_reg_test(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+    let cks = RadixClientKey::from((cks, nb_ct));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let clear = rng.gen::<u128>();
+
+    let scalar = rng.gen::<u64>();
+
+    // encryption of an integer
+    let mut ct = cks.encrypt(clear);
+
+    // scalar mul
+    let ct_res = sks.smart_scalar_mul_parallelized(&mut ct, scalar);
+
+    // decryption of ct_res, native modulus takes care of the mod operation
+    let dec_res: u128 = cks.decrypt(&ct_res);
+
+    // assert
+    assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+}
+
+fn integer_default_scalar_mul_u128_fix_non_reg_test(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+    let cks = RadixClientKey::from((cks, nb_ct));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    let clear = rng.gen::<u128>();
+
+    let scalar = rng.gen::<u64>();
+
+    // encryption of an integer
+    let ct = cks.encrypt(clear);
+
+    // scalar mul
+    let ct_res = sks.scalar_mul_parallelized(&ct, scalar);
+
+    // decryption of ct_res, native modulus takes care of the mod operation
+    let dec_res: u128 = cks.decrypt(&ct_res);
+
+    // assert
+    assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
 }
 
 fn integer_unchecked_scalar_left_shift(param: Parameters) {
