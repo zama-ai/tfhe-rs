@@ -8,8 +8,32 @@ Given plaintext regex and encrypted test strings, this homomorphic regex matcher
 
 Then, it converts the DFA, originally taking an input alphabet of ASCII characters, into a "binary" DFA. The binary DFA associated with the `regex-automata`'s ASCII DFA is the DFA that takes an input alphabet of only 0s and 1s that accepts the same language as the ASCII dfa, when each character is in its binary deceomposition.
 For example, if `abc` is accepted by the ASCII DFA, the big-endian equivalent of this string (each character, as an ASCII character, gets 7 bits) will be accepted by the binary DFA, that is, `1100001 1100010 1100011` (note: the choice of endianness is irrelevant here, big-endian was chosen arbitrarily).
-The binary DFA is then minimized piecewise using a variation of Hopcroft's algorithm, to minimize the number of states needed to match bit string.
+The binary DFA is then "minimized piecewise" using a variation of Hopcroft's algorithm, to minimize the number of states needed to match bit string.
 This proves to be a huge optimization when evaluating the DFA homomorphically, as is done here, since each additional state represents another expensive homomorphic operation in the evaluation.
+Note that this DFA is minimized piecewise--that is, for each original state `s` from the ASCII DFA, the depth-7 (sub-)DFA, constructed by taking as initial state `s` and final states `S = {t = delta(s, a) | t is not a dead state}_a` (i.e. `S` is the set of non-dead states reachable from s by reading a single ASCII character `a`, for all possible ASCII characters `a`) and transitions and additional intermediate states added such that for all ASCII characters `a` the binary decomposition of `a` is accepted by this sub-DFA, is minimized with Hopcroft's algorithm--as opposed to minimizing the entire DFA directly. This is because if we were to minimize the entire DFA directly, since by the way [the equivalence classes are defined](https://en.wikipedia.org/wiki/DFA_minimization#Nondistinguishable_states) the DFA would always collapse into at most 9 states accepting the union of all binary decompositions of `a` such that there is an original state `s` from the ASCII DFA such that `delta(s, a)` is not dead. This is not what we want, as we want to distinguish between original ASCII states `s` and `t`.
+
+Example:
+
+Say in the original ASCII DFA at state `s` the ASCII characters `a` and `b` led to non-dead states `t` and `r` respectively. This portion of the ASCII DFA would look like this:
+
+```
+s --a--> t (final)
+|
+b
+|
+v
+r (final)
+```
+
+The sub-DFA to be minimized would look like this:
+
+```
+s --1--> q1 --1--> q2 --0--> q3 --0--> q4 --0--> q5 --0--> q6 --1--> t (final)
+                                                           |
+                                                           -----0--> r (final)
+```
+
+(Note that in this case, the sub-DFA is already minimized, but this is not true in the general case of constructing this sub-DFA, and it is non-trivial to construct the minimized sub-DFA directly)
 
 Once the equivalent minimal binary DFA is built for a given regex, the encrypted test string is simply fed into the DFA and the DFA is evaluated homomorphically based on Algorithm 6 (and Remark 6) of [TFHE: Fast Fully Homomorphic Encryption over the Torus](https://eprint.iacr.org/2018/421.pdf) (in fact, this is the whole reason a binary DFA is built instead of just using the ASCII DFA, as to evaluate a DFA homomorphically, it must take a binary input alphabet in order to use CMUXes), producing a single ciphertext that encrypts the result of the DFA evaluation: in particular, it encrypts either `true` for acceptance of the bit string (the regex matches the string), or `false` for rejection of the bit string (the regex does not match the string).
 Note that here, it is required that the encrypted test string is a list of `7n` boolean ciphertexts, each encrypting a bit of the big-endian binary decompositions of the characters of the string (`n` is the length of the ASCII test string).
