@@ -342,10 +342,10 @@ impl ServerKey {
             terms.lock().unwrap().push(term);
         });
 
-        let terms = terms.into_inner().unwrap();
+        let mut terms = terms.into_inner().unwrap();
 
-        for term in terms {
-            self.unchecked_add_assign(&mut result, &term);
+        for term in terms.iter_mut() {
+            self.smart_add_assign(&mut result, term);
         }
 
         result
@@ -495,7 +495,20 @@ impl ServerKey {
                 (ct1, &tmp_rhs)
             }
         };
-        self.unchecked_mul_assign_parallelized(lhs, rhs);
+
+        let num_blocks = lhs.blocks.len();
+        let mut terms = vec![self.create_trivial_zero_radix(num_blocks); num_blocks];
+        terms
+            .par_iter_mut()
+            .zip(rhs.blocks.par_iter().enumerate())
+            .for_each(|(term, (i, rhs_i))| {
+                *term = self.unchecked_block_mul_parallelized(lhs, rhs_i, i);
+            });
+
+        *lhs = self
+            .smart_binary_op_seq_parallelized(&mut terms, ServerKey::smart_add_parallelized)
+            .unwrap_or_else(|| self.create_trivial_zero_radix(num_blocks));
+
         self.full_propagate_parallelized(lhs);
     }
 }
