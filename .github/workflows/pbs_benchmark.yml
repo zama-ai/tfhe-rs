@@ -5,21 +5,20 @@ on:
   workflow_dispatch:
     inputs:
       instance_id:
-        description: 'Instance ID'
+        description: "Instance ID"
         type: string
       instance_image_id:
-        description: 'Instance AMI ID'
+        description: "Instance AMI ID"
         type: string
       instance_type:
-        description: 'Instance product type'
+        description: "Instance product type"
         type: string
       runner_name:
-        description: 'Action runner name'
+        description: "Action runner name"
         type: string
       request_id:
-        description: 'Slab request ID'
+        description: "Slab request ID"
         type: string
-
 
 env:
   CARGO_TERM_COLOR: always
