@@ -21,7 +21,9 @@ use crate::high_level_api::keys::{
     CompressedPublicKey, RefKeyFromCompressedPublicKeyChain, RefKeyFromKeyChain,
     RefKeyFromPublicKeyChain,
 };
-use crate::high_level_api::traits::{FheBootstrap, FheDecrypt, FheEq, FheOrd, FheTryEncrypt};
+use crate::high_level_api::traits::{
+    FheBootstrap, FheDecrypt, FheEq, FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
+};
 use crate::high_level_api::{ClientKey, PublicKey};
 use crate::integer::U256;
 
@@ -163,6 +165,47 @@ where
         let key = id.ref_key(key)?;
         let ciphertext = key.inner.encrypt(value);
         Ok(Self::new(ciphertext, id))
+    }
+}
+
+impl<P, T> FheTryTrivialEncrypt<T> for GenericInteger<P>
+where
+    T: Into<U256>,
+    P: IntegerParameter<
+        InnerCiphertext = RadixCiphertextDyn,
+        InnerServerKey = crate::integer::ServerKey,
+    >,
+    P::Id: WithGlobalKey<Key = GenericIntegerServerKey<P>> + Default,
+{
+    type Error = crate::high_level_api::errors::Error;
+
+    fn try_encrypt_trivial(value: T) -> Result<Self, Self::Error> {
+        let value = value.into();
+        let id = P::Id::default();
+        let ciphertext = id.with_global(|key| match key.pbs_order {
+            crate::shortint::PBSOrder::KeyswitchBootstrap => {
+                RadixCiphertextDyn::Big(key.inner.create_trivial_radix(value, key.num_block))
+            }
+            crate::shortint::PBSOrder::BootstrapKeyswitch => {
+                RadixCiphertextDyn::Small(key.inner.create_trivial_radix(value, key.num_block))
+            }
+        })?;
+        Ok(Self::new(ciphertext, id))
+    }
+}
+
+impl<P, T> FheTrivialEncrypt<T> for GenericInteger<P>
+where
+    T: Into<U256>,
+    P: IntegerParameter<
+        InnerCiphertext = RadixCiphertextDyn,
+        InnerServerKey = crate::integer::ServerKey,
+    >,
+    P::Id: WithGlobalKey<Key = GenericIntegerServerKey<P>> + Default,
+{
+    #[track_caller]
+    fn encrypt_trivial(value: T) -> Self {
+        Self::try_encrypt_trivial(value).unwrap()
     }
 }
 

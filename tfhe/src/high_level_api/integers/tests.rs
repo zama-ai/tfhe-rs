@@ -201,3 +201,39 @@ fn test_integer_compressed_public_key() {
     let clear: u8 = a.decrypt(&client_key);
     assert_eq!(clear, 213u8);
 }
+
+#[test]
+fn test_trivial_fhe_uint8() {
+    let config = ConfigBuilder::all_disabled().enable_default_uint8().build();
+    let (client_key, sks) = generate_keys(config);
+
+    set_server_key(sks);
+
+    let a = FheUint8::try_encrypt_trivial(234u8).unwrap();
+    assert!(matches!(
+        &*a.ciphertext.borrow(),
+        crate::high_level_api::integers::server_key::RadixCiphertextDyn::Big(_)
+    ));
+
+    let clear: u8 = a.decrypt(&client_key);
+    assert_eq!(clear, 234);
+}
+
+#[test]
+fn test_trivial_fhe_uint256_small() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_uint256_small()
+        .build();
+    let (client_key, sks) = generate_keys(config);
+
+    set_server_key(sks);
+
+    let clear_a = U256::from(u128::MAX);
+    let a = FheUint256::try_encrypt_trivial(clear_a).unwrap();
+    assert!(matches!(
+        &*a.ciphertext.borrow(),
+        crate::high_level_api::integers::server_key::RadixCiphertextDyn::Small(_)
+    ));
+    let clear: U256 = a.decrypt(&client_key);
+    assert_eq!(clear, clear_a);
+}

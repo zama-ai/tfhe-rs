@@ -81,39 +81,61 @@ create_integer_wrapper_type!(name: FheUint128, clear_scalar_type: u64);
 create_integer_wrapper_type!(name: FheUint256, clear_scalar_type: u64);
 
 impl_decrypt_on_type!(FheUint8, u8);
+impl_try_encrypt_trivial_on_type!(FheUint8{crate::high_level_api::FheUint8}, u8);
 impl_try_encrypt_with_client_key_on_type!(FheUint8{crate::high_level_api::FheUint8}, u8);
 impl_try_encrypt_with_public_key_on_type!(FheUint8{crate::high_level_api::FheUint8}, u8);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint8{crate::high_level_api::CompressedFheUint8}, u8);
 
 impl_decrypt_on_type!(FheUint10, u16);
+impl_try_encrypt_trivial_on_type!(FheUint10{crate::high_level_api::FheUint10}, u16);
 impl_try_encrypt_with_client_key_on_type!(FheUint10{crate::high_level_api::FheUint10}, u16);
 impl_try_encrypt_with_public_key_on_type!(FheUint10{crate::high_level_api::FheUint10}, u16);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint10{crate::high_level_api::CompressedFheUint10}, u16);
 
 impl_decrypt_on_type!(FheUint12, u16);
+impl_try_encrypt_trivial_on_type!(FheUint12{crate::high_level_api::FheUint12}, u16);
 impl_try_encrypt_with_client_key_on_type!(FheUint12{crate::high_level_api::FheUint12}, u16);
 impl_try_encrypt_with_public_key_on_type!(FheUint12{crate::high_level_api::FheUint12}, u16);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint12{crate::high_level_api::CompressedFheUint12}, u16);
 
 impl_decrypt_on_type!(FheUint14, u16);
+impl_try_encrypt_trivial_on_type!(FheUint14{crate::high_level_api::FheUint14}, u16);
 impl_try_encrypt_with_client_key_on_type!(FheUint14{crate::high_level_api::FheUint14}, u16);
 impl_try_encrypt_with_public_key_on_type!(FheUint14{crate::high_level_api::FheUint14}, u16);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint14{crate::high_level_api::CompressedFheUint14}, u16);
 
 impl_decrypt_on_type!(FheUint16, u16);
+impl_try_encrypt_trivial_on_type!(FheUint16{crate::high_level_api::FheUint16}, u16);
 impl_try_encrypt_with_client_key_on_type!(FheUint16{crate::high_level_api::FheUint16}, u16);
 impl_try_encrypt_with_public_key_on_type!(FheUint16{crate::high_level_api::FheUint16}, u16);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint16{crate::high_level_api::CompressedFheUint16}, u16);
 
 impl_decrypt_on_type!(FheUint32, u32);
+impl_try_encrypt_trivial_on_type!(FheUint32{crate::high_level_api::FheUint32}, u32);
 impl_try_encrypt_with_client_key_on_type!(FheUint32{crate::high_level_api::FheUint32}, u32);
 impl_try_encrypt_with_public_key_on_type!(FheUint32{crate::high_level_api::FheUint32}, u32);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint32{crate::high_level_api::CompressedFheUint32}, u32);
 
 impl_decrypt_on_type!(FheUint64, u64);
+impl_try_encrypt_trivial_on_type!(FheUint64{crate::high_level_api::FheUint64}, u64);
 impl_try_encrypt_with_client_key_on_type!(FheUint64{crate::high_level_api::FheUint64}, u64);
 impl_try_encrypt_with_public_key_on_type!(FheUint64{crate::high_level_api::FheUint64}, u64);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint64{crate::high_level_api::CompressedFheUint64}, u64);
+
+#[no_mangle]
+pub unsafe extern "C" fn fhe_uint128_try_encrypt_trivial_u128(
+    low_word: u64,
+    high_word: u64,
+    result: *mut *mut FheUint128,
+) -> c_int {
+    catch_panic(|| {
+        let value = ((high_word as u128) << 64u128) | low_word as u128;
+
+        let inner = <crate::high_level_api::FheUint128>::try_encrypt_trivial(value).unwrap();
+
+        *result = Box::into_raw(Box::new(FheUint128(inner)));
+    })
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn fhe_uint128_try_encrypt_with_client_key_u128(
@@ -186,6 +208,18 @@ pub unsafe extern "C" fn fhe_uint128_decrypt(
 
         *low_word = (inner & (u64::MAX as u128)) as u64;
         *high_word = (inner >> 64) as u64;
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn fhe_uint256_try_encrypt_trivial_u256(
+    value: *const U256,
+    result: *mut *mut FheUint256,
+) -> c_int {
+    catch_panic(|| {
+        let inner = <crate::high_level_api::FheUint256>::try_encrypt_trivial((*value).0).unwrap();
+
+        *result = Box::into_raw(Box::new(FheUint256(inner)));
     })
 }
 
