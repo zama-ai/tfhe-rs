@@ -11,6 +11,7 @@ impl_binary_fn_on_type!(FheBool => bitand, bitor, bitxor);
 impl_unary_fn_on_type!(FheBool => not);
 
 impl_decrypt_on_type!(FheBool, bool);
+impl_try_encrypt_trivial_on_type!(FheBool{crate::high_level_api::FheBool}, bool);
 impl_try_encrypt_with_client_key_on_type!(FheBool{crate::high_level_api::FheBool}, bool);
 impl_try_encrypt_with_public_key_on_type!(FheBool{crate::high_level_api::FheBool}, bool);
 

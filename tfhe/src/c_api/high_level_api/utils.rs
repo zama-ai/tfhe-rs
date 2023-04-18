@@ -59,6 +59,23 @@ macro_rules! impl_try_encrypt_with_public_key_on_type {
     };
 }
 
+macro_rules! impl_try_encrypt_trivial_on_type {
+    ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn  [<$wrapper_type:snake _try_encrypt_trivial_ $input_type:snake>](
+                value: $input_type,
+                result: *mut *mut $wrapper_type,
+            ) -> ::std::os::raw::c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let inner = <$wrapped_type>::try_encrypt_trivial(value).unwrap();
+
+                    *result = Box::into_raw(Box::new($wrapper_type(inner)));
+                })
+            }
+        }
+    };
+}
 macro_rules! impl_decrypt_on_type {
     ($wrapper_type:ty, $output_type:ty) => {
         ::paste::paste! {
