@@ -413,7 +413,7 @@ static_int_type! {
         parameters: Radix {
             big_block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
             small_block_parameters: crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2,
-            num_block: 32,
+            num_block: 16,
             wopbs_block_parameters: crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
         },
     }
