@@ -67,6 +67,37 @@ int public_key_test(const ClientKey *client_key, const PublicKey *public_key) {
     return ok;
 }
 
+int trivial_encrypt_test(const ClientKey *client_key) {
+    int ok;
+    FheBool *lhs = NULL;
+    FheBool *rhs = NULL;
+    FheBool *result = NULL;
+
+    bool lhs_clear = 0;
+    bool rhs_clear = 1;
+
+    ok = fhe_bool_try_encrypt_trivial_bool(lhs_clear, &lhs);
+    assert(ok == 0);
+
+    ok = fhe_bool_try_encrypt_trivial_bool(rhs_clear, &rhs);
+    assert(ok == 0);
+
+    ok = fhe_bool_bitand(lhs, rhs, &result);
+    assert(ok == 0);
+
+    bool clear;
+    ok = fhe_bool_decrypt(result, client_key, &clear);
+    assert(ok == 0);
+
+    assert(clear == (lhs_clear & rhs_clear));
+
+    fhe_bool_destroy(lhs);
+    fhe_bool_destroy(rhs);
+    fhe_bool_destroy(result);
+
+    return ok;
+}
+
 int main(void)
 {
   
@@ -88,6 +119,7 @@ int main(void)
 
   client_key_test(client_key);
   public_key_test(client_key, public_key);
+  trivial_encrypt_test(client_key);
   
   client_key_destroy(client_key);
   public_key_destroy(public_key);

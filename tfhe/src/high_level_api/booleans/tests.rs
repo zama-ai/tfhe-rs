@@ -190,3 +190,14 @@ fn test_compressed_bool() {
     assert_eq!(a.decrypt(&keys), true);
     assert_eq!(b.decrypt(&keys), false);
 }
+
+#[test]
+fn test_trivial_bool() {
+    let keys = setup_static_default();
+
+    let a = FheBool::encrypt_trivial(true);
+    let b = FheBool::encrypt_trivial(false);
+
+    assert_eq!(a.decrypt(&keys), true);
+    assert_eq!(b.decrypt(&keys), false);
+}

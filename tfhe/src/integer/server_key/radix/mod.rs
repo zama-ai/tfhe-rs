@@ -65,7 +65,7 @@ impl ServerKey {
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let ctxt: RadixCiphertextBig = sks.create_trivial__radix(212u64, num_blocks);
+    /// let ctxt: RadixCiphertextBig = sks.create_trivial_radix(212u64, num_blocks);
     ///
     /// // Decrypt:
     /// let dec: u64 = cks.decrypt(&ctxt);
