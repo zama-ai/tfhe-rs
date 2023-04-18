@@ -17,7 +17,8 @@ use crate::high_level_api::keys::{
 };
 use crate::high_level_api::shortints::public_key::compressed::GenericShortIntCompressedPublicKey;
 use crate::high_level_api::traits::{
-    FheBootstrap, FheDecrypt, FheEq, FheNumberConstant, FheOrd, FheTryEncrypt, FheTryTrivialEncrypt,
+    FheBootstrap, FheDecrypt, FheEq, FheNumberConstant, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
+    FheTryTrivialEncrypt,
 };
 use crate::high_level_api::PublicKey;
 
@@ -308,6 +309,18 @@ where
                 })
             })?
         }
+    }
+}
+
+impl<Clear, P> FheTrivialEncrypt<Clear> for GenericShortInt<P>
+where
+    Clear: TryInto<u8>,
+    P: StaticShortIntegerParameter,
+    P::Id: Default + WithGlobalKey<Key = GenericShortIntServerKey<P>>,
+{
+    #[track_caller]
+    fn encrypt_trivial(value: Clear) -> Self {
+        Self::try_encrypt_trivial(value).unwrap()
     }
 }
 

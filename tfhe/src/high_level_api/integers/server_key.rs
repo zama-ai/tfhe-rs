@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::high_level_api::integers::parameters::EvaluationIntegerKey;
 
-use super::client_key::GenericIntegerClientKey;
+use super::client_key::{GenericIntegerClientKey, RadixClientKey};
 use super::parameters::IntegerParameter;
 
 use crate::integer::wopbs::WopbsKey;
@@ -11,12 +11,16 @@ use crate::integer::wopbs::WopbsKey;
 pub struct GenericIntegerServerKey<P: IntegerParameter> {
     pub(in crate::high_level_api::integers) inner: P::InnerServerKey,
     pub(in crate::high_level_api::integers) wopbs_key: WopbsKey,
+    // To know if we have to encrypt into a big or small when trivial encrypting
+    pub(in crate::high_level_api::integers) pbs_order: crate::shortint::PBSOrder,
+    // To know the num block when trivial encrypting
+    pub(in crate::high_level_api::integers) num_block: usize,
     _marker: PhantomData<P>,
 }
 
 impl<P> GenericIntegerServerKey<P>
 where
-    P: IntegerParameter,
+    P: IntegerParameter<InnerClientKey = RadixClientKey>,
     P::InnerServerKey: EvaluationIntegerKey<P::InnerClientKey>,
 {
     pub(super) fn new(client_key: &GenericIntegerClientKey<P>) -> Self {
@@ -29,6 +33,8 @@ where
         Self {
             inner,
             wopbs_key,
+            pbs_order: client_key.inner.pbs_order,
+            num_block: client_key.inner.inner.num_blocks(),
             _marker: Default::default(),
         }
     }
