@@ -59,10 +59,10 @@ To ensure predictable timings, the operation flavor is the `default` one: a carr
 
 | Plaintext size     |  add           | mul                 | greater\_than (gt)   |  min         |
 | -------------------| -------------- | ------------------- | ---------            | -------      |
-| 8    bits          | 129.0 ms       | 227.2 ms            | 111.9 ms             |  287.7 ms    |
-| 16   bits          | 256.3 ms       | 756.0 ms            | 145.3 ms             |  437.4 ms    |
-| 32   bits          | 469.4 ms       | 2.10 s              | 192.0 ms             |  776.4 ms    |
-| 40   bits          | 608.0 ms       | 3.37 s              | 228.4 ms             |  953.5 ms    |
-| 64   bits          | 959.9 ms       | 5.53 s              | 249.0 ms             |  1.36 s      |
-| 128  bits          | 1.88 s         | 14.1 s              | 294.7 ms             |  2.37 s      |
-| 256  bits          | 3.66 s         | 29.2 s              | 361.8 ms             |  4.51 s      |
+| 8    bits          | 129.0 ms       | 227.2 ms            | 111.9 ms             |  186.8 ms    |
+| 16   bits          | 256.3 ms       | 756.0 ms            | 145.3 ms             |  233.1 ms    |
+| 32   bits          | 469.4 ms       | 2.10 s              | 192.0 ms             |  282.9 ms    |
+| 40   bits          | 608.0 ms       | 3.37 s              | 228.4 ms             |  318.6 ms    |
+| 64   bits          | 959.9 ms       | 5.53 s              | 249.0 ms             |  336.5 ms    |
+| 128  bits          | 1.88 s         | 14.1 s              | 294.7 ms             |  398.6 ms    |
+| 256  bits          | 3.66 s         | 29.2 s              | 361.8 ms             |  509.1 ms    |
