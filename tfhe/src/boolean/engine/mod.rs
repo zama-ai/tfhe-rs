@@ -18,6 +18,9 @@ use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::seeders::new_seeder;
 
+#[cfg(test)]
+mod tests;
+
 pub(crate) trait BinaryGatesEngine<L, R, K> {
     fn and(&mut self, ct_left: L, ct_right: R, server_key: &K) -> Ciphertext;
     fn nand(&mut self, ct_left: L, ct_right: R, server_key: &K) -> Ciphertext;
@@ -257,6 +260,37 @@ impl Default for BooleanEngine {
 }
 
 impl BooleanEngine {
+    /// Replace the thread_local BooleanEngine
+    ///
+    /// `new_engine` will replace the already_existing
+    /// `thread_local` engine.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::boolean::engine::BooleanEngine;
+    /// use tfhe::core_crypto::commons::generators::DeterministicSeeder;
+    /// use tfhe::core_crypto::commons::math::random::Seed;
+    /// use tfhe::core_crypto::prelude::ActivatedRandomGenerator;
+    ///
+    /// // WARNING: Using a deterministic seed is not recommended
+    /// // as it renders the random generation insecure
+    ///
+    /// let deterministic_seed = Seed(0);
+    ///
+    /// let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(deterministic_seed);
+    /// let boolean_engine = BooleanEngine::new_from_seeder(&mut seeder);
+    /// BooleanEngine::replace_thread_local(boolean_engine);
+    ///
+    /// // This uses the engine create earlier
+    /// let (cks, sks) = tfhe::boolean::gen_keys();
+    /// ```
+    pub fn replace_thread_local(new_engine: Self) {
+        Self::with_thread_local_mut(|local_engine| {
+            let _ = std::mem::replace(local_engine, new_engine);
+        })
+    }
+
     pub fn new() -> Self {
         let mut root_seeder = new_seeder();
 
