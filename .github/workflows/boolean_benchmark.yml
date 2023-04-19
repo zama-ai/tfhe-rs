@@ -101,8 +101,6 @@ jobs:
 
       - name: Send data to Slab
         shell: bash
-        env:
-          COMPRESSED_RESULTS: ${{ env.RESULTS_FILENAME }}.gz
         run: |
           echo "Computing HMac on results file"
           SIGNATURE="$(slab/scripts/hmac_calculator.sh ${{ env.RESULTS_FILENAME }} '${{ secrets.JOB_SECRET }}')"
