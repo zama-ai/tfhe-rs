@@ -11,7 +11,7 @@ To serialize our data, a [data format](https://serde.rs/#data-formats) should be
 
 [dependencies]
 # ...
-tfhe = { version = "0.2.1", features = ["integer","x86_64-unix"]}
+tfhe = { version = "0.2.2", features = ["integer","x86_64-unix"]}
 bincode = "1.3.3"
 ```
 
