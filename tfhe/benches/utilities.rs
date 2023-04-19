@@ -120,11 +120,12 @@ struct BenchmarkParametersRecord {
     message_modulus: Option<usize>,
     carry_modulus: Option<usize>,
     ciphertext_modulus: usize,
+    bit_size: u32,
     polynomial_multiplication: PolynomialMultiplication,
     precision: u32,
     error_probability: f64,
     integer_representation: IntegerRepresentation,
-    decomposition_basis: u32,
+    decomposition_basis: Vec<u32>,
     pbs_algorithm: Option<String>,
     execution_type: ExecutionType,
     key_set_type: KeySetType,
@@ -139,6 +140,8 @@ pub fn write_to_json<T: Into<CryptoParametersRecord>>(
     params_alias: impl Into<String>,
     display_name: impl Into<String>,
     operator_type: &OperatorType,
+    bit_size: u32,
+    decomposition_basis: Vec<u32>,
 ) {
     let params = params.into();
 
@@ -158,11 +161,12 @@ pub fn write_to_json<T: Into<CryptoParametersRecord>>(
         message_modulus: params.message_modulus,
         carry_modulus: params.carry_modulus,
         ciphertext_modulus: 64,
+        bit_size,
         polynomial_multiplication: PolynomialMultiplication::Fft,
         precision: (params.message_modulus.unwrap_or(2) as u32).ilog2(),
         error_probability: 2f64.powf(-41.0),
         integer_representation: IntegerRepresentation::Radix,
-        decomposition_basis: (params.message_modulus.unwrap_or(2) as u32).ilog2(),
+        decomposition_basis,
         pbs_algorithm: None, // To be added in future version
         execution_type,
         key_set_type: KeySetType::Single,

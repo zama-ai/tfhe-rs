@@ -50,7 +50,15 @@ fn client_server_key_sizes(results_file: &Path) {
         let test_name = format!("shortint_key_sizes_{}_ksk", params.name());
 
         write_result(&mut file, &test_name, ksk_size);
-        write_to_json(&test_name, *params, params.name(), "KSK", &operator);
+        write_to_json(
+            &test_name,
+            *params,
+            params.name(),
+            "KSK",
+            &operator,
+            0,
+            vec![],
+        );
 
         println!(
             "Element in KSK: {}, size in bytes: {}",
@@ -62,7 +70,15 @@ fn client_server_key_sizes(results_file: &Path) {
         let test_name = format!("shortint_key_sizes_{}_bsk", params.name());
 
         write_result(&mut file, &test_name, bsk_size);
-        write_to_json(&test_name, *params, params.name(), "BSK", &operator);
+        write_to_json(
+            &test_name,
+            *params,
+            params.name(),
+            "BSK",
+            &operator,
+            0,
+            vec![],
+        );
 
         println!(
             "Element in BSK: {}, size in bytes: {}",

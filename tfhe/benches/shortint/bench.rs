@@ -74,6 +74,8 @@ fn bench_server_key_unary_function<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            param.message_modulus.0.ilog2(),
+            vec![param.message_modulus.0.ilog2()],
         );
     }
 
@@ -118,6 +120,8 @@ fn bench_server_key_binary_function<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            param.message_modulus.0.ilog2(),
+            vec![param.message_modulus.0.ilog2()],
         );
     }
 
@@ -161,6 +165,8 @@ fn bench_server_key_binary_scalar_function<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            param.message_modulus.0.ilog2(),
+            vec![param.message_modulus.0.ilog2()],
         );
     }
 
@@ -208,6 +214,8 @@ fn bench_server_key_binary_scalar_division_function<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            param.message_modulus.0.ilog2(),
+            vec![param.message_modulus.0.ilog2()],
         );
     }
 
@@ -242,6 +250,8 @@ fn carry_extract(c: &mut Criterion) {
             param.name(),
             "carry_extract",
             &OperatorType::Atomic,
+            param.message_modulus.0.ilog2(),
+            vec![param.message_modulus.0.ilog2()],
         );
     }
 
@@ -273,7 +283,15 @@ fn programmable_bootstrapping(c: &mut Criterion) {
             })
         });
 
-        write_to_json(&bench_id, param, param.name(), "pbs", &OperatorType::Atomic);
+        write_to_json(
+            &bench_id,
+            param,
+            param.name(),
+            "pbs",
+            &OperatorType::Atomic,
+            param.message_modulus.0.ilog2(),
+            vec![param.message_modulus.0.ilog2()],
+        );
     }
 
     bench_group.finish();

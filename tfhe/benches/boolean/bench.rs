@@ -1,6 +1,6 @@
 #[path = "../utilities.rs"]
 mod utilities;
-use crate::utilities::{write_to_json, OperatorType};
+use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tfhe::boolean::client_key::ClientKey;
@@ -16,6 +16,24 @@ criterion_group!(
 
 criterion_main!(gates_benches);
 
+/// Helper function to write boolean benchmarks parameters to disk in JSON format.
+pub fn write_to_json_boolean<T: Into<CryptoParametersRecord>>(
+    bench_id: &str,
+    params: T,
+    params_alias: impl Into<String>,
+    display_name: impl Into<String>,
+) {
+    write_to_json(
+        bench_id,
+        params,
+        params_alias,
+        display_name,
+        &OperatorType::Atomic,
+        1,
+        vec![1],
+    );
+}
+
 // Put all `bench_function` in one place
 // so the keygen is only run once per parameters saving time.
 fn benchs(c: &mut Criterion, params: BooleanParameters, parameter_name: &str) {
@@ -28,35 +46,33 @@ fn benchs(c: &mut Criterion, params: BooleanParameters, parameter_name: &str) {
     let ct2 = cks.encrypt(false);
     let ct3 = cks.encrypt(true);
 
-    let operator = OperatorType::Atomic;
-
     let id = format!("AND::{parameter_name}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.and(&ct1, &ct2))));
-    write_to_json(&id, params, parameter_name, "and", &operator);
+    write_to_json_boolean(&id, params, parameter_name, "and");
 
     let id = format!("NAND::{parameter_name}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.nand(&ct1, &ct2))));
-    write_to_json(&id, params, parameter_name, "nand", &operator);
+    write_to_json_boolean(&id, params, parameter_name, "nand");
 
     let id = format!("OR::{parameter_name}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.or(&ct1, &ct2))));
-    write_to_json(&id, params, parameter_name, "or", &operator);
+    write_to_json_boolean(&id, params, parameter_name, "or");
 
     let id = format!("XOR::{parameter_name}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.xor(&ct1, &ct2))));
-    write_to_json(&id, params, parameter_name, "xor", &operator);
+    write_to_json_boolean(&id, params, parameter_name, "xor");
 
     let id = format!("XNOR::{parameter_name}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.xnor(&ct1, &ct2))));
-    write_to_json(&id, params, parameter_name, "xnor", &operator);
+    write_to_json_boolean(&id, params, parameter_name, "xnor");
 
     let id = format!("NOT::{parameter_name}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.not(&ct1))));
-    write_to_json(&id, params, parameter_name, "not", &operator);
+    write_to_json_boolean(&id, params, parameter_name, "not");
 
     let id = format!("MUX::{parameter_name}");
     bench_group.bench_function(&id, |b| b.iter(|| black_box(sks.mux(&ct1, &ct2, &ct3))));
-    write_to_json(&id, params, parameter_name, "mux", &operator);
+    write_to_json_boolean(&id, params, parameter_name, "mux");
 }
 
 fn bench_default_parameters(c: &mut Criterion) {
