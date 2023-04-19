@@ -119,6 +119,8 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus.0.ilog2(); num_block],
         );
     }
 
@@ -177,6 +179,8 @@ fn bench_server_key_binary_function_clean_inputs<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus.0.ilog2(); num_block],
         );
     }
 
@@ -246,6 +250,8 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus.0.ilog2(); num_block],
         );
     }
 
@@ -300,6 +306,8 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus.0.ilog2(); num_block],
         );
     }
 
@@ -367,6 +375,8 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus.0.ilog2(); num_block],
         );
     }
 
@@ -421,6 +431,8 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F>(
             param.name(),
             display_name,
             &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus.0.ilog2(); num_block],
         );
     }
 

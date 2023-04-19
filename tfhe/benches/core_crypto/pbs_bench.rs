@@ -315,7 +315,16 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
             });
         }
 
-        write_to_json(&id, *params, name, "pbs", &OperatorType::Atomic);
+        let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "pbs",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
     }
 }
 
@@ -397,6 +406,15 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
             })
         });
 
-        write_to_json(&id, *params, name, "pbs", &OperatorType::Atomic);
+        let bit_size = params.message_modulus.unwrap().ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "pbs",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
     }
 }
