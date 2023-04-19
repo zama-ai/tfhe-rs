@@ -1242,18 +1242,19 @@ fn integer_smart_mul(param: Parameters) {
 
 fn integer_default_mul(param: Parameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    //RNG
-    let mut rng = rand::thread_rng();
+    let shortint_cks = cks.key.clone();
+    let shortint_sks = sks.key.clone();
+    let nb_ct = 8;
+    let cks = RadixClientKey::from((cks, nb_ct));
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus.0.pow(nb_ct as u32) as u64;
 
-    for _ in 0..NB_TEST_SMALLER {
+    println!("modulus: {modulus}");
+    for _ in 0..1 {
         // Define the cleartexts
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
+        let clear1 = modulus - 1;
+        let clear2 = modulus - 1;
 
         // println!("clear1 = {}, clear2 = {}", clear1, clear2);
 
@@ -1261,19 +1262,46 @@ fn integer_default_mul(param: Parameters) {
         let ctxt_1 = cks.encrypt(clear1);
         let ctxt_2 = cks.encrypt(clear2);
 
-        let mut res = ctxt_1.clone();
-        let mut clear = clear1;
+        let mut res = sks.mul_parallelized(&ctxt_1, &ctxt_2);
+        // assert!(res.block_carries_are_empty());
+        let dec: u64 = cks.decrypt(&res);
+        println!("sanity dec: {dec}");
 
-        res = sks.mul_parallelized(&res, &ctxt_2);
-        assert!(res.block_carries_are_empty());
-        for _ in 0..5 {
-            res = sks.mul_parallelized(&res, &ctxt_2);
-            assert!(res.block_carries_are_empty());
-            clear = (clear * clear2) % modulus;
+        for block in res.blocks.iter() {
+            let dec_block_carry_msg = shortint_cks.decrypt_message_and_carry(block);
+            let padding_bit = shortint_cks.decrypt_message_and_carry_without_padding(block)
+                / ((param.message_modulus.0 * param.carry_modulus.0) as u64 / 2);
+            println!("carry_msg: {dec_block_carry_msg}");
+            println!("padding_bit: {padding_bit}");
+
+            println!("Applying identity LUT on block:");
+            let acc = shortint_sks.generate_accumulator(|x: u64| x);
+            let lut_res = shortint_sks.apply_lookup_table(&block, &acc);
+            let dec_after_pbs_with_trash_padding = shortint_cks.decrypt_message_and_carry(&lut_res);
+
+            println!("Expected: {dec_block_carry_msg}, got: {dec_after_pbs_with_trash_padding}");
         }
+
+        sks.full_propagate(&mut res);
+
+        for block in res.blocks.iter() {
+            let dec_block_carry_msg = shortint_cks.decrypt_message_and_carry(block);
+            let padding_bit = shortint_cks.decrypt_message_and_carry_without_padding(block)
+                / ((param.message_modulus.0 * param.carry_modulus.0) as u64 / 2);
+            println!("carry_msg: {dec_block_carry_msg}");
+            println!("padding_bit: {padding_bit}");
+
+            println!("Applying identity LUT on block:");
+            let acc = shortint_sks.generate_accumulator(|x: u64| x);
+            let lut_res = shortint_sks.apply_lookup_table(&block, &acc);
+            let dec_after_pbs_with_trash_padding = shortint_cks.decrypt_message_and_carry(&lut_res);
+
+            println!("Expected: {dec_block_carry_msg}, got: {dec_after_pbs_with_trash_padding}");
+        }
+
         let dec: u64 = cks.decrypt(&res);
 
-        clear = (clear * clear2) % modulus;
+        let clear = (clear1 * clear2) % modulus;
 
         // Check the correctness
         assert_eq!(clear, dec);
