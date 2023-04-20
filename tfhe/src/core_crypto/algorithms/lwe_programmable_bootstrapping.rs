@@ -25,7 +25,8 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
 /// Perform a blind rotation given an input [`LWE ciphertext`](`LweCiphertext`), modifying a look-up
 /// table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
-/// key`](`LweBootstrapKey`) in the fourier domain.
+/// key`](`LweBootstrapKey`) in the fourier domain see [`fourier LWE bootsrap
+/// key`](`FourierLweBootstrapKey`).
 ///
 /// If you want to manage the computation memory manually you can use
 /// [`blind_rotate_assign_mem_optimized`].
@@ -811,7 +812,8 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 
 /// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
 /// look-up table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
-/// key`](`LweBootstrapKey`) in the fourier domain. The result is written in the provided output
+/// key`](`LweBootstrapKey`) in the fourier domain see [`fourier LWE bootsrap
+/// key`](`FourierLweBootstrapKey`). The result is written in the provided output
 /// [`LWE ciphertext`](`LweCiphertext`).
 ///
 /// If you want to manage the computation memory manually you can use
@@ -1119,11 +1121,12 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 
 /// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
 /// look-up table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
-/// key`](`LweBootstrapKey`) in the fourier domain using f128. The result is written in the provided
+/// key`](`LweBootstrapKey`) in the fourier domain using f128 see [`fourier LWE bootsrap
+/// key`](`Fourier128LweBootstrapKey`). The result is written in the provided
 /// output [`LWE ciphertext`](`LweCiphertext`).
 ///
 /// If you want to manage the computation memory manually you can use
-/// [`programmable_bootstrap_lwe_ciphertext_mem_optimized`].
+/// [`programmable_bootstrap_f128_lwe_ciphertext_mem_optimized`].
 ///
 /// # Example
 ///
