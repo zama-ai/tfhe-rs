@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::PBSOrderMarker;
@@ -196,24 +194,25 @@ impl ServerKey {
             } else {
                 // we repeatedly divide the number of terms by two by iteratively reducing
                 // consecutive terms in the array
+                let num_blocks = ct_seq[0].as_mut().blocks.len();
                 while ct_seq.len() > 1 {
-                    let results = Mutex::new(Vec::<RadixCiphertext<PBSOrder>>::with_capacity(
-                        ct_seq.len() / 2,
-                    ));
+                    let mut results =
+                        vec![sks.create_trivial_radix(0u64, num_blocks); ct_seq.len() / 2];
 
                     // if the number of elements is odd, we skip the first element
                     let untouched_prefix = ct_seq.len() % 2;
                     let ct_seq_slice = &mut ct_seq[untouched_prefix..];
 
-                    ct_seq_slice.par_chunks_mut(2).for_each(|chunk| {
-                        let (first, second) = chunk.split_at_mut(1);
-                        let first = &mut first[0];
-                        let second = &mut second[0];
-                        let result = op(sks, first.as_mut(), second.as_mut());
-                        results.lock().unwrap().push(result);
-                    });
+                    results
+                        .par_iter_mut()
+                        .zip(ct_seq_slice.par_chunks_exact_mut(2))
+                        .for_each(|(ct_res, chunk)| {
+                            let (first, second) = chunk.split_at_mut(1);
+                            let first = first[0].as_mut();
+                            let second = second[0].as_mut();
+                            *ct_res = op(sks, first, second);
+                        });
 
-                    let results = results.into_inner().unwrap();
                     ct_seq.truncate(untouched_prefix);
                     ct_seq.extend(results.into_iter().map(CiphertextCow::Owned));
                 }
@@ -281,24 +280,23 @@ impl ServerKey {
             } else {
                 // we repeatedly divide the number of terms by two by iteratively reducing
                 // consecutive terms in the array
+                let num_blocks = ct_seq[0].as_ref().blocks.len();
                 while ct_seq.len() > 1 {
-                    let results = Mutex::new(Vec::<RadixCiphertext<PBSOrder>>::with_capacity(
-                        ct_seq.len() / 2,
-                    ));
-
+                    let mut results =
+                        vec![sks.create_trivial_radix(0u64, num_blocks); ct_seq.len() / 2];
                     // if the number of elements is odd, we skip the first element
                     let untouched_prefix = ct_seq.len() % 2;
                     let ct_seq_slice = &mut ct_seq[untouched_prefix..];
 
-                    ct_seq_slice.par_chunks(2).for_each(|chunk| {
-                        let (first, second) = chunk.split_at(1);
-                        let first = &first[0];
-                        let second = &second[0];
-                        let result = op(sks, first.as_ref(), second.as_ref());
-                        results.lock().unwrap().push(result);
-                    });
+                    results
+                        .par_iter_mut()
+                        .zip(ct_seq_slice.par_chunks_exact(2))
+                        .for_each(|(ct_res, chunk)| {
+                            let first = chunk[0].as_ref();
+                            let second = chunk[1].as_ref();
+                            *ct_res = op(sks, first, second);
+                        });
 
-                    let results = results.into_inner().unwrap();
                     ct_seq.truncate(untouched_prefix);
                     ct_seq.extend(results.into_iter().map(CiphertextCow::Owned));
                 }
