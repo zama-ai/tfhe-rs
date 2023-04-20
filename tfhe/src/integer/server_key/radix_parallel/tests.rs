@@ -97,7 +97,6 @@ fn integer_smart_add(param: Parameters) {
         // encryption of an integer
         let mut ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_add_parallelized(&mut ctxt_0, &mut ctxt_1);
 
         clear = (clear_0 + clear_1) % modulus;
@@ -141,7 +140,6 @@ fn integer_smart_add_sequence_multi_thread(param: Parameters) {
                 .map(|clear| cks.encrypt(clear))
                 .collect::<Vec<_>>();
 
-            // add the ciphertexts
             let ct_res = sks
                 .smart_binary_op_seq_parallelized(&mut ctxts, ServerKey::smart_add_parallelized)
                 .unwrap();
@@ -176,7 +174,6 @@ fn integer_smart_add_sequence_single_thread(param: Parameters) {
                 .map(|clear| cks.encrypt(clear))
                 .collect::<Vec<_>>();
 
-            // add the ciphertexts
             let threadpool = rayon::ThreadPoolBuilder::new()
                 .num_threads(1)
                 .build()
@@ -217,9 +214,10 @@ fn integer_default_add(param: Parameters) {
         // encryption of an integer
         let ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.add_parallelized(&ctxt_0, &ctxt_1);
+        let tmp_ct = sks.add_parallelized(&ctxt_0, &ctxt_1);
         assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct);
 
         clear = (clear_0 + clear_1) % modulus;
 
@@ -263,11 +261,14 @@ fn integer_default_add_sequence_multi_thread(param: Parameters) {
                 .map(|clear| cks.encrypt(clear))
                 .collect::<Vec<_>>();
 
-            // add the ciphertexts
             let ct_res = sks
                 .default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
                 .unwrap();
+            let tmp_ct = sks
+                .default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
+                .unwrap();
             assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp_ct);
             let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
@@ -299,7 +300,6 @@ fn integer_default_add_sequence_single_thread(param: Parameters) {
                 .map(|clear| cks.encrypt(clear))
                 .collect::<Vec<_>>();
 
-            // add the ciphertexts
             let threadpool = rayon::ThreadPoolBuilder::new()
                 .num_threads(1)
                 .build()
@@ -341,7 +341,6 @@ fn integer_smart_bitand(param: Parameters) {
         // encryption of an integer
         let mut ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_bitand_parallelized(&mut ctxt_0, &mut ctxt_1);
 
         clear = clear_0 & clear_1;
@@ -387,7 +386,6 @@ fn integer_smart_bitor(param: Parameters) {
         // encryption of an integer
         let mut ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_bitor_parallelized(&mut ctxt_0, &mut ctxt_1);
 
         clear = (clear_0 | clear_1) % modulus;
@@ -433,7 +431,6 @@ fn integer_smart_bitxor(param: Parameters) {
         // encryption of an integer
         let mut ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_bitxor_parallelized(&mut ctxt_0, &mut ctxt_1);
 
         clear = (clear_0 ^ clear_1) % modulus;
@@ -479,7 +476,6 @@ fn integer_default_bitand(param: Parameters) {
         // encryption of an integer
         let ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.bitand_parallelized(&ctxt_0, &ctxt_1);
         assert!(ct_res.block_carries_are_empty());
 
@@ -491,8 +487,10 @@ fn integer_default_bitand(param: Parameters) {
             // encryption of an integer
             let ctxt_2 = cks.encrypt(clear_2);
 
+            let tmp = sks.bitand_parallelized(&ct_res, &ctxt_2);
             ct_res = sks.bitand_parallelized(&ct_res, &ctxt_2);
             assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
             clear &= clear_2;
 
             // decryption of ct_res
@@ -527,7 +525,6 @@ fn integer_default_bitor(param: Parameters) {
         // encryption of an integer
         let ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.bitor_parallelized(&ctxt_0, &ctxt_1);
         assert!(ct_res.block_carries_are_empty());
 
@@ -539,8 +536,10 @@ fn integer_default_bitor(param: Parameters) {
             // encryption of an integer
             let ctxt_2 = cks.encrypt(clear_2);
 
+            let tmp = sks.bitor_parallelized(&ct_res, &ctxt_2);
             ct_res = sks.bitor_parallelized(&ct_res, &ctxt_2);
             assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
             clear = (clear | clear_2) % modulus;
 
             // decryption of ct_res
@@ -575,7 +574,6 @@ fn integer_default_bitxor(param: Parameters) {
         // encryption of an integer
         let ctxt_1 = cks.encrypt(clear_1);
 
-        // add the two ciphertexts
         let mut ct_res = sks.bitxor_parallelized(&ctxt_0, &ctxt_1);
         assert!(ct_res.block_carries_are_empty());
 
@@ -587,8 +585,10 @@ fn integer_default_bitxor(param: Parameters) {
             // encryption of an integer
             let ctxt_2 = cks.encrypt(clear_2);
 
+            let tmp = sks.bitxor_parallelized(&ct_res, &ctxt_2);
             ct_res = sks.bitxor_parallelized(&ct_res, &ctxt_2);
             assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
             clear = (clear ^ clear_2) % modulus;
 
             // decryption of ct_res
@@ -620,7 +620,6 @@ fn integer_unchecked_small_scalar_mul(param: Parameters) {
         // encryption of an integer
         let ct = cks.encrypt(clear);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_small_scalar_mul_parallelized(&ct, scalar);
 
         // decryption of ct_res
@@ -696,8 +695,10 @@ fn integer_default_small_scalar_mul(param: Parameters) {
         clear_res = clear * scalar;
         for _ in 0..NB_TEST_SMALLER {
             // scalar multiplication
+            let tmp = sks.small_scalar_mul_parallelized(&ct_res, scalar);
             ct_res = sks.small_scalar_mul_parallelized(&ct_res, scalar);
             assert!(ct_res.block_carries_are_empty());
+            assert_eq!(tmp, ct_res);
             clear_res *= scalar;
         }
 
@@ -758,7 +759,9 @@ fn integer_default_scalar_mul(param: Parameters) {
 
         // scalar mul
         let ct_res = sks.scalar_mul_parallelized(&ct, scalar);
+        let tmp = sks.scalar_mul_parallelized(&ct, scalar);
         assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt(&ct_res);
@@ -790,7 +793,6 @@ fn integer_unchecked_scalar_left_shift(param: Parameters) {
         // encryption of an integer
         let ct = cks.encrypt(clear);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_scalar_left_shift_parallelized(&ct, scalar);
 
         // decryption of ct_res
@@ -823,9 +825,10 @@ fn integer_default_scalar_left_shift(param: Parameters) {
         // encryption of an integer
         let ct = cks.encrypt(clear);
 
-        // add the two ciphertexts
         let ct_res = sks.scalar_left_shift_parallelized(&ct, scalar);
+        let tmp = sks.scalar_left_shift_parallelized(&ct, scalar);
         assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt(&ct_res);
@@ -857,7 +860,6 @@ fn integer_unchecked_scalar_right_shift(param: Parameters) {
         // encryption of an integer
         let ct = cks.encrypt(clear);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_scalar_right_shift_parallelized(&ct, scalar);
 
         // decryption of ct_res
@@ -890,9 +892,10 @@ fn integer_default_scalar_right_shift(param: Parameters) {
         // encryption of an integer
         let ct = cks.encrypt(clear);
 
-        // add the two ciphertexts
         let ct_res = sks.scalar_right_shift_parallelized(&ct, scalar);
+        let tmp = sks.scalar_right_shift_parallelized(&ct, scalar);
         assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
 
         // decryption of ct_res
         let dec_res: u64 = cks.decrypt(&ct_res);
@@ -950,11 +953,13 @@ fn integer_default_neg(param: Parameters) {
         let ctxt = cks.encrypt(clear);
 
         // Negates the ctxt
-        let ct_tmp = sks.neg_parallelized(&ctxt);
-        assert!(ct_tmp.block_carries_are_empty());
+        let ct_res = sks.neg_parallelized(&ctxt);
+        let tmp = sks.neg_parallelized(&ctxt);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
 
         // Decrypt the result
-        let dec: u64 = cks.decrypt(&ct_tmp);
+        let dec: u64 = cks.decrypt(&ct_res);
 
         // Check the correctness
         let clear_result = clear.wrapping_neg() % modulus;
@@ -1022,8 +1027,10 @@ fn integer_default_sub(param: Parameters) {
 
         //subtract multiple times to raise the degree
         for _ in 0..NB_TEST_SMALLER {
+            let tmp = sks.sub_parallelized(&res, &ctxt_2);
             res = sks.sub_parallelized(&res, &ctxt_2);
             assert!(res.block_carries_are_empty());
+            assert_eq!(res, tmp);
             clear = (clear.wrapping_sub(clear2)) % modulus;
             // println!("clear = {}, clear2 = {}", clear, cks.decrypt(&res));
         }
@@ -1057,7 +1064,6 @@ fn integer_unchecked_block_mul(param: Parameters) {
         // encryption of an integer
         let ct_one = cks.encrypt_one_block(clear_1);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_block_mul_parallelized(&ct_zero, &ct_one, 0);
 
         // decryption of ct_res
@@ -1133,8 +1139,10 @@ fn integer_default_block_mul(param: Parameters) {
         res = sks.block_mul_parallelized(&res, &ctxt_2, 0);
         assert!(res.block_carries_are_empty());
         for _ in 0..5 {
+            let tmp = sks.block_mul_parallelized(&res, &ctxt_2, 0);
             res = sks.block_mul_parallelized(&res, &ctxt_2, 0);
             assert!(res.block_carries_are_empty());
+            assert_eq!(res, tmp);
             clear = (clear * clear2) % modulus;
         }
         let dec: u64 = cks.decrypt(&res);
@@ -1211,8 +1219,10 @@ fn integer_default_mul(param: Parameters) {
         res = sks.mul_parallelized(&res, &ctxt_2);
         assert!(res.block_carries_are_empty());
         for _ in 0..5 {
+            let tmp = sks.mul_parallelized(&res, &ctxt_2);
             res = sks.mul_parallelized(&res, &ctxt_2);
             assert!(res.block_carries_are_empty());
+            assert_eq!(res, tmp);
             clear = (clear * clear2) % modulus;
         }
         let dec: u64 = cks.decrypt(&res);
@@ -1245,7 +1255,6 @@ fn integer_smart_scalar_add(param: Parameters) {
         // encryption of an integer
         let mut ctxt_0 = cks.encrypt(clear_0);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_scalar_add_parallelized(&mut ctxt_0, clear_1);
 
         clear = (clear_0 + clear_1) % modulus;
@@ -1287,7 +1296,6 @@ fn integer_default_scalar_add(param: Parameters) {
         // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // add the two ciphertexts
         let mut ct_res = sks.scalar_add_parallelized(&ctxt_0, clear_1);
         assert!(ct_res.block_carries_are_empty());
 
@@ -1296,8 +1304,10 @@ fn integer_default_scalar_add(param: Parameters) {
         // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
         //add multiple times to raise the degree
         for _ in 0..NB_TEST_SMALLER {
+            let tmp = sks.scalar_add_parallelized(&ct_res, clear_1);
             ct_res = sks.scalar_add_parallelized(&ct_res, clear_1);
             assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
             clear = (clear + clear_1) % modulus;
 
             // decryption of ct_res
@@ -1331,7 +1341,6 @@ fn integer_smart_scalar_sub(param: Parameters) {
         // encryption of an integer
         let mut ctxt_0 = cks.encrypt(clear_0);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_scalar_sub_parallelized(&mut ctxt_0, clear_1);
 
         clear = (clear_0 - clear_1) % modulus;
@@ -1373,7 +1382,6 @@ fn integer_default_scalar_sub(param: Parameters) {
         // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        // add the two ciphertexts
         let mut ct_res = sks.scalar_sub_parallelized(&ctxt_0, clear_1);
         assert!(ct_res.block_carries_are_empty());
 
@@ -1382,8 +1390,10 @@ fn integer_default_scalar_sub(param: Parameters) {
         // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
         //add multiple times to raise the degree
         for _ in 0..NB_TEST_SMALLER {
+            let tmp = sks.scalar_sub_parallelized(&ct_res, clear_1);
             ct_res = sks.scalar_sub_parallelized(&ct_res, clear_1);
             assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
             clear = (clear.wrapping_sub(clear_1)) % modulus;
 
             // decryption of ct_res

@@ -35,7 +35,7 @@ pub trait PBSOrderMarker: seal::Sealed + Debug + Clone + Copy + Send + Sync {
     fn pbs_order() -> PBSOrder;
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct KeyswitchBootstrap;
 
 impl PBSOrderMarker for KeyswitchBootstrap {
@@ -118,7 +118,7 @@ impl Degree {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
 pub struct CiphertextBase<OpOrder: PBSOrderMarker> {
     pub ct: LweCiphertextOwned<u64>,
