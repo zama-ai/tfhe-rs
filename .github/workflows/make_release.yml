@@ -1,0 +1,18 @@
+# Create and publish new release of tfhe-rs using semantic-release.
+name: Make release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
+        with:
+          fetch-depth: 0
