@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::PBSOrderMarker;
@@ -335,14 +333,15 @@ impl ServerKey {
     ) -> RadixCiphertext<PBSOrder> {
         let mut result = self.create_trivial_zero_radix(ct1.blocks.len());
 
-        let terms = Mutex::new(Vec::new());
+        let num_blocks = ct1.blocks.len();
+        let mut terms = vec![self.create_trivial_zero_radix(num_blocks); num_blocks];
 
-        ct2.blocks.par_iter().enumerate().for_each(|(i, ct2_i)| {
-            let term = self.unchecked_block_mul_parallelized(ct1, ct2_i, i);
-            terms.lock().unwrap().push(term);
-        });
-
-        let mut terms = terms.into_inner().unwrap();
+        terms
+            .par_iter_mut()
+            .zip(ct2.blocks.par_iter().enumerate())
+            .for_each(|(term, (i, ct2_i))| {
+                *term = self.unchecked_block_mul_parallelized(ct1, ct2_i, i);
+            });
 
         for term in terms.iter_mut() {
             self.smart_add_assign(&mut result, term);
@@ -407,12 +406,15 @@ impl ServerKey {
             || self.full_propagate_parallelized(ct2),
         );
 
-        let terms = Mutex::new(Vec::new());
-        ct2.blocks.par_iter().enumerate().for_each(|(i, ct2_i)| {
-            let term = self.unchecked_block_mul_parallelized(ct1, ct2_i, i);
-            terms.lock().unwrap().push(term);
-        });
-        let mut terms = terms.into_inner().unwrap();
+        let num_blocks = ct1.blocks.len();
+        let mut terms = vec![self.create_trivial_zero_radix(num_blocks); num_blocks];
+
+        terms
+            .par_iter_mut()
+            .zip(ct2.blocks.par_iter().enumerate())
+            .for_each(|(term, (i, ct2_i))| {
+                *term = self.unchecked_block_mul_parallelized(ct1, ct2_i, i);
+            });
 
         self.smart_binary_op_seq_parallelized(&mut terms, ServerKey::smart_add_parallelized)
             .unwrap_or_else(|| self.create_trivial_zero_radix(ct1.blocks.len()))

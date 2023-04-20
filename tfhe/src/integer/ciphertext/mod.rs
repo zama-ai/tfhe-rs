@@ -7,7 +7,7 @@ use crate::shortint::{
 use serde::{Deserialize, Serialize};
 
 /// Structure containing a ciphertext in radix decomposition.
-#[derive(Serialize, Clone, Deserialize)]
+#[derive(Serialize, Clone, Deserialize, PartialEq, Eq, Debug)]
 pub struct BaseRadixCiphertext<Block> {
     /// The blocks are stored from LSB to MSB
     pub(crate) blocks: Vec<Block>,
