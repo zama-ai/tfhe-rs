@@ -1,4 +1,4 @@
-//! Welcome to the TFHR-rs API documentation!
+//! Welcome to the TFHE-rs API documentation!
 //!
 //! TFHE-rs is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE.
 
