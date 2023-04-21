@@ -233,7 +233,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
             return self.random_noise(std);
         }
 
-        let custom_modulus_f64: f64 = custom_modulus.get().cast_into();
+        let custom_modulus_f64: f64 = custom_modulus.get_custom_modulus().cast_into();
         Scalar::generate_one_custom_modulus(
             &mut self.noise,
             Gaussian {

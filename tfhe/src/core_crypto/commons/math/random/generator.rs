@@ -214,10 +214,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         self.fill_slice_with_random_uniform(output);
 
         if !custom_modulus.is_native_modulus() {
-            output
-                .as_mut()
-                .iter_mut()
-                .for_each(|x| *x = (*x).wrapping_rem(custom_modulus.get().cast_into()));
+            output.as_mut().iter_mut().for_each(|x| {
+                *x = (*x).wrapping_rem(custom_modulus.get_custom_modulus().cast_into())
+            });
         }
     }
 
@@ -433,7 +432,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
             return;
         }
 
-        let custom_modulus_float: Float = custom_modulus.get().cast_into();
+        let custom_modulus_float: Float = custom_modulus.get_custom_modulus().cast_into();
         output.chunks_mut(2).for_each(|s| {
             let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
                 self,
@@ -517,7 +516,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
             return;
         }
 
-        let custom_modulus_float: Float = custom_modulus.get().cast_into();
+        let custom_modulus_float: Float = custom_modulus.get_custom_modulus().cast_into();
         output.chunks_mut(2).for_each(|s| {
             let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
                 self,
