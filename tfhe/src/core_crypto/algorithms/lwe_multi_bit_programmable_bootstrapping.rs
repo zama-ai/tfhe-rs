@@ -512,7 +512,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
             // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
             // round while keeping the data in the MSBs
             let signed_decomposer = SignedDecomposer::new(
-                DecompositionBaseLog(ciphertext_modulus.get().ilog2() as usize),
+                DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
                 DecompositionLevelCount(1),
             );
             ct0.as_mut()

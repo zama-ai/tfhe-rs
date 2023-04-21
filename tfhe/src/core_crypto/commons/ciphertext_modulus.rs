@@ -1,15 +1,25 @@
 //! Module containing the definition of the [`CiphertextModulus`].
 
 use crate::core_crypto::commons::traits::UnsignedInteger;
+use core::num::NonZeroU128;
 use std::marker::PhantomData;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-/// A value of 0 is always interpreted as a native modulus, this is useful to work with u128 using
-/// the native modulus as $2^{128}$ cannot be stored in a u128 value.
+/// Private enum to avoid end user mis-instantiating a CiphertextModulus
 ///
-/// This also allows to not rely on an enum which would require a discriminant field adding 8 bytes
-/// to store 1 bit of information (native variant vs custom variant with u128 payload).
-pub struct CiphertextModulus<Scalar: UnsignedInteger>(u128, PhantomData<Scalar>);
+/// NonZeroU128 allows to always have a correct modulus and to have an enum that is no bigger than a
+/// u128 with the 0 optimization as the tag then corresponds to the Native variant.
+enum CiphertextModulusInner {
+    Native,
+    Custom(NonZeroU128),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+/// Structure representing a [`CiphertextModulus`] often noted $q$.
+pub struct CiphertextModulus<Scalar: UnsignedInteger> {
+    inner: CiphertextModulusInner,
+    _scalar: PhantomData<Scalar>,
+}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SerialiazableLweCiphertextModulus {
@@ -23,8 +33,13 @@ impl<Scalar: UnsignedInteger> serde::Serialize for CiphertextModulus<Scalar> {
     where
         S: serde::Serializer,
     {
+        let modulus = match self.inner {
+            CiphertextModulusInner::Native => 0,
+            CiphertextModulusInner::Custom(modulus) => modulus.get(),
+        };
+
         SerialiazableLweCiphertextModulus {
-            modulus: self.get(),
+            modulus,
             scalar_bits: Scalar::BITS,
         }
         .serialize(serializer)
@@ -49,52 +64,99 @@ impl<'de, Scalar: UnsignedInteger> serde::Deserialize<'de> for CiphertextModulus
             )));
         }
 
-        Ok(CiphertextModulus(thing.modulus, PhantomData))
+        let res = if thing.modulus == 0 {
+            CiphertextModulus {
+                inner: CiphertextModulusInner::Native,
+                _scalar: PhantomData,
+            }
+        } else {
+            CiphertextModulus {
+                inner: CiphertextModulusInner::Custom(NonZeroU128::new(thing.modulus).ok_or(
+                    serde::de::Error::custom(
+                        "Got zero modulus for CiphertextModulusInner::Custom variant",
+                    ),
+                )?),
+                _scalar: PhantomData,
+            }
+        };
+        Ok(res.canonicalize())
     }
 }
 
 impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
     pub const fn new_native() -> Self {
-        Self(0, PhantomData)
+        Self {
+            inner: CiphertextModulusInner::Native,
+            _scalar: PhantomData,
+        }
     }
 
     pub const fn try_new_power_of_2(exponent: usize) -> Result<Self, &'static str> {
         if exponent > Scalar::BITS {
             Err("Modulus is bigger than the maximum value of the associated Scalar type")
         } else {
-            let modulus = match 1u128.checked_shl(exponent as u32) {
-                Some(modulus) => modulus,
-                None => 0,
+            let res = match 1u128.checked_shl(exponent as u32) {
+                Some(modulus) => {
+                    let non_zero_modulus = match NonZeroU128::new(modulus) {
+                        Some(val) => val,
+                        None => {
+                            panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
+                        }
+                    };
+                    Self {
+                        inner: CiphertextModulusInner::Custom(non_zero_modulus),
+                        _scalar: PhantomData,
+                    }
+                }
+                None => {
+                    assert!(exponent == 128);
+                    assert!(Scalar::BITS == 128);
+                    Self {
+                        inner: CiphertextModulusInner::Native,
+                        _scalar: PhantomData,
+                    }
+                }
             };
-            Ok(Self(modulus, PhantomData).canonicalize())
+            Ok(res.canonicalize())
+        }
+    }
+
+    pub const fn canonicalize(self) -> Self {
+        match self.inner {
+            CiphertextModulusInner::Native => self,
+            CiphertextModulusInner::Custom(modulus) => {
+                if Scalar::BITS < 128 && modulus.get() == (1 << Scalar::BITS) {
+                    CiphertextModulus::new_native()
+                } else {
+                    self
+                }
+            }
         }
     }
 
     #[cfg(test)]
-    pub const fn new_unchecked(modulus: u128) -> Self {
-        Self(modulus, PhantomData)
-    }
-
-    #[inline]
-    /// Return the u128 value storing the modulus. This returns 0 if the modulus is the native
-    /// modulus of the associated scalar type.
-    pub const fn get(&self) -> u128 {
-        self.0
-    }
-
-    pub const fn canonicalize(self) -> Self {
-        if self.is_native_modulus() {
-            Self(0, PhantomData)
-        } else {
-            self
-        }
+    /// # Safety
+    /// modulus needs to be able to fit in the associated Scalar type
+    pub const unsafe fn new_unchecked(modulus: u128) -> Self {
+        let res = match modulus {
+            0 => Self {
+                inner: CiphertextModulusInner::Native,
+                _scalar: PhantomData,
+            },
+            _ => Self {
+                inner: CiphertextModulusInner::Custom(NonZeroU128::new_unchecked(modulus)),
+                _scalar: PhantomData,
+            },
+        };
+        res.canonicalize()
     }
 
     pub fn get_scaling_to_native_torus(&self) -> Scalar {
-        if !self.is_native_modulus() {
-            Scalar::ONE.wrapping_shl(Scalar::BITS as u32 - self.0.ilog2())
-        } else {
-            Scalar::ONE
+        match self.inner {
+            CiphertextModulusInner::Native => Scalar::ONE,
+            CiphertextModulusInner::Custom(modulus) => {
+                Scalar::ONE.wrapping_shl(Scalar::BITS as u32 - modulus.ilog2())
+            }
         }
     }
 
@@ -103,15 +165,17 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
     /// implementations than can rely on wrapping arithmetic operations behavior to compute the
     /// modulus.
     pub const fn is_native_modulus(&self) -> bool {
-        if self.0 == 0 {
-            return true;
-        }
+        matches!(self.inner, CiphertextModulusInner::Native)
+    }
 
-        if Scalar::BITS < 128 {
-            return self.0 == (1 << Scalar::BITS);
+    /// Panics if the modulus is not a custom modulus
+    pub const fn get_custom_modulus(&self) -> u128 {
+        match self.inner {
+            CiphertextModulusInner::Native => {
+                panic!("Tried getting custom modulus from native modulus")
+            }
+            CiphertextModulusInner::Custom(modulus) => modulus.get(),
         }
-
-        false
     }
 
     pub const fn is_compatible_with_native_modulus(&self) -> bool {
@@ -119,16 +183,20 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
     }
 
     pub const fn is_power_of_two(&self) -> bool {
-        self.0.is_power_of_two()
+        match self.inner {
+            CiphertextModulusInner::Native => true,
+            CiphertextModulusInner::Custom(modulus) => modulus.is_power_of_two(),
+        }
     }
 }
 
 impl<Scalar: UnsignedInteger> std::fmt::Display for CiphertextModulus<Scalar> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_native_modulus() {
-            write!(f, "CiphertextModulus(2^{})", Scalar::BITS)
-        } else {
-            write!(f, "CiphertextModulus({})", self.0)
+        match self.inner {
+            CiphertextModulusInner::Native => write!(f, "CiphertextModulus(2^{})", Scalar::BITS),
+            CiphertextModulusInner::Custom(modulus) => {
+                write!(f, "CiphertextModulus({})", modulus.get())
+            }
         }
     }
 }
@@ -145,6 +213,13 @@ mod tests {
 
     #[test]
     fn test_modulus_struct() {
+        assert!(std::mem::size_of::<CiphertextModulus<u32>>() == std::mem::size_of::<u128>());
+        assert!(std::mem::size_of::<CiphertextModulus<u64>>() == std::mem::size_of::<u128>());
+        assert!(std::mem::size_of::<CiphertextModulus<u128>>() == std::mem::size_of::<u128>());
+        assert!(std::mem::align_of::<CiphertextModulus<u32>>() == std::mem::align_of::<u128>());
+        assert!(std::mem::align_of::<CiphertextModulus<u64>>() == std::mem::align_of::<u128>());
+        assert!(std::mem::align_of::<CiphertextModulus<u128>>() == std::mem::align_of::<u128>());
+
         {
             let mod_32_res = CiphertextModulus::<u32>::try_new_power_of_2(32);
             assert!(mod_32_res.is_ok());
@@ -174,6 +249,28 @@ mod tests {
         {
             let native_mod_128 = CiphertextModulus::<u128>::new_native();
             assert!(native_mod_128.is_native_modulus());
+
+            let ser = bincode::serialize(&native_mod_128).unwrap();
+            let deser: CiphertextModulus<u128> = bincode::deserialize(&ser).unwrap();
+
+            assert_eq!(native_mod_128, deser);
+
+            let deser_error: Result<CiphertextModulus<u32>, _> = bincode::deserialize(&ser);
+            assert!(deser_error.is_err());
+            match deser_error {
+                Ok(_) => unreachable!(),
+                Err(e) => match *e {
+                    bincode::ErrorKind::Custom(err) => {
+                        assert_eq!(
+                            err.as_str(),
+                            "Expected an unsigned integer with 32 bits, \
+                    found 128 bits during deserialization of CiphertextModulus, \
+                    have you mixed types during deserialization?",
+                        );
+                    }
+                    _ => unreachable!(),
+                },
+            }
         }
 
         {
@@ -181,7 +278,29 @@ mod tests {
             assert!(mod_128_res.is_ok());
 
             let mod_128 = mod_128_res.unwrap();
-            assert_eq!(mod_128.get(), 1 << 64);
+            assert_eq!(mod_128.get_custom_modulus(), 1 << 64);
+
+            let ser = bincode::serialize(&mod_128).unwrap();
+            let deser: CiphertextModulus<u128> = bincode::deserialize(&ser).unwrap();
+
+            assert_eq!(mod_128, deser);
+
+            let deser_error: Result<CiphertextModulus<u32>, _> = bincode::deserialize(&ser);
+            assert!(deser_error.is_err());
+            match deser_error {
+                Ok(_) => unreachable!(),
+                Err(e) => match *e {
+                    bincode::ErrorKind::Custom(err) => {
+                        assert_eq!(
+                            err.as_str(),
+                            "Expected an unsigned integer with 32 bits, \
+                    found 128 bits during deserialization of CiphertextModulus, \
+                    have you mixed types during deserialization?",
+                        );
+                    }
+                    _ => unreachable!(),
+                },
+            }
         }
     }
 }
