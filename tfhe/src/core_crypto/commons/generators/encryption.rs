@@ -629,4 +629,180 @@ mod test {
     fn noise_gen_native_u128() {
         noise_gen_native::<u128>();
     }
+
+    fn noise_gen_custom_mod<Scalar: UnsignedTorus>(ciphertext_modulus: CiphertextModulus<Scalar>) {
+        let mut gen = new_encryption_random_generator();
+
+        let bits = (Scalar::BITS / 2) as i32;
+
+        for _ in 0..1000 {
+            let val: Scalar =
+                gen.random_noise_custom_mod(StandardDev(2.0f64.powi(-bits)), ciphertext_modulus);
+            assert!(val != Scalar::ZERO);
+        }
+    }
+
+    #[test]
+    fn noise_gen_custom_mod_u32() {
+        noise_gen_custom_mod::<u32>(CiphertextModulus::try_new_power_of_2(31).unwrap());
+    }
+
+    #[test]
+    fn noise_gen_custom_mod_u64() {
+        noise_gen_custom_mod::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap());
+    }
+
+    #[test]
+    fn noise_gen_custom_mod_u128() {
+        noise_gen_custom_mod::<u128>(CiphertextModulus::try_new_power_of_2(127).unwrap());
+    }
+
+    #[test]
+    fn noise_gen_native_custom_mod_u32() {
+        noise_gen_custom_mod::<u32>(CiphertextModulus::new_native());
+    }
+
+    #[test]
+    fn noise_gen_native_custom_mod_u64() {
+        noise_gen_custom_mod::<u64>(CiphertextModulus::new_native());
+    }
+
+    #[test]
+    fn noise_gen_native_custom_mod_u128() {
+        noise_gen_custom_mod::<u128>(CiphertextModulus::new_native());
+    }
+
+    fn noise_gen_slice_native<Scalar: UnsignedTorus>() {
+        let mut gen = new_encryption_random_generator();
+
+        let bits = (Scalar::BITS / 2) as i32;
+
+        let mut slice = vec![Scalar::ZERO; 1000];
+        gen.fill_slice_with_random_noise(&mut slice, StandardDev(2.0f64.powi(-bits)));
+        assert!(slice.iter().all(|&x| x != Scalar::ZERO))
+    }
+
+    #[test]
+    fn noise_gen_slice_native_u32() {
+        noise_gen_slice_native::<u32>();
+    }
+
+    #[test]
+    fn noise_gen_slice_native_u64() {
+        noise_gen_slice_native::<u64>();
+    }
+
+    #[test]
+    fn noise_gen_slice_native_u128() {
+        noise_gen_slice_native::<u128>();
+    }
+
+    fn noise_gen_slice_custom_mod<Scalar: UnsignedTorus>(
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) {
+        let mut gen = new_encryption_random_generator();
+
+        let bits = (Scalar::BITS / 2) as i32;
+
+        let mut slice = vec![Scalar::ZERO; 1000];
+        gen.fill_slice_with_random_noise_custom_mod(
+            &mut slice,
+            StandardDev(2.0f64.powi(-bits)),
+            ciphertext_modulus,
+        );
+        assert!(slice.iter().all(|&x| x != Scalar::ZERO))
+    }
+
+    #[test]
+    fn noise_gen_slice_custom_mod_u32() {
+        noise_gen_slice_custom_mod::<u32>(CiphertextModulus::try_new_power_of_2(31).unwrap());
+    }
+
+    #[test]
+    fn noise_gen_slice_custom_mod_u64() {
+        noise_gen_slice_custom_mod::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap());
+    }
+
+    #[test]
+    fn noise_gen_slice_custom_mod_u128() {
+        noise_gen_slice_custom_mod::<u128>(CiphertextModulus::try_new_power_of_2(127).unwrap());
+    }
+
+    #[test]
+    fn noise_gen_slice_native_custom_mod_u32() {
+        noise_gen_slice_custom_mod::<u32>(CiphertextModulus::new_native());
+    }
+
+    #[test]
+    fn noise_gen_slice_native_custom_mod_u64() {
+        noise_gen_slice_custom_mod::<u64>(CiphertextModulus::new_native());
+    }
+
+    #[test]
+    fn noise_gen_slice_native_custom_mod_u128() {
+        noise_gen_slice_custom_mod::<u128>(CiphertextModulus::new_native());
+    }
+
+    fn mask_gen_slice_native<Scalar: UnsignedTorus>() {
+        let mut gen = new_encryption_random_generator();
+
+        let mut slice = vec![Scalar::ZERO; 1000];
+        gen.fill_slice_with_random_mask(&mut slice);
+        assert!(slice.iter().all(|&x| x != Scalar::ZERO))
+    }
+
+    #[test]
+    fn mask_gen_native_u32() {
+        mask_gen_slice_native::<u32>();
+    }
+
+    #[test]
+    fn mask_gen_native_u64() {
+        mask_gen_slice_native::<u64>();
+    }
+
+    #[test]
+    fn mask_gen_native_u128() {
+        mask_gen_slice_native::<u128>();
+    }
+
+    fn mask_gen_slice_custom_mod<Scalar: UnsignedTorus>(
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) {
+        let mut gen = new_encryption_random_generator();
+
+        let mut slice = vec![Scalar::ZERO; 1000];
+        gen.fill_slice_with_random_mask_custom_mod(&mut slice, ciphertext_modulus);
+        assert!(slice.iter().all(|&x| x != Scalar::ZERO))
+    }
+
+    #[test]
+    fn mask_gen_slice_custom_mod_u32() {
+        mask_gen_slice_custom_mod::<u32>(CiphertextModulus::try_new_power_of_2(31).unwrap());
+    }
+
+    #[test]
+    fn mask_gen_slice_custom_mod_u64() {
+        mask_gen_slice_custom_mod::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap());
+    }
+
+    #[test]
+    fn mask_gen_slice_custom_mod_u128() {
+        mask_gen_slice_custom_mod::<u128>(CiphertextModulus::try_new_power_of_2(127).unwrap());
+    }
+
+    #[test]
+    fn mask_gen_slice_native_custom_mod_u32() {
+        mask_gen_slice_custom_mod::<u32>(CiphertextModulus::new_native());
+    }
+
+    #[test]
+    fn mask_gen_slice_native_custom_mod_u64() {
+        mask_gen_slice_custom_mod::<u64>(CiphertextModulus::new_native());
+    }
+
+    #[test]
+    fn mask_gen_slice_native_custom_mod_u128() {
+        mask_gen_slice_custom_mod::<u128>(CiphertextModulus::new_native());
+    }
 }
