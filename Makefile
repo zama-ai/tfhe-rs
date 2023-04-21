@@ -52,6 +52,12 @@ install_cargo_nextest: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-nextest --locked || \
 	( echo "Unable to install cargo nextest, unknown error." && exit 1 )
 
+.PHONY: install_wasm_pack # Install wasm-pack to build JS packages
+install_wasm_pack: install_rs_build_toolchain
+	@wasm-pack --version > /dev/null 2>&1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install wasm-pack || \
+	( echo "Unable to install cargo wasm-pack, unknown error." && exit 1 )
+
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
@@ -174,14 +180,14 @@ build_c_api: install_rs_check_toolchain
 		-p tfhe
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
-build_web_js_api: install_rs_build_toolchain
+build_web_js_api: install_rs_build_toolchain install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
 		wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api
 
 .PHONY: build_node_js_api # Build the js API targeting nodejs
-build_node_js_api: install_rs_build_toolchain
+build_node_js_api: install_rs_build_toolchain install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
 		wasm-pack build --release --target=nodejs \

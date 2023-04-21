@@ -1,18 +1,52 @@
-# Create and publish new release of tfhe-rs using semantic-release.
-name: Make release
+# Publish new release of tfhe-rs on various platform.
+name: Publish release
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: write
+    inputs:
+      dry_run:
+        description: "Dry-run"
+        type: boolean
+        default: true
 
 jobs:
-  release:
-    name: Release
+  publish_release:
+    name: Publish Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
         with:
           fetch-depth: 0
+
+      - name: Publish crate.io package
+        env:
+          CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          cargo publish -p tfhe --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
+
+      - name: Build web package
+        run: |
+          make build_web_js_api
+
+      - name: Publish web package
+        uses: JS-DevTools/npm-publish@0f451a94170d1699fd50710966d48fb26194d939
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: tfhe/pkg/package.json
+          dry-run: ${{ inputs.dry_run }}
+
+      - name: Build Node package
+        run: |
+          rm -rf tfhe/pkg
+
+          make build_node_js_api
+          sed -i 's/"tfhe"/"node-tfhe"/g' tfhe/pkg/package.json
+
+      - name: Publish Node package
+        uses: JS-DevTools/npm-publish@0f451a94170d1699fd50710966d48fb26194d939
+        with:
+          token: ${{ secrets.NPM_TOKEN }}
+          package: tfhe/pkg/package.json
+          dry-run: ${{ inputs.dry_run }}
