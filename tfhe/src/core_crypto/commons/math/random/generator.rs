@@ -175,8 +175,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut vec = vec![1u32; 100];
+    /// let mut vec = vec![0u32; 1000];
     /// generator.fill_slice_with_random_uniform(&mut vec);
+    /// assert!(vec.iter().all(|&x| x != 0));
     /// ```
     pub fn fill_slice_with_random_uniform<Scalar>(&mut self, output: &mut [Scalar])
     where
@@ -196,11 +197,12 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// use tfhe::core_crypto::commons::parameters::CiphertextModulus;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut vec = vec![1u32; 100];
+    /// let mut vec = vec![0u32; 1000];
     /// generator.fill_slice_with_random_uniform_custom_mod(
     ///     &mut vec,
     ///     CiphertextModulus::try_new_power_of_2(31).unwrap(),
     /// );
+    /// assert!(vec.iter().all(|&x| x != 0));
     /// ```
     pub fn fill_slice_with_random_uniform_custom_mod<Scalar>(
         &mut self,
@@ -243,8 +245,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut vec = vec![2u32; 100];
+    /// let mut vec = vec![0u32; 1000];
     /// generator.fill_slice_with_random_uniform_binary(&mut vec);
+    /// assert!(vec.iter().any(|&x| x != 0));
     /// ```
     pub fn fill_slice_with_random_uniform_binary<Scalar>(&mut self, output: &mut [Scalar])
     where
@@ -348,11 +351,15 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// // check that both samples are in 6 sigmas.
     /// assert!(g1.abs() <= 6.);
     /// assert!(g2.abs() <= 6.);
+    /// assert!(g1 != 0.);
+    /// assert!(g2 != 0.);
     /// // for f64
     /// let (g1, g2): (f64, f64) = generator.random_gaussian(0. as f64, 1. as f64);
     /// // check that both samples are in 6 sigmas.
     /// assert!(g1.abs() <= 6.);
     /// assert!(g2.abs() <= 6.);
+    /// assert!(g1 != 0.);
+    /// assert!(g2 != 0.);
     /// ```
     pub fn random_gaussian<Float, Scalar>(&mut self, mean: Float, std: Float) -> (Scalar, Scalar)
     where
@@ -371,8 +378,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut vec = vec![1000f32; 100];
+    /// let mut vec = vec![0f32; 1000];
     /// generator.fill_slice_with_random_gaussian(&mut vec, 0., 1.);
+    /// assert!(vec.iter().all(|&x| x != 0.));
     /// ```
     pub fn fill_slice_with_random_gaussian<Float, Scalar>(
         &mut self,
@@ -404,13 +412,14 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// use tfhe::core_crypto::commons::parameters::CiphertextModulus;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut vec = vec![1000u64; 100];
+    /// let mut vec = vec![0u64; 1000];
     /// generator.fill_slice_with_random_gaussian_custom_mod(
     ///     &mut vec,
     ///     0.,
     ///     1.,
     ///     CiphertextModulus::try_new_power_of_2(63).unwrap(),
     /// );
+    /// assert!(vec.iter().all(|&x| x != 0));
     /// ```
     pub fn fill_slice_with_random_gaussian_custom_mod<Float, Scalar>(
         &mut self,
@@ -453,8 +462,9 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut vec = vec![1000u32; 100];
+    /// let mut vec = vec![0u32; 1000];
     /// generator.unsigned_torus_slice_wrapping_add_random_gaussian_assign(&mut vec, 0., 1.);
+    /// assert!(vec.iter().all(|&x| x != 0));
     /// ```
     pub fn unsigned_torus_slice_wrapping_add_random_gaussian_assign<Float, Scalar>(
         &mut self,
@@ -484,9 +494,16 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use concrete_csprng::generators::SoftwareRandomGenerator;
     /// use concrete_csprng::seeders::Seed;
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// use tfhe::core_crypto::commons::parameters::CiphertextModulus;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
-    /// let mut vec = vec![1000u32; 100];
-    /// generator.unsigned_torus_slice_wrapping_add_random_gaussian_assign(&mut vec, 0., 1.);
+    /// let mut vec = vec![0u32; 1000];
+    /// generator.unsigned_torus_slice_wrapping_add_random_gaussian_custom_mod_assign(
+    ///     &mut vec,
+    ///     0.,
+    ///     1.,
+    ///     CiphertextModulus::try_new_power_of_2(31).unwrap(),
+    /// );
+    /// assert!(vec.iter().all(|&x| x != 0));
     /// ```
     pub fn unsigned_torus_slice_wrapping_add_random_gaussian_custom_mod_assign<Float, Scalar>(
         &mut self,
