@@ -423,6 +423,11 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar: UnsignedInteger,
         (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Float>,
     {
+        if custom_modulus.is_native_modulus() {
+            self.fill_slice_with_random_gaussian(output, mean, std);
+            return;
+        }
+
         let custom_modulus_float: Float = custom_modulus.get().cast_into();
         output.chunks_mut(2).for_each(|s| {
             let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
@@ -494,6 +499,11 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Float: FloatingPoint + CastFrom<u128>,
         (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Float>,
     {
+        if custom_modulus.is_native_modulus() {
+            self.unsigned_torus_slice_wrapping_add_random_gaussian_assign(output, mean, std);
+            return;
+        }
+
         let custom_modulus_float: Float = custom_modulus.get().cast_into();
         output.chunks_mut(2).for_each(|s| {
             let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
