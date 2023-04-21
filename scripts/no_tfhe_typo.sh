@@ -6,7 +6,7 @@ THIS_SCRIPT_NAME="$(basename "$0")"
 
 TMP_FILE="$(mktemp)"
 
-COUNT="$(git grep -rniI "thfe" . | grep -v "${THIS_SCRIPT_NAME}" | \
+COUNT="$(git grep -rniI "thfe\|tfhr\|thfr" . | grep -v "${THIS_SCRIPT_NAME}" | \
     tee "${TMP_FILE}" | wc -l | tr -d '[:space:]')"
 
 cat "${TMP_FILE}"
