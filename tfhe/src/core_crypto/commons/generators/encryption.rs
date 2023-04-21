@@ -229,6 +229,10 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     where
         Scalar: UnsignedInteger + RandomGenerable<Gaussian<f64>, CustomModulus = f64>,
     {
+        if custom_modulus.is_native_modulus() {
+            return self.random_noise(std);
+        }
+
         let custom_modulus_f64: f64 = custom_modulus.get().cast_into();
         Scalar::generate_one_custom_modulus(
             &mut self.noise,
@@ -552,7 +556,7 @@ fn noise_bytes_per_pfpksk(
 #[cfg(test)]
 mod test {
     use crate::core_crypto::algorithms::*;
-    use crate::core_crypto::commons::dispersion::Variance;
+    use crate::core_crypto::commons::dispersion::{StandardDev, Variance};
     use crate::core_crypto::commons::parameters::{
         CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension,
         PolynomialSize,
@@ -560,6 +564,7 @@ mod test {
     use crate::core_crypto::commons::test_tools::{
         new_encryption_random_generator, new_secret_random_generator,
     };
+    use crate::core_crypto::commons::traits::UnsignedTorus;
 
     #[test]
     fn test_gaussian_sampling_margin_factor_does_not_panic() {
@@ -597,5 +602,31 @@ mod test {
             CiphertextModulus::new_native(),
             &mut enc_generator,
         );
+    }
+
+    fn noise_gen_native<Scalar: UnsignedTorus>() {
+        let mut gen = new_encryption_random_generator();
+
+        let bits = (Scalar::BITS / 2) as i32;
+
+        for _ in 0..1000 {
+            let val: Scalar = gen.random_noise(StandardDev(2.0f64.powi(-bits)));
+            assert!(val != Scalar::ZERO);
+        }
+    }
+
+    #[test]
+    fn noise_gen_native_u32() {
+        noise_gen_native::<u32>();
+    }
+
+    #[test]
+    fn noise_gen_native_u64() {
+        noise_gen_native::<u64>();
+    }
+
+    #[test]
+    fn noise_gen_native_u128() {
+        noise_gen_native::<u128>();
     }
 }
