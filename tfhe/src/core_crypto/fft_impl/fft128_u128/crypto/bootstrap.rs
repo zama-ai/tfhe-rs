@@ -166,9 +166,7 @@ where
         )
     }
 
-    // TODO: investigate split version noise
-    #[allow(dead_code)]
-    pub(crate) fn bootstrap_u128<ContLweOut, ContLweIn, ContAcc>(
+    pub fn bootstrap_u128<ContLweOut, ContLweIn, ContAcc>(
         &self,
         lwe_out: &mut LweCiphertext<ContLweOut>,
         lwe_in: &LweCiphertext<ContLweIn>,
