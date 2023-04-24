@@ -46,7 +46,7 @@ fn main() {
 
 Default configuration for x86 Unix machines:
 ```toml
-tfhe = { version = "0.2.0", features = ["integer", "x86_64-unix"]}
+tfhe = { version = "0.3.0", features = ["integer", "x86_64-unix"]}
 ```
 
 Other configurations can be found [here](../getting_started/installation.md).
@@ -190,7 +190,7 @@ To use the `FheUint8` type, the `integer` feature must be activated:
 
 [dependencies]
 # Default configuration for x86 Unix machines:
-tfhe = { version = "0.2.0", features = ["integer", "x86_64-unix"]}
+tfhe = { version = "0.3.0", features = ["integer", "x86_64-unix"]}
 ```
 
 Other configurations can be found [here](../getting_started/installation.md).
@@ -319,7 +319,7 @@ To use Booleans, the `booleans` feature in our Cargo.toml must be enabled:
 # Cargo.toml
 
 # Default configuration for x86 Unix machines:
-tfhe = { version = "0.2.0", features = ["boolean", "x86_64-unix"]}
+tfhe = { version = "0.3.0", features = ["boolean", "x86_64-unix"]}
 ```
 
 Other configurations can be found [here](../getting_started/installation.md).
