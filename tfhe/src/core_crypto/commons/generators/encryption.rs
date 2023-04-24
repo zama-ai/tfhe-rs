@@ -610,7 +610,18 @@ mod test {
         let bits = (Scalar::BITS / 2) as i32;
 
         for _ in 0..1000 {
-            let val: Scalar = gen.random_noise(StandardDev(2.0f64.powi(-bits)));
+            let mut retries = 100;
+
+            let mut val = Scalar::ZERO;
+            while retries >= 0 {
+                val = gen.random_noise(StandardDev(2.0f64.powi(-bits)));
+                if val != Scalar::ZERO {
+                    break;
+                }
+                retries -= 1;
+            }
+
+            assert!(retries != 0);
             assert!(val != Scalar::ZERO);
         }
     }
@@ -636,8 +647,19 @@ mod test {
         let bits = (Scalar::BITS / 2) as i32;
 
         for _ in 0..1000 {
-            let val: Scalar =
-                gen.random_noise_custom_mod(StandardDev(2.0f64.powi(-bits)), ciphertext_modulus);
+            let mut retries = 100;
+
+            let mut val = Scalar::ZERO;
+            while retries >= 0 {
+                val = gen
+                    .random_noise_custom_mod(StandardDev(2.0f64.powi(-bits)), ciphertext_modulus);
+                if val != Scalar::ZERO {
+                    break;
+                }
+                retries -= 1;
+            }
+
+            assert!(retries != 0);
             assert!(val != Scalar::ZERO);
         }
     }
@@ -677,9 +699,18 @@ mod test {
 
         let bits = (Scalar::BITS / 2) as i32;
 
-        let mut slice = vec![Scalar::ZERO; 1000];
-        gen.fill_slice_with_random_noise(&mut slice, StandardDev(2.0f64.powi(-bits)));
-        assert!(slice.iter().all(|&x| x != Scalar::ZERO))
+        let mut vec = vec![Scalar::ZERO; 1000];
+        let mut retries = 100;
+        while retries >= 0 {
+            gen.fill_slice_with_random_noise(&mut vec, StandardDev(2.0f64.powi(-bits)));
+            if vec.iter().all(|&x| x != Scalar::ZERO) {
+                break;
+            }
+
+            retries -= 1;
+        }
+        assert!(retries != 0);
+        assert!(vec.iter().all(|&x| x != Scalar::ZERO));
     }
 
     #[test]
@@ -704,13 +735,22 @@ mod test {
 
         let bits = (Scalar::BITS / 2) as i32;
 
-        let mut slice = vec![Scalar::ZERO; 1000];
-        gen.fill_slice_with_random_noise_custom_mod(
-            &mut slice,
-            StandardDev(2.0f64.powi(-bits)),
-            ciphertext_modulus,
-        );
-        assert!(slice.iter().all(|&x| x != Scalar::ZERO))
+        let mut vec = vec![Scalar::ZERO; 1000];
+        let mut retries = 100;
+        while retries >= 0 {
+            gen.fill_slice_with_random_noise_custom_mod(
+                &mut vec,
+                StandardDev(2.0f64.powi(-bits)),
+                ciphertext_modulus,
+            );
+            if vec.iter().all(|&x| x != Scalar::ZERO) {
+                break;
+            }
+
+            retries -= 1;
+        }
+        assert!(retries != 0);
+        assert!(vec.iter().all(|&x| x != Scalar::ZERO));
     }
 
     #[test]
@@ -746,9 +786,18 @@ mod test {
     fn mask_gen_slice_native<Scalar: UnsignedTorus>() {
         let mut gen = new_encryption_random_generator();
 
-        let mut slice = vec![Scalar::ZERO; 1000];
-        gen.fill_slice_with_random_mask(&mut slice);
-        assert!(slice.iter().all(|&x| x != Scalar::ZERO))
+        let mut vec = vec![Scalar::ZERO; 1000];
+        let mut retries = 100;
+        while retries >= 0 {
+            gen.fill_slice_with_random_mask(&mut vec);
+            if vec.iter().all(|&x| x != Scalar::ZERO) {
+                break;
+            }
+
+            retries -= 1;
+        }
+        assert!(retries != 0);
+        assert!(vec.iter().all(|&x| x != Scalar::ZERO));
     }
 
     #[test]
@@ -771,9 +820,18 @@ mod test {
     ) {
         let mut gen = new_encryption_random_generator();
 
-        let mut slice = vec![Scalar::ZERO; 1000];
-        gen.fill_slice_with_random_mask_custom_mod(&mut slice, ciphertext_modulus);
-        assert!(slice.iter().all(|&x| x != Scalar::ZERO))
+        let mut vec = vec![Scalar::ZERO; 1000];
+        let mut retries = 100;
+        while retries >= 0 {
+            gen.fill_slice_with_random_mask_custom_mod(&mut vec, ciphertext_modulus);
+            if vec.iter().all(|&x| x != Scalar::ZERO) {
+                break;
+            }
+
+            retries -= 1;
+        }
+        assert!(retries != 0);
+        assert!(vec.iter().all(|&x| x != Scalar::ZERO));
     }
 
     #[test]
