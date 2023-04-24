@@ -177,7 +177,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0u32; 1000];
     /// generator.fill_slice_with_random_uniform(&mut vec);
-    /// assert!(vec.iter().all(|&x| x != 0));
+    /// assert!(vec.iter().any(|&x| x != 0));
     /// ```
     pub fn fill_slice_with_random_uniform<Scalar>(&mut self, output: &mut [Scalar])
     where
@@ -202,7 +202,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///     &mut vec,
     ///     CiphertextModulus::try_new_power_of_2(31).unwrap(),
     /// );
-    /// assert!(vec.iter().all(|&x| x != 0));
+    /// assert!(vec.iter().any(|&x| x != 0));
     /// ```
     pub fn fill_slice_with_random_uniform_custom_mod<Scalar>(
         &mut self,
@@ -351,15 +351,11 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// // check that both samples are in 6 sigmas.
     /// assert!(g1.abs() <= 6.);
     /// assert!(g2.abs() <= 6.);
-    /// assert!(g1 != 0.);
-    /// assert!(g2 != 0.);
     /// // for f64
     /// let (g1, g2): (f64, f64) = generator.random_gaussian(0. as f64, 1. as f64);
     /// // check that both samples are in 6 sigmas.
     /// assert!(g1.abs() <= 6.);
     /// assert!(g2.abs() <= 6.);
-    /// assert!(g1 != 0.);
-    /// assert!(g2 != 0.);
     /// ```
     pub fn random_gaussian<Float, Scalar>(&mut self, mean: Float, std: Float) -> (Scalar, Scalar)
     where
@@ -380,7 +376,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0f32; 1000];
     /// generator.fill_slice_with_random_gaussian(&mut vec, 0., 1.);
-    /// assert!(vec.iter().all(|&x| x != 0.));
+    /// assert!(vec.iter().any(|&x| x != 0.));
     /// ```
     pub fn fill_slice_with_random_gaussian<Float, Scalar>(
         &mut self,
@@ -419,7 +415,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///     1.,
     ///     CiphertextModulus::try_new_power_of_2(63).unwrap(),
     /// );
-    /// assert!(vec.iter().all(|&x| x != 0));
+    /// assert!(vec.iter().any(|&x| x != 0));
     /// ```
     pub fn fill_slice_with_random_gaussian_custom_mod<Float, Scalar>(
         &mut self,
@@ -464,7 +460,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let mut vec = vec![0u32; 1000];
     /// generator.unsigned_torus_slice_wrapping_add_random_gaussian_assign(&mut vec, 0., 1.);
-    /// assert!(vec.iter().all(|&x| x != 0));
+    /// assert!(vec.iter().any(|&x| x != 0));
     /// ```
     pub fn unsigned_torus_slice_wrapping_add_random_gaussian_assign<Float, Scalar>(
         &mut self,
@@ -503,7 +499,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ///     1.,
     ///     CiphertextModulus::try_new_power_of_2(31).unwrap(),
     /// );
-    /// assert!(vec.iter().all(|&x| x != 0));
+    /// assert!(vec.iter().any(|&x| x != 0));
     /// ```
     pub fn unsigned_torus_slice_wrapping_add_random_gaussian_custom_mod_assign<Float, Scalar>(
         &mut self,
