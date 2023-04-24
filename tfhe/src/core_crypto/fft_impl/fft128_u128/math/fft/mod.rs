@@ -206,10 +206,11 @@ pub fn wrapping_add_avx2(
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline(always)]
 pub fn wrapping_neg_avx2(simd: V3, (lo, hi): (u64x4, u64x4)) -> (u64x4, u64x4) {
-    let diff_lo = pulp::cast(simd.wrapping_sub_u64x4(simd.splat_u64x4(0), lo));
-    let overflow = pulp::cast(simd.cmp_lt_u64x4(simd.splat_u64x4(0), lo));
-    let diff_hi = simd.wrapping_sub_u64x4(overflow, hi);
-    (diff_lo, diff_hi)
+    wrapping_add_avx2(
+        simd,
+        (simd.splat_u64x4(1), simd.splat_u64x4(0)),
+        (simd.not_u64x4(lo), simd.not_u64x4(hi)),
+    )
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -246,10 +247,11 @@ pub fn wrapping_add_avx512(
 #[cfg(feature = "nightly-avx512")]
 #[inline(always)]
 pub fn wrapping_neg_avx512(simd: V4, (lo, hi): (u64x8, u64x8)) -> (u64x8, u64x8) {
-    let diff_lo = simd.wrapping_sub_u64x8(simd.splat_u64x8(0), lo);
-    let overflow = simd.convert_mask_b8_to_u64x8(simd.cmp_lt_u64x8(simd.splat_u64x8(0), lo));
-    let diff_hi = simd.wrapping_sub_u64x8(overflow, hi);
-    (diff_lo, diff_hi)
+    wrapping_add_avx512(
+        simd,
+        (simd.splat_u64x8(1), simd.splat_u64x8(0)),
+        (simd.not_u64x8(lo), simd.not_u64x8(hi)),
+    )
 }
 
 #[inline(always)]
@@ -385,9 +387,10 @@ fn f64_to_i128_avx2(simd: V3, f: f64x4) -> (u64x4, u64x4) {
             simd.shr_dyn_u64x4(hi, shift),
         );
         let neg = wrapping_neg_avx2(simd, abs);
+        let mask = simd.cmp_eq_u64x4(simd.and_u64x4(sign_bit, f), sign_bit);
         (
-            simd.select_u64x4(simd.cmp_eq_u64x4(f, sign_bit), neg.0, abs.0),
-            simd.select_u64x4(simd.cmp_eq_u64x4(f, sign_bit), neg.1, abs.1),
+            simd.select_u64x4(mask, neg.0, abs.0),
+            simd.select_u64x4(mask, neg.1, abs.1),
         )
     };
     (
