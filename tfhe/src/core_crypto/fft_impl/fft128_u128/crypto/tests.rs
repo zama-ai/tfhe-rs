@@ -1,7 +1,9 @@
 use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 
 use super::super::super::{fft128, fft128_u128};
+use super::super::math::fft::{Fft128, Fft128View};
 use crate::core_crypto::prelude::*;
+use aligned_vec::CACHELINE_ALIGN;
 
 fn sqr(x: f64) -> f64 {
     x * x
@@ -225,10 +227,37 @@ fn test_split_pbs() {
         LweDimension(polynomial_size.0 * glwe_dimension.0).to_lwe_size(),
         ciphertext_modulus,
     );
-    fourier_bsk.bootstrap(
-        &mut lwe_out_non_split,
-        &lwe_in,
-        &accumulator,
+
+    // Needed as the basic bootstrap function dispatches to the more efficient split version for
+    // u128
+    fn bootstrap_non_split<Scalar: UnsignedTorus + CastInto<usize>>(
+        this: Fourier128LweBootstrapKey<&[f64]>,
+        mut lwe_out: LweCiphertext<&mut [Scalar]>,
+        lwe_in: LweCiphertext<&[Scalar]>,
+        accumulator: GlweCiphertext<&[Scalar]>,
+        fft: Fft128View<'_>,
+        stack: PodStack<'_>,
+    ) {
+        let (mut local_accumulator_data, stack) =
+            stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
+        let mut local_accumulator = GlweCiphertextMutView::from_container(
+            &mut *local_accumulator_data,
+            accumulator.polynomial_size(),
+            accumulator.ciphertext_modulus(),
+        );
+        this.blind_rotate_assign(&mut local_accumulator.as_mut_view(), &lwe_in, fft, stack);
+        extract_lwe_sample_from_glwe_ciphertext(
+            &local_accumulator,
+            &mut lwe_out,
+            MonomialDegree(0),
+        );
+    }
+
+    bootstrap_non_split(
+        fourier_bsk.as_view(),
+        lwe_out_non_split.as_mut_view(),
+        lwe_in.as_view(),
+        accumulator.as_view(),
         fft,
         stack.rb_mut(),
     );
