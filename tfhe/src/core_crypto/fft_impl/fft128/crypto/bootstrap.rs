@@ -17,6 +17,8 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
+use core::any::TypeId;
+use core::mem::transmute;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -355,6 +357,14 @@ where
             fft: Fft128View<'_>,
             stack: PodStack<'_>,
         ) {
+            if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
+                let mut lwe_out: LweCiphertext<&mut [u128]> = unsafe { transmute(lwe_out) };
+                let lwe_in: LweCiphertext<&[u128]> = unsafe { transmute(lwe_in) };
+                let accumulator: GlweCiphertext<&[u128]> = unsafe { transmute(accumulator) };
+
+                return this.bootstrap_u128(&mut lwe_out, &lwe_in, &accumulator, fft, stack);
+            }
+
             let (mut local_accumulator_data, stack) =
                 stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
             let mut local_accumulator = GlweCiphertextMutView::from_container(
