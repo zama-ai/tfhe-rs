@@ -1,8 +1,8 @@
-use crate::core_crypto::commons::dispersion::LogStandardDev;
+use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::test_tools::*;
 
-fn test_normal_random<T: UnsignedTorus>() {
+fn test_normal_random_three_sigma<T: UnsignedTorus>() {
     //! test if the normal random generation with std_dev is below 3*std_dev (99.7%)
 
     // settings
@@ -22,8 +22,10 @@ fn test_normal_random<T: UnsignedTorus>() {
         .zip(samples_int.iter())
         .for_each(|(out, &elt)| *out = elt.into_torus());
     for x in samples_float.iter_mut() {
+        // The upper half of the torus corresponds to the negative domain when mapping unsigned
+        // integer back to float (MSB or sign bit is set)
         if *x > 0.5 {
-            *x = 1. - *x;
+            *x -= 1.;
         }
     }
 
@@ -48,39 +50,306 @@ fn test_normal_random<T: UnsignedTorus>() {
 }
 
 #[test]
-fn test_normal_random_u32() {
-    test_normal_random::<u32>();
+fn test_normal_random_three_sigma_u32() {
+    test_normal_random_three_sigma::<u32>();
 }
 
 #[test]
-fn test_normal_random_u64() {
-    test_normal_random::<u64>();
+fn test_normal_random_three_sigma_u64() {
+    test_normal_random_three_sigma::<u64>();
 }
 
-fn test_distribution<T: UnsignedTorus>() {
-    //! tests gaussianity against the rand crate generation
-    // settings
-    let std_dev: f64 = f64::powi(2., -5);
-    let mean: f64 = 0.;
-    let k = 10_000_000;
-    let mut generator = new_random_generator();
+#[test]
+fn test_normal_random_f64() {
+    const RUNS: usize = 10000;
+    const SAMPLES_PER_RUN: usize = 1000;
+    let mut rng = new_random_generator();
+    let failures: f64 = (0..RUNS)
+        .map(|_| {
+            let mut samples = vec![0.0f64; SAMPLES_PER_RUN];
 
-    // generate normal random
-    let first = vec![T::ZERO; k];
-    let mut second = vec![T::ZERO; k];
-    generator.fill_slice_with_random_gaussian(&mut second, mean, std_dev);
+            rng.fill_slice_with_random_gaussian(&mut samples, 0.0, 1.0);
 
-    assert_noise_distribution(&first, &second, LogStandardDev(-5.));
+            if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
+                // If we are normal return 0, it's not a failure
+                0.0
+            } else {
+                1.0
+            }
+        })
+        .sum::<f64>();
+    let failure_rate = failures / (RUNS as f64);
+    println!("failure_rate: {failure_rate}");
+    // The expected failure rate even on proper gaussian is 5%, so we take a small safety margin
+    assert!(failure_rate <= 0.065);
 }
 
-// // These tests are notoriously flaky
+fn test_normal_random_native<Scalar: UnsignedTorus>() {
+    const RUNS: usize = 10000;
+    const SAMPLES_PER_RUN: usize = 1000;
+    let mut rng = new_random_generator();
+    let failures: f64 = (0..RUNS)
+        .map(|_| {
+            let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
 
-// #[test]
-// fn test_distribution_u32() {
-//     test_distribution::<u32>();
-// }
+            rng.fill_slice_with_random_gaussian(&mut samples, 0.0, f64::powi(2., -20));
 
-// #[test]
-// fn test_distribution_u64() {
-//     test_distribution::<u64>();
-// }
+            let samples: Vec<f64> = samples
+                .iter()
+                .copied()
+                .map(|x| {
+                    let torus = x.into_torus();
+                    // The upper half of the torus corresponds to the negative domain when mapping
+                    // unsigned integer back to float (MSB or sign bit is set)
+                    if torus > 0.5 {
+                        torus - 1.0
+                    } else {
+                        torus
+                    }
+                })
+                .collect();
+
+            if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
+                // If we are normal return 0, it's not a failure
+                0.0
+            } else {
+                1.0
+            }
+        })
+        .sum::<f64>();
+    let failure_rate = failures / (RUNS as f64);
+    println!("failure_rate: {failure_rate}");
+    // The expected failure rate even on proper gaussian is 5%, so we take a small safety margin
+    assert!(failure_rate <= 0.065);
+}
+
+#[test]
+fn test_normal_random_native_u32() {
+    test_normal_random_native::<u32>();
+}
+
+#[test]
+fn test_normal_random_native_u64() {
+    test_normal_random_native::<u64>();
+}
+
+#[test]
+fn test_normal_random_native_u128() {
+    test_normal_random_native::<u128>();
+}
+
+fn test_normal_random_custom_mod<Scalar: UnsignedTorus>(
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) {
+    const RUNS: usize = 10000;
+    const SAMPLES_PER_RUN: usize = 1000;
+    let mut rng = new_random_generator();
+    let failures: f64 = (0..RUNS)
+        .map(|_| {
+            let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
+
+            rng.fill_slice_with_random_gaussian_custom_mod(
+                &mut samples,
+                0.0,
+                f64::powi(2., -20),
+                ciphertext_modulus,
+            );
+
+            let samples: Vec<f64> = samples
+                .iter()
+                .copied()
+                .map(|x| {
+                    let torus = x.into_torus();
+                    // The upper half of the torus corresponds to the negative domain when mapping
+                    // unsigned integer back to float (MSB or sign bit is set)
+                    if torus > 0.5 {
+                        torus - 1.0
+                    } else {
+                        torus
+                    }
+                })
+                .collect();
+
+            if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
+                // If we are normal return 0, it's not a failure
+                0.0
+            } else {
+                1.0
+            }
+        })
+        .sum::<f64>();
+    let failure_rate = failures / (RUNS as f64);
+    println!("failure_rate: {failure_rate}");
+    // The expected failure rate even on proper gaussian is 5%, so we take a small safety margin
+    assert!(failure_rate <= 0.065);
+}
+
+#[test]
+fn test_normal_random_custom_mod_u32() {
+    test_normal_random_custom_mod::<u32>(CiphertextModulus::try_new_power_of_2(31).unwrap());
+}
+
+#[test]
+fn test_normal_random_custom_mod_u64() {
+    test_normal_random_custom_mod::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap());
+}
+
+#[test]
+fn test_normal_random_custom_mod_u128() {
+    test_normal_random_custom_mod::<u128>(CiphertextModulus::try_new_power_of_2(127).unwrap());
+}
+
+#[test]
+fn test_normal_random_native_custom_mod_u32() {
+    test_normal_random_custom_mod::<u32>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn test_normal_random_native_custom_mod_u64() {
+    test_normal_random_custom_mod::<u64>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn test_normal_random_native_custom_mod_u128() {
+    test_normal_random_custom_mod::<u128>(CiphertextModulus::new_native());
+}
+
+fn test_normal_random_add_assign_native<Scalar: UnsignedTorus>() {
+    const RUNS: usize = 10000;
+    const SAMPLES_PER_RUN: usize = 1000;
+    let mut rng = new_random_generator();
+    let failures: f64 = (0..RUNS)
+        .map(|_| {
+            let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
+
+            rng.unsigned_torus_slice_wrapping_add_random_gaussian_assign(
+                &mut samples,
+                0.0,
+                f64::powi(2., -20),
+            );
+
+            let samples: Vec<f64> = samples
+                .iter()
+                .copied()
+                .map(|x| {
+                    let torus = x.into_torus();
+                    // The upper half of the torus corresponds to the negative domain when mapping
+                    // unsigned integer back to float (MSB or sign bit is set)
+                    if torus > 0.5 {
+                        torus - 1.0
+                    } else {
+                        torus
+                    }
+                })
+                .collect();
+
+            if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
+                // If we are normal return 0, it's not a failure
+                0.0
+            } else {
+                1.0
+            }
+        })
+        .sum::<f64>();
+    let failure_rate = failures / (RUNS as f64);
+    println!("failure_rate: {failure_rate}");
+    // The expected failure rate even on proper gaussian is 5%, so we take a small safety margin
+    assert!(failure_rate <= 0.065);
+}
+
+#[test]
+fn test_normal_random_add_assign_native_u32() {
+    test_normal_random_add_assign_native::<u32>();
+}
+
+#[test]
+fn test_normal_random_add_assign_native_u64() {
+    test_normal_random_add_assign_native::<u64>();
+}
+
+#[test]
+fn test_normal_random_add_assign_native_u128() {
+    test_normal_random_add_assign_native::<u128>();
+}
+
+fn test_normal_random_add_assign_custom_mod<Scalar: UnsignedTorus>(
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) {
+    const RUNS: usize = 10000;
+    const SAMPLES_PER_RUN: usize = 1000;
+    let mut rng = new_random_generator();
+    let failures: f64 = (0..RUNS)
+        .map(|_| {
+            let mut samples = vec![Scalar::ZERO; SAMPLES_PER_RUN];
+
+            rng.unsigned_torus_slice_wrapping_add_random_gaussian_custom_mod_assign(
+                &mut samples,
+                0.0,
+                f64::powi(2., -20),
+                ciphertext_modulus,
+            );
+
+            let samples: Vec<f64> = samples
+                .iter()
+                .copied()
+                .map(|x| {
+                    let torus = x.into_torus();
+                    // The upper half of the torus corresponds to the negative domain when mapping
+                    // unsigned integer back to float (MSB or sign bit is set)
+                    if torus > 0.5 {
+                        torus - 1.0
+                    } else {
+                        torus
+                    }
+                })
+                .collect();
+
+            if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
+                // If we are normal return 0, it's not a failure
+                0.0
+            } else {
+                1.0
+            }
+        })
+        .sum::<f64>();
+    let failure_rate = failures / (RUNS as f64);
+    println!("failure_rate: {failure_rate}");
+    // The expected failure rate even on proper gaussian is 5%, so we take a small safety margin
+    assert!(failure_rate <= 0.065);
+}
+
+#[test]
+fn test_normal_random_add_assign_custom_mod_u32() {
+    test_normal_random_add_assign_custom_mod::<u32>(
+        CiphertextModulus::try_new_power_of_2(31).unwrap(),
+    );
+}
+
+#[test]
+fn test_normal_random_add_assign_custom_mod_u64() {
+    test_normal_random_add_assign_custom_mod::<u64>(
+        CiphertextModulus::try_new_power_of_2(63).unwrap(),
+    );
+}
+
+#[test]
+fn test_normal_random_add_assign_custom_mod_u128() {
+    test_normal_random_add_assign_custom_mod::<u128>(
+        CiphertextModulus::try_new_power_of_2(127).unwrap(),
+    );
+}
+
+#[test]
+fn test_normal_random_add_assign_native_custom_mod_u32() {
+    test_normal_random_add_assign_custom_mod::<u32>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn test_normal_random_add_assign_native_custom_mod_u64() {
+    test_normal_random_add_assign_custom_mod::<u64>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn test_normal_random_add_assign_native_custom_mod_u128() {
+    test_normal_random_add_assign_custom_mod::<u128>(CiphertextModulus::new_native());
+}

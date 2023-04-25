@@ -67,13 +67,14 @@ pub mod test_tools {
     use crate::core_crypto::commons::generators::{
         EncryptionRandomGenerator, SecretRandomGenerator,
     };
-    use crate::core_crypto::commons::math::random::{RandomGenerable, RandomGenerator, Uniform};
+    use crate::core_crypto::commons::math::random::{
+        ActivatedRandomGenerator, RandomGenerable, RandomGenerator, Uniform,
+    };
     use crate::core_crypto::commons::parameters::{
         CiphertextCount, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
         LweDimension, PlaintextCount, PolynomialSize,
     };
     use crate::core_crypto::commons::traits::*;
-    use concrete_csprng::generators::SoftwareRandomGenerator;
     use concrete_csprng::seeders::{Seed, Seeder};
 
     fn modular_distance<T: UnsignedInteger>(first: T, other: T) -> T {
@@ -94,15 +95,16 @@ pub mod test_tools {
         }
     }
 
-    pub fn new_random_generator() -> RandomGenerator<SoftwareRandomGenerator> {
+    pub fn new_random_generator() -> RandomGenerator<ActivatedRandomGenerator> {
         RandomGenerator::new(random_seed())
     }
 
-    pub fn new_secret_random_generator() -> SecretRandomGenerator<SoftwareRandomGenerator> {
+    pub fn new_secret_random_generator() -> SecretRandomGenerator<ActivatedRandomGenerator> {
         SecretRandomGenerator::new(random_seed())
     }
 
-    pub fn new_encryption_random_generator() -> EncryptionRandomGenerator<SoftwareRandomGenerator> {
+    pub fn new_encryption_random_generator() -> EncryptionRandomGenerator<ActivatedRandomGenerator>
+    {
         EncryptionRandomGenerator::new(random_seed(), &mut UnsafeRandSeeder)
     }
 
@@ -143,49 +145,85 @@ pub mod test_tools {
         }
     }
 
-    pub fn assert_noise_distribution<First, Second, Element>(
-        first: &First,
-        second: &Second,
-        dist: impl DispersionParameter,
-    ) where
-        First: Container<Element = Element>,
-        Second: Container<Element = Element>,
-        Element: UnsignedTorus,
-    {
-        use rand_distr::Distribution;
+    pub struct NormalityTestResult {
+        pub w_prime: f64,
+        pub p_value: f64,
+        pub null_hypothesis_is_valid: bool,
+    }
 
-        let std_dev = dist.get_standard_dev();
-        let confidence = 0.95;
-        let n_slots = first.container_len();
+    /// Based on Shapiro-Francia normality test
+    pub fn normality_test_f64(samples: &[f64], alpha: f64) -> NormalityTestResult {
+        assert!(
+            samples.len() <= 5000,
+            "normality_test_f64 produces a relevant pvalue for less than 5000 samples"
+        );
 
-        // allocate 2 slices: one for the error samples obtained, the second for fresh samples
-        // according to the std_dev computed
-        let mut sdk_samples = vec![0.0_f64; n_slots];
+        // From "A handy approximation for the error function and its inverse" by Sergei Winitzki
+        fn erf_inv(x: f64) -> f64 {
+            let sign = if x < 0.0 { -1.0 } else { 1.0 };
+            // 1 - x**2
+            let one_minus_x_2 = (1.0 - x) * (1.0 + x);
+            // ln(1 - x**2)
+            let log_term = f64::ln(one_minus_x_2);
+            let a = 0.147;
+            let term_1 = 2.0 / (std::f64::consts::PI * a) + 0.5 * log_term;
+            let term_2 = 1.0 / a * log_term;
 
-        // recover the errors from each ciphertexts
-        sdk_samples
-            .iter_mut()
-            .zip(first.as_ref().iter().zip(second.as_ref().iter()))
-            .for_each(|(out, (&lhs, &rhs))| *out = torus_modular_distance(lhs, rhs));
-
-        // fill the theoretical sample vector according to std_dev using the rand crate
-        let mut theoretical_samples: Vec<f64> = Vec::with_capacity(n_slots);
-        let normal = rand_distr::Normal::new(0.0, std_dev).unwrap();
-        for _i in 0..n_slots {
-            theoretical_samples.push(normal.sample(&mut rand::thread_rng()));
+            sign * f64::sqrt(-term_1 + f64::sqrt(term_1 * term_1 - term_2))
         }
 
-        // compute the kolmogorov smirnov test
-        let result = kolmogorov_smirnov::test_f64(
-            sdk_samples.as_slice(),
-            theoretical_samples.as_slice(),
-            confidence,
-        );
-        assert!(
-            !result.is_rejected,
-            "Not the same distribution with a probability of {}",
-            result.reject_probability
-        );
+        // Normal law CDF
+        fn phi(x: f64) -> f64 {
+            0.5 * (1.0 + libm::erf(x / f64::sqrt(2.0)))
+        }
+
+        fn phi_inv(x: f64) -> f64 {
+            f64::sqrt(2.0) * erf_inv(2.0 * x - 1.0)
+        }
+
+        let n = samples.len();
+        let n_f64 = n as f64;
+        // Sort the input
+        let mut samples: Vec<_> = samples.to_vec();
+        samples.sort_by(|x, y| x.partial_cmp(y).unwrap());
+        let samples = samples;
+        // Compute the mean
+        let mean = samples.iter().copied().sum::<f64>() / n_f64;
+        let frac_three_eight = 3. / 8.;
+        let frac_one_four = 1. / 4.;
+        // Compute Blom scores
+        let m_tilde: Vec<_> = (1..=n)
+            .map(|i| phi_inv((i as f64 - frac_three_eight) / (n_f64 + frac_one_four)))
+            .collect();
+        // Blom scores norm2
+        let m_norm = f64::sqrt(m_tilde.iter().fold(0.0, |acc, x| acc + x * x));
+        // Coefficients
+        let mut coeffs = m_tilde;
+        coeffs.iter_mut().for_each(|x| *x /= m_norm);
+        // Test statistic
+        let denominator = samples.iter().fold(0.0, |acc, x| acc + (x - mean).powi(2));
+        let numerator = samples
+            .iter()
+            .zip(coeffs.iter())
+            .fold(0.0, |acc, (&sample, &coeff)| acc + sample * coeff)
+            .powi(2);
+        let w_prime = numerator / denominator;
+
+        let g_w_prime = f64::ln(1.0 - w_prime);
+        let log_n = n_f64.ln();
+        let log_log_n = log_n.ln();
+        let u = log_log_n - log_n;
+        let mu = 1.0521 * u - 1.2725;
+        let v = log_log_n + 2.0 / log_n;
+        let sigma = -0.26758 * v + 1.0308;
+        let z = (g_w_prime - mu) / sigma;
+        let p_value = 1.0 - phi(z);
+
+        NormalityTestResult {
+            w_prime,
+            p_value,
+            null_hypothesis_is_valid: p_value > alpha,
+        }
     }
 
     /// Return a random plaintext count in [1;max].
@@ -259,5 +297,53 @@ pub mod test_tools {
     pub fn any_uint<T: UnsignedInteger + RandomGenerable<Uniform>>() -> T {
         let mut generator = new_random_generator();
         generator.random_uniform()
+    }
+
+    #[test]
+    pub fn test_normality_tool() {
+        use rand_distr::{Distribution, Normal};
+        const RUNS: usize = 10000;
+        const SAMPLES_PER_RUN: usize = 1000;
+        let mut rng = rand::thread_rng();
+        let normal = Normal::new(0.0, 1.0).unwrap();
+        let failures: f64 = (0..RUNS)
+            .map(|_| {
+                let mut samples = vec![0.0f64; SAMPLES_PER_RUN];
+                samples
+                    .iter_mut()
+                    .for_each(|x| *x = normal.sample(&mut rng));
+                if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
+                    // If we are normal return 0, it's not a failure
+                    0.0
+                } else {
+                    1.0
+                }
+            })
+            .sum::<f64>();
+        let failure_rate = failures / (RUNS as f64);
+        println!("failure_rate: {failure_rate}");
+        // The expected failure rate even on proper gaussian is 5%, so we take a small safety margin
+        assert!(failure_rate <= 0.065);
+    }
+
+    #[test]
+    pub fn test_normality_tool_fail_uniform() {
+        const RUNS: usize = 10000;
+        const SAMPLES_PER_RUN: usize = 1000;
+        let mut rng = rand::thread_rng();
+        let failures: f64 = (0..RUNS)
+            .map(|_| {
+                let mut samples = vec![0.0f64; SAMPLES_PER_RUN];
+                samples.iter_mut().for_each(|x| *x = rng.gen());
+                if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
+                    // If we are normal return 0, it's not a failure
+                    0.0
+                } else {
+                    1.0
+                }
+            })
+            .sum::<f64>();
+        let failure_rate = failures / (RUNS as f64);
+        assert!(failure_rate == 1.0);
     }
 }
