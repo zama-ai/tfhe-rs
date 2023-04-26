@@ -8,6 +8,35 @@ use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{
     CiphertextBase, ClientKey, CompressedCiphertextBase, PBSOrder, PBSOrderMarker, Parameters,
 };
+use std::fmt::{Display, Formatter};
+
+#[derive(Debug)]
+pub enum EncryptionError {
+    EncryptionKeyMismatch {
+        ct_order: PBSOrder,
+        params_order: PBSOrder,
+    },
+}
+
+impl Display for EncryptionError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EncryptionError::EncryptionKeyMismatch {
+                ct_order,
+                params_order,
+            } => {
+                write!(
+                    f,
+                    "Ciphertext OpOrder for encryption ({ct_order:?}) and Parameters OpOrder \
+                ({params_order:?}) do not match, you may have mixed parameters and encryption \
+                settings when selecting Big/Small Ciphertexts."
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for EncryptionError {}
 
 impl ShortintEngine {
     pub fn new_client_key(&mut self, parameters: Parameters) -> EngineResult<ClientKey> {
@@ -35,6 +64,43 @@ impl ShortintEngine {
         })
     }
 
+    /// Encrypt a (`shortint ciphertext`)[`CiphertextBase`].
+    ///
+    /// Panics if the kind of the output ciphertext (big or small) does not match the `client_key`
+    /// parameters kind (big or small).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::ciphertext::BootstrapKeyswitch;
+    /// use tfhe::shortint::engine::ShortintEngine;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::{CiphertextBig, CiphertextSmall, ClientKey};
+    ///
+    /// let mut engine = ShortintEngine::new();
+    ///
+    /// let cks = engine.new_client_key(PARAM_MESSAGE_2_CARRY_2).unwrap();
+    ///
+    /// // Encryption of one message that is within the encrypted message modulus:
+    /// let msg = 3;
+    /// let ct: CiphertextBig = engine.encrypt(&cks, msg).unwrap();
+    ///
+    /// let dec = engine.decrypt(&cks, &ct).unwrap();
+    /// assert_eq!(msg, dec);
+    ///
+    /// let ct = match engine.encrypt::<BootstrapKeyswitch>(&cks, msg) {
+    ///     Ok(ct) => unreachable!(),
+    ///     Err(e) => {
+    ///         assert_eq!(
+    ///             format!("{e}"),
+    ///             "Ciphertext OpOrder for encryption (BootstrapKeyswitch) and Parameters OpOrder \
+    ///             (KeyswitchBootstrap) do not match, you may have mixed parameters and \
+    ///             encryption settings when selecting Big/Small Ciphertexts."
+    ///         );
+    ///         return;
+    ///     }
+    /// };
+    /// ```
     pub fn encrypt<OpOrder: PBSOrderMarker>(
         &mut self,
         client_key: &ClientKey,
@@ -94,15 +160,24 @@ impl ShortintEngine {
         message: u64,
         message_modulus: MessageModulus,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
-        let (encryption_lwe_sk, encryption_noise) = match OpOrder::pbs_order() {
-            PBSOrder::KeyswitchBootstrap => (
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+
+        let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
+            (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
                 client_key.parameters.glwe_modular_std_dev,
             ),
-            PBSOrder::BootstrapKeyswitch => (
+            (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
                 client_key.parameters.lwe_modular_std_dev,
             ),
+            (ct_order, params_order) => {
+                return Err(EncryptionError::EncryptionKeyMismatch {
+                    ct_order,
+                    params_order,
+                }
+                .into());
+            }
         };
 
         let ct = self.encrypt_inner_ct(
@@ -152,15 +227,24 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let (encryption_lwe_sk, encryption_noise) = match OpOrder::pbs_order() {
-            PBSOrder::KeyswitchBootstrap => (
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+
+        let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
+            (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
                 client_key.parameters.glwe_modular_std_dev,
             ),
-            PBSOrder::BootstrapKeyswitch => (
+            (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
                 client_key.parameters.lwe_modular_std_dev,
             ),
+            (ct_order, params_order) => {
+                return Err(EncryptionError::EncryptionKeyMismatch {
+                    ct_order,
+                    params_order,
+                }
+                .into());
+            }
         };
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
@@ -185,15 +269,24 @@ impl ShortintEngine {
         client_key: &ClientKey,
         message: u64,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
-        let (encryption_lwe_sk, encryption_noise) = match OpOrder::pbs_order() {
-            PBSOrder::KeyswitchBootstrap => (
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+
+        let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
+            (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
                 client_key.parameters.glwe_modular_std_dev,
             ),
-            PBSOrder::BootstrapKeyswitch => (
+            (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
                 client_key.parameters.lwe_modular_std_dev,
             ),
+            (ct_order, params_order) => {
+                return Err(EncryptionError::EncryptionKeyMismatch {
+                    ct_order,
+                    params_order,
+                }
+                .into());
+            }
         };
 
         let delta = (1_u64 << 63)
@@ -274,15 +367,24 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let (encryption_lwe_sk, encryption_noise) = match OpOrder::pbs_order() {
-            PBSOrder::KeyswitchBootstrap => (
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+
+        let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
+            (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
                 client_key.parameters.glwe_modular_std_dev,
             ),
-            PBSOrder::BootstrapKeyswitch => (
+            (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
                 client_key.parameters.lwe_modular_std_dev,
             ),
+            (ct_order, params_order) => {
+                return Err(EncryptionError::EncryptionKeyMismatch {
+                    ct_order,
+                    params_order,
+                }
+                .into());
+            }
         };
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
@@ -317,15 +419,24 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let (encryption_lwe_sk, encryption_noise) = match OpOrder::pbs_order() {
-            PBSOrder::KeyswitchBootstrap => (
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+
+        let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
+            (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
                 client_key.parameters.glwe_modular_std_dev,
             ),
-            PBSOrder::BootstrapKeyswitch => (
+            (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
                 client_key.parameters.lwe_modular_std_dev,
             ),
+            (ct_order, params_order) => {
+                return Err(EncryptionError::EncryptionKeyMismatch {
+                    ct_order,
+                    params_order,
+                }
+                .into());
+            }
         };
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(
@@ -395,15 +506,24 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let (encryption_lwe_sk, encryption_noise) = match OpOrder::pbs_order() {
-            PBSOrder::KeyswitchBootstrap => (
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+
+        let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
+            (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
                 client_key.parameters.glwe_modular_std_dev,
             ),
-            PBSOrder::BootstrapKeyswitch => (
+            (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
                 client_key.parameters.lwe_modular_std_dev,
             ),
+            (ct_order, params_order) => {
+                return Err(EncryptionError::EncryptionKeyMismatch {
+                    ct_order,
+                    params_order,
+                }
+                .into());
+            }
         };
 
         let ct = allocate_and_encrypt_new_lwe_ciphertext(
@@ -435,15 +555,24 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let (encryption_lwe_sk, encryption_noise) = match OpOrder::pbs_order() {
-            PBSOrder::KeyswitchBootstrap => (
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+
+        let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
+            (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
                 client_key.parameters.glwe_modular_std_dev,
             ),
-            PBSOrder::BootstrapKeyswitch => (
+            (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
                 client_key.parameters.lwe_modular_std_dev,
             ),
+            (ct_order, params_order) => {
+                return Err(EncryptionError::EncryptionKeyMismatch {
+                    ct_order,
+                    params_order,
+                }
+                .into());
+            }
         };
 
         let ct = allocate_and_encrypt_new_seeded_lwe_ciphertext(

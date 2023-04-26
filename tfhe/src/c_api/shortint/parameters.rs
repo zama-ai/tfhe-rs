@@ -7,7 +7,24 @@ use std::os::raw::c_int;
 
 use crate::shortint;
 
-pub const SHORTINT_NATIVE_MODULUS: u64 = 0;
+#[repr(C)]
+pub enum ShortintEncryptionKeyChoice {
+    ShortintEncryptionKeyChoiceBig,
+    ShortintEncryptionKeyChoiceSmall,
+}
+
+impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::EncryptionKeyChoice {
+    fn from(value: ShortintEncryptionKeyChoice) -> Self {
+        match value {
+            ShortintEncryptionKeyChoice::ShortintEncryptionKeyChoiceBig => {
+                shortint::parameters::EncryptionKeyChoice::Big
+            }
+            ShortintEncryptionKeyChoice::ShortintEncryptionKeyChoiceSmall => {
+                shortint::parameters::EncryptionKeyChoice::Small
+            }
+        }
+    }
+}
 
 pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::Parameters);
 
@@ -114,6 +131,7 @@ pub unsafe extern "C" fn shortint_create_parameters(
     message_modulus: usize,
     carry_modulus: usize,
     modulus_power_of_2_exponent: usize,
+    encryption_key_choice: ShortintEncryptionKeyChoice,
     result: *mut *mut ShortintParameters,
 ) -> c_int {
     catch_panic(|| {
@@ -146,6 +164,7 @@ pub unsafe extern "C" fn shortint_create_parameters(
                         modulus_power_of_2_exponent,
                     )
                     .unwrap(),
+                encryption_key_choice: encryption_key_choice.into(),
             }));
 
         *result = Box::into_raw(heap_allocated_parameters);

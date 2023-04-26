@@ -1,7 +1,7 @@
 #![allow(clippy::excessive_precision)]
 pub use crate::shortint::{CiphertextModulus, Parameters};
 
-use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::parameters::{CarryModulus, EncryptionKeyChoice, MessageModulus};
 pub use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DispersionParameter, GlweDimension,
     LweDimension, PolynomialSize, StandardDev,
@@ -30,6 +30,7 @@ pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(16),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
 pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: Parameters = Parameters {
@@ -50,6 +51,7 @@ pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
 pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: Parameters = Parameters {
@@ -70,6 +72,7 @@ pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(16),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
 pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: Parameters = Parameters {
@@ -90,6 +93,7 @@ pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
 pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: Parameters = Parameters {
@@ -110,6 +114,7 @@ pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
 pub const PARAM_4_BITS_5_BLOCKS: Parameters = Parameters {
@@ -130,4 +135,5 @@ pub const PARAM_4_BITS_5_BLOCKS: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
