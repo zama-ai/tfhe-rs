@@ -585,6 +585,14 @@ define_server_key_bench_scalar_fn!(
 define_server_key_bench_scalar_default_fn!(method_name: scalar_add_parallelized, display_name: add);
 define_server_key_bench_scalar_default_fn!(method_name: scalar_sub_parallelized, display_name: sub);
 define_server_key_bench_scalar_default_fn!(method_name: scalar_mul_parallelized, display_name: mul);
+define_server_key_bench_scalar_default_fn!(
+    method_name: scalar_left_shift_parallelized,
+    display_name: left_shift
+);
+define_server_key_bench_scalar_default_fn!(
+    method_name: scalar_right_shift_parallelized,
+    display_name: right_shift
+);
 
 define_server_key_bench_scalar_fn!(method_name: unchecked_scalar_add, display_name: add);
 define_server_key_bench_scalar_fn!(method_name: unchecked_scalar_sub, display_name: sub);
@@ -731,6 +739,8 @@ criterion_group!(
     scalar_add_parallelized,
     scalar_sub_parallelized,
     scalar_mul_parallelized,
+    scalar_left_shift_parallelized,
+    scalar_right_shift_parallelized,
 );
 
 criterion_group!(
@@ -790,6 +800,8 @@ criterion_group!(
     scalar_add_parallelized,
     scalar_sub_parallelized,
     scalar_mul_parallelized,
+    scalar_left_shift_parallelized,
+    scalar_right_shift_parallelized,
 );
 
 criterion_main!(

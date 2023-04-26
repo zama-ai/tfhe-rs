@@ -157,8 +157,21 @@ impl ServerKey {
     /// assert_eq!(msg + msg, res);
     /// ```
     pub fn full_propagate<PBSOrder: PBSOrderMarker>(&self, ctxt: &mut RadixCiphertext<PBSOrder>) {
+        self.partial_propagate(ctxt, 0);
+    }
+
+    /// Propagates carries from
+    /// start_index to then end.
+    ///
+    /// Last carry is not propagated as
+    /// it has nothing to propagate to.
+    fn partial_propagate<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        start_index: usize,
+    ) {
         let len = ctxt.blocks.len();
-        for i in 0..len {
+        for i in start_index..len {
             self.propagate(ctxt, i);
         }
     }

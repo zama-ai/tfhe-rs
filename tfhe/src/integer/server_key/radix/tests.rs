@@ -710,32 +710,34 @@ fn integer_smart_scalar_mul(param: Parameters) {
 fn integer_unchecked_scalar_left_shift(param: Parameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    //Nb of bits to shift
-    let tmp_f64 = param.message_modulus.0 as f64;
-    let nb_bits = tmp_f64.log2().floor() as usize * NB_CTXT;
+    let nb_bits = modulus.ilog2();
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
 
-        let scalar = rng.gen::<usize>() % nb_bits;
+        let scalar = rng.gen::<u32>();
 
-        // encryption of an integer
         let ct = cks.encrypt_radix(clear, NB_CTXT);
 
-        // add the two ciphertexts
-        let ct_res = sks.unchecked_scalar_left_shift(&ct, scalar);
+        // case when 0<= scalar < nb_bits
+        {
+            let scalar = scalar % nb_bits;
+            let ct_res = sks.unchecked_scalar_left_shift(&ct, scalar as u64);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
+            assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+        }
 
-        // decryption of ct_res
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        // assert
-        assert_eq!((clear << scalar) % modulus, dec_res);
+        // case when scalar >= nb_bits
+        {
+            let scalar = scalar.saturating_add(nb_bits);
+            let ct_res = sks.unchecked_scalar_left_shift(&ct, scalar as u64);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
+            assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+        }
     }
 }
 
@@ -747,27 +749,30 @@ fn integer_unchecked_scalar_right_shift(param: Parameters) {
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
-
-    //Nb of bits to shift
-    let tmp_f64 = param.message_modulus.0 as f64;
-    let nb_bits = tmp_f64.log2().floor() as usize * NB_CTXT;
+    let nb_bits = modulus.ilog2();
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
 
-        let scalar = rng.gen::<usize>() % nb_bits;
+        let scalar = rng.gen::<u32>();
 
-        // encryption of an integer
         let ct = cks.encrypt_radix(clear, NB_CTXT);
 
-        // add the two ciphertexts
-        let ct_res = sks.unchecked_scalar_right_shift(&ct, scalar);
+        // case when 0<= scalar < nb_bits
+        {
+            let scalar = scalar % nb_bits;
+            let ct_res = sks.unchecked_scalar_right_shift(&ct, scalar as u64);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
+            assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
+        }
 
-        // decryption of ct_res
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        // assert
-        assert_eq!(clear >> scalar, dec_res);
+        // case when scalar >= nb_bits
+        {
+            let scalar = scalar.saturating_add(nb_bits);
+            let ct_res = sks.unchecked_scalar_right_shift(&ct, scalar as u64);
+            let dec_res: u64 = cks.decrypt_radix(&ct_res);
+            assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
+        }
     }
 }
 

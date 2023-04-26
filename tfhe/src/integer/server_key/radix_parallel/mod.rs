@@ -61,6 +61,17 @@ impl ServerKey {
         }
     }
 
+    pub fn partial_propagate_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt: &mut RadixCiphertext<PBSOrder>,
+        start_index: usize,
+    ) {
+        let len = ctxt.blocks.len();
+        for i in start_index..len {
+            self.propagate_parallelized(ctxt, i);
+        }
+    }
+
     /// Propagate all the carries.
     ///
     /// # Example
@@ -90,9 +101,6 @@ impl ServerKey {
         &self,
         ctxt: &mut RadixCiphertext<PBSOrder>,
     ) {
-        let len = ctxt.blocks.len();
-        for i in 0..len {
-            self.propagate_parallelized(ctxt, i);
-        }
+        self.partial_propagate_parallelized(ctxt, 0)
     }
 }

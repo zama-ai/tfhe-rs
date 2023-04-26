@@ -1,3 +1,4 @@
+use crate::core_crypto::commons::utils::izip;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::PBSOrderMarker;
@@ -28,7 +29,7 @@ impl ServerKey {
     /// let div = cks.parameters().message_modulus.0.pow(shift as u32) as u64;
     ///
     /// // Decrypt:
-    /// let clear: u64 = cks.decrypt(&ct_res);
+    /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(msg / div, clear);
     /// ```
     pub fn blockshift_right<PBSOrder: PBSOrderMarker>(
@@ -72,7 +73,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg = 128;
+    /// let msg = 128u64;
     /// let shift = 2;
     ///
     /// let ct = cks.encrypt(msg);
@@ -81,13 +82,13 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_scalar_right_shift(&ct, shift);
     ///
     /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
+    /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn unchecked_scalar_right_shift<PBSOrder: PBSOrderMarker>(
         &self,
         ct: &RadixCiphertext<PBSOrder>,
-        shift: usize,
+        shift: u64,
     ) -> RadixCiphertext<PBSOrder> {
         let mut result = ct.clone();
         self.unchecked_scalar_right_shift_assign(&mut result, shift);
@@ -108,7 +109,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg = 18;
+    /// let msg = 18u64;
     /// let shift = 4;
     ///
     /// let mut ct = cks.encrypt(msg);
@@ -117,50 +118,81 @@ impl ServerKey {
     /// sks.unchecked_scalar_right_shift_assign(&mut ct, shift);
     ///
     /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct);
+    /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn unchecked_scalar_right_shift_assign<PBSOrder: PBSOrderMarker>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        shift: usize,
+        shift: u64,
     ) {
-        let tmp = self.key.message_modulus.0 as f64;
+        // see parallel implementation for a bit more details
 
-        //number of bits of message
-        let nb_bits = tmp.log2() as usize;
+        debug_assert!(ct.block_carries_are_empty());
+        debug_assert!(self.key.carry_modulus.0 >= self.key.message_modulus.0 / 2);
 
-        // 2^u = 2^{p*q+r} = 2^{p*(q+1)}*2^{r-p}
-        let quotient = shift / nb_bits;
-
-        //p-r
-        let modified_remainder = nb_bits - (shift % nb_bits);
-
-        //if r == 0
-        if modified_remainder == nb_bits {
-            self.full_propagate(ct);
-            self.blockshift_right_assign(ct, quotient);
-        } else {
-            // B/2^u = (B*2^{p-r}) / (2^{p*(q+1)})
-            self.unchecked_scalar_left_shift_assign(ct, modified_remainder);
-
-            // We partially propagate in order to not lose information
-            self.partial_propagate(ct);
-            self.blockshift_right_assign(ct, 1_usize);
-
-            // We propagate the last block in order to not lose information
-            self.propagate(ct, ct.blocks.len() - 2);
-            self.blockshift_right_assign(ct, quotient);
+        if shift == 0 {
+            return;
         }
-    }
 
-    /// Propagates all carries except the last one.
-    /// For development purpose only.
-    fn partial_propagate<PBSOrder: PBSOrderMarker>(&self, ctxt: &mut RadixCiphertext<PBSOrder>) {
-        let len = ctxt.blocks.len() - 1;
-        for i in 0..len {
-            self.propagate(ctxt, i);
+        let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
+        let rotations = ((shift / num_bits_in_block) as usize).min(ct.blocks.len());
+        let shift_within_block = shift % num_bits_in_block;
+        let num_blocks = ct.blocks.len();
+
+        // rotate left as the blocks are from LSB to MSB
+        ct.blocks.rotate_left(rotations);
+        for block in &mut ct.blocks[num_blocks - rotations..] {
+            self.key.create_trivial_assign(block, 0)
         }
+
+        if shift_within_block == 0 || rotations == ct.blocks.len() {
+            return;
+        }
+
+        let message_modulus = self.key.message_modulus.0 as u64;
+        let lut = self
+            .key
+            .generate_accumulator_bivariate(|current_block, mut previous_block| {
+                // left shift not to lose
+                // bits when shifting right afterwards
+                previous_block <<= num_bits_in_block;
+                previous_block >>= shift_within_block;
+
+                // The way of getting carry / message is reversed compared
+                // to the usual way but its normal
+                let message_of_current_block = current_block >> shift_within_block;
+                let carry_of_previous_block = previous_block % message_modulus;
+
+                message_of_current_block + carry_of_previous_block
+            });
+        let partial_blocks = ct.blocks[..num_blocks - rotations]
+            .windows(2)
+            .map(|blocks| {
+                // We are right-shifting, which in our representation
+                // means the previous_block (the one with the carry to be
+                // progatated to the current_block) is the next block in the Vec
+                let (current_block, previous_block) = (&blocks[0], &blocks[1]);
+                self.key
+                    .unchecked_apply_lookup_table_bivariate(current_block, previous_block, &lut)
+            })
+            .collect::<Vec<_>>();
+
+        // We do this block separately as this one does not
+        // need to get incoming bits from it neighbour
+        self.key.scalar_right_shift_assign(
+            &mut ct.blocks[num_blocks - rotations - 1],
+            shift_within_block as u8,
+        );
+
+        // We started with num_blocks, discarded 'rotations' blocks
+        // and did the last one separately
+        let blocks_to_replace = &mut ct.blocks[..num_blocks - rotations - 1];
+        assert_eq!(partial_blocks.len(), blocks_to_replace.len());
+        for (block, shifted_block) in izip!(blocks_to_replace, partial_blocks) {
+            *block = shifted_block
+        }
+        debug_assert!(ct.block_carries_are_empty());
     }
 
     /// Computes homomorphically a left shift by a scalar.
@@ -177,7 +209,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg = 21;
+    /// let msg = 21u64;
     /// let shift = 2;
     ///
     /// let ct1 = cks.encrypt(msg);
@@ -186,13 +218,13 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_scalar_left_shift(&ct1, shift);
     ///
     /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
+    /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg << shift, dec);
     /// ```
     pub fn unchecked_scalar_left_shift<PBSOrder: PBSOrderMarker>(
         &self,
         ct_left: &RadixCiphertext<PBSOrder>,
-        shift: usize,
+        shift: u64,
     ) -> RadixCiphertext<PBSOrder> {
         let mut result = ct_left.clone();
         self.unchecked_scalar_left_shift_assign(&mut result, shift);
@@ -202,6 +234,15 @@ impl ServerKey {
     /// Computes homomorphically a left shift by a scalar.
     ///
     /// The result is assigned in the input ciphertext
+    ///
+    /// # Requirements
+    ///
+    /// - The blocks parameter's carry space have at least one more bit than message space
+    /// - The input ciphertext carry buffer is emtpy / clean
+    ///
+    /// # Output
+    ///
+    /// - The ct carry buffers will be clean / empty afterwards
     ///
     /// # Example
     ///
@@ -213,7 +254,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
-    /// let msg = 13;
+    /// let msg = 13u64;
     /// let shift = 2;
     ///
     /// let mut ct = cks.encrypt(msg);
@@ -222,15 +263,79 @@ impl ServerKey {
     /// sks.unchecked_scalar_left_shift_assign(&mut ct, shift);
     ///
     /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct);
+    /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg << shift, dec);
     /// ```
     pub fn unchecked_scalar_left_shift_assign<PBSOrder: PBSOrderMarker>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        shift: usize,
+        shift: u64,
     ) {
-        let tmp = 1_u64 << shift;
-        self.smart_scalar_mul_assign(ct, tmp);
+        // see parallel implementation for a bit more details
+
+        debug_assert!(ct.block_carries_are_empty());
+        debug_assert!(self.key.carry_modulus.0 >= self.key.message_modulus.0 / 2);
+
+        if shift == 0 {
+            return;
+        }
+
+        let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
+        let rotations = ((shift / num_bits_in_block) as usize).min(ct.blocks.len());
+        let shift_within_block = shift % num_bits_in_block;
+        let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
+
+        if shift > total_num_bits {
+            for block in ct.blocks.iter_mut() {
+                self.key.create_trivial_assign(block, 0)
+            }
+            return;
+        }
+
+        // rotate right as the blocks are from LSB to MSB
+        ct.blocks.rotate_right(rotations);
+        for block in &mut ct.blocks[..rotations] {
+            self.key.create_trivial_assign(block, 0)
+        }
+
+        if shift_within_block == 0 || rotations == ct.blocks.len() {
+            return;
+        }
+
+        let lut = self
+            .key
+            .generate_accumulator_bivariate(|current_block, previous_block| {
+                let current_block = current_block << shift_within_block;
+                let previous_block = previous_block << shift_within_block;
+
+                let message_of_current_block = current_block % self.key.message_modulus.0 as u64;
+                let carry_of_previous_block = previous_block / self.key.message_modulus.0 as u64;
+                message_of_current_block + carry_of_previous_block
+            });
+        let partial_blocks = ct.blocks[rotations..]
+            .windows(2)
+            .map(|blocks| {
+                // We are right-shifting,
+                // so we get the bits from the next block in the vec
+                let (previous_block, current_block) = (&blocks[0], &blocks[1]);
+                self.key
+                    .unchecked_apply_lookup_table_bivariate(current_block, previous_block, &lut)
+            })
+            .collect::<Vec<_>>();
+
+        // We do this block separately as this one does not
+        // need to get incoming bits from it neighbour
+        let block = &mut ct.blocks[rotations];
+        self.key
+            .scalar_left_shift_assign(block, shift_within_block as u8);
+
+        // We started with num_blocks, discarded 'rotations' blocks
+        // and did the last one separately
+        let blocks_to_replace = &mut ct.blocks[rotations + 1..];
+        assert_eq!(partial_blocks.len(), blocks_to_replace.len());
+        for (block, shifted_block) in izip!(blocks_to_replace, partial_blocks) {
+            *block = shifted_block
+        }
+        debug_assert!(ct.block_carries_are_empty());
     }
 }
