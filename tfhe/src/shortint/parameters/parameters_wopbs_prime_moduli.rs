@@ -2,7 +2,9 @@ pub use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardD
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
-use crate::shortint::parameters::{CarryModulus, CiphertextModulus, MessageModulus};
+use crate::shortint::parameters::{
+    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus,
+};
 use crate::shortint::Parameters;
 
 pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2: Parameters = Parameters {
@@ -23,6 +25,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_3: Parameters = Parameters {
     lwe_dimension: LweDimension(693),
@@ -42,6 +45,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_3: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_4: Parameters = Parameters {
     lwe_dimension: LweDimension(757),
@@ -61,6 +65,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_4: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_5: Parameters = Parameters {
     lwe_dimension: LweDimension(689),
@@ -80,6 +85,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_5: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_6: Parameters = Parameters {
     lwe_dimension: LweDimension(695),
@@ -99,6 +105,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_6: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_7: Parameters = Parameters {
     lwe_dimension: LweDimension(705),
@@ -118,6 +125,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_7: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_8: Parameters = Parameters {
     lwe_dimension: LweDimension(710),
@@ -137,6 +145,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_8: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_2: Parameters = Parameters {
     lwe_dimension: LweDimension(697),
@@ -156,6 +165,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_2: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_3: Parameters = Parameters {
     lwe_dimension: LweDimension(728),
@@ -175,6 +185,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_3: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_4: Parameters = Parameters {
     lwe_dimension: LweDimension(690),
@@ -194,6 +205,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_4: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_5: Parameters = Parameters {
     lwe_dimension: LweDimension(699),
@@ -213,6 +225,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_5: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_6: Parameters = Parameters {
     lwe_dimension: LweDimension(694),
@@ -232,6 +245,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_6: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_7: Parameters = Parameters {
     lwe_dimension: LweDimension(730),
@@ -251,6 +265,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_7: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_8: Parameters = Parameters {
     lwe_dimension: LweDimension(706),
@@ -270,6 +285,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_3_NORM2_8: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_2: Parameters = Parameters {
     lwe_dimension: LweDimension(702),
@@ -289,6 +305,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_2: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_3: Parameters = Parameters {
     lwe_dimension: LweDimension(689),
@@ -308,6 +325,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_3: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_4: Parameters = Parameters {
     lwe_dimension: LweDimension(696),
@@ -327,6 +345,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_4: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_5: Parameters = Parameters {
     lwe_dimension: LweDimension(713),
@@ -346,6 +365,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_5: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_6: Parameters = Parameters {
     lwe_dimension: LweDimension(716),
@@ -365,6 +385,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_6: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_7: Parameters = Parameters {
     lwe_dimension: LweDimension(745),
@@ -384,6 +405,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_7: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_8: Parameters = Parameters {
     lwe_dimension: LweDimension(692),
@@ -403,6 +425,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_4_NORM2_8: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_2: Parameters = Parameters {
     lwe_dimension: LweDimension(702),
@@ -422,6 +445,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_2: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_3: Parameters = Parameters {
     lwe_dimension: LweDimension(689),
@@ -441,6 +465,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_3: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_4: Parameters = Parameters {
     lwe_dimension: LweDimension(696),
@@ -460,6 +485,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_4: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_5: Parameters = Parameters {
     lwe_dimension: LweDimension(713),
@@ -479,6 +505,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_5: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_6: Parameters = Parameters {
     lwe_dimension: LweDimension(716),
@@ -498,6 +525,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_6: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_7: Parameters = Parameters {
     lwe_dimension: LweDimension(745),
@@ -517,6 +545,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_7: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_8: Parameters = Parameters {
     lwe_dimension: LweDimension(692),
@@ -536,6 +565,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_5_NORM2_8: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_2: Parameters = Parameters {
     lwe_dimension: LweDimension(702),
@@ -555,6 +585,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_2: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_3: Parameters = Parameters {
     lwe_dimension: LweDimension(689),
@@ -574,6 +605,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_3: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_4: Parameters = Parameters {
     lwe_dimension: LweDimension(696),
@@ -593,6 +625,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_4: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_5: Parameters = Parameters {
     lwe_dimension: LweDimension(713),
@@ -612,6 +645,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_5: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_6: Parameters = Parameters {
     lwe_dimension: LweDimension(716),
@@ -631,6 +665,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_6: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_7: Parameters = Parameters {
     lwe_dimension: LweDimension(745),
@@ -650,6 +685,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_7: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_8: Parameters = Parameters {
     lwe_dimension: LweDimension(692),
@@ -669,6 +705,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_6_NORM2_8: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_2: Parameters = Parameters {
     lwe_dimension: LweDimension(702),
@@ -688,6 +725,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_2: Parameters = Parameters {
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_3: Parameters = Parameters {
     lwe_dimension: LweDimension(689),
@@ -707,6 +745,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_3: Parameters = Parameters {
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_4: Parameters = Parameters {
     lwe_dimension: LweDimension(696),
@@ -726,6 +765,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_4: Parameters = Parameters {
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_5: Parameters = Parameters {
     lwe_dimension: LweDimension(713),
@@ -745,6 +785,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_5: Parameters = Parameters {
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_6: Parameters = Parameters {
     lwe_dimension: LweDimension(716),
@@ -764,6 +805,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_6: Parameters = Parameters {
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_7: Parameters = Parameters {
     lwe_dimension: LweDimension(745),
@@ -783,6 +825,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_7: Parameters = Parameters {
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_8: Parameters = Parameters {
     lwe_dimension: LweDimension(692),
@@ -802,6 +845,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_7_NORM2_8: Parameters = Parameters {
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_2: Parameters = Parameters {
     lwe_dimension: LweDimension(702),
@@ -821,6 +865,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_2: Parameters = Parameters {
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_3: Parameters = Parameters {
     lwe_dimension: LweDimension(689),
@@ -840,6 +885,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_3: Parameters = Parameters {
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_4: Parameters = Parameters {
     lwe_dimension: LweDimension(696),
@@ -859,6 +905,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_4: Parameters = Parameters {
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_5: Parameters = Parameters {
     lwe_dimension: LweDimension(713),
@@ -878,6 +925,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_5: Parameters = Parameters {
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6: Parameters = Parameters {
     lwe_dimension: LweDimension(716),
@@ -897,6 +945,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_6: Parameters = Parameters {
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7: Parameters = Parameters {
     lwe_dimension: LweDimension(745),
@@ -916,6 +965,7 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_7: Parameters = Parameters {
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_8: Parameters = Parameters {
     lwe_dimension: LweDimension(692),
@@ -935,4 +985,5 @@ pub const WOPBS_PRIME_PARAM_MESSAGE_8_NORM2_8: Parameters = Parameters {
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };

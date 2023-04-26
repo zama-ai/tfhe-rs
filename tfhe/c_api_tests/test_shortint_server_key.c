@@ -430,7 +430,7 @@ void test_server_key(void) {
   int get_params_ok = shortint_get_parameters(message_bits, carry_bits, &params);
   assert(get_params_ok == 0);
 
-  int get_params_small_ok = shortint_get_parameters(message_bits, carry_bits, &params_small);
+  int get_params_small_ok = shortint_get_parameters_small(message_bits, carry_bits, &params_small);
   assert(get_params_small_ok == 0);
 
   int gen_cks_ok = shortint_gen_client_key(params, &cks);

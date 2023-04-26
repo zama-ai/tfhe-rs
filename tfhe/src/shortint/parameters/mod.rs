@@ -10,11 +10,39 @@ pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     GlweDimension, LweDimension, PolynomialSize,
 };
+use crate::shortint::ciphertext::PBSOrder;
 use serde::{Deserialize, Serialize};
 
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub(crate) mod parameters_wopbs_prime_moduli;
+
+/// The choice of encryption key for (`shortint ciphertext`)[`super::ciphertext::CiphertextBase`].
+///
+/// * The `Big` choice means the big LWE key derived from the GLWE key is used to encrypt the input
+///   ciphertext. This offers better performance but the (`public
+///   key`)[`super::public_key::PublicKeyBase`] can be extremely large and in some cases may not fit
+///   in memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
+///   first followed by a keyswitch.
+/// * The `Small` choice means the small LWE key is used to encrypt the input ciphertext.
+///   Performance is not as good as in the `Big` case but (`public
+///   key`)[`super::public_key::PublicKeyBase`] sizes are much more manageable and shoud always fit
+///   in memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch is
+///   computed first followed by a PBS.
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub enum EncryptionKeyChoice {
+    Big,
+    Small,
+}
+
+impl From<EncryptionKeyChoice> for PBSOrder {
+    fn from(value: EncryptionKeyChoice) -> Self {
+        match value {
+            EncryptionKeyChoice::Big => Self::KeyswitchBootstrap,
+            EncryptionKeyChoice::Small => Self::BootstrapKeyswitch,
+        }
+    }
+}
 
 /// The number of bits on which the message will be encoded.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -48,6 +76,7 @@ pub struct Parameters {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub ciphertext_modulus: CiphertextModulus,
+    pub encryption_key_choice: EncryptionKeyChoice,
 }
 
 impl Parameters {
@@ -77,6 +106,7 @@ impl Parameters {
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
         ciphertext_modulus: CiphertextModulus,
+        encryption_key_choice: EncryptionKeyChoice,
     ) -> Parameters {
         Parameters {
             lwe_dimension,
@@ -96,6 +126,7 @@ impl Parameters {
             message_modulus,
             carry_modulus,
             ciphertext_modulus,
+            encryption_key_choice,
         }
     }
 }
@@ -177,6 +208,7 @@ pub const PARAM_MESSAGE_1_CARRY_0: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(684),
@@ -196,6 +228,7 @@ pub const PARAM_MESSAGE_1_CARRY_1: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(656),
@@ -215,6 +248,7 @@ pub const PARAM_MESSAGE_2_CARRY_0: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(742),
@@ -234,6 +268,7 @@ pub const PARAM_MESSAGE_1_CARRY_2: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(742),
@@ -253,6 +288,7 @@ pub const PARAM_MESSAGE_2_CARRY_1: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(742),
@@ -272,6 +308,7 @@ pub const PARAM_MESSAGE_3_CARRY_0: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(745),
@@ -291,6 +328,7 @@ pub const PARAM_MESSAGE_1_CARRY_3: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(8),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(742),
@@ -310,6 +348,7 @@ pub const PARAM_MESSAGE_2_CARRY_2: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(742),
@@ -329,6 +368,7 @@ pub const PARAM_MESSAGE_3_CARRY_1: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_4_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(742),
@@ -348,6 +388,7 @@ pub const PARAM_MESSAGE_4_CARRY_0: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_4: Parameters = Parameters {
     lwe_dimension: LweDimension(807),
@@ -367,6 +408,7 @@ pub const PARAM_MESSAGE_1_CARRY_4: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(16),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(856),
@@ -386,6 +428,7 @@ pub const PARAM_MESSAGE_2_CARRY_3: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(8),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(812),
@@ -405,6 +448,7 @@ pub const PARAM_MESSAGE_3_CARRY_2: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_4_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(808),
@@ -424,6 +468,7 @@ pub const PARAM_MESSAGE_4_CARRY_1: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_5_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(807),
@@ -443,6 +488,7 @@ pub const PARAM_MESSAGE_5_CARRY_0: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_5: Parameters = Parameters {
     lwe_dimension: LweDimension(864),
@@ -462,6 +508,7 @@ pub const PARAM_MESSAGE_1_CARRY_5: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(32),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_4: Parameters = Parameters {
     lwe_dimension: LweDimension(864),
@@ -481,6 +528,7 @@ pub const PARAM_MESSAGE_2_CARRY_4: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(16),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(864),
@@ -500,6 +548,7 @@ pub const PARAM_MESSAGE_3_CARRY_3: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(8),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_4_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(864),
@@ -519,6 +568,7 @@ pub const PARAM_MESSAGE_4_CARRY_2: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_5_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(875),
@@ -538,6 +588,7 @@ pub const PARAM_MESSAGE_5_CARRY_1: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_6_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(915),
@@ -557,6 +608,7 @@ pub const PARAM_MESSAGE_6_CARRY_0: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_6: Parameters = Parameters {
     lwe_dimension: LweDimension(930),
@@ -576,6 +628,7 @@ pub const PARAM_MESSAGE_1_CARRY_6: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(64),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_5: Parameters = Parameters {
     lwe_dimension: LweDimension(934),
@@ -595,6 +648,7 @@ pub const PARAM_MESSAGE_2_CARRY_5: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(32),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_4: Parameters = Parameters {
     lwe_dimension: LweDimension(930),
@@ -614,6 +668,7 @@ pub const PARAM_MESSAGE_3_CARRY_4: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(16),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_4_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(930),
@@ -633,6 +688,7 @@ pub const PARAM_MESSAGE_4_CARRY_3: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(8),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_5_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(930),
@@ -652,6 +708,7 @@ pub const PARAM_MESSAGE_5_CARRY_2: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_6_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(930),
@@ -671,6 +728,7 @@ pub const PARAM_MESSAGE_6_CARRY_1: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_7_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(930),
@@ -690,6 +748,7 @@ pub const PARAM_MESSAGE_7_CARRY_0: Parameters = Parameters {
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_1_CARRY_7: Parameters = Parameters {
     lwe_dimension: LweDimension(1004),
@@ -709,6 +768,7 @@ pub const PARAM_MESSAGE_1_CARRY_7: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(128),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_2_CARRY_6: Parameters = Parameters {
     lwe_dimension: LweDimension(987),
@@ -728,6 +788,7 @@ pub const PARAM_MESSAGE_2_CARRY_6: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(64),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_3_CARRY_5: Parameters = Parameters {
     lwe_dimension: LweDimension(985),
@@ -747,6 +808,7 @@ pub const PARAM_MESSAGE_3_CARRY_5: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(32),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_4_CARRY_4: Parameters = Parameters {
     lwe_dimension: LweDimension(996),
@@ -766,6 +828,7 @@ pub const PARAM_MESSAGE_4_CARRY_4: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(16),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_5_CARRY_3: Parameters = Parameters {
     lwe_dimension: LweDimension(1020),
@@ -785,6 +848,7 @@ pub const PARAM_MESSAGE_5_CARRY_3: Parameters = Parameters {
     message_modulus: MessageModulus(32),
     carry_modulus: CarryModulus(8),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_6_CARRY_2: Parameters = Parameters {
     lwe_dimension: LweDimension(1018),
@@ -804,6 +868,7 @@ pub const PARAM_MESSAGE_6_CARRY_2: Parameters = Parameters {
     message_modulus: MessageModulus(64),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_7_CARRY_1: Parameters = Parameters {
     lwe_dimension: LweDimension(1017),
@@ -823,6 +888,7 @@ pub const PARAM_MESSAGE_7_CARRY_1: Parameters = Parameters {
     message_modulus: MessageModulus(128),
     carry_modulus: CarryModulus(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 pub const PARAM_MESSAGE_8_CARRY_0: Parameters = Parameters {
     lwe_dimension: LweDimension(1017),
@@ -842,6 +908,7 @@ pub const PARAM_MESSAGE_8_CARRY_0: Parameters = Parameters {
     message_modulus: MessageModulus(256),
     carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
 pub const PARAM_SMALL_MESSAGE_1_CARRY_1: Parameters = Parameters {
@@ -862,6 +929,7 @@ pub const PARAM_SMALL_MESSAGE_1_CARRY_1: Parameters = Parameters {
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(2),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
 pub const PARAM_SMALL_MESSAGE_2_CARRY_2: Parameters = Parameters {
@@ -882,6 +950,7 @@ pub const PARAM_SMALL_MESSAGE_2_CARRY_2: Parameters = Parameters {
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
 pub const PARAM_SMALL_MESSAGE_3_CARRY_3: Parameters = Parameters {
@@ -902,6 +971,7 @@ pub const PARAM_SMALL_MESSAGE_3_CARRY_3: Parameters = Parameters {
     message_modulus: MessageModulus(8),
     carry_modulus: CarryModulus(8),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
 pub const PARAM_SMALL_MESSAGE_4_CARRY_4: Parameters = Parameters {
@@ -922,6 +992,7 @@ pub const PARAM_SMALL_MESSAGE_4_CARRY_4: Parameters = Parameters {
     message_modulus: MessageModulus(16),
     carry_modulus: CarryModulus(16),
     ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
 /// Return a parameter set from a message and carry moduli.

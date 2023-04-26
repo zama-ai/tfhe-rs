@@ -71,6 +71,7 @@ fn main() {
             MessageModulus(4),
             CarryModulus(1),
             CiphertextModulus::new_native(),
+            EncryptionKeyChoice::Big,
         )
     };
 }

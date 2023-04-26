@@ -53,7 +53,24 @@ pub struct Shortint {}
 #[wasm_bindgen]
 pub struct ShortintParameters(pub(crate) crate::shortint::Parameters);
 
-pub const SHORTINT_NATIVE_MODULUS: u64 = 0;
+#[wasm_bindgen]
+pub enum ShortintEncryptionKeyChoice {
+    Big,
+    Small,
+}
+
+impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::EncryptionKeyChoice {
+    fn from(value: ShortintEncryptionKeyChoice) -> Self {
+        match value {
+            ShortintEncryptionKeyChoice::Big => {
+                crate::shortint::parameters::EncryptionKeyChoice::Big
+            }
+            ShortintEncryptionKeyChoice::Small => {
+                crate::shortint::parameters::EncryptionKeyChoice::Small
+            }
+        }
+    }
+}
 
 #[wasm_bindgen]
 impl Shortint {
@@ -151,6 +168,7 @@ impl Shortint {
         message_modulus: usize,
         carry_modulus: usize,
         modulus_power_of_2_exponent: usize,
+        encryption_key_choice: ShortintEncryptionKeyChoice,
     ) -> ShortintParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
         use crate::core_crypto::prelude::*;
@@ -175,6 +193,7 @@ impl Shortint {
                 modulus_power_of_2_exponent,
             )
             .unwrap(),
+            encryption_key_choice: encryption_key_choice.into(),
         })
     }
 
