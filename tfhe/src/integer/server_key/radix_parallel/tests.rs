@@ -62,10 +62,17 @@ create_parametrized_test!(integer_default_scalar_mul_u128_fix_non_reg_test {
 });
 create_parametrized_test!(integer_smart_scalar_mul);
 create_parametrized_test!(integer_default_scalar_mul);
+// left/right shifts
 create_parametrized_test!(integer_unchecked_scalar_left_shift);
 create_parametrized_test!(integer_default_scalar_left_shift);
 create_parametrized_test!(integer_unchecked_scalar_right_shift);
 create_parametrized_test!(integer_default_scalar_right_shift);
+// left/right rotations
+create_parametrized_test!(integer_unchecked_scalar_rotate_right);
+create_parametrized_test!(integer_unchecked_scalar_rotate_left);
+create_parametrized_test!(integer_scalar_rotate_right);
+create_parametrized_test!(integer_scalar_rotate_left);
+// negations
 create_parametrized_test!(integer_smart_neg);
 create_parametrized_test!(integer_default_neg);
 create_parametrized_test!(integer_smart_sub);
@@ -1023,6 +1030,303 @@ fn integer_default_scalar_right_shift(param: Parameters) {
         assert_eq!(ct_res, tmp);
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
+    }
+}
+
+/// helper function to do a rotate left when the type used to store
+/// the value is bigger than the actual intended bit size
+fn rotate_left_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
+    // We start with:
+    // [0000000000000|xxxx]
+    // 64           b    0
+    //
+    // rotated will be
+    // [0000000000xx|xx00]
+    // 64           b    0
+    let n = n % actual_bit_size;
+    let mask = 1u64.wrapping_shl(actual_bit_size) - 1;
+    let shifted_mask = mask.wrapping_shl(n) & !mask;
+
+    let rotated = value.rotate_left(n);
+
+    (rotated & mask) | ((rotated & shifted_mask) >> actual_bit_size)
+}
+
+/// helper function to do a rotate right when the type used to store
+/// the value is bigger than the actual intended bit size
+fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
+    // We start with:
+    // [0000000000000|xxxx]
+    // 64           b    0
+    //
+    // mask: [000000000000|mmmm]
+    // shifted_ mask: [mm0000000000|0000]
+    //
+    // rotated will be
+    // [xx0000000000|00xx]
+    // 64           b    0
+    //
+    // To get the 'cycled' bits where they should be,
+    // we get them using a mask then shift
+    let n = n % actual_bit_size;
+    let mask = 1u64.wrapping_shl(actual_bit_size) - 1;
+    // shifted mask only needs the bits that cycled
+    let shifted_mask = mask.rotate_right(n) & !mask;
+
+    let rotated = value.rotate_right(n);
+
+    (rotated & mask) | ((rotated & shifted_mask) >> (u64::BITS - actual_bit_size))
+}
+
+fn integer_unchecked_scalar_rotate_right(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+    let bits_per_block = param.message_modulus.0.ilog2();
+
+    for _ in 0..(NB_TEST / 3).max(1) {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // Force case where n is multiple of block size
+        {
+            let scalar = scalar - (scalar % bits_per_block);
+            let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where n is not multiple of block size
+        {
+            let rest = scalar % bits_per_block;
+            let scalar = if rest == 0 {
+                scalar + (rng.gen::<u32>() % bits_per_block)
+            } else {
+                scalar
+            };
+            let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where
+        // The value is non zero
+        // we rotate so that at least one non zero bit, cycle/wraps around
+        {
+            let value = rng.gen_range(1..=u32::MAX);
+            let scalar = value.trailing_zeros() + rng.gen_range(1..nb_bits);
+            let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+    }
+}
+
+fn integer_unchecked_scalar_rotate_left(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+    let bits_per_block = param.message_modulus.0.ilog2();
+
+    for _ in 0..(NB_TEST / 3).max(1) {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // Force case where n is multiple of block size
+        {
+            let scalar = scalar - (scalar % bits_per_block);
+            let ct_res = sks.unchecked_scalar_rotate_left_parallelized(&ct, scalar as u64);
+            let tmp = sks.unchecked_scalar_rotate_left_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where n is not multiple of block size
+        {
+            let rest = scalar % bits_per_block;
+            let scalar = if rest == 0 {
+                scalar + (rng.gen::<u32>() % bits_per_block)
+            } else {
+                scalar
+            };
+            let ct_res = sks.unchecked_scalar_rotate_left_parallelized(&ct, scalar as u64);
+            let tmp = sks.unchecked_scalar_rotate_left_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where
+        // The value is non zero
+        // we rotate so that at least one non zero bit, cycle/wraps around
+        {
+            let value = rng.gen_range(1..=u32::MAX);
+            let scalar = value.leading_zeros() + rng.gen_range(1..nb_bits);
+            let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+    }
+}
+
+fn integer_scalar_rotate_right(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+    let bits_per_block = param.message_modulus.0.ilog2();
+
+    for _ in 0..(NB_TEST / 2).max(1) {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // Force case where n is multiple of block size
+        {
+            let scalar = scalar - (scalar % bits_per_block);
+            let ct_res = sks.scalar_rotate_right_parallelized(&ct, scalar as u64);
+            let tmp = sks.scalar_rotate_right_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where n is not multiple of block size
+        {
+            let rest = scalar % bits_per_block;
+            let scalar = if rest == 0 {
+                scalar + (rng.gen::<u32>() % bits_per_block)
+            } else {
+                scalar
+            };
+            let ct_res = sks.scalar_rotate_right_parallelized(&ct, scalar as u64);
+            let tmp = sks.scalar_rotate_right_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where
+        // The value is non zero
+        // we rotate so that at least one non zero bit, cycle/wraps around
+        {
+            let value = rng.gen_range(1..=u32::MAX);
+            let scalar = value.trailing_zeros() + rng.gen_range(1..nb_bits);
+            let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+    }
+}
+
+fn integer_scalar_rotate_left(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+    let bits_per_block = param.message_modulus.0.ilog2();
+
+    for _ in 0..(NB_TEST / 3).max(1) {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // Force case where n is multiple of block size
+        {
+            let scalar = scalar - (scalar % bits_per_block);
+            let ct_res = sks.scalar_rotate_left_parallelized(&ct, scalar as u64);
+            let tmp = sks.scalar_rotate_left_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where n is not multiple of block size
+        {
+            let rest = scalar % bits_per_block;
+            let scalar = if rest == 0 {
+                scalar + (rng.gen::<u32>() % bits_per_block)
+            } else {
+                scalar
+            };
+            let ct_res = sks.scalar_rotate_left_parallelized(&ct, scalar as u64);
+            let tmp = sks.scalar_rotate_left_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where
+        // The value is non zero
+        // we rotate so that at least one non zero bit, cycle/wraps around
+        {
+            let value = rng.gen_range(1..=u32::MAX);
+            let scalar = value.leading_zeros() + rng.gen_range(1..nb_bits);
+            let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
     }
 }
 

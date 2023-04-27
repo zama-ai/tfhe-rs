@@ -53,9 +53,6 @@ impl ServerKey {
 
     /// Computes homomorphically a right shift.
     ///
-    /// The result is returned as a new ciphertext.
-    ///
-    ///
     /// # Requirements
     ///
     /// - The blocks parameter's carry space have at at least (message_bits - 1)
@@ -98,7 +95,7 @@ impl ServerKey {
         // So we can use that to implement shifting in two step
         // 1) shift blocks (implemented by using rotate + replace with
         //    trivial ciphertext block which 'wrapped around`
-        // 2) shift within each block in propagate block to the next one
+        // 2) shift within each block and 'propagate' block to the next one
         //
         debug_assert!(ct.block_carries_are_empty());
         debug_assert!(self.key.carry_modulus.0 >= self.key.message_modulus.0 / 2);

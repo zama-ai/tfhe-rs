@@ -3,6 +3,7 @@ mod bitwise_op;
 mod comparison;
 mod mul;
 mod neg;
+mod rotate;
 mod scalar_add;
 mod scalar_mul;
 mod scalar_sub;
