@@ -83,9 +83,10 @@ jobs:
         run: |
           make test_shortint_ci
 
-      - name: Run integer tests
-        run: |
-          make test_integer_ci
+      # For now integer tests are too long to realistically run them on the M1 mac
+      # - name: Run integer tests
+      #   run: |
+      #     make test_integer_ci
 
   remove_label:
     name: Remove m1_test label
