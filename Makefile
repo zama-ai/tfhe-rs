@@ -7,7 +7,7 @@ RS_BUILD_TOOLCHAIN:=$(shell \
 	( (echo $(TARGET_ARCH_FEATURE) | grep -q x86) && echo stable) || echo $(RS_CHECK_TOOLCHAIN))
 CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
 CARGO_PROFILE?=release
-MIN_RUST_VERSION:=1.65
+MIN_RUST_VERSION:=$(shell grep rust-version tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
 AVX512_SUPPORT?=OFF
 WASM_RUSTFLAGS:=
 BIG_TESTS_INSTANCE?=FALSE

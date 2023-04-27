@@ -2,18 +2,20 @@
 
 set -e
 
+CURR_DIR="$(dirname "$0")"
+REL_CARGO_TOML_PATH="${CURR_DIR}/../tfhe/Cargo.toml"
+MIN_RUST_VERSION="$(grep rust-version "${REL_CARGO_TOML_PATH}" | cut -d '=' -f 2 | xargs)"
+
 function usage() {
     echo "$0: check minimum cargo version"
     echo
     echo "--help                    Print this message"
     echo "--rust-toolchain          The toolchain to check the version for with leading"
-    echo "--min-rust-version        Check toolchain version is >= to this version, default is 1.65"
+    echo "--min-rust-version        Check toolchain version is >= to this version, default is ${MIN_RUST_VERSION}"
     echo
 }
 
 RUST_TOOLCHAIN=""
-# We set the default rust version 1.65 which is the minimum version required for stable GATs
-MIN_RUST_VERSION="1.65"
 
 while [ -n "$1" ]
 do
