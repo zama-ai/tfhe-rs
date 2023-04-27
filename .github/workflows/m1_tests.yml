@@ -4,6 +4,12 @@ on:
   workflow_dispatch:
   pull_request:
     types: [labeled]
+  # Have a nightly build for M1 tests
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    # At 22:00 every day
+    # Timezone is UTC, so Paris time is +2 during the summer and +1 during winter
+    - cron: '0 22 * * *'
 
 env:
   CARGO_TERM_COLOR: always
@@ -83,9 +89,10 @@ jobs:
         run: |
           make test_shortint_ci
 
-      - name: Run integer tests
-        run: |
-          make test_integer_ci
+      # For now integer tests are too long to realistically run them on the M1 mac
+      # - name: Run integer tests
+      #   run: |
+      #     make test_integer_ci
 
   remove_label:
     name: Remove m1_test label
