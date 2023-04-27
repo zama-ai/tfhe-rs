@@ -4,11 +4,12 @@ name: Start all benchmarks
 on:
   push:
     branches:
-      - 'main'
+      - "main"
   workflow_dispatch:
 
 jobs:
   start-benchmarks:
+    if: ${{ (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||  github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         command: [boolean_bench, shortint_bench, integer_bench, pbs_bench]
