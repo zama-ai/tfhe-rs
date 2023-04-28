@@ -450,11 +450,11 @@ impl WopbsKey {
     pub fn programmable_bootstrapping_native_crt<OpOrder: PBSOrderMarker>(
         &self,
         ct_in: &mut CiphertextBase<OpOrder>,
-        lut: &WopbsLUTBase,
+        lut: &ShortintWopbsLUT,
     ) -> CiphertextBase<OpOrder> {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .programmable_bootstrapping_native_crt(self, ct_in, lut)
+                .programmable_bootstrapping_native_crt(self, ct_in, lut.as_ref())
                 .unwrap()
         })
     }
