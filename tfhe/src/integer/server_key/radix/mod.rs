@@ -88,6 +88,319 @@ impl ServerKey {
         )
     }
 
+    /// Prepend trivial zero LSB blocks to an existing [`RadixCiphertext`]. This can be useful for
+    /// casting operations.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 7u64;
+    ///
+    /// let mut ct1 = cks.encrypt(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// let added_blocks = 2;
+    /// sks.extend_radix_with_trivial_zero_blocks_lsb_assign(&mut ct1, added_blocks);
+    /// assert_eq!(ct1.blocks().len(), 6);
+    ///
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct1);
+    /// assert_eq!(
+    ///     7 * (PARAM_MESSAGE_2_CARRY_2.message_modulus.0 as u64).pow(added_blocks as u32),
+    ///     res
+    /// );
+    /// ```
+    pub fn extend_radix_with_trivial_zero_blocks_lsb_assign<PBSOrder>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        num_blocks: usize,
+    ) where
+        PBSOrder: PBSOrderMarker,
+    {
+        self.extend_radix_with_trivial_zero_blocks_msb_assign(ct, num_blocks);
+        ct.blocks.rotate_right(num_blocks);
+    }
+
+    /// Prepend trivial zero LSB blocks to an existing [`RadixCiphertext`] and returns the result as
+    /// a new [`RadixCiphertext`]. This can be useful for casting operations.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 7u64;
+    ///
+    /// let ct1 = cks.encrypt(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// let added_blocks = 2;
+    /// let ct_res = sks.extend_radix_with_trivial_zero_blocks_lsb(&ct1, added_blocks);
+    /// assert_eq!(ct_res.blocks().len(), 6);
+    ///
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(
+    ///     7 * (PARAM_MESSAGE_2_CARRY_2.message_modulus.0 as u64).pow(added_blocks as u32),
+    ///     res
+    /// );
+    /// ```
+    pub fn extend_radix_with_trivial_zero_blocks_lsb<PBSOrder>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        num_blocks: usize,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+    {
+        let mut ct_res = ct.clone();
+        self.extend_radix_with_trivial_zero_blocks_lsb_assign(&mut ct_res, num_blocks);
+        ct_res
+    }
+
+    /// Append trivial zero MSB blocks to an existing [`RadixCiphertext`]. This can be useful for
+    /// casting operations.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 7u64;
+    ///
+    /// let mut ct1 = cks.encrypt(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// sks.extend_radix_with_trivial_zero_blocks_msb_assign(&mut ct1, 2);
+    /// assert_eq!(ct1.blocks().len(), 6);
+    ///
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct1);
+    /// assert_eq!(7, res);
+    /// ```
+    pub fn extend_radix_with_trivial_zero_blocks_msb_assign<PBSOrder>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        num_blocks: usize,
+    ) where
+        PBSOrder: PBSOrderMarker,
+    {
+        let block_trivial_zero = self.key.create_trivial(0);
+        ct.blocks
+            .resize(ct.blocks.len() + num_blocks, block_trivial_zero)
+    }
+
+    /// Append trivial zero MSB blocks to an existing [`RadixCiphertext`] and returns the result as
+    /// a new [`RadixCiphertext`]. This can be useful for casting operations.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 7u64;
+    ///
+    /// let ct1 = cks.encrypt(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// let ct_res = sks.extend_radix_with_trivial_zero_blocks_msb(&ct1, 2);
+    /// assert_eq!(ct_res.blocks().len(), 6);
+    ///
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(7, res);
+    /// ```
+    pub fn extend_radix_with_trivial_zero_blocks_msb<PBSOrder>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        num_blocks: usize,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+    {
+        let mut ct_res = ct.clone();
+        self.extend_radix_with_trivial_zero_blocks_msb_assign(&mut ct_res, num_blocks);
+        ct_res
+    }
+
+    /// Remove LSB blocks from an existing [`RadixCiphertext`]. This can be useful for casting
+    /// operations.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 119u64;
+    ///
+    /// let mut ct1 = cks.encrypt(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// sks.trim_radix_blocks_lsb_assign(&mut ct1, 2);
+    /// assert_eq!(ct1.blocks().len(), 2);
+    ///
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct1);
+    /// assert_eq!(7, res);
+    /// ```
+    pub fn trim_radix_blocks_lsb_assign<PBSOrder>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        num_blocks: usize,
+    ) where
+        PBSOrder: PBSOrderMarker,
+    {
+        ct.blocks.rotate_left(num_blocks);
+        self.trim_radix_blocks_msb_assign(ct, num_blocks);
+    }
+
+    /// Remove LSB blocks from an existing [`RadixCiphertext`] and returns the result as a new
+    /// [`RadixCiphertext`]. This can be useful for casting operations.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 119u64;
+    ///
+    /// let ct1 = cks.encrypt(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// let ct_res = sks.trim_radix_blocks_lsb(&ct1, 2);
+    /// assert_eq!(ct_res.blocks().len(), 2);
+    ///
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(7, res);
+    /// ```
+    pub fn trim_radix_blocks_lsb<PBSOrder>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        num_blocks: usize,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+    {
+        let mut ct_res = ct.clone();
+        self.trim_radix_blocks_lsb_assign(&mut ct_res, num_blocks);
+        ct_res
+    }
+
+    /// Remove MSB blocks from an existing [`RadixCiphertext`]. This can be useful for
+    /// casting operations.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 119u64;
+    ///
+    /// let mut ct1 = cks.encrypt(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// sks.trim_radix_blocks_msb_assign(&mut ct1, 2);
+    /// assert_eq!(ct1.blocks().len(), 2);
+    ///
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct1);
+    /// assert_eq!(7, res);
+    /// ```
+    pub fn trim_radix_blocks_msb_assign<PBSOrder>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        num_blocks: usize,
+    ) where
+        PBSOrder: PBSOrderMarker,
+    {
+        let len = ct.blocks.len();
+        ct.blocks.truncate(len - num_blocks);
+    }
+
+    /// Remove MSB blocks from an existing [`RadixCiphertext`] and returns the result as a new
+    /// [`RadixCiphertext`]. This can be useful for casting operations.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    ///
+    /// let msg = 119u64;
+    ///
+    /// let ct1 = cks.encrypt(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// let ct_res = sks.trim_radix_blocks_msb(&ct1, 2);
+    /// assert_eq!(ct_res.blocks().len(), 2);
+    ///
+    /// // Decrypt
+    /// let res: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(7, res);
+    /// ```
+    pub fn trim_radix_blocks_msb<PBSOrder>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        num_blocks: usize,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+    {
+        let mut ct_res = ct.clone();
+        self.trim_radix_blocks_msb_assign(&mut ct_res, num_blocks);
+        ct_res
+    }
+
     /// Propagate the carry of the 'index' block to the next one.
     ///
     /// # Example
