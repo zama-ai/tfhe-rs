@@ -777,11 +777,11 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
     /// use tfhe::shortint::ClientKey;
     ///
     /// // Generate the client key
-    /// let cks = ClientKey::new(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// let msg = 1;
     /// let modulus = 3;
@@ -792,6 +792,9 @@ impl ClientKey {
     /// // Decryption:
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
     /// assert_eq!(msg, dec % modulus as u64);
+    ///
+    /// // Generate the client key
+    /// let cks = ClientKey::new(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encryption of one message:
     /// let ct = cks.encrypt_native_crt_small(msg, modulus);

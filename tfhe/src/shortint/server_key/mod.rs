@@ -714,6 +714,9 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(1, res);
     ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
+    ///
     /// // Encrypt a message
     /// let ct = cks.unchecked_encrypt_small(clear);
     ///
