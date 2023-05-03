@@ -44,7 +44,8 @@ where
 {
     assert!(
         ciphertext_modulus.is_native_modulus(),
-        "This operation currently only supports native moduli"
+        "This operation currently only supports native moduli, got modulus {:?}",
+        ciphertext_modulus
     );
 
     let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyListOwned::new(
@@ -109,7 +110,8 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
         output_cbs_pfpksk_list
             .ciphertext_modulus()
             .is_native_modulus(),
-        "This operation currently only supports native moduli"
+        "This operation currently only supports native moduli, got modulus {:?}",
+        output_cbs_pfpksk_list.ciphertext_modulus()
     );
 
     let decomp_level_count = output_cbs_pfpksk_list.decomposition_level_count();
@@ -183,7 +185,8 @@ where
 {
     assert!(
         ciphertext_modulus.is_native_modulus(),
-        "This operation currently only supports native moduli"
+        "This operation currently only supports native moduli, got modulus {:?}",
+        ciphertext_modulus
     );
 
     let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyListOwned::new(
@@ -244,7 +247,8 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
         output_cbs_pfpksk_list
             .ciphertext_modulus()
             .is_native_modulus(),
-        "This operation currently only supports native moduli"
+        "This operation currently only supports native moduli, got modulus {:?}",
+        output_cbs_pfpksk_list.ciphertext_modulus()
     );
 
     let decomp_level_count = output_cbs_pfpksk_list.decomposition_level_count();
