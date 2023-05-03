@@ -64,7 +64,8 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
     );
     assert!(
         lwe_pfpksk.ciphertext_modulus().is_native_modulus(),
-        "This operation currently only supports native moduli"
+        "This operation currently only supports native moduli, got modulus {:?}",
+        lwe_pfpksk.ciphertext_modulus()
     );
 
     // We instantiate a buffer
@@ -182,7 +183,8 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
     );
     assert!(
         lwe_pfpksk.ciphertext_modulus().is_native_modulus(),
-        "This operation currently only supports native moduli"
+        "This operation currently only supports native moduli, got modulus {:?}",
+        lwe_pfpksk.ciphertext_modulus()
     );
 
     // We retrieve decomposition arguments
