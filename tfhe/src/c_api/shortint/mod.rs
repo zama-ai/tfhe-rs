@@ -34,7 +34,7 @@ pub unsafe extern "C" fn shortint_gen_keys_with_parameters(
 
         let shortint_parameters = get_ref_checked(shortint_parameters).unwrap();
 
-        let client_key = shortint::client_key::ClientKey::new(shortint_parameters.0.to_owned());
+        let client_key = shortint::client_key::ClientKey::new(shortint_parameters.0);
         let server_key = shortint::server_key::ServerKey::new(&client_key);
 
         let heap_allocated_client_key = Box::new(ShortintClientKey(client_key));

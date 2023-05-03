@@ -51,8 +51,8 @@ impl ServerKey {
     {
         // It should remain just enough space to add a carry
         let client_key = cks.as_ref();
-        let max = (client_key.key.parameters.message_modulus.0 - 1)
-            * client_key.key.parameters.carry_modulus.0
+        let max = (client_key.key.parameters.message_modulus().0 - 1)
+            * client_key.key.parameters.carry_modulus().0
             - 1;
 
         let sks = crate::shortint::server_key::ServerKey::new_with_max_degree(
@@ -85,7 +85,7 @@ impl ServerKey {
     ) -> ServerKey {
         // It should remain just enough space add a carry
         let max =
-            (cks.key.parameters.message_modulus.0 - 1) * cks.key.parameters.carry_modulus.0 - 1;
+            (cks.key.parameters.message_modulus().0 - 1) * cks.key.parameters.carry_modulus().0 - 1;
 
         key.max_degree = MaxDegree(max);
         ServerKey { key }

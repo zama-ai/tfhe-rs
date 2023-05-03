@@ -34,7 +34,7 @@ impl ServerKey {
     /// let ct_res = sks.sub(&mut ct_1, &ct_2);
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn sub<OpOrder: PBSOrderMarker>(
@@ -74,7 +74,7 @@ impl ServerKey {
     ///
     /// // Compute homomorphically a subtraction:
     /// sks.sub_assign(&mut ct_1, &ct_2);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
     /// ```
     pub fn sub_assign<OpOrder: PBSOrderMarker>(
@@ -123,7 +123,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_sub(&ct_1, &ct_2);
     ///
     /// // Decrypt:
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_res), 2 - 1);
     /// ```
     pub fn unchecked_sub<OpOrder: PBSOrderMarker>(
@@ -160,7 +160,7 @@ impl ServerKey {
     /// sks.unchecked_sub_assign(&mut ct_1, &ct_2);
     ///
     /// // Decrypt:
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_1) % modulus, 1);
     /// ```
     pub fn unchecked_sub_assign<OpOrder: PBSOrderMarker>(
@@ -234,7 +234,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_sub(&ct_1, &ct_2);
     ///
     /// assert!(ct_res.is_ok());
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// let clear_res = cks.decrypt(&ct_res.unwrap());
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
@@ -274,7 +274,7 @@ impl ServerKey {
     /// let res = sks.checked_sub_assign(&mut ct_1, &ct_2);
     ///
     /// assert!(res.is_ok());
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// let clear_res = cks.decrypt(&ct_1);
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
@@ -314,7 +314,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_sub(&mut ct_1, &mut ct_2);
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn smart_sub<OpOrder: PBSOrderMarker>(
@@ -347,7 +347,7 @@ impl ServerKey {
     ///
     /// // Compute homomorphically a subtraction:
     /// sks.smart_sub_assign(&mut ct_1, &mut ct_2);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
     /// ```
     pub fn smart_sub_assign<OpOrder: PBSOrderMarker>(

@@ -115,7 +115,7 @@ pub(crate) trait KnowsMessageModulus {
 
 impl KnowsMessageModulus for crate::shortint::ClientKey {
     fn message_modulus(&self) -> MessageModulus {
-        self.parameters.message_modulus
+        self.parameters.message_modulus()
     }
 }
 
@@ -123,7 +123,7 @@ impl<OpOrder: crate::shortint::PBSOrderMarker> KnowsMessageModulus
     for crate::shortint::PublicKeyBase<OpOrder>
 {
     fn message_modulus(&self) -> MessageModulus {
-        self.parameters.message_modulus
+        self.parameters.message_modulus()
     }
 }
 
@@ -131,7 +131,7 @@ impl<OpOrder: crate::shortint::PBSOrderMarker> KnowsMessageModulus
     for crate::shortint::CompressedPublicKeyBase<OpOrder>
 {
     fn message_modulus(&self) -> MessageModulus {
-        self.parameters.message_modulus
+        self.parameters.message_modulus()
     }
 }
 

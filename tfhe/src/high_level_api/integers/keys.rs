@@ -1,13 +1,13 @@
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IntegerConfig {
-    pub(crate) block_parameters: crate::shortint::Parameters,
-    pub(crate) wopbs_block_parameters: crate::shortint::Parameters,
+    pub(crate) block_parameters: crate::shortint::PBSParameters,
+    pub(crate) wopbs_block_parameters: crate::shortint::WopbsParameters,
 }
 
 impl IntegerConfig {
     pub(crate) fn new(
-        block_parameters: crate::shortint::Parameters,
-        wopbs_block_parameters: crate::shortint::Parameters,
+        block_parameters: crate::shortint::PBSParameters,
+        wopbs_block_parameters: crate::shortint::WopbsParameters,
     ) -> Self {
         Self {
             block_parameters,

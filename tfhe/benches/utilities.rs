@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use tfhe::boolean::parameters::BooleanParameters;
 use tfhe::core_crypto::prelude::*;
 #[cfg(feature = "shortint")]
-use tfhe::shortint::Parameters;
+use tfhe::shortint::PBSParameters;
 
 #[derive(Clone, Copy, Default, Serialize)]
 pub struct CryptoParametersRecord {
@@ -52,8 +52,8 @@ impl From<BooleanParameters> for CryptoParametersRecord {
 }
 
 #[cfg(feature = "shortint")]
-impl From<Parameters> for CryptoParametersRecord {
-    fn from(params: Parameters) -> Self {
+impl From<PBSParameters> for CryptoParametersRecord {
+    fn from(params: PBSParameters) -> Self {
         CryptoParametersRecord {
             lwe_dimension: Some(params.lwe_dimension),
             glwe_dimension: Some(params.glwe_dimension),
@@ -64,11 +64,11 @@ impl From<Parameters> for CryptoParametersRecord {
             pbs_level: Some(params.pbs_level),
             ks_base_log: Some(params.ks_base_log),
             ks_level: Some(params.ks_level),
-            pfks_level: Some(params.pfks_level),
-            pfks_base_log: Some(params.pfks_base_log),
-            pfks_modular_std_dev: Some(params.pfks_modular_std_dev),
-            cbs_level: Some(params.cbs_level),
-            cbs_base_log: Some(params.cbs_base_log),
+            pfks_level: None,
+            pfks_base_log: None,
+            pfks_modular_std_dev: None,
+            cbs_level: None,
+            cbs_base_log: None,
             message_modulus: Some(params.message_modulus.0),
             carry_modulus: Some(params.carry_modulus.0),
         }

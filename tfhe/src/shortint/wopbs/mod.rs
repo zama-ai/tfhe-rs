@@ -12,7 +12,7 @@ pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCoun
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, Parameters, ServerKey};
+use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, ServerKey, WopbsParameters};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
@@ -26,7 +26,7 @@ pub struct WopbsKey {
     pub pbs_server_key: ServerKey,
     pub cbs_pfpksk: LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
     pub ksk_pbs_to_wopbs: LweKeyswitchKeyOwned<u64>,
-    pub param: Parameters,
+    pub param: WopbsParameters,
 }
 
 #[must_use]
@@ -185,7 +185,11 @@ impl WopbsKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
     /// let mut wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1);
     /// ```
-    pub fn new_wopbs_key(cks: &ClientKey, sks: &ServerKey, parameters: &Parameters) -> WopbsKey {
+    pub fn new_wopbs_key(
+        cks: &ClientKey,
+        sks: &ServerKey,
+        parameters: &WopbsParameters,
+    ) -> WopbsKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_wopbs_key(cks, sks, parameters).unwrap()
         })

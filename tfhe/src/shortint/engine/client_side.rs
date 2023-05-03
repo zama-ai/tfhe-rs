@@ -6,7 +6,8 @@ use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{
-    CiphertextBase, ClientKey, CompressedCiphertextBase, PBSOrder, PBSOrderMarker, Parameters,
+    CiphertextBase, ClientKey, CompressedCiphertextBase, PBSOrder, PBSOrderMarker,
+    ShortintParameterSet,
 };
 use std::fmt::{Display, Formatter};
 
@@ -39,17 +40,17 @@ impl Display for EncryptionError {
 impl std::error::Error for EncryptionError {}
 
 impl ShortintEngine {
-    pub fn new_client_key(&mut self, parameters: Parameters) -> EngineResult<ClientKey> {
+    pub fn new_client_key(&mut self, parameters: ShortintParameterSet) -> EngineResult<ClientKey> {
         // generate the lwe secret key
         let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            parameters.lwe_dimension,
+            parameters.lwe_dimension(),
             &mut self.secret_generator,
         );
 
         // generate the rlwe secret key
         let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
-            parameters.glwe_dimension,
-            parameters.polynomial_size,
+            parameters.glwe_dimension(),
+            parameters.polynomial_size(),
             &mut self.secret_generator,
         );
 
@@ -79,7 +80,7 @@ impl ShortintEngine {
     ///
     /// let mut engine = ShortintEngine::new();
     ///
-    /// let cks = engine.new_client_key(PARAM_MESSAGE_2_CARRY_2).unwrap();
+    /// let cks = engine.new_client_key(PARAM_MESSAGE_2_CARRY_2.try_into().unwrap()).unwrap();
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 3;
@@ -109,7 +110,7 @@ impl ShortintEngine {
         self.encrypt_with_message_modulus(
             client_key,
             message,
-            client_key.parameters.message_modulus,
+            client_key.parameters.message_modulus(),
         )
     }
 
@@ -121,13 +122,13 @@ impl ShortintEngine {
         self.encrypt_with_message_modulus_compressed(
             client_key,
             message,
-            client_key.parameters.message_modulus,
+            client_key.parameters.message_modulus(),
         )
     }
 
     fn encrypt_inner_ct(
         &mut self,
-        client_key_parameters: &Parameters,
+        client_key_parameters: &ShortintParameterSet,
         client_lwe_sk: &LweSecretKeyOwned<u64>,
         noise_parameter: impl DispersionParameter,
         message: u64,
@@ -135,7 +136,7 @@ impl ShortintEngine {
     ) -> LweCiphertextOwned<u64> {
         //The delta is the one defined by the parameters
         let delta = (1_u64 << 63)
-            / (client_key_parameters.message_modulus.0 * client_key_parameters.carry_modulus.0)
+            / (client_key_parameters.message_modulus().0 * client_key_parameters.carry_modulus().0)
                 as u64;
 
         //The input is reduced modulus the message_modulus
@@ -149,7 +150,7 @@ impl ShortintEngine {
             client_lwe_sk,
             encoded,
             noise_parameter,
-            client_key_parameters.ciphertext_modulus,
+            client_key_parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         )
     }
@@ -160,16 +161,16 @@ impl ShortintEngine {
         message: u64,
         message_modulus: MessageModulus,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
         let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
             (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
-                client_key.parameters.glwe_modular_std_dev,
+                client_key.parameters.glwe_modular_std_dev(),
             ),
             (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
-                client_key.parameters.lwe_modular_std_dev,
+                client_key.parameters.lwe_modular_std_dev(),
             ),
             (ct_order, params_order) => {
                 return Err(EncryptionError::EncryptionKeyMismatch {
@@ -190,8 +191,8 @@ impl ShortintEngine {
 
         //This ensures that the space message_modulus*carry_modulus < param.message_modulus *
         // param.carry_modulus
-        let carry_modulus = (client_key.parameters.message_modulus.0
-            * client_key.parameters.carry_modulus.0)
+        let carry_modulus = (client_key.parameters.message_modulus().0
+            * client_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
         Ok(CiphertextBase {
@@ -211,13 +212,13 @@ impl ShortintEngine {
     ) -> EngineResult<CompressedCiphertextBase<OpOrder>> {
         //This ensures that the space message_modulus*carry_modulus < param.message_modulus *
         // param.carry_modulus
-        let carry_modulus = (client_key.parameters.message_modulus.0
-            * client_key.parameters.carry_modulus.0)
+        let carry_modulus = (client_key.parameters.message_modulus().0
+            * client_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
         //The delta is the one defined by the parameters
         let delta = (1_u64 << 63)
-            / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
+            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
                 as u64;
 
         //The input is reduced modulus the message_modulus
@@ -227,16 +228,16 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
         let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
             (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
-                client_key.parameters.glwe_modular_std_dev,
+                client_key.parameters.glwe_modular_std_dev(),
             ),
             (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
-                client_key.parameters.lwe_modular_std_dev,
+                client_key.parameters.lwe_modular_std_dev(),
             ),
             (ct_order, params_order) => {
                 return Err(EncryptionError::EncryptionKeyMismatch {
@@ -251,7 +252,7 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
-            client_key.parameters.ciphertext_modulus,
+            client_key.parameters.ciphertext_modulus(),
             &mut self.seeder,
         );
 
@@ -269,16 +270,16 @@ impl ShortintEngine {
         client_key: &ClientKey,
         message: u64,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
         let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
             (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
-                client_key.parameters.glwe_modular_std_dev,
+                client_key.parameters.glwe_modular_std_dev(),
             ),
             (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
-                client_key.parameters.lwe_modular_std_dev,
+                client_key.parameters.lwe_modular_std_dev(),
             ),
             (ct_order, params_order) => {
                 return Err(EncryptionError::EncryptionKeyMismatch {
@@ -290,7 +291,7 @@ impl ShortintEngine {
         };
 
         let delta = (1_u64 << 63)
-            / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
+            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
                 as u64;
         let shifted_message = message * delta;
 
@@ -300,17 +301,18 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
-            client_key.parameters.ciphertext_modulus,
+            client_key.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
 
         Ok(CiphertextBase {
             ct,
             degree: Degree(
-                client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0 - 1,
+                client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0
+                    - 1,
             ),
-            message_modulus: client_key.parameters.message_modulus,
-            carry_modulus: client_key.parameters.carry_modulus,
+            message_modulus: client_key.parameters.message_modulus(),
+            carry_modulus: client_key.parameters.carry_modulus(),
             _order_marker: Default::default(),
         })
     }
@@ -331,7 +333,7 @@ impl ShortintEngine {
         let decrypted_u64: u64 = decrypted_encoded.0;
 
         let delta = (1_u64 << 63)
-            / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
+            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
                 as u64;
 
         //The bit before the message
@@ -359,7 +361,7 @@ impl ShortintEngine {
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         //Multiply by 2 to reshift and exclude the padding bit
         let delta = ((1_u64 << 63)
-            / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
+            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
                 as u64)
             * 2;
 
@@ -367,16 +369,16 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
         let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
             (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
-                client_key.parameters.glwe_modular_std_dev,
+                client_key.parameters.glwe_modular_std_dev(),
             ),
             (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
-                client_key.parameters.lwe_modular_std_dev,
+                client_key.parameters.lwe_modular_std_dev(),
             ),
             (ct_order, params_order) => {
                 return Err(EncryptionError::EncryptionKeyMismatch {
@@ -391,15 +393,15 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
-            client_key.parameters.ciphertext_modulus,
+            client_key.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
 
         Ok(CiphertextBase {
             ct,
-            degree: Degree(client_key.parameters.message_modulus.0 - 1),
-            message_modulus: client_key.parameters.message_modulus,
-            carry_modulus: client_key.parameters.carry_modulus,
+            degree: Degree(client_key.parameters.message_modulus().0 - 1),
+            message_modulus: client_key.parameters.message_modulus(),
+            carry_modulus: client_key.parameters.carry_modulus(),
             _order_marker: Default::default(),
         })
     }
@@ -411,7 +413,7 @@ impl ShortintEngine {
     ) -> EngineResult<CompressedCiphertextBase<OpOrder>> {
         //Multiply by 2 to reshift and exclude the padding bit
         let delta = ((1_u64 << 63)
-            / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
+            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
                 as u64)
             * 2;
 
@@ -419,16 +421,16 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
         let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
             (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
-                client_key.parameters.glwe_modular_std_dev,
+                client_key.parameters.glwe_modular_std_dev(),
             ),
             (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
-                client_key.parameters.lwe_modular_std_dev,
+                client_key.parameters.lwe_modular_std_dev(),
             ),
             (ct_order, params_order) => {
                 return Err(EncryptionError::EncryptionKeyMismatch {
@@ -443,15 +445,15 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
-            client_key.parameters.ciphertext_modulus,
+            client_key.parameters.ciphertext_modulus(),
             &mut self.seeder,
         );
 
         Ok(CompressedCiphertextBase {
             ct,
-            degree: Degree(client_key.parameters.message_modulus.0 - 1),
-            message_modulus: client_key.parameters.message_modulus,
-            carry_modulus: client_key.parameters.carry_modulus,
+            degree: Degree(client_key.parameters.message_modulus().0 - 1),
+            message_modulus: client_key.parameters.message_modulus(),
+            carry_modulus: client_key.parameters.carry_modulus(),
             _order_marker: Default::default(),
         })
     }
@@ -472,7 +474,7 @@ impl ShortintEngine {
         let decrypted_u64: u64 = decrypted_encoded.0;
 
         let delta = ((1_u64 << 63)
-            / (client_key.parameters.message_modulus.0 * client_key.parameters.carry_modulus.0)
+            / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
                 as u64)
             * 2;
 
@@ -506,16 +508,16 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
         let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
             (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
-                client_key.parameters.glwe_modular_std_dev,
+                client_key.parameters.glwe_modular_std_dev(),
             ),
             (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
-                client_key.parameters.lwe_modular_std_dev,
+                client_key.parameters.lwe_modular_std_dev(),
             ),
             (ct_order, params_order) => {
                 return Err(EncryptionError::EncryptionKeyMismatch {
@@ -530,7 +532,7 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
-            client_key.parameters.ciphertext_modulus,
+            client_key.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
 
@@ -555,16 +557,16 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice.into();
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
 
         let (encryption_lwe_sk, encryption_noise) = match (OpOrder::pbs_order(), params_op_order) {
             (PBSOrder::KeyswitchBootstrap, PBSOrder::KeyswitchBootstrap) => (
                 &client_key.large_lwe_secret_key,
-                client_key.parameters.glwe_modular_std_dev,
+                client_key.parameters.glwe_modular_std_dev(),
             ),
             (PBSOrder::BootstrapKeyswitch, PBSOrder::BootstrapKeyswitch) => (
                 &client_key.small_lwe_secret_key,
-                client_key.parameters.lwe_modular_std_dev,
+                client_key.parameters.lwe_modular_std_dev(),
             ),
             (ct_order, params_order) => {
                 return Err(EncryptionError::EncryptionKeyMismatch {
@@ -579,7 +581,7 @@ impl ShortintEngine {
             encryption_lwe_sk,
             encoded,
             encryption_noise,
-            client_key.parameters.ciphertext_modulus,
+            client_key.parameters.ciphertext_modulus(),
             &mut self.seeder,
         );
 

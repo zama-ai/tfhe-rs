@@ -19,7 +19,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 201u64;
     /// let msg2 = 1u64;
@@ -65,7 +65,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 46u64;
     /// let msg2 = 87u64;
@@ -107,7 +107,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -151,7 +151,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -190,7 +190,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 14;
     /// let msg2 = 97;
@@ -243,7 +243,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 200;
     /// let msg2 = 1;
@@ -292,7 +292,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -337,7 +337,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -377,7 +377,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 14;
     /// let msg2 = 97;
@@ -430,7 +430,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 49;
     /// let msg2 = 64;
@@ -479,7 +479,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -524,7 +524,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -564,7 +564,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg1 = 14;
     /// let msg2 = 97;

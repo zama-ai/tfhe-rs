@@ -7,9 +7,9 @@ use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, TFHE_LIB_
 use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::Parameters;
+use tfhe::shortint::PBSParameters;
 
-const SHORTINT_BENCH_PARAMS: [Parameters; 15] = [
+const SHORTINT_BENCH_PARAMS: [PBSParameters; 15] = [
     PARAM_MESSAGE_1_CARRY_0,
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_0,

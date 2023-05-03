@@ -95,7 +95,7 @@ impl ServerKey {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -111,7 +111,7 @@ impl ServerKey {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn add_assign<OpOrder: PBSOrderMarker>(
@@ -472,7 +472,7 @@ impl ServerKey {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -488,7 +488,7 @@ impl ServerKey {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn smart_add_assign<OpOrder: PBSOrderMarker>(

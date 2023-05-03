@@ -34,7 +34,7 @@ use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
 }
 ```
 
@@ -49,7 +49,7 @@ use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
 
     let msg1 = 128u64;
     let msg2 = 13u64;
@@ -72,7 +72,7 @@ use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
     let num_block = 4;
-    let (client_key, _) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, _) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
 
     //We generate the public key from the secret client key:
     let public_key = PublicKeyBig::new(&client_key);
@@ -98,7 +98,7 @@ use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
 
     let msg1 = 128;
     let msg2 = 13;

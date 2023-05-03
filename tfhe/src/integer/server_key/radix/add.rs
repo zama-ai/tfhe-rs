@@ -20,7 +20,7 @@ impl ServerKey {
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg1 = 10;
     /// let msg2 = 127;
@@ -56,7 +56,7 @@ impl ServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg1 = 28;
     /// let msg2 = 127;
@@ -91,7 +91,7 @@ impl ServerKey {
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg1 = 46u64;
     /// let msg2 = 87u64;
@@ -130,7 +130,7 @@ impl ServerKey {
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -177,7 +177,7 @@ impl ServerKey {
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg1 = 41;
     /// let msg2 = 101;
@@ -216,7 +216,7 @@ impl ServerKey {
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg1 = 14;
     /// let msg2 = 97;

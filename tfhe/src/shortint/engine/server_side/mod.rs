@@ -28,7 +28,7 @@ mod sub;
 impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> EngineResult<ServerKey> {
         // Plaintext Max Value
-        let max_value = cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0 - 1;
+        let max_value = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1;
 
         // The maximum number of operations before we need to clean the carry buffer
         let max = MaxDegree(max_value);
@@ -44,10 +44,10 @@ impl ShortintEngine {
             par_allocate_and_generate_new_lwe_bootstrap_key(
                 &cks.small_lwe_secret_key,
                 &cks.glwe_secret_key,
-                cks.parameters.pbs_base_log,
-                cks.parameters.pbs_level,
-                cks.parameters.glwe_modular_std_dev,
-                cks.parameters.ciphertext_modulus,
+                cks.parameters.pbs_base_log(),
+                cks.parameters.pbs_level(),
+                cks.parameters.glwe_modular_std_dev(),
+                cks.parameters.ciphertext_modulus(),
                 &mut self.encryption_generator,
             );
 
@@ -81,10 +81,10 @@ impl ShortintEngine {
         let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
             &cks.large_lwe_secret_key,
             &cks.small_lwe_secret_key,
-            cks.parameters.ks_base_log,
-            cks.parameters.ks_level,
-            cks.parameters.lwe_modular_std_dev,
-            cks.parameters.ciphertext_modulus,
+            cks.parameters.ks_base_log(),
+            cks.parameters.ks_level(),
+            cks.parameters.lwe_modular_std_dev(),
+            cks.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
 
@@ -92,10 +92,10 @@ impl ShortintEngine {
         Ok(ServerKey {
             key_switching_key,
             bootstrapping_key: fourier_bsk,
-            message_modulus: cks.parameters.message_modulus,
-            carry_modulus: cks.parameters.carry_modulus,
+            message_modulus: cks.parameters.message_modulus(),
+            carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
-            ciphertext_modulus: cks.parameters.ciphertext_modulus,
+            ciphertext_modulus: cks.parameters.ciphertext_modulus(),
         })
     }
 
@@ -104,7 +104,7 @@ impl ShortintEngine {
         cks: &ClientKey,
     ) -> EngineResult<CompressedServerKey> {
         // Plaintext Max Value
-        let max_value = cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0 - 1;
+        let max_value = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1;
 
         // The maximum number of operations before we need to clean the carry buffer
         let max = MaxDegree(max_value);
@@ -120,10 +120,10 @@ impl ShortintEngine {
         let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
             &cks.small_lwe_secret_key,
             &cks.glwe_secret_key,
-            cks.parameters.pbs_base_log,
-            cks.parameters.pbs_level,
-            cks.parameters.glwe_modular_std_dev,
-            cks.parameters.ciphertext_modulus,
+            cks.parameters.pbs_base_log(),
+            cks.parameters.pbs_level(),
+            cks.parameters.glwe_modular_std_dev(),
+            cks.parameters.ciphertext_modulus(),
             &mut self.seeder,
         );
 
@@ -131,10 +131,10 @@ impl ShortintEngine {
         let bootstrapping_key = allocate_and_generate_new_seeded_lwe_bootstrap_key(
             &cks.small_lwe_secret_key,
             &cks.glwe_secret_key,
-            cks.parameters.pbs_base_log,
-            cks.parameters.pbs_level,
-            cks.parameters.glwe_modular_std_dev,
-            cks.parameters.ciphertext_modulus,
+            cks.parameters.pbs_base_log(),
+            cks.parameters.pbs_level(),
+            cks.parameters.glwe_modular_std_dev(),
+            cks.parameters.ciphertext_modulus(),
             &mut self.seeder,
         );
 
@@ -142,10 +142,10 @@ impl ShortintEngine {
         let key_switching_key = allocate_and_generate_new_seeded_lwe_keyswitch_key(
             &cks.large_lwe_secret_key,
             &cks.small_lwe_secret_key,
-            cks.parameters.ks_base_log,
-            cks.parameters.ks_level,
-            cks.parameters.lwe_modular_std_dev,
-            cks.parameters.ciphertext_modulus,
+            cks.parameters.ks_base_log(),
+            cks.parameters.ks_level(),
+            cks.parameters.lwe_modular_std_dev(),
+            cks.parameters.ciphertext_modulus(),
             &mut self.seeder,
         );
 
@@ -153,10 +153,10 @@ impl ShortintEngine {
         Ok(CompressedServerKey {
             key_switching_key,
             bootstrapping_key,
-            message_modulus: cks.parameters.message_modulus,
-            carry_modulus: cks.parameters.carry_modulus,
+            message_modulus: cks.parameters.message_modulus(),
+            carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
-            ciphertext_modulus: cks.parameters.ciphertext_modulus,
+            ciphertext_modulus: cks.parameters.ciphertext_modulus(),
         })
     }
 

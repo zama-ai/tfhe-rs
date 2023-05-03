@@ -132,7 +132,7 @@ use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 fn main() {
     // We create keys to create 16 bits integers
     // using 8 blocks of 2 bits
-    let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, 8);
+    let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, 8);
 
     let clear_a = 2382u16;
     let clear_b = 29374u16;

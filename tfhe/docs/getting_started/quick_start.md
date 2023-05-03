@@ -115,7 +115,7 @@ fn main() {
     let msg1 = 1;
     let msg2 = 0;
 
-    let modulus = client_key.parameters.message_modulus.0;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);
@@ -143,7 +143,7 @@ use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 fn main() {
     // We create keys for radix represention to create 16 bits integers
     // using 8 blocks of 2 bits
-    let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, 8);
+    let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, 8);
 
     let clear_a = 2382u16;
     let clear_b = 29374u16;

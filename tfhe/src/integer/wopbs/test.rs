@@ -5,7 +5,7 @@ use crate::integer::parameters::*;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_message_carry::*;
-use crate::shortint::parameters::{Parameters, *};
+use crate::shortint::parameters::{PBSParameters, *};
 use rand::Rng;
 use std::cmp::max;
 
@@ -56,12 +56,9 @@ pub fn wopbs_native_crt() {
     let basis: Vec<u64> = vec![2, 3];
     let nb_block = basis.len();
 
-    let params = (
-        crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS,
-        crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS,
-    );
+    let params = crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS;
 
-    let (cks, sks) = gen_keys(&params.1);
+    let (cks, sks) = gen_keys(params);
     let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
 
     let mut msg_space = 1;
@@ -91,12 +88,27 @@ pub fn wopbs_native_crt_bivariate() {
 
     let nb_block = basis.len();
 
-    let params = (
-        crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS,
-        crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS,
-    );
+    let wopbs_params = crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS;
 
-    let (cks, sks) = gen_keys(&params.1);
+    let pbs_params = PBSParameters {
+        lwe_dimension: wopbs_params.lwe_dimension,
+        glwe_dimension: wopbs_params.glwe_dimension,
+        polynomial_size: wopbs_params.polynomial_size,
+        lwe_modular_std_dev: wopbs_params.lwe_modular_std_dev,
+        glwe_modular_std_dev: wopbs_params.glwe_modular_std_dev,
+        pbs_base_log: wopbs_params.pbs_base_log,
+        pbs_level: wopbs_params.pbs_level,
+        ks_base_log: wopbs_params.ks_base_log,
+        ks_level: wopbs_params.ks_level,
+        message_modulus: wopbs_params.message_modulus,
+        carry_modulus: wopbs_params.carry_modulus,
+        ciphertext_modulus: wopbs_params.ciphertext_modulus,
+        encryption_key_choice: wopbs_params.encryption_key_choice,
+    };
+
+    let params = (pbs_params, wopbs_params);
+
+    let (cks, sks) = gen_keys(params.0);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space = 1;
@@ -124,14 +136,14 @@ pub fn wopbs_native_crt_bivariate() {
 }
 
 // test wopbs fake crt with different degree for each Ct
-pub fn wopbs_crt(params: (Parameters, Parameters)) {
+pub fn wopbs_crt(params: (PBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
 
     let basis = make_basis(params.1.message_modulus.0);
 
     let nb_block = basis.len();
 
-    let (cks, sks) = gen_keys(&params.0);
+    let (cks, sks) = gen_keys(params.0);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space = 1;
@@ -169,12 +181,12 @@ pub fn wopbs_crt(params: (Parameters, Parameters)) {
 }
 
 // test wopbs radix with different degree for each Ct
-pub fn wopbs_radix(params: (Parameters, Parameters)) {
+pub fn wopbs_radix(params: (PBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
 
     let nb_block = 2;
 
-    let (cks, sks) = gen_keys(&params.0);
+    let (cks, sks) = gen_keys(params.0);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = params.0.message_modulus.0 as u64;
@@ -206,12 +218,12 @@ pub fn wopbs_radix(params: (Parameters, Parameters)) {
 }
 
 // test wopbs radix with different degree for each Ct
-pub fn wopbs_bivariate_radix(params: (Parameters, Parameters)) {
+pub fn wopbs_bivariate_radix(params: (PBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
 
     let nb_block = 2;
 
-    let (cks, sks) = gen_keys(&params.0);
+    let (cks, sks) = gen_keys(params.0);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = params.0.message_modulus.0 as u64;
@@ -248,13 +260,13 @@ pub fn wopbs_bivariate_radix(params: (Parameters, Parameters)) {
 }
 
 // test wopbs bivariate fake crt with different degree for each Ct
-pub fn wopbs_bivariate_crt(params: (Parameters, Parameters)) {
+pub fn wopbs_bivariate_crt(params: (PBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
 
     let basis = make_basis(params.1.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = gen_keys(&params.0);
+    let (cks, sks) = gen_keys(params.0);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = 1;

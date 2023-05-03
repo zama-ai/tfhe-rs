@@ -63,8 +63,8 @@ impl PublicKeySmall {
 }
 
 impl<PBSOrder: PBSOrderMarker> PublicKey<PBSOrder> {
-    pub fn parameters(&self) -> crate::shortint::Parameters {
-        self.key.parameters
+    pub fn parameters(&self) -> crate::shortint::PBSParameters {
+        self.key.parameters.pbs_parameters().unwrap()
     }
 
     pub fn encrypt_radix<T: AsLittleEndianWords>(

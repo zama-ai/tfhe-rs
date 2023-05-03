@@ -19,7 +19,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let clear_1 = 170;
     /// let clear_2 = 3;
@@ -60,7 +60,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let clear_1 = 55;
     /// let clear_2 = 3;
@@ -114,7 +114,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let clear_1 = 170;
     /// let clear_2 = 3;
@@ -181,7 +181,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let clear_1 = 255;
     /// let clear_2 = 143;
@@ -239,7 +239,7 @@ impl ServerKey {
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let clear_1 = 170;
     /// let clear_2 = 6;

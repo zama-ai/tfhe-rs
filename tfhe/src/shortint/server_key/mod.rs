@@ -336,7 +336,7 @@ impl ServerKey {
     /// let msg: u64 = 3;
     /// let ct1 = cks.encrypt(msg);
     /// let ct2 = cks.encrypt(msg);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
     /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
     /// let acc = sks.generate_accumulator_bivariate(|x, y| x * y * x % modulus);
@@ -386,7 +386,7 @@ impl ServerKey {
     /// let msg: u64 = 3;
     /// let ct1 = cks.encrypt(msg);
     /// let mut ct2 = cks.encrypt(msg);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
     /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
     /// let acc = sks.generate_accumulator_bivariate(|x, y| x * y * x % modulus);
@@ -435,7 +435,7 @@ impl ServerKey {
     ///
     /// let msg: u64 = 3;
     /// let ct = cks.encrypt(msg);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
     /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
     /// let acc = sks.generate_accumulator(|x| x * x * x % modulus);

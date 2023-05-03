@@ -35,7 +35,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg * scalar as u64 % modulus, clear);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -48,7 +48,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg * scalar as u64 % modulus, clear);
     /// ```
     pub fn scalar_mul<OpOrder: PBSOrderMarker>(
@@ -92,7 +92,7 @@ impl ServerKey {
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(
-    ///     msg * scalar as u64 % cks.parameters.message_modulus.0 as u64,
+    ///     msg * scalar as u64 % cks.parameters.message_modulus().0 as u64,
     ///     clear
     /// );
     ///
@@ -107,7 +107,7 @@ impl ServerKey {
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(
-    ///     msg * scalar as u64 % cks.parameters.message_modulus.0 as u64,
+    ///     msg * scalar as u64 % cks.parameters.message_modulus().0 as u64,
     ///     clear
     /// );
     /// ```
@@ -393,7 +393,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(3, clear % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -409,7 +409,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(3, clear % modulus);
     /// ```
     pub fn smart_scalar_mul<OpOrder: PBSOrderMarker>(

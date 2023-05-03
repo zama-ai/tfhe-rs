@@ -29,7 +29,7 @@ where
     pub(crate) fn new(client_key: &GenericShortIntClientKey<P>) -> Self {
         #[cfg(feature = "internal-keycache")]
         let key = KEY_CACHE
-            .get_from_param(client_key.key.parameters)
+            .get_from_param(client_key.key.parameters.pbs_parameters().unwrap())
             .server_key()
             .clone();
         #[cfg(not(feature = "internal-keycache"))]

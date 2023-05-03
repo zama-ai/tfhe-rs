@@ -4,8 +4,8 @@ use tfhe::shortint::parameters::parameters_wopbs_message_carry::{
     WOPBS_PARAM_MESSAGE_4_CARRY_4,
 };
 use tfhe::shortint::parameters::{
-    Parameters, ALL_PARAMETER_VEC, PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3, PARAM_MESSAGE_4_CARRY_4,
+    PBSParameters, WopbsParameters, ALL_PARAMETER_VEC, PARAM_MESSAGE_1_CARRY_1,
+    PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3, PARAM_MESSAGE_4_CARRY_4,
 };
 
 fn client_server_keys() {
@@ -30,7 +30,7 @@ fn client_server_keys() {
         KEY_CACHE.clear_in_memory_cache()
     }
 
-    const WOPBS_PARAMS: [(Parameters, Parameters); 4] = [
+    const WOPBS_PARAMS: [(PBSParameters, WopbsParameters); 4] = [
         (PARAM_MESSAGE_1_CARRY_1, WOPBS_PARAM_MESSAGE_1_CARRY_1),
         (PARAM_MESSAGE_2_CARRY_2, WOPBS_PARAM_MESSAGE_2_CARRY_2),
         (PARAM_MESSAGE_3_CARRY_3, WOPBS_PARAM_MESSAGE_3_CARRY_3),

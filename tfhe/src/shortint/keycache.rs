@@ -212,7 +212,7 @@ pub mod utils {
     }
 }
 
-impl NamedParam for Parameters {
+impl NamedParam for PBSParameters {
     fn name(&self) -> String {
         named_params_impl!(
             self == (
@@ -257,7 +257,16 @@ impl NamedParam for Parameters {
                 PARAM_SMALL_MESSAGE_2_CARRY_2,
                 PARAM_SMALL_MESSAGE_3_CARRY_3,
                 PARAM_SMALL_MESSAGE_4_CARRY_4,
-                // Wops
+            )
+        );
+    }
+}
+
+impl NamedParam for WopbsParameters {
+    fn name(&self) -> String {
+        named_params_impl!(
+            self == (
+                // Wopbs
                 WOPBS_PARAM_MESSAGE_1_NORM2_2,
                 WOPBS_PARAM_MESSAGE_1_NORM2_4,
                 WOPBS_PARAM_MESSAGE_1_NORM2_6,
@@ -380,8 +389,8 @@ impl NamedParam for Parameters {
     }
 }
 
-impl From<Parameters> for (ClientKey, ServerKey) {
-    fn from(param: Parameters) -> Self {
+impl From<PBSParameters> for (ClientKey, ServerKey) {
+    fn from(param: PBSParameters) -> Self {
         let cks = ClientKey::new(param);
         let sks = ServerKey::new(&cks);
         (cks, sks)
@@ -389,7 +398,7 @@ impl From<Parameters> for (ClientKey, ServerKey) {
 }
 
 pub struct Keycache {
-    inner: ImplKeyCache<Parameters, (ClientKey, ServerKey), FileStorage>,
+    inner: ImplKeyCache<PBSParameters, (ClientKey, ServerKey), FileStorage>,
 }
 
 impl Default for Keycache {
@@ -433,7 +442,7 @@ impl SharedWopbsKey {
 }
 
 impl Keycache {
-    pub fn get_from_param(&self, param: Parameters) -> SharedKey {
+    pub fn get_from_param(&self, param: PBSParameters) -> SharedKey {
         SharedKey {
             inner: self.inner.get(param),
         }
@@ -445,10 +454,10 @@ impl Keycache {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct WopbsParamPair(pub Parameters, pub Parameters);
+pub struct WopbsParamPair(pub PBSParameters, pub WopbsParameters);
 
-impl From<(Parameters, Parameters)> for WopbsParamPair {
-    fn from(tuple: (Parameters, Parameters)) -> Self {
+impl From<(PBSParameters, WopbsParameters)> for WopbsParamPair {
+    fn from(tuple: (PBSParameters, WopbsParameters)) -> Self {
         Self(tuple.0, tuple.1)
     }
 }

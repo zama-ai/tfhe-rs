@@ -55,7 +55,7 @@ fn main() {
     let msg2 = 3;
     let scalar = 4;
 
-    let modulus = client_key.parameters.message_modulus.0;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);
@@ -88,7 +88,7 @@ fn main() {
     let msg2 = 3;
     let scalar = 4;
 
-    let modulus = client_key.parameters.message_modulus.0;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);
@@ -131,7 +131,7 @@ fn main() {
     let msg2 = 3;
     let scalar = 4;
 
-    let modulus = client_key.parameters.message_modulus.0;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);
@@ -165,7 +165,7 @@ fn main() {
     let msg2 = 3;
     let scalar = 4;
 
-    let modulus = client_key.parameters.message_modulus.0;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);
@@ -241,7 +241,7 @@ fn main() {
     let msg1 = 2;
     let msg2 = 1;
 
-    let modulus = client_key.parameters.message_modulus.0;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the private client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);
@@ -272,7 +272,7 @@ fn main() {
     let msg1 = 2;
     let msg2 = 1;
 
-    let modulus = client_key.parameters.message_modulus.0;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the private client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);
@@ -303,7 +303,7 @@ fn main() {
     let msg1 = 2;
     let msg2 = 1;
 
-    let modulus = client_key.parameters.message_modulus.0;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the private client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);
@@ -331,7 +331,7 @@ fn main() {
 
     let msg1 = 3;
 
-    let modulus = client_key.parameters.message_modulus.0;
+    let modulus = client_key.parameters.message_modulus().0;
 
     // We use the private client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);
@@ -365,7 +365,7 @@ fn main() {
     let msg1 = 3;
     let msg2 = 2;
 
-    let modulus = client_key.parameters.message_modulus.0 as u64;
+    let modulus = client_key.parameters.message_modulus().0 as u64;
 
     // We use the private client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);

@@ -6,7 +6,7 @@ use crate::shortint::ciphertext::{
     CompressedCiphertextSmall, PBSOrderMarker,
 };
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{MessageModulus, Parameters};
+use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -25,7 +25,7 @@ pub struct ClientKey {
     pub(crate) glwe_secret_key: GlweSecretKeyOwned<u64>,
     /// Key used as the output of the keyswitch operation
     pub(crate) small_lwe_secret_key: LweSecretKeyOwned<u64>,
-    pub parameters: Parameters,
+    pub parameters: ShortintParameterSet,
 }
 
 impl ClientKey {
@@ -40,8 +40,16 @@ impl ClientKey {
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     /// ```
-    pub fn new(parameters: Parameters) -> ClientKey {
-        ShortintEngine::with_thread_local_mut(|engine| engine.new_client_key(parameters).unwrap())
+    pub fn new<P>(parameters: P) -> ClientKey
+    where
+        P: TryInto<ShortintParameterSet>,
+        <P as TryInto<ShortintParameterSet>>::Error: Debug,
+    {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .new_client_key(parameters.try_into().unwrap())
+                .unwrap()
+        })
     }
 
     /// Encrypt a small integer message using the client key.
@@ -68,7 +76,7 @@ impl ClientKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt(&self, message: u64) -> CiphertextBig {
@@ -99,7 +107,7 @@ impl ClientKey {
     /// let ct = cks.encrypt_small(msg);
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt_small(&self, message: u64) -> CiphertextSmall {
@@ -134,7 +142,7 @@ impl ClientKey {
     /// let ct = ct.decompress();
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt_compressed(&self, message: u64) -> CompressedCiphertextBig {
@@ -171,7 +179,7 @@ impl ClientKey {
     /// let ct = ct.decompress();
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt_compressed_small(&self, message: u64) -> CompressedCiphertextSmall {
@@ -412,7 +420,7 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_2, PARAM_SMALL_MESSAGE_2_CARRY_2};
-    /// use tfhe::shortint::{ClientKey, Parameters};
+    /// use tfhe::shortint::ClientKey;
     ///
     /// // Generate the client key
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
