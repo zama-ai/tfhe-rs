@@ -9,7 +9,7 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::server_key::MaxDegree;
 use crate::shortint::wopbs::{WopbsKey, WopbsLUTBase};
-use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, Parameters, ServerKey};
+use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, ServerKey, WopbsParameters};
 
 impl ShortintEngine {
     // Creates a key when ONLY a wopbs is used.
@@ -18,13 +18,15 @@ impl ShortintEngine {
         cks: &ClientKey,
         sks: &ServerKey,
     ) -> EngineResult<WopbsKey> {
+        let wop_params = cks.parameters.wopbs_parameters().unwrap();
+
         let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
             &cks.large_lwe_secret_key,
             &cks.glwe_secret_key,
-            cks.parameters.pfks_base_log,
-            cks.parameters.pfks_level,
-            cks.parameters.pfks_modular_std_dev,
-            cks.parameters.ciphertext_modulus,
+            wop_params.pfks_base_log,
+            wop_params.pfks_level,
+            wop_params.pfks_modular_std_dev,
+            wop_params.ciphertext_modulus,
             &mut self.encryption_generator,
         );
 
@@ -34,7 +36,7 @@ impl ShortintEngine {
             wopbs_server_key: sks_cpy.clone(),
             cbs_pfpksk,
             ksk_pbs_to_wopbs: sks.key_switching_key.clone(),
-            param: cks.parameters,
+            param: wop_params.to_owned(),
             pbs_server_key: sks_cpy,
         };
         Ok(wopbs_key)
@@ -45,7 +47,7 @@ impl ShortintEngine {
         &mut self,
         cks: &ClientKey,
         sks: &ServerKey,
-        parameters: &Parameters,
+        parameters: &WopbsParameters,
     ) -> EngineResult<WopbsKey> {
         //Independent client key generation dedicated to the WoPBS
         let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -114,8 +116,8 @@ impl ShortintEngine {
         let ksk_pbs_large_to_wopbs_large = allocate_and_generate_new_lwe_keyswitch_key(
             &cks.large_lwe_secret_key,
             &large_lwe_secret_key,
-            cks.parameters.ks_base_log,
-            cks.parameters.ks_level,
+            cks.parameters.ks_base_log(),
+            cks.parameters.ks_level(),
             parameters.lwe_modular_std_dev,
             parameters.ciphertext_modulus,
             &mut self.encryption_generator,
@@ -126,9 +128,9 @@ impl ShortintEngine {
         let ksk_wopbs_large_to_pbs_small = allocate_and_generate_new_lwe_keyswitch_key(
             &large_lwe_secret_key,
             &cks.small_lwe_secret_key,
-            cks.parameters.ks_base_log,
-            cks.parameters.ks_level,
-            cks.parameters.lwe_modular_std_dev,
+            cks.parameters.ks_base_log(),
+            cks.parameters.ks_level(),
+            cks.parameters.lwe_modular_std_dev(),
             parameters.ciphertext_modulus,
             &mut self.encryption_generator,
         );
@@ -155,12 +157,12 @@ impl ShortintEngine {
         let pbs_server_key = ServerKey {
             key_switching_key: ksk_wopbs_large_to_pbs_small,
             bootstrapping_key: sks.bootstrapping_key.clone(),
-            message_modulus: cks.parameters.message_modulus,
-            carry_modulus: cks.parameters.carry_modulus,
+            message_modulus: cks.parameters.message_modulus(),
+            carry_modulus: cks.parameters.carry_modulus(),
             max_degree: MaxDegree(
-                cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0 - 1,
+                cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1,
             ),
-            ciphertext_modulus: cks.parameters.ciphertext_modulus,
+            ciphertext_modulus: cks.parameters.ciphertext_modulus(),
         };
 
         let wopbs_key = WopbsKey {

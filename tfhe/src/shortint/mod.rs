@@ -64,7 +64,8 @@ pub use ciphertext::{
 };
 pub use client_key::ClientKey;
 pub use parameters::{
-    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus, Parameters,
+    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus, PBSParameters,
+    ShortintParameterSet, WopbsParameters,
 };
 pub use public_key::{
     CompressedPublicKeyBase, CompressedPublicKeyBig, CompressedPublicKeySmall, PublicKeyBase,
@@ -85,8 +86,12 @@ pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 /// // generate the client key and the server key:
 /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 /// ```
-pub fn gen_keys(parameters_set: Parameters) -> (ClientKey, ServerKey) {
-    let cks = ClientKey::new(parameters_set);
+pub fn gen_keys<P>(parameters_set: P) -> (ClientKey, ServerKey)
+where
+    P: TryInto<ShortintParameterSet>,
+    <P as TryInto<ShortintParameterSet>>::Error: std::fmt::Debug,
+{
+    let cks = ClientKey::new(parameters_set.try_into().unwrap());
     let sks = ServerKey::new(&cks);
 
     (cks, sks)

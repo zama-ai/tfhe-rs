@@ -51,7 +51,7 @@ pub struct ShortintCompressedServerKey(pub(crate) crate::shortint::CompressedSer
 pub struct Shortint {}
 
 #[wasm_bindgen]
-pub struct ShortintParameters(pub(crate) crate::shortint::Parameters);
+pub struct ShortintParameters(pub(crate) crate::shortint::PBSParameters);
 
 #[wasm_bindgen]
 pub enum ShortintEncryptionKeyChoice {
@@ -160,11 +160,6 @@ impl Shortint {
         pbs_level: usize,
         ks_base_log: usize,
         ks_level: usize,
-        pfks_level: usize,
-        pfks_base_log: usize,
-        pfks_modular_std_dev: f64,
-        cbs_level: usize,
-        cbs_base_log: usize,
         message_modulus: usize,
         carry_modulus: usize,
         modulus_power_of_2_exponent: usize,
@@ -172,7 +167,7 @@ impl Shortint {
     ) -> ShortintParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
         use crate::core_crypto::prelude::*;
-        ShortintParameters(crate::shortint::Parameters {
+        ShortintParameters(crate::shortint::PBSParameters {
             lwe_dimension: LweDimension(lwe_dimension),
             glwe_dimension: GlweDimension(glwe_dimension),
             polynomial_size: PolynomialSize(polynomial_size),
@@ -182,11 +177,6 @@ impl Shortint {
             pbs_level: DecompositionLevelCount(pbs_level),
             ks_base_log: DecompositionBaseLog(ks_base_log),
             ks_level: DecompositionLevelCount(ks_level),
-            pfks_level: DecompositionLevelCount(pfks_level),
-            pfks_base_log: DecompositionBaseLog(pfks_base_log),
-            pfks_modular_std_dev: StandardDev(pfks_modular_std_dev),
-            cbs_level: DecompositionLevelCount(cbs_level),
-            cbs_base_log: DecompositionBaseLog(cbs_base_log),
             message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
             carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
             ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
@@ -216,7 +206,7 @@ impl Shortint {
             crate::shortint::engine::ShortintEngine::new_from_seeder(constant_seeder.as_mut());
 
         tmp_shortint_engine
-            .new_client_key(parameters.0.to_owned())
+            .new_client_key(parameters.0.try_into().unwrap())
             .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintClientKey)
     }

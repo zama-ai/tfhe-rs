@@ -40,7 +40,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -60,7 +60,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_mul_lsb<OpOrder: PBSOrderMarker>(
@@ -101,7 +101,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -115,7 +115,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_mul_lsb_assign<OpOrder: PBSOrderMarker>(
@@ -165,7 +165,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((clear_1 * clear_2) / modulus, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -186,7 +186,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!((clear_1 * clear_2) / modulus, res);
     /// ```
     pub fn unchecked_mul_msb<OpOrder: PBSOrderMarker>(
@@ -280,7 +280,7 @@ impl ServerKey {
     ///
     /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -296,7 +296,7 @@ impl ServerKey {
     ///
     /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn checked_mul_lsb<OpOrder: PBSOrderMarker>(
@@ -340,7 +340,7 @@ impl ServerKey {
     /// assert!(ct_res.is_ok());
     ///
     /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -355,7 +355,7 @@ impl ServerKey {
     /// assert!(ct_res.is_ok());
     ///
     /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn checked_mul_lsb_assign<OpOrder: PBSOrderMarker>(
@@ -411,7 +411,7 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(
     ///     clear_res,
-    ///     (msg_1 * msg_2) / cks.parameters.message_modulus.0 as u64
+    ///     (msg_1 * msg_2) / cks.parameters.message_modulus().0 as u64
     /// );
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -436,7 +436,7 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(
     ///     clear_res,
-    ///     (msg_1 * msg_2) / cks.parameters.message_modulus.0 as u64
+    ///     (msg_1 * msg_2) / cks.parameters.message_modulus().0 as u64
     /// );
     /// ```
     pub fn checked_mul_msb<OpOrder: PBSOrderMarker>(
@@ -612,7 +612,7 @@ impl ServerKey {
     ///
     /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -628,7 +628,7 @@ impl ServerKey {
     ///
     /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
     /// ```
     pub fn checked_mul_lsb_with_small_carry<OpOrder: PBSOrderMarker>(
@@ -827,8 +827,8 @@ impl ServerKey {
     ///  # Example
     ///
     /// ```rust
+    /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_1, PARAM_SMALL_MESSAGE_2_CARRY_2};
-    /// use tfhe::shortint::{gen_keys, Parameters};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_1);
@@ -911,8 +911,8 @@ impl ServerKey {
     ///  # Example
     ///
     /// ```rust
+    /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_1, PARAM_SMALL_MESSAGE_2_CARRY_2};
-    /// use tfhe::shortint::{gen_keys, Parameters};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_1);
@@ -1096,8 +1096,8 @@ impl ServerKey {
     /// # Example
     ///
     /// ```rust
+    /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{PARAM_MESSAGE_2_CARRY_1, PARAM_SMALL_MESSAGE_2_CARRY_2};
-    /// use tfhe::shortint::{gen_keys, Parameters};
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_1);

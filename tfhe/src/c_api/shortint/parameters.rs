@@ -26,7 +26,7 @@ impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::Encrypti
     }
 }
 
-pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::Parameters);
+pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::PBSParameters);
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_get_parameters(
@@ -123,11 +123,6 @@ pub unsafe extern "C" fn shortint_create_parameters(
     pbs_level: usize,
     ks_base_log: usize,
     ks_level: usize,
-    pfks_level: usize,
-    pfks_base_log: usize,
-    pfks_modular_std_dev: f64,
-    cbs_level: usize,
-    cbs_base_log: usize,
     message_modulus: usize,
     carry_modulus: usize,
     modulus_power_of_2_exponent: usize,
@@ -142,7 +137,7 @@ pub unsafe extern "C" fn shortint_create_parameters(
         *result = std::ptr::null_mut();
 
         let heap_allocated_parameters =
-            Box::new(ShortintParameters(shortint::parameters::Parameters {
+            Box::new(ShortintParameters(shortint::parameters::PBSParameters {
                 lwe_dimension: LweDimension(lwe_dimension),
                 glwe_dimension: GlweDimension(glwe_dimension),
                 polynomial_size: PolynomialSize(polynomial_size),
@@ -152,11 +147,6 @@ pub unsafe extern "C" fn shortint_create_parameters(
                 pbs_level: DecompositionLevelCount(pbs_level),
                 ks_base_log: DecompositionBaseLog(ks_base_log),
                 ks_level: DecompositionLevelCount(ks_level),
-                pfks_level: DecompositionLevelCount(pfks_level),
-                pfks_base_log: DecompositionBaseLog(pfks_base_log),
-                pfks_modular_std_dev: StandardDev(pfks_modular_std_dev),
-                cbs_level: DecompositionLevelCount(cbs_level),
-                cbs_base_log: DecompositionBaseLog(cbs_base_log),
                 message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
                 carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
                 ciphertext_modulus:

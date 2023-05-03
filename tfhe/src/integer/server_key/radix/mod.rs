@@ -30,7 +30,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let ctxt: RadixCiphertextBig = sks.create_trivial_zero_radix(num_blocks);
     ///
@@ -63,7 +63,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let ctxt: RadixCiphertextBig = sks.create_trivial_radix(212u64, num_blocks);
     ///
@@ -100,7 +100,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -141,7 +141,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -184,7 +184,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -222,7 +222,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -261,7 +261,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 119u64;
     ///
@@ -298,7 +298,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 119u64;
     ///
@@ -337,7 +337,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 119u64;
     ///
@@ -374,7 +374,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 119u64;
     ///
@@ -412,7 +412,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 7u64;
     ///
@@ -454,7 +454,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 10;
     ///

@@ -28,7 +28,10 @@ where
             .client_key()
             .clone();
         #[cfg(not(feature = "internal-keycache"))]
-        let key = ClientKey::new(parameters.into());
+        let key = {
+            let parameters: crate::shortint::PBSParameters = parameters.into();
+            ClientKey::new(parameters)
+        };
 
         Self {
             key,

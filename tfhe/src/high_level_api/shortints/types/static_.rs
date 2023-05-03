@@ -3,8 +3,8 @@ use std::fmt::Formatter;
 
 use crate::shortint::parameters::{
     CarryModulus, CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
-    EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus, Parameters, PolynomialSize,
-    StandardDev,
+    EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus, PBSParameters,
+    PolynomialSize, StandardDev,
 };
 
 use crate::high_level_api::shortints::{CompressedGenericShortint, GenericShortInt};
@@ -36,18 +36,13 @@ pub struct ShortIntegerParameterSet<const MESSAGE_BITS: u8> {
     pub pbs_level: DecompositionLevelCount,
     pub ks_base_log: DecompositionBaseLog,
     pub ks_level: DecompositionLevelCount,
-    pub pfks_level: DecompositionLevelCount,
-    pub pfks_base_log: DecompositionBaseLog,
-    pub pfks_modular_std_dev: StandardDev,
-    pub cbs_level: DecompositionLevelCount,
-    pub cbs_base_log: DecompositionBaseLog,
     pub carry_modulus: CarryModulus,
     pub ciphertext_modulus: CoreCiphertextModulus<u64>,
     pub encryption_key_choice: EncryptionKeyChoice,
 }
 
 impl<const MESSAGE_BITS: u8> ShortIntegerParameterSet<MESSAGE_BITS> {
-    const fn from_static(params: &'static Parameters) -> Self {
+    const fn from_static(params: &'static PBSParameters) -> Self {
         if params.message_modulus.0 != 1 << MESSAGE_BITS as usize {
             panic!("Invalid bit number");
         }
@@ -61,11 +56,6 @@ impl<const MESSAGE_BITS: u8> ShortIntegerParameterSet<MESSAGE_BITS> {
             pbs_level: params.pbs_level,
             ks_base_log: params.ks_base_log,
             ks_level: params.ks_level,
-            pfks_level: params.pfks_level,
-            pfks_base_log: params.pfks_base_log,
-            pfks_modular_std_dev: params.pfks_modular_std_dev,
-            cbs_level: params.cbs_level,
-            cbs_base_log: params.cbs_base_log,
             carry_modulus: params.carry_modulus,
             ciphertext_modulus: params.ciphertext_modulus,
             encryption_key_choice: params.encryption_key_choice,
@@ -73,7 +63,7 @@ impl<const MESSAGE_BITS: u8> ShortIntegerParameterSet<MESSAGE_BITS> {
     }
 }
 
-impl<const MESSAGE_BITS: u8> From<ShortIntegerParameterSet<MESSAGE_BITS>> for Parameters {
+impl<const MESSAGE_BITS: u8> From<ShortIntegerParameterSet<MESSAGE_BITS>> for PBSParameters {
     fn from(params: ShortIntegerParameterSet<MESSAGE_BITS>) -> Self {
         Self {
             lwe_dimension: params.lwe_dimension,
@@ -85,11 +75,6 @@ impl<const MESSAGE_BITS: u8> From<ShortIntegerParameterSet<MESSAGE_BITS>> for Pa
             pbs_level: params.pbs_level,
             ks_base_log: params.ks_base_log,
             ks_level: params.ks_level,
-            pfks_level: params.pfks_level,
-            pfks_base_log: params.pfks_base_log,
-            pfks_modular_std_dev: params.pfks_modular_std_dev,
-            cbs_level: params.cbs_level,
-            cbs_base_log: params.cbs_base_log,
             message_modulus: MessageModulus(1 << MESSAGE_BITS as usize),
             carry_modulus: params.carry_modulus,
             ciphertext_modulus: params.ciphertext_modulus,
@@ -264,10 +249,6 @@ impl FheUint2Parameters {
     pub fn with_carry_6() -> Self {
         Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_6)
     }
-
-    pub fn wopbs_default() -> Self {
-        Self::from_static(&crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2)
-    }
 }
 
 impl Default for FheUint2Parameters {
@@ -296,10 +277,6 @@ impl FheUint3Parameters {
     pub fn with_carry_5() -> Self {
         Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_5)
     }
-
-    pub fn wopbs_default() -> Self {
-        Self::from_static(&crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_3_CARRY_3)
-    }
 }
 
 impl Default for FheUint3Parameters {
@@ -323,10 +300,6 @@ impl FheUint4Parameters {
 
     pub fn with_carry_4() -> Self {
         Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4)
-    }
-
-    pub fn wopbs_default() -> Self {
-        Self::from_static(&crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_4_CARRY_4)
     }
 }
 

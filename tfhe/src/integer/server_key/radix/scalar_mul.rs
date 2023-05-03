@@ -21,7 +21,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg = 30;
     /// let scalar = 3;
@@ -65,7 +65,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg = 25u64;
     /// let scalar1 = 3;
@@ -108,7 +108,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg = 33;
     /// let scalar = 3;
@@ -157,7 +157,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg = 33;
     /// let scalar = 3;
@@ -201,7 +201,7 @@ impl ServerKey {
     /// // We have 4 * 2 = 8 bits of message
     /// let modulus = 1 << 8;
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg = 13;
     /// let scalar = 5;
@@ -243,7 +243,7 @@ impl ServerKey {
     /// // We have 4 * 2 = 8 bits of message
     /// let modulus = 1 << 8;
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg = 9;
     /// let scalar = 3;
@@ -276,7 +276,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg = 1u64;
     /// let power = 2;
@@ -320,7 +320,7 @@ impl ServerKey {
     /// // We have 4 * 2 = 8 bits of message
     /// let modulus = 1 << 8;
     /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, size);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, size);
     ///
     /// let msg = 230;
     /// let scalar = 376;

@@ -8,7 +8,7 @@ pub trait EvaluationIntegerKey<ClientKey> {
     fn new_wopbs_key(
         client_key: &ClientKey,
         server_key: &Self,
-        wopbs_block_parameters: crate::shortint::Parameters,
+        wopbs_block_parameters: crate::shortint::WopbsParameters,
     ) -> crate::integer::wopbs::WopbsKey;
 }
 

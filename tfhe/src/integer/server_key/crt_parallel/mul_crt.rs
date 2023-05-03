@@ -15,7 +15,7 @@ impl ServerKey {
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
-    /// let (cks, sks) = gen_keys_crt(&PARAM_MESSAGE_3_CARRY_3, basis);
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3, basis);
     ///
     /// let clear_1 = 29;
     /// let clear_2 = 23;
@@ -67,7 +67,7 @@ impl ServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3;
     ///
     /// let basis = vec![2, 3, 5];
-    /// let (cks, sks) = gen_keys_crt(&PARAM_MESSAGE_3_CARRY_3, basis);
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3, basis);
     ///
     /// let clear_1 = 29;
     /// let clear_2 = 29;

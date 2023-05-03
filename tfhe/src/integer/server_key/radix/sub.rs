@@ -19,7 +19,7 @@ impl ServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
     ///
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg_1 = 12;
     /// let msg_2 = 10;
@@ -60,7 +60,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg_1 = 128;
     /// let msg_2 = 99;
@@ -95,7 +95,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg_1 = 182u64;
     /// let msg_2 = 120u64;
@@ -137,7 +137,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 1u64;
     ///
@@ -184,7 +184,7 @@ impl ServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg1 = 41u8;
     /// let msg2 = 101u8;
@@ -223,7 +223,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg_1 = 120u8;
     /// let msg_2 = 181u8;
@@ -271,7 +271,7 @@ impl ServerKey {
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg_1 = 120u8;
     /// let msg_2 = 181u8;

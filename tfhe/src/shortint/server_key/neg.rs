@@ -37,7 +37,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -50,7 +50,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn neg<OpOrder: PBSOrderMarker>(
@@ -94,7 +94,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -107,7 +107,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn neg_assign<OpOrder: PBSOrderMarker>(&self, ct: &mut CiphertextBase<OpOrder>) {
@@ -144,7 +144,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let three = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(modulus - msg, three);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -157,7 +157,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let three = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(modulus - msg, three);
     /// ```
     pub fn unchecked_neg<OpOrder: PBSOrderMarker>(
@@ -198,7 +198,7 @@ impl ServerKey {
     /// sks.unchecked_neg_assign(&mut ct);
     ///
     /// // Decrypt
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(modulus - msg, cks.decrypt(&ct));
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -210,7 +210,7 @@ impl ServerKey {
     /// sks.unchecked_neg_assign(&mut ct);
     ///
     /// // Decrypt
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(modulus - msg, cks.decrypt(&ct));
     /// ```
     pub fn unchecked_neg_assign<OpOrder: PBSOrderMarker>(&self, ct: &mut CiphertextBase<OpOrder>) {
@@ -298,7 +298,7 @@ impl ServerKey {
     /// assert!(ct_res.is_ok());
     ///
     /// let clear_res = cks.decrypt(&ct_res.unwrap());
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -312,7 +312,7 @@ impl ServerKey {
     /// assert!(ct_res.is_ok());
     ///
     /// let clear_res = cks.decrypt(&ct_res.unwrap());
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn checked_neg<OpOrder: PBSOrderMarker>(
@@ -355,7 +355,7 @@ impl ServerKey {
     /// assert!(res.is_ok());
     ///
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -369,7 +369,7 @@ impl ServerKey {
     /// assert!(res.is_ok());
     ///
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn checked_neg_assign<OpOrder: PBSOrderMarker>(
@@ -408,7 +408,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -421,7 +421,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn smart_neg<OpOrder: PBSOrderMarker>(
@@ -454,7 +454,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
@@ -467,7 +467,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn smart_neg_assign<OpOrder: PBSOrderMarker>(&self, ct: &mut CiphertextBase<OpOrder>) {

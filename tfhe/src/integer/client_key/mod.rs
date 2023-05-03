@@ -16,7 +16,7 @@ use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittle
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::{
     CiphertextBase, CiphertextBig, CiphertextSmall, ClientKey as ShortintClientKey, PBSOrderMarker,
-    Parameters as ShortintParameters,
+    ShortintParameterSet as ShortintParameters,
 };
 use serde::{Deserialize, Serialize};
 pub use utils::radix_decomposition;
@@ -71,14 +71,18 @@ impl ClientKey {
     /// // have over 2 bits of message modulus.
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     /// ```
-    pub fn new(parameter_set: ShortintParameters) -> Self {
+    pub fn new<P>(parameter_set: P) -> Self
+    where
+        P: TryInto<ShortintParameters>,
+        <P as TryInto<ShortintParameters>>::Error: std::fmt::Debug,
+    {
         Self {
             key: ShortintClientKey::new(parameter_set),
         }
     }
 
-    pub fn parameters(&self) -> ShortintParameters {
-        self.key.parameters
+    pub fn parameters(&self) -> crate::shortint::PBSParameters {
+        self.key.parameters.pbs_parameters().unwrap()
     }
 
     /// Encrypts an integer in radix decomposition
@@ -365,7 +369,7 @@ impl ClientKey {
                 let shifted_block_value = block_value * valid_until_power;
                 bit_buffer += shifted_block_value;
 
-                valid_until_power *= self.key.parameters.message_modulus.0 as u128;
+                valid_until_power *= self.key.parameters.message_modulus().0 as u128;
 
                 if valid_until_power >= U64_MODULUS {
                     // We have enough data to fill the current word

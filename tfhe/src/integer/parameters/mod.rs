@@ -1,18 +1,19 @@
 #![allow(clippy::excessive_precision)]
-pub use crate::shortint::{CiphertextModulus, Parameters};
+pub use crate::shortint::{CiphertextModulus, PBSParameters, WopbsParameters};
 
+pub use crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS;
 use crate::shortint::parameters::{CarryModulus, EncryptionKeyChoice, MessageModulus};
 pub use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DispersionParameter, GlweDimension,
     LweDimension, PolynomialSize, StandardDev,
 };
 
-pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [Parameters; 2] = [
+pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [WopbsParameters; 2] = [
     PARAM_MESSAGE_4_CARRY_4_16_BITS,
     PARAM_MESSAGE_2_CARRY_2_16_BITS,
 ];
 
-pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -33,7 +34,7 @@ pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: Parameters = Parameters {
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
-pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -54,7 +55,7 @@ pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: Parameters = Parameters {
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
-pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -75,7 +76,7 @@ pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: Parameters = Parameters {
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
-pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -96,7 +97,7 @@ pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: Parameters = Parameters {
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
-pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: Parameters = Parameters {
+pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -113,27 +114,6 @@ pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: Parameters = Parameters {
     cbs_base_log: DecompositionBaseLog(3),
     message_modulus: MessageModulus(2),
     carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
-
-pub const PARAM_4_BITS_5_BLOCKS: Parameters = Parameters {
-    lwe_dimension: LweDimension(667),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.0000000004168323308734758),
-    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000004905643852600863),
-    pbs_base_log: DecompositionBaseLog(7),
-    pbs_level: DecompositionLevelCount(6),
-    ks_base_log: DecompositionBaseLog(1),
-    ks_level: DecompositionLevelCount(14),
-    pfks_level: DecompositionLevelCount(6),
-    pfks_base_log: DecompositionBaseLog(7),
-    pfks_modular_std_dev: StandardDev(0.00000000000000000000000000000004905643852600863),
-    cbs_level: DecompositionLevelCount(7),
-    cbs_base_log: DecompositionBaseLog(4),
-    message_modulus: MessageModulus(16),
-    carry_modulus: CarryModulus(1),
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };

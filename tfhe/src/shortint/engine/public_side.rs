@@ -31,11 +31,11 @@ impl ShortintEngine {
         let (secret_encryption_key, encryption_noise) = match OpOrder::pbs_order() {
             crate::shortint::PBSOrder::KeyswitchBootstrap => (
                 &client_key.large_lwe_secret_key,
-                client_parameters.glwe_modular_std_dev,
+                client_parameters.glwe_modular_std_dev(),
             ),
             crate::shortint::PBSOrder::BootstrapKeyswitch => (
                 &client_key.small_lwe_secret_key,
-                client_parameters.lwe_modular_std_dev,
+                client_parameters.lwe_modular_std_dev(),
             ),
         };
 
@@ -48,7 +48,7 @@ impl ShortintEngine {
             secret_encryption_key,
             zero_encryption_count,
             encryption_noise,
-            client_key.parameters.ciphertext_modulus,
+            client_key.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
 
@@ -57,7 +57,7 @@ impl ShortintEngine {
             secret_encryption_key,
             zero_encryption_count,
             encryption_noise,
-            client_key.parameters.ciphertext_modulus,
+            client_key.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
 
@@ -77,11 +77,11 @@ impl ShortintEngine {
         let (secret_encryption_key, encryption_noise) = match OpOrder::pbs_order() {
             crate::shortint::PBSOrder::KeyswitchBootstrap => (
                 &client_key.large_lwe_secret_key,
-                client_parameters.glwe_modular_std_dev,
+                client_parameters.glwe_modular_std_dev(),
             ),
             crate::shortint::PBSOrder::BootstrapKeyswitch => (
                 &client_key.small_lwe_secret_key,
-                client_parameters.lwe_modular_std_dev,
+                client_parameters.lwe_modular_std_dev(),
             ),
         };
 
@@ -94,7 +94,7 @@ impl ShortintEngine {
             secret_encryption_key,
             zero_encryption_count,
             encryption_noise,
-            client_parameters.ciphertext_modulus,
+            client_parameters.ciphertext_modulus(),
             &mut self.seeder,
         );
 
@@ -103,7 +103,7 @@ impl ShortintEngine {
             secret_encryption_key,
             zero_encryption_count,
             encryption_noise,
-            client_parameters.ciphertext_modulus,
+            client_parameters.ciphertext_modulus(),
             &mut self.seeder,
         );
 
@@ -122,7 +122,7 @@ impl ShortintEngine {
         let ciphertext = self.encrypt_with_message_modulus_and_public_key(
             public_key,
             message,
-            public_key.parameters.message_modulus,
+            public_key.parameters.message_modulus(),
         )?;
 
         Ok(ciphertext)
@@ -136,7 +136,7 @@ impl ShortintEngine {
         let ciphertext = self.encrypt_with_message_modulus_and_compressed_public_key(
             public_key,
             message,
-            public_key.parameters.message_modulus,
+            public_key.parameters.message_modulus(),
         )?;
 
         Ok(ciphertext)
@@ -150,13 +150,13 @@ impl ShortintEngine {
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         //This ensures that the space message_modulus*carry_modulus < param.message_modulus *
         // param.carry_modulus
-        let carry_modulus = (public_key.parameters.message_modulus.0
-            * public_key.parameters.carry_modulus.0)
+        let carry_modulus = (public_key.parameters.message_modulus().0
+            * public_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
         //The delta is the one defined by the parameters
         let delta = (1_u64 << 63)
-            / (public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0)
+            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
                 as u64;
 
         //The input is reduced modulus the message_modulus
@@ -199,13 +199,13 @@ impl ShortintEngine {
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         //This ensures that the space message_modulus*carry_modulus < param.message_modulus *
         // param.carry_modulus
-        let carry_modulus = (public_key.parameters.message_modulus.0
-            * public_key.parameters.carry_modulus.0)
+        let carry_modulus = (public_key.parameters.message_modulus().0
+            * public_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
         //The delta is the one defined by the parameters
         let delta = (1_u64 << 63)
-            / (public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0)
+            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
                 as u64;
 
         //The input is reduced modulus the message_modulus
@@ -246,7 +246,7 @@ impl ShortintEngine {
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         //Multiply by 2 to reshift and exclude the padding bit
         let delta = ((1_u64 << 63)
-            / (public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0)
+            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
                 as u64)
             * 2;
 
@@ -271,9 +271,9 @@ impl ShortintEngine {
 
         Ok(CiphertextBase {
             ct: encrypted_ct,
-            degree: Degree(public_key.parameters.message_modulus.0 - 1),
-            message_modulus: public_key.parameters.message_modulus,
-            carry_modulus: public_key.parameters.carry_modulus,
+            degree: Degree(public_key.parameters.message_modulus().0 - 1),
+            message_modulus: public_key.parameters.message_modulus(),
+            carry_modulus: public_key.parameters.carry_modulus(),
             _order_marker: Default::default(),
         })
     }
@@ -285,7 +285,7 @@ impl ShortintEngine {
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         //Multiply by 2 to reshift and exclude the padding bit
         let delta = ((1_u64 << 63)
-            / (public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0)
+            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
                 as u64)
             * 2;
 
@@ -310,9 +310,9 @@ impl ShortintEngine {
 
         Ok(CiphertextBase {
             ct: encrypted_ct,
-            degree: Degree(public_key.parameters.message_modulus.0 - 1),
-            message_modulus: public_key.parameters.message_modulus,
-            carry_modulus: public_key.parameters.carry_modulus,
+            degree: Degree(public_key.parameters.message_modulus().0 - 1),
+            message_modulus: public_key.parameters.message_modulus(),
+            carry_modulus: public_key.parameters.carry_modulus(),
             _order_marker: Default::default(),
         })
     }
@@ -395,7 +395,7 @@ impl ShortintEngine {
         message: u64,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let delta = (1_u64 << 63)
-            / (public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0)
+            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
                 as u64;
         let shifted_message = message * delta;
         // encode the message
@@ -418,10 +418,11 @@ impl ShortintEngine {
         Ok(CiphertextBase {
             ct: encrypted_ct,
             degree: Degree(
-                public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0 - 1,
+                public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0
+                    - 1,
             ),
-            message_modulus: public_key.parameters.message_modulus,
-            carry_modulus: public_key.parameters.carry_modulus,
+            message_modulus: public_key.parameters.message_modulus(),
+            carry_modulus: public_key.parameters.carry_modulus(),
             _order_marker: Default::default(),
         })
     }
@@ -432,7 +433,7 @@ impl ShortintEngine {
         message: u64,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let delta = (1_u64 << 63)
-            / (public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0)
+            / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
                 as u64;
         let shifted_message = message * delta;
         // encode the message
@@ -455,10 +456,11 @@ impl ShortintEngine {
         Ok(CiphertextBase {
             ct: encrypted_ct,
             degree: Degree(
-                public_key.parameters.message_modulus.0 * public_key.parameters.carry_modulus.0 - 1,
+                public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0
+                    - 1,
             ),
-            message_modulus: public_key.parameters.message_modulus,
-            carry_modulus: public_key.parameters.carry_modulus,
+            message_modulus: public_key.parameters.message_modulus(),
+            carry_modulus: public_key.parameters.carry_modulus(),
             _order_marker: Default::default(),
         })
     }

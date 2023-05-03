@@ -122,8 +122,8 @@ impl ConfigBuilder {
     #[cfg(feature = "integer")]
     pub fn enable_default_custom_integers(
         mut self,
-        block_parameters: crate::shortint::Parameters,
-        wopbs_block_parameters: crate::shortint::Parameters,
+        block_parameters: crate::shortint::PBSParameters,
+        wopbs_block_parameters: crate::shortint::WopbsParameters,
     ) -> Self {
         self.config.integer_config =
             Some(IntegerConfig::new(block_parameters, wopbs_block_parameters));

@@ -152,7 +152,7 @@ where
     fn new_wopbs_key(
         client_key: &C,
         server_key: &Self,
-        wopbs_block_parameters: crate::shortint::Parameters,
+        wopbs_block_parameters: crate::shortint::WopbsParameters,
     ) -> WopbsKey {
         #[cfg(not(feature = "internal-keycache"))]
         {

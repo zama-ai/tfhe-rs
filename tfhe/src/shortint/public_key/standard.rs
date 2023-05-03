@@ -4,7 +4,7 @@ use crate::shortint::ciphertext::{
     BootstrapKeyswitch, CiphertextBase, KeyswitchBootstrap, PBSOrderMarker,
 };
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{MessageModulus, Parameters};
+use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
 use crate::shortint::{ClientKey, CompressedPublicKeyBase};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -13,7 +13,7 @@ use std::fmt::Debug;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PublicKeyBase<OpOrder: PBSOrderMarker> {
     pub(crate) lwe_public_key: LwePublicKeyOwned<u64>,
-    pub parameters: Parameters,
+    pub parameters: ShortintParameterSet,
     pub _order_marker: std::marker::PhantomData<OpOrder>,
 }
 
@@ -88,7 +88,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let ct = pk.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     ///
     /// let pk = PublicKeySmall::new(&cks);
@@ -105,7 +105,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let ct = pk.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus.0 as u64;
+    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt(&self, message: u64) -> CiphertextBase<OpOrder> {
@@ -165,7 +165,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, Parameters, PublicKeyBig, PublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, PublicKeyBig, PublicKeySmall};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);

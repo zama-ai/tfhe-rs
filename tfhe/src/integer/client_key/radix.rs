@@ -6,7 +6,7 @@ use crate::integer::encryption::AsLittleEndianWords;
 use crate::integer::{RadixCiphertextBig, RadixCiphertextSmall};
 use crate::shortint::{
     CiphertextBase, CiphertextBig as ShortintCiphertext, PBSOrderMarker,
-    Parameters as ShortintParameters,
+    PBSParameters as ShortintParameters,
 };
 
 use serde::{Deserialize, Serialize};

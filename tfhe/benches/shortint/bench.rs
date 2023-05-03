@@ -5,7 +5,7 @@ use crate::utilities::{write_to_json, OperatorType};
 use criterion::{criterion_group, criterion_main, Criterion};
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::{CiphertextBig, Parameters, ServerKey};
+use tfhe::shortint::{CiphertextBig, PBSParameters, ServerKey, ShortintParameterSet};
 
 use rand::Rng;
 use tfhe::shortint::keycache::KEY_CACHE;
@@ -13,14 +13,14 @@ use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
 use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6;
 
-const SERVER_KEY_BENCH_PARAMS: [Parameters; 4] = [
+const SERVER_KEY_BENCH_PARAMS: [PBSParameters; 4] = [
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_3_CARRY_3,
     PARAM_MESSAGE_4_CARRY_4,
 ];
 
-const SERVER_KEY_BENCH_PARAMS_EXTENDED: [Parameters; 15] = [
+const SERVER_KEY_BENCH_PARAMS_EXTENDED: [PBSParameters; 15] = [
     PARAM_MESSAGE_1_CARRY_0,
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_0,
@@ -43,7 +43,7 @@ fn bench_server_key_unary_function<F>(
     bench_name: &str,
     display_name: &str,
     unary_op: F,
-    params: &[Parameters],
+    params: &[PBSParameters],
 ) where
     F: Fn(&ServerKey, &mut CiphertextBig),
 {
@@ -55,7 +55,7 @@ fn bench_server_key_unary_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus.0 as u64;
+        let modulus = cks.parameters.message_modulus().0 as u64;
 
         let clear_text = rng.gen::<u64>() % modulus;
 
@@ -87,7 +87,7 @@ fn bench_server_key_binary_function<F>(
     bench_name: &str,
     display_name: &str,
     binary_op: F,
-    params: &[Parameters],
+    params: &[PBSParameters],
 ) where
     F: Fn(&ServerKey, &mut CiphertextBig, &mut CiphertextBig),
 {
@@ -99,7 +99,7 @@ fn bench_server_key_binary_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus.0 as u64;
+        let modulus = cks.parameters.message_modulus().0 as u64;
 
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -133,7 +133,7 @@ fn bench_server_key_binary_scalar_function<F>(
     bench_name: &str,
     display_name: &str,
     binary_op: F,
-    params: &[Parameters],
+    params: &[PBSParameters],
 ) where
     F: Fn(&ServerKey, &mut CiphertextBig, u8),
 {
@@ -145,7 +145,7 @@ fn bench_server_key_binary_scalar_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus.0 as u64;
+        let modulus = cks.parameters.message_modulus().0 as u64;
 
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -178,7 +178,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
     bench_name: &str,
     display_name: &str,
     binary_op: F,
-    params: &[Parameters],
+    params: &[PBSParameters],
 ) where
     F: Fn(&ServerKey, &mut CiphertextBig, u8),
 {
@@ -190,7 +190,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus.0 as u64;
+        let modulus = cks.parameters.message_modulus().0 as u64;
         assert_ne!(modulus, 1);
 
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -231,7 +231,7 @@ fn carry_extract(c: &mut Criterion) {
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus.0 as u64;
+        let modulus = cks.parameters.message_modulus().0 as u64;
 
         let clear_0 = rng.gen::<u64>() % modulus;
 
@@ -267,7 +267,7 @@ fn programmable_bootstrapping(c: &mut Criterion) {
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus.0 as u64;
+        let modulus = cks.parameters.message_modulus().0 as u64;
 
         let acc = sks.generate_accumulator(|x| x);
 
@@ -297,12 +297,15 @@ fn programmable_bootstrapping(c: &mut Criterion) {
     bench_group.finish();
 }
 
+// TODO: remove?
 fn _bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("programmable_bootstrap");
 
     let param = WOPBS_PARAM_MESSAGE_4_NORM2_6;
+    let param_set: ShortintParameterSet = param.try_into().unwrap();
+    let pbs_params = param_set.pbs_parameters().unwrap();
 
-    let keys = KEY_CACHE_WOPBS.get_from_param((param, param));
+    let keys = KEY_CACHE_WOPBS.get_from_param((pbs_params, param));
     let (cks, _, wopbs_key) = (keys.client_key(), keys.server_key(), keys.wopbs_key());
 
     let mut rng = rand::thread_rng();

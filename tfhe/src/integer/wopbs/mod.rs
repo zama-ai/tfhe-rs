@@ -6,18 +6,16 @@
 #[cfg(test)]
 mod test;
 
+use super::ciphertext::RadixCiphertext;
 pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCount};
 use crate::core_crypto::prelude::*;
 use crate::integer::client_key::utils::i_crt;
 use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, ServerKey};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::wopbs::WopbsLUTBase;
+use crate::shortint::{PBSOrderMarker, WopbsParameters};
 use rayon::prelude::*;
-
-use crate::shortint::{PBSOrderMarker, Parameters};
 use serde::{Deserialize, Serialize};
-
-use super::ciphertext::RadixCiphertext;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WopbsKey {
@@ -196,10 +194,14 @@ impl WopbsKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_1_CARRY_1;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_1_CARRY_1);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1);
     /// ```
-    pub fn new_wopbs_key(cks: &ClientKey, sks: &ServerKey, parameters: &Parameters) -> WopbsKey {
+    pub fn new_wopbs_key(
+        cks: &ClientKey,
+        sks: &ServerKey,
+        parameters: &WopbsParameters,
+    ) -> WopbsKey {
         WopbsKey {
             wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key(
                 &cks.key, &sks.key, parameters,
@@ -234,7 +236,7 @@ impl WopbsKey {
     ///
     /// let nb_block = 3;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
@@ -321,7 +323,7 @@ impl WopbsKey {
     ///
     /// let nb_block = 3;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&WOPBS_PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
@@ -408,7 +410,7 @@ impl WopbsKey {
     ///
     /// let param = PARAM_4_BITS_5_BLOCKS;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&param);
+    /// let (cks, sks) = gen_keys(param);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let mut msg_space = 1;
@@ -435,7 +437,7 @@ impl WopbsKey {
     ///
     /// let nb_block = 3;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// //Generate wopbs_v0 key    ///
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
@@ -475,7 +477,7 @@ impl WopbsKey {
     ///
     /// let nb_block = 3;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// //Generate wopbs_v0 key    ///
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
@@ -546,7 +548,7 @@ impl WopbsKey {
     ///
     /// let nb_block = 3;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     /// //Generate wopbs_v0 key
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
@@ -614,7 +616,7 @@ impl WopbsKey {
     ///
     /// let param = PARAM_4_BITS_5_BLOCKS;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&param);
+    /// let (cks, sks) = gen_keys(param);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let mut msg_space = 1;
@@ -676,7 +678,7 @@ impl WopbsKey {
     /// let nb_block = basis.len();
     ///
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_3_CARRY_3);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3);
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_3_CARRY_3);
     ///
     /// let mut msg_space = 1;
@@ -740,7 +742,7 @@ impl WopbsKey {
     ///
     /// let nb_block = 3;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// //Generate wopbs_v0 key    ///
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
@@ -837,7 +839,7 @@ impl WopbsKey {
     ///
     /// let basis: Vec<u64> = vec![5, 7];
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&PARAM_MESSAGE_3_CARRY_3);
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3);
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_3_CARRY_3);
     ///
     /// let mut msg_space = 1;
@@ -930,7 +932,7 @@ impl WopbsKey {
     ///
     /// let param = PARAM_4_BITS_5_BLOCKS;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&param);
+    /// let (cks, sks) = gen_keys(param);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let mut msg_space = 1;
@@ -1002,7 +1004,7 @@ impl WopbsKey {
     ///
     /// let param = PARAM_4_BITS_5_BLOCKS;
     /// //Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(&param);
+    /// let (cks, sks) = gen_keys(param);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     ///
     /// let mut msg_space = 1;

@@ -24,7 +24,7 @@
 //!
 //! // Generation of the client/server keys, using the default parameters:
 //! let (mut client_key, mut server_key) =
-//!     gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, number_of_blocks);
+//!     gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, number_of_blocks);
 //!
 //! let msg1 = 153;
 //! let msg2 = 125;
@@ -84,21 +84,67 @@ pub use u256::U256;
 /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 ///
 /// // generate the client key and the server key:
-/// let (cks, sks) = gen_keys(&PARAM_MESSAGE_2_CARRY_2);
+/// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 /// ```
-pub fn gen_keys(
-    parameters_set: &crate::shortint::parameters::Parameters,
-) -> (ClientKey, ServerKey) {
-    #[cfg(any(test, feature = "internal-keycache"))]
-    {
-        keycache::KEY_CACHE.get_from_params(*parameters_set)
-    }
-    #[cfg(all(not(test), not(feature = "internal-keycache")))]
-    {
-        let cks = ClientKey::new(*parameters_set);
+pub fn gen_keys<P>(parameters_set: P) -> (ClientKey, ServerKey)
+where
+    P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
+    <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
+{
+    let shortint_parameters_set: crate::shortint::parameters::ShortintParameterSet =
+        parameters_set.try_into().unwrap();
+
+    let is_wopbs_only_params = shortint_parameters_set.wopbs_only();
+
+    // TODO
+    // Manually manage the wopbs only case as a workaround pending wopbs rework
+    let shortint_parameters_set = if is_wopbs_only_params {
+        let wopbs_params = shortint_parameters_set.wopbs_parameters().unwrap();
+        let pbs_params = crate::shortint::parameters::PBSParameters {
+            lwe_dimension: wopbs_params.lwe_dimension,
+            glwe_dimension: wopbs_params.glwe_dimension,
+            polynomial_size: wopbs_params.polynomial_size,
+            lwe_modular_std_dev: wopbs_params.lwe_modular_std_dev,
+            glwe_modular_std_dev: wopbs_params.glwe_modular_std_dev,
+            pbs_base_log: wopbs_params.pbs_base_log,
+            pbs_level: wopbs_params.pbs_level,
+            ks_base_log: wopbs_params.ks_base_log,
+            ks_level: wopbs_params.ks_level,
+            message_modulus: wopbs_params.message_modulus,
+            carry_modulus: wopbs_params.carry_modulus,
+            ciphertext_modulus: wopbs_params.ciphertext_modulus,
+            encryption_key_choice: wopbs_params.encryption_key_choice,
+        };
+
+        crate::shortint::parameters::ShortintParameterSet::try_new_pbs_and_wopbs_param_set((
+            pbs_params,
+            wopbs_params,
+        ))
+        .unwrap()
+    } else {
+        shortint_parameters_set
+    };
+
+    let gen_keys_inner = |parameters_set| {
+        let cks = ClientKey::new(parameters_set);
         let sks = ServerKey::new(&cks);
 
         (cks, sks)
+    };
+
+    #[cfg(any(test, feature = "internal-keycache"))]
+    {
+        if is_wopbs_only_params {
+            // TODO
+            // Keycache is broken for the wopbs only case, so generate keys instead
+            gen_keys_inner(shortint_parameters_set)
+        } else {
+            keycache::KEY_CACHE.get_from_params(shortint_parameters_set.pbs_parameters().unwrap())
+        }
+    }
+    #[cfg(all(not(test), not(feature = "internal-keycache")))]
+    {
+        gen_keys_inner(shortint_parameters_set)
     }
 }
 
@@ -112,12 +158,13 @@ pub fn gen_keys(
 ///
 /// // generate the client key and the server key:
 /// let num_blocks = 4;
-/// let (cks, sks) = gen_keys_radix(&PARAM_MESSAGE_2_CARRY_2, num_blocks);
+/// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
 /// ```
-pub fn gen_keys_radix(
-    parameters_set: &crate::shortint::parameters::Parameters,
-    num_blocks: usize,
-) -> (RadixClientKey, ServerKey) {
+pub fn gen_keys_radix<P>(parameters_set: P, num_blocks: usize) -> (RadixClientKey, ServerKey)
+where
+    P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
+    <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
+{
     let (cks, sks) = gen_keys(parameters_set);
 
     (RadixClientKey::from((cks, num_blocks)), sks)
@@ -133,10 +180,10 @@ pub fn gen_keys_radix(
 ///
 /// // generate the client key and the server key:
 /// let basis = vec![2, 3, 5];
-/// let (cks, sks) = gen_keys_crt(&PARAM_MESSAGE_2_CARRY_2, basis);
+/// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_2_CARRY_2, basis);
 /// ```
 pub fn gen_keys_crt(
-    parameters_set: &crate::shortint::parameters::Parameters,
+    parameters_set: crate::shortint::parameters::PBSParameters,
     basis: Vec<u64>,
 ) -> (CrtClientKey, ServerKey) {
     let (cks, sks) = gen_keys(parameters_set);

@@ -190,13 +190,13 @@ create_parametrized_test_bivariate_pbs_compliant!(
 create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal_trivial);
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_decrypt(param: Parameters) {
+fn shortint_encrypt_decrypt(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
@@ -212,16 +212,16 @@ fn shortint_encrypt_decrypt(param: Parameters) {
 }
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_with_message_modulus_decrypt(param: Parameters) {
+fn shortint_encrypt_with_message_modulus_decrypt(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
-        let mut modulus = rng.gen::<u64>() % cks.parameters.message_modulus.0 as u64;
+        let mut modulus = rng.gen::<u64>() % cks.parameters.message_modulus().0 as u64;
         while modulus == 0 {
-            modulus = rng.gen::<u64>() % cks.parameters.message_modulus.0 as u64;
+            modulus = rng.gen::<u64>() % cks.parameters.message_modulus().0 as u64;
         }
 
         let clear = rng.gen::<u64>() % modulus;
@@ -236,14 +236,14 @@ fn shortint_encrypt_with_message_modulus_decrypt(param: Parameters) {
     }
 }
 
-fn shortint_encrypt_decrypt_without_padding(param: Parameters) {
+fn shortint_encrypt_decrypt_without_padding(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
     let mut rng = rand::thread_rng();
 
     // We assume that the modulus is the largest possible without padding bit
-    let modulus = (cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0) as u64;
+    let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
@@ -258,14 +258,14 @@ fn shortint_encrypt_decrypt_without_padding(param: Parameters) {
     }
 }
 
-fn shortint_keyswitch_bootstrap(param: Parameters) {
+fn shortint_keyswitch_bootstrap(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
     let mut failures = 0;
 
     for _ in 0..NB_TEST {
@@ -291,13 +291,13 @@ fn shortint_keyswitch_bootstrap(param: Parameters) {
     assert_eq!(0, failures);
 }
 
-fn shortint_keyswitch_programmable_bootstrap(param: Parameters) {
+fn shortint_keyswitch_programmable_bootstrap(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -318,13 +318,13 @@ fn shortint_keyswitch_programmable_bootstrap(param: Parameters) {
     }
 }
 
-fn shortint_keyswitch_bivariate_programmable_bootstrap(param: Parameters) {
+fn shortint_keyswitch_bivariate_programmable_bootstrap(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -347,15 +347,15 @@ fn shortint_keyswitch_bivariate_programmable_bootstrap(param: Parameters) {
 }
 
 /// test extraction of a carry
-fn shortint_carry_extract(param: Parameters) {
+fn shortint_carry_extract(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
     let full_modulus =
-        cks.parameters.message_modulus.0 as u64 + cks.parameters.carry_modulus.0 as u64;
-    let msg_modulus = cks.parameters.message_modulus.0 as u64;
+        cks.parameters.message_modulus().0 as u64 + cks.parameters.carry_modulus().0 as u64;
+    let msg_modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         // shift to the carry bits
@@ -380,7 +380,7 @@ fn shortint_carry_extract(param: Parameters) {
 }
 
 /// test extraction of a message
-fn shortint_message_extract(param: Parameters) {
+fn shortint_message_extract(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -408,7 +408,7 @@ fn shortint_message_extract(param: Parameters) {
 }
 
 /// test multiplication with the LWE server key
-fn shortint_generate_accumulator(param: Parameters) {
+fn shortint_generate_accumulator(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let double = |x| 2 * x;
@@ -417,7 +417,7 @@ fn shortint_generate_accumulator(param: Parameters) {
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
@@ -436,13 +436,13 @@ fn shortint_generate_accumulator(param: Parameters) {
 }
 
 /// test addition with the LWE server key
-fn shortint_unchecked_add(param: Parameters) {
+fn shortint_unchecked_add(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -463,21 +463,22 @@ fn shortint_unchecked_add(param: Parameters) {
         // assert
         println!(
             "The parameters set is CARRY_{}_MESSAGE_{}",
-            cks.parameters.carry_modulus.0, cks.parameters.message_modulus.0
+            cks.parameters.carry_modulus().0,
+            cks.parameters.message_modulus().0
         );
         assert_eq!((clear_0 + clear_1) % modulus, dec_res);
     }
 }
 
 /// test addition with the LWE server key
-fn shortint_smart_add(param: Parameters) {
+fn shortint_smart_add(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -509,14 +510,14 @@ fn shortint_smart_add(param: Parameters) {
 }
 
 /// test default addition with the LWE server key
-fn shortint_default_add(param: Parameters) {
+fn shortint_default_add(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -548,7 +549,7 @@ fn shortint_default_add(param: Parameters) {
 }
 
 /// test addition with the LWE server key using the a public key for encryption
-fn shortint_compressed_public_key_smart_add(param: Parameters) {
+fn shortint_compressed_public_key_smart_add(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompressedPublicKeyBig::new(cks);
@@ -556,7 +557,7 @@ fn shortint_compressed_public_key_smart_add(param: Parameters) {
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -588,7 +589,7 @@ fn shortint_compressed_public_key_smart_add(param: Parameters) {
 }
 
 /// test addition with the LWE server key using the a public key for encryption
-fn shortint_public_key_smart_add(param: Parameters) {
+fn shortint_public_key_smart_add(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::PublicKeyBig::new(cks);
@@ -596,7 +597,7 @@ fn shortint_public_key_smart_add(param: Parameters) {
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -628,13 +629,13 @@ fn shortint_public_key_smart_add(param: Parameters) {
 }
 
 /// test bitwise 'and' with the LWE server key
-fn shortint_unchecked_bitand(param: Parameters) {
+fn shortint_unchecked_bitand(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -658,13 +659,13 @@ fn shortint_unchecked_bitand(param: Parameters) {
 }
 
 /// test bitwise 'or' with the LWE server key
-fn shortint_unchecked_bitor(param: Parameters) {
+fn shortint_unchecked_bitor(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -688,13 +689,13 @@ fn shortint_unchecked_bitor(param: Parameters) {
 }
 
 /// test bitwise 'xor' with the LWE server key
-fn shortint_unchecked_bitxor(param: Parameters) {
+fn shortint_unchecked_bitxor(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -718,14 +719,14 @@ fn shortint_unchecked_bitxor(param: Parameters) {
 }
 
 /// test bitwise 'and' with the LWE server key
-fn shortint_smart_bitand(param: Parameters) {
+fn shortint_smart_bitand(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -756,14 +757,14 @@ fn shortint_smart_bitand(param: Parameters) {
 }
 
 /// test default bitwise 'and' with the LWE server key
-fn shortint_default_bitand(param: Parameters) {
+fn shortint_default_bitand(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -794,14 +795,14 @@ fn shortint_default_bitand(param: Parameters) {
 }
 
 /// test bitwise 'or' with the LWE server key
-fn shortint_smart_bitor(param: Parameters) {
+fn shortint_smart_bitor(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -832,14 +833,14 @@ fn shortint_smart_bitor(param: Parameters) {
 }
 
 /// test default bitwise 'or' with the LWE server key
-fn shortint_default_bitor(param: Parameters) {
+fn shortint_default_bitor(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -870,14 +871,14 @@ fn shortint_default_bitor(param: Parameters) {
 }
 
 /// test bitwise 'xor' with the LWE server key
-fn shortint_smart_bitxor(param: Parameters) {
+fn shortint_smart_bitxor(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -908,14 +909,14 @@ fn shortint_smart_bitxor(param: Parameters) {
 }
 
 /// test default bitwise 'xor' with the LWE server key
-fn shortint_default_bitxor(param: Parameters) {
+fn shortint_default_bitxor(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -946,13 +947,13 @@ fn shortint_default_bitxor(param: Parameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_unchecked_greater(param: Parameters) {
+fn shortint_unchecked_greater(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -976,13 +977,13 @@ fn shortint_unchecked_greater(param: Parameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_smart_greater(param: Parameters) {
+fn shortint_smart_greater(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1006,13 +1007,13 @@ fn shortint_smart_greater(param: Parameters) {
 }
 
 /// test default '>' with the LWE server key
-fn shortint_default_greater(param: Parameters) {
+fn shortint_default_greater(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1036,13 +1037,13 @@ fn shortint_default_greater(param: Parameters) {
 }
 
 /// test '>=' with the LWE server key
-fn shortint_unchecked_greater_or_equal(param: Parameters) {
+fn shortint_unchecked_greater_or_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1066,14 +1067,14 @@ fn shortint_unchecked_greater_or_equal(param: Parameters) {
 }
 
 /// test '>=' with the LWE server key
-fn shortint_smart_greater_or_equal(param: Parameters) {
+fn shortint_smart_greater_or_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -1104,14 +1105,14 @@ fn shortint_smart_greater_or_equal(param: Parameters) {
 }
 
 /// test default '>=' with the LWE server key
-fn shortint_default_greater_or_equal(param: Parameters) {
+fn shortint_default_greater_or_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -1142,13 +1143,13 @@ fn shortint_default_greater_or_equal(param: Parameters) {
 }
 
 /// test '<' with the LWE server key
-fn shortint_unchecked_less(param: Parameters) {
+fn shortint_unchecked_less(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1172,14 +1173,14 @@ fn shortint_unchecked_less(param: Parameters) {
 }
 
 /// test '<' with the LWE server key
-fn shortint_smart_less(param: Parameters) {
+fn shortint_smart_less(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -1210,14 +1211,14 @@ fn shortint_smart_less(param: Parameters) {
 }
 
 /// test default '<' with the LWE server key
-fn shortint_default_less(param: Parameters) {
+fn shortint_default_less(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -1248,13 +1249,13 @@ fn shortint_default_less(param: Parameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_unchecked_less_or_equal(param: Parameters) {
+fn shortint_unchecked_less_or_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1278,13 +1279,13 @@ fn shortint_unchecked_less_or_equal(param: Parameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_unchecked_less_or_equal_trivial(param: Parameters) {
+fn shortint_unchecked_less_or_equal_trivial(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1308,14 +1309,14 @@ fn shortint_unchecked_less_or_equal_trivial(param: Parameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_smart_less_or_equal(param: Parameters) {
+fn shortint_smart_less_or_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -1346,14 +1347,14 @@ fn shortint_smart_less_or_equal(param: Parameters) {
 }
 
 /// test default '<=' with the LWE server key
-fn shortint_default_less_or_equal(param: Parameters) {
+fn shortint_default_less_or_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -1383,13 +1384,13 @@ fn shortint_default_less_or_equal(param: Parameters) {
     }
 }
 
-fn shortint_unchecked_equal(param: Parameters) {
+fn shortint_unchecked_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1413,14 +1414,14 @@ fn shortint_unchecked_equal(param: Parameters) {
 }
 
 /// test '==' with the LWE server key
-fn shortint_smart_equal(param: Parameters) {
+fn shortint_smart_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -1451,14 +1452,14 @@ fn shortint_smart_equal(param: Parameters) {
 }
 
 /// test default '==' with the LWE server key
-fn shortint_default_equal(param: Parameters) {
+fn shortint_default_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
-    let mod_scalar = cks.parameters.carry_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u64;
+    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -1489,14 +1490,14 @@ fn shortint_default_equal(param: Parameters) {
 }
 
 /// test '==' with the LWE server key
-fn shortint_smart_scalar_equal(param: Parameters) {
+fn shortint_smart_scalar_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let msg_modulus = cks.parameters.message_modulus.0 as u64;
-    let modulus = (cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0) as u64;
+    let msg_modulus = cks.parameters.message_modulus().0 as u64;
+    let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % msg_modulus;
@@ -1518,14 +1519,14 @@ fn shortint_smart_scalar_equal(param: Parameters) {
 }
 
 /// test '<' with the LWE server key
-fn shortint_smart_scalar_less(param: Parameters) {
+fn shortint_smart_scalar_less(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let msg_modulus = cks.parameters.message_modulus.0 as u64;
-    let modulus = (cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0) as u64;
+    let msg_modulus = cks.parameters.message_modulus().0 as u64;
+    let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % msg_modulus;
@@ -1547,14 +1548,14 @@ fn shortint_smart_scalar_less(param: Parameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_smart_scalar_less_or_equal(param: Parameters) {
+fn shortint_smart_scalar_less_or_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let msg_modulus = cks.parameters.message_modulus.0 as u64;
-    let modulus = (cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0) as u64;
+    let msg_modulus = cks.parameters.message_modulus().0 as u64;
+    let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % msg_modulus;
@@ -1576,14 +1577,14 @@ fn shortint_smart_scalar_less_or_equal(param: Parameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_smart_scalar_greater(param: Parameters) {
+fn shortint_smart_scalar_greater(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let msg_modulus = cks.parameters.message_modulus.0 as u64;
-    let modulus = (cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0) as u64;
+    let msg_modulus = cks.parameters.message_modulus().0 as u64;
+    let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % msg_modulus;
@@ -1605,14 +1606,14 @@ fn shortint_smart_scalar_greater(param: Parameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_smart_scalar_greater_or_equal(param: Parameters) {
+fn shortint_smart_scalar_greater_or_equal(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let msg_modulus = cks.parameters.message_modulus.0 as u64;
-    let modulus = (cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0) as u64;
+    let msg_modulus = cks.parameters.message_modulus().0 as u64;
+    let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % msg_modulus;
@@ -1634,13 +1635,13 @@ fn shortint_smart_scalar_greater_or_equal(param: Parameters) {
 }
 
 /// test division with the LWE server key
-fn shortint_unchecked_div(param: Parameters) {
+fn shortint_unchecked_div(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1664,13 +1665,13 @@ fn shortint_unchecked_div(param: Parameters) {
 }
 
 /// test scalar division with the LWE server key
-fn shortint_unchecked_scalar_div(param: Parameters) {
+fn shortint_unchecked_scalar_div(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1691,13 +1692,13 @@ fn shortint_unchecked_scalar_div(param: Parameters) {
 }
 
 /// test modulus with the LWE server key
-fn shortint_unchecked_mod(param: Parameters) {
+fn shortint_unchecked_mod(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1718,13 +1719,13 @@ fn shortint_unchecked_mod(param: Parameters) {
 }
 
 /// test LSB multiplication with the LWE server key
-fn shortint_unchecked_mul_lsb(param: Parameters) {
+fn shortint_unchecked_mul_lsb(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1748,13 +1749,13 @@ fn shortint_unchecked_mul_lsb(param: Parameters) {
 }
 
 /// test MSB multiplication with the LWE server key
-fn shortint_unchecked_mul_msb(param: Parameters) {
+fn shortint_unchecked_mul_msb(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1778,13 +1779,13 @@ fn shortint_unchecked_mul_msb(param: Parameters) {
 }
 
 /// test LSB multiplication with the LWE server key
-fn shortint_smart_mul_lsb(param: Parameters) {
+fn shortint_smart_mul_lsb(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1817,13 +1818,13 @@ fn shortint_smart_mul_lsb(param: Parameters) {
 }
 
 /// test default LSB multiplication with the LWE server key
-fn shortint_default_mul_lsb(param: Parameters) {
+fn shortint_default_mul_lsb(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1856,13 +1857,13 @@ fn shortint_default_mul_lsb(param: Parameters) {
 }
 
 /// test MSB multiplication with the LWE server key
-fn shortint_smart_mul_msb(param: Parameters) {
+fn shortint_smart_mul_msb(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1899,13 +1900,13 @@ fn shortint_smart_mul_msb(param: Parameters) {
 }
 
 /// test default MSB multiplication with the LWE server key
-fn shortint_default_mul_msb(param: Parameters) {
+fn shortint_default_mul_msb(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1942,13 +1943,13 @@ fn shortint_default_mul_msb(param: Parameters) {
 }
 
 /// test unchecked negation
-fn shortint_unchecked_neg(param: Parameters) {
+fn shortint_unchecked_neg(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         // Define the cleartexts
@@ -1971,13 +1972,13 @@ fn shortint_unchecked_neg(param: Parameters) {
 }
 
 /// test smart negation
-fn shortint_smart_neg(param: Parameters) {
+fn shortint_smart_neg(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear1 = rng.gen::<u64>() % modulus;
@@ -2004,13 +2005,13 @@ fn shortint_smart_neg(param: Parameters) {
 }
 
 /// test default negation
-fn shortint_default_neg(param: Parameters) {
+fn shortint_default_neg(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear1 = rng.gen::<u64>() % modulus;
@@ -2037,7 +2038,7 @@ fn shortint_default_neg(param: Parameters) {
 }
 
 /// test scalar add
-fn shortint_unchecked_scalar_add(param: Parameters) {
+fn shortint_unchecked_scalar_add(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -2065,13 +2066,13 @@ fn shortint_unchecked_scalar_add(param: Parameters) {
 }
 
 /// test smart scalar add
-fn shortint_smart_scalar_add(param: Parameters) {
+fn shortint_smart_scalar_add(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u8>() % modulus;
@@ -2100,13 +2101,13 @@ fn shortint_smart_scalar_add(param: Parameters) {
 }
 
 /// test default smart scalar add
-fn shortint_default_scalar_add(param: Parameters) {
+fn shortint_default_scalar_add(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u8>() % modulus;
@@ -2135,7 +2136,7 @@ fn shortint_default_scalar_add(param: Parameters) {
 }
 
 /// test unchecked scalar sub
-fn shortint_unchecked_scalar_sub(param: Parameters) {
+fn shortint_unchecked_scalar_sub(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -2162,13 +2163,13 @@ fn shortint_unchecked_scalar_sub(param: Parameters) {
     }
 }
 
-fn shortint_smart_scalar_sub(param: Parameters) {
+fn shortint_smart_scalar_sub(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u8>() % modulus;
@@ -2202,13 +2203,13 @@ fn shortint_smart_scalar_sub(param: Parameters) {
     }
 }
 
-fn shortint_default_scalar_sub(param: Parameters) {
+fn shortint_default_scalar_sub(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..10 {
         let clear_0 = rng.gen::<u8>() % modulus;
@@ -2243,7 +2244,7 @@ fn shortint_default_scalar_sub(param: Parameters) {
 }
 
 /// test scalar multiplication with the LWE server key
-fn shortint_unchecked_scalar_mul(param: Parameters) {
+fn shortint_unchecked_scalar_mul(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -2272,15 +2273,15 @@ fn shortint_unchecked_scalar_mul(param: Parameters) {
 }
 
 /// test default smart scalar multiplication with the LWE server key
-fn shortint_smart_scalar_mul(param: Parameters) {
+fn shortint_smart_scalar_mul(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u8;
 
-    let scalar_modulus = cks.parameters.carry_modulus.0 as u8;
+    let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..10 {
         let clear = rng.gen::<u8>() % modulus;
@@ -2308,15 +2309,15 @@ fn shortint_smart_scalar_mul(param: Parameters) {
 }
 
 /// test default smart scalar multiplication with the LWE server key
-fn shortint_default_scalar_mul(param: Parameters) {
+fn shortint_default_scalar_mul(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u8;
+    let modulus = cks.parameters.message_modulus().0 as u8;
 
-    let scalar_modulus = cks.parameters.carry_modulus.0 as u8;
+    let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..10 {
         let clear = rng.gen::<u8>() % modulus;
@@ -2344,13 +2345,13 @@ fn shortint_default_scalar_mul(param: Parameters) {
 }
 
 /// test unchecked '>>' operation
-fn shortint_unchecked_right_shift(param: Parameters) {
+fn shortint_unchecked_right_shift(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -2371,13 +2372,13 @@ fn shortint_unchecked_right_shift(param: Parameters) {
 }
 
 /// test default unchecked '>>' operation
-fn shortint_default_right_shift(param: Parameters) {
+fn shortint_default_right_shift(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -2398,13 +2399,13 @@ fn shortint_default_right_shift(param: Parameters) {
 }
 
 /// test '<<' operation
-fn shortint_unchecked_left_shift(param: Parameters) {
+fn shortint_unchecked_left_shift(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -2425,13 +2426,13 @@ fn shortint_unchecked_left_shift(param: Parameters) {
 }
 
 /// test default '<<' operation
-fn shortint_default_left_shift(param: Parameters) {
+fn shortint_default_left_shift(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -2452,13 +2453,13 @@ fn shortint_default_left_shift(param: Parameters) {
 }
 
 /// test unchecked subtraction
-fn shortint_unchecked_sub(param: Parameters) {
+fn shortint_unchecked_sub(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
     for _ in 0..NB_TEST {
         // Define the cleartexts
         let clear1 = rng.gen::<u64>() % modulus;
@@ -2480,13 +2481,13 @@ fn shortint_unchecked_sub(param: Parameters) {
     }
 }
 
-fn shortint_smart_sub(param: Parameters) {
+fn shortint_smart_sub(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear1 = rng.gen::<u64>() % modulus;
@@ -2511,13 +2512,13 @@ fn shortint_smart_sub(param: Parameters) {
     }
 }
 
-fn shortint_default_sub(param: Parameters) {
+fn shortint_default_sub(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..10 {
         let clear1 = rng.gen::<u64>() % modulus;
@@ -2543,13 +2544,13 @@ fn shortint_default_sub(param: Parameters) {
 }
 
 /// test multiplication
-fn shortint_mul_small_carry(param: Parameters) {
+fn shortint_mul_small_carry(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..50 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -2574,12 +2575,12 @@ fn shortint_mul_small_carry(param: Parameters) {
 }
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: Parameters) {
+fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     let mut rng = rand::thread_rng();
-    let full_mod = (cks.parameters.message_modulus.0 * cks.parameters.carry_modulus.0) / 3;
+    let full_mod = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) / 3;
 
     for _ in 0..NB_TEST {
         let mut modulus = rng.gen::<u64>() % full_mod as u64;
@@ -2607,12 +2608,12 @@ fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: Parameters) {
 }
 
 /// test simulating a MUX
-fn shortint_mux(param: Parameters) {
+fn shortint_mux(param: PBSParameters) {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     let mut rng = rand::thread_rng();
-    let modulus = cks.parameters.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     let msg_true = rng.gen::<u64>() % modulus;
     let msg_false = rng.gen::<u64>() % modulus;

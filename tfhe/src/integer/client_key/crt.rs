@@ -39,7 +39,7 @@ impl AsRef<ClientKey> for CrtClientKey {
 }
 
 impl CrtClientKey {
-    pub fn new(parameters: crate::shortint::Parameters, moduli: Vec<u64>) -> Self {
+    pub fn new(parameters: crate::shortint::PBSParameters, moduli: Vec<u64>) -> Self {
         Self {
             key: ClientKey::new(parameters),
             moduli,
@@ -55,7 +55,7 @@ impl CrtClientKey {
     }
 
     /// Returns the parameters used by the client key.
-    pub fn parameters(&self) -> crate::shortint::Parameters {
+    pub fn parameters(&self) -> crate::shortint::PBSParameters {
         self.key.parameters()
     }
 
