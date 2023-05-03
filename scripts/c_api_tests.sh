@@ -56,4 +56,4 @@ if [[ $(uname) == "Darwin" ]]; then
 fi
 
 # Let's go parallel
-ARGS="-j$("${nproc_bin}")" make test
+ARGS="-j$(${nproc_bin})" make test
