@@ -221,21 +221,15 @@ Brent-Kung has the least amount of boolean operations we could find (140 when us
 
 On the other hand, Ladner-Fischer performs more boolean operations (209 using grey cells) than Brent-Kung, but they are performed in larger batches. Hence we can compute more operations in parallel and finish earlier, but we need more fast threads available or they will slow down the carry signals computation. Ladner-Fischer can be suitable when using cloud-based computing services, which offer many high-speed threads.
 
-Our implementation uses Brent-Kung by default, but Ladner-Fischer can be enabled when needed, either by running with ```--features ladner_fischer``` or by setting it as default in the ```cargo.toml``` file, like so:
-
-```rust
-[features]
-default = ["ladner_fischer"]
-ladner_fischer = []
-```
+Our implementation uses Brent-Kung by default, but Ladner-Fischer can be enabled when needed by running with the ```--features sha256_bool_ladner_fischer``` flag.
 
 Below is the carry signals part of the ```add``` function (skipping the implementations of the parallel prefix algorithms). We use conditional compilation attributes such that the program is compiled only with one of the two algorithms.
 
 ```rust
-#[cfg(feature = "ladner_fischer")]
+#[cfg(feature = "sha256_bool_ladner_fischer")]
 let carry = ladner_fischer(&propagate, &generate, sk);
 
-#[cfg(not(feature = "ladner_fischer"))]
+#[cfg(not(feature = "sha256_bool_ladner_fischer"))]
 let carry = brent_kung(&propagate, &generate, sk);
 ```
 
