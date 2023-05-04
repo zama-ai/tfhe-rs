@@ -25,7 +25,7 @@ use paste::paste;
 /// It allows to customize the same parameters as the ones
 /// from the underlying `crate::shortint` with the exception of
 /// the number of bits of message as its embeded in the type.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct ShortIntegerParameterSet<const MESSAGE_BITS: u8> {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,

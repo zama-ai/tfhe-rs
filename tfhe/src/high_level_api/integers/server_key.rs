@@ -1,44 +1,4 @@
-use std::marker::PhantomData;
-
-use crate::high_level_api::integers::parameters::EvaluationIntegerKey;
-
-use super::client_key::{GenericIntegerClientKey, RadixClientKey};
-use super::parameters::IntegerParameter;
-
 use crate::integer::wopbs::WopbsKey;
-
-#[derive(Clone, serde::Deserialize, serde::Serialize)]
-pub struct GenericIntegerServerKey<P: IntegerParameter> {
-    pub(in crate::high_level_api::integers) inner: P::InnerServerKey,
-    pub(in crate::high_level_api::integers) wopbs_key: WopbsKey,
-    // To know if we have to encrypt into a big or small when trivial encrypting
-    pub(in crate::high_level_api::integers) pbs_order: crate::shortint::PBSOrder,
-    // To know the num block when trivial encrypting
-    pub(in crate::high_level_api::integers) num_block: usize,
-    _marker: PhantomData<P>,
-}
-
-impl<P> GenericIntegerServerKey<P>
-where
-    P: IntegerParameter<InnerClientKey = RadixClientKey>,
-    P::InnerServerKey: EvaluationIntegerKey<P::InnerClientKey>,
-{
-    pub(super) fn new(client_key: &GenericIntegerClientKey<P>) -> Self {
-        let inner = P::InnerServerKey::new(&client_key.inner);
-        let wopbs_key = P::InnerServerKey::new_wopbs_key(
-            &client_key.inner,
-            &inner,
-            client_key.params.wopbs_block_parameters(),
-        );
-        Self {
-            inner,
-            wopbs_key,
-            pbs_order: client_key.inner.pbs_order,
-            num_block: client_key.inner.inner.num_blocks(),
-            _marker: Default::default(),
-        }
-    }
-}
 
 pub(crate) fn wopbs_radix<O>(
     wopbs_key: &WopbsKey,

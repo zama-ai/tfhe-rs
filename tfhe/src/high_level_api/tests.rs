@@ -60,7 +60,9 @@ fn test_shortint_public_key() {
 #[cfg(feature = "integer")]
 #[test]
 fn test_integer_public_key() {
-    let config = ConfigBuilder::all_disabled().enable_default_uint8().build();
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
 
     let (cks, _sks) = generate_keys(config);
 
@@ -73,7 +75,7 @@ fn test_integer_public_key() {
 #[test]
 fn test_small_uint8() {
     let config = ConfigBuilder::all_disabled()
-        .enable_default_uint8_small()
+        .enable_default_integers_small()
         .build();
 
     let (cks, _sks) = generate_keys(config);
@@ -87,7 +89,7 @@ fn test_small_uint8() {
 #[test]
 fn test_small_uint256() {
     let config = ConfigBuilder::all_disabled()
-        .enable_default_uint256_small()
+        .enable_default_integers_small()
         .build();
 
     let (cks, _sks) = generate_keys(config);

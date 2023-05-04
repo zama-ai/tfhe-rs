@@ -19,7 +19,7 @@ use tfhe::prelude::*;
 
 fn main() {
     let config = ConfigBuilder::all_disabled()
-        .enable_default_uint8()
+        .enable_default_integers()
         .build();
 
     // Client-side
@@ -77,7 +77,7 @@ use tfhe::{ConfigBuilder, generate_keys};
 
 fn main() {
     let config = ConfigBuilder::all_disabled()
-        .enable_default_uint8()
+        .enable_default_integers()
         .build();
 
     let (client_key, server_key) = generate_keys(config);
@@ -99,7 +99,7 @@ use tfhe::{ConfigBuilder, generate_keys, set_server_key};
 
 fn main() {
     let config = ConfigBuilder::all_disabled()
-        .enable_default_uint8()
+        .enable_default_integers()
         .build();
 
     let (client_key, server_key) = generate_keys(config);
@@ -230,7 +230,7 @@ impl FheLatinString {
             .bytes()
             .map(|b| FheUint8::encrypt(b, client_key))
             .collect::<Vec<FheUint8>>();
-        let cst = FheUint8::encrypt(32, client_key);
+        let cst = FheUint8::encrypt(32u8, client_key);
 
         Self {
             bytes: fhe_bytes,
@@ -273,7 +273,7 @@ impl FheLatinString {
 
 fn main() {
     let config = ConfigBuilder::all_disabled()
-        .enable_default_uint8()
+        .enable_default_integers()
         .build();
 
     let (client_key, server_key) = generate_keys(config);
