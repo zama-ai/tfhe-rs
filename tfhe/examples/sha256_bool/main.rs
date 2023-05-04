@@ -1,11 +1,11 @@
 mod padding;
 mod boolean_ops;
-mod sha256;
+mod sha256_function;
 
 use std::io;
 use tfhe::boolean::prelude::*;
 use padding::pad_sha256_input;
-use sha256::{sha256_fhe, bools_to_hex};
+use sha256_function::{sha256_fhe, bools_to_hex};
 
 fn main() {
     // INTRODUCE INPUT FROM STDIN
