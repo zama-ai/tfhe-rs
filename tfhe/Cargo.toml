@@ -190,5 +190,9 @@ required-features = ["shortint", "internal-keycache"]
 name = "micro_bench_and"
 required-features = ["boolean"]
 
+[[example]]
+name = "sha256_bool"
+required-features = ["boolean"]
+
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
