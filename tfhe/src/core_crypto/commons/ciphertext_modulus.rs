@@ -121,6 +121,29 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         }
     }
 
+    pub const fn try_new(modulus: u128) -> Result<Self, &'static str> {
+        if Scalar::BITS < 128 && modulus > (1 << Scalar::BITS) {
+            Err("Modulus is bigger than the maximum value of the associated Scalar type")
+        } else {
+            let res = match modulus {
+                0 => CiphertextModulus::new_native(),
+                modulus => {
+                    let non_zero_modulus = match NonZeroU128::new(modulus) {
+                        Some(val) => val,
+                        None => {
+                            panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
+                        }
+                    };
+                    CiphertextModulus {
+                        inner: CiphertextModulusInner::Custom(non_zero_modulus),
+                        _scalar: PhantomData,
+                    }
+                }
+            };
+            Ok(res.canonicalize())
+        }
+    }
+
     pub const fn canonicalize(self) -> Self {
         match self.inner {
             CiphertextModulusInner::Native => self,
