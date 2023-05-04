@@ -9,10 +9,10 @@ pub fn add(a: &[Ciphertext; 32], b: &[Ciphertext; 32], sk: &ServerKey) -> [Ciphe
     let propagate = xor(a, b, sk);
     let generate = and(a, b, sk);
 
-    #[cfg(feature = "ladner_fischer")]
+    #[cfg(feature = "sha256_bool_ladner_fischer")]
     let carry = ladner_fischer(&propagate, &generate, sk);
 
-    #[cfg(not(feature = "ladner_fischer"))]
+    #[cfg(not(feature = "sha256_bool_ladner_fischer"))]
     let carry = brent_kung(&propagate, &generate, sk);
 
     let sum = xor(&propagate, &carry, sk);
@@ -22,7 +22,7 @@ pub fn add(a: &[Ciphertext; 32], b: &[Ciphertext; 32], sk: &ServerKey) -> [Ciphe
 
 // Implementation of the Brent Kung parallel prefix algorithm
 // This function computes the carry signals in parallel while minimizing the number of homomorphic operations
-#[cfg(not(feature = "ladner_fischer"))]
+#[cfg(not(feature = "sha256_bool_ladner_fischer"))]
 fn brent_kung(propagate: &[Ciphertext; 32], generate: &[Ciphertext; 32], sk: &ServerKey) -> [Ciphertext; 32] {
     let mut propagate = propagate.clone();
     let mut generate = generate.clone();
@@ -92,7 +92,7 @@ fn brent_kung(propagate: &[Ciphertext; 32], generate: &[Ciphertext; 32], sk: &Se
 
 // Implementation of the Ladner Fischer parallel prefix algorithm
 // This function may perform better than the previous one when many threads are available as it has less stages
-#[cfg(feature = "ladner_fischer")]
+#[cfg(feature = "sha256_bool_ladner_fischer")]
 fn ladner_fischer(propagate: &[Ciphertext; 32], generate: &[Ciphertext; 32], sk: &ServerKey) -> [Ciphertext; 32] {
     let mut propagate = propagate.clone();
     let mut generate = generate.clone();
