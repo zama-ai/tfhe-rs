@@ -41,7 +41,7 @@ use tfhe::prelude::*;
 
 fn main() {
     let config = ConfigBuilder::all_disabled()
-        .enable_default_uint8()
+        .enable_default_integers()
         .build();
 
     let (client_key, server_key) = generate_keys(config);

@@ -92,7 +92,7 @@ impl Display for UninitializedClientKey {
 
 impl std::error::Error for UninitializedClientKey {}
 
-/// The client key of a given type was not initialized
+/// The public key of a given type was not initialized
 #[derive(Debug)]
 pub struct UninitializedPublicKey(pub(crate) Type);
 
@@ -109,6 +109,24 @@ impl Display for UninitializedPublicKey {
 }
 
 impl std::error::Error for UninitializedPublicKey {}
+
+/// The compresesd public key of a given type was not initialized
+#[derive(Debug)]
+pub struct UninitializedCompressedPublicKey(pub(crate) Type);
+
+impl Display for UninitializedCompressedPublicKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The compressed public key for the type '{:?}' was not properly initialized\n\
+             Dis you forget do enable the type in the config  ?
+            ",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for UninitializedCompressedPublicKey {}
 
 /// Error when trying to create a short integer from a value that was too big to be represented
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

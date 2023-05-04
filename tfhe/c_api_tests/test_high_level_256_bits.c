@@ -142,7 +142,7 @@ int main(void) {
   Config *config;
 
   config_builder_all_disabled(&builder);
-  config_builder_enable_default_uint256_small(&builder);
+  config_builder_enable_default_integers_small(&builder);
   config_builder_build(builder, &config);
 
   ClientKey *client_key = NULL;

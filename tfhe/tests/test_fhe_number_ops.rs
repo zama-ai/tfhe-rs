@@ -193,13 +193,15 @@ fn test_static_supports_ops() {
     use tfhe::prelude::*;
     use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 
-    let config = ConfigBuilder::all_disabled().enable_default_uint8().build();
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
     let (client_key, server_key) = generate_keys(config);
 
     set_server_key(server_key);
 
-    let lhs = FheUint8::encrypt(0, &client_key);
-    let rhs = FheUint8::encrypt(1, &client_key);
+    let lhs = FheUint8::encrypt(0u8, &client_key);
+    let rhs = FheUint8::encrypt(1u8, &client_key);
 
     supports_all_add_ways(lhs.clone(), rhs.clone());
     supports_all_mul_ways(lhs.clone(), rhs.clone());

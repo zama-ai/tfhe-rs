@@ -18,12 +18,8 @@ pub trait ParameterType: Clone {
     /// The Id allows to differentiate the different parameters
     /// as well as retrieving the corresponding client key and server key
     type Id: Copy;
-    /// The ciphertext type that will be wrapped.
-    type InnerCiphertext: serde::Serialize + for<'de> serde::Deserialize<'de>;
-    /// The client key type that will be wrapped.
-    type InnerClientKey;
-    /// The public key that will be wrapped;
-    type InnerPublicKey;
-    /// The server key type that will be wrapped.
-    type InnerServerKey;
+}
+
+pub trait TypeIdentifier {
+    fn type_variant(&self) -> crate::high_level_api::errors::Type;
 }

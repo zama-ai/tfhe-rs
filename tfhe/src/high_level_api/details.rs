@@ -23,7 +23,7 @@ macro_rules! define_key_structs {
             ///////////////////////
             // Config
             ///////////////////////
-            #[derive(Clone, Debug)]
+            #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
             pub(crate) struct [<$base_struct_name Config>] {
                 $(
                     pub(crate) [<$name _params>]: Option<[<$base_ty_name Parameters>]>,
@@ -55,6 +55,7 @@ macro_rules! define_key_structs {
             pub(crate) struct [<$base_struct_name ClientKey>] {
                 $(
                     pub(super) [<$name _key>]: Option<[<$base_ty_name ClientKey>]>,
+                    pub(super) [<$name _params>]: Option<[<$base_ty_name Parameters>]>,
                 )*
             }
 
@@ -62,6 +63,7 @@ macro_rules! define_key_structs {
                 fn from(config: [<$base_struct_name Config>]) -> Self {
                     Self {
                         $(
+                            [<$name _params>]: None,
                             [<$name _key>]: config.[<$name _params>].map(<[<$base_ty_name ClientKey>]>::from),
                         )*
                     }

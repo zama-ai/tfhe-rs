@@ -1,9 +1,8 @@
-use crate::high_level_api::integers::client_key::GenericIntegerClientKey;
+use crate::errors::{UninitializedClientKey, UnwrapResultExt};
 use crate::high_level_api::integers::parameters::IntegerParameter;
 use crate::high_level_api::integers::server_key::RadixCiphertextDyn;
 use crate::high_level_api::integers::types::base::GenericInteger;
-use crate::high_level_api::internal_traits::EncryptionKey;
-use crate::high_level_api::keys::RefKeyFromKeyChain;
+use crate::high_level_api::internal_traits::TypeIdentifier;
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::high_level_api::ClientKey;
 use crate::integer::U256;
@@ -49,7 +48,7 @@ where
 
 impl<P> From<CompressedGenericInteger<P>> for GenericInteger<P>
 where
-    P: IntegerParameter<InnerCiphertext = RadixCiphertextDyn>,
+    P: IntegerParameter,
 {
     fn from(value: CompressedGenericInteger<P>) -> Self {
         let inner = value.ciphertext.into();
@@ -57,40 +56,34 @@ where
     }
 }
 
-impl EncryptionKey<U256, CompressedRadixCiphertextDyn>
-    for crate::high_level_api::integers::client_key::RadixClientKey
-{
-    fn encrypt(&self, value: U256) -> CompressedRadixCiphertextDyn {
-        match self.pbs_order {
-            crate::shortint::PBSOrder::KeyswitchBootstrap => CompressedRadixCiphertextDyn::Big(
-                self.inner
-                    .as_ref()
-                    .encrypt_radix_compressed(value, self.inner.num_blocks()),
-            ),
-            crate::shortint::PBSOrder::BootstrapKeyswitch => CompressedRadixCiphertextDyn::Small(
-                self.inner
-                    .as_ref()
-                    .encrypt_radix_compressed_small(value, self.inner.num_blocks()),
-            ),
-        }
-    }
-}
-
 impl<P, T> FheTryEncrypt<T, ClientKey> for CompressedGenericInteger<P>
 where
     T: Into<U256>,
     P: IntegerParameter,
-    P::Id: Default + RefKeyFromKeyChain<Key = GenericIntegerClientKey<P>>,
-    P::InnerClientKey: EncryptionKey<U256, CompressedRadixCiphertextDyn>,
+    P::Id: Default + TypeIdentifier,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
         let value = value.into();
         let id = P::Id::default();
-        let key = id.ref_key(key)?;
-
-        let inner = key.inner.encrypt(value);
+        let integer_client_key = key
+            .integer_key
+            .as_ref()
+            .ok_or(UninitializedClientKey(id.type_variant()))
+            .unwrap_display();
+        let inner = match integer_client_key.encryption_type() {
+            crate::shortint::EncryptionKeyChoice::Big => CompressedRadixCiphertextDyn::Big(
+                integer_client_key
+                    .key
+                    .encrypt_radix_compressed(value, P::num_blocks()),
+            ),
+            crate::shortint::EncryptionKeyChoice::Small => CompressedRadixCiphertextDyn::Small(
+                integer_client_key
+                    .key
+                    .encrypt_radix_compressed_small(value, P::num_blocks()),
+            ),
+        };
         Ok(Self::new(inner, id))
     }
 }

@@ -237,7 +237,7 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_uint8().build();
+    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
     
@@ -285,7 +285,7 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_uint8().build();
+    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
     
@@ -331,7 +331,7 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_uint8().build();
+    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
 
@@ -380,7 +380,7 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_uint8().build();
+    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
 

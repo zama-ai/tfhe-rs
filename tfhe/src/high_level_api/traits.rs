@@ -12,6 +12,15 @@ pub trait FheEncrypt<T, Key> {
     fn encrypt(value: T, key: &Key) -> Self;
 }
 
+impl<Clear, Key, T> FheEncrypt<Clear, Key> for T
+where
+    T: FheTryEncrypt<Clear, Key>,
+{
+    fn encrypt(value: Clear, key: &Key) -> Self {
+        T::try_encrypt(value, key).unwrap()
+    }
+}
+
 pub trait DynamicFheEncryptor<T> {
     type FheType;
 
