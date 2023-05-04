@@ -116,6 +116,9 @@ x86_64-unix = ["x86_64", "seeder_unix"]
 aarch64 = ["generator_aarch64_aes"]
 aarch64-unix = ["aarch64", "seeder_unix"]
 
+# Example-specific features
+sha256_bool_ladner_fischer = []
+
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
 features = ["x86_64-unix", "boolean", "shortint", "integer"]
