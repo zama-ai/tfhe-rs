@@ -124,7 +124,7 @@ fn f128_floor(x: f128) -> f128 {
     let f128(x0, x1) = x;
     let x0_floor = x0.floor();
     if x0_floor == x0 {
-        f128(x0_floor, x1.floor())
+        f128::add_f64_f64(x0_floor, x1.floor())
     } else {
         f128(x0_floor, 0.0)
     }
@@ -225,7 +225,7 @@ fn u128_to_signed_to_f128(x: u128) -> f128 {
 
 #[inline(always)]
 fn u128_from_torus_f128(x: f128) -> u128 {
-    let mut x = x - f128_floor(x);
+    let mut x = f128::sub_estimate_f128_f128(x, f128_floor(x));
 
     let normalization = 2.0f64.powi(128);
     x.0 *= normalization;
