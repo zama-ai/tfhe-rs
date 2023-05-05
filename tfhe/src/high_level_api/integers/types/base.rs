@@ -73,7 +73,55 @@ where
     ) -> Self {
         Self { ciphertext, id }
     }
+
+    pub fn cast_from<P2>(other: GenericInteger<P2>) -> Self
+    where
+        P2: IntegerParameter,
+        P::Id: Default,
+    {
+        other.cast_into()
+    }
+
+    pub fn cast_into<P2>(mut self) -> GenericInteger<P2>
+    where
+        P2: IntegerParameter,
+        P2::Id: Default,
+    {
+        crate::high_level_api::global_state::with_internal_keys(|keys| {
+            let integer_key = keys
+                .integer_key
+                .as_ref()
+                .as_ref()
+                .expect("The server key is not set");
+            let current_num_blocks = P::num_blocks();
+            let target_num_blocks = P2::num_blocks();
+
+            if target_num_blocks > current_num_blocks {
+                let num_blocks_to_add = target_num_blocks - current_num_blocks;
+                match &mut self.ciphertext {
+                    RadixCiphertextDyn::Big(ct) => integer_key
+                        .key
+                        .extend_radix_with_trivial_zero_blocks_msb_assign(ct, num_blocks_to_add),
+                    RadixCiphertextDyn::Small(ct) => integer_key
+                        .key
+                        .extend_radix_with_trivial_zero_blocks_msb_assign(ct, num_blocks_to_add),
+                }
+            } else {
+                let num_blocks_to_remove = current_num_blocks - target_num_blocks;
+                match &mut self.ciphertext {
+                    RadixCiphertextDyn::Big(ct) => integer_key
+                        .key
+                        .trim_radix_blocks_msb_assign(ct, num_blocks_to_remove),
+                    RadixCiphertextDyn::Small(ct) => integer_key
+                        .key
+                        .trim_radix_blocks_msb_assign(ct, num_blocks_to_remove),
+                }
+            }
+            GenericInteger::<P2>::new(self.ciphertext, P2::Id::default())
+        })
+    }
 }
+
 impl<P> FheDecrypt<u8> for GenericInteger<P>
 where
     P: IntegerParameter,

@@ -286,3 +286,34 @@ pub unsafe extern "C" fn fhe_uint256_decrypt(
         *result = Box::into_raw(Box::new(U256(inner)));
     })
 }
+
+macro_rules! define_casting_operation(
+    ($from:ty => $($to:ty),*) => {
+        $(
+            ::paste::paste!{
+                #[no_mangle]
+                pub unsafe extern "C" fn [<$from:snake _cast_into_ $to:snake>](
+                    sself: *const $from,
+                    result: *mut *mut $to,
+                    ) -> ::std::os::raw::c_int {
+                    $crate::c_api::utils::catch_panic(|| {
+                        let from = $crate::c_api::utils::get_ref_checked(sself).unwrap();
+
+                        let inner_to  = from.0.clone().cast_into();
+                        *result = Box::into_raw(Box::new($to(inner_to)));
+                    })
+                }
+            }
+        )*
+    }
+);
+
+define_casting_operation!(FheUint8 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
+define_casting_operation!(FheUint10 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
+define_casting_operation!(FheUint12 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
+define_casting_operation!(FheUint14 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
+define_casting_operation!(FheUint16 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
+define_casting_operation!(FheUint32 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
+define_casting_operation!(FheUint64 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
+define_casting_operation!(FheUint128 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
+define_casting_operation!(FheUint256 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);

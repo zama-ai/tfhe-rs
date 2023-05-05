@@ -245,3 +245,54 @@ fn test_trivial_fhe_uint256_small() {
     let clear: U256 = a.decrypt(&client_key);
     assert_eq!(clear, clear_a);
 }
+
+#[test]
+fn test_integer_casting() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+    let (client_key, server_key) = generate_keys(config);
+
+    set_server_key(server_key);
+
+    // Downcasting then Upcasting
+    {
+        let clear = 12_837u16;
+        let a = FheUint16::encrypt(clear, &client_key);
+
+        // Downcasting
+        let a: FheUint8 = a.cast_into();
+        let da: u8 = a.decrypt(&client_key);
+        assert_eq!(da, clear as u8);
+
+        // Upcasting
+        let a: FheUint32 = a.cast_into();
+        let da: u32 = a.decrypt(&client_key);
+        assert_eq!(da, (clear as u8) as u32);
+    }
+
+    // Upcasting then Downcasting
+    {
+        let clear = 12_837u16;
+        let a = FheUint16::encrypt(clear, &client_key);
+
+        // Upcasting
+        let a = FheUint32::cast_from(a);
+        let da: u32 = a.decrypt(&client_key);
+        assert_eq!(da, clear as u32);
+
+        // Downcasting
+        let a = FheUint8::cast_from(a);
+        let da: u8 = a.decrypt(&client_key);
+        assert_eq!(da, (clear as u32) as u8);
+    }
+
+    // Casting to self, it not useful but is supported
+    {
+        let clear = 43_129u16;
+        let a = FheUint16::encrypt(clear, &client_key);
+        let a = FheUint16::cast_from(a);
+        let da: u16 = a.decrypt(&client_key);
+        assert_eq!(da, clear);
+    }
+}
