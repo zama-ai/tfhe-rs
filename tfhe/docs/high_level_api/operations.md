@@ -403,3 +403,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### Casting.
+
+Casting between integer types is possible via the `cast_from` associated function
+of `cast_into` method.
+
+```rust
+use tfhe::prelude::*;
+use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, FheUint32, FheUint16};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+    let (client_key, server_key) = generate_keys(config);
+
+    // Casting requires server_key to set
+    // (encryptions/decryptions do not need server_key to be set)
+    set_server_key(server_key);
+
+    {
+        let clear = 12_837u16;
+        let a = FheUint16::encrypt(clear, &client_key);
+
+        // Downcasting
+        let a: FheUint8 = a.cast_into();
+        let da: u8 = a.decrypt(&client_key);
+        assert_eq!(da, clear as u8);
+
+        // Upcasting
+        let a: FheUint32 = a.cast_into();
+        let da: u32 = a.decrypt(&client_key);
+        assert_eq!(da, (clear as u8) as u32);
+    }
+
+    {
+        let clear = 12_837u16;
+        let a = FheUint16::encrypt(clear, &client_key);
+
+        // Upcasting
+        let a = FheUint32::cast_from(a);
+        let da: u32 = a.decrypt(&client_key);
+        assert_eq!(da, clear as u32);
+
+        // Downcasting
+        let a = FheUint8::cast_from(a);
+        let da: u8 = a.decrypt(&client_key);
+        assert_eq!(da, (clear as u32) as u8);
+    }
+
+    Ok(())
+}
+```
