@@ -16,12 +16,12 @@ macro_rules! impl_operations_for_integer_type {
         name: $name:ident,
         clear_scalar_type: $clear_scalar_type:ty
     ) => {
-        impl_binary_fn_on_type_mut!($name => add, sub, mul, bitand, bitor, bitxor, eq, ge, gt, le, lt, min, max);
-        impl_binary_assign_fn_on_type_mut!($name => add_assign, sub_assign, mul_assign, bitand_assign, bitor_assign, bitxor_assign);
-        impl_scalar_binary_fn_on_type_mut!($name, $clear_scalar_type => add, sub, mul, shl, shr);
-        impl_scalar_binary_assign_fn_on_type_mut!($name, $clear_scalar_type => add_assign, sub_assign, mul_assign, shl_assign, shr_assign);
+        impl_binary_fn_on_type!($name => add, sub, mul, bitand, bitor, bitxor, eq, ge, gt, le, lt, min, max);
+        impl_binary_assign_fn_on_type!($name => add_assign, sub_assign, mul_assign, bitand_assign, bitor_assign, bitxor_assign);
+        impl_scalar_binary_fn_on_type!($name, $clear_scalar_type => add, sub, mul, shl, shr);
+        impl_scalar_binary_assign_fn_on_type!($name, $clear_scalar_type => add_assign, sub_assign, mul_assign, shl_assign, shr_assign);
 
-        impl_unary_fn_on_type_mut!($name => neg);
+        impl_unary_fn_on_type!($name => neg);
     };
 }
 

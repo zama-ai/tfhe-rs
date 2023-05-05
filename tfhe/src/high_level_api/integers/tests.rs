@@ -219,7 +219,7 @@ fn test_trivial_fhe_uint8() {
 
     let a = FheUint8::try_encrypt_trivial(234u8).unwrap();
     assert!(matches!(
-        &*a.ciphertext.borrow(),
+        &a.ciphertext,
         crate::high_level_api::integers::server_key::RadixCiphertextDyn::Big(_)
     ));
 
@@ -239,7 +239,7 @@ fn test_trivial_fhe_uint256_small() {
     let clear_a = U256::from(u128::MAX);
     let a = FheUint256::try_encrypt_trivial(clear_a).unwrap();
     assert!(matches!(
-        &*a.ciphertext.borrow(),
+        &a.ciphertext,
         crate::high_level_api::integers::server_key::RadixCiphertextDyn::Small(_)
     ));
     let clear: U256 = a.decrypt(&client_key);

@@ -68,6 +68,7 @@ macro_rules! impl_try_encrypt_trivial_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
+
                     let inner = <$wrapped_type>::try_encrypt_trivial(value).unwrap();
 
                     *result = Box::into_raw(Box::new($wrapper_type(inner)));
@@ -208,70 +209,19 @@ macro_rules! impl_unary_fn_on_type {
     };
 }
 
-// Meant for types on which makes use of interior mutability
 #[cfg(feature = "integer")]
-macro_rules! impl_unary_fn_on_type_mut {
-    ($wrapper_type:ty => $($unary_fn_name:ident),* $(,)?) => {
-        $(
-           ::paste::paste! {
-                #[no_mangle]
-                pub unsafe extern "C" fn [<$wrapper_type:snake _ $unary_fn_name>](
-                    lhs: *mut $wrapper_type,
-                    result: *mut *mut $wrapper_type,
-                ) -> c_int {
-                    $crate::c_api::utils::catch_panic(|| {
-                        let lhs = $crate::c_api::utils::get_mut_checked(lhs).unwrap();
-
-                        let inner = (&lhs.0).$unary_fn_name();
-
-                        *result = Box::into_raw(Box::new($wrapper_type(inner)));
-                    })
-                }
-            }
-        )*
-    };
-}
-
-// Meant for types on which makes use of interior mutability
-#[cfg(feature = "integer")]
-macro_rules! impl_binary_fn_on_type_mut {
-    ($wrapper_type:ty => $($binary_fn_name:ident),* $(,)?) => {
-        $(
-           ::paste::paste! {
-                #[no_mangle]
-                pub unsafe extern "C" fn [<$wrapper_type:snake _ $binary_fn_name>](
-                    lhs: *mut $wrapper_type,
-                    rhs: *mut $wrapper_type,
-                    result: *mut *mut $wrapper_type,
-                ) -> c_int {
-                    $crate::c_api::utils::catch_panic(|| {
-                        let lhs = $crate::c_api::utils::get_mut_checked(lhs).unwrap();
-                        let rhs = $crate::c_api::utils::get_mut_checked(rhs).unwrap();
-
-                        let inner = (&lhs.0).$binary_fn_name(&rhs.0);
-
-                        *result = Box::into_raw(Box::new($wrapper_type(inner)));
-                    })
-                }
-            }
-        )*
-    };
-}
-
-// Meant for types on which makes use of interior mutability
-#[cfg(feature = "integer")]
-macro_rules! impl_binary_assign_fn_on_type_mut {
+macro_rules! impl_binary_assign_fn_on_type {
     ($wrapper_type:ty => $($binary_assign_fn_name:ident),* $(,)?) => {
         $(
            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$wrapper_type:snake _ $binary_assign_fn_name>](
                     lhs: *mut $wrapper_type,
-                    rhs: *mut $wrapper_type,
+                    rhs: *const $wrapper_type,
                 ) -> ::std::os::raw::c_int {
                     $crate::c_api::utils::catch_panic(|| {
                         let lhs = $crate::c_api::utils::get_mut_checked(lhs).unwrap();
-                        let rhs = $crate::c_api::utils::get_mut_checked(rhs).unwrap();
+                        let rhs = $crate::c_api::utils::get_ref_checked(rhs).unwrap();
 
                         lhs.0.$binary_assign_fn_name(&rhs.0);
                     })
@@ -281,20 +231,19 @@ macro_rules! impl_binary_assign_fn_on_type_mut {
     };
 }
 
-// Meant for types on which makes use of interior mutability
 #[cfg(feature = "integer")]
-macro_rules! impl_scalar_binary_fn_on_type_mut {
+macro_rules! impl_scalar_binary_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_fn_name:ident),* $(,)?) => {
         $(
            ::paste::paste! {
                 #[no_mangle]
                 pub unsafe extern "C" fn [<$wrapper_type:snake _scalar_ $binary_fn_name>](
-                    lhs: *mut $wrapper_type,
+                    lhs: *const $wrapper_type,
                     rhs: $scalar_type,
                     result: *mut *mut $wrapper_type,
                 ) -> c_int {
                     $crate::c_api::utils::catch_panic(|| {
-                        let lhs = $crate::c_api::utils::get_mut_checked(lhs).unwrap();
+                        let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
 
                         let inner = (&lhs.0).$binary_fn_name(rhs);
 
@@ -306,9 +255,8 @@ macro_rules! impl_scalar_binary_fn_on_type_mut {
     };
 }
 
-// Meant for types on which makes use of interior mutability
 #[cfg(feature = "integer")]
-macro_rules! impl_scalar_binary_assign_fn_on_type_mut {
+macro_rules! impl_scalar_binary_assign_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_assign_fn_name:ident),* $(,)?) => {
         $(
            ::paste::paste! {

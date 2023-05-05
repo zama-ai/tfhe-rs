@@ -1,5 +1,4 @@
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
     Neg, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -12,10 +11,13 @@ use crate::errors::{
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::integers::parameters::IntegerParameter;
 use crate::high_level_api::integers::server_key::{
-    RadixCiphertextDyn, SmartAdd, SmartAddAssign, SmartBitAnd, SmartBitAndAssign, SmartBitOr,
-    SmartBitOrAssign, SmartBitXor, SmartBitXorAssign, SmartEq, SmartGe, SmartGt, SmartLe, SmartLt,
-    SmartMax, SmartMin, SmartMul, SmartMulAssign, SmartNeg, SmartShl, SmartShlAssign, SmartShr,
-    SmartShrAssign, SmartSub, SmartSubAssign,
+    RadixCiphertextDyn, ServerKeyDefaultAdd, ServerKeyDefaultAddAssign, ServerKeyDefaultBitAnd,
+    ServerKeyDefaultBitAndAssign, ServerKeyDefaultBitOr, ServerKeyDefaultBitOrAssign,
+    ServerKeyDefaultBitXor, ServerKeyDefaultBitXorAssign, ServerKeyDefaultEq, ServerKeyDefaultGe,
+    ServerKeyDefaultGt, ServerKeyDefaultLe, ServerKeyDefaultLt, ServerKeyDefaultMax,
+    ServerKeyDefaultMin, ServerKeyDefaultMul, ServerKeyDefaultMulAssign, ServerKeyDefaultNeg,
+    ServerKeyDefaultShl, ServerKeyDefaultShlAssign, ServerKeyDefaultShr, ServerKeyDefaultShrAssign,
+    ServerKeyDefaultSub, ServerKeyDefaultSubAssign,
 };
 use crate::high_level_api::integers::IntegerServerKey;
 use crate::high_level_api::internal_traits::{DecryptionKey, TypeIdentifier};
@@ -57,7 +59,7 @@ use crate::integer::U256;
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct GenericInteger<P: IntegerParameter> {
-    pub(in crate::high_level_api::integers) ciphertext: RefCell<RadixCiphertextDyn>,
+    pub(in crate::high_level_api::integers) ciphertext: RadixCiphertextDyn,
     pub(in crate::high_level_api::integers) id: P::Id,
 }
 
@@ -69,10 +71,7 @@ where
         ciphertext: RadixCiphertextDyn,
         id: P::Id,
     ) -> Self {
-        Self {
-            ciphertext: RefCell::new(ciphertext),
-            id,
-        }
+        Self { ciphertext, id }
     }
 }
 impl<P> FheDecrypt<u8> for GenericInteger<P>
@@ -83,7 +82,7 @@ where
 {
     fn decrypt(&self, key: &ClientKey) -> u8 {
         let key = self.id.unwrapped_ref_key(key);
-        let value: u64 = key.decrypt(&*self.ciphertext.borrow());
+        let value: u64 = key.decrypt(&self.ciphertext);
         value as u8
     }
 }
@@ -96,7 +95,7 @@ where
 {
     fn decrypt(&self, key: &ClientKey) -> u16 {
         let key = self.id.unwrapped_ref_key(key);
-        let value: u64 = key.decrypt(&*self.ciphertext.borrow());
+        let value: u64 = key.decrypt(&self.ciphertext);
         value as u16
     }
 }
@@ -109,7 +108,7 @@ where
 {
     fn decrypt(&self, key: &ClientKey) -> u32 {
         let key = self.id.unwrapped_ref_key(key);
-        key.decrypt(&*self.ciphertext.borrow())
+        key.decrypt(&self.ciphertext)
     }
 }
 
@@ -122,7 +121,7 @@ where
 {
     fn decrypt(&self, key: &ClientKey) -> ClearType {
         let key = self.id.unwrapped_ref_key(key);
-        key.decrypt(&self.ciphertext.borrow())
+        key.decrypt(&self.ciphertext)
     }
 }
 
@@ -253,30 +252,19 @@ where
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey: for<'a> SmartMax<
-        &'a mut RadixCiphertextDyn,
-        &'a mut RadixCiphertextDyn,
+    crate::integer::ServerKey: for<'a> ServerKeyDefaultMax<
+        &'a RadixCiphertextDyn,
+        &'a RadixCiphertextDyn,
         Output = RadixCiphertextDyn,
     >,
 {
     pub fn max(&self, rhs: &Self) -> Self {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            let borrowed = rhs.borrow();
-            if std::ptr::eq(self, rhs) {
-                let cloned = (*rhs).clone();
-                let r = <crate::integer::ServerKey as SmartMax<_, _>>::smart_max(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut cloned.ciphertext.borrow_mut(),
-                );
-                r
-            } else {
-                <crate::integer::ServerKey as SmartMax<_, _>>::smart_max(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut borrowed.ciphertext.borrow_mut(),
-                )
-            }
+            <crate::integer::ServerKey as ServerKeyDefaultMax<_, _>>::max(
+                &integer_key.key,
+                &self.ciphertext,
+                &rhs.ciphertext,
+            )
         });
         GenericInteger::new(inner_result, self.id)
     }
@@ -287,30 +275,19 @@ where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
     GenericInteger<P>: Clone,
-    crate::integer::ServerKey: for<'a> SmartMin<
-        &'a mut RadixCiphertextDyn,
-        &'a mut RadixCiphertextDyn,
+    crate::integer::ServerKey: for<'a> ServerKeyDefaultMin<
+        &'a RadixCiphertextDyn,
+        &'a RadixCiphertextDyn,
         Output = RadixCiphertextDyn,
     >,
 {
     pub fn min(&self, rhs: &Self) -> Self {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            let borrowed = rhs.borrow();
-            if std::ptr::eq(self, rhs) {
-                let cloned = (*rhs).clone();
-                let r = <crate::integer::ServerKey as SmartMin<_, _>>::smart_min(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut cloned.ciphertext.borrow_mut(),
-                );
-                r
-            } else {
-                <crate::integer::ServerKey as SmartMin<_, _>>::smart_min(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut borrowed.ciphertext.borrow_mut(),
-                )
-            }
+            <crate::integer::ServerKey as ServerKeyDefaultMin<_, _>>::min(
+                &integer_key.key,
+                &self.ciphertext,
+                &rhs.ciphertext,
+            )
         });
         GenericInteger::new(inner_result, self.id)
     }
@@ -322,9 +299,9 @@ where
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey: for<'a> SmartEq<
-        &'a mut RadixCiphertextDyn,
-        &'a mut RadixCiphertextDyn,
+    crate::integer::ServerKey: for<'a> ServerKeyDefaultEq<
+        &'a RadixCiphertextDyn,
+        &'a RadixCiphertextDyn,
         Output = RadixCiphertextDyn,
     >,
 {
@@ -333,21 +310,11 @@ where
     fn eq(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            if std::ptr::eq(self, borrowed) {
-                let cloned = (*borrowed).clone();
-                let r = <crate::integer::ServerKey as SmartEq<_, _>>::smart_eq(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut cloned.ciphertext.borrow_mut(),
-                );
-                r
-            } else {
-                <crate::integer::ServerKey as SmartEq<_, _>>::smart_eq(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut borrowed.ciphertext.borrow_mut(),
-                )
-            }
+            <crate::integer::ServerKey as ServerKeyDefaultEq<_, _>>::eq(
+                &integer_key.key,
+                &self.ciphertext,
+                &borrowed.ciphertext,
+            )
         });
         GenericInteger::new(inner_result, self.id)
     }
@@ -359,21 +326,21 @@ where
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey: for<'a> SmartGe<
-            &'a mut RadixCiphertextDyn,
-            &'a mut RadixCiphertextDyn,
+    crate::integer::ServerKey: for<'a> ServerKeyDefaultGe<
+            &'a RadixCiphertextDyn,
+            &'a RadixCiphertextDyn,
             Output = RadixCiphertextDyn,
-        > + for<'a> SmartGt<
-            &'a mut RadixCiphertextDyn,
-            &'a mut RadixCiphertextDyn,
+        > + for<'a> ServerKeyDefaultGt<
+            &'a RadixCiphertextDyn,
+            &'a RadixCiphertextDyn,
             Output = RadixCiphertextDyn,
-        > + for<'a> SmartLe<
-            &'a mut RadixCiphertextDyn,
-            &'a mut RadixCiphertextDyn,
+        > + for<'a> ServerKeyDefaultLe<
+            &'a RadixCiphertextDyn,
+            &'a RadixCiphertextDyn,
             Output = RadixCiphertextDyn,
-        > + for<'a> SmartLt<
-            &'a mut RadixCiphertextDyn,
-            &'a mut RadixCiphertextDyn,
+        > + for<'a> ServerKeyDefaultLt<
+            &'a RadixCiphertextDyn,
+            &'a RadixCiphertextDyn,
             Output = RadixCiphertextDyn,
         >,
 {
@@ -382,21 +349,11 @@ where
     fn lt(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            if std::ptr::eq(self, borrowed) {
-                let cloned = (*borrowed).clone();
-                let r = <crate::integer::ServerKey as SmartLt<_, _>>::smart_lt(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut cloned.ciphertext.borrow_mut(),
-                );
-                r
-            } else {
-                <crate::integer::ServerKey as SmartLt<_, _>>::smart_lt(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut borrowed.ciphertext.borrow_mut(),
-                )
-            }
+            <crate::integer::ServerKey as ServerKeyDefaultLt<_, _>>::lt(
+                &integer_key.key,
+                &self.ciphertext,
+                &borrowed.ciphertext,
+            )
         });
         GenericInteger::new(inner_result, self.id)
     }
@@ -404,21 +361,11 @@ where
     fn le(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            if std::ptr::eq(self, borrowed) {
-                let cloned = (*borrowed).clone();
-                let r = <crate::integer::ServerKey as SmartLe<_, _>>::smart_le(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut cloned.ciphertext.borrow_mut(),
-                );
-                r
-            } else {
-                <crate::integer::ServerKey as SmartLe<_, _>>::smart_le(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut borrowed.ciphertext.borrow_mut(),
-                )
-            }
+            <crate::integer::ServerKey as ServerKeyDefaultLe<_, _>>::le(
+                &integer_key.key,
+                &self.ciphertext,
+                &borrowed.ciphertext,
+            )
         });
         GenericInteger::new(inner_result, self.id)
     }
@@ -426,21 +373,11 @@ where
     fn gt(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            if std::ptr::eq(self, borrowed) {
-                let cloned = (*borrowed).clone();
-                let r = <crate::integer::ServerKey as SmartGt<_, _>>::smart_gt(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut cloned.ciphertext.borrow_mut(),
-                );
-                r
-            } else {
-                <crate::integer::ServerKey as SmartGt<_, _>>::smart_gt(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut borrowed.ciphertext.borrow_mut(),
-                )
-            }
+            <crate::integer::ServerKey as ServerKeyDefaultGt<_, _>>::gt(
+                &integer_key.key,
+                &self.ciphertext,
+                &borrowed.ciphertext,
+            )
         });
         GenericInteger::new(inner_result, self.id)
     }
@@ -448,21 +385,11 @@ where
     fn ge(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            if std::ptr::eq(self, borrowed) {
-                let cloned = (*borrowed).clone();
-                let r = <crate::integer::ServerKey as SmartGe<_, _>>::smart_ge(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut cloned.ciphertext.borrow_mut(),
-                );
-                r
-            } else {
-                <crate::integer::ServerKey as SmartGe<_, _>>::smart_ge(
-                    &integer_key.key,
-                    &mut self.ciphertext.borrow_mut(),
-                    &mut borrowed.ciphertext.borrow_mut(),
-                )
-            }
+            <crate::integer::ServerKey as ServerKeyDefaultGe<_, _>>::ge(
+                &integer_key.key,
+                &self.ciphertext,
+                &borrowed.ciphertext,
+            )
         });
         GenericInteger::new(inner_result, self.id)
     }
@@ -481,10 +408,9 @@ where
     fn map<F: Fn(u64) -> u64>(&self, func: F) -> Self {
         use crate::high_level_api::integers::server_key::WopbsEvaluationKey;
         self.id.with_unwrapped_global(|integer_key| {
-            let ct = self.ciphertext.borrow();
             let res = integer_key
                 .wopbs_key
-                .apply_wopbs(&integer_key.key, &*ct, func);
+                .apply_wopbs(&integer_key.key, &self.ciphertext, func);
             GenericInteger::<P>::new(res, self.id)
         })
     }
@@ -511,19 +437,18 @@ where
     {
         use crate::high_level_api::integers::server_key::WopbsEvaluationKey;
         self.id.with_unwrapped_global(|integer_key| {
-            let lhs = self.ciphertext.borrow();
-            let rhs = other.ciphertext.borrow();
-            let res =
-                integer_key
-                    .wopbs_key
-                    .apply_bivariate_wopbs(&integer_key.key, &*lhs, &*rhs, func);
+            let lhs = &self.ciphertext;
+            let rhs = &other.ciphertext;
+            let res = integer_key
+                .wopbs_key
+                .apply_bivariate_wopbs(&integer_key.key, lhs, rhs, func);
             GenericInteger::<P>::new(res, self.id)
         })
     }
 }
 
 macro_rules! generic_integer_impl_operation (
-    ($trait_name:ident($trait_method:ident,$op:tt) => $smart_trait_name:ident($smart_trait_method:ident)) => {
+    ($rust_trait_name:ident($rust_trait_method:ident,$op:tt) => $trait_name:ident($trait_method:ident)) => {
         #[doc = concat!(" Allows using the `", stringify!($op), "` operator between a")]
         #[doc = " `GenericInteger` and a `GenericInteger` or a `&GenericInteger`"]
         #[doc = " "]
@@ -577,55 +502,45 @@ macro_rules! generic_integer_impl_operation (
         #[doc = " # Ok(())"]
         #[doc = " # }"]
         #[doc = " ```"]
-        impl<P, B> $trait_name<B> for GenericInteger<P>
+        impl<P, B> $rust_trait_name<B> for GenericInteger<P>
         where
             P: IntegerParameter,
             B: Borrow<Self>,
             GenericInteger<P>: Clone,
             P::Id: WithGlobalKey<Key = IntegerServerKey>,
-            crate::integer::ServerKey: for<'a> $smart_trait_name<
-                                            &'a mut RadixCiphertextDyn,
-                                            &'a mut RadixCiphertextDyn,
+            crate::integer::ServerKey: for<'a> $trait_name<
+                                            &'a RadixCiphertextDyn,
+                                            &'a RadixCiphertextDyn,
                                             Output=RadixCiphertextDyn>,
         {
             type Output = Self;
 
-            fn $trait_method(self, rhs: B) -> Self::Output {
-                <&Self as $trait_name<B>>::$trait_method(&self, rhs)
+            fn $rust_trait_method(self, rhs: B) -> Self::Output {
+                <&Self as $rust_trait_name<B>>::$trait_method(&self, rhs)
             }
         }
 
-        impl<P, B> $trait_name<B> for &GenericInteger<P>
+        impl<P, B> $rust_trait_name<B> for &GenericInteger<P>
         where
             P: IntegerParameter,
             P::Id: WithGlobalKey<Key = IntegerServerKey>,
             B: Borrow<GenericInteger<P>>,
             GenericInteger<P>: Clone,
-            crate::integer::ServerKey: for<'a> $smart_trait_name<
-                                            &'a mut RadixCiphertextDyn,
-                                            &'a mut RadixCiphertextDyn,
+            crate::integer::ServerKey: for<'a> $trait_name<
+                                            &'a RadixCiphertextDyn,
+                                            &'a RadixCiphertextDyn,
                                             Output=RadixCiphertextDyn>,
         {
             type Output = GenericInteger<P>;
 
-            fn $trait_method(self, rhs: B) -> Self::Output {
+            fn $rust_trait_method(self, rhs: B) -> Self::Output {
                 let ciphertext = self.id.with_unwrapped_global(|integer_key| {
                     let borrowed = rhs.borrow();
-                    if std::ptr::eq(self, borrowed) {
-                        let cloned = (*borrowed).clone();
-                        let r = <crate::integer::ServerKey as $smart_trait_name<_, _>>::$smart_trait_method(
-                            &integer_key.key,
-                            &mut self.ciphertext.borrow_mut(),
-                            &mut cloned.ciphertext.borrow_mut(),
-                        );
-                        r
-                    } else {
-                        <crate::integer::ServerKey as $smart_trait_name<_, _>>::$smart_trait_method(
-                            &integer_key.key,
-                            &mut self.ciphertext.borrow_mut(),
-                            &mut borrowed.ciphertext.borrow_mut(),
-                        )
-                    }
+                    <crate::integer::ServerKey as $trait_name<_, _>>::$trait_method(
+                        &integer_key.key,
+                        &self.ciphertext,
+                        &borrowed.ciphertext,
+                    )
                 });
                 GenericInteger::<P>::new(ciphertext, self.id)
             }
@@ -634,20 +549,20 @@ macro_rules! generic_integer_impl_operation (
 );
 
 macro_rules! generic_integer_impl_operation_assign (
-    ($trait_name:ident($trait_method:ident, $op:tt) => $smart_assign_trait:ident($smart_assign_trait_method:ident)) => {
-        impl<P, I> $trait_name<I> for GenericInteger<P>
+    ($rust_trait_name:ident($rust_trait_method:ident, $op:tt) => $assign_trait:ident($assign_trait_method:ident)) => {
+        impl<P, I> $rust_trait_name<I> for GenericInteger<P>
         where
             P: IntegerParameter,
             P::Id: WithGlobalKey<Key = IntegerServerKey>,
-            crate::integer::ServerKey: for<'a> $smart_assign_trait<RadixCiphertextDyn, &'a mut RadixCiphertextDyn>,
+            crate::integer::ServerKey: for<'a> $assign_trait<RadixCiphertextDyn, &'a RadixCiphertextDyn>,
             I: Borrow<Self>,
         {
-            fn $trait_method(&mut self, rhs: I) {
+            fn $rust_trait_method(&mut self, rhs: I) {
                 self.id.with_unwrapped_global(|integer_key| {
-                    <crate::integer::ServerKey as $smart_assign_trait<_, _>>::$smart_assign_trait_method(
+                    <crate::integer::ServerKey as $assign_trait<_, _>>::$assign_trait_method(
                         &integer_key.key,
-                        self.ciphertext.get_mut(),
-                        &mut rhs.borrow().ciphertext.borrow_mut()
+                        &mut self.ciphertext,
+                        &rhs.borrow().ciphertext
                     )
                 })
             }
@@ -656,41 +571,33 @@ macro_rules! generic_integer_impl_operation_assign (
 );
 
 macro_rules! generic_integer_impl_scalar_operation {
-    ($trait_name:ident($trait_method:ident) => $smart_trait:ident($smart_trait_method:ident($($scalar_type:ty),*))) => {
+    ($rust_trait_name:ident($rust_trait_method:ident) => $trait:ident($trait_method:ident($($scalar_type:ty),*))) => {
         $(
-            impl<P> $trait_name<$scalar_type> for GenericInteger<P>
+            impl<P> $rust_trait_name<$scalar_type> for GenericInteger<P>
             where
                 P: IntegerParameter,
                 P::Id: WithGlobalKey<Key = IntegerServerKey>,
-                crate::integer::ServerKey: for<'a> $smart_trait<
-                                            &'a mut RadixCiphertextDyn,
-                                            u64,
-                                            Output=RadixCiphertextDyn>,
             {
                 type Output = GenericInteger<P>;
 
-                fn $trait_method(self, rhs: $scalar_type) -> Self::Output {
-                    <&Self as $trait_name<$scalar_type>>::$trait_method(&self, rhs)
+                fn $rust_trait_method(self, rhs: $scalar_type) -> Self::Output {
+                    <&Self as $rust_trait_name<$scalar_type>>::$trait_method(&self, rhs)
                 }
             }
 
-            impl<P> $trait_name<$scalar_type> for &GenericInteger<P>
+            impl<P> $rust_trait_name<$scalar_type> for &GenericInteger<P>
             where
                 P: IntegerParameter,
                 P::Id: WithGlobalKey<Key = IntegerServerKey>,
-                crate::integer::ServerKey: for<'a> $smart_trait<
-                                            &'a mut RadixCiphertextDyn,
-                                            u64,
-                                            Output=RadixCiphertextDyn>,
             {
                 type Output = GenericInteger<P>;
 
-                fn $trait_method(self, rhs: $scalar_type) -> Self::Output {
+                fn $rust_trait_method(self, rhs: $scalar_type) -> Self::Output {
                     let ciphertext: RadixCiphertextDyn =
                         self.id.with_unwrapped_global(|integer_key| {
-                            <crate::integer::ServerKey as $smart_trait<_, u64>>::$smart_trait_method(
+                            <crate::integer::ServerKey as $trait<_, u64>>::$trait_method(
                                 &integer_key.key,
-                                &mut self.ciphertext.borrow_mut(),
+                                &self.ciphertext,
                                 u64::from(rhs)
                             )
                         });
@@ -703,19 +610,19 @@ macro_rules! generic_integer_impl_scalar_operation {
 }
 
 macro_rules! generic_integer_impl_scalar_operation_assign {
-    ($trait_name:ident($trait_method:ident) => $smart_assign_trait:ident($smart_assign_trait_method:ident($($scalar_type:ty),*))) => {
+    ($rust_trait_name:ident($rust_trait_method:ident) => $assign_trait:ident($assign_trait_method:ident($($scalar_type:ty),*))) => {
         $(
-            impl<P> $trait_name<$scalar_type> for GenericInteger<P>
+            impl<P> $rust_trait_name<$scalar_type> for GenericInteger<P>
                 where
                     P: IntegerParameter,
                     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-                    crate::integer::ServerKey: for<'a> $smart_assign_trait<RadixCiphertextDyn, u64>,
+                    crate::integer::ServerKey: for<'a> $assign_trait<RadixCiphertextDyn, u64>,
             {
-                fn $trait_method(&mut self, rhs: $scalar_type) {
+                fn $rust_trait_method(&mut self, rhs: $scalar_type) {
                     self.id.with_unwrapped_global(|integer_key| {
-                        <crate::integer::ServerKey as $smart_assign_trait<_, _>>::$smart_assign_trait_method(
+                        <crate::integer::ServerKey as $assign_trait<_, _>>::$assign_trait_method(
                             &integer_key.key,
-                            &mut *self.ciphertext.borrow_mut(),
+                            &mut self.ciphertext,
                             u64::from(rhs)
                         )
                     })
@@ -725,38 +632,38 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
     }
 }
 
-generic_integer_impl_operation!(Add(add,+) => SmartAdd(smart_add));
-generic_integer_impl_operation!(Sub(sub,-) => SmartSub(smart_sub));
-generic_integer_impl_operation!(Mul(mul,*) => SmartMul(smart_mul));
-generic_integer_impl_operation!(BitAnd(bitand,&) => SmartBitAnd(smart_bitand));
-generic_integer_impl_operation!(BitOr(bitor,|) => SmartBitOr(smart_bitor));
-generic_integer_impl_operation!(BitXor(bitxor,^) => SmartBitXor(smart_bitxor));
+generic_integer_impl_operation!(Add(add,+) => ServerKeyDefaultAdd(add));
+generic_integer_impl_operation!(Sub(sub,-) => ServerKeyDefaultSub(sub));
+generic_integer_impl_operation!(Mul(mul,*) => ServerKeyDefaultMul(mul));
+generic_integer_impl_operation!(BitAnd(bitand,&) => ServerKeyDefaultBitAnd(bitand));
+generic_integer_impl_operation!(BitOr(bitor,|) => ServerKeyDefaultBitOr(bitor));
+generic_integer_impl_operation!(BitXor(bitxor,^) => ServerKeyDefaultBitXor(bitxor));
 
-generic_integer_impl_operation_assign!(AddAssign(add_assign,+=) => SmartAddAssign(smart_add_assign));
-generic_integer_impl_operation_assign!(SubAssign(sub_assign,-=) => SmartSubAssign(smart_sub_assign));
-generic_integer_impl_operation_assign!(MulAssign(mul_assign,*=) => SmartMulAssign(smart_mul_assign));
-generic_integer_impl_operation_assign!(BitAndAssign(bitand_assign,&=) => SmartBitAndAssign(smart_bitand_assign));
-generic_integer_impl_operation_assign!(BitOrAssign(bitor_assign,|=) => SmartBitOrAssign(smart_bitor_assign));
-generic_integer_impl_operation_assign!(BitXorAssign(bitxor_assign,^=) => SmartBitXorAssign(smart_bitxor_assign));
+generic_integer_impl_operation_assign!(AddAssign(add_assign,+=) => ServerKeyDefaultAddAssign(add_assign));
+generic_integer_impl_operation_assign!(SubAssign(sub_assign,-=) => ServerKeyDefaultSubAssign(sub_assign));
+generic_integer_impl_operation_assign!(MulAssign(mul_assign,*=) => ServerKeyDefaultMulAssign(mul_assign));
+generic_integer_impl_operation_assign!(BitAndAssign(bitand_assign,&=) => ServerKeyDefaultBitAndAssign(bitand_assign));
+generic_integer_impl_operation_assign!(BitOrAssign(bitor_assign,|=) => ServerKeyDefaultBitOrAssign(bitor_assign));
+generic_integer_impl_operation_assign!(BitXorAssign(bitxor_assign,^=) => ServerKeyDefaultBitXorAssign(bitxor_assign));
 
-generic_integer_impl_scalar_operation!(Add(add) => SmartAdd(smart_add(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation!(Sub(sub) => SmartSub(smart_sub(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation!(Mul(mul) => SmartMul(smart_mul(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation!(Shl(shl) => SmartShl(smart_shl(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation!(Shr(shr) => SmartShr(smart_shr(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation!(Add(add) => ServerKeyDefaultAdd(add(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation!(Sub(sub) => ServerKeyDefaultSub(sub(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation!(Mul(mul) => ServerKeyDefaultMul(mul(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation!(Shl(shl) => ServerKeyDefaultShl(shl(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation!(Shr(shr) => ServerKeyDefaultShr(shr(u8, u16, u32, u64)));
 
-generic_integer_impl_scalar_operation_assign!(AddAssign(add_assign) => SmartAddAssign(smart_add_assign(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation_assign!(SubAssign(sub_assign) => SmartSubAssign(smart_sub_assign(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation_assign!(MulAssign(mul_assign) => SmartMulAssign(smart_mul_assign(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation_assign!(ShlAssign(shl_assign) => SmartShlAssign(smart_shl_assign(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation_assign!(ShrAssign(shr_assign) => SmartShrAssign(smart_shr_assign(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation_assign!(AddAssign(add_assign) => ServerKeyDefaultAddAssign(add_assign(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation_assign!(SubAssign(sub_assign) => ServerKeyDefaultSubAssign(sub_assign(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation_assign!(MulAssign(mul_assign) => ServerKeyDefaultMulAssign(mul_assign(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation_assign!(ShlAssign(shl_assign) => ServerKeyDefaultShlAssign(shl_assign(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation_assign!(ShrAssign(shr_assign) => ServerKeyDefaultShrAssign(shr_assign(u8, u16, u32, u64)));
 
 impl<P> Neg for GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
     crate::integer::ServerKey:
-        for<'a> SmartNeg<&'a mut RadixCiphertextDyn, Output = RadixCiphertextDyn>,
+        for<'a> ServerKeyDefaultNeg<&'a RadixCiphertextDyn, Output = RadixCiphertextDyn>,
 {
     type Output = GenericInteger<P>;
 
@@ -770,15 +677,15 @@ where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
     crate::integer::ServerKey:
-        for<'a> SmartNeg<&'a mut RadixCiphertextDyn, Output = RadixCiphertextDyn>,
+        for<'a> ServerKeyDefaultNeg<&'a RadixCiphertextDyn, Output = RadixCiphertextDyn>,
 {
     type Output = GenericInteger<P>;
 
     fn neg(self) -> Self::Output {
         let ciphertext: RadixCiphertextDyn = self.id.with_unwrapped_global(|integer_key| {
-            <crate::integer::ServerKey as SmartNeg<_>>::smart_neg(
+            <crate::integer::ServerKey as ServerKeyDefaultNeg<_>>::neg(
                 &integer_key.key,
-                &mut *self.ciphertext.borrow_mut(),
+                &self.ciphertext,
             )
         });
         GenericInteger::<P>::new(ciphertext, self.id)
