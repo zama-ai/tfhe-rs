@@ -557,7 +557,7 @@ fn f128_floor(x: f128) -> f128 {
     let f128(x0, x1) = x;
     let x0_floor = x0.floor();
     if x0_floor == x0 {
-        f128(x0_floor, x1.floor())
+        f128::add_f64_f64(x0_floor, x1.floor())
     } else {
         f128(x0_floor, 0.0)
     }
@@ -569,7 +569,8 @@ fn f128_floor_avx2(simd: V3, (x0, x1): (f64x4, f64x4)) -> (f64x4, f64x4) {
     let x0_floor = simd.floor_f64x4(x0);
     let x1_floor = simd.floor_f64x4(x1);
 
-    (
+    two_sum_f64x4(
+        simd,
         x0_floor,
         simd.select_f64x4(
             simd.cmp_eq_f64x4(x0_floor, x0),
@@ -586,7 +587,8 @@ fn f128_floor_avx512(simd: V4, (x0, x1): (f64x8, f64x8)) -> (f64x8, f64x8) {
     let x0_floor = simd.floor_f64x8(x0);
     let x1_floor = simd.floor_f64x8(x1);
 
-    (
+    two_sum_f64x8(
+        simd,
         x0_floor,
         simd.select_f64x8(
             simd.cmp_eq_f64x8(x0_floor, x0),
@@ -1339,5 +1341,45 @@ impl<'a> Fft128View<'a> {
             &tmp_im0,
             &tmp_im1,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // copied from the standard library
+    fn next_up(this: f64) -> f64 {
+        // We must use strictly integer arithmetic to prevent denormals from
+        // flushing to zero after an arithmetic operation on some platforms.
+        const TINY_BITS: u64 = 0x1; // Smallest positive f64.
+        const CLEAR_SIGN_MASK: u64 = 0x7fff_ffff_ffff_ffff;
+
+        let bits = this.to_bits();
+        if this.is_nan() || bits == f64::INFINITY.to_bits() {
+            return this;
+        }
+
+        let abs = bits & CLEAR_SIGN_MASK;
+        let next_bits = if abs == 0 {
+            TINY_BITS
+        } else if bits == abs {
+            bits + 1
+        } else {
+            bits - 1
+        };
+        f64::from_bits(next_bits)
+    }
+
+    fn ulp(x: f64) -> f64 {
+        next_up(x.abs()) - x.abs()
+    }
+
+    #[test]
+    fn test_f128_floor() {
+        let a = f128(-11984547.0, -1.0316078675142442e-10);
+        let b = f128_floor(a);
+
+        assert!(b.1.abs() <= 0.5 * ulp(b.0))
     }
 }
