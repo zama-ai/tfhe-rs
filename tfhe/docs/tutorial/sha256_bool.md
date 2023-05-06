@@ -221,7 +221,7 @@ Brent-Kung has the least amount of boolean operations we could find (140 when us
 
 On the other hand, Ladner-Fischer performs more boolean operations (209 using grey cells) than Brent-Kung, but they are performed in larger batches. Hence we can compute more operations in parallel and finish earlier, but we need more fast threads available or they will slow down the carry signals computation. Ladner-Fischer can be suitable when using cloud-based computing services, which offer many high-speed threads.
 
-Our implementation uses Brent-Kung by default, but Ladner-Fischer can be enabled when needed by running with the ```--features sha256_bool_ladner_fischer``` flag.
+Our implementation uses Brent-Kung by default, but Ladner-Fischer can be enabled when needed by running with ```--features sha256_bool_ladner_fischer```.
 
 Below is the carry signals part of the ```add``` function (skipping the implementations of the parallel prefix algorithms). We use conditional compilation attributes such that the program is compiled only with one of the two algorithms.
 
@@ -235,43 +235,53 @@ let carry = brent_kung(&propagate, &generate, sk);
 
 For more information about parallel prefix adders you can read [this paper](https://www.iosrjournals.org/iosr-jece/papers/Vol6-Issue1/A0610106.pdf) or [this other](https://www.ijert.org/research/design-and-implementation-of-parallel-prefix-adder-for-improving-the-performance-of-carry-lookahead-adder-IJERTV4IS120608.pdf).
 
-Finally, with all these sha256 operations working homomorphically, our functions will be homomomorphic as well along with the whole sha256 function (after adapting the code to work with the Ciphertext type). Let's talk about another performance improvement we can make before we finish.
+Finally, with all these sha256 operations working homomorphically, our functions will be homomomorphic as well along with the whole sha256 function (after adapting the code to work with the Ciphertext type). Let's talk about other performance improvements we can make before we finish.
 
 ### More parallel processing
 
-If we inspect the main ```sha256``` function, we will find operations that can be performed in parallel. For instance, within the compression loop, ```temp1``` and ```temp2``` can be computed concurrently. An efficient way to parallelize computations here is using the ```rayon::join()``` function, which uses parallel processing only when there are available CPUs.
+If we inspect the main ```sha256_fhe``` function, we will find operations that can be performed in parallel. For instance, within the compression loop, ```temp1``` and ```temp2``` can be computed concurrently. An efficient way to parallelize computations here is using the ```rayon::join()``` function, which uses parallel processing only when there are available CPUs. Recall that the two temporary values in the compression loop are the result of several additions, so we can use nested calls to ```rayon::join()``` to potentially parallelize more operations.
 
-Recall that the two temporary values in the compression loop perform several additions, so we can use a nested call to ```rayon::join()``` to potentially parallelize more operations.
+Another way to speed up consecutive additions would be using the Carry Save Adder, a very efficient adder that takes 3 numbers and returns a sum and carry sequence. If our inputs are A, B and C, we can construct a CSA with our previously implemented Maj function and the bitwise XOR operation as follows:
+
+```
+Carry = Maj(A, B, C)
+Sum = A XOR B XOR C
+```
+
+By chaining CSAs, we can input the sum and carry from a preceding stage along with another number into a new CSA. Finally, to get the result of the additions we add the sum and carry sequences using a conventional adder. At the end we are performing the same number of additions, but some of them are now CSAs, speeding up the process. Let's see all this together in the ```temp1``` and ```temp2``` computations.
 
 ```rust
 let (temp1, temp2) = rayon::join(
     || {
-        let (lhs, rhs) = rayon::join(
-            || add(
-                &add(&w[i], &h, sk),
-                &trivial_bools(&hex_to_bools(K[i]), sk),
-                sk),
-            || add(
-                &ch(&e, &f, &g, sk),
-                &sigma_upper_case_1(&e, sk),
-                sk),
+        let ((sum, carry), s1) = rayon::join(
+            || {
+                let ((sum, carry), ch) = rayon::join(
+                    || csa(&h, &w[i], &trivial_bools(&hex_to_bools(K[i]), sk), sk),
+                    || ch(&e, &f, &g, sk),
+                );
+                csa(&sum, &carry, &ch, sk)
+            },
+            || sigma_upper_case_1(&e, sk)
         );
 
-        add(&lhs, &rhs, sk)
+        let (sum, carry) = csa(&sum, &carry, &s1, sk);
+        add(&sum, &carry, sk)
     },
-    || add(
-        &sigma_upper_case_0(&a, sk),
-        &maj(&a, &b, &c, sk), sk),
+    || {
+        add(&sigma_upper_case_0(&a, sk), &maj(&a, &b, &c, sk), sk)
+    },
 );
 ```
 
-The first closure of the outer call to join will return ```temp1``` and the second ```temp2```. Inside the first closure we also call join to compute the addition of the current word, the value ```h``` and the current constant, while potentially computing in parallel the ```ch``` and ```sigma_upper_case_1``` functions and adding them. All this is done while also potentially computing ```sigma_upper_case_0``` and ```maj``` and adding them, in the second outer closure.
+The first closure of the outer call to join will return ```temp1``` and the second ```temp2```. Inside the first outer closure we call join recursively until we reach the addition of the value ```h```, the current word ```w[i]``` and the current constant ```K[i]``` by using the CSA, while potentially computing in parallel the ```ch``` function. Then we take the sum, carry and ch values and add them again using the CSA.
+
+All this is done while potentially computing the ```sigma_upper_case_1``` function. Finally we input the previous sum, carry and sigma values to the CSA and perform the final addition with ```add```. Once again, this is done while potentially computing ```sigma_upper_case_0``` and ```maj``` and adding them to get ```temp2```, in the second outer closure.
 
 With some changes of this type, we finally get a homomorphic sha256 function that doesn't leave unused computational resources.
 
-## How to use sha256_fhe
+## How to use sha256_bool
 
-At a high level, the use of sha256_fhe would look like this, given the implementation of ```encrypt_bools``` and ```decrypt_bools```:
+First of all, the most important thing when running the program is using the ```--release``` flag. The use of sha256_bool would look like this, given the implementation of ```encrypt_bools``` and ```decrypt_bools```:
 
 ```rust
 fn main() {
@@ -309,11 +319,13 @@ fn main() {
 }
 ```
 
-By using ```stdin``` we can supply the data to hash using a file instead of the command line. For example, if our file ```input.txt``` is in the same directory as the project, we can use the following shell command after building with ```cargo build --release``` (it's very important to always execute the program in release mode):
+By using ```stdin``` we can supply the data to hash using a file instead of the command line. For example, if our file ```input.txt``` is in the same directory as the project, we can use the following shell command after building with ```cargo build --release```:
 
 ```sh
-./target/release/program_name < input.txt
+./target/release/examples/sha256_bool < input.txt
 ```
+
+Our implementation also accepts hexadecimal inputs. To be considered as such, the input must start with "0x" and contain only valid hex digits (otherwise it's interpreted as text).
 
 Finally see that padding is executed on the client side. This has the advantage of hiding the exact length of the input to the server, who already doesn't know anything about the contents of it but may extract information from the length. 
 

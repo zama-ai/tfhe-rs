@@ -1,7 +1,7 @@
 // This module implements the main sha256 homomorphic function using parallel processing when possible and some helper functions
 
 use tfhe::boolean::prelude::*;
-use crate::boolean_ops::{add, sigma0, sigma1, ch, maj, sigma_upper_case_0, sigma_upper_case_1, trivial_bools};
+use crate::boolean_ops::{add, sigma0, sigma1, ch, maj, sigma_upper_case_0, sigma_upper_case_1, trivial_bools, csa};
 
 pub fn sha256_fhe(padded_input: Vec<Ciphertext>, sk: &ServerKey) -> Vec<Ciphertext> {
     assert_eq!(padded_input.len() % 512, 0, "padded input length is not a multiple of 512");
@@ -29,13 +29,32 @@ pub fn sha256_fhe(padded_input: Vec<Ciphertext>, sk: &ServerKey) -> Vec<Cipherte
             w[i].clone_from_slice(&chunk[i * 32..(i + 1) * 32]);
         }
 
-        for i in 16..64 {
-            let (lhs, rhs) = rayon::join(
-                || add(&sigma1(&w[i - 2], sk), &w[i - 7], sk),
-                || add(&sigma0(&w[i - 15], sk), &w[i - 16], sk)
+        for i in (16..64).step_by(2) {
+            let u = i+1;
+
+            let (word_i, word_u) = rayon::join(
+                || {
+                    let (s0, s1) = rayon::join(
+                        || sigma0(&w[i - 15], sk),
+                        || sigma1(&w[i - 2], sk));
+
+                    let (sum, carry) = csa(&s0, &w[i - 7], &w[i - 16], sk);
+                    let (sum, carry) = csa(&s1, &sum, &carry, sk);
+                    add(&sum, &carry, sk)
+                },
+                || {
+                    let (s0, s1) = rayon::join(
+                        || sigma0(&w[u - 15], sk),
+                        || sigma1(&w[u - 2], sk));
+
+                    let (sum, carry) = csa(&s0, &w[u - 7], &w[u - 16], sk);
+                    let (sum, carry) = csa(&s1, &sum, &carry, sk);
+                    add(&sum, &carry, sk)
+                }
             );
 
-            w[i] = add(&lhs, &rhs, sk);
+            w[i] = word_i;
+            w[u] = word_u;
         }
 
         let mut a = hash[0].clone();
@@ -51,22 +70,23 @@ pub fn sha256_fhe(padded_input: Vec<Ciphertext>, sk: &ServerKey) -> Vec<Cipherte
         for i in 0..64 {
             let (temp1, temp2) = rayon::join(
                 || {
-                    let (lhs, rhs) = rayon::join(
-                        || add(
-                            &add(&w[i], &h, sk),
-                            &trivial_bools(&hex_to_bools(K[i]), sk),
-                            sk),
-                        || add(
-                            &ch(&e, &f, &g, sk),
-                            &sigma_upper_case_1(&e, sk),
-                            sk),
+                    let ((sum, carry), s1) = rayon::join(
+                        || {
+                            let ((sum, carry), ch) = rayon::join(
+                                || csa(&h, &w[i], &trivial_bools(&hex_to_bools(K[i]), sk), sk),
+                                || ch(&e, &f, &g, sk),
+                            );
+                            csa(&sum, &carry, &ch, sk)
+                        },
+                        || sigma_upper_case_1(&e, sk)
                     );
 
-                    add(&lhs, &rhs, sk)
+                    let (sum, carry) = csa(&sum, &carry, &s1, sk);
+                    add(&sum, &carry, sk)
                 },
-                || add(
-                    &sigma_upper_case_0(&a, sk),
-                    &maj(&a, &b, &c, sk), sk),
+                || {
+                    add(&sigma_upper_case_0(&a, sk), &maj(&a, &b, &c, sk), sk)
+                },
             );
 
             let (temp_e, temp_a) = rayon::join(
