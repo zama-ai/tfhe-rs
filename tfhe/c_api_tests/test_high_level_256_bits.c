@@ -9,6 +9,7 @@ int uint256_client_key(const ClientKey *client_key) {
   FheUint256 *lhs = NULL;
   FheUint256 *rhs = NULL;
   FheUint256 *result = NULL;
+  FheUint64 *cast_result = NULL;
   U256 *lhs_clear = NULL;
   U256 *rhs_clear = NULL;
   U256 *result_clear = NULL;
@@ -39,12 +40,21 @@ int uint256_client_key(const ClientKey *client_key) {
   assert(w2 == 10);
   assert(w3 == 12);
 
+  // try some casting
+  ok = fhe_uint256_cast_into_fhe_uint64(result, &cast_result);
+  assert(ok == 0);
+  uint64_t u64_clear;
+  ok = fhe_uint64_decrypt(cast_result, client_key, &u64_clear);
+  assert(ok == 0);
+  assert(u64_clear == 6);
+
   u256_destroy(lhs_clear);
   u256_destroy(rhs_clear);
   u256_destroy(result_clear);
   fhe_uint256_destroy(lhs);
   fhe_uint256_destroy(rhs);
   fhe_uint256_destroy(result);
+  fhe_uint64_destroy(cast_result);
   return ok;
 }
 
@@ -142,7 +152,7 @@ int main(void) {
   Config *config;
 
   config_builder_all_disabled(&builder);
-  config_builder_enable_default_uint256_small(&builder);
+  config_builder_enable_default_integers_small(&builder);
   config_builder_build(builder, &config);
 
   ClientKey *client_key = NULL;

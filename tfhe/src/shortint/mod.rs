@@ -63,7 +63,9 @@ pub use ciphertext::{
     CompressedCiphertextBig, CompressedCiphertextSmall, PBSOrder, PBSOrderMarker,
 };
 pub use client_key::ClientKey;
-pub use parameters::{CarryModulus, CiphertextModulus, MessageModulus, Parameters};
+pub use parameters::{
+    CarryModulus, CiphertextModulus, EncryptionKeyChoice, MessageModulus, Parameters,
+};
 pub use public_key::{
     CompressedPublicKeyBase, CompressedPublicKeyBig, CompressedPublicKeySmall, PublicKeyBase,
     PublicKeyBig, PublicKeySmall,

@@ -13,7 +13,7 @@ use crate::high_level_api::keys::{
     ClientKey, PublicKey, RefKeyFromKeyChain, RefKeyFromPublicKeyChain,
 };
 use crate::high_level_api::traits::{
-    FheDecrypt, FheEncrypt, FheEq, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
+    FheDecrypt, FheEq, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
 };
 
 /// The FHE boolean data type.
@@ -148,39 +148,6 @@ where
         let key = id.ref_key(key)?;
         let ciphertext = key.key.encrypt_compressed(value);
         Ok(CompressedBool::<P>::new(ciphertext, id))
-    }
-}
-
-impl<P> FheEncrypt<bool, ClientKey> for CompressedBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: RefKeyFromKeyChain<Key = GenericBoolClientKey<P>> + Default,
-{
-    #[track_caller]
-    fn encrypt(value: bool, key: &ClientKey) -> Self {
-        Self::try_encrypt(value, key).unwrap()
-    }
-}
-
-impl<P> FheEncrypt<bool, ClientKey> for GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: RefKeyFromKeyChain<Key = GenericBoolClientKey<P>> + Default,
-{
-    #[track_caller]
-    fn encrypt(value: bool, key: &ClientKey) -> Self {
-        <Self as FheTryEncrypt<bool, ClientKey>>::try_encrypt(value, key).unwrap()
-    }
-}
-
-impl<P> FheEncrypt<bool, PublicKey> for GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: RefKeyFromPublicKeyChain<Key = GenericBoolPublicKey<P>> + Default,
-{
-    #[track_caller]
-    fn encrypt(value: bool, key: &PublicKey) -> Self {
-        <Self as FheTryEncrypt<bool, PublicKey>>::try_encrypt(value, key).unwrap()
     }
 }
 

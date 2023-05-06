@@ -68,41 +68,9 @@ macro_rules! define_enable_default_fn(
 #[cfg(feature = "boolean")]
 define_enable_default_fn!(bool);
 #[cfg(feature = "integer")]
-define_enable_default_fn!(uint8);
+define_enable_default_fn!(integers);
 #[cfg(feature = "integer")]
-define_enable_default_fn!(uint8 @small);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint10);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint10 @small);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint12);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint12 @small);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint14);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint14 @small);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint16);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint16 @small);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint32);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint32 @small);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint64);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint64 @small);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint128);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint128 @small);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint256);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(uint256 @small);
+define_enable_default_fn!(integers @small);
 
 /// Takes ownership of the builder
 #[no_mangle]

@@ -5,8 +5,6 @@
 #[cfg(feature = "boolean")]
 use crate::high_level_api::booleans::{BooleanCompressedPublicKey, BooleanPublicKey};
 use crate::high_level_api::errors::{UninitializedPublicKey, UnwrapResultExt};
-#[cfg(feature = "integer")]
-use crate::high_level_api::integers::{IntegerCompressedPublicKey, IntegerPublicKey};
 #[cfg(feature = "shortint")]
 use crate::high_level_api::shortints::{ShortIntCompressedPublicKey, ShortIntPublicKey};
 
@@ -18,7 +16,8 @@ pub struct PublicKey {
     #[cfg(feature = "shortint")]
     pub(crate) shortint_key: ShortIntPublicKey,
     #[cfg(feature = "integer")]
-    pub(crate) integer_key: IntegerPublicKey,
+    pub(in crate::high_level_api) base_integer_key:
+        Option<crate::high_level_api::integers::PublicKeyDyn>,
 }
 
 impl PublicKey {
@@ -33,7 +32,23 @@ impl PublicKey {
             #[cfg(feature = "shortint")]
             shortint_key: ShortIntPublicKey::new(&client_key.shortint_key),
             #[cfg(feature = "integer")]
-            integer_key: IntegerPublicKey::new(&client_key.integer_key),
+            base_integer_key: {
+                client_key
+                    .integer_key
+                    .as_ref()
+                    .map(|key| match key.encryption_type() {
+                        crate::shortint::EncryptionKeyChoice::Big => {
+                            crate::high_level_api::integers::PublicKeyDyn::Big(
+                                crate::integer::PublicKeyBig::new(&key.key),
+                            )
+                        }
+                        crate::shortint::EncryptionKeyChoice::Small => {
+                            crate::high_level_api::integers::PublicKeyDyn::Small(
+                                crate::integer::PublicKeySmall::new(&key.key),
+                            )
+                        }
+                    })
+            },
         }
     }
 }
@@ -88,7 +103,8 @@ pub struct CompressedPublicKey {
     #[cfg(feature = "shortint")]
     pub(crate) shortint_key: ShortIntCompressedPublicKey,
     #[cfg(feature = "integer")]
-    pub(crate) integer_key: IntegerCompressedPublicKey,
+    pub(in crate::high_level_api) base_integer_key:
+        Option<crate::high_level_api::integers::CompressedPublicKeyDyn>,
 }
 
 impl CompressedPublicKey {
@@ -103,7 +119,23 @@ impl CompressedPublicKey {
             #[cfg(feature = "shortint")]
             shortint_key: ShortIntCompressedPublicKey::new(&client_key.shortint_key),
             #[cfg(feature = "integer")]
-            integer_key: IntegerCompressedPublicKey::new(&client_key.integer_key),
+            base_integer_key: {
+                client_key
+                    .integer_key
+                    .as_ref()
+                    .map(|key| match key.encryption_type() {
+                        crate::shortint::EncryptionKeyChoice::Big => {
+                            crate::high_level_api::integers::CompressedPublicKeyDyn::Big(
+                                crate::integer::CompressedPublicKeyBig::new(&key.key),
+                            )
+                        }
+                        crate::shortint::EncryptionKeyChoice::Small => {
+                            crate::high_level_api::integers::CompressedPublicKeyDyn::Small(
+                                crate::integer::CompressedPublicKeySmall::new(&key.key),
+                            )
+                        }
+                    })
+            },
         }
     }
 }

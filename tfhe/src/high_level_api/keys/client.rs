@@ -26,7 +26,7 @@ pub struct ClientKey {
     #[cfg(feature = "shortint")]
     pub(crate) shortint_key: ShortIntClientKey,
     #[cfg(feature = "integer")]
-    pub(crate) integer_key: IntegerClientKey,
+    pub(crate) integer_key: Option<IntegerClientKey>,
 }
 
 impl ClientKey {
@@ -40,7 +40,7 @@ impl ClientKey {
             #[cfg(feature = "shortint")]
             shortint_key: ShortIntClientKey::from(config.shortint_config),
             #[cfg(feature = "integer")]
-            integer_key: IntegerClientKey::from(config.integer_config),
+            integer_key: config.integer_config.map(IntegerClientKey::from),
         }
     }
 
@@ -64,7 +64,7 @@ pub trait RefKeyFromKeyChain: Sized {
     /// the key member in the key was not initialized
     fn ref_key(self, keys: &ClientKey) -> Result<&Self::Key, UninitializedClientKey>;
 
-    /// Returns a mutable ref to the key member of the key
+    /// Returns a ref to the key member of the key
     ///
     /// # Panic
     ///
