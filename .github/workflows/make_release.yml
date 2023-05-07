@@ -31,7 +31,7 @@ jobs:
           make build_web_js_api
 
       - name: Publish web package
-        uses: JS-DevTools/npm-publish@0be441d808570461daedc3fb178405dbcac54de0
+        uses: JS-DevTools/npm-publish@541aa6b21b4a1e9990c95a92c21adc16b35e9551
         with:
           token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
@@ -45,7 +45,7 @@ jobs:
           sed -i 's/"tfhe"/"node-tfhe"/g' tfhe/pkg/package.json
 
       - name: Publish Node package
-        uses: JS-DevTools/npm-publish@0be441d808570461daedc3fb178405dbcac54de0
+        uses: JS-DevTools/npm-publish@541aa6b21b4a1e9990c95a92c21adc16b35e9551
         with:
           token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
