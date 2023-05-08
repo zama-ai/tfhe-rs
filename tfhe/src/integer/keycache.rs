@@ -1,6 +1,5 @@
 use crate::shortint::Parameters;
-use lazy_static::lazy_static;
-
+use once_cell::sync::Lazy;
 use crate::integer::wopbs::WopbsKey;
 use crate::integer::{ClientKey, ServerKey};
 
@@ -37,7 +36,5 @@ impl WopbsKeyCache {
     }
 }
 
-lazy_static! {
-    pub static ref KEY_CACHE: IntegerKeyCache = Default::default();
-    pub static ref KEY_CACHE_WOPBS: WopbsKeyCache = Default::default();
-}
+pub static KEY_CACHE: Lazy<IntegerKeyCache> = Lazy::new(|| Default::default());
+pub static KEY_CACHE_WOPBS: Lazy<WopbsKeyCache> = Lazy::new(|| Default::default());

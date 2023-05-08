@@ -45,7 +45,6 @@
 //! This uses cryptographic parameters from the `concrete-shortint` crates.
 //! Currently, the radix approach is only compatible with parameter sets such
 //! that the message and carry buffers have the same size.
-extern crate core;
 
 #[cfg(test)]
 #[macro_use]

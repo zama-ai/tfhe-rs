@@ -1,10 +1,9 @@
-#[macro_use]
-extern crate lazy_static;
 use clap::{Arg, Command};
 use log::LevelFilter;
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use once_cell::sync::Lazy;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 
@@ -14,15 +13,15 @@ mod utils;
 // -------------------------------------------------------------------------------------------------
 // CONSTANTS
 // -------------------------------------------------------------------------------------------------
-lazy_static! {
-    static ref DRY_RUN: AtomicBool = AtomicBool::new(false);
-    static ref ROOT_DIR: PathBuf = utils::project_root();
-    static ref ENV_TARGET_NATIVE: utils::Environment = {
-        let mut env = HashMap::new();
-        env.insert("RUSTFLAGS", "-Ctarget-cpu=native");
-        env
-    };
-}
+
+pub static ENV_TARGET_NATIVE: Lazy<utils::Environment> = Lazy::new(|| {
+    let mut env: HashMap<&str, &str> = HashMap::new();
+    env.insert("RUSTFLAGS", "-Ctarget-cpu=native");
+    env
+});
+pub static ROOT_DIR: Lazy<PathBuf> = Lazy::new(|| utils::project_root());
+
+static DRY_RUN: AtomicBool = AtomicBool::new(false);
 
 // -------------------------------------------------------------------------------------------------
 // MACROS

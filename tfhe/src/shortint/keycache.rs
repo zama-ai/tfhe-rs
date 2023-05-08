@@ -4,7 +4,7 @@ use crate::shortint::parameters::parameters_wopbs_prime_moduli::*;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, ServerKey};
-use lazy_static::*;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 pub use utils::{
@@ -500,7 +500,5 @@ impl KeycacheWopbsV0 {
     }
 }
 
-lazy_static! {
-    pub static ref KEY_CACHE: Keycache = Default::default();
-    pub static ref KEY_CACHE_WOPBS: KeycacheWopbsV0 = Default::default();
-}
+pub static KEY_CACHE: Lazy<Keycache> = Lazy::new(|| Default::default());
+pub static KEY_CACHE_WOPBS: Lazy<KeycacheWopbsV0> = Lazy::new(|| Default::default());

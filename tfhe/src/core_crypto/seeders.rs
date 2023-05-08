@@ -69,6 +69,7 @@ mod wasm_seeder {
 /// assert_ne!(first_seed, second_seed);
 /// ```
 pub fn new_seeder() -> Box<dyn Seeder> {
+    #[allow(unused_mut)]
     let mut seeder: Option<Box<dyn Seeder>> = None;
 
     let err_msg;
