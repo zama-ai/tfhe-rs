@@ -349,8 +349,6 @@ pub fn add_external_product_assign<Scalar, OutputGlweCont, InputGlweCont, GgswCo
 ///
 /// # Example
 ///
-/// # Example
-///
 /// ```
 /// use tfhe::core_crypto::prelude::*;
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
