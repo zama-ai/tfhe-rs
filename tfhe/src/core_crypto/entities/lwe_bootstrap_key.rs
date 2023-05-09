@@ -123,6 +123,20 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> std::ops::Deref
     }
 }
 
+pub fn lwe_bootstrap_key_size(
+    input_lwe_dimension: LweDimension,
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    decomp_level_count: DecompositionLevelCount,
+) -> usize {
+    ggsw_ciphertext_list_size(
+        GgswCiphertextCount(input_lwe_dimension.0),
+        glwe_size,
+        polynomial_size,
+        decomp_level_count,
+    )
+}
+
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBootstrapKey<C> {
     /// Create an [`LweBootstrapKey`] from an existing container.
     ///

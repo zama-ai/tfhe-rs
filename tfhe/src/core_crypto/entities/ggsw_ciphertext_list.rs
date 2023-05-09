@@ -31,6 +31,15 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for GgswCipher
     }
 }
 
+pub fn ggsw_ciphertext_list_size(
+    ciphertext_count: GgswCiphertextCount,
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    decomp_level_count: DecompositionLevelCount,
+) -> usize {
+    ciphertext_count.0 * ggsw_ciphertext_size(glwe_size, polynomial_size, decomp_level_count)
+}
+
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertextList<C> {
     /// Create a [`GgswCiphertextList`] from an existing container.
     ///
@@ -225,8 +234,12 @@ impl<Scalar: UnsignedInteger> GgswCiphertextListOwned<Scalar> {
         GgswCiphertextList::from_container(
             vec![
                 fill_with;
-                ciphertext_count.0
-                    * ggsw_ciphertext_size(glwe_size, polynomial_size, decomp_level_count)
+                ggsw_ciphertext_list_size(
+                    ciphertext_count,
+                    glwe_size,
+                    polynomial_size,
+                    decomp_level_count
+                )
             ],
             glwe_size,
             polynomial_size,
