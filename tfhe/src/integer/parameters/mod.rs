@@ -1,5 +1,5 @@
 #![allow(clippy::excessive_precision)]
-pub use crate::shortint::{CiphertextModulus, PBSParameters, WopbsParameters};
+pub use crate::shortint::{CiphertextModulus, ClassicPBSParameters, WopbsParameters};
 
 pub use crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS;
 use crate::shortint::parameters::{CarryModulus, EncryptionKeyChoice, MessageModulus};

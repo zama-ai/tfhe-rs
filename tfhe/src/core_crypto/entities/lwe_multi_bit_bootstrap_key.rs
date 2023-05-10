@@ -264,7 +264,6 @@ impl<Scalar: UnsignedInteger> LweMultiBitBootstrapKeyOwned<Scalar> {
             input_lwe_dimension.0,
             grouping_factor.0
         );
-        // For two bits multi_bit together
         let equivalent_multi_bit_dimension = input_lwe_dimension.0 / grouping_factor.0;
 
         LweMultiBitBootstrapKeyOwned {
@@ -284,7 +283,8 @@ impl<Scalar: UnsignedInteger> LweMultiBitBootstrapKeyOwned<Scalar> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(bound(deserialize = "C: IntoContainerOwned"))]
 pub struct FourierLweMultiBitBootstrapKey<C: Container<Element = c64>> {
     fourier: FourierPolynomialList<C>,
     input_lwe_dimension: LweDimension,

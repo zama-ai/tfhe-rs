@@ -1,6 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
-use crate::shortint::PBSParameters;
+use crate::shortint::ClassicPBSParameters;
 use rand::Rng;
 
 create_parametrized_test!(integer_unchecked_crt_mul);
@@ -31,7 +31,7 @@ fn make_basis(message_modulus: usize) -> Vec<u64> {
     }
 }
 
-fn integer_unchecked_crt_mul(param: PBSParameters) {
+fn integer_unchecked_crt_mul(param: ClassicPBSParameters) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -61,7 +61,7 @@ fn integer_unchecked_crt_mul(param: PBSParameters) {
     }
 }
 
-fn integer_smart_crt_add(param: PBSParameters) {
+fn integer_smart_crt_add(param: ClassicPBSParameters) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -91,7 +91,7 @@ fn integer_smart_crt_add(param: PBSParameters) {
     }
 }
 
-fn integer_smart_crt_mul(param: PBSParameters) {
+fn integer_smart_crt_mul(param: ClassicPBSParameters) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -123,7 +123,7 @@ fn integer_smart_crt_mul(param: PBSParameters) {
     }
 }
 
-fn integer_smart_crt_neg(param: PBSParameters) {
+fn integer_smart_crt_neg(param: ClassicPBSParameters) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -153,7 +153,7 @@ fn integer_smart_crt_neg(param: PBSParameters) {
     }
 }
 
-fn integer_smart_crt_scalar_add(param: PBSParameters) {
+fn integer_smart_crt_scalar_add(param: ClassicPBSParameters) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -181,7 +181,7 @@ fn integer_smart_crt_scalar_add(param: PBSParameters) {
     }
 }
 
-fn integer_smart_crt_scalar_mul(param: PBSParameters) {
+fn integer_smart_crt_scalar_mul(param: ClassicPBSParameters) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -209,7 +209,7 @@ fn integer_smart_crt_scalar_mul(param: PBSParameters) {
     }
 }
 
-fn integer_smart_crt_scalar_sub(param: PBSParameters) {
+fn integer_smart_crt_scalar_sub(param: ClassicPBSParameters) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -240,7 +240,7 @@ fn integer_smart_crt_scalar_sub(param: PBSParameters) {
     }
 }
 
-fn integer_smart_crt_sub(param: PBSParameters) {
+fn integer_smart_crt_sub(param: ClassicPBSParameters) {
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();

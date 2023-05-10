@@ -103,13 +103,13 @@ impl<PBSOrder: PBSOrderMarker> From<CompressedPublicKeyBase<PBSOrder>> for Publi
 mod tests {
     use crate::integer::keycache::KEY_CACHE;
     use crate::shortint::parameters::*;
-    use crate::shortint::PBSParameters;
+    use crate::shortint::ClassicPBSParameters;
 
     create_parametrized_test!(integer_public_key_decompression_small {
         PARAM_SMALL_MESSAGE_2_CARRY_2,
     });
 
-    fn integer_public_key_decompression_small(param: PBSParameters) {
+    fn integer_public_key_decompression_small(param: ClassicPBSParameters) {
         let (cks, sks) = KEY_CACHE.get_from_params(param);
 
         let compressed_pk = crate::integer::CompressedPublicKeySmall::new(&cks);

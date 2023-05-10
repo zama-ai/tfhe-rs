@@ -1,7 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
-use crate::shortint::PBSParameters;
+use crate::shortint::ClassicPBSParameters;
 use paste::paste;
 use rand::Rng;
 
@@ -121,13 +121,17 @@ create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
 create_parametrized_test!(integer_default_block_mul);
 create_parametrized_test!(integer_smart_mul);
+#[test]
+fn test_integer_smart_mul_param_multi_bit_message_2_carry_2_group_2() {
+    integer_smart_mul(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2)
+}
 create_parametrized_test!(integer_default_mul);
 create_parametrized_test!(integer_smart_scalar_sub);
 create_parametrized_test!(integer_default_scalar_sub);
 create_parametrized_test!(integer_smart_scalar_add);
 create_parametrized_test!(integer_default_scalar_add);
 
-fn integer_smart_add(param: PBSParameters) {
+fn integer_smart_add(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -170,7 +174,7 @@ fn integer_smart_add(param: PBSParameters) {
     }
 }
 
-fn integer_smart_add_sequence_multi_thread(param: PBSParameters) {
+fn integer_smart_add_sequence_multi_thread(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -204,7 +208,7 @@ fn integer_smart_add_sequence_multi_thread(param: PBSParameters) {
     }
 }
 
-fn integer_smart_add_sequence_single_thread(param: PBSParameters) {
+fn integer_smart_add_sequence_single_thread(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -244,7 +248,7 @@ fn integer_smart_add_sequence_single_thread(param: PBSParameters) {
     }
 }
 
-fn integer_default_add(param: PBSParameters) {
+fn integer_default_add(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -292,7 +296,7 @@ fn integer_default_add(param: PBSParameters) {
 }
 
 // Smaller test for this one
-fn integer_default_add_work_efficient(param: PBSParameters) {
+fn integer_default_add_work_efficient(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -322,7 +326,7 @@ fn integer_default_add_work_efficient(param: PBSParameters) {
     }
 }
 
-fn integer_default_add_sequence_multi_thread(param: PBSParameters) {
+fn integer_default_add_sequence_multi_thread(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -361,7 +365,7 @@ fn integer_default_add_sequence_multi_thread(param: PBSParameters) {
     }
 }
 
-fn integer_default_add_sequence_single_thread(param: PBSParameters) {
+fn integer_default_add_sequence_single_thread(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -402,7 +406,7 @@ fn integer_default_add_sequence_single_thread(param: PBSParameters) {
     }
 }
 
-fn integer_smart_bitand(param: PBSParameters) {
+fn integer_smart_bitand(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -447,7 +451,7 @@ fn integer_smart_bitand(param: PBSParameters) {
     }
 }
 
-fn integer_smart_bitor(param: PBSParameters) {
+fn integer_smart_bitor(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -492,7 +496,7 @@ fn integer_smart_bitor(param: PBSParameters) {
     }
 }
 
-fn integer_smart_bitxor(param: PBSParameters) {
+fn integer_smart_bitxor(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -537,7 +541,7 @@ fn integer_smart_bitxor(param: PBSParameters) {
     }
 }
 
-fn integer_default_bitand(param: PBSParameters) {
+fn integer_default_bitand(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -586,7 +590,7 @@ fn integer_default_bitand(param: PBSParameters) {
     }
 }
 
-fn integer_default_bitor(param: PBSParameters) {
+fn integer_default_bitor(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -635,7 +639,7 @@ fn integer_default_bitor(param: PBSParameters) {
     }
 }
 
-fn integer_default_bitxor(param: PBSParameters) {
+fn integer_default_bitxor(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -684,7 +688,7 @@ fn integer_default_bitxor(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_small_scalar_mul(param: PBSParameters) {
+fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -714,7 +718,7 @@ fn integer_unchecked_small_scalar_mul(param: PBSParameters) {
     }
 }
 
-fn integer_smart_small_scalar_mul(param: PBSParameters) {
+fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -752,7 +756,7 @@ fn integer_smart_small_scalar_mul(param: PBSParameters) {
     }
 }
 
-fn integer_default_small_scalar_mul(param: PBSParameters) {
+fn integer_default_small_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -794,7 +798,7 @@ fn integer_default_small_scalar_mul(param: PBSParameters) {
     }
 }
 
-fn integer_smart_scalar_mul(param: PBSParameters) {
+fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -823,7 +827,7 @@ fn integer_smart_scalar_mul(param: PBSParameters) {
     }
 }
 
-fn integer_default_scalar_mul(param: PBSParameters) {
+fn integer_default_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -855,7 +859,7 @@ fn integer_default_scalar_mul(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_mul_corner_cases(param: PBSParameters) {
+fn integer_unchecked_mul_corner_cases(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     // This example will not pass if the terms reduction is wrong
@@ -918,7 +922,7 @@ fn integer_unchecked_mul_corner_cases(param: PBSParameters) {
     }
 }
 
-fn integer_smart_scalar_mul_u128_fix_non_reg_test(param: PBSParameters) {
+fn integer_smart_scalar_mul_u128_fix_non_reg_test(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
     let cks = RadixClientKey::from((cks, nb_ct));
@@ -943,7 +947,7 @@ fn integer_smart_scalar_mul_u128_fix_non_reg_test(param: PBSParameters) {
     assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
 }
 
-fn integer_default_scalar_mul_u128_fix_non_reg_test(param: PBSParameters) {
+fn integer_default_scalar_mul_u128_fix_non_reg_test(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
     let cks = RadixClientKey::from((cks, nb_ct));
@@ -968,7 +972,7 @@ fn integer_default_scalar_mul_u128_fix_non_reg_test(param: PBSParameters) {
     assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
 }
 
-fn integer_unchecked_scalar_left_shift(param: PBSParameters) {
+fn integer_unchecked_scalar_left_shift(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1195,7 +1199,7 @@ fn integer_unchecked_rotate_right(param: PBSParameters) {
     }
 }
 
-fn integer_default_scalar_left_shift(param: PBSParameters) {
+fn integer_default_scalar_left_shift(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1244,7 +1248,7 @@ fn integer_default_scalar_left_shift(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_scalar_right_shift(param: PBSParameters) {
+fn integer_unchecked_scalar_right_shift(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1297,7 +1301,7 @@ fn integer_unchecked_scalar_right_shift(param: PBSParameters) {
     }
 }
 
-fn integer_default_scalar_right_shift(param: PBSParameters) {
+fn integer_default_scalar_right_shift(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1395,7 +1399,7 @@ fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
     (rotated & mask) | ((rotated & shifted_mask) >> (u64::BITS - actual_bit_size))
 }
 
-fn integer_unchecked_scalar_rotate_right(param: PBSParameters) {
+fn integer_unchecked_scalar_rotate_right(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1458,7 +1462,7 @@ fn integer_unchecked_scalar_rotate_right(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_scalar_rotate_left(param: PBSParameters) {
+fn integer_unchecked_scalar_rotate_left(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1521,7 +1525,7 @@ fn integer_unchecked_scalar_rotate_left(param: PBSParameters) {
     }
 }
 
-fn integer_scalar_rotate_right(param: PBSParameters) {
+fn integer_scalar_rotate_right(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1584,7 +1588,7 @@ fn integer_scalar_rotate_right(param: PBSParameters) {
     }
 }
 
-fn integer_scalar_rotate_left(param: PBSParameters) {
+fn integer_scalar_rotate_left(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1647,7 +1651,7 @@ fn integer_scalar_rotate_left(param: PBSParameters) {
     }
 }
 
-fn integer_smart_neg(param: PBSParameters) {
+fn integer_smart_neg(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1677,7 +1681,7 @@ fn integer_smart_neg(param: PBSParameters) {
     }
 }
 
-fn integer_default_neg(param: PBSParameters) {
+fn integer_default_neg(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1710,7 +1714,7 @@ fn integer_default_neg(param: PBSParameters) {
     }
 }
 
-fn integer_smart_sub(param: PBSParameters) {
+fn integer_smart_sub(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1745,7 +1749,7 @@ fn integer_smart_sub(param: PBSParameters) {
     }
 }
 
-fn integer_default_sub(param: PBSParameters) {
+fn integer_default_sub(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1783,7 +1787,7 @@ fn integer_default_sub(param: PBSParameters) {
     }
 }
 
-fn integer_default_sub_work_efficient(param: PBSParameters) {
+fn integer_default_sub_work_efficient(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1815,7 +1819,7 @@ fn integer_default_sub_work_efficient(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_block_mul(param: PBSParameters) {
+fn integer_unchecked_block_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1848,7 +1852,7 @@ fn integer_unchecked_block_mul(param: PBSParameters) {
     }
 }
 
-fn integer_smart_block_mul(param: PBSParameters) {
+fn integer_smart_block_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1886,7 +1890,7 @@ fn integer_smart_block_mul(param: PBSParameters) {
     }
 }
 
-fn integer_default_block_mul(param: PBSParameters) {
+fn integer_default_block_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1928,7 +1932,11 @@ fn integer_default_block_mul(param: PBSParameters) {
     }
 }
 
-fn integer_smart_mul(param: PBSParameters) {
+fn integer_smart_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let param: PBSParameters = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1936,7 +1944,7 @@ fn integer_smart_mul(param: PBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = param.message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST_SMALLER {
         // Define the cleartexts
@@ -1966,7 +1974,7 @@ fn integer_smart_mul(param: PBSParameters) {
     }
 }
 
-fn integer_default_mul(param: PBSParameters) {
+fn integer_default_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -2008,7 +2016,7 @@ fn integer_default_mul(param: PBSParameters) {
     }
 }
 
-fn integer_smart_scalar_add(param: PBSParameters) {
+fn integer_smart_scalar_add(param: ClassicPBSParameters) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -2049,7 +2057,7 @@ fn integer_smart_scalar_add(param: PBSParameters) {
     }
 }
 
-fn integer_default_scalar_add(param: PBSParameters) {
+fn integer_default_scalar_add(param: ClassicPBSParameters) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -2094,7 +2102,7 @@ fn integer_default_scalar_add(param: PBSParameters) {
     }
 }
 
-fn integer_smart_scalar_sub(param: PBSParameters) {
+fn integer_smart_scalar_sub(param: ClassicPBSParameters) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -2135,7 +2143,7 @@ fn integer_smart_scalar_sub(param: PBSParameters) {
     }
 }
 
-fn integer_default_scalar_sub(param: PBSParameters) {
+fn integer_default_scalar_sub(param: ClassicPBSParameters) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));

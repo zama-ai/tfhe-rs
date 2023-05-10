@@ -7,9 +7,26 @@ use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapK
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::server_key::MaxDegree;
+use crate::shortint::server_key::{MaxDegree, ShortintBootstrappingKey};
 use crate::shortint::wopbs::{WopbsKey, WopbsLUTBase};
 use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, ServerKey, WopbsParameters};
+
+#[derive(Debug)]
+pub enum WopbsKeyCreationError {
+    UsupportedMultiBit,
+}
+
+impl std::error::Error for WopbsKeyCreationError {}
+
+impl std::fmt::Display for WopbsKeyCreationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WopbsKeyCreationError::UsupportedMultiBit => {
+                write!(f, "WopbsKey does not yet support using multi bit PBS")
+            }
+        }
+    }
+}
 
 impl ShortintEngine {
     // Creates a key when ONLY a wopbs is used.
@@ -18,6 +35,13 @@ impl ShortintEngine {
         cks: &ClientKey,
         sks: &ServerKey,
     ) -> EngineResult<WopbsKey> {
+        if matches!(
+            sks.bootstrapping_key,
+            ShortintBootstrappingKey::MultiBit(_, _)
+        ) {
+            return Err(WopbsKeyCreationError::UsupportedMultiBit.into());
+        }
+
         let wop_params = cks.parameters.wopbs_parameters().unwrap();
 
         let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
@@ -147,7 +171,7 @@ impl ShortintEngine {
 
         let wopbs_server_key = ServerKey {
             key_switching_key: ksk_wopbs_large_to_wopbs_small,
-            bootstrapping_key: small_bsk,
+            bootstrapping_key: ShortintBootstrappingKey::Classic(small_bsk),
             message_modulus: parameters.message_modulus,
             carry_modulus: parameters.carry_modulus,
             max_degree: MaxDegree(parameters.message_modulus.0 * parameters.carry_modulus.0 - 1),
@@ -239,16 +263,23 @@ impl ShortintEngine {
 
         let stack = self.computation_buffers.stack();
 
-        extract_bits_from_lwe_ciphertext_mem_optimized(
-            lwe_in,
-            output,
-            bsk,
-            ksk,
-            delta_log,
-            extracted_bit_count,
-            fft,
-            stack,
-        );
+        match bsk {
+            ShortintBootstrappingKey::Classic(bsk) => {
+                extract_bits_from_lwe_ciphertext_mem_optimized(
+                    lwe_in,
+                    output,
+                    bsk,
+                    ksk,
+                    delta_log,
+                    extracted_bit_count,
+                    fft,
+                    stack,
+                )
+            }
+            ShortintBootstrappingKey::MultiBit(_, _) => {
+                todo!("extract_bits_assign currently does not support multi-bit PBS")
+            }
+        }
     }
 
     pub(crate) fn circuit_bootstrap_with_bits<InputCont, LutCont>(
@@ -295,17 +326,24 @@ impl ShortintEngine {
 
         let stack = self.computation_buffers.stack();
 
-        circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(
-            extracted_bits,
-            &mut output_cbs_vp_ct,
-            &lut,
-            &sks.bootstrapping_key,
-            &wopbs_key.cbs_pfpksk,
-            wopbs_key.param.cbs_base_log,
-            wopbs_key.param.cbs_level,
-            fft,
-            stack,
-        );
+        match &sks.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(bsk) => {
+                circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(
+                    extracted_bits,
+                    &mut output_cbs_vp_ct,
+                    &lut,
+                    bsk,
+                    &wopbs_key.cbs_pfpksk,
+                    wopbs_key.param.cbs_base_log,
+                    wopbs_key.param.cbs_level,
+                    fft,
+                    stack,
+                )
+            }
+            ShortintBootstrappingKey::MultiBit(_, _) => {
+                return Err(WopbsKeyCreationError::UsupportedMultiBit.into());
+            }
+        };
 
         Ok(output_cbs_vp_ct)
     }
@@ -431,34 +469,41 @@ impl ShortintEngine {
             &mut ciphertext_buffers.buffer_lwe_after_ks,
         );
 
-        let fourier_bsk = &wopbs_key.pbs_server_key.bootstrapping_key;
+        let ct_out = match &wopbs_key.pbs_server_key.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                let out_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
+                let mut ct_out =
+                    LweCiphertextOwned::new(0, out_lwe_size, wopbs_key.param.ciphertext_modulus);
 
-        let out_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
-        let mut ct_out =
-            LweCiphertextOwned::new(0, out_lwe_size, wopbs_key.param.ciphertext_modulus);
+                let fft = Fft::new(fourier_bsk.polynomial_size());
+                let fft = fft.as_view();
+                buffers.resize(
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                        fourier_bsk.glwe_size(),
+                        fourier_bsk.polynomial_size(),
+                        fft,
+                    )
+                    .unwrap()
+                    .unaligned_bytes_required(),
+                );
+                let stack = buffers.stack();
 
-        let fft = Fft::new(fourier_bsk.polynomial_size());
-        let fft = fft.as_view();
-        buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
-                fourier_bsk.glwe_size(),
-                fourier_bsk.polynomial_size(),
-                fft,
-            )
-            .unwrap()
-            .unaligned_bytes_required(),
-        );
-        let stack = buffers.stack();
+                // Compute a bootstrap
+                programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                    &ciphertext_buffers.buffer_lwe_after_ks,
+                    &mut ct_out,
+                    &acc.acc,
+                    fourier_bsk,
+                    fft,
+                    stack,
+                );
 
-        // Compute a bootstrap
-        programmable_bootstrap_lwe_ciphertext_mem_optimized(
-            &ciphertext_buffers.buffer_lwe_after_ks,
-            &mut ct_out,
-            &acc.acc,
-            fourier_bsk,
-            fft,
-            stack,
-        );
+                ct_out
+            }
+            ShortintBootstrappingKey::MultiBit(_, _) => {
+                return Err(WopbsKeyCreationError::UsupportedMultiBit.into());
+            }
+        };
 
         Ok(CiphertextBase {
             ct: ct_out,

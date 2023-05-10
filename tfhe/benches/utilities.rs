@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use tfhe::boolean::parameters::BooleanParameters;
 use tfhe::core_crypto::prelude::*;
 #[cfg(feature = "shortint")]
-use tfhe::shortint::PBSParameters;
+use tfhe::shortint::ClassicPBSParameters;
 
 #[derive(Clone, Copy, Default, Serialize)]
 pub struct CryptoParametersRecord {
@@ -52,8 +52,8 @@ impl From<BooleanParameters> for CryptoParametersRecord {
 }
 
 #[cfg(feature = "shortint")]
-impl From<PBSParameters> for CryptoParametersRecord {
-    fn from(params: PBSParameters) -> Self {
+impl From<ClassicPBSParameters> for CryptoParametersRecord {
+    fn from(params: ClassicPBSParameters) -> Self {
         CryptoParametersRecord {
             lwe_dimension: Some(params.lwe_dimension),
             glwe_dimension: Some(params.glwe_dimension),

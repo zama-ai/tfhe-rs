@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Formatter;
 
 use crate::shortint::parameters::{
-    CarryModulus, CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
-    EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus, PBSParameters,
+    CarryModulus, ClassicPBSParameters, CoreCiphertextModulus, DecompositionBaseLog,
+    DecompositionLevelCount, EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus,
     PolynomialSize, StandardDev,
 };
 
@@ -42,7 +42,7 @@ pub struct ShortIntegerParameterSet<const MESSAGE_BITS: u8> {
 }
 
 impl<const MESSAGE_BITS: u8> ShortIntegerParameterSet<MESSAGE_BITS> {
-    const fn from_static(params: &'static PBSParameters) -> Self {
+    const fn from_static(params: &'static ClassicPBSParameters) -> Self {
         if params.message_modulus.0 != 1 << MESSAGE_BITS as usize {
             panic!("Invalid bit number");
         }
@@ -63,7 +63,7 @@ impl<const MESSAGE_BITS: u8> ShortIntegerParameterSet<MESSAGE_BITS> {
     }
 }
 
-impl<const MESSAGE_BITS: u8> From<ShortIntegerParameterSet<MESSAGE_BITS>> for PBSParameters {
+impl<const MESSAGE_BITS: u8> From<ShortIntegerParameterSet<MESSAGE_BITS>> for ClassicPBSParameters {
     fn from(params: ShortIntegerParameterSet<MESSAGE_BITS>) -> Self {
         Self {
             lwe_dimension: params.lwe_dimension,

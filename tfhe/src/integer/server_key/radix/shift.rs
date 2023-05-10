@@ -26,7 +26,7 @@ impl ServerKey {
     ///
     /// let ct_res = sks.blockshift_right(&mut ct, shift);
     ///
-    /// let div = cks.parameters().message_modulus.0.pow(shift as u32) as u64;
+    /// let div = cks.parameters().message_modulus().0.pow(shift as u32) as u64;
     ///
     /// // Decrypt:
     /// let clear = cks.decrypt(&ct_res);

@@ -35,19 +35,19 @@ pub mod utils {
 
     #[macro_export]
     macro_rules! named_params_impl(
-    ( $thing:ident == ( $($const_param:ident),* $(,)? )) => {
-        named_params_impl!({ *$thing } == ( $($const_param),* ))
-    };
+        ( $thing:ident == ( $($const_param:ident),* $(,)? )) => {
+            named_params_impl!({ *$thing } == ( $($const_param),* ))
+        };
 
-    ( { $thing:expr } == ( $($const_param:ident),* $(,)? )) => {
-        $(
-            if $thing == $const_param {
-                return stringify!($const_param).to_string();
-            }
-        )*
+        ( { $thing:expr } == ( $($const_param:ident),* $(,)? )) => {
+            $(
+                if $thing == $crate::shortint::parameters::ShortintParameterSet::from($const_param) {
+                    return stringify!($const_param).to_string();
+                }
+            )*
 
-        panic!("Unnamed parameters");
-    }
+            panic!("Unnamed parameters");
+        }
     );
 
     pub struct FileStorage {
@@ -212,7 +212,7 @@ pub mod utils {
     }
 }
 
-impl NamedParam for PBSParameters {
+impl NamedParam for ShortintParameterSet {
     fn name(&self) -> String {
         named_params_impl!(
             self == (
@@ -257,15 +257,16 @@ impl NamedParam for PBSParameters {
                 PARAM_SMALL_MESSAGE_2_CARRY_2,
                 PARAM_SMALL_MESSAGE_3_CARRY_3,
                 PARAM_SMALL_MESSAGE_4_CARRY_4,
-            )
-        );
-    }
-}
-
-impl NamedParam for WopbsParameters {
-    fn name(&self) -> String {
-        named_params_impl!(
-            self == (
+                // MultiBit Group 2
+                PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
+                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+                PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+                PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
+                // MultiBit Group 3
+                PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3,
+                PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+                PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3,
+                PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3,
                 // Wopbs
                 WOPBS_PARAM_MESSAGE_1_NORM2_2,
                 WOPBS_PARAM_MESSAGE_1_NORM2_4,
@@ -389,8 +390,39 @@ impl NamedParam for WopbsParameters {
     }
 }
 
+impl NamedParam for ClassicPBSParameters {
+    fn name(&self) -> String {
+        PBSParameters::from(*self).name()
+    }
+}
+
+impl NamedParam for MultiBitPBSParameters {
+    fn name(&self) -> String {
+        PBSParameters::from(*self).name()
+    }
+}
+
+impl NamedParam for PBSParameters {
+    fn name(&self) -> String {
+        ShortintParameterSet::from(*self).name()
+    }
+}
+
+impl NamedParam for WopbsParameters {
+    fn name(&self) -> String {
+        ShortintParameterSet::from(*self).name()
+    }
+}
+
 impl From<PBSParameters> for (ClientKey, ServerKey) {
     fn from(param: PBSParameters) -> Self {
+        let param_set = ShortintParameterSet::from(param);
+        param_set.into()
+    }
+}
+
+impl From<ShortintParameterSet> for (ClientKey, ServerKey) {
+    fn from(param: ShortintParameterSet) -> Self {
         let cks = ClientKey::new(param);
         let sks = ServerKey::new(&cks);
         (cks, sks)
@@ -442,9 +474,12 @@ impl SharedWopbsKey {
 }
 
 impl Keycache {
-    pub fn get_from_param(&self, param: PBSParameters) -> SharedKey {
+    pub fn get_from_param<P>(&self, param: P) -> SharedKey
+    where
+        PBSParameters: From<P>,
+    {
         SharedKey {
-            inner: self.inner.get(param),
+            inner: self.inner.get(PBSParameters::from(param)),
         }
     }
 
@@ -456,9 +491,12 @@ impl Keycache {
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WopbsParamPair(pub PBSParameters, pub WopbsParameters);
 
-impl From<(PBSParameters, WopbsParameters)> for WopbsParamPair {
-    fn from(tuple: (PBSParameters, WopbsParameters)) -> Self {
-        Self(tuple.0, tuple.1)
+impl<P> From<(P, WopbsParameters)> for WopbsParamPair
+where
+    PBSParameters: From<P>,
+{
+    fn from(tuple: (P, WopbsParameters)) -> Self {
+        Self(PBSParameters::from(tuple.0), tuple.1)
     }
 }
 

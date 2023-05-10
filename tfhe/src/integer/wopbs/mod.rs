@@ -240,7 +240,7 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
-    ///     moduli *= cks.parameters().message_modulus.0 as u64;
+    ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear = 42 % moduli;
     /// let ct = cks.encrypt_radix(clear as u64, nb_block);
@@ -329,7 +329,7 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
-    ///     moduli *= cks.parameters().message_modulus.0 as u64;
+    ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear = 15 % moduli;
     /// let ct = cks.encrypt_radix_without_padding(clear as u64, nb_block);
@@ -447,7 +447,7 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
-    ///     moduli *= cks.parameters().message_modulus.0 as u64;
+    ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear1 = 42 % moduli;
     /// let clear2 = 24 % moduli;
@@ -487,7 +487,7 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
-    ///     moduli *= cks.parameters().message_modulus.0 as u64;
+    ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear = 42 % moduli;
     /// let ct = cks.encrypt_radix(clear as u64, nb_block);
@@ -557,7 +557,7 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
-    ///     moduli *= cks.parameters().message_modulus.0 as u64;
+    ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear = 15 % moduli;
     /// let ct = cks.encrypt_radix_without_padding(clear as u64, nb_block);
@@ -752,7 +752,7 @@ impl WopbsKey {
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_2_CARRY_2);
     /// let mut moduli = 1_u64;
     /// for _ in 0..nb_block {
-    ///     moduli *= cks.parameters().message_modulus.0 as u64;
+    ///     moduli *= cks.parameters().message_modulus().0 as u64;
     /// }
     /// let clear1 = 42 % moduli;
     /// let clear2 = 24 % moduli;

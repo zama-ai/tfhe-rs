@@ -8,7 +8,7 @@
 pub use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
 pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
-    GlweDimension, LweDimension, PolynomialSize,
+    GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
 use crate::shortint::ciphertext::PBSOrder;
 use serde::{Deserialize, Serialize};
@@ -60,7 +60,7 @@ pub type CiphertextModulus = CoreCiphertextModulus<u64>;
 /// A structure defining the set of cryptographic parameters for homomorphic integer circuit
 /// evaluation.
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
-pub struct PBSParameters {
+pub struct ClassicPBSParameters {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
@@ -76,7 +76,7 @@ pub struct PBSParameters {
     pub encryption_key_choice: EncryptionKeyChoice,
 }
 
-impl PBSParameters {
+impl ClassicPBSParameters {
     /// Constructs a new set of parameters for integer circuit evaluation.
     ///
     /// # Safety
@@ -99,8 +99,8 @@ impl PBSParameters {
         carry_modulus: CarryModulus,
         ciphertext_modulus: CiphertextModulus,
         encryption_key_choice: EncryptionKeyChoice,
-    ) -> PBSParameters {
-        PBSParameters {
+    ) -> ClassicPBSParameters {
+        ClassicPBSParameters {
             lwe_dimension,
             glwe_dimension,
             polynomial_size,
@@ -118,6 +118,142 @@ impl PBSParameters {
     }
 }
 
+/// A structure defining the set of cryptographic parameters for homomorphic integer circuit
+/// evaluation. This structure contains information to run the so-called multi-bit PBS with improved
+/// latency provided enough threads are available on the machine performing the FHE computations
+#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
+pub struct MultiBitPBSParameters {
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_modular_std_dev: StandardDev,
+    pub glwe_modular_std_dev: StandardDev,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub ks_base_log: DecompositionBaseLog,
+    pub ks_level: DecompositionLevelCount,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub encryption_key_choice: EncryptionKeyChoice,
+    pub grouping_factor: LweBskGroupingFactor,
+}
+
+#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
+pub enum PBSParameters {
+    PBS(ClassicPBSParameters),
+    MultiBitPBS(MultiBitPBSParameters),
+}
+
+impl From<ClassicPBSParameters> for PBSParameters {
+    fn from(value: ClassicPBSParameters) -> Self {
+        Self::PBS(value)
+    }
+}
+
+impl From<MultiBitPBSParameters> for PBSParameters {
+    fn from(value: MultiBitPBSParameters) -> Self {
+        Self::MultiBitPBS(value)
+    }
+}
+
+impl PBSParameters {
+    pub const fn lwe_dimension(&self) -> LweDimension {
+        match self {
+            PBSParameters::PBS(params) => params.lwe_dimension,
+            PBSParameters::MultiBitPBS(params) => params.lwe_dimension,
+        }
+    }
+    pub const fn glwe_dimension(&self) -> GlweDimension {
+        match self {
+            PBSParameters::PBS(params) => params.glwe_dimension,
+            PBSParameters::MultiBitPBS(params) => params.glwe_dimension,
+        }
+    }
+    pub const fn polynomial_size(&self) -> PolynomialSize {
+        match self {
+            PBSParameters::PBS(params) => params.polynomial_size,
+            PBSParameters::MultiBitPBS(params) => params.polynomial_size,
+        }
+    }
+    pub const fn lwe_modular_std_dev(&self) -> StandardDev {
+        match self {
+            PBSParameters::PBS(params) => params.lwe_modular_std_dev,
+            PBSParameters::MultiBitPBS(params) => params.lwe_modular_std_dev,
+        }
+    }
+    pub const fn glwe_modular_std_dev(&self) -> StandardDev {
+        match self {
+            PBSParameters::PBS(params) => params.glwe_modular_std_dev,
+            PBSParameters::MultiBitPBS(params) => params.glwe_modular_std_dev,
+        }
+    }
+    pub const fn pbs_base_log(&self) -> DecompositionBaseLog {
+        match self {
+            PBSParameters::PBS(params) => params.pbs_base_log,
+            PBSParameters::MultiBitPBS(params) => params.pbs_base_log,
+        }
+    }
+    pub const fn pbs_level(&self) -> DecompositionLevelCount {
+        match self {
+            PBSParameters::PBS(params) => params.pbs_level,
+            PBSParameters::MultiBitPBS(params) => params.pbs_level,
+        }
+    }
+    pub const fn ks_base_log(&self) -> DecompositionBaseLog {
+        match self {
+            PBSParameters::PBS(params) => params.ks_base_log,
+            PBSParameters::MultiBitPBS(params) => params.ks_base_log,
+        }
+    }
+    pub const fn ks_level(&self) -> DecompositionLevelCount {
+        match self {
+            PBSParameters::PBS(params) => params.ks_level,
+            PBSParameters::MultiBitPBS(params) => params.ks_level,
+        }
+    }
+    pub const fn message_modulus(&self) -> MessageModulus {
+        match self {
+            PBSParameters::PBS(params) => params.message_modulus,
+            PBSParameters::MultiBitPBS(params) => params.message_modulus,
+        }
+    }
+    pub const fn carry_modulus(&self) -> CarryModulus {
+        match self {
+            PBSParameters::PBS(params) => params.carry_modulus,
+            PBSParameters::MultiBitPBS(params) => params.carry_modulus,
+        }
+    }
+    pub const fn ciphertext_modulus(&self) -> CiphertextModulus {
+        match self {
+            PBSParameters::PBS(params) => params.ciphertext_modulus,
+            PBSParameters::MultiBitPBS(params) => params.ciphertext_modulus,
+        }
+    }
+    pub const fn encryption_key_choice(&self) -> EncryptionKeyChoice {
+        match self {
+            PBSParameters::PBS(params) => params.encryption_key_choice,
+            PBSParameters::MultiBitPBS(params) => params.encryption_key_choice,
+        }
+    }
+    pub const fn grouping_factor(&self) -> LweBskGroupingFactor {
+        match self {
+            PBSParameters::PBS(_) => {
+                panic!("PBSParameters::PBS does not have an LweBskGroupingFactor")
+            }
+            PBSParameters::MultiBitPBS(params) => params.grouping_factor,
+        }
+    }
+
+    pub const fn is_pbs(&self) -> bool {
+        matches!(self, Self::PBS(_))
+    }
+
+    pub const fn is_multi_bit_pbs(&self) -> bool {
+        matches!(self, Self::MultiBitPBS(_))
+    }
+}
+
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
 enum ShortintParameterSetInner {
     PBSOnly(PBSParameters),
@@ -126,15 +262,15 @@ enum ShortintParameterSetInner {
 }
 
 impl ShortintParameterSetInner {
-    pub const fn pbs_only(&self) -> bool {
+    pub const fn is_pbs_only(&self) -> bool {
         matches!(self, Self::PBSOnly(_))
     }
 
-    pub const fn wopbs_only(&self) -> bool {
+    pub const fn is_wopbs_only(&self) -> bool {
         matches!(self, Self::WopbsOnly(_))
     }
 
-    pub const fn pbs_and_wopbs(&self) -> bool {
+    pub const fn is_pbs_and_wopbs(&self) -> bool {
         matches!(self, Self::PBSAndWopbs(_, _))
     }
 }
@@ -157,25 +293,30 @@ impl ShortintParameterSet {
         }
     }
 
-    pub fn try_new_pbs_and_wopbs_param_set(
-        (pbs_params, wopbs_params): (PBSParameters, WopbsParameters),
-    ) -> Result<Self, &'static str> {
-        if pbs_params.carry_modulus != wopbs_params.carry_modulus
-            || pbs_params.message_modulus != wopbs_params.message_modulus
-            || pbs_params.ciphertext_modulus != wopbs_params.ciphertext_modulus
-            || pbs_params.encryption_key_choice != wopbs_params.encryption_key_choice
+    pub fn try_new_pbs_and_wopbs_param_set<P>(
+        (pbs_params, wopbs_params): (P, WopbsParameters),
+    ) -> Result<Self, &'static str>
+    where
+        PBSParameters: From<P>,
+    {
+        let pbs_params_base = PBSParameters::from(pbs_params);
+
+        if pbs_params_base.carry_modulus() != wopbs_params.carry_modulus
+            || pbs_params_base.message_modulus() != wopbs_params.message_modulus
+            || pbs_params_base.ciphertext_modulus() != wopbs_params.ciphertext_modulus
+            || pbs_params_base.encryption_key_choice() != wopbs_params.encryption_key_choice
         {
             return Err(
-                "Incompatible PBSParameters and WopbsParameters, this may be due to mismatched \
+                "Incompatible ClassicPBSParameters and WopbsParameters, this may be due to mismatched \
                 carry moduli, message moduli, ciphertext moduli or encryption key choices",
             );
         }
         Ok(Self {
-            inner: ShortintParameterSetInner::PBSAndWopbs(pbs_params, wopbs_params),
+            inner: ShortintParameterSetInner::PBSAndWopbs(pbs_params_base, wopbs_params),
         })
     }
 
-    pub fn pbs_parameters(&self) -> Option<PBSParameters> {
+    pub const fn pbs_parameters(&self) -> Option<PBSParameters> {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => Some(params),
             ShortintParameterSetInner::WopbsOnly(_) => None,
@@ -183,7 +324,7 @@ impl ShortintParameterSet {
         }
     }
 
-    pub fn wopbs_parameters(&self) -> Option<WopbsParameters> {
+    pub const fn wopbs_parameters(&self) -> Option<WopbsParameters> {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(_) => None,
             ShortintParameterSetInner::WopbsOnly(params) => Some(params),
@@ -191,126 +332,129 @@ impl ShortintParameterSet {
         }
     }
 
-    pub fn lwe_dimension(&self) -> LweDimension {
+    pub const fn lwe_dimension(&self) -> LweDimension {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.lwe_dimension,
+            ShortintParameterSetInner::PBSOnly(params) => params.lwe_dimension(),
             ShortintParameterSetInner::WopbsOnly(params) => params.lwe_dimension,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.lwe_dimension,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.lwe_dimension(),
         }
     }
 
-    pub fn glwe_dimension(&self) -> GlweDimension {
+    pub const fn glwe_dimension(&self) -> GlweDimension {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.glwe_dimension,
+            ShortintParameterSetInner::PBSOnly(params) => params.glwe_dimension(),
             ShortintParameterSetInner::WopbsOnly(params) => params.glwe_dimension,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.glwe_dimension,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.glwe_dimension(),
         }
     }
 
-    pub fn polynomial_size(&self) -> PolynomialSize {
+    pub const fn polynomial_size(&self) -> PolynomialSize {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.polynomial_size,
+            ShortintParameterSetInner::PBSOnly(params) => params.polynomial_size(),
             ShortintParameterSetInner::WopbsOnly(params) => params.polynomial_size,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.polynomial_size,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.polynomial_size(),
         }
     }
 
-    pub fn lwe_modular_std_dev(&self) -> StandardDev {
+    pub const fn lwe_modular_std_dev(&self) -> StandardDev {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.lwe_modular_std_dev,
+            ShortintParameterSetInner::PBSOnly(params) => params.lwe_modular_std_dev(),
             ShortintParameterSetInner::WopbsOnly(params) => params.lwe_modular_std_dev,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.lwe_modular_std_dev,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.lwe_modular_std_dev(),
         }
     }
 
-    pub fn glwe_modular_std_dev(&self) -> StandardDev {
+    pub const fn glwe_modular_std_dev(&self) -> StandardDev {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.glwe_modular_std_dev,
+            ShortintParameterSetInner::PBSOnly(params) => params.glwe_modular_std_dev(),
             ShortintParameterSetInner::WopbsOnly(params) => params.glwe_modular_std_dev,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.glwe_modular_std_dev,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.glwe_modular_std_dev(),
         }
     }
 
-    pub fn pbs_base_log(&self) -> DecompositionBaseLog {
+    pub const fn pbs_base_log(&self) -> DecompositionBaseLog {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.pbs_base_log,
+            ShortintParameterSetInner::PBSOnly(params) => params.pbs_base_log(),
             ShortintParameterSetInner::WopbsOnly(params) => params.pbs_base_log,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.pbs_base_log,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.pbs_base_log(),
         }
     }
 
-    pub fn pbs_level(&self) -> DecompositionLevelCount {
+    pub const fn pbs_level(&self) -> DecompositionLevelCount {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.pbs_level,
+            ShortintParameterSetInner::PBSOnly(params) => params.pbs_level(),
             ShortintParameterSetInner::WopbsOnly(params) => params.pbs_level,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.pbs_level,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.pbs_level(),
         }
     }
 
-    pub fn ks_base_log(&self) -> DecompositionBaseLog {
+    pub const fn ks_base_log(&self) -> DecompositionBaseLog {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.ks_base_log,
+            ShortintParameterSetInner::PBSOnly(params) => params.ks_base_log(),
             ShortintParameterSetInner::WopbsOnly(params) => params.ks_base_log,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ks_base_log,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ks_base_log(),
         }
     }
 
-    pub fn ks_level(&self) -> DecompositionLevelCount {
+    pub const fn ks_level(&self) -> DecompositionLevelCount {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.ks_level,
+            ShortintParameterSetInner::PBSOnly(params) => params.ks_level(),
             ShortintParameterSetInner::WopbsOnly(params) => params.ks_level,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ks_level,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ks_level(),
         }
     }
 
-    pub fn message_modulus(&self) -> MessageModulus {
+    pub const fn message_modulus(&self) -> MessageModulus {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.message_modulus,
+            ShortintParameterSetInner::PBSOnly(params) => params.message_modulus(),
             ShortintParameterSetInner::WopbsOnly(params) => params.message_modulus,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.message_modulus,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.message_modulus(),
         }
     }
 
-    pub fn carry_modulus(&self) -> CarryModulus {
+    pub const fn carry_modulus(&self) -> CarryModulus {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.carry_modulus,
+            ShortintParameterSetInner::PBSOnly(params) => params.carry_modulus(),
             ShortintParameterSetInner::WopbsOnly(params) => params.carry_modulus,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.carry_modulus,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.carry_modulus(),
         }
     }
 
-    pub fn ciphertext_modulus(&self) -> CiphertextModulus {
+    pub const fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.ciphertext_modulus,
+            ShortintParameterSetInner::PBSOnly(params) => params.ciphertext_modulus(),
             ShortintParameterSetInner::WopbsOnly(params) => params.ciphertext_modulus,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ciphertext_modulus,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ciphertext_modulus(),
         }
     }
 
-    pub fn encryption_key_choice(&self) -> EncryptionKeyChoice {
+    pub const fn encryption_key_choice(&self) -> EncryptionKeyChoice {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => params.encryption_key_choice,
+            ShortintParameterSetInner::PBSOnly(params) => params.encryption_key_choice(),
             ShortintParameterSetInner::WopbsOnly(params) => params.encryption_key_choice,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.encryption_key_choice,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.encryption_key_choice(),
         }
     }
 
     pub const fn pbs_only(&self) -> bool {
-        self.inner.pbs_only()
+        self.inner.is_pbs_only()
     }
 
     pub const fn wopbs_only(&self) -> bool {
-        self.inner.wopbs_only()
+        self.inner.is_wopbs_only()
     }
 
     pub const fn pbs_and_wopbs(&self) -> bool {
-        self.inner.pbs_and_wopbs()
+        self.inner.is_pbs_and_wopbs()
     }
 }
 
-impl From<PBSParameters> for ShortintParameterSet {
-    fn from(value: PBSParameters) -> Self {
-        Self::new_pbs_param_set(value)
+impl<P> From<P> for ShortintParameterSet
+where
+    PBSParameters: From<P>,
+{
+    fn from(value: P) -> Self {
+        Self::new_pbs_param_set(PBSParameters::from(value))
     }
 }
 
@@ -320,19 +464,22 @@ impl From<WopbsParameters> for ShortintParameterSet {
     }
 }
 
-impl TryFrom<(PBSParameters, WopbsParameters)> for ShortintParameterSet {
+impl<P> TryFrom<(P, WopbsParameters)> for ShortintParameterSet
+where
+    PBSParameters: From<P>,
+{
     type Error = &'static str;
 
-    fn try_from(value: (PBSParameters, WopbsParameters)) -> Result<Self, Self::Error> {
+    fn try_from(value: (P, WopbsParameters)) -> Result<Self, Self::Error> {
         ShortintParameterSet::try_new_pbs_and_wopbs_param_set(value)
     }
 }
 
 /// Vector containing all parameter sets
-pub const ALL_PARAMETER_VEC: [PBSParameters; 28] = WITH_CARRY_PARAMETERS_VEC;
+pub const ALL_PARAMETER_VEC: [ClassicPBSParameters; 28] = WITH_CARRY_PARAMETERS_VEC;
 
 /// Vector containing all parameter sets where the carry space is strictly greater than one
-pub const WITH_CARRY_PARAMETERS_VEC: [PBSParameters; 28] = [
+pub const WITH_CARRY_PARAMETERS_VEC: [ClassicPBSParameters; 28] = [
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_1_CARRY_2,
     PARAM_MESSAGE_1_CARRY_3,
@@ -364,7 +511,7 @@ pub const WITH_CARRY_PARAMETERS_VEC: [PBSParameters; 28] = [
 ];
 
 /// Vector containing all parameter sets where the carry space is strictly greater than one
-pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [PBSParameters; 16] = [
+pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [ClassicPBSParameters; 16] = [
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_1_CARRY_2,
     PARAM_MESSAGE_1_CARRY_3,
@@ -387,7 +534,7 @@ pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [PBSParameters; 16] = [
 /// encoded over X (reps. Y) bits, i.e., message_modulus = 2^{X} (resp. carry_modulus = 2^{Y}).
 /// All parameter sets guarantee 128-bits of security and an error probability smaller than
 /// 2^{-40} for a PBS.
-pub const PARAM_MESSAGE_1_CARRY_0: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_0: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(678),
     glwe_dimension: GlweDimension(5),
     polynomial_size: PolynomialSize(256),
@@ -402,7 +549,7 @@ pub const PARAM_MESSAGE_1_CARRY_0: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_1: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_1: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(684),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -417,7 +564,7 @@ pub const PARAM_MESSAGE_1_CARRY_1: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_0: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_0: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(656),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(512),
@@ -432,7 +579,7 @@ pub const PARAM_MESSAGE_2_CARRY_0: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_2: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_2: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -447,7 +594,7 @@ pub const PARAM_MESSAGE_1_CARRY_2: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_1: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_1: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -462,7 +609,7 @@ pub const PARAM_MESSAGE_2_CARRY_1: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_0: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_0: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -477,7 +624,7 @@ pub const PARAM_MESSAGE_3_CARRY_0: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_3: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_3: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(745),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -492,7 +639,7 @@ pub const PARAM_MESSAGE_1_CARRY_3: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_2: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_2: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -507,7 +654,7 @@ pub const PARAM_MESSAGE_2_CARRY_2: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_1: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_1: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -522,7 +669,7 @@ pub const PARAM_MESSAGE_3_CARRY_1: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_4_CARRY_0: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_0: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -537,7 +684,7 @@ pub const PARAM_MESSAGE_4_CARRY_0: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_4: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_4: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(807),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -552,7 +699,7 @@ pub const PARAM_MESSAGE_1_CARRY_4: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_3: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_3: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(856),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -567,7 +714,7 @@ pub const PARAM_MESSAGE_2_CARRY_3: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_2: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_2: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(812),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -582,7 +729,7 @@ pub const PARAM_MESSAGE_3_CARRY_2: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_4_CARRY_1: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_1: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(808),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -597,7 +744,7 @@ pub const PARAM_MESSAGE_4_CARRY_1: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_5_CARRY_0: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_0: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(807),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -612,7 +759,7 @@ pub const PARAM_MESSAGE_5_CARRY_0: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_5: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_5: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(864),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -627,7 +774,7 @@ pub const PARAM_MESSAGE_1_CARRY_5: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_4: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_4: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(864),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -642,7 +789,7 @@ pub const PARAM_MESSAGE_2_CARRY_4: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_3: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_3: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(864),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -657,7 +804,7 @@ pub const PARAM_MESSAGE_3_CARRY_3: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_4_CARRY_2: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_2: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(864),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -672,7 +819,7 @@ pub const PARAM_MESSAGE_4_CARRY_2: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_5_CARRY_1: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_1: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(875),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -687,7 +834,7 @@ pub const PARAM_MESSAGE_5_CARRY_1: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_6_CARRY_0: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_6_CARRY_0: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(915),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -702,7 +849,7 @@ pub const PARAM_MESSAGE_6_CARRY_0: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_6: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_6: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -717,7 +864,7 @@ pub const PARAM_MESSAGE_1_CARRY_6: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_5: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_5: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(934),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -732,7 +879,7 @@ pub const PARAM_MESSAGE_2_CARRY_5: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_4: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_4: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -747,7 +894,7 @@ pub const PARAM_MESSAGE_3_CARRY_4: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_4_CARRY_3: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_3: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -762,7 +909,7 @@ pub const PARAM_MESSAGE_4_CARRY_3: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_5_CARRY_2: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_2: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -777,7 +924,7 @@ pub const PARAM_MESSAGE_5_CARRY_2: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_6_CARRY_1: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_6_CARRY_1: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -792,7 +939,7 @@ pub const PARAM_MESSAGE_6_CARRY_1: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_7_CARRY_0: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_7_CARRY_0: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(930),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -807,7 +954,7 @@ pub const PARAM_MESSAGE_7_CARRY_0: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_7: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_7: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1004),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -822,7 +969,7 @@ pub const PARAM_MESSAGE_1_CARRY_7: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_6: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_6: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(987),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -837,7 +984,7 @@ pub const PARAM_MESSAGE_2_CARRY_6: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_5: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_5: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(985),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -852,7 +999,7 @@ pub const PARAM_MESSAGE_3_CARRY_5: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_4_CARRY_4: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_4: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(996),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -867,7 +1014,7 @@ pub const PARAM_MESSAGE_4_CARRY_4: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_5_CARRY_3: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_3: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1020),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -882,7 +1029,7 @@ pub const PARAM_MESSAGE_5_CARRY_3: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_6_CARRY_2: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_6_CARRY_2: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1018),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -897,7 +1044,7 @@ pub const PARAM_MESSAGE_6_CARRY_2: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_7_CARRY_1: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_7_CARRY_1: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1017),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -912,7 +1059,7 @@ pub const PARAM_MESSAGE_7_CARRY_1: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_8_CARRY_0: PBSParameters = PBSParameters {
+pub const PARAM_MESSAGE_8_CARRY_0: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1017),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -928,7 +1075,7 @@ pub const PARAM_MESSAGE_8_CARRY_0: PBSParameters = PBSParameters {
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
-pub const PARAM_SMALL_MESSAGE_1_CARRY_1: PBSParameters = PBSParameters {
+pub const PARAM_SMALL_MESSAGE_1_CARRY_1: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(783),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -944,7 +1091,7 @@ pub const PARAM_SMALL_MESSAGE_1_CARRY_1: PBSParameters = PBSParameters {
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
-pub const PARAM_SMALL_MESSAGE_2_CARRY_2: PBSParameters = PBSParameters {
+pub const PARAM_SMALL_MESSAGE_2_CARRY_2: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(870),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -960,7 +1107,7 @@ pub const PARAM_SMALL_MESSAGE_2_CARRY_2: PBSParameters = PBSParameters {
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
-pub const PARAM_SMALL_MESSAGE_3_CARRY_3: PBSParameters = PBSParameters {
+pub const PARAM_SMALL_MESSAGE_3_CARRY_3: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1025),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -976,7 +1123,7 @@ pub const PARAM_SMALL_MESSAGE_3_CARRY_3: PBSParameters = PBSParameters {
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
 
-pub const PARAM_SMALL_MESSAGE_4_CARRY_4: PBSParameters = PBSParameters {
+pub const PARAM_SMALL_MESSAGE_4_CARRY_4: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1214),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -991,6 +1138,152 @@ pub const PARAM_SMALL_MESSAGE_4_CARRY_4: PBSParameters = PBSParameters {
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
+
+// Group 2
+pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(764),
+        glwe_dimension: GlweDimension(3),
+        polynomial_size: PolynomialSize(512),
+        lwe_modular_std_dev: StandardDev(0.000006025673585415336),
+        glwe_modular_std_dev: StandardDev(0.0000000000039666089171633006),
+        pbs_base_log: DecompositionBaseLog(18),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(6),
+        ks_level: DecompositionLevelCount(2),
+        message_modulus: MessageModulus(2),
+        carry_modulus: CarryModulus(2),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(2),
+    };
+
+pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(818),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(2048),
+        lwe_modular_std_dev: StandardDev(0.000002226459789930014),
+        glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+        pbs_base_log: DecompositionBaseLog(22),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(5),
+        ks_level: DecompositionLevelCount(3),
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(2),
+    };
+
+pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(922),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(8192),
+        lwe_modular_std_dev: StandardDev(0.0000003272369292345697),
+        glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+        pbs_base_log: DecompositionBaseLog(14),
+        pbs_level: DecompositionLevelCount(2),
+        ks_base_log: DecompositionBaseLog(4),
+        ks_level: DecompositionLevelCount(4),
+        message_modulus: MessageModulus(8),
+        carry_modulus: CarryModulus(8),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(2),
+    };
+
+pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(1052),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(32768),
+        lwe_modular_std_dev: StandardDev(0.000000029779789543501806),
+        glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+        pbs_base_log: DecompositionBaseLog(14),
+        pbs_level: DecompositionLevelCount(2),
+        ks_base_log: DecompositionBaseLog(4),
+        ks_level: DecompositionLevelCount(5),
+        message_modulus: MessageModulus(16),
+        carry_modulus: CarryModulus(16),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(2),
+    };
+
+// Group 3
+pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(765),
+        glwe_dimension: GlweDimension(3),
+        polynomial_size: PolynomialSize(512),
+        lwe_modular_std_dev: StandardDev(0.000005915594083804978),
+        glwe_modular_std_dev: StandardDev(0.0000000000039666089171633006),
+        pbs_base_log: DecompositionBaseLog(18),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(6),
+        ks_level: DecompositionLevelCount(2),
+        message_modulus: MessageModulus(2),
+        carry_modulus: CarryModulus(2),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(3),
+    };
+
+pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(888),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(2048),
+        lwe_modular_std_dev: StandardDev(0.0000006125031601933181),
+        glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+        pbs_base_log: DecompositionBaseLog(21),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(7),
+        ks_level: DecompositionLevelCount(2),
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(3),
+    };
+
+pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(972),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(8192),
+        lwe_modular_std_dev: StandardDev(0.00000013016688349592805),
+        glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+        pbs_base_log: DecompositionBaseLog(14),
+        pbs_level: DecompositionLevelCount(2),
+        ks_base_log: DecompositionBaseLog(6),
+        ks_level: DecompositionLevelCount(3),
+        message_modulus: MessageModulus(8),
+        carry_modulus: CarryModulus(8),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(3),
+    };
+
+pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3: MultiBitPBSParameters =
+    MultiBitPBSParameters {
+        lwe_dimension: LweDimension(1098),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(32768),
+        lwe_modular_std_dev: StandardDev(0.000000012752307213087621),
+        glwe_modular_std_dev: StandardDev(0.0000000000000000002168404344971009),
+        pbs_base_log: DecompositionBaseLog(14),
+        pbs_level: DecompositionLevelCount(2),
+        ks_base_log: DecompositionBaseLog(5),
+        ks_level: DecompositionLevelCount(4),
+        message_modulus: MessageModulus(16),
+        carry_modulus: CarryModulus(16),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        grouping_factor: LweBskGroupingFactor(3),
+    };
 
 /// Return a parameter set from a message and carry moduli.
 ///
@@ -1008,7 +1301,7 @@ pub const PARAM_SMALL_MESSAGE_4_CARRY_4: PBSParameters = PBSParameters {
 pub fn get_parameters_from_message_and_carry(
     msg_space: usize,
     carry_space: usize,
-) -> PBSParameters {
+) -> ClassicPBSParameters {
     let mut out = PARAM_MESSAGE_2_CARRY_2;
     let mut flag: bool = false;
     let mut rescaled_message_space = f64::ceil(f64::log2(msg_space as f64)) as usize;

@@ -10,8 +10,8 @@ pub use super::ciphertext::{
 pub use super::client_key::ClientKey;
 pub use super::gen_keys;
 pub use super::parameters::{
-    CarryModulus, CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
-    EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus, PBSParameters,
+    CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
+    DecompositionLevelCount, EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus,
     PolynomialSize, StandardDev, PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_1_CARRY_2,
     PARAM_MESSAGE_1_CARRY_3, PARAM_MESSAGE_1_CARRY_4, PARAM_MESSAGE_1_CARRY_5,
     PARAM_MESSAGE_1_CARRY_6, PARAM_MESSAGE_1_CARRY_7, PARAM_MESSAGE_2_CARRY_2,

@@ -4,6 +4,7 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -446,6 +447,327 @@ where
         &mut bsk,
         noise_parameters,
         generator,
+    );
+
+    bsk
+}
+
+/// Fill a [`seeded LWE bootstrap key`](`SeededLweMultiBitBootstrapKey`) with an actual seeded
+/// bootstrapping key constructed from an input key [`LWE secret key`](`LweSecretKey`) and an output
+/// key [`GLWE secret key`](`GlweSecretKey`)
+///
+/// Consider using [`par_generate_seeded_lwe_multi_bit_bootstrap_key`] for better key generation
+/// times.
+#[allow(clippy::too_many_arguments)]
+pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    OutputCont,
+    NoiseSeeder,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    output: &mut SeededLweMultiBitBootstrapKey<OutputCont>,
+    noise_parameters: impl DispersionParameter,
+    noise_seeder: &mut NoiseSeeder,
+) where
+    Scalar: UnsignedTorus + CastFrom<usize>,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
+    NoiseSeeder: Seeder + ?Sized,
+{
+    assert!(
+        output.input_lwe_dimension() == input_lwe_secret_key.lwe_dimension(),
+        "Mismatched LweDimension between input LWE secret key and LWE bootstrap key. \
+        Input LWE secret key LweDimension: {:?}, LWE bootstrap key input LweDimension {:?}.",
+        input_lwe_secret_key.lwe_dimension(),
+        output.input_lwe_dimension()
+    );
+
+    assert!(
+        output.glwe_size() == output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        "Mismatched GlweSize between output GLWE secret key and LWE bootstrap key. \
+        Output GLWE secret key GlweSize: {:?}, LWE bootstrap key GlweSize {:?}.",
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        output.glwe_size()
+    );
+
+    assert!(
+        output.polynomial_size() == output_glwe_secret_key.polynomial_size(),
+        "Mismatched PolynomialSize between output GLWE secret key and LWE bootstrap key. \
+        Output GLWE secret key PolynomialSize: {:?}, LWE bootstrap key PolynomialSize {:?}.",
+        output_glwe_secret_key.polynomial_size(),
+        output.polynomial_size()
+    );
+
+    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        output.compression_seed().seed,
+        noise_seeder,
+    );
+
+    assert!(
+        output.input_lwe_dimension() == input_lwe_secret_key.lwe_dimension(),
+        "Mismatched LweDimension between input LWE secret key and LWE bootstrap key. \
+        Input LWE secret key LweDimension: {:?}, LWE bootstrap key input LweDimension {:?}.",
+        input_lwe_secret_key.lwe_dimension(),
+        output.input_lwe_dimension()
+    );
+
+    assert!(
+        output.glwe_size() == output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        "Mismatched GlweSize between output GLWE secret key and LWE bootstrap key. \
+        Output GLWE secret key GlweSize: {:?}, LWE bootstrap key GlweSize {:?}.",
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        output.glwe_size()
+    );
+
+    assert!(
+        output.polynomial_size() == output_glwe_secret_key.polynomial_size(),
+        "Mismatched PolynomialSize between output GLWE secret key and LWE bootstrap key. \
+        Output GLWE secret key PolynomialSize: {:?}, LWE bootstrap key PolynomialSize {:?}.",
+        output_glwe_secret_key.polynomial_size(),
+        output.polynomial_size()
+    );
+
+    let gen_iter = generator
+        .fork_multi_bit_bsk_to_ggsw_group::<Scalar>(
+            output.input_lwe_dimension(),
+            output.decomposition_level_count(),
+            output.glwe_size(),
+            output.polynomial_size(),
+            output.grouping_factor(),
+        )
+        .unwrap();
+
+    let grouping_factor = output.grouping_factor();
+    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+
+    for ((mut ggsw_group, input_key_elements), mut loop_generator) in output
+        .chunks_exact_mut(ggsw_per_multi_bit_element.0)
+        .zip(
+            input_lwe_secret_key
+                .as_ref()
+                .chunks_exact(grouping_factor.0),
+        )
+        .zip(gen_iter)
+    {
+        let gen_iter = loop_generator.fork_n(ggsw_per_multi_bit_element.0).unwrap();
+        for ((bit_inversion_idx, mut ggsw), mut inner_loop_generator) in
+            ggsw_group.iter_mut().enumerate().zip(gen_iter)
+        {
+            // Use the index of the ggsw as a way to know which bit to invert
+            let key_bits_plaintext = combine_key_bits(bit_inversion_idx, input_key_elements);
+
+            encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
+                output_glwe_secret_key,
+                &mut ggsw,
+                Plaintext(key_bits_plaintext),
+                noise_parameters,
+                &mut inner_loop_generator,
+            );
+        }
+    }
+}
+
+/// Allocate a new [`seeded LWE bootstrap key`](`SeededLweMultiBitBootstrapKey`) and fill it with an
+/// actual seeded bootstrapping key constructed from an input key [`LWE secret key`](`LweSecretKey`)
+/// and an output key [`GLWE secret key`](`GlweSecretKey`)
+///
+/// Consider using [`par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key`] for better
+/// key generation times.
+#[allow(clippy::too_many_arguments)]
+pub fn allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    NoiseSeeder,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    decomp_base_log: DecompositionBaseLog,
+    decomp_level_count: DecompositionLevelCount,
+    noise_parameters: impl DispersionParameter,
+    grouping_factor: LweBskGroupingFactor,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+    noise_seeder: &mut NoiseSeeder,
+) -> SeededLweMultiBitBootstrapKeyOwned<Scalar>
+where
+    Scalar: UnsignedTorus + CastFrom<usize>,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
+    NoiseSeeder: Seeder + ?Sized,
+{
+    let mut bsk = SeededLweMultiBitBootstrapKeyOwned::new(
+        Scalar::ZERO,
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        output_glwe_secret_key.polynomial_size(),
+        decomp_base_log,
+        decomp_level_count,
+        input_lwe_secret_key.lwe_dimension(),
+        grouping_factor,
+        noise_seeder.seed().into(),
+        ciphertext_modulus,
+    );
+
+    generate_seeded_lwe_multi_bit_bootstrap_key(
+        input_lwe_secret_key,
+        output_glwe_secret_key,
+        &mut bsk,
+        noise_parameters,
+        noise_seeder,
+    );
+
+    bsk
+}
+
+/// Parallel variant of [`generate_seeded_lwe_multi_bit_bootstrap_key`], it is recommended to use
+/// this function for better key generation times as LWE bootstrapping keys can be quite large.
+#[allow(clippy::too_many_arguments)]
+pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    OutputCont,
+    NoiseSeeder,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    output: &mut SeededLweMultiBitBootstrapKey<OutputCont>,
+    noise_parameters: impl DispersionParameter + Sync,
+    noise_seeder: &mut NoiseSeeder,
+) where
+    Scalar: UnsignedTorus + CastFrom<usize> + Sync + Send,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar> + Sync,
+    OutputCont: ContainerMut<Element = Scalar>,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
+    NoiseSeeder: Seeder + ?Sized,
+{
+    assert!(
+        output.input_lwe_dimension() == input_lwe_secret_key.lwe_dimension(),
+        "Mismatched LweDimension between input LWE secret key and LWE bootstrap key. \
+        Input LWE secret key LweDimension: {:?}, LWE bootstrap key input LweDimension {:?}.",
+        input_lwe_secret_key.lwe_dimension(),
+        output.input_lwe_dimension()
+    );
+
+    assert!(
+        output.glwe_size() == output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        "Mismatched GlweSize between output GLWE secret key and LWE bootstrap key. \
+        Output GLWE secret key GlweSize: {:?}, LWE bootstrap key GlweSize {:?}.",
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        output.glwe_size()
+    );
+
+    assert!(
+        output.polynomial_size() == output_glwe_secret_key.polynomial_size(),
+        "Mismatched PolynomialSize between output GLWE secret key and LWE bootstrap key. \
+        Output GLWE secret key PolynomialSize: {:?}, LWE bootstrap key PolynomialSize {:?}.",
+        output_glwe_secret_key.polynomial_size(),
+        output.polynomial_size()
+    );
+
+    let mut generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
+        output.compression_seed().seed,
+        noise_seeder,
+    );
+
+    let gen_iter = generator
+        .par_fork_multi_bit_bsk_to_ggsw_group::<Scalar>(
+            output.input_lwe_dimension(),
+            output.decomposition_level_count(),
+            output.glwe_size(),
+            output.polynomial_size(),
+            output.grouping_factor(),
+        )
+        .unwrap();
+
+    let grouping_factor = output.grouping_factor();
+    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+
+    output
+        .par_iter_mut()
+        .chunks(ggsw_per_multi_bit_element.0)
+        .zip(
+            input_lwe_secret_key
+                .as_ref()
+                .par_chunks_exact(grouping_factor.0),
+        )
+        .zip(gen_iter)
+        .for_each(
+            |((mut ggsw_group, input_key_elements), mut loop_generator)| {
+                let gen_iter = loop_generator
+                    .par_fork_n(ggsw_per_multi_bit_element.0)
+                    .unwrap();
+                ggsw_group
+                    .par_iter_mut()
+                    .enumerate()
+                    .zip(gen_iter)
+                    .for_each(|((bit_inversion_idx, ggsw), mut inner_loop_generator)| {
+                        // Use the index of the ggsw as a way to know which bit to invert
+                        let key_bits_plaintext =
+                            combine_key_bits(bit_inversion_idx, input_key_elements);
+
+                        par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator(
+                            output_glwe_secret_key,
+                            ggsw,
+                            Plaintext(key_bits_plaintext),
+                            noise_parameters,
+                            &mut inner_loop_generator,
+                        );
+                    });
+            },
+        );
+}
+
+/// Parallel variant of [`allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key`], it is
+/// recommended to use this function for better key generation times as LWE bootstrapping keys can
+/// be quite large.
+#[allow(clippy::too_many_arguments)]
+pub fn par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    NoiseSeeder,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    decomp_base_log: DecompositionBaseLog,
+    decomp_level_count: DecompositionLevelCount,
+    noise_parameters: impl DispersionParameter + Sync,
+    grouping_factor: LweBskGroupingFactor,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+    noise_seeder: &mut NoiseSeeder,
+) -> SeededLweMultiBitBootstrapKeyOwned<Scalar>
+where
+    Scalar: UnsignedTorus + CastFrom<usize> + Sync + Send,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar> + Sync,
+    // Maybe Sized allows to pass Box<dyn Seeder>.
+    NoiseSeeder: Seeder + ?Sized,
+{
+    let mut bsk = SeededLweMultiBitBootstrapKeyOwned::new(
+        Scalar::ZERO,
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        output_glwe_secret_key.polynomial_size(),
+        decomp_base_log,
+        decomp_level_count,
+        input_lwe_secret_key.lwe_dimension(),
+        grouping_factor,
+        noise_seeder.seed().into(),
+        ciphertext_modulus,
+    );
+
+    par_generate_seeded_lwe_multi_bit_bootstrap_key(
+        input_lwe_secret_key,
+        output_glwe_secret_key,
+        &mut bsk,
+        noise_parameters,
+        noise_seeder,
     );
 
     bsk

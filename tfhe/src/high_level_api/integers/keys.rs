@@ -2,13 +2,13 @@ use crate::shortint::EncryptionKeyChoice;
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IntegerConfig {
-    pub(crate) block_parameters: Option<crate::shortint::PBSParameters>,
+    pub(crate) block_parameters: Option<crate::shortint::ClassicPBSParameters>,
     pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
 }
 
 impl IntegerConfig {
     pub(crate) fn new(
-        block_parameters: Option<crate::shortint::PBSParameters>,
+        block_parameters: Option<crate::shortint::ClassicPBSParameters>,
         wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
     ) -> Self {
         Self {

@@ -29,7 +29,7 @@ where
             .clone();
         #[cfg(not(feature = "internal-keycache"))]
         let key = {
-            let parameters: crate::shortint::PBSParameters = parameters.into();
+            let parameters: crate::shortint::ClassicPBSParameters = parameters.into();
             ClientKey::new(parameters)
         };
 

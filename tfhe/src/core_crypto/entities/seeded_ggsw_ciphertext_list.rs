@@ -283,6 +283,45 @@ impl<Scalar: UnsignedInteger> SeededGgswCiphertextListOwned<Scalar> {
     }
 }
 
+/// Metadata used in the [`CreateFrom`] implementation to create [`SeededGgswCiphertextList`]
+/// entities.
+#[derive(Clone, Copy)]
+pub struct SeededGgswCiphertextListCreationMetadata<Scalar: UnsignedInteger>(
+    pub GlweSize,
+    pub PolynomialSize,
+    pub DecompositionBaseLog,
+    pub DecompositionLevelCount,
+    pub CompressionSeed,
+    pub CiphertextModulus<Scalar>,
+);
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
+    for SeededGgswCiphertextList<C>
+{
+    type Metadata = SeededGgswCiphertextListCreationMetadata<Scalar>;
+
+    #[inline]
+    fn create_from(from: C, meta: Self::Metadata) -> SeededGgswCiphertextList<C> {
+        let SeededGgswCiphertextListCreationMetadata(
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            compression_seed,
+            ciphertext_modulus,
+        ) = meta;
+        SeededGgswCiphertextList::from_container(
+            from,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            compression_seed,
+            ciphertext_modulus,
+        )
+    }
+}
+
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
     for SeededGgswCiphertextList<C>
 {
@@ -294,9 +333,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     where
         Self: 'this;
 
-    type SelfViewMetadata = ();
+    type SelfViewMetadata = SeededGgswCiphertextListCreationMetadata<Self::Element>;
 
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this> = SeededGgswCiphertextListView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -321,9 +360,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     /// Unimplemented for [`SeededGgswCiphertextList`]. At the moment it does not make sense to
     /// return "sub" seeded lists.
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        unimplemented!(
-            "This function is not supported for SeededGgswCiphertextList. \
-        At the moment it does not make sense to return 'sub' seeded lists."
+        SeededGgswCiphertextListCreationMetadata(
+            self.glwe_size,
+            self.polynomial_size,
+            self.decomp_base_log,
+            self.decomp_level_count,
+            self.compression_seed,
+            self.ciphertext_modulus,
         )
     }
 }
@@ -335,7 +378,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
     where
         Self: 'this;
 
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this> = SeededGgswCiphertextListMutView<'this, Self::Element>
     where
         Self: 'this;
 }

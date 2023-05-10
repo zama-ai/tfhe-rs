@@ -101,7 +101,7 @@ where
     // Manually manage the wopbs only case as a workaround pending wopbs rework
     let shortint_parameters_set = if is_wopbs_only_params {
         let wopbs_params = shortint_parameters_set.wopbs_parameters().unwrap();
-        let pbs_params = crate::shortint::parameters::PBSParameters {
+        let pbs_params = crate::shortint::parameters::ClassicPBSParameters {
             lwe_dimension: wopbs_params.lwe_dimension,
             glwe_dimension: wopbs_params.glwe_dimension,
             polynomial_size: wopbs_params.polynomial_size,
@@ -184,7 +184,7 @@ where
 /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_2_CARRY_2, basis);
 /// ```
 pub fn gen_keys_crt(
-    parameters_set: crate::shortint::parameters::PBSParameters,
+    parameters_set: crate::shortint::parameters::ClassicPBSParameters,
     basis: Vec<u64>,
 ) -> (CrtClientKey, ServerKey) {
     let (cks, sks) = gen_keys(parameters_set);
