@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["tfhe", "tasks"]
+members = ["tfhe", "tasks", "apps/trivium"]
 
 [profile.bench]
 lto = "fat"
