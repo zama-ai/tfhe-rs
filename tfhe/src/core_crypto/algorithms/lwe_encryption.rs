@@ -779,16 +779,23 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 
     output.as_mut().fill(Scalar::ZERO);
 
+    let mut tmp_zero_encryption =
+        LweCiphertext::new(Scalar::ZERO, output.lwe_size(), output.ciphertext_modulus());
+
     let mut ct_choice = vec![Scalar::ZERO; lwe_public_key.zero_encryption_count().0];
 
     generator.fill_slice_with_random_uniform_binary(&mut ct_choice);
 
     // Add the public encryption of zeros to get the zero encryption
     for (&chosen, public_encryption_of_zero) in ct_choice.iter().zip(lwe_public_key.iter()) {
-        // TODO: can leak choice of ciphertexts
-        if chosen == Scalar::ONE {
-            lwe_ciphertext_add_assign(output, &public_encryption_of_zero);
-        }
+        // chosen is 1 if chosen, 0 otherwise, so use a multiplication to avoid having a branch
+        // depending on a value that's supposed to remain secret
+        lwe_ciphertext_cleartext_mul(
+            &mut tmp_zero_encryption,
+            &public_encryption_of_zero,
+            Cleartext(chosen),
+        );
+        lwe_ciphertext_add_assign(output, &tmp_zero_encryption);
     }
 
     let body = output.get_mut_body();
@@ -905,7 +912,7 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
 
     let ciphertext_modulus = output.ciphertext_modulus();
 
-    let mut tmp_ciphertext =
+    let mut tmp_zero_encryption =
         LweCiphertext::new(Scalar::ZERO, lwe_public_key.lwe_size(), ciphertext_modulus);
 
     let mut random_generator =
@@ -913,7 +920,7 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
 
     // Add the public encryption of zeros to get the zero encryption
     for (&chosen, public_encryption_of_zero_body) in ct_choice.iter().zip(lwe_public_key.iter()) {
-        let (mut mask, body) = tmp_ciphertext.get_mut_mask_and_body();
+        let (mut mask, body) = tmp_zero_encryption.get_mut_mask_and_body();
         random_generator
             .fill_slice_with_random_uniform_custom_mod(mask.as_mut(), ciphertext_modulus);
         if !ciphertext_modulus.is_native_modulus() {
@@ -924,10 +931,10 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
         }
         *body.data = *public_encryption_of_zero_body.data;
 
-        // TODO: can leak choice of ciphertexts
-        if chosen == Scalar::ONE {
-            lwe_ciphertext_add_assign(output, &tmp_ciphertext);
-        }
+        // chosen is 1 if chosen, 0 otherwise, so use a multiplication to avoid having a branch
+        // depending on a value that's supposed to remain secret
+        lwe_ciphertext_cleartext_mul_assign(&mut tmp_zero_encryption, Cleartext(chosen));
+        lwe_ciphertext_add_assign(output, &tmp_zero_encryption);
     }
 
     // Add encoded plaintext
