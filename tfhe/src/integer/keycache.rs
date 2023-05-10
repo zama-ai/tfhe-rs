@@ -8,7 +8,10 @@ use crate::integer::{ClientKey, ServerKey};
 pub struct IntegerKeyCache;
 
 impl IntegerKeyCache {
-    pub fn get_from_params(&self, params: PBSParameters) -> (ClientKey, ServerKey) {
+    pub fn get_from_params<P>(&self, params: P) -> (ClientKey, ServerKey)
+    where
+        PBSParameters: From<P>,
+    {
         let keys = crate::shortint::keycache::KEY_CACHE.get_from_param(params);
         let (client_key, server_key) = (keys.client_key(), keys.server_key());
 
@@ -17,22 +20,18 @@ impl IntegerKeyCache {
 
         (client_key, server_key)
     }
-
-    pub fn get_shortint_from_params(
-        &self,
-        params: PBSParameters,
-    ) -> (crate::shortint::ClientKey, crate::shortint::ServerKey) {
-        let keys = crate::shortint::keycache::KEY_CACHE.get_from_param(params);
-        (keys.client_key().clone(), keys.server_key().clone())
-    }
 }
 
 #[derive(Default)]
 pub struct WopbsKeyCache;
 
 impl WopbsKeyCache {
-    pub fn get_from_params(&self, params: (PBSParameters, WopbsParameters)) -> WopbsKey {
-        let shortint_wops_key = crate::shortint::keycache::KEY_CACHE_WOPBS.get_from_param(params);
+    pub fn get_from_params<P>(&self, (pbs_params, wopbs_params): (P, WopbsParameters)) -> WopbsKey
+    where
+        PBSParameters: From<P>,
+    {
+        let shortint_wops_key =
+            crate::shortint::keycache::KEY_CACHE_WOPBS.get_from_param((pbs_params, wopbs_params));
         WopbsKey::from(shortint_wops_key.wopbs_key().clone())
     }
 }

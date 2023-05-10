@@ -44,7 +44,7 @@ In the case of multiplication, two algorithms are implemented: the first one rel
 
 ## User-defined parameter sets
 
-It is possible to define new parameter sets. To do so, it is sufficient to use the function `unsecure_parameters()` or to manually fill the `PBSParameters` structure fields.
+It is possible to define new parameter sets. To do so, it is sufficient to use the function `unsecure_parameters()` or to manually fill the `ClassicPBSParameters` structure fields.
 
 For instance:
 
@@ -53,7 +53,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     let param = unsafe {
-        PBSParameters::new(
+        ClassicPBSParameters::new(
             LweDimension(656),
             GlweDimension(2),
             PolynomialSize(512),

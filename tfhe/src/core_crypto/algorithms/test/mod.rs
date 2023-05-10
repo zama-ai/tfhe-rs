@@ -8,6 +8,7 @@ mod lwe_encryption;
 mod lwe_keyswitch;
 mod lwe_keyswitch_key_generation;
 mod lwe_linear_algebra;
+mod lwe_multi_bit_bootstrap_key_generation;
 mod lwe_multi_bit_programmable_bootstrapping;
 mod lwe_programmable_bootstrapping;
 

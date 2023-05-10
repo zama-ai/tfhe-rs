@@ -113,7 +113,7 @@ fn main() {
     let scalar = 3u64;
 
     // message_modulus^vec_length
-    let modulus = client_key.parameters().message_modulus.0.pow(num_block as u32) as u64;
+    let modulus = client_key.parameters().message_modulus().0.pow(num_block as u32) as u64;
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);
@@ -151,7 +151,7 @@ fn main() {
     let scalar = 3u64;
 
     // message_modulus^vec_length
-    let modulus = client_key.parameters().message_modulus.0.pow(num_block as u32) as u64;
+    let modulus = client_key.parameters().message_modulus().0.pow(num_block as u32) as u64;
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);
@@ -189,7 +189,7 @@ fn main() {
     let scalar = 3;
 
     // message_modulus^vec_length
-    let modulus = client_key.parameters().message_modulus.0.pow(num_block as u32) as u64;
+    let modulus = client_key.parameters().message_modulus().0.pow(num_block as u32) as u64;
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);
@@ -228,7 +228,7 @@ fn main() {
     let scalar = 3;
 
     // message_modulus^vec_length
-    let modulus = client_key.parameters().message_modulus.0.pow(num_block as u32) as u64;
+    let modulus = client_key.parameters().message_modulus().0.pow(num_block as u32) as u64;
 
     // We use the client key to encrypt two messages:
     let mut ct_1 = client_key.encrypt(msg1);

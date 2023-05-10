@@ -1,4 +1,4 @@
-pub trait ShortIntegerParameter: Copy + Into<crate::shortint::PBSParameters> {
+pub trait ShortIntegerParameter: Copy + Into<crate::shortint::ClassicPBSParameters> {
     type Id: Copy;
 }
 

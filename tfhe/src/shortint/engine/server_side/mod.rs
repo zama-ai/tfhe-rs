@@ -1,13 +1,20 @@
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
+use crate::core_crypto::commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
+    LweDimension, PolynomialSize, ThreadCount,
+};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::EngineResult;
 use crate::shortint::parameters::MessageModulus;
-use crate::shortint::server_key::{BivariateLookupTableOwned, LookupTableOwned, MaxDegree};
+use crate::shortint::server_key::{
+    BivariateLookupTableOwned, LookupTableOwned, MaxDegree, ShortintBootstrappingKey,
+    ShortintCompressedBootstrappingKey,
+};
 use crate::shortint::{
     CiphertextBase, CiphertextBig, CiphertextSmall, ClientKey, CompressedServerKey, PBSOrder,
     PBSOrderMarker, ServerKey,
@@ -35,47 +42,134 @@ impl ShortintEngine {
         self.new_server_key_with_max_degree(cks, max)
     }
 
+    pub(crate) fn get_thread_count_for_multi_bit_pbs(
+        &self,
+        lwe_dimension: LweDimension,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        grouping_factor: LweBskGroupingFactor,
+    ) -> ThreadCount {
+        // Will be used later when we dynamically compute thread counts, put them in the public
+        // signature of the function for now
+        let _ = (
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            pbs_base_log,
+            pbs_level,
+        );
+
+        // For now optimal threads for m6i.metal accross 1_1, 2_2, 3_3 and 4_4 params
+        match grouping_factor.0 {
+            2 => ThreadCount(5),
+            3 => ThreadCount(7),
+            _ => {
+                todo!("Currently shortint only supports grouping factor 2 and 3 for multi bit PBS")
+            }
+        }
+    }
+
     pub(crate) fn new_server_key_with_max_degree(
         &mut self,
         cks: &ClientKey,
         max_degree: MaxDegree,
     ) -> EngineResult<ServerKey> {
-        let bootstrap_key: LweBootstrapKeyOwned<u64> =
-            par_allocate_and_generate_new_lwe_bootstrap_key(
-                &cks.small_lwe_secret_key,
-                &cks.glwe_secret_key,
-                cks.parameters.pbs_base_log(),
-                cks.parameters.pbs_level(),
-                cks.parameters.glwe_modular_std_dev(),
-                cks.parameters.ciphertext_modulus(),
-                &mut self.encryption_generator,
-            );
+        let params = &cks.parameters;
+        let pbs_params_base = params.pbs_parameters().unwrap();
+        let bootstrapping_key_base = match pbs_params_base {
+            crate::shortint::PBSParameters::PBS(pbs_params) => {
+                let bootstrap_key: LweBootstrapKeyOwned<u64> =
+                    par_allocate_and_generate_new_lwe_bootstrap_key(
+                        &cks.small_lwe_secret_key,
+                        &cks.glwe_secret_key,
+                        pbs_params.pbs_base_log,
+                        pbs_params.pbs_level,
+                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.ciphertext_modulus,
+                        &mut self.encryption_generator,
+                    );
 
-        // Creation of the bootstrapping key in the Fourier domain
-        let mut fourier_bsk = FourierLweBootstrapKey::new(
-            bootstrap_key.input_lwe_dimension(),
-            bootstrap_key.glwe_size(),
-            bootstrap_key.polynomial_size(),
-            bootstrap_key.decomposition_base_log(),
-            bootstrap_key.decomposition_level_count(),
-        );
+                // Creation of the bootstrapping key in the Fourier domain
+                let mut fourier_bsk = FourierLweBootstrapKey::new(
+                    bootstrap_key.input_lwe_dimension(),
+                    bootstrap_key.glwe_size(),
+                    bootstrap_key.polynomial_size(),
+                    bootstrap_key.decomposition_base_log(),
+                    bootstrap_key.decomposition_level_count(),
+                );
 
-        let fft = Fft::new(bootstrap_key.polynomial_size());
-        let fft = fft.as_view();
-        self.computation_buffers.resize(
-            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
-                .unwrap()
-                .unaligned_bytes_required(),
-        );
-        let stack = self.computation_buffers.stack();
+                let fft = Fft::new(bootstrap_key.polynomial_size());
+                let fft = fft.as_view();
+                self.computation_buffers.resize(
+                    convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
+                        .unwrap()
+                        .unaligned_bytes_required(),
+                );
+                let stack = self.computation_buffers.stack();
 
-        // Conversion to fourier domain
-        convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
-            &bootstrap_key,
-            &mut fourier_bsk,
-            fft,
-            stack,
-        );
+                // Conversion to fourier domain
+                convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
+                    &bootstrap_key,
+                    &mut fourier_bsk,
+                    fft,
+                    stack,
+                );
+
+                ShortintBootstrappingKey::Classic(fourier_bsk)
+            }
+            crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
+                let bootstrap_key: LweMultiBitBootstrapKeyOwned<u64> =
+                    par_allocate_and_generate_new_lwe_multi_bit_bootstrap_key(
+                        &cks.small_lwe_secret_key,
+                        &cks.glwe_secret_key,
+                        pbs_params.pbs_base_log,
+                        pbs_params.pbs_level,
+                        pbs_params.grouping_factor,
+                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.ciphertext_modulus,
+                        &mut self.encryption_generator,
+                    );
+
+                // Creation of the bootstrapping key in the Fourier domain
+                let mut fourier_bsk = FourierLweMultiBitBootstrapKey::new(
+                    bootstrap_key.input_lwe_dimension(),
+                    bootstrap_key.glwe_size(),
+                    bootstrap_key.polynomial_size(),
+                    bootstrap_key.decomposition_base_log(),
+                    bootstrap_key.decomposition_level_count(),
+                    bootstrap_key.grouping_factor(),
+                );
+
+                let fft = Fft::new(bootstrap_key.polynomial_size());
+                let fft = fft.as_view();
+                self.computation_buffers.resize(
+                    convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
+                        .unwrap()
+                        .unaligned_bytes_required(),
+                );
+                let stack = self.computation_buffers.stack();
+
+                // Conversion to fourier domain
+                convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized(
+                    &bootstrap_key,
+                    &mut fourier_bsk,
+                    fft,
+                    stack,
+                );
+
+                let thread_count = self.get_thread_count_for_multi_bit_pbs(
+                    pbs_params.lwe_dimension,
+                    pbs_params.glwe_dimension,
+                    pbs_params.polynomial_size,
+                    pbs_params.pbs_base_log,
+                    pbs_params.pbs_level,
+                    pbs_params.grouping_factor,
+                );
+                ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count)
+            }
+        };
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
@@ -91,7 +185,7 @@ impl ShortintEngine {
         // Pack the keys in the server key set:
         Ok(ServerKey {
             key_switching_key,
-            bootstrapping_key: fourier_bsk,
+            bootstrapping_key: bootstrapping_key_base,
             message_modulus: cks.parameters.message_modulus(),
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
@@ -116,27 +210,62 @@ impl ShortintEngine {
         cks: &ClientKey,
         max_degree: MaxDegree,
     ) -> EngineResult<CompressedServerKey> {
-        #[cfg(not(feature = "__wasm_api"))]
-        let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
-            &cks.small_lwe_secret_key,
-            &cks.glwe_secret_key,
-            cks.parameters.pbs_base_log(),
-            cks.parameters.pbs_level(),
-            cks.parameters.glwe_modular_std_dev(),
-            cks.parameters.ciphertext_modulus(),
-            &mut self.seeder,
-        );
+        let bootstrapping_key = match cks.parameters.pbs_parameters().unwrap() {
+            crate::shortint::PBSParameters::PBS(pbs_params) => {
+                #[cfg(not(feature = "__wasm_api"))]
+                let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
+                    &cks.small_lwe_secret_key,
+                    &cks.glwe_secret_key,
+                    pbs_params.pbs_base_log,
+                    pbs_params.pbs_level,
+                    pbs_params.glwe_modular_std_dev,
+                    pbs_params.ciphertext_modulus,
+                    &mut self.seeder,
+                );
 
-        #[cfg(feature = "__wasm_api")]
-        let bootstrapping_key = allocate_and_generate_new_seeded_lwe_bootstrap_key(
-            &cks.small_lwe_secret_key,
-            &cks.glwe_secret_key,
-            cks.parameters.pbs_base_log(),
-            cks.parameters.pbs_level(),
-            cks.parameters.glwe_modular_std_dev(),
-            cks.parameters.ciphertext_modulus(),
-            &mut self.seeder,
-        );
+                #[cfg(feature = "__wasm_api")]
+                let bootstrapping_key = allocate_and_generate_new_seeded_lwe_bootstrap_key(
+                    &cks.small_lwe_secret_key,
+                    &cks.glwe_secret_key,
+                    pbs_params.pbs_base_log,
+                    pbs_params.pbs_level,
+                    pbs_params.glwe_modular_std_dev,
+                    pbs_params.ciphertext_modulus,
+                    &mut self.seeder,
+                );
+
+                ShortintCompressedBootstrappingKey::Classic(bootstrapping_key)
+            }
+            crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
+                #[cfg(not(feature = "__wasm_api"))]
+                let bootstrapping_key =
+                    par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
+                        &cks.small_lwe_secret_key,
+                        &cks.glwe_secret_key,
+                        pbs_params.pbs_base_log,
+                        pbs_params.pbs_level,
+                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.grouping_factor,
+                        pbs_params.ciphertext_modulus,
+                        &mut self.seeder,
+                    );
+
+                #[cfg(feature = "__wasm_api")]
+                let bootstrapping_key =
+                    allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
+                        &cks.small_lwe_secret_key,
+                        &cks.glwe_secret_key,
+                        pbs_params.pbs_base_log,
+                        pbs_params.pbs_level,
+                        pbs_params.glwe_modular_std_dev,
+                        pbs_params.grouping_factor,
+                        pbs_params.ciphertext_modulus,
+                        &mut self.seeder,
+                    );
+
+                ShortintCompressedBootstrappingKey::MultiBit(bootstrapping_key)
+            }
+        };
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_seeded_lwe_keyswitch_key(
@@ -187,30 +316,41 @@ impl ShortintEngine {
             &mut ciphertext_buffers.buffer_lwe_after_ks,
         );
 
-        let fourier_bsk = &server_key.bootstrapping_key;
+        match &server_key.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                let fft = Fft::new(fourier_bsk.polynomial_size());
+                let fft = fft.as_view();
+                buffers.resize(
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                        fourier_bsk.glwe_size(),
+                        fourier_bsk.polynomial_size(),
+                        fft,
+                    )
+                    .unwrap()
+                    .unaligned_bytes_required(),
+                );
+                let stack = buffers.stack();
 
-        let fft = Fft::new(fourier_bsk.polynomial_size());
-        let fft = fft.as_view();
-        buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
-                fourier_bsk.glwe_size(),
-                fourier_bsk.polynomial_size(),
-                fft,
-            )
-            .unwrap()
-            .unaligned_bytes_required(),
-        );
-        let stack = buffers.stack();
-
-        // Compute a bootstrap
-        programmable_bootstrap_lwe_ciphertext_mem_optimized(
-            &ciphertext_buffers.buffer_lwe_after_ks,
-            &mut ct.ct,
-            &ciphertext_buffers.accumulator.acc,
-            fourier_bsk,
-            fft,
-            stack,
-        );
+                // Compute a bootstrap
+                programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                    &ciphertext_buffers.buffer_lwe_after_ks,
+                    &mut ct.ct,
+                    &ciphertext_buffers.accumulator.acc,
+                    fourier_bsk,
+                    fft,
+                    stack,
+                );
+            }
+            ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count) => {
+                multi_bit_programmable_bootstrap_lwe_ciphertext(
+                    &ciphertext_buffers.buffer_lwe_after_ks,
+                    &mut ct.ct,
+                    &ciphertext_buffers.accumulator.acc,
+                    fourier_bsk,
+                    *thread_count,
+                );
+            }
+        };
 
         ct.degree = ciphertext_buffers.accumulator.degree;
 
@@ -262,30 +402,41 @@ impl ShortintEngine {
             &mut ciphertext_buffers.buffer_lwe_after_ks,
         );
 
-        let fourier_bsk = &server_key.bootstrapping_key;
+        match &server_key.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                let fft = Fft::new(fourier_bsk.polynomial_size());
+                let fft = fft.as_view();
+                buffers.resize(
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                        fourier_bsk.glwe_size(),
+                        fourier_bsk.polynomial_size(),
+                        fft,
+                    )
+                    .unwrap()
+                    .unaligned_bytes_required(),
+                );
+                let stack = buffers.stack();
 
-        let fft = Fft::new(fourier_bsk.polynomial_size());
-        let fft = fft.as_view();
-        buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
-                fourier_bsk.glwe_size(),
-                fourier_bsk.polynomial_size(),
-                fft,
-            )
-            .unwrap()
-            .unaligned_bytes_required(),
-        );
-        let stack = buffers.stack();
-
-        // Compute a bootstrap
-        programmable_bootstrap_lwe_ciphertext_mem_optimized(
-            &ciphertext_buffers.buffer_lwe_after_ks,
-            &mut ct.ct,
-            &acc.acc,
-            fourier_bsk,
-            fft,
-            stack,
-        );
+                // Compute a bootstrap
+                programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                    &ciphertext_buffers.buffer_lwe_after_ks,
+                    &mut ct.ct,
+                    &acc.acc,
+                    fourier_bsk,
+                    fft,
+                    stack,
+                );
+            }
+            ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count) => {
+                multi_bit_programmable_bootstrap_lwe_ciphertext(
+                    &ciphertext_buffers.buffer_lwe_after_ks,
+                    &mut ct.ct,
+                    &acc.acc,
+                    fourier_bsk,
+                    *thread_count,
+                );
+            }
+        };
 
         ct.degree = acc.degree;
 
@@ -457,30 +608,42 @@ impl ShortintEngine {
         let (mut ciphertext_buffers, buffers) =
             self.get_carry_clearing_accumulator_and_buffers(server_key);
 
-        let fourier_bsk = &server_key.bootstrapping_key;
+        match &server_key.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                let fft = Fft::new(fourier_bsk.polynomial_size());
+                let fft = fft.as_view();
+                buffers.resize(
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                        fourier_bsk.glwe_size(),
+                        fourier_bsk.polynomial_size(),
+                        fft,
+                    )
+                    .unwrap()
+                    .unaligned_bytes_required(),
+                );
+                let stack = buffers.stack();
 
-        let fft = Fft::new(fourier_bsk.polynomial_size());
-        let fft = fft.as_view();
-        buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
-                fourier_bsk.glwe_size(),
-                fourier_bsk.polynomial_size(),
-                fft,
-            )
-            .unwrap()
-            .unaligned_bytes_required(),
-        );
-        let stack = buffers.stack();
-
-        // Compute a bootstrap
-        programmable_bootstrap_lwe_ciphertext_mem_optimized(
-            &ct.ct,
-            &mut ciphertext_buffers.buffer_lwe_after_pbs,
-            &acc.acc,
-            fourier_bsk,
-            fft,
-            stack,
-        );
+                // Compute a bootstrap
+                programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                    &ct.ct,
+                    &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                    &acc.acc,
+                    fourier_bsk,
+                    fft,
+                    stack,
+                );
+            }
+            ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count) => {
+                // Compute a bootstrap
+                multi_bit_programmable_bootstrap_lwe_ciphertext(
+                    &ct.ct,
+                    &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                    &acc.acc,
+                    fourier_bsk,
+                    *thread_count,
+                );
+            }
+        };
 
         // Compute a key switch
         keyswitch_lwe_ciphertext(
@@ -503,30 +666,42 @@ impl ShortintEngine {
         let (mut ciphertext_buffers, buffers) =
             self.get_carry_clearing_accumulator_and_buffers(server_key);
 
-        let fourier_bsk = &server_key.bootstrapping_key;
+        match &server_key.bootstrapping_key {
+            ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                let fft = Fft::new(fourier_bsk.polynomial_size());
+                let fft = fft.as_view();
+                buffers.resize(
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                        fourier_bsk.glwe_size(),
+                        fourier_bsk.polynomial_size(),
+                        fft,
+                    )
+                    .unwrap()
+                    .unaligned_bytes_required(),
+                );
+                let stack = buffers.stack();
 
-        let fft = Fft::new(fourier_bsk.polynomial_size());
-        let fft = fft.as_view();
-        buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
-                fourier_bsk.glwe_size(),
-                fourier_bsk.polynomial_size(),
-                fft,
-            )
-            .unwrap()
-            .unaligned_bytes_required(),
-        );
-        let stack = buffers.stack();
-
-        // Compute a bootstrap
-        programmable_bootstrap_lwe_ciphertext_mem_optimized(
-            &ct.ct,
-            &mut ciphertext_buffers.buffer_lwe_after_pbs,
-            &ciphertext_buffers.accumulator.acc,
-            fourier_bsk,
-            fft,
-            stack,
-        );
+                // Compute a bootstrap
+                programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                    &ct.ct,
+                    &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                    &ciphertext_buffers.accumulator.acc,
+                    fourier_bsk,
+                    fft,
+                    stack,
+                );
+            }
+            ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count) => {
+                // Compute a bootstrap
+                multi_bit_programmable_bootstrap_lwe_ciphertext(
+                    &ct.ct,
+                    &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                    &ciphertext_buffers.accumulator.acc,
+                    fourier_bsk,
+                    *thread_count,
+                );
+            }
+        };
 
         // Compute a keyswitch
         keyswitch_lwe_ciphertext(

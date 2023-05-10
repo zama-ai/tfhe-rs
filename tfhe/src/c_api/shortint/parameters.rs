@@ -26,7 +26,7 @@ impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::Encrypti
     }
 }
 
-pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::PBSParameters);
+pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::ClassicPBSParameters);
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_get_parameters(
@@ -136,8 +136,8 @@ pub unsafe extern "C" fn shortint_create_parameters(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result = std::ptr::null_mut();
 
-        let heap_allocated_parameters =
-            Box::new(ShortintParameters(shortint::parameters::PBSParameters {
+        let heap_allocated_parameters = Box::new(ShortintParameters(
+            shortint::parameters::ClassicPBSParameters {
                 lwe_dimension: LweDimension(lwe_dimension),
                 glwe_dimension: GlweDimension(glwe_dimension),
                 polynomial_size: PolynomialSize(polynomial_size),
@@ -155,7 +155,8 @@ pub unsafe extern "C" fn shortint_create_parameters(
                     )
                     .unwrap(),
                 encryption_key_choice: encryption_key_choice.into(),
-            }));
+            },
+        ));
 
         *result = Box::into_raw(heap_allocated_parameters);
     })

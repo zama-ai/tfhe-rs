@@ -51,7 +51,7 @@ pub struct ShortintCompressedServerKey(pub(crate) crate::shortint::CompressedSer
 pub struct Shortint {}
 
 #[wasm_bindgen]
-pub struct ShortintParameters(pub(crate) crate::shortint::PBSParameters);
+pub struct ShortintParameters(pub(crate) crate::shortint::ClassicPBSParameters);
 
 #[wasm_bindgen]
 pub enum ShortintEncryptionKeyChoice {
@@ -167,7 +167,7 @@ impl Shortint {
     ) -> ShortintParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
         use crate::core_crypto::prelude::*;
-        ShortintParameters(crate::shortint::PBSParameters {
+        ShortintParameters(crate::shortint::ClassicPBSParameters {
             lwe_dimension: LweDimension(lwe_dimension),
             glwe_dimension: GlweDimension(glwe_dimension),
             polynomial_size: PolynomialSize(polynomial_size),

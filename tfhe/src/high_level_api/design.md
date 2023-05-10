@@ -65,7 +65,7 @@ In practice it is a bit more complex as we have to introduce traits to internall
 "parameter struct", eg a trait to convert the `FheUint2Parameters` and `FheUint4Parameters` back into `shortint::Parameters`,
 
 ```rust
-pub trait ShortIntegerParameter: Copy + Into< crate::shortint::PBSParameters> {
+pub trait ShortIntegerParameter: Copy + Into< crate::shortint::ClassicPBSParameters> {
     // ...
 }
 ```

@@ -7,9 +7,9 @@ use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, TFHE_LIB_
 use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::PBSParameters;
+use tfhe::shortint::ClassicPBSParameters;
 
-const SHORTINT_BENCH_PARAMS: [PBSParameters; 15] = [
+const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 15] = [
     PARAM_MESSAGE_1_CARRY_0,
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_0,
@@ -125,7 +125,7 @@ fn multi_bit_benchmark_parameters<Scalar: Numeric>(
                 (
                     CryptoParametersRecord {
                         lwe_dimension: Some(LweDimension(888)),
-                        lwe_modular_std_dev: Some(StandardDev(0.000002226459789930014)),
+                        lwe_modular_std_dev: Some(StandardDev(0.0000006125031601933181)),
                         pbs_base_log: Some(DecompositionBaseLog(21)),
                         pbs_level: Some(DecompositionLevelCount(1)),
                         glwe_dimension: Some(GlweDimension(1)),

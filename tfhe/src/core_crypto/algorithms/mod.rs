@@ -32,6 +32,7 @@ pub mod seeded_lwe_bootstrap_key_decompression;
 pub mod seeded_lwe_ciphertext_decompression;
 pub mod seeded_lwe_ciphertext_list_decompression;
 pub mod seeded_lwe_keyswitch_key_decompression;
+pub mod seeded_lwe_multi_bit_bootstrap_key_decompression;
 pub mod seeded_lwe_public_key_decompression;
 pub mod slice_algorithms;
 
@@ -68,4 +69,5 @@ pub use seeded_lwe_bootstrap_key_decompression::*;
 pub use seeded_lwe_ciphertext_decompression::*;
 pub use seeded_lwe_ciphertext_list_decompression::*;
 pub use seeded_lwe_keyswitch_key_decompression::*;
+pub use seeded_lwe_multi_bit_bootstrap_key_decompression::*;
 pub use seeded_lwe_public_key_decompression::*;

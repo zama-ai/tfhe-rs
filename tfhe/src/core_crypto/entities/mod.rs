@@ -31,6 +31,7 @@ pub mod seeded_lwe_bootstrap_key;
 pub mod seeded_lwe_ciphertext;
 pub mod seeded_lwe_ciphertext_list;
 pub mod seeded_lwe_keyswitch_key;
+pub mod seeded_lwe_multi_bit_bootstrap_key;
 pub mod seeded_lwe_public_key;
 
 pub use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::{
@@ -74,4 +75,5 @@ pub use seeded_lwe_bootstrap_key::*;
 pub use seeded_lwe_ciphertext::*;
 pub use seeded_lwe_ciphertext_list::*;
 pub use seeded_lwe_keyswitch_key::*;
+pub use seeded_lwe_multi_bit_bootstrap_key::*;
 pub use seeded_lwe_public_key::*;

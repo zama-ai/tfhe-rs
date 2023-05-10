@@ -5,7 +5,7 @@ use crate::integer::parameters::*;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_message_carry::*;
-use crate::shortint::parameters::{PBSParameters, *};
+use crate::shortint::parameters::{ClassicPBSParameters, *};
 use rand::Rng;
 use std::cmp::max;
 
@@ -90,7 +90,7 @@ pub fn wopbs_native_crt_bivariate() {
 
     let wopbs_params = crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS;
 
-    let pbs_params = PBSParameters {
+    let pbs_params = ClassicPBSParameters {
         lwe_dimension: wopbs_params.lwe_dimension,
         glwe_dimension: wopbs_params.glwe_dimension,
         polynomial_size: wopbs_params.polynomial_size,
@@ -136,7 +136,7 @@ pub fn wopbs_native_crt_bivariate() {
 }
 
 // test wopbs fake crt with different degree for each Ct
-pub fn wopbs_crt(params: (PBSParameters, WopbsParameters)) {
+pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
 
     let basis = make_basis(params.1.message_modulus.0);
@@ -181,7 +181,7 @@ pub fn wopbs_crt(params: (PBSParameters, WopbsParameters)) {
 }
 
 // test wopbs radix with different degree for each Ct
-pub fn wopbs_radix(params: (PBSParameters, WopbsParameters)) {
+pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
 
     let nb_block = 2;
@@ -218,7 +218,7 @@ pub fn wopbs_radix(params: (PBSParameters, WopbsParameters)) {
 }
 
 // test wopbs radix with different degree for each Ct
-pub fn wopbs_bivariate_radix(params: (PBSParameters, WopbsParameters)) {
+pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
 
     let nb_block = 2;
@@ -260,7 +260,7 @@ pub fn wopbs_bivariate_radix(params: (PBSParameters, WopbsParameters)) {
 }
 
 // test wopbs bivariate fake crt with different degree for each Ct
-pub fn wopbs_bivariate_crt(params: (PBSParameters, WopbsParameters)) {
+pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
 
     let basis = make_basis(params.1.message_modulus.0);
