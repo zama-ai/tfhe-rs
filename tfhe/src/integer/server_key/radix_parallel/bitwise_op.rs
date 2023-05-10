@@ -486,4 +486,28 @@ impl ServerKey {
 
         self.unchecked_bitxor_assign_parallelized(lhs, rhs);
     }
+
+    pub fn bitnot_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut ct_res = ct.clone();
+        self.bitnot_assign_parallelized(&mut ct_res);
+        ct_res
+    }
+
+    pub fn bitnot_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+    ) {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct);
+        }
+
+        let modulus = self.key.message_modulus.0 as u64;
+        let lut = self.key.generate_accumulator(|x| (!x) % modulus);
+        ct.blocks
+            .par_iter_mut()
+            .for_each(|block| self.key.apply_lookup_table_assign(block, &lut))
+    }
 }

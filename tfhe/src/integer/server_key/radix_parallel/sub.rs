@@ -2,6 +2,8 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::PBSOrderMarker;
 
+use super::add::AddExtraOne;
+
 impl ServerKey {
     /// Computes homomorphically the subtraction between ct_left and ct_right.
     ///
@@ -210,7 +212,76 @@ impl ServerKey {
                 (ctxt_left, &tmp_rhs)
             }
         };
-        self.unchecked_sub_assign(lhs, rhs);
-        self.full_propagate_parallelized(lhs);
+
+        if self.is_eligible_for_parallel_carryless_add() {
+            // we can't use unchecked_neg to get the negation of rhs
+            // because unchecked_neg gets us a ciphertext with non clean carries
+            //
+            // Since negation is: neg(a) = bitwise_not(a) + 1
+            // We compute the bitwise_not, then add it asking the add impl
+            // to automatically add the extra one and account for it.
+            //
+            // (If we would have added the one ourselves, we would have
+            // had to propagate carry before calling add)
+            let bitwise_not = self.bitnot_parallelized(rhs);
+            self.unchecked_add_assign_parallelized_low_latency(lhs, &bitwise_not, AddExtraOne::Yes);
+        } else {
+            self.unchecked_sub_assign(lhs, rhs);
+            self.full_propagate_parallelized(lhs);
+        }
+    }
+
+    pub fn sub_parallelized_work_efficient<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt_left: &RadixCiphertext<PBSOrder>,
+        ctxt_right: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut ct_res = ctxt_left.clone();
+        self.sub_assign_parallelized_work_efficient(&mut ct_res, ctxt_right);
+        ct_res
+    }
+
+    pub fn sub_assign_parallelized_work_efficient<PBSOrder: PBSOrderMarker>(
+        &self,
+        ctxt_left: &mut RadixCiphertext<PBSOrder>,
+        ctxt_right: &RadixCiphertext<PBSOrder>,
+    ) {
+        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+
+        let (lhs, rhs) = match (
+            ctxt_left.block_carries_are_empty(),
+            ctxt_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ctxt_left, ctxt_right),
+            (true, false) => {
+                tmp_rhs = ctxt_right.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ctxt_left, &tmp_rhs)
+            }
+            (false, true) => {
+                self.full_propagate_parallelized(ctxt_left);
+                (ctxt_left, ctxt_right)
+            }
+            (false, false) => {
+                tmp_rhs = ctxt_right.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(ctxt_left),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (ctxt_left, &tmp_rhs)
+            }
+        };
+
+        // we can't use unchecked_neg to get the negation of rhs
+        // because unchecked_neg gets us a ciphertext with non clean carries
+        //
+        // Since negation is: neg(a) = bitwise_not(a) + 1
+        // We compute the bitwise_not, then add it asking the add impl
+        // to automatically add the extra one and account for it.
+        //
+        // (If we would have added the one ourselves, we would have
+        // had to propagate carry before calling add)
+        let bitwise_not = self.bitnot_parallelized(rhs);
+        self.unchecked_add_assign_parallelized_work_efficient(lhs, &bitwise_not, AddExtraOne::Yes);
     }
 }
