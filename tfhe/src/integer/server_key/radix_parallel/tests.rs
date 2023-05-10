@@ -61,8 +61,10 @@ create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
 create_parametrized_test!(integer_default_small_scalar_mul);
 create_parametrized_test!(integer_smart_scalar_mul_u128_fix_non_reg_test {
+    PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_2
 });
+create_parametrized_test!(integer_unchecked_mul_corner_cases);
 create_parametrized_test!(integer_default_scalar_mul_u128_fix_non_reg_test {
     PARAM_MESSAGE_2_CARRY_2
 });
@@ -824,6 +826,69 @@ fn integer_default_scalar_mul(param: Parameters) {
 
         // assert
         assert_eq!((clear * scalar) % modulus, dec_res);
+    }
+}
+
+fn integer_unchecked_mul_corner_cases(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+    // This example will not pass if the terms reduction is wrong
+    // on the chunk size it uses to reduce the 'terms' resulting
+    // from blockmuls
+    {
+        let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+        let clear = 307096569525960547621731375222677666984u128;
+        let scalar = 5207034748027904122u64;
+
+        let ct = cks.encrypt_radix(clear, nb_ct);
+        let ct_res = sks.unchecked_scalar_mul_parallelized(&ct, scalar);
+        let dec_res: u128 = cks.decrypt_radix(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+
+        let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+        let clear = 307096569525960547621731375222677666984u128;
+        let scalar = 5207034748027904122u64;
+
+        // Same thing but with scalar encrypted
+        let ct = cks.encrypt_radix(clear, nb_ct);
+        let ct2 = cks.encrypt_radix(scalar, nb_ct);
+        let ct_res = sks.unchecked_mul_parallelized(&ct, &ct2);
+        let dec_res: u128 = cks.decrypt_radix(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+    }
+
+    {
+        let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+        let clear = u128::MAX;
+        let scalar = u64::MAX;
+
+        let ct = cks.encrypt_radix(clear, nb_ct);
+        let ct_res = sks.unchecked_scalar_mul_parallelized(&ct, scalar);
+        let dec_res: u128 = cks.decrypt_radix(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+
+        // Same thing but with scalar encrypted
+        let clear = u128::MAX;
+        let scalar = u128::MAX;
+        let ct = cks.encrypt_radix(clear, nb_ct);
+        let ct2 = cks.encrypt_radix(scalar, nb_ct);
+        let ct_res = sks.unchecked_mul_parallelized(&ct, &ct2);
+        let dec_res: u128 = cks.decrypt_radix(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar), dec_res);
+    }
+
+    // Trying to multiply a ciphertext with a scalar value
+    // bigger than the ciphertext modulus should work
+    {
+        let nb_ct = (8f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+        let clear = 123u64;
+        let scalar = 17823812983255694336u64;
+        assert_eq!(scalar % 256, 0);
+
+        let ct = cks.encrypt_radix(clear, nb_ct);
+        let ct_res = sks.unchecked_scalar_mul_parallelized(&ct, scalar);
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar) % 256, dec_res);
     }
 }
 

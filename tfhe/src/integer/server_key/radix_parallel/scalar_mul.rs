@@ -324,6 +324,112 @@ impl ServerKey {
         self.unchecked_small_scalar_mul_assign_parallelized(ctxt, scalar);
         self.full_propagate_parallelized(ctxt);
     }
+    pub fn unchecked_scalar_mul_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut ct_res = ct.clone();
+        self.unchecked_scalar_mul_assign_parallelized(&mut ct_res, scalar);
+        ct_res
+    }
+
+    pub fn unchecked_scalar_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        scalar: u64,
+    ) {
+        if scalar == 0 || lhs.blocks.is_empty() {
+            for block in &mut lhs.blocks {
+                self.key.create_trivial_assign(block, 0);
+            }
+            return;
+        }
+
+        if scalar.is_power_of_two() {
+            // Shifting cost one bivariate PBS so its always faster
+            // than multiplying
+            self.unchecked_scalar_left_shift_assign_parallelized(lhs, scalar.ilog2() as u64);
+            return;
+        }
+
+        let message_modulus = self.key.message_modulus.0 as u64;
+        let num_blocks = lhs.blocks.len();
+
+        // key is the small scalar we multiply by
+        // value is the vector of blockshifts
+        let mut task_map = vec![vec![]; message_modulus as usize];
+
+        let mut scalar_i = scalar;
+        for i in 0..num_blocks {
+            let u_i = scalar_i % message_modulus;
+            if u_i != 0 {
+                task_map[u_i as usize].push(i);
+            }
+            scalar_i /= message_modulus;
+            if scalar_i == 0 {
+                break;
+            }
+        }
+
+        // This can happen if scalar % (nb_blocks * message_modulus) == 0
+        if task_map.iter().all(Vec::is_empty) {
+            for block in &mut lhs.blocks {
+                self.key.create_trivial_assign(block, 0);
+            }
+            return;
+        }
+
+        let terms = task_map[1..] // Ignore multiplications by zero
+            .into_par_iter()
+            .enumerate()
+            .filter(|(_, block_indices)| !block_indices.is_empty())
+            .map(|(i, block_indices)| -> Vec<RadixCiphertext<PBSOrder>> {
+                let scalar = i + 1;
+
+                let min_index = block_indices.iter().min().unwrap();
+
+                let mut tmp = lhs.clone();
+                if scalar != 1 {
+                    tmp.blocks[0..num_blocks - min_index]
+                        .par_iter_mut()
+                        .for_each(|ct_i| self.key.unchecked_scalar_mul_assign(ct_i, scalar as u8));
+                    let (mut message_blocks, carry_blocks) = rayon::join(
+                        || {
+                            tmp.blocks[0..num_blocks - min_index]
+                                .par_iter()
+                                .map(|block| self.key.message_extract(block))
+                                .collect::<Vec<_>>()
+                        },
+                        || {
+                            let mut carry_blocks = Vec::new();
+                            tmp.blocks[..num_blocks - min_index - 1]
+                                .par_iter()
+                                .map(|block| self.key.carry_extract(block))
+                                .collect_into_vec(&mut carry_blocks);
+
+                            carry_blocks.insert(0, self.key.create_trivial(0));
+                            carry_blocks
+                        },
+                    );
+                    for i in 0..num_blocks - min_index {
+                        std::mem::swap(&mut tmp.blocks[i], &mut message_blocks[i]);
+                        self.key
+                            .unchecked_add_assign(&mut tmp.blocks[i], &carry_blocks[i]);
+                    }
+                }
+
+                block_indices
+                    .par_iter()
+                    .copied()
+                    .map(|i| self.blockshift(&tmp, i))
+                    .collect::<Vec<_>>()
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+
+        self.sum_multiplication_terms_into(lhs, terms);
+    }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
@@ -353,84 +459,26 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
     ) -> RadixCiphertext<PBSOrder> {
-        let zero = self.create_trivial_zero_radix(ct.blocks.len());
-        if scalar == 0 || ct.blocks.is_empty() {
-            return zero;
+        if !lhs.block_carries_are_empty() {
+            self.full_propagate_parallelized(lhs);
         }
 
-        let num_tasks = self.key.message_modulus.0;
-        let b = self.key.message_modulus.0 as u64;
-        let num_blocks = ct.blocks.len();
-
-        //Propagate the carries before doing the multiplications
-        self.full_propagate_parallelized(ct);
-        let ct = &*ct;
-
-        // index is the small scalar we multiply by, value is the vector of blockshifts
-        let mut task_vec: Vec<Vec<usize>> =
-            vec![Vec::with_capacity((u64::BITS / b.ilog2()) as usize); num_tasks];
-
-        // Divide scalar progressively towards zero
-        let mut scalar_i = scalar;
-        for i in 0..num_blocks {
-            let u_i = scalar_i % b;
-            task_vec[u_i as usize].push(i);
-            scalar_i /= b;
-            if scalar_i == 0 {
-                break;
-            }
-        }
-
-        let task_vec: Vec<_> = task_vec
-            .into_iter()
-            .enumerate()
-            .skip(1) // skip u_i == 0, multiplying by 0 yielding 0
-            .filter(|(_u_i, blockshifts)| !blockshifts.is_empty())
-            .collect();
-
-        let mut terms: Vec<_> = task_vec
-            .iter()
-            .map(|(_, blockshifts)| {
-                vec![self.create_trivial_zero_radix(num_blocks); blockshifts.len()]
-            })
-            .collect();
-        terms
-            .par_iter_mut()
-            .zip(task_vec.par_iter())
-            .for_each(|(term_vec, (u_i, blockshifts))| {
-                let min_blockshift = blockshifts.iter().min().unwrap();
-
-                let u_i = *u_i;
-                let mut tmp = ct.clone();
-                if u_i != 1 {
-                    tmp.blocks[0..num_blocks - *min_blockshift]
-                        .par_iter_mut()
-                        .for_each(|ct_i| self.key.unchecked_scalar_mul_assign(ct_i, u_i as u8));
-                }
-
-                term_vec
-                    .par_iter_mut()
-                    .zip(blockshifts.par_iter())
-                    .for_each(|(term, &shift)| {
-                        *term = self.blockshift(&tmp, shift);
-                    });
-            });
-        self.smart_binary_op_seq_parallelized(
-            terms.iter_mut().flatten(),
-            ServerKey::smart_add_parallelized,
-        )
-        .unwrap_or(zero)
+        self.unchecked_scalar_mul_parallelized(lhs, scalar)
     }
 
     pub fn smart_scalar_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
     ) {
-        *ctxt = self.smart_scalar_mul_parallelized(ctxt, scalar);
+        if !lhs.block_carries_are_empty() {
+            self.full_propagate_parallelized(lhs);
+        }
+
+        self.unchecked_scalar_mul_assign_parallelized(lhs, scalar);
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
@@ -479,77 +527,13 @@ impl ServerKey {
 
     pub fn scalar_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext<PBSOrder>,
         scalar: u64,
     ) {
-        let zero = self.create_trivial_zero_radix(ct.blocks.len());
-        if scalar == 0 || ct.blocks.is_empty() {
-            *ct = zero;
-            return;
+        if !lhs.block_carries_are_empty() {
+            self.full_propagate_parallelized(lhs);
         }
 
-        let num_tasks = self.key.message_modulus.0;
-        let b = self.key.message_modulus.0 as u64;
-        let num_blocks = ct.blocks.len();
-
-        //Propagate the carries before doing the multiplications
-        self.full_propagate_parallelized(ct);
-
-        // index is the small scalar we multiply by, value is the vector of blockshifts
-        let mut task_vec: Vec<Vec<usize>> =
-            vec![Vec::with_capacity((u64::BITS / b.ilog2()) as usize); num_tasks];
-
-        // Divide scalar progressively towards zero
-        let mut scalar_i = scalar;
-        for i in 0..num_blocks {
-            let u_i = scalar_i % b;
-            task_vec[u_i as usize].push(i);
-            scalar_i /= b;
-            if scalar_i == 0 {
-                break;
-            }
-        }
-
-        let task_vec: Vec<_> = task_vec
-            .into_iter()
-            .enumerate()
-            .skip(1) // skip u_i == 0, multiplying by 0 yielding 0
-            .filter(|(_u_i, blockshifts)| !blockshifts.is_empty())
-            .collect();
-
-        let mut terms: Vec<_> = task_vec
-            .iter()
-            .map(|(_, blockshifts)| {
-                vec![self.create_trivial_zero_radix(num_blocks); blockshifts.len()]
-            })
-            .collect();
-        terms
-            .par_iter_mut()
-            .zip(task_vec.par_iter())
-            .for_each(|(term_vec, (u_i, blockshifts))| {
-                let min_blockshift = blockshifts.iter().min().unwrap();
-
-                let u_i = *u_i;
-                let mut tmp = ct.clone();
-                if u_i != 1 {
-                    tmp.blocks[0..num_blocks - *min_blockshift]
-                        .par_iter_mut()
-                        .for_each(|ct_i| self.key.unchecked_scalar_mul_assign(ct_i, u_i as u8));
-                }
-
-                term_vec
-                    .par_iter_mut()
-                    .zip(blockshifts.par_iter())
-                    .for_each(|(term, &shift)| {
-                        *term = self.blockshift(&tmp, shift);
-                    });
-            });
-        *ct = self
-            .smart_binary_op_seq_parallelized(
-                terms.iter_mut().flatten(),
-                ServerKey::smart_add_parallelized,
-            )
-            .unwrap_or(zero);
-        self.full_propagate_parallelized(ct);
+        self.unchecked_scalar_mul_assign_parallelized(lhs, scalar);
     }
 }

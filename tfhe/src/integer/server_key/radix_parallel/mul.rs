@@ -273,6 +273,172 @@ impl ServerKey {
         *ct1 = self.smart_block_mul_parallelized(ct1, ct2, index);
     }
 
+    /// Sums the terms, putting the result into lhs
+    ///
+    /// This sums all of the terms in `terms` and overwrites
+    /// `lhs` with the result.
+    ///
+    /// Each of the input term is expected to have _at most_ one carry consumed
+    pub(crate) fn sum_multiplication_terms_into<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        mut terms: Vec<RadixCiphertext<PBSOrder>>,
+    ) {
+        if terms.is_empty() {
+            for block in &mut lhs.blocks {
+                self.key.create_trivial_assign(block, 0);
+            }
+            return;
+        }
+
+        let num_blocks = lhs.blocks.len();
+
+        let num_bits_in_carry = self.key.carry_modulus.0.ilog2() as u64;
+        // Among those bits of carry, we know one is already consumed by
+        // the last step of the unchecked_block_mul_parallelized
+        // for each of the term.
+        //
+        // It means we can only do num_bits_in_carry - 1 additions
+        // Which then means we can iter on chunks of num_bits_in_carry
+        // to add them up as it will result in num_bits_in_carry - 1 additions
+        //
+        // If we have only one bit of carry, it is consumed
+        // and thus the faster algorithm is not possible
+        // so we use another one that still works
+        if num_bits_in_carry == 1 {
+            *lhs = self
+                .smart_binary_op_seq_parallelized(&mut terms, ServerKey::smart_add_parallelized)
+                .unwrap_or_else(|| self.create_trivial_zero_radix(num_blocks));
+
+            self.full_propagate_parallelized(lhs);
+            return;
+        }
+
+        let chunk_size = num_bits_in_carry as usize;
+
+        // For the last chunk, we want to finish it off
+        // using an addition that does not leave the resulting ciphertext with
+        // non empty carries.
+        //
+        // We use the fact, that terms are going to be padded with trivial ciphertext
+        // to avoid unecessary work.
+        //
+        // (0) = Trivial, (1) = Non-Trivial
+        // a: (0) (1) (1) (1)
+        // b: (0) (0) (1) (1)
+        //             ^
+        //             |- only need to start adding from here,
+        //                and only need to handle carries from here
+        //
+        // As we want to handle the last chunk separately
+        // only reduce until we have one last chunk
+        while terms.len() > chunk_size {
+            terms.par_chunks_exact_mut(chunk_size).for_each(|chunk| {
+                let (s, rest) = chunk.split_first_mut().unwrap();
+                let mut first_block_where_addition_happenned = num_blocks - 1;
+                for a in rest.iter() {
+                    let pos = a
+                        .blocks
+                        .iter()
+                        .position(|block| block.degree.0 != 0)
+                        .unwrap_or(num_blocks);
+                    first_block_where_addition_happenned =
+                        first_block_where_addition_happenned.min(pos);
+                    for (ct_left_i, ct_right_i) in
+                        s.blocks[pos..].iter_mut().zip(a.blocks[pos..].iter())
+                    {
+                        self.key.unchecked_add_assign(ct_left_i, ct_right_i);
+                    }
+                }
+
+                // last carry is not interesting
+                let mut carry_blocks =
+                    s.blocks[first_block_where_addition_happenned..num_blocks - 1].to_vec();
+
+                let message_blocks = &mut s.blocks;
+
+                rayon::join(
+                    || {
+                        message_blocks[first_block_where_addition_happenned..]
+                            .par_iter_mut()
+                            .for_each(|block| {
+                                self.key.message_extract_assign(block);
+                            });
+                    },
+                    || {
+                        carry_blocks.par_iter_mut().for_each(|block| {
+                            self.key.carry_extract_assign(block);
+                        });
+                    },
+                );
+
+                for (ct_left_i, ct_right_i) in message_blocks
+                    [first_block_where_addition_happenned + 1..]
+                    .iter_mut()
+                    .zip(carry_blocks.iter())
+                {
+                    self.key.unchecked_add_assign(ct_left_i, ct_right_i);
+                }
+            });
+
+            // terms is organized like so:
+            // [S, C,..., S, C,.., S, C,..,U, U]
+            // where S is the sum of its following C as done by
+            // the chunked loop, and U are elements that did not create a complete chunk
+            //
+            // We want to get it to [S, S, S, U, U, C, C...]
+            // then truncate to only keep the Ss
+            for index_of_first_chunk_block in (0..terms.len()).step_by(chunk_size) {
+                let from = index_of_first_chunk_block;
+                let to = index_of_first_chunk_block / chunk_size;
+                terms.swap(from, to);
+            }
+            let rest = terms.len() % chunk_size;
+            for i in 0..rest {
+                let from = (terms.len() / chunk_size) + 1 + i;
+                let to = terms.len() - 1 - i;
+                terms.swap(from, to);
+            }
+            terms.truncate((terms.len() / chunk_size) + rest);
+        }
+        assert!(terms.len() <= chunk_size);
+
+        // Now we will add the last chunk of terms
+        // just as was done above, however we do it
+        // we want to use an addition that leaves
+        // the resulting ciphertext with empty carries
+        let (result, rest) = terms.split_first_mut().unwrap();
+        for term in rest.iter() {
+            self.unchecked_add_assign(result, term);
+        }
+
+        let (mut message_blocks, carry_blocks) = rayon::join(
+            || {
+                result
+                    .blocks
+                    .par_iter()
+                    .map(|block| self.key.message_extract(block))
+                    .collect::<Vec<_>>()
+            },
+            || {
+                let mut carry_blocks = Vec::with_capacity(num_blocks);
+                result.blocks[..num_blocks - 1] // last carry is not interesting
+                    .par_iter()
+                    .map(|block| self.key.carry_extract(block))
+                    .collect_into_vec(&mut carry_blocks);
+                carry_blocks.insert(0, self.key.create_trivial(0));
+                carry_blocks
+            },
+        );
+
+        std::mem::swap(&mut lhs.blocks, &mut message_blocks);
+
+        let carry = RadixCiphertext::from(carry_blocks);
+        self.add_assign_parallelized(lhs, &carry);
+
+        assert!(lhs.block_carries_are_empty());
+    }
+
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
@@ -310,10 +476,19 @@ impl ServerKey {
     /// ```
     pub fn unchecked_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
     ) {
-        *ct1 = self.unchecked_mul_parallelized(ct1, ct2);
+        let num_blocks = lhs.blocks.len();
+        let mut terms = vec![self.create_trivial_zero_radix(num_blocks); num_blocks];
+        terms
+            .par_iter_mut()
+            .zip(rhs.blocks.par_iter().enumerate())
+            .for_each(|(term, (i, rhs_i))| {
+                *term = self.unchecked_block_mul_parallelized(lhs, rhs_i, i);
+            });
+
+        self.sum_multiplication_terms_into(lhs, terms);
     }
 
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
@@ -328,25 +503,11 @@ impl ServerKey {
     /// - Multithreaded
     pub fn unchecked_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
-        let mut result = self.create_trivial_zero_radix(ct1.blocks.len());
-
-        let num_blocks = ct1.blocks.len();
-        let mut terms = vec![self.create_trivial_zero_radix(num_blocks); num_blocks];
-
-        terms
-            .par_iter_mut()
-            .zip(ct2.blocks.par_iter().enumerate())
-            .for_each(|(term, (i, ct2_i))| {
-                *term = self.unchecked_block_mul_parallelized(ct1, ct2_i, i);
-            });
-
-        for term in terms.iter_mut() {
-            self.smart_add_assign(&mut result, term);
-        }
-
+        let mut result = lhs.clone();
+        self.unchecked_mul_assign_parallelized(&mut result, rhs);
         result
     }
 
@@ -383,10 +544,23 @@ impl ServerKey {
     /// ```
     pub fn smart_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
     ) {
-        *ct1 = self.smart_mul_parallelized(ct1, ct2);
+        rayon::join(
+            || {
+                if !lhs.block_carries_are_empty() {
+                    self.full_propagate_parallelized(lhs)
+                }
+            },
+            || {
+                if !rhs.block_carries_are_empty() {
+                    self.full_propagate_parallelized(rhs)
+                }
+            },
+        );
+
+        self.unchecked_mul_assign_parallelized(lhs, rhs);
     }
 
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
@@ -398,26 +572,23 @@ impl ServerKey {
     /// - Multithreaded
     pub fn smart_mul_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
         rayon::join(
-            || self.full_propagate_parallelized(ct1),
-            || self.full_propagate_parallelized(ct2),
+            || {
+                if !lhs.block_carries_are_empty() {
+                    self.full_propagate_parallelized(lhs)
+                }
+            },
+            || {
+                if !rhs.block_carries_are_empty() {
+                    self.full_propagate_parallelized(rhs)
+                }
+            },
         );
 
-        let num_blocks = ct1.blocks.len();
-        let mut terms = vec![self.create_trivial_zero_radix(num_blocks); num_blocks];
-
-        terms
-            .par_iter_mut()
-            .zip(ct2.blocks.par_iter().enumerate())
-            .for_each(|(term, (i, ct2_i))| {
-                *term = self.unchecked_block_mul_parallelized(ct1, ct2_i, i);
-            });
-
-        self.smart_binary_op_seq_parallelized(&mut terms, ServerKey::smart_add_parallelized)
-            .unwrap_or_else(|| self.create_trivial_zero_radix(ct1.blocks.len()))
+        self.unchecked_mul_parallelized(lhs, rhs)
     }
 
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
@@ -498,19 +669,6 @@ impl ServerKey {
             }
         };
 
-        let num_blocks = lhs.blocks.len();
-        let mut terms = vec![self.create_trivial_zero_radix(num_blocks); num_blocks];
-        terms
-            .par_iter_mut()
-            .zip(rhs.blocks.par_iter().enumerate())
-            .for_each(|(term, (i, rhs_i))| {
-                *term = self.unchecked_block_mul_parallelized(lhs, rhs_i, i);
-            });
-
-        *lhs = self
-            .smart_binary_op_seq_parallelized(&mut terms, ServerKey::smart_add_parallelized)
-            .unwrap_or_else(|| self.create_trivial_zero_radix(num_blocks));
-
-        self.full_propagate_parallelized(lhs);
+        self.unchecked_mul_assign_parallelized(lhs, rhs);
     }
 }
