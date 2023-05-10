@@ -98,6 +98,7 @@ impl U256 {
         }
     }
 }
+
 #[cfg(test)]
 impl rand::distributions::Distribution<U256> for rand::distributions::Standard {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> U256 {
@@ -131,6 +132,80 @@ impl std::ops::Add<Self> for U256 {
         let (x3, _) = adc(self.0[3], rhs.0[3], carry);
 
         Self([x0, x1, x2, x3])
+    }
+}
+
+impl std::ops::Sub<Self> for U256 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let negated = !rhs + Self::from(1u64);
+        self + negated
+    }
+}
+
+impl std::ops::ShrAssign<u32> for U256 {
+    // move bits from MSB to LSB
+    fn shr_assign(&mut self, shift: u32) {
+        if shift > 256 {
+            self.0.as_mut_slice().fill(0);
+        }
+
+        let num_rotations = (shift / u64::BITS) as usize;
+        self.0.rotate_left(num_rotations);
+
+        let len = self.0.len();
+        let (head, tail) = self.0.as_mut_slice().split_at_mut(len - num_rotations);
+        tail.fill(0);
+
+        let shift_in_words = shift % u64::BITS;
+
+        let carry_mask = (1 << shift_in_words) - 1;
+        let mut carry = 0u64;
+        for word in &mut head.iter_mut().rev() {
+            let value = (*word >> shift_in_words) + carry;
+            let carry_for_next = *word & carry_mask;
+
+            *word = value;
+            carry = carry_for_next.rotate_right(shift_in_words);
+        }
+    }
+}
+
+impl std::ops::Shr<u32> for U256 {
+    type Output = Self;
+
+    fn shr(mut self, rhs: u32) -> Self::Output {
+        self >>= rhs;
+        self
+    }
+}
+
+impl std::ops::Not for U256 {
+    type Output = Self;
+
+    fn not(mut self) -> Self::Output {
+        for self_word in self.0.iter_mut() {
+            *self_word = !*self_word;
+        }
+        self
+    }
+}
+
+impl std::ops::BitAndAssign<Self> for U256 {
+    fn bitand_assign(&mut self, rhs: Self) {
+        for (self_word, rhs_word) in self.0.iter_mut().zip(rhs.0) {
+            *self_word &= rhs_word;
+        }
+    }
+}
+
+impl std::ops::BitAnd<Self> for U256 {
+    type Output = Self;
+
+    fn bitand(mut self, rhs: Self) -> Self::Output {
+        self &= rhs;
+        self
     }
 }
 

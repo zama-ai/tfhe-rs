@@ -135,6 +135,13 @@ impl<OpOrder: PBSOrderMarker> CiphertextBase<OpOrder> {
     pub fn carry_is_empty(&self) -> bool {
         self.degree.0 < self.message_modulus.0
     }
+
+    pub fn copy_from(&mut self, other: &Self) {
+        self.ct.as_mut().copy_from_slice(other.ct.as_ref());
+        self.message_modulus = other.message_modulus;
+        self.carry_modulus = other.carry_modulus;
+        self._order_marker = other._order_marker;
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -283,5 +290,28 @@ impl<OpOrder: PBSOrderMarker> CompressedCiphertextBase<OpOrder> {
 impl<OpOrder: PBSOrderMarker> From<CompressedCiphertextBase<OpOrder>> for CiphertextBase<OpOrder> {
     fn from(value: CompressedCiphertextBase<OpOrder>) -> Self {
         value.decompress()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::shortint::gen_keys;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+
+    #[test]
+    fn test_copy_from() {
+        let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+
+        let msg1 = 3;
+        let msg2 = 2;
+
+        // Encrypt two messages using the (private) client key:
+        let mut ct_1 = client_key.encrypt(msg1);
+        let ct_2 = client_key.encrypt(msg2);
+
+        assert_ne!(ct_1, ct_2);
+
+        ct_1.copy_from(&ct_2);
+        assert_eq!(ct_1, ct_2);
     }
 }

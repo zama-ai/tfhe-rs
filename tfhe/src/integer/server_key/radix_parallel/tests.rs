@@ -39,6 +39,12 @@ create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_smart_add_sequence_multi_thread);
 create_parametrized_test!(integer_smart_add_sequence_single_thread);
 create_parametrized_test!(integer_default_add);
+create_parametrized_test!(integer_default_add_work_efficient {
+    // This algorithm requires 3 bits
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_4
+});
 create_parametrized_test!(integer_default_add_sequence_multi_thread);
 // Other tests are pretty slow, and the code is the same as a smart add but slower
 #[test]
@@ -77,6 +83,12 @@ create_parametrized_test!(integer_smart_neg);
 create_parametrized_test!(integer_default_neg);
 create_parametrized_test!(integer_smart_sub);
 create_parametrized_test!(integer_default_sub);
+create_parametrized_test!(integer_default_sub_work_efficient {
+    // This algorithm requires 3 bits
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_4
+});
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
 create_parametrized_test!(integer_default_block_mul);
@@ -248,6 +260,37 @@ fn integer_default_add(param: Parameters) {
             // assert
             assert_eq!(clear, dec_res);
         }
+    }
+}
+
+// Smaller test for this one
+fn integer_default_add_work_efficient(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let ct_res = sks.add_parallelized_work_efficient(&ctxt_0, &ctxt_1);
+        let tmp_ct = sks.add_parallelized_work_efficient(&ctxt_0, &ctxt_1);
+
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct);
+
+        let expected = (clear_0.wrapping_add(clear_1)) % modulus;
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(expected, dec_res);
     }
 }
 
@@ -1463,6 +1506,38 @@ fn integer_default_sub(param: Parameters) {
 
         // Check the correctness
         assert_eq!(clear, dec);
+    }
+}
+
+fn integer_default_sub_work_efficient(param: Parameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST_SMALLER {
+        // Define the cleartexts
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % modulus;
+
+        let ctxt_1 = cks.encrypt(clear1);
+        let ctxt_2 = cks.encrypt(clear2);
+
+        let tmp = sks.sub_parallelized_work_efficient(&ctxt_1, &ctxt_2);
+        let res = sks.sub_parallelized_work_efficient(&ctxt_1, &ctxt_2);
+
+        assert!(res.block_carries_are_empty());
+        assert_eq!(res, tmp);
+
+        let expected = (clear1.wrapping_sub(clear2)) % modulus;
+        let dec: u64 = cks.decrypt(&res);
+
+        // Check the correctness
+        assert_eq!(expected, dec);
     }
 }
 
