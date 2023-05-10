@@ -40,7 +40,7 @@ parser.add_argument('--walk-subdirs', dest='walk_subdirs', action='store_true',
 parser.add_argument('--key-sizes', dest='key_sizes', action='store_true',
                     help='Parse only the results regarding keys size measurements')
 parser.add_argument('--throughput', dest='throughput', action='store_true',
-                    help='Compute and append number of operations per millisecond and'
+                    help='Compute and append number of operations per second and'
                          'operations per dollar')
 parser.add_argument('--backend', dest='backend', default='cpu',
                     help='Backend on which benchmarks have run')
@@ -55,7 +55,7 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
     :param directory: path to directory that contains raw results as :class:`pathlib.Path`
     :param walk_subdirs: traverse results subdirectories if parameters changes for benchmark case.
     :param name_suffix: a :class:`str` suffix to apply to each test name found
-    :param compute_throughput: compute number of operations per millisecond and operations per
+    :param compute_throughput: compute number of operations per second and operations per
         dollar
     :param hardware_hourly_cost: hourly cost of the hardware used in dollar
 
@@ -106,11 +106,11 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
                 )
 
                 if stat_name == "mean" and compute_throughput:
-                    test_suffix = "ops-per-ms"
+                    test_suffix = "ops-per-sec"
                     test_name_parts.append(test_suffix)
                     result_values.append(
                         _create_point(
-                            compute_ops_per_millisecond(value),
+                            compute_ops_per_second(value),
                             "_".join(test_name_parts),
                             bench_class,
                             "throughput",
@@ -242,15 +242,15 @@ def compute_ops_per_dollar(data_point, product_hourly_cost):
     return ONE_HOUR_IN_NANOSECONDS / (product_hourly_cost * data_point)
 
 
-def compute_ops_per_millisecond(data_point):
+def compute_ops_per_second(data_point):
     """
-    Compute numbers of operations per millisecond for a given ``data_point``.
+    Compute numbers of operations per second for a given ``data_point``.
 
     :param data_point: timing value measured during benchmark in nanoseconds
 
-    :return: number of operations per millisecond
+    :return: number of operations per second
     """
-    return 1E6 / data_point
+    return 1E9 / data_point
 
 
 def _parse_file_to_json(directory, filename):
