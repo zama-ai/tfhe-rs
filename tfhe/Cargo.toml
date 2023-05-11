@@ -190,6 +190,10 @@ name = "boolean_key_sizes"
 required-features = ["boolean", "internal-keycache"]
 
 [[example]]
+name = "dark_market"
+required-features = ["integer", "internal-keycache"]
+
+[[example]]
 name = "shortint_key_sizes"
 required-features = ["shortint", "internal-keycache"]
 
