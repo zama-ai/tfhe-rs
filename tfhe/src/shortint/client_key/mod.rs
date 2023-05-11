@@ -21,10 +21,10 @@ use std::fmt::Debug;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ClientKey {
     /// The LWE secret key equivalent to the GLWE secret key
-    pub(crate) large_lwe_secret_key: LweSecretKeyOwned<u64>,
-    pub(crate) glwe_secret_key: GlweSecretKeyOwned<u64>,
+    pub large_lwe_secret_key: LweSecretKeyOwned<u64>,
+    pub glwe_secret_key: GlweSecretKeyOwned<u64>,
     /// Key used as the output of the keyswitch operation
-    pub(crate) small_lwe_secret_key: LweSecretKeyOwned<u64>,
+    pub small_lwe_secret_key: LweSecretKeyOwned<u64>,
     pub parameters: Parameters,
 }
 
