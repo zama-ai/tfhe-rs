@@ -400,7 +400,7 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
                     &mut out_pbs_ct,
                     &accumulator.as_view(),
                     &multi_bit_bsk,
-                    ThreadCount(num_cpus::get()),
+                    ThreadCount(10),
                 );
                 black_box(&mut out_pbs_ct);
             })
