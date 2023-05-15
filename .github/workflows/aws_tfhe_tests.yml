@@ -25,26 +25,35 @@ on:
       request_id:
         description: 'Slab request ID'
         type: string
-      matrix_item:
-        description: 'Build matrix item'
+      fork_repo:
+        description: 'Name of forked repo as user/repo'
+        type: string
+      fork_git_sha:
+        description: 'Git SHA to checkout from fork'
         type: string
 
 jobs:
   shortint-tests:
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}_${{ github.event.inputs.instance_image_id }}_${{ github.event.inputs.instance_type }}
+      group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
       cancel-in-progress: true
-    runs-on: ${{ github.event.inputs.runner_name }}
+    runs-on: ${{ inputs.runner_name }}
     steps:
       # Step used for log purpose.
       - name: Instance configuration used
         run: |
-          echo "ID: ${{ github.event.inputs.instance_id }}"
-          echo "AMI: ${{ github.event.inputs.instance_image_id }}"
-          echo "Type: ${{ github.event.inputs.instance_type }}"
-          echo "Request ID: ${{ github.event.inputs.request_id }}"
+          echo "ID: ${{ inputs.instance_id }}"
+          echo "AMI: ${{ inputs.instance_image_id }}"
+          echo "Type: ${{ inputs.instance_type }}"
+          echo "Request ID: ${{ inputs.request_id }}"
+          echo "Fork repo: ${{ inputs.fork_repo }}"
+          echo "Fork git sha: ${{ inputs.fork_git_sha }}"
 
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
+        with:
+          repository: ${{ inputs.fork_repo }}
+          ref: ${{ inputs.fork_git_sha }}
 
       - name: Set up home
         run: |
