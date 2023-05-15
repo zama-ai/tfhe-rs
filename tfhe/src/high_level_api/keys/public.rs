@@ -33,21 +33,20 @@ impl PublicKey {
             shortint_key: ShortIntPublicKey::new(&client_key.shortint_key),
             #[cfg(feature = "integer")]
             base_integer_key: {
-                client_key
-                    .integer_key
-                    .as_ref()
-                    .map(|key| match key.encryption_type() {
+                client_key.integer_key.key.as_ref().map(|key| {
+                    match client_key.integer_key.encryption_type() {
                         crate::shortint::EncryptionKeyChoice::Big => {
                             crate::high_level_api::integers::PublicKeyDyn::Big(
-                                crate::integer::PublicKeyBig::new(&key.key),
+                                crate::integer::PublicKeyBig::new(key),
                             )
                         }
                         crate::shortint::EncryptionKeyChoice::Small => {
                             crate::high_level_api::integers::PublicKeyDyn::Small(
-                                crate::integer::PublicKeySmall::new(&key.key),
+                                crate::integer::PublicKeySmall::new(key),
                             )
                         }
-                    })
+                    }
+                })
             },
         }
     }
@@ -120,21 +119,20 @@ impl CompressedPublicKey {
             shortint_key: ShortIntCompressedPublicKey::new(&client_key.shortint_key),
             #[cfg(feature = "integer")]
             base_integer_key: {
-                client_key
-                    .integer_key
-                    .as_ref()
-                    .map(|key| match key.encryption_type() {
+                client_key.integer_key.key.as_ref().map(|key| {
+                    match client_key.integer_key.encryption_type() {
                         crate::shortint::EncryptionKeyChoice::Big => {
                             crate::high_level_api::integers::CompressedPublicKeyDyn::Big(
-                                crate::integer::CompressedPublicKeyBig::new(&key.key),
+                                crate::integer::CompressedPublicKeyBig::new(key),
                             )
                         }
                         crate::shortint::EncryptionKeyChoice::Small => {
                             crate::high_level_api::integers::CompressedPublicKeyDyn::Small(
-                                crate::integer::CompressedPublicKeySmall::new(&key.key),
+                                crate::integer::CompressedPublicKeySmall::new(key),
                             )
                         }
-                    })
+                    }
+                })
             },
         }
     }

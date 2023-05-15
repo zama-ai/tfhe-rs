@@ -13,7 +13,7 @@ pub struct Config {
     #[cfg(feature = "shortint")]
     pub(crate) shortint_config: ShortIntConfig,
     #[cfg(feature = "integer")]
-    pub(crate) integer_config: Option<IntegerConfig>,
+    pub(crate) integer_config: IntegerConfig,
 }
 
 /// The builder to create your config
@@ -52,7 +52,7 @@ impl ConfigBuilder {
                 #[cfg(feature = "shortint")]
                 shortint_config: ShortIntConfig::all_default(),
                 #[cfg(feature = "integer")]
-                integer_config: Some(IntegerConfig::all_default()),
+                integer_config: IntegerConfig::all_default(),
             },
         }
     }
@@ -66,7 +66,7 @@ impl ConfigBuilder {
                 #[cfg(feature = "shortint")]
                 shortint_config: ShortIntConfig::all_none(),
                 #[cfg(feature = "integer")]
-                integer_config: None,
+                integer_config: IntegerConfig::all_none(),
             },
         }
     }
@@ -109,13 +109,20 @@ impl ConfigBuilder {
 
     #[cfg(feature = "integer")]
     pub fn enable_default_integers(mut self) -> Self {
-        self.config.integer_config = Some(IntegerConfig::default_big());
+        self.config.integer_config = IntegerConfig::default_big();
         self
     }
 
     #[cfg(feature = "integer")]
     pub fn enable_default_integers_small(mut self) -> Self {
-        self.config.integer_config = Some(IntegerConfig::default_small());
+        self.config.integer_config = IntegerConfig::default_small();
+        self
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "integer")]
+    pub fn enable_function_evaluation_integers(mut self) -> Self {
+        self.config.integer_config.enable_wopbs();
         self
     }
 
@@ -123,16 +130,16 @@ impl ConfigBuilder {
     pub fn enable_default_custom_integers(
         mut self,
         block_parameters: crate::shortint::PBSParameters,
-        wopbs_block_parameters: crate::shortint::WopbsParameters,
+        wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
     ) -> Self {
         self.config.integer_config =
-            Some(IntegerConfig::new(block_parameters, wopbs_block_parameters));
+            IntegerConfig::new(Some(block_parameters), wopbs_block_parameters);
         self
     }
 
     #[cfg(feature = "integer")]
     pub fn disable_integers(mut self) -> Self {
-        self.config.integer_config = None;
+        self.config.integer_config = IntegerConfig::all_none();
         self
     }
 

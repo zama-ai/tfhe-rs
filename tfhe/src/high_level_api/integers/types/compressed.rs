@@ -69,19 +69,16 @@ where
         let id = P::Id::default();
         let integer_client_key = key
             .integer_key
+            .key
             .as_ref()
             .ok_or(UninitializedClientKey(id.type_variant()))
             .unwrap_display();
-        let inner = match integer_client_key.encryption_type() {
+        let inner = match key.integer_key.encryption_type() {
             crate::shortint::EncryptionKeyChoice::Big => CompressedRadixCiphertextDyn::Big(
-                integer_client_key
-                    .key
-                    .encrypt_radix_compressed(value, P::num_blocks()),
+                integer_client_key.encrypt_radix_compressed(value, P::num_blocks()),
             ),
             crate::shortint::EncryptionKeyChoice::Small => CompressedRadixCiphertextDyn::Small(
-                integer_client_key
-                    .key
-                    .encrypt_radix_compressed_small(value, P::num_blocks()),
+                integer_client_key.encrypt_radix_compressed_small(value, P::num_blocks()),
             ),
         };
         Ok(Self::new(inner, id))

@@ -26,7 +26,7 @@ pub struct ClientKey {
     #[cfg(feature = "shortint")]
     pub(crate) shortint_key: ShortIntClientKey,
     #[cfg(feature = "integer")]
-    pub(crate) integer_key: Option<IntegerClientKey>,
+    pub(crate) integer_key: IntegerClientKey,
 }
 
 impl ClientKey {
@@ -40,7 +40,7 @@ impl ClientKey {
             #[cfg(feature = "shortint")]
             shortint_key: ShortIntClientKey::from(config.shortint_config),
             #[cfg(feature = "integer")]
-            integer_key: config.integer_config.map(IntegerClientKey::from),
+            integer_key: IntegerClientKey::from(config.integer_config),
         }
     }
 
