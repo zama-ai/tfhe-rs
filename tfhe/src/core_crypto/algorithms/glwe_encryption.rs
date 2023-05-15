@@ -45,7 +45,7 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
     );
 
     if !ciphertext_modulus.is_native_modulus() {
-        let torus_scaling = ciphertext_modulus.get_scaling_to_native_torus();
+        let torus_scaling = ciphertext_modulus.get_power_of_two_scaling_to_native_torus();
         slice_wrapping_scalar_mul_assign(output_mask.as_mut(), torus_scaling);
         slice_wrapping_scalar_mul_assign(output_body.as_mut(), torus_scaling);
     }
@@ -263,7 +263,7 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
     );
 
     if !ciphertext_modulus.is_native_modulus() {
-        let torus_scaling = ciphertext_modulus.get_scaling_to_native_torus();
+        let torus_scaling = ciphertext_modulus.get_power_of_two_scaling_to_native_torus();
         slice_wrapping_scalar_mul_assign(output_mask.as_mut(), torus_scaling);
         slice_wrapping_scalar_mul_assign(output_body.as_mut(), torus_scaling);
     }
@@ -585,7 +585,7 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
     if !ciphertext_modulus.is_native_modulus() {
         slice_wrapping_scalar_div_assign(
             output_plaintext_list.as_mut(),
-            ciphertext_modulus.get_scaling_to_native_torus(),
+            ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
         );
     }
 }
@@ -723,7 +723,7 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     if !ciphertext_modulus.is_native_modulus() {
         slice_wrapping_scalar_mul_assign(
             body.as_mut(),
-            ciphertext_modulus.get_scaling_to_native_torus(),
+            ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
         );
     }
 }
@@ -812,7 +812,7 @@ where
     if !ciphertext_modulus.is_native_modulus() {
         slice_wrapping_scalar_mul_assign(
             body.as_mut(),
-            ciphertext_modulus.get_scaling_to_native_torus(),
+            ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
         );
     }
 

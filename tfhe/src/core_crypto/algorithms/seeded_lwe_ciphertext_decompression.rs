@@ -33,7 +33,7 @@ pub fn decompress_seeded_lwe_ciphertext_with_existing_generator<Scalar, OutputCo
     if !ciphertext_modulus.is_native_modulus() {
         slice_wrapping_scalar_mul_assign(
             output_mask.as_mut(),
-            ciphertext_modulus.get_scaling_to_native_torus(),
+            ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
         );
     }
     *output_body.data = *input_seeded_lwe.get_body().data;

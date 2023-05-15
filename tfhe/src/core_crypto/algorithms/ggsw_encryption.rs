@@ -121,7 +121,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
             .0
             .wrapping_neg()
             .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
-            .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
+            .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
 
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = generator
@@ -258,7 +258,7 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
                 .0
                 .wrapping_neg()
                 .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
-                .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
+                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
 
             // We iterate over the rows of the level matrix, the last row needs special
             // treatment
@@ -377,7 +377,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
             .0
             .wrapping_neg()
             .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
-            .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
+            .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
 
         // We iterate over the rows of the level matrix, the last row needs special treatment
         let gen_iter = loop_generator
@@ -551,7 +551,7 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
                 .0
                 .wrapping_neg()
                 .wrapping_mul(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)))
-                .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
+                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
 
             // We iterate over the rows of the level matrix, the last row needs special treatment
             let gen_iter = generator
@@ -837,7 +837,7 @@ where
         (*plaintext_ref.0).wrapping_mul(
             ggsw_ciphertext
                 .ciphertext_modulus()
-                .get_scaling_to_native_torus(),
+                .get_power_of_two_scaling_to_native_torus(),
         ),
     );
     let decoded =

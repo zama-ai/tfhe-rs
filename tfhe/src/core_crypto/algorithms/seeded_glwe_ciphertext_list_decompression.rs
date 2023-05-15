@@ -42,7 +42,7 @@ pub fn decompress_seeded_glwe_ciphertext_list_with_existing_generator<
         if !ciphertext_modulus.is_native_modulus() {
             slice_wrapping_scalar_mul_assign(
                 output_mask.as_mut(),
-                ciphertext_modulus.get_scaling_to_native_torus(),
+                ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
             );
         }
         output_body.as_mut().copy_from_slice(body_in.as_ref());

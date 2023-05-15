@@ -243,7 +243,7 @@ pub fn lwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
     } else {
         *body.data = (*body.data).wrapping_add(
             rhs.0
-                .wrapping_mul(ciphertext_modulus.get_scaling_to_native_torus()),
+                .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
         );
     }
 }
@@ -318,7 +318,7 @@ pub fn lwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
     } else {
         *body.data = (*body.data).wrapping_sub(
             rhs.0
-                .wrapping_mul(ciphertext_modulus.get_scaling_to_native_torus()),
+                .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
         );
     }
 }
