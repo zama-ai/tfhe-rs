@@ -45,12 +45,21 @@ pub trait UnsignedInteger:
     /// Compute a subtraction, modulo the max of the type.
     #[must_use]
     fn wrapping_sub(self, other: Self) -> Self;
+    /// Compute an addition, modulo a custom modulus.
+    #[must_use]
+    fn wrapping_add_custom_mod(self, other: Self, custom_modulus: Self) -> Self;
+    /// Compute a subtraction, modulo a custom modulus.
+    #[must_use]
+    fn wrapping_sub_custom_mod(self, other: Self, custom_modulus: Self) -> Self;
     /// Compute a division, modulo the max of the type.
     #[must_use]
     fn wrapping_div(self, other: Self) -> Self;
     /// Compute a multiplication, modulo the max of the type.
     #[must_use]
     fn wrapping_mul(self, other: Self) -> Self;
+    /// Compute a multiplication, modulo a custom modulus.
+    #[must_use]
+    fn wrapping_mul_custom_mod(self, other: Self, custom_modulus: Self) -> Self;
     /// Compute the remainder, modulo the max of the type.
     #[must_use]
     fn wrapping_rem(self, other: Self) -> Self;
@@ -113,6 +122,26 @@ macro_rules! implement {
                 self.wrapping_sub(other)
             }
             #[inline]
+            fn wrapping_add_custom_mod(self, other: Self, custom_modulus: Self) -> Self {
+                match self.overflowing_add(other) {
+                    (result, true) => {
+                        // We have (for u64) a result of the form 2^64 + p, here we compute p mod q
+                        let result = result.wrapping_rem(custom_modulus);
+                        // and here we compute 2^64 mod q and add to the result as mod is linear
+                        let self_max_mod_custom = Self::MAX - custom_modulus + Self::ONE;
+                        result.wrapping_add(self_max_mod_custom)
+                    }
+                    (result, false) => result.wrapping_rem(custom_modulus),
+                }
+            }
+            #[inline]
+            fn wrapping_sub_custom_mod(self, other: Self, custom_modulus: Self) -> Self {
+                match self.overflowing_sub(other) {
+                    (result, true) => result.wrapping_add(custom_modulus),
+                    (result, false) => result.wrapping_rem(custom_modulus),
+                }
+            }
+            #[inline]
             fn wrapping_div(self, other: Self) -> Self {
                 self.wrapping_div(other)
             }
@@ -120,7 +149,17 @@ macro_rules! implement {
             fn wrapping_mul(self, other: Self) -> Self {
                 self.wrapping_mul(other)
             }
-            #[must_use]
+            #[inline]
+            fn wrapping_mul_custom_mod(self, other: Self, custom_modulus: Self) -> Self {
+                let self_u128: u128 = self.cast_into();
+                let other_u128: u128 = other.cast_into();
+                let custom_modulus_u128: u128 = custom_modulus.cast_into();
+                self_u128
+                    .wrapping_mul(other_u128)
+                    .wrapping_rem(custom_modulus_u128)
+                    .cast_into()
+            }
+            #[inline]
             fn wrapping_rem(self, other: Self) -> Self {
                 self.wrapping_rem(other)
             }
@@ -204,5 +243,73 @@ mod test {
                        0011 1010 0110 1101 1100 1001 0011 0010"
                 .to_string()
         );
+    }
+
+    #[test]
+    fn test_wrapping_add_custom_mod() {
+        let a = u64::MAX;
+        let b = u64::MAX;
+        let custom_modulus_u128 = (1u128 << 64) - (1 << 32) + 1;
+        let custom_modulus = custom_modulus_u128 as u64;
+
+        let a_u128: u128 = a.into();
+        let b_u128: u128 = b.into();
+
+        let expected_res = ((a_u128 + b_u128) % custom_modulus_u128) as u64;
+
+        let res = a.wrapping_add_custom_mod(b, custom_modulus);
+        assert_eq!(expected_res, res);
+
+        const NB_REPS: usize = 100_000_000;
+
+        use rand::Rng;
+        let mut thread_rng = rand::thread_rng();
+        for _ in 0..NB_REPS {
+            let a: u64 = thread_rng.gen();
+            let b: u64 = thread_rng.gen();
+
+            let a_u128: u128 = a.into();
+            let b_u128: u128 = b.into();
+
+            let expected_res = ((a_u128 + b_u128) % custom_modulus_u128) as u64;
+
+            let res = a.wrapping_add_custom_mod(b, custom_modulus);
+            assert_eq!(expected_res, res, "a: {a}, b: {b}");
+        }
+    }
+
+    #[test]
+    fn test_wrapping_sub_custom_mod() {
+        let custom_modulus_u128 = (1u128 << 64) - (1 << 32) + 1;
+        let custom_modulus = custom_modulus_u128 as u64;
+
+        let a = 0u64;
+        let b = u64::MAX % custom_modulus;
+
+        let a_u128: u128 = a.into();
+        let b_u128: u128 = b.into();
+
+        let expected_res = ((a_u128 + custom_modulus_u128 - b_u128) % custom_modulus_u128) as u64;
+
+        let res = a.wrapping_sub_custom_mod(b, custom_modulus);
+        assert_eq!(expected_res, res);
+
+        const NB_REPS: usize = 100_000_000;
+
+        use rand::Rng;
+        let mut thread_rng = rand::thread_rng();
+        for _ in 0..NB_REPS {
+            let a: u64 = thread_rng.gen();
+            let b: u64 = thread_rng.gen();
+
+            let a_u128: u128 = a.into();
+            let b_u128: u128 = b.into();
+
+            let expected_res =
+                ((a_u128 + custom_modulus_u128 - b_u128) % custom_modulus_u128) as u64;
+
+            let res = a.wrapping_sub_custom_mod(b, custom_modulus);
+            assert_eq!(expected_res, res, "a: {a}, b: {b}");
+        }
     }
 }

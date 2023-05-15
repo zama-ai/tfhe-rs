@@ -2,7 +2,9 @@
 //! keyswitch`](`LweKeyswitchKey#lwe-keyswitch`).
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::math::decomposition::{
+    SignedDecomposer, SignedDecomposerNonNative,
+};
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -100,6 +102,34 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
+    if lwe_keyswitch_key
+        .ciphertext_modulus()
+        .is_compatible_with_native_modulus()
+    {
+        keyswitch_lwe_ciphertext_native_mod_compatible(
+            lwe_keyswitch_key,
+            input_lwe_ciphertext,
+            output_lwe_ciphertext,
+        )
+    } else {
+        keyswitch_lwe_ciphertext_non_native_mod(
+            lwe_keyswitch_key,
+            input_lwe_ciphertext,
+            output_lwe_ciphertext,
+        )
+    }
+}
+
+pub fn keyswitch_lwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCont, OutputCont>(
+    lwe_keyswitch_key: &LweKeyswitchKey<KSKCont>,
+    input_lwe_ciphertext: &LweCiphertext<InputCont>,
+    output_lwe_ciphertext: &mut LweCiphertext<OutputCont>,
+) where
+    Scalar: UnsignedInteger,
+    KSKCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
     assert!(
         lwe_keyswitch_key.input_key_lwe_dimension()
             == input_lwe_ciphertext.lwe_size().to_lwe_dimension(),
@@ -116,6 +146,25 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
         lwe_keyswitch_key.output_key_lwe_dimension(),
         output_lwe_ciphertext.lwe_size().to_lwe_dimension(),
     );
+    assert_eq!(
+        lwe_keyswitch_key.ciphertext_modulus(),
+        input_lwe_ciphertext.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LweKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
+        lwe_keyswitch_key.ciphertext_modulus(),
+        input_lwe_ciphertext.ciphertext_modulus(),
+    );
+    assert_eq!(
+        lwe_keyswitch_key.ciphertext_modulus(),
+        output_lwe_ciphertext.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LweKeyswitchKey CiphertextModulus: {:?}, output LweCiphertext CiphertextModulus {:?}.",
+        lwe_keyswitch_key.ciphertext_modulus(),
+        output_lwe_ciphertext.ciphertext_modulus(),
+    );
+    assert!(lwe_keyswitch_key
+        .ciphertext_modulus()
+        .is_compatible_with_native_modulus());
 
     // Clear the output ciphertext, as it will get updated gradually
     output_lwe_ciphertext.as_mut().fill(Scalar::ZERO);
@@ -141,6 +190,82 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
                 output_lwe_ciphertext.as_mut(),
                 level_key_ciphertext.as_ref(),
                 decomposed.value(),
+            );
+        }
+    }
+}
+
+pub fn keyswitch_lwe_ciphertext_non_native_mod<Scalar, KSKCont, InputCont, OutputCont>(
+    lwe_keyswitch_key: &LweKeyswitchKey<KSKCont>,
+    input_lwe_ciphertext: &LweCiphertext<InputCont>,
+    output_lwe_ciphertext: &mut LweCiphertext<OutputCont>,
+) where
+    Scalar: UnsignedInteger,
+    KSKCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    assert!(
+        lwe_keyswitch_key.input_key_lwe_dimension()
+            == input_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+        "Mismatched input LweDimension. \
+        LweKeyswitchKey input LweDimension: {:?}, input LweCiphertext LweDimension {:?}.",
+        lwe_keyswitch_key.input_key_lwe_dimension(),
+        input_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+    );
+    assert!(
+        lwe_keyswitch_key.output_key_lwe_dimension()
+            == output_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+        "Mismatched output LweDimension. \
+        LweKeyswitchKey output LweDimension: {:?}, output LweCiphertext LweDimension {:?}.",
+        lwe_keyswitch_key.output_key_lwe_dimension(),
+        output_lwe_ciphertext.lwe_size().to_lwe_dimension(),
+    );
+    assert_eq!(
+        lwe_keyswitch_key.ciphertext_modulus(),
+        input_lwe_ciphertext.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LweKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
+        lwe_keyswitch_key.ciphertext_modulus(),
+        input_lwe_ciphertext.ciphertext_modulus(),
+    );
+    assert_eq!(
+        lwe_keyswitch_key.ciphertext_modulus(),
+        output_lwe_ciphertext.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LweKeyswitchKey CiphertextModulus: {:?}, output LweCiphertext CiphertextModulus {:?}.",
+        lwe_keyswitch_key.ciphertext_modulus(),
+        output_lwe_ciphertext.ciphertext_modulus(),
+    );
+    let ciphertext_modulus = lwe_keyswitch_key.ciphertext_modulus();
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    // Clear the output ciphertext, as it will get updated gradually
+    output_lwe_ciphertext.as_mut().fill(Scalar::ZERO);
+
+    // Copy the input body to the output ciphertext
+    *output_lwe_ciphertext.get_mut_body().data = *input_lwe_ciphertext.get_body().data;
+
+    // We instantiate a decomposer
+    let decomposer = SignedDecomposerNonNative::new(
+        lwe_keyswitch_key.decomposition_base_log(),
+        lwe_keyswitch_key.decomposition_level_count(),
+        ciphertext_modulus,
+    );
+
+    for (keyswitch_key_block, &input_mask_element) in lwe_keyswitch_key
+        .iter()
+        .zip(input_lwe_ciphertext.get_mask().as_ref())
+    {
+        let decomposition_iter = decomposer.decompose(input_mask_element);
+        // Loop over the levels
+        for (level_key_ciphertext, decomposed) in keyswitch_key_block.iter().zip(decomposition_iter)
+        {
+            slice_wrapping_sub_scalar_mul_assign_custom_modulus(
+                output_lwe_ciphertext.as_mut(),
+                level_key_ciphertext.as_ref(),
+                decomposed.value(),
+                ciphertext_modulus.get_custom_modulus().cast_into(),
             );
         }
     }

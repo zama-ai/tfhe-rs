@@ -134,6 +134,11 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence_non_native_power_of_
 }
 
 #[test]
+fn test_parallel_and_seeded_lwe_list_encryption_equivalence_solinas_mod_u64() {
+    test_parallel_and_seeded_lwe_list_encryption_equivalence(TEST_PARAMS_3_BITS_SOLINAS_U64);
+}
+
+#[test]
 fn test_parallel_and_seeded_lwe_list_encryption_equivalence_native_mod_u32() {
     test_parallel_and_seeded_lwe_list_encryption_equivalence(DUMMY_NATIVE_U32);
 }
