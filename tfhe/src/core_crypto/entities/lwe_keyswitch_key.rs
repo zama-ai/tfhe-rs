@@ -248,7 +248,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweKeyswitchKey<C>
 
     /// Return a view of the [`LweKeyswitchKey`]. This is useful if an algorithm takes a view by
     /// value.
-    pub fn as_view(&self) -> LweKeyswitchKey<&'_ [Scalar]> {
+    pub fn as_view(&self) -> LweKeyswitchKeyView<'_, Scalar> {
         LweKeyswitchKey::from_container(
             self.as_ref(),
             self.decomp_base_log,
@@ -280,7 +280,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweKeyswitchKey<C>
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweKeyswitchKey<C> {
     /// Mutable variant of [`LweKeyswitchKey::as_view`].
-    pub fn as_mut_view(&mut self) -> LweKeyswitchKey<&'_ mut [Scalar]> {
+    pub fn as_mut_view(&mut self) -> LweKeyswitchKeyMutView<'_, Scalar> {
         let decomp_base_log = self.decomp_base_log;
         let decomp_level_count = self.decomp_level_count;
         let output_lwe_size = self.output_lwe_size;
@@ -303,6 +303,8 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweKeyswitchKey
 
 /// An [`LweKeyswitchKey`] owning the memory for its own storage.
 pub type LweKeyswitchKeyOwned<Scalar> = LweKeyswitchKey<Vec<Scalar>>;
+pub type LweKeyswitchKeyView<'a, Scalar> = LweKeyswitchKey<&'a [Scalar]>;
+pub type LweKeyswitchKeyMutView<'a, Scalar> = LweKeyswitchKey<&'a mut [Scalar]>;
 
 impl<Scalar: UnsignedInteger> LweKeyswitchKeyOwned<Scalar> {
     /// Allocate memory and create a new owned [`LweKeyswitchKey`].

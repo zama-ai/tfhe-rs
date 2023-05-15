@@ -164,16 +164,14 @@ where
         level: DecompositionLevelCount,
         ciphertext_modulus: CiphertextModulus<T>,
     ) -> SignedDecompositionIterNonNative<T> {
-        let base_to_the_level = 1 << (base_log.0 * level.0);
-        let smallest_representable = ciphertext_modulus.get_custom_modulus() / base_to_the_level;
-
-        let input_128: u128 = input.cast_into();
-        let state = T::cast_from(input_128 / smallest_representable);
+        let ciphertext_moudulus_as_t = T::cast_from(ciphertext_modulus.get_custom_modulus());
+        // Compute the number of zeros for q - 1
+        let zero_left_pad = (ciphertext_moudulus_as_t - T::ONE).leading_zeros() as usize;
 
         SignedDecompositionIterNonNative {
             base_log: base_log.0,
             level_count: level.0,
-            state,
+            state: input >> (T::BITS - zero_left_pad - base_log.0 * level.0),
             current_level: level.0,
             mod_b_mask: (T::ONE << base_log.0) - T::ONE,
             ciphertext_modulus,
@@ -276,7 +274,5 @@ fn decompose_one_level_non_native<S: UnsignedInteger>(
     let mut carry = (res.wrapping_sub(S::ONE) | *state) & res;
     carry >>= base_log - 1;
     *state += carry;
-    res.wrapping_add(ciphertext_modulus)
-        .wrapping_sub(carry << base_log)
-        .wrapping_rem(ciphertext_modulus)
+    res.wrapping_sub_custom_mod(carry << base_log, ciphertext_modulus)
 }

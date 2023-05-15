@@ -24,7 +24,6 @@ pub mod lwe_programmable_bootstrapping;
 pub mod lwe_public_key_generation;
 pub mod lwe_secret_key_generation;
 pub mod lwe_wopbs;
-pub mod misc;
 pub mod polynomial_algorithms;
 pub mod seeded_ggsw_ciphertext_decompression;
 pub mod seeded_ggsw_ciphertext_list_decompression;

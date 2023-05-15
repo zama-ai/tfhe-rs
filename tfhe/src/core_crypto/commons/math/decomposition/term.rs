@@ -140,22 +140,22 @@ where
     ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     /// };
     /// let decomposer = SignedDecomposerNonNative::new(
-    ///     DecompositionBaseLog(4),
-    ///     DecompositionLevelCount(3),
+    ///     DecompositionBaseLog(16),
+    ///     DecompositionLevelCount(1),
     ///     CiphertextModulus::try_new(1 << 32).unwrap(),
     /// );
-    /// let output = decomposer.decompose(2u64.pow(19)).next().unwrap();
-    /// assert_eq!(output.to_recomposition_summand(), 1048576);
+    /// let decomp_iter = decomposer.decompose(2u64.pow(19));
+    /// for (decomp, expected) in decomp_iter.zip([524288]) {
+    ///     assert_eq!(decomp.to_recomposition_summand(), expected);
+    /// }
     /// ```
     pub fn to_recomposition_summand(&self) -> T {
-        // Floored approach
-        // * floor(q / B^j)
-        let base_to_the_level = 1 << (self.base_log * self.level);
-        let digit_radix = self.ciphertext_modulus.get_custom_modulus() / base_to_the_level;
+        let ciphertext_modulus = T::cast_from(self.ciphertext_modulus.get_custom_modulus());
+        // Compute the number of zeros for q - 1
+        let zero_left_pad = (ciphertext_modulus - T::ONE).leading_zeros() as usize;
 
-        let value_u128: u128 = self.value.cast_into();
-        let summand_u128 = value_u128 * digit_radix;
-        T::cast_from(summand_u128)
+        let shift: usize = <T as Numeric>::BITS - zero_left_pad - self.base_log * self.level;
+        self.value << shift
     }
 
     /// Return the value of the term.
@@ -170,12 +170,14 @@ where
     ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     /// };
     /// let decomposer = SignedDecomposerNonNative::new(
-    ///     DecompositionBaseLog(4),
-    ///     DecompositionLevelCount(3),
+    ///     DecompositionBaseLog(16),
+    ///     DecompositionLevelCount(1),
     ///     CiphertextModulus::try_new(1 << 32).unwrap(),
     /// );
-    /// let output = decomposer.decompose(2u64.pow(19)).next().unwrap();
-    /// assert_eq!(output.value(), 1);
+    /// let decomp_iter = decomposer.decompose(2u64.pow(19));
+    /// for (decomp, expected) in decomp_iter.zip([8]) {
+    ///     assert_eq!(decomp.value(), expected);
+    /// }
     /// ```
     pub fn value(&self) -> T {
         self.value

@@ -4,7 +4,6 @@ use crate::core_crypto::commons::math::decomposition::{
 };
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-use crate::core_crypto::prelude::misc::divide_round_to_u128_custom_mod;
 use std::marker::PhantomData;
 
 /// A structure which allows to decompose unsigned integers into a set of smaller terms.
@@ -319,24 +318,35 @@ where
     ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     /// );
     /// let closest = decomposer.closest_representable(16982820785129133100u64);
-    /// assert_eq!(closest, 16983074190859960320u64);
+    /// assert_eq!(closest, 16983074194814140416u64);
     /// ```
     #[inline]
     pub fn closest_representable(&self, input: Scalar) -> Scalar {
-        let ciphertext_modulus = self.ciphertext_modulus.get_custom_modulus();
-        // Floored approach
-        // B^l
-        let base_to_level_count = 1 << (self.base_log * self.level_count);
-        // sr = floor(q/(B^l))
-        let smallest_representable = ciphertext_modulus / base_to_level_count;
+        let ciphertext_modulus = Scalar::cast_from(self.ciphertext_modulus.get_custom_modulus());
+        // Compute the number of zeros for q - 1
+        let zero_left_pad = (ciphertext_modulus - Scalar::ONE).leading_zeros();
 
-        let input_128: u128 = input.cast_into();
-        // rounded = round(input/sr)
-        let rounded =
-            divide_round_to_u128_custom_mod(input_128, smallest_representable, ciphertext_modulus);
-        // rounded * sr
-        let closest_representable = rounded * smallest_representable;
-        Scalar::cast_from(closest_representable)
+        // Shift in MSBs to keep decomposition as before
+        let input = input.wrapping_shl(zero_left_pad);
+
+        // The closest number representable by the decomposition can be computed by performing
+        // the rounding at the appropriate bit.
+
+        // We compute the number of least significant bits which can not be represented by the
+        // decomposition
+        let non_rep_bit_count: usize = <Scalar as Numeric>::BITS - self.level_count * self.base_log;
+        // We generate a mask which captures the non representable bits
+        let non_rep_mask = Scalar::ONE << (non_rep_bit_count - 1);
+        // We retrieve the non representable bits
+        let non_rep_bits = input & non_rep_mask;
+        // We extract the msb of the  non representable bits to perform the rounding
+        let non_rep_msb = non_rep_bits >> (non_rep_bit_count - 1);
+        // We remove the non-representable bits and perform the rounding
+        let res = input >> non_rep_bit_count;
+        let res = res + non_rep_msb;
+        // Re shift down to keep consistency with the modulus representation, we'll switch back up
+        // in the iterator
+        (res << non_rep_bit_count) >> (zero_left_pad as usize)
     }
 
     /// Generate an iterator over the terms of the decomposition of the input.

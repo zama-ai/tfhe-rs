@@ -130,6 +130,25 @@ pub const DUMMY_31_U32: TestParams<u32> = TestParams {
     ciphertext_modulus: unsafe { CiphertextModulus::new_unchecked(1 << 31) },
 };
 
+pub const TEST_PARAMS_3_BITS_SOLINAS_U64: TestParams<u64> = TestParams {
+    lwe_dimension: LweDimension(742),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(5),
+    ks_base_log: DecompositionBaseLog(3),
+    pfks_level: DecompositionLevelCount(1),
+    pfks_base_log: DecompositionBaseLog(23),
+    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    cbs_level: DecompositionLevelCount(0),
+    cbs_base_log: DecompositionBaseLog(0),
+    message_modulus_log: CiphertextModulusLog(3),
+    ciphertext_modulus: unsafe { CiphertextModulus::new_unchecked((1 << 64) - (1 << 32) + 1) },
+};
+
 // Our representation of non native power of 2 moduli puts the information in the MSBs and leaves
 // the LSBs empty, this is what this function is checking
 pub fn check_content_respects_mod<Scalar: UnsignedInteger, Input: AsRef<[Scalar]>>(
@@ -137,26 +156,42 @@ pub fn check_content_respects_mod<Scalar: UnsignedInteger, Input: AsRef<[Scalar]
     modulus: CiphertextModulus<Scalar>,
 ) -> bool {
     if !modulus.is_native_modulus() {
-        // If our modulus is 2^60, the scaling is 2^4 = 00...00010000, minus 1 = 00...00001111
-        // we want the bits under the mask to be 0
-        let power_2_diff_mask = modulus.get_power_of_two_scaling_to_native_torus() - Scalar::ONE;
-        return input
-            .as_ref()
-            .iter()
-            .all(|&x| (x & power_2_diff_mask) == Scalar::ZERO);
+        // Power of two has a specific encoding in MSBs of the native torus to re-use native torus
+        // implementations for free
+        if modulus.is_power_of_two() {
+            // If our modulus is 2^60, the scaling is 2^4 = 00...00010000, minus 1 = 00...00001111
+            // we want the bits under the mask to be 0
+            let power_2_diff_mask =
+                modulus.get_power_of_two_scaling_to_native_torus() - Scalar::ONE;
+            return input
+                .as_ref()
+                .iter()
+                .all(|&x| (x & power_2_diff_mask) == Scalar::ZERO);
+        } else {
+            // Custom moduli non power of two use the "true" modulus representation
+            return input
+                .as_ref()
+                .iter()
+                .all(|&x| x < Scalar::cast_from(modulus.get_custom_modulus()));
+        }
     }
 
     true
 }
 
-// See above
+// See above comments for modulus check logic
 pub fn check_scalar_respects_mod<Scalar: UnsignedInteger>(
     input: Scalar,
     modulus: CiphertextModulus<Scalar>,
 ) -> bool {
     if !modulus.is_native_modulus() {
-        let power_2_diff_mask = modulus.get_power_of_two_scaling_to_native_torus() - Scalar::ONE;
-        return (input & power_2_diff_mask) == Scalar::ZERO;
+        if modulus.is_power_of_two() {
+            let power_2_diff_mask =
+                modulus.get_power_of_two_scaling_to_native_torus() - Scalar::ONE;
+            return (input & power_2_diff_mask) == Scalar::ZERO;
+        } else {
+            return input < Scalar::cast_from(modulus.get_custom_modulus());
+        }
     }
 
     true
@@ -245,6 +280,7 @@ macro_rules! create_parametrized_test{
         create_parametrized_test!($name
         {
             TEST_PARAMS_4_BITS_NATIVE_U64,
+            TEST_PARAMS_3_BITS_SOLINAS_U64,
             TEST_PARAMS_3_BITS_63_U64
         });
     };

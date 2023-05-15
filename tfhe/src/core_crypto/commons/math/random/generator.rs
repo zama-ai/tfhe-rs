@@ -211,7 +211,8 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ) where
         Scalar: UnsignedInteger + RandomGenerable<Uniform>,
     {
-        assert!(custom_modulus.is_compatible_with_native_modulus());
+        // TODO
+        // Implement the proper generation function for custom mod for the uniform distribution
         self.fill_slice_with_random_uniform(output);
 
         if !custom_modulus.is_native_modulus() {
