@@ -43,7 +43,7 @@ pub fn decompress_seeded_lwe_ciphertext_list_with_existing_generator<
         generator
             .fill_slice_with_random_uniform_custom_mod(output_mask.as_mut(), ciphertext_modulus);
         // Manage the non native power of 2 encoding
-        if ciphertext_modulus.kind() == CiphertextModulusKind::NonNativePowerOfTwo {
+        if let CiphertextModulusKind::NonNativePowerOfTwo = ciphertext_modulus.kind() {
             slice_wrapping_scalar_mul_assign(
                 output_mask.as_mut(),
                 ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),

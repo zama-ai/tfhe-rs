@@ -143,31 +143,22 @@ macro_rules! implement {
             }
             #[inline]
             fn wrapping_add_custom_mod(self, other: Self, custom_modulus: Self) -> Self {
-                if Self::BITS < 128 {
-                    let self_u128: u128 = self.cast_into();
-                    let other_u128: u128 = other.cast_into();
-                    let custom_modulus_u128: u128 = custom_modulus.cast_into();
-                    self_u128
-                        .wrapping_add(other_u128)
-                        .wrapping_rem(custom_modulus_u128)
-                        .cast_into()
-                } else {
-                    todo!("wrapping_add_custom_mod is not yet implemented for types wider than u64")
+                match self.overflowing_add(other) {
+                    (result, true) => {
+                        // We have (for u64) a result of the form 2^64 + p, here we compute p mod q
+                        let result = result.wrapping_rem(custom_modulus);
+                        // and here we compute 2^64 mod q and add to the result as mod is linear
+                        let self_max_mod_custom = Self::MAX - custom_modulus + Self::ONE;
+                        result.wrapping_add(self_max_mod_custom)
+                    }
+                    (result, false) => result.wrapping_rem(custom_modulus),
                 }
             }
             #[inline]
             fn wrapping_sub_custom_mod(self, other: Self, custom_modulus: Self) -> Self {
-                if Self::BITS < 128 {
-                    let self_u128: u128 = self.cast_into();
-                    let other_u128: u128 = other.cast_into();
-                    let custom_modulus_u128: u128 = custom_modulus.cast_into();
-                    self_u128
-                        .wrapping_add(custom_modulus_u128)
-                        .wrapping_sub(other_u128)
-                        .wrapping_rem(custom_modulus_u128)
-                        .cast_into()
-                } else {
-                    todo!("wrapping_sub_custom_mod is not yet implemented for types wider than u64")
+                match self.overflowing_sub(other) {
+                    (result, true) => result.wrapping_add(custom_modulus),
+                    (result, false) => result.wrapping_rem(custom_modulus),
                 }
             }
             #[inline]
@@ -180,17 +171,13 @@ macro_rules! implement {
             }
             #[inline]
             fn wrapping_mul_custom_mod(self, other: Self, custom_modulus: Self) -> Self {
-                if Self::BITS < 128 {
-                    let self_u128: u128 = self.cast_into();
-                    let other_u128: u128 = other.cast_into();
-                    let custom_modulus_u128: u128 = custom_modulus.cast_into();
-                    self_u128
-                        .wrapping_mul(other_u128)
-                        .wrapping_rem(custom_modulus_u128)
-                        .cast_into()
-                } else {
-                    todo!("wrapping_mul_custom_mod is not yet implemented for types wider than u64")
-                }
+                let self_u128: u128 = self.cast_into();
+                let other_u128: u128 = other.cast_into();
+                let custom_modulus_u128: u128 = custom_modulus.cast_into();
+                self_u128
+                    .wrapping_mul(other_u128)
+                    .wrapping_rem(custom_modulus_u128)
+                    .cast_into()
             }
             #[inline]
             fn wrapping_rem(self, other: Self) -> Self {
@@ -335,10 +322,7 @@ mod test {
         let a_u128: u128 = a.into();
         let b_u128: u128 = b.into();
 
-        let expected_res = ((a_u128
-            .wrapping_add(custom_modulus_u128)
-            .wrapping_sub(b_u128))
-            % custom_modulus_u128) as u64;
+        let expected_res = ((a_u128 + custom_modulus_u128 - b_u128) % custom_modulus_u128) as u64;
 
         let res = a.wrapping_sub_custom_mod(b, custom_modulus);
         assert_eq!(expected_res, res);
@@ -354,10 +338,8 @@ mod test {
             let a_u128: u128 = a.into();
             let b_u128: u128 = b.into();
 
-            let expected_res = ((a_u128
-                .wrapping_add(custom_modulus_u128)
-                .wrapping_sub(b_u128))
-                % custom_modulus_u128) as u64;
+            let expected_res =
+                ((a_u128 + custom_modulus_u128 - b_u128) % custom_modulus_u128) as u64;
 
             let res = a.wrapping_sub_custom_mod(b, custom_modulus);
             assert_eq!(expected_res, res, "a: {a}, b: {b}");

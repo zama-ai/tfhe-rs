@@ -394,7 +394,7 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 
     let ciphertext_modulus = output_body.ciphertext_modulus();
     // Manage non native power of 2 encoding
-    if ciphertext_modulus.kind() == CiphertextModulusKind::NonNativePowerOfTwo {
+    if let CiphertextModulusKind::NonNativePowerOfTwo = ciphertext_modulus.kind() {
         *output_body.data = (*output_body.data)
             .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus())
     }
@@ -473,7 +473,7 @@ where
 
     let ciphertext_modulus = output_body.ciphertext_modulus();
     // Manage the non native power of 2 encoding
-    if ciphertext_modulus.kind() == CiphertextModulusKind::NonNativePowerOfTwo {
+    if let CiphertextModulusKind::NonNativePowerOfTwo = ciphertext_modulus.kind() {
         *output_body.data = (*output_body.data)
             .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
     }
