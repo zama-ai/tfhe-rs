@@ -75,8 +75,8 @@ macro_rules! static_int_type {
                     -> Result<&Self::Key, $crate::high_level_api::errors::UninitializedClientKey> {
                     keys
                         .integer_key
+                        .key
                         .as_ref()
-                        .map(|key| &key.key)
                         .ok_or($crate::high_level_api::errors::UninitializedClientKey(self.type_variant()))
                 }
             }
@@ -88,12 +88,7 @@ macro_rules! static_int_type {
                 where
                     F: FnOnce(&Self::Key) -> R {
                     $crate::high_level_api::global_state::with_internal_keys(|keys| {
-                        keys
-                            .integer_key
-                            .as_ref()
-                            .as_ref()
-                            .ok_or($crate::high_level_api::errors::UninitializedServerKey(self.type_variant()))
-                            .map(func)
+                            Ok(func(&keys.integer_key))
                         })
                     }
             }

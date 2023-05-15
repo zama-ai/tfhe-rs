@@ -27,7 +27,7 @@ pub struct ServerKey {
     #[cfg(feature = "shortint")]
     pub(crate) shortint_key: Arc<ShortIntServerKey>,
     #[cfg(feature = "integer")]
-    pub(crate) integer_key: Arc<Option<IntegerServerKey>>,
+    pub(crate) integer_key: Arc<IntegerServerKey>,
 }
 
 impl ServerKey {
@@ -39,7 +39,7 @@ impl ServerKey {
             #[cfg(feature = "shortint")]
             shortint_key: Arc::new(ShortIntServerKey::new(&keys.shortint_key)),
             #[cfg(feature = "integer")]
-            integer_key: Arc::new(keys.integer_key.as_ref().map(IntegerServerKey::new)),
+            integer_key: Arc::new(IntegerServerKey::new(&keys.integer_key)),
         }
     }
 }
@@ -64,7 +64,7 @@ struct SerializableServerKey<'a> {
     #[cfg(feature = "shortint")]
     pub(crate) shortint_key: &'a ShortIntServerKey,
     #[cfg(feature = "integer")]
-    pub(crate) integer_key: &'a Option<IntegerServerKey>,
+    pub(crate) integer_key: &'a IntegerServerKey,
 }
 
 impl serde::Serialize for ServerKey {
@@ -91,7 +91,7 @@ struct DeserializableServerKey {
     #[cfg(feature = "shortint")]
     pub(crate) shortint_key: ShortIntServerKey,
     #[cfg(feature = "integer")]
-    pub(crate) integer_key: Option<IntegerServerKey>,
+    pub(crate) integer_key: IntegerServerKey,
 }
 
 impl<'de> serde::Deserialize<'de> for ServerKey {
