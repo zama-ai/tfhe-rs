@@ -10,6 +10,10 @@ pub const fn adc(l: u64, r: u64, c: bool) -> (u64, bool) {
 pub struct U256(pub(crate) [u64; 4]);
 
 impl U256 {
+    pub const BITS: u32 = 256;
+    pub const MAX: Self = Self([u64::MAX; 4]);
+    pub const MIN: Self = Self([0; 4]);
+
     /// Replaces the current value by interpreting the bytes in big endian order
     pub fn copy_from_be_byte_slice(&mut self, bytes: &[u8]) {
         assert_eq!(bytes.len(), 32);
@@ -276,6 +280,36 @@ impl From<u128> for U256 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_add_wrap_around() {
+        assert_eq!(U256::MAX + U256::from(1u32), U256::MIN);
+    }
+
+    #[test]
+    fn test_sub_wrap_around() {
+        assert_eq!(U256::MIN - U256::from(1u32), U256::MAX);
+    }
+
+    #[test]
+    fn test_bitnot() {
+        assert_eq!(!U256::MAX, U256::MIN);
+        assert_eq!(!U256::MIN, U256::MAX);
+
+        // To prove we are testing the correct thing
+        assert_eq!(!u128::MAX, u128::MIN);
+        assert_eq!(!u128::MIN, u128::MAX);
+    }
+
+    #[test]
+    fn test_shr() {
+        assert_eq!(U256::MAX >> 128, U256::from(u128::MAX));
+
+        let input = (u64::MAX as u128) << 64;
+        let a = U256::from(input);
+
+        assert_eq!(a >> 1, U256::from(input >> 1));
+    }
 
     #[test]
     fn test_le_byte_slice() {
