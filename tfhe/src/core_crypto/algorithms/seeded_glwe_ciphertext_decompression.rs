@@ -34,6 +34,7 @@ pub fn decompress_seeded_glwe_ciphertext_with_existing_generator<
     let (mut output_mask, mut output_body) = output_glwe.get_mut_mask_and_body();
 
     let ciphertext_modulus = output_mask.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     // generate a uniformly random mask
     generator.fill_slice_with_random_uniform_custom_mod(output_mask.as_mut(), ciphertext_modulus);

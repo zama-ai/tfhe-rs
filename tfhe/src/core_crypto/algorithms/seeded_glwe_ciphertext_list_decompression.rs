@@ -32,6 +32,7 @@ pub fn decompress_seeded_glwe_ciphertext_list_with_existing_generator<
     );
 
     let ciphertext_modulus = output_list.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     for (mut glwe_out, body_in) in output_list.iter_mut().zip(input_seeded_list.iter()) {
         let (mut output_mask, mut output_body) = glwe_out.get_mut_mask_and_body();

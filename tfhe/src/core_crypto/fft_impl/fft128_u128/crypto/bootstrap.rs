@@ -187,6 +187,7 @@ where
             stack: PodStack<'_>,
         ) {
             let align = CACHELINE_ALIGN;
+            let ciphertext_modulus = accumulator.ciphertext_modulus();
 
             let (mut local_accumulator_lo, stack) =
                 stack.collect_aligned(align, accumulator.as_ref().iter().map(|i| *i as u64));
@@ -229,7 +230,7 @@ where
                 accumulator.ciphertext_modulus(),
             );
 
-            let ciphertext_modulus = local_accumulator.ciphertext_modulus();
+            assert!(ciphertext_modulus.is_compatible_with_native_modulus());
             if !ciphertext_modulus.is_native_modulus() {
                 // When we convert back from the fourier domain, integer values will contain up to
                 // about 100 MSBs with information. In our representation of power of 2

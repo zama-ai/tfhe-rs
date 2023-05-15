@@ -111,6 +111,8 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
     for (level_index, (mut level_matrix, mut generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
@@ -249,6 +251,8 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
 
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
         |(level_index, (mut level_matrix, mut generator))| {
             let decomp_level = DecompositionLevel(level_index + 1);
@@ -366,6 +370,8 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
+
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     for (level_index, (mut level_matrix, mut loop_generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
@@ -541,6 +547,8 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
     let ciphertext_modulus = output.ciphertext_modulus();
+
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
         |(level_index, (mut level_matrix, mut generator))| {
@@ -832,13 +840,13 @@ where
 
     let plaintext_ref = decrypted_plaintext_list.get(0);
 
+    let ciphertext_modulus = ggsw_ciphertext.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
     // Glwe decryption maps to a smaller torus potentially, map back to the native torus
     let rounded = decomposer.closest_representable(
-        (*plaintext_ref.0).wrapping_mul(
-            ggsw_ciphertext
-                .ciphertext_modulus()
-                .get_power_of_two_scaling_to_native_torus(),
-        ),
+        (*plaintext_ref.0)
+            .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
     );
     let decoded =
         rounded.wrapping_div(Scalar::ONE << (Scalar::BITS - (decomp_base_log.0 * decomp_level.0)));

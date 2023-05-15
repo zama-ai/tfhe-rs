@@ -270,6 +270,10 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
         accumulator.ciphertext_modulus(),
     );
 
+    assert!(accumulator
+        .ciphertext_modulus()
+        .is_compatible_with_native_modulus());
+
     let (lwe_mask, lwe_body) = input.get_mask_and_body();
 
     // No way to chunk the result of ggsw_iter at the moment

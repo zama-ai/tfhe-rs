@@ -265,6 +265,7 @@ where
 
             let lut_poly_size = lut.polynomial_size();
             let ciphertext_modulus = lut.ciphertext_modulus();
+            assert!(ciphertext_modulus.is_compatible_with_native_modulus());
             let monomial_degree = pbs_modulus_switch(
                 *lwe_body,
                 lut_poly_size,
