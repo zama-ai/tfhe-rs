@@ -89,6 +89,7 @@ __wasm_api = [
 ]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
+integer-client-js-wasm-api = ["integer", "__wasm_api"]
 
 nightly-avx512 = ["concrete-fft/nightly", "pulp/nightly"]
 

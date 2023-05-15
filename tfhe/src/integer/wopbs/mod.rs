@@ -278,9 +278,11 @@ impl WopbsKey {
 
         // Extraction of each bit for each block
         for block in ct_in.blocks().iter().rev() {
-            let delta = (1_usize << 63)
-                / (self.wopbs_key.param.message_modulus.0 * self.wopbs_key.param.carry_modulus.0);
-            let delta_log = DeltaLog(f64::log2(delta as f64) as usize);
+            let message_modulus = self.wopbs_key.param.message_modulus.0 as u64;
+            let carry_modulus = self.wopbs_key.param.carry_modulus.0 as u64;
+            let delta = (1u64 << 63) / (carry_modulus * message_modulus);
+            // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
+            let delta_log = DeltaLog(delta.ilog2() as usize);
             let nb_bit_to_extract = f64::log2((block.degree.0 + 1) as f64).ceil() as usize;
 
             let extract_from_bit = bits_extracted_so_far;
@@ -362,8 +364,10 @@ impl WopbsKey {
         let mut bits_extracted_so_far = 0;
         // Extraction of each bit for each block
         for block in ct_in.blocks().iter().rev() {
-            let delta = (1_usize << 63) / (block.message_modulus.0 * block.carry_modulus.0 / 2);
-            let delta_log = DeltaLog(f64::log2(delta as f64) as usize);
+            let block_modulus = block.message_modulus.0 as u64 * block.carry_modulus.0 as u64;
+            let delta = (1_u64 << 63) / (block_modulus / 2);
+            // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
+            let delta_log = DeltaLog(delta.ilog2() as usize);
             let nb_bit_to_extract =
                 f64::log2((block.message_modulus.0 * block.carry_modulus.0) as f64) as usize;
 

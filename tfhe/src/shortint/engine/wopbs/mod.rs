@@ -354,8 +354,11 @@ impl ShortintEngine {
         lut: &WopbsLUTBase,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let sks = &wopbs_key.wopbs_server_key;
-        let delta = (1_usize << 63) / (sks.message_modulus.0 * sks.carry_modulus.0) * 2;
-        let delta_log = DeltaLog(f64::log2(delta as f64) as usize);
+        let message_modulus = sks.message_modulus.0 as u64;
+        let carry_modulus = sks.carry_modulus.0 as u64;
+        let delta = (1u64 << 63) / (carry_modulus * message_modulus) * 2;
+        // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
+        let delta_log = DeltaLog(delta.ilog2() as usize);
 
         let nb_bit_to_extract =
             f64::log2((sks.message_modulus.0 * sks.carry_modulus.0) as f64) as usize;
@@ -473,10 +476,12 @@ impl ShortintEngine {
         lut: &WopbsLUTBase,
     ) -> EngineResult<CiphertextBase<OpOrder>> {
         let tmp_sks = &wopbs_key.wopbs_server_key;
-        let delta = (1_usize << 63) / (tmp_sks.message_modulus.0 * tmp_sks.carry_modulus.0);
-        let delta_log = DeltaLog(f64::log2(delta as f64) as usize);
-        let nb_bit_to_extract =
-            f64::log2((tmp_sks.message_modulus.0 * tmp_sks.carry_modulus.0) as f64) as usize;
+        let message_modulus = tmp_sks.message_modulus.0 as u64;
+        let carry_modulus = tmp_sks.carry_modulus.0 as u64;
+        let delta = (1u64 << 63) / (carry_modulus * message_modulus);
+        // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
+        let delta_log = DeltaLog(delta.ilog2() as usize);
+        let nb_bit_to_extract = f64::log2((message_modulus * carry_modulus) as f64) as usize;
 
         let ct_out = self.extract_bits_circuit_bootstrapping(
             wopbs_key,
