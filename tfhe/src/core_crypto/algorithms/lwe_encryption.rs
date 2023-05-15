@@ -36,6 +36,8 @@ pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
 
     let ciphertext_modulus = output_mask.ciphertext_modulus();
 
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
     generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
 
     // generate an error from the normal distribution described by std_dev
@@ -296,6 +298,7 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
     *output_body.data = encoded.0;
 
     let ciphertext_modulus = output_body.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
     if !ciphertext_modulus.is_native_modulus() {
         *output_body.data = (*output_body.data)
             .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
@@ -374,6 +377,7 @@ where
     *output_body.data = encoded.0;
 
     let ciphertext_modulus = output_body.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
     if !ciphertext_modulus.is_native_modulus() {
         *output_body.data = (*output_body.data)
             .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
@@ -408,6 +412,8 @@ where
     );
 
     let ciphertext_modulus = lwe_ciphertext.ciphertext_modulus();
+
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     let (mask, body) = lwe_ciphertext.get_mask_and_body();
 
@@ -777,6 +783,8 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
 
     let ciphertext_modulus = output.ciphertext_modulus();
 
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
     output.as_mut().fill(Scalar::ZERO);
 
     let mut tmp_zero_encryption =
@@ -911,6 +919,8 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
     generator.fill_slice_with_random_uniform_binary(&mut ct_choice);
 
     let ciphertext_modulus = output.ciphertext_modulus();
+
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     let mut tmp_zero_encryption =
         LweCiphertext::new(Scalar::ZERO, lwe_public_key.lwe_size(), ciphertext_modulus);

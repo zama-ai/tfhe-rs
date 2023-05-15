@@ -37,6 +37,8 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
 
     let ciphertext_modulus = output_body.ciphertext_modulus();
 
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
     generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
     generator.unsigned_torus_slice_wrapping_add_random_noise_custom_mod_assign(
         output_body.as_mut(),
@@ -249,6 +251,8 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
     );
 
     let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
     generator.fill_slice_with_random_noise_custom_mod(
@@ -572,6 +576,8 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
 
     let ciphertext_modulus = input_glwe_ciphertext.ciphertext_modulus();
 
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
     let (mask, body) = input_glwe_ciphertext.get_mask_and_body();
     output_plaintext_list
         .as_mut()
@@ -720,6 +726,8 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 
     let ciphertext_modulus = body.ciphertext_modulus();
 
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
     if !ciphertext_modulus.is_native_modulus() {
         slice_wrapping_scalar_mul_assign(
             body.as_mut(),
@@ -801,6 +809,8 @@ where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
 {
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+
     let polynomial_size = PolynomialSize(encoded.plaintext_count().0);
 
     let mut new_ct =

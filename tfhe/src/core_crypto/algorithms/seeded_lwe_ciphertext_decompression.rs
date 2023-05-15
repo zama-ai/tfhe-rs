@@ -26,6 +26,7 @@ pub fn decompress_seeded_lwe_ciphertext_with_existing_generator<Scalar, OutputCo
     );
 
     let ciphertext_modulus = output_lwe.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
     let (mut output_mask, output_body) = output_lwe.get_mut_mask_and_body();
 
     // generate a uniformly random mask

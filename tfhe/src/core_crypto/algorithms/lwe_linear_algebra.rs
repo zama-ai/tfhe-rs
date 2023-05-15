@@ -238,6 +238,7 @@ pub fn lwe_ciphertext_plaintext_add_assign<Scalar, InCont>(
 {
     let body = lhs.get_mut_body();
     let ciphertext_modulus = body.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
     if ciphertext_modulus.is_native_modulus() {
         *body.data = (*body.data).wrapping_add(rhs.0);
     } else {
@@ -313,6 +314,7 @@ pub fn lwe_ciphertext_plaintext_sub_assign<Scalar, InCont>(
 {
     let body = lhs.get_mut_body();
     let ciphertext_modulus = body.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
     if ciphertext_modulus.is_native_modulus() {
         *body.data = (*body.data).wrapping_sub(rhs.0);
     } else {

@@ -485,6 +485,8 @@ pub fn add_external_product_assign_mem_optimized<Scalar, OutputGlweCont, InputGl
     InputGlweCont: Container<Element = Scalar>,
 {
     assert_eq!(out.ciphertext_modulus(), glwe.ciphertext_modulus());
+    let ciphertext_modulus = out.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     impl_add_external_product_assign(
         out.as_mut_view(),
@@ -494,7 +496,6 @@ pub fn add_external_product_assign_mem_optimized<Scalar, OutputGlweCont, InputGl
         stack,
     );
 
-    let ciphertext_modulus = out.ciphertext_modulus();
     if !ciphertext_modulus.is_native_modulus() {
         // When we convert back from the fourier domain, integer values will contain up to 53
         // MSBs with information. In our representation of power of 2 moduli < native modulus we
@@ -774,6 +775,8 @@ pub fn cmux_assign_mem_optimized<Scalar, Cont0, Cont1, GgswCont>(
     GgswCont: Container<Element = c64>,
 {
     assert_eq!(ct0.ciphertext_modulus(), ct1.ciphertext_modulus());
+    let ciphertext_modulus = ct0.ciphertext_modulus();
+    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     cmux(
         ct0.as_mut_view(),
@@ -783,7 +786,6 @@ pub fn cmux_assign_mem_optimized<Scalar, Cont0, Cont1, GgswCont>(
         stack,
     );
 
-    let ciphertext_modulus = ct0.ciphertext_modulus();
     if !ciphertext_modulus.is_native_modulus() {
         // When we convert back from the fourier domain, integer values will contain up to 53
         // MSBs with information. In our representation of power of 2 moduli < native modulus we
