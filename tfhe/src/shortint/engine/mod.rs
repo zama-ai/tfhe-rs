@@ -25,7 +25,6 @@ use super::server_key::BivariateLookupTable;
 mod client_side;
 mod public_side;
 mod server_side;
-#[cfg(not(feature = "__wasm_api"))]
 mod wopbs;
 
 thread_local! {

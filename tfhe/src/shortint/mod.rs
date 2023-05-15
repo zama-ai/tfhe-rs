@@ -55,7 +55,6 @@ pub mod parameters;
 pub mod prelude;
 pub mod public_key;
 pub mod server_key;
-#[cfg(not(feature = "__wasm_api"))]
 pub mod wopbs;
 
 pub use ciphertext::{
