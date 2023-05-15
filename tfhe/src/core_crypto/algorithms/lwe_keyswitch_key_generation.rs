@@ -115,7 +115,7 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
             // of mapping that back to the native torus
             *message.0 = DecompositionTerm::new(level, decomp_base_log, *input_key_element)
                 .to_recomposition_summand()
-                .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
+                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
         }
 
         encrypt_lwe_ciphertext_list(
@@ -282,7 +282,7 @@ pub fn generate_seeded_lwe_keyswitch_key<
             // of mapping that back to the native torus
             *message.0 = DecompositionTerm::new(level, decomp_base_log, *input_key_element)
                 .to_recomposition_summand()
-                .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus());
+                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
         }
 
         encrypt_seeded_lwe_ciphertext_list_with_existing_generator(

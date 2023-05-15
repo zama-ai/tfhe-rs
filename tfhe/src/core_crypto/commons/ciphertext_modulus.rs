@@ -128,11 +128,8 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             let res = match modulus {
                 0 => CiphertextModulus::new_native(),
                 modulus => {
-                    let non_zero_modulus = match NonZeroU128::new(modulus) {
-                        Some(val) => val,
-                        None => {
+                    let Some(non_zero_modulus) = NonZeroU128::new(modulus) else {
                             panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
-                        }
                     };
                     CiphertextModulus {
                         inner: CiphertextModulusInner::Custom(non_zero_modulus),
@@ -174,10 +171,14 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         res.canonicalize()
     }
 
-    pub fn get_scaling_to_native_torus(&self) -> Scalar {
+    pub fn get_power_of_two_scaling_to_native_torus(&self) -> Scalar {
         match self.inner {
             CiphertextModulusInner::Native => Scalar::ONE,
             CiphertextModulusInner::Custom(modulus) => {
+                assert!(
+                    modulus.is_power_of_two(),
+                    "Cannot get scaling for non power of two modulus {modulus:}"
+                );
                 Scalar::ONE.wrapping_shl(Scalar::BITS as u32 - modulus.ilog2())
             }
         }

@@ -137,7 +137,7 @@ pub fn check_content_respects_mod<Scalar: UnsignedInteger, Input: AsRef<[Scalar]
     if !modulus.is_native_modulus() {
         // If our modulus is 2^60, the scaling is 2^4 = 00...00010000, minus 1 = 00...00001111
         // we want the bits under the mask to be 0
-        let power_2_diff_mask = modulus.get_scaling_to_native_torus() - Scalar::ONE;
+        let power_2_diff_mask = modulus.get_power_of_two_scaling_to_native_torus() - Scalar::ONE;
         return input
             .as_ref()
             .iter()
@@ -153,7 +153,7 @@ pub fn check_scalar_respects_mod<Scalar: UnsignedInteger>(
     modulus: CiphertextModulus<Scalar>,
 ) -> bool {
     if !modulus.is_native_modulus() {
-        let power_2_diff_mask = modulus.get_scaling_to_native_torus() - Scalar::ONE;
+        let power_2_diff_mask = modulus.get_power_of_two_scaling_to_native_torus() - Scalar::ONE;
         return (input & power_2_diff_mask) == Scalar::ZERO;
     }
 

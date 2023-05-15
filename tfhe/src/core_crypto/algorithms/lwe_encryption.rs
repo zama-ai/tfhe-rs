@@ -43,7 +43,7 @@ pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
     *output_body.data = (*output_body.data).wrapping_add(encoded.0);
 
     if !ciphertext_modulus.is_native_modulus() {
-        let torus_scaling = ciphertext_modulus.get_scaling_to_native_torus();
+        let torus_scaling = ciphertext_modulus.get_power_of_two_scaling_to_native_torus();
         slice_wrapping_scalar_mul_assign(output_mask.as_mut(), torus_scaling);
         *output_body.data = (*output_body.data).wrapping_mul(torus_scaling);
     }
@@ -297,8 +297,8 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
 
     let ciphertext_modulus = output_body.ciphertext_modulus();
     if !ciphertext_modulus.is_native_modulus() {
-        *output_body.data =
-            (*output_body.data).wrapping_mul(ciphertext_modulus.get_scaling_to_native_torus());
+        *output_body.data = (*output_body.data)
+            .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
     }
 }
 
@@ -375,8 +375,8 @@ where
 
     let ciphertext_modulus = output_body.ciphertext_modulus();
     if !ciphertext_modulus.is_native_modulus() {
-        *output_body.data =
-            (*output_body.data).wrapping_mul(ciphertext_modulus.get_scaling_to_native_torus());
+        *output_body.data = (*output_body.data)
+            .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
     }
 
     new_ct
@@ -423,7 +423,7 @@ where
                     mask.as_ref(),
                     lwe_secret_key.as_ref(),
                 ))
-                .wrapping_div(ciphertext_modulus.get_scaling_to_native_torus()),
+                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
         )
     }
 }
@@ -806,7 +806,7 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
         *body.data = (*body.data).wrapping_add(
             encoded
                 .0
-                .wrapping_mul(ciphertext_modulus.get_scaling_to_native_torus()),
+                .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
         );
     }
 }
@@ -926,7 +926,7 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
         if !ciphertext_modulus.is_native_modulus() {
             slice_wrapping_scalar_mul_assign(
                 mask.as_mut(),
-                ciphertext_modulus.get_scaling_to_native_torus(),
+                ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
             );
         }
         *body.data = *public_encryption_of_zero_body.data;
@@ -945,7 +945,7 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
         *body.data = (*body.data).wrapping_add(
             encoded
                 .0
-                .wrapping_mul(ciphertext_modulus.get_scaling_to_native_torus()),
+                .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
         );
     }
 }
