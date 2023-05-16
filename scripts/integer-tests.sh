@@ -63,13 +63,15 @@ else
 'and not test(/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]$/)'\
 'and not test(/.*test_integer_smart_mul_param_message_4_carry_4$/)'
 
+    num_cpu_threads="$(${nproc_bin})"
+    num_threads=$((num_cpu_threads * 2 / 3))
     cargo ${1:+"${1}"} nextest run \
         --tests \
         --release \
         --package tfhe \
         --profile ci \
         --features="${ARCH_FEATURE}",integer,internal-keycache \
-        --test-threads "$(${nproc_bin})" \
+        --test-threads $num_threads \
         -E "$filter_expression"
 
     cargo ${1:+"${1}"} test \
