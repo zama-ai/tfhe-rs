@@ -165,3 +165,10 @@ fn test_parallel_and_seeded_bsk_gen_equivalence_u64_custom_mod() {
         CiphertextModulus::try_new_power_of_2(63).unwrap(),
     );
 }
+
+#[test]
+fn test_parallel_and_seeded_bsk_gen_equivalence_u64_solinas_mod() {
+    test_parallel_and_seeded_bsk_gen_equivalence::<u64>(
+        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    );
+}
