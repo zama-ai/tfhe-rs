@@ -11,7 +11,7 @@ use crate::high_level_api::integers::IntegerClientKey;
 #[cfg(feature = "shortint")]
 use crate::high_level_api::shortints::ShortIntClientKey;
 
-use super::ServerKey;
+use super::{CompressedServerKey, ServerKey};
 
 /// Key of the client
 ///
@@ -44,12 +44,17 @@ impl ClientKey {
         }
     }
 
-    /// Generates a new ServerKeyChain
+    /// Generates a new ServerKey
     ///
-    /// The `ServerKeyChain` generated is meant to be used to initialize the global state
+    /// The `ServerKey` generated is meant to be used to initialize the global state
     /// using [crate::high_level_api::set_server_key].
     pub fn generate_server_key(&self) -> ServerKey {
         ServerKey::new(self)
+    }
+
+    /// Generates a new CompressedServerKey
+    pub fn generate_compressed_server_key(&self) -> CompressedServerKey {
+        CompressedServerKey::new(self)
     }
 }
 

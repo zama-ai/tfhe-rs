@@ -70,7 +70,7 @@ pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
 pub use public_key::{
     CompressedPublicKeyBig, CompressedPublicKeySmall, PublicKeyBig, PublicKeySmall,
 };
-pub use server_key::{CheckError, ServerKey};
+pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 pub use u256::U256;
 
 /// Generate a couple of client and server keys with given parameters

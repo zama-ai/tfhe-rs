@@ -92,6 +92,7 @@ impl ServerKey {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct CompressedServerKey {
     pub(crate) key: crate::shortint::CompressedServerKey,
 }

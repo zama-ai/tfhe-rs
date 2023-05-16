@@ -3,9 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::high_level_api::booleans::client_key::GenericBoolClientKey;
 use crate::high_level_api::booleans::parameters::BooleanParameterSet;
-pub use crate::high_level_api::booleans::parameters::FheBoolParameters;
+pub(crate) use crate::high_level_api::booleans::parameters::FheBoolParameters;
 use crate::high_level_api::booleans::public_key::GenericBoolPublicKey;
-use crate::high_level_api::booleans::server_key::GenericBoolServerKey;
+use crate::high_level_api::booleans::server_key::{
+    GenericBoolCompressedServerKey, GenericBoolServerKey,
+};
 use crate::high_level_api::booleans::types::CompressedBool;
 use crate::high_level_api::errors::Type;
 
@@ -57,6 +59,8 @@ pub(in crate::high_level_api::booleans) type FheBoolServerKey =
     GenericBoolServerKey<StaticBoolParameters>;
 pub(in crate::high_level_api::booleans) type FheBoolPublicKey =
     GenericBoolPublicKey<StaticBoolParameters>;
+pub(in crate::high_level_api::booleans) type FheBoolCompressedServerKey =
+    GenericBoolCompressedServerKey<StaticBoolParameters>;
 
 #[derive(Clone, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub(in crate::high_level_api::booleans) struct FheBoolCompressedPublicKey;

@@ -1,9 +1,9 @@
 #[cfg(feature = "boolean")]
-use crate::high_level_api::booleans::BooleanServerKey;
+use crate::high_level_api::booleans::{BooleanCompressedServerKey, BooleanServerKey};
 #[cfg(feature = "integer")]
-use crate::high_level_api::integers::IntegerServerKey;
+use crate::high_level_api::integers::{IntegerCompressedServerKey, IntegerServerKey};
 #[cfg(feature = "shortint")]
-use crate::high_level_api::shortints::ShortIntServerKey;
+use crate::high_level_api::shortints::{ShortIntCompressedServerKey, ShortIntServerKey};
 
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 use std::sync::Arc;
@@ -31,8 +31,7 @@ pub struct ServerKey {
 }
 
 impl ServerKey {
-    #[allow(unused_variables)]
-    pub(crate) fn new(keys: &ClientKey) -> Self {
+    pub fn new(keys: &ClientKey) -> Self {
         Self {
             #[cfg(feature = "boolean")]
             boolean_key: Arc::new(BooleanServerKey::new(&keys.boolean_key)),
@@ -107,5 +106,45 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
             #[cfg(feature = "integer")]
             integer_key: Arc::new(deserialized.integer_key),
         })
+    }
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct CompressedServerKey {
+    #[cfg(feature = "boolean")]
+    pub(crate) boolean_key: BooleanCompressedServerKey,
+    #[cfg(feature = "shortint")]
+    pub(crate) shortint_key: ShortIntCompressedServerKey,
+    #[cfg(feature = "integer")]
+    pub(crate) integer_key: IntegerCompressedServerKey,
+}
+
+impl CompressedServerKey {
+    pub fn new(keys: &ClientKey) -> Self {
+        Self {
+            #[cfg(feature = "boolean")]
+            boolean_key: BooleanCompressedServerKey::new(&keys.boolean_key),
+            #[cfg(feature = "shortint")]
+            shortint_key: ShortIntCompressedServerKey::new(&keys.shortint_key),
+            #[cfg(feature = "integer")]
+            integer_key: IntegerCompressedServerKey::new(&keys.integer_key),
+        }
+    }
+
+    pub fn decompress(self) -> ServerKey {
+        ServerKey {
+            #[cfg(feature = "boolean")]
+            boolean_key: Arc::new(self.boolean_key.decompress()),
+            #[cfg(feature = "shortint")]
+            shortint_key: Arc::new(self.shortint_key.decompress()),
+            #[cfg(feature = "integer")]
+            integer_key: Arc::new(self.integer_key.decompress()),
+        }
+    }
+}
+
+impl From<CompressedServerKey> for ServerKey {
+    fn from(value: CompressedServerKey) -> Self {
+        value.decompress()
     }
 }
