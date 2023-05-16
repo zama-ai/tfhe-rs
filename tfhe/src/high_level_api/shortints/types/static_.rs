@@ -10,8 +10,8 @@ use crate::shortint::parameters::{
 use crate::high_level_api::shortints::{CompressedGenericShortint, GenericShortInt};
 
 use super::{
-    GenericShortIntClientKey, GenericShortIntCompressedPublicKey, GenericShortIntPublicKey,
-    GenericShortIntServerKey,
+    GenericShortIntClientKey, GenericShortIntCompressedPublicKey,
+    GenericShortIntCompressedServerKey, GenericShortIntPublicKey, GenericShortIntServerKey,
 };
 
 use crate::high_level_api::shortints::parameters::{
@@ -160,6 +160,7 @@ macro_rules! static_shortint_type {
             pub(in crate::high_level_api) type [<$name PublicKey>] = GenericShortIntPublicKey<[<$name Parameters>]>;
             pub(in crate::high_level_api) type [<$name CompressedPublicKey>] = GenericShortIntCompressedPublicKey<[<$name Parameters>]>;
             pub(in crate::high_level_api) type [<$name ServerKey>] = GenericShortIntServerKey<[<$name Parameters>]>;
+            pub(in crate::high_level_api) type [<$name CompressedServerKey>] = GenericShortIntCompressedServerKey<[<$name Parameters>]>;
 
             $(#[$outer])*
             #[doc=concat!("An unsigned integer type with ", stringify!($num_bits), " bits.")]

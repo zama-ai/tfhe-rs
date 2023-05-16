@@ -5,7 +5,9 @@ pub use types::{
     FheUint32, FheUint64, FheUint8, GenericInteger,
 };
 
-pub(in crate::high_level_api) use keys::{IntegerClientKey, IntegerConfig, IntegerServerKey};
+pub(in crate::high_level_api) use keys::{
+    IntegerClientKey, IntegerCompressedServerKey, IntegerConfig, IntegerServerKey,
+};
 pub(in crate::high_level_api) use public_key::compressed::CompressedPublicKeyDyn;
 pub(in crate::high_level_api) use public_key::PublicKeyDyn;
 

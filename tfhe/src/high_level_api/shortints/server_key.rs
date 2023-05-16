@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "internal-keycache")]
 use crate::shortint::keycache::KEY_CACHE;
-use crate::shortint::ServerKey;
+use crate::shortint::{CompressedServerKey, ServerKey};
 
 use super::client_key::GenericShortIntClientKey;
 use super::parameters::ShortIntegerParameter;
@@ -434,6 +434,37 @@ where
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs_ct.id,
+        }
+    }
+}
+
+#[cfg_attr(all(doc, not(doctest)), cfg(feature = "boolean"))]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericShortIntCompressedServerKey<P>
+where
+    P: ShortIntegerParameter,
+{
+    pub(in crate::high_level_api::shortints) key: CompressedServerKey,
+    _marker: std::marker::PhantomData<P>,
+}
+
+impl<P> GenericShortIntCompressedServerKey<P>
+where
+    P: ShortIntegerParameter,
+{
+    pub(in crate::high_level_api::shortints) fn new(
+        client_key: &GenericShortIntClientKey<P>,
+    ) -> Self {
+        Self {
+            key: CompressedServerKey::new(&client_key.key),
+            _marker: Default::default(),
+        }
+    }
+
+    pub(in crate::high_level_api::shortints) fn decompress(self) -> GenericShortIntServerKey<P> {
+        GenericShortIntServerKey {
+            key: self.key.into(),
+            _marker: std::marker::PhantomData,
         }
     }
 }

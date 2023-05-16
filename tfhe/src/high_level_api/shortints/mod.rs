@@ -1,6 +1,6 @@
 pub(crate) use keys::{
-    ShortIntClientKey, ShortIntCompressedPublicKey, ShortIntConfig, ShortIntPublicKey,
-    ShortIntServerKey,
+    ShortIntClientKey, ShortIntCompressedPublicKey, ShortIntCompressedServerKey, ShortIntConfig,
+    ShortIntPublicKey, ShortIntServerKey,
 };
 pub use types::{
     CompressedFheUint2, CompressedFheUint3, CompressedFheUint4, CompressedGenericShortint,

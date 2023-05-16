@@ -9,7 +9,7 @@ use crate::high_level_api::{generate_keys, ClientKey, ConfigBuilder, PublicKey};
 use crate::high_level_api::{FheUint256, FheUint8};
 #[cfg(feature = "integer")]
 use crate::integer::U256;
-use crate::CompressedPublicKey;
+use crate::{CompressedPublicKey, CompressedServerKey};
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 use std::fmt::Debug;
 
@@ -104,6 +104,44 @@ fn test_small_uint256() {
     );
 }
 
+#[cfg(feature = "integer")]
+#[test]
+fn test_server_key_decompression() -> Result<(), Box<dyn std::error::Error>> {
+    use crate::set_server_key;
+
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+
+    let cks = ClientKey::generate(config);
+    let compressed_sks = CompressedServerKey::new(&cks);
+    let sks = compressed_sks.decompress();
+
+    set_server_key(sks);
+
+    let clear_a = 12u8;
+    let a = FheUint8::try_encrypt(clear_a, &cks)?;
+
+    let c = a + 234u8;
+    let decrypted: u8 = c.decrypt(&cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(234));
+
+    Ok(())
+}
+
+#[cfg(feature = "integer")]
+#[test]
+#[should_panic]
+fn test_compressed_server_key_creation_panic_if_function_eval() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .enable_function_evaluation_integers()
+        .build();
+
+    let cks = ClientKey::generate(config);
+    let _ = CompressedServerKey::new(&cks);
+}
+
 #[cfg(feature = "boolean")]
 #[test]
 fn test_with_context() {
@@ -133,9 +171,11 @@ fn test_serialize_deserialize_are_implemented() {
     let (cks, sks) = generate_keys(config);
     let pks = PublicKey::new(&cks);
     let cpks = CompressedPublicKey::new(&cks);
+    let csks = CompressedServerKey::new(&cks);
 
     can_be_deserialized(&cks);
     can_be_deserialized(&sks);
     can_be_deserialized(&pks);
     can_be_deserialized(&cpks);
+    can_be_deserialized(&csks);
 }

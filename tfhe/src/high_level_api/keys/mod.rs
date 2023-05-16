@@ -9,7 +9,7 @@ pub use client::{ClientKey, RefKeyFromKeyChain};
 pub use public::{
     CompressedPublicKey, PublicKey, RefKeyFromCompressedPublicKeyChain, RefKeyFromPublicKeyChain,
 };
-pub use server::ServerKey;
+pub use server::{CompressedServerKey, ServerKey};
 
 /// Generates keys using the provided config.
 ///

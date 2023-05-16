@@ -16,7 +16,8 @@ macro_rules! define_key_structs {
                     [<$base_ty_name ClientKey>],
                     [<$base_ty_name PublicKey>],
                     [<$base_ty_name CompressedPublicKey>],
-                    [<$base_ty_name ServerKey>]
+                    [<$base_ty_name ServerKey>],
+                    [<$base_ty_name CompressedServerKey>],
                 };
             )*
 
@@ -145,6 +146,45 @@ macro_rules! define_key_structs {
                     }
                 }
             }
+
+            /////////////////////////
+            // Compressed Server Key
+            /////////////////////////
+            #[derive(Clone, ::serde::Deserialize, ::serde::Serialize)]
+            pub(crate) struct [<$base_struct_name CompressedServerKey>] {
+                $(
+                    pub(super) [<$name _key>]: Option<[<$base_ty_name CompressedServerKey>]>,
+                )*
+            }
+
+            impl [<$base_struct_name CompressedServerKey>] {
+                pub(crate) fn new(client_key: &[<$base_struct_name ClientKey>]) -> Self {
+                    Self {
+                        $(
+                            [<$name _key>]: client_key.[<$name _key>].as_ref().map(<[<$base_ty_name CompressedServerKey>]>::new),
+                        )*
+                    }
+                }
+
+                pub(crate) fn decompress(self) -> [<$base_struct_name ServerKey>] {
+                    [<$base_struct_name ServerKey>] {
+                        $(
+                            [<$name _key>]: self.[<$name _key>].map(|compressed_key| compressed_key.decompress()),
+                        )*
+                    }
+                }
+            }
+
+            impl Default for [<$base_struct_name CompressedServerKey>] {
+                fn default() -> Self {
+                    Self {
+                        $(
+                            [<$name _key>]: None,
+                        )*
+                    }
+                }
+            }
+
         }
     }
 }

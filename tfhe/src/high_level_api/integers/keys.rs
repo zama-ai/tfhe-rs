@@ -131,3 +131,43 @@ impl IntegerServerKey {
             .expect("Integer ServerKey is not initialized")
     }
 }
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct IntegerCompressedServerKey {
+    pub(crate) key: Option<crate::integer::CompressedServerKey>,
+    pub(crate) encryption_type: crate::shortint::EncryptionKeyChoice,
+}
+
+impl IntegerCompressedServerKey {
+    pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
+        let Some(integer_key) = &client_key.key else {
+            return Self {
+                key: None,
+                encryption_type: EncryptionKeyChoice::Big,
+            };
+        };
+        if client_key.wopbs_block_parameters.is_some() {
+            panic!(
+                "The configuration used to create the ClientKey \
+                   had function evaluation on integers enabled.
+                   This feature requires an additional that is not
+                   compressible. Thus, It is not possible
+                   to create a CompressedServerKey.
+                   "
+            );
+        }
+        let key = crate::integer::CompressedServerKey::new(integer_key);
+        Self {
+            key: Some(key),
+            encryption_type: client_key.encryption_type(),
+        }
+    }
+
+    pub(in crate::high_level_api) fn decompress(self) -> IntegerServerKey {
+        IntegerServerKey {
+            key: self.key.map(crate::integer::ServerKey::from),
+            wopbs_key: None,
+            encryption_type: self.encryption_type,
+        }
+    }
+}

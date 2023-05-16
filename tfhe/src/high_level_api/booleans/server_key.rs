@@ -1,7 +1,7 @@
 use super::client_key::GenericBoolClientKey;
 use super::parameters::BooleanParameterSet;
 use super::types::GenericBool;
-use crate::boolean::server_key::{BinaryBooleanGates, ServerKey};
+use crate::boolean::server_key::{BinaryBooleanGates, CompressedServerKey, ServerKey};
 
 #[cfg_attr(all(doc, not(doctest)), cfg(feature = "boolean"))]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -87,5 +87,34 @@ where
             &else_result.ciphertext,
         );
         GenericBool::<P>::new(ciphertext, condition.id)
+    }
+}
+
+#[cfg_attr(all(doc, not(doctest)), cfg(feature = "boolean"))]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericBoolCompressedServerKey<P>
+where
+    P: BooleanParameterSet,
+{
+    pub(in crate::high_level_api::booleans) key: CompressedServerKey,
+    _marker: std::marker::PhantomData<P>,
+}
+
+impl<P> GenericBoolCompressedServerKey<P>
+where
+    P: BooleanParameterSet,
+{
+    pub(in crate::high_level_api::booleans) fn new(client_key: &GenericBoolClientKey<P>) -> Self {
+        Self {
+            key: CompressedServerKey::new(&client_key.key),
+            _marker: Default::default(),
+        }
+    }
+
+    pub(in crate::high_level_api::booleans) fn decompress(self) -> GenericBoolServerKey<P> {
+        GenericBoolServerKey {
+            key: self.key.into(),
+            _marker: std::marker::PhantomData,
+        }
     }
 }
