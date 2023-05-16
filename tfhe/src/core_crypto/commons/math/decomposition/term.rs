@@ -2,6 +2,7 @@ use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
 use crate::core_crypto::commons::parameters::DecompositionBaseLog;
+use crate::core_crypto::commons::traits::CastInto;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -150,12 +151,14 @@ where
     pub fn to_recomposition_summand(&self) -> T {
         // Floored approach
         // * floor(q / B^j)
-        let base_to_the_level = 1 << (self.base_log * self.level);
-        let digit_radix = self.ciphertext_modulus.get_custom_modulus() / base_to_the_level;
+        let base_to_the_level = T::ONE << (self.base_log * self.level);
+        let digit_radix =
+            T::cast_from(self.ciphertext_modulus.get_custom_modulus()) / base_to_the_level;
 
-        let value_u128: u128 = self.value.cast_into();
-        let summand_u128 = value_u128 * digit_radix;
-        T::cast_from(summand_u128)
+        self.value.wrapping_mul_custom_mod(
+            digit_radix,
+            self.ciphertext_modulus.get_custom_modulus().cast_into(),
+        )
     }
 
     /// Return the value of the term.

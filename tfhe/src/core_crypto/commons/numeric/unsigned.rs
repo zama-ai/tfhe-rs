@@ -66,6 +66,9 @@ pub trait UnsignedInteger:
     /// Compute a negation, modulo the max of the type.
     #[must_use]
     fn wrapping_neg(self) -> Self;
+    /// Compute a negation, modulo the max of the type.
+    #[must_use]
+    fn wrapping_neg_custom_mod(self, custom_modulus: Self) -> Self;
     /// Compute an exponentiation, modulo the max of the type.
     #[must_use]
     fn wrapping_pow(self, exp: u32) -> Self;
@@ -166,6 +169,12 @@ macro_rules! implement {
             #[inline]
             fn wrapping_neg(self) -> Self {
                 self.wrapping_neg()
+            }
+            #[inline]
+            fn wrapping_neg_custom_mod(self, custom_modulus: Self) -> Self {
+                custom_modulus
+                    .wrapping_sub_custom_mod(self, custom_modulus)
+                    .wrapping_rem(custom_modulus)
             }
             #[inline]
             fn wrapping_shl(self, rhs: u32) -> Self {
