@@ -5,6 +5,7 @@ use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::{
     slice_wrapping_scalar_div_assign, slice_wrapping_scalar_mul_assign,
 };
+use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
@@ -15,6 +16,46 @@ use crate::core_crypto::entities::*;
 /// Convenience function to share the core logic of the GLWE assign encryption between all functions
 /// needing it.
 pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont, Scalar, Gen>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        fill_glwe_mask_and_body_for_encryption_assign_native_mod_compatible(
+            glwe_secret_key,
+            output_mask,
+            output_body,
+            noise_parameters,
+            generator,
+        )
+    } else {
+        fill_glwe_mask_and_body_for_encryption_assign_non_native_mod(
+            glwe_secret_key,
+            output_mask,
+            output_body,
+            noise_parameters,
+            generator,
+        )
+    }
+}
+
+pub fn fill_glwe_mask_and_body_for_encryption_assign_native_mod_compatible<
+    KeyCont,
+    BodyCont,
+    MaskCont,
+    Scalar,
+    Gen,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     output_mask: &mut GlweMask<MaskCont>,
     output_body: &mut GlweBody<BodyCont>,
@@ -46,7 +87,8 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
         ciphertext_modulus,
     );
 
-    if !ciphertext_modulus.is_native_modulus() {
+    // Manage the non native power of 2 encoding
+    if ciphertext_modulus.kind() == CiphertextModulusKind::NonNativePowerOfTwo {
         let torus_scaling = ciphertext_modulus.get_power_of_two_scaling_to_native_torus();
         slice_wrapping_scalar_mul_assign(output_mask.as_mut(), torus_scaling);
         slice_wrapping_scalar_mul_assign(output_body.as_mut(), torus_scaling);
@@ -56,6 +98,52 @@ pub fn fill_glwe_mask_and_body_for_encryption_assign<KeyCont, BodyCont, MaskCont
         &mut output_body.as_mut_polynomial(),
         &output_mask.as_polynomial_list(),
         &glwe_secret_key.as_polynomial_list(),
+    );
+}
+
+pub fn fill_glwe_mask_and_body_for_encryption_assign_non_native_mod<
+    KeyCont,
+    BodyCont,
+    MaskCont,
+    Scalar,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert_eq!(
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus(),
+        "Mismatched moduli between output_mask ({:?}) and output_body ({:?})",
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus()
+    );
+
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator.unsigned_torus_slice_wrapping_add_random_noise_custom_mod_assign(
+        output_body.as_mut(),
+        noise_parameters,
+        ciphertext_modulus,
+    );
+
+    polynomial_wrapping_add_multisum_assign_custom_mod(
+        &mut output_body.as_mut_polynomial(),
+        &output_mask.as_polynomial_list(),
+        &glwe_secret_key.as_polynomial_list(),
+        ciphertext_modulus.get_custom_modulus().cast_into(),
     );
 }
 
@@ -245,6 +333,51 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
     MaskCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        fill_glwe_mask_and_body_for_encryption_native_mod_compatible(
+            glwe_secret_key,
+            output_mask,
+            output_body,
+            encoded,
+            noise_parameters,
+            generator,
+        )
+    } else {
+        fill_glwe_mask_and_body_for_encryption_non_ative_mod(
+            glwe_secret_key,
+            output_mask,
+            output_body,
+            encoded,
+            noise_parameters,
+            generator,
+        )
+    }
+}
+
+pub fn fill_glwe_mask_and_body_for_encryption_native_mod_compatible<
+    KeyCont,
+    InputCont,
+    BodyCont,
+    MaskCont,
+    Scalar,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    encoded: &PlaintextList<InputCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
     assert_eq!(
         output_mask.ciphertext_modulus(),
         output_body.ciphertext_modulus()
@@ -266,7 +399,8 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
         &encoded.as_polynomial(),
     );
 
-    if !ciphertext_modulus.is_native_modulus() {
+    // Manage the non native power of 2 encoding
+    if ciphertext_modulus.kind() == CiphertextModulusKind::NonNativePowerOfTwo {
         let torus_scaling = ciphertext_modulus.get_power_of_two_scaling_to_native_torus();
         slice_wrapping_scalar_mul_assign(output_mask.as_mut(), torus_scaling);
         slice_wrapping_scalar_mul_assign(output_body.as_mut(), torus_scaling);
@@ -276,6 +410,60 @@ pub fn fill_glwe_mask_and_body_for_encryption<KeyCont, InputCont, BodyCont, Mask
         &mut output_body.as_mut_polynomial(),
         &output_mask.as_polynomial_list(),
         &glwe_secret_key.as_polynomial_list(),
+    );
+}
+
+pub fn fill_glwe_mask_and_body_for_encryption_non_ative_mod<
+    KeyCont,
+    InputCont,
+    BodyCont,
+    MaskCont,
+    Scalar,
+    Gen,
+>(
+    glwe_secret_key: &GlweSecretKey<KeyCont>,
+    output_mask: &mut GlweMask<MaskCont>,
+    output_body: &mut GlweBody<BodyCont>,
+    encoded: &PlaintextList<InputCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    BodyCont: ContainerMut<Element = Scalar>,
+    MaskCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert_eq!(
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus()
+    );
+
+    let ciphertext_modulus = output_body.ciphertext_modulus();
+
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator.fill_slice_with_random_noise_custom_mod(
+        output_body.as_mut(),
+        noise_parameters,
+        ciphertext_modulus,
+    );
+
+    let ciphertext_modulus = ciphertext_modulus.get_custom_modulus().cast_into();
+
+    polynomial_wrapping_add_assign_custom_mod(
+        &mut output_body.as_mut_polynomial(),
+        &encoded.as_polynomial(),
+        ciphertext_modulus,
+    );
+
+    polynomial_wrapping_add_multisum_assign_custom_mod(
+        &mut output_body.as_mut_polynomial(),
+        &output_mask.as_polynomial_list(),
+        &glwe_secret_key.as_polynomial_list(),
+        ciphertext_modulus,
     );
 }
 
@@ -576,19 +764,31 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
 
     let ciphertext_modulus = input_glwe_ciphertext.ciphertext_modulus();
 
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
     let (mask, body) = input_glwe_ciphertext.get_mask_and_body();
     output_plaintext_list
         .as_mut()
         .copy_from_slice(body.as_ref());
-    polynomial_wrapping_sub_multisum_assign(
-        &mut output_plaintext_list.as_mut_polynomial(),
-        &mask.as_polynomial_list(),
-        &glwe_secret_key.as_polynomial_list(),
-    );
 
-    if !ciphertext_modulus.is_native_modulus() {
+    let ciphertext_modulus_kind = ciphertext_modulus.kind();
+
+    match ciphertext_modulus_kind {
+        CiphertextModulusKind::NonNative => polynomial_wrapping_sub_multisum_assign_custom_mod(
+            &mut output_plaintext_list.as_mut_polynomial(),
+            &mask.as_polynomial_list(),
+            &glwe_secret_key.as_polynomial_list(),
+            ciphertext_modulus.get_custom_modulus().cast_into(),
+        ),
+        CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo => {
+            polynomial_wrapping_sub_multisum_assign(
+                &mut output_plaintext_list.as_mut_polynomial(),
+                &mask.as_polynomial_list(),
+                &glwe_secret_key.as_polynomial_list(),
+            )
+        }
+    }
+
+    // Manage the non native power of 2 encoding
+    if ciphertext_modulus.kind() == CiphertextModulusKind::NonNativePowerOfTwo {
         slice_wrapping_scalar_div_assign(
             output_plaintext_list.as_mut(),
             ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
@@ -726,9 +926,8 @@ pub fn trivially_encrypt_glwe_ciphertext<Scalar, InputCont, OutputCont>(
 
     let ciphertext_modulus = body.ciphertext_modulus();
 
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
-    if !ciphertext_modulus.is_native_modulus() {
+    // Manage the non native power of 2 encoding
+    if ciphertext_modulus.kind() == CiphertextModulusKind::NonNativePowerOfTwo {
         slice_wrapping_scalar_mul_assign(
             body.as_mut(),
             ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
@@ -809,8 +1008,6 @@ where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
 {
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
     let polynomial_size = PolynomialSize(encoded.plaintext_count().0);
 
     let mut new_ct =
@@ -819,7 +1016,8 @@ where
     let mut body = new_ct.get_mut_body();
     body.as_mut().copy_from_slice(encoded.as_ref());
 
-    if !ciphertext_modulus.is_native_modulus() {
+    // Manage the non native power of 2 encoding
+    if ciphertext_modulus.kind() == CiphertextModulusKind::NonNativePowerOfTwo {
         slice_wrapping_scalar_mul_assign(
             body.as_mut(),
             ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),

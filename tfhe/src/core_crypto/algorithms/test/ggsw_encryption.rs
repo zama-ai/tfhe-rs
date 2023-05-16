@@ -170,6 +170,13 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence_u64_custom_mod() {
     );
 }
 
+#[test]
+fn test_parallel_and_seeded_ggsw_encryption_equivalence_u64_solinas_mod() {
+    test_parallel_and_seeded_ggsw_encryption_equivalence::<u64>(
+        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    );
+}
+
 fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
@@ -223,7 +230,18 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Sca
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
-            assert!(decoded.0 == msg);
+            if ciphertext_modulus.is_compatible_with_native_modulus() {
+                assert_eq!(decoded.0, msg);
+            } else {
+                // For prime Q as the decomposer used to encode the constant has at most 1 bit of
+                // error we check that the abs diff is <= 1
+                let abs_diff = if msg >= decoded.0 {
+                    msg - decoded.0
+                } else {
+                    decoded.0 - msg
+                };
+                assert!(abs_diff <= Scalar::ONE)
+            }
         }
     }
 }
@@ -285,7 +303,18 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
-            assert!(decoded.0 == msg);
+            if ciphertext_modulus.is_compatible_with_native_modulus() {
+                assert_eq!(decoded.0, msg);
+            } else {
+                // For prime Q as the decomposer used to encode the constant has at most 1 bit of
+                // error we check the abs diff is <= 1
+                let abs_diff = if msg >= decoded.0 {
+                    msg - decoded.0
+                } else {
+                    decoded.0 - msg
+                };
+                assert!(abs_diff <= Scalar::ONE)
+            }
         }
     }
 }
@@ -348,7 +377,18 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPar
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
-            assert!(decoded.0 == msg);
+            if ciphertext_modulus.is_compatible_with_native_modulus() {
+                assert_eq!(decoded.0, msg);
+            } else {
+                // For prime Q as the decomposer used to encode the constant has at most 1 bit of
+                // error we check the abs diff is <= 1
+                let abs_diff = if msg >= decoded.0 {
+                    msg - decoded.0
+                } else {
+                    decoded.0 - msg
+                };
+                assert!(abs_diff <= Scalar::ONE)
+            }
         }
     }
 }
@@ -413,7 +453,18 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
-            assert!(decoded.0 == msg);
+            if ciphertext_modulus.is_compatible_with_native_modulus() {
+                assert_eq!(decoded.0, msg);
+            } else {
+                // For prime Q as the decomposer used to encode the constant has at most 1 bit of
+                // error we check the abs diff is <= 1
+                let abs_diff = if msg >= decoded.0 {
+                    msg - decoded.0
+                } else {
+                    decoded.0 - msg
+                };
+                assert!(abs_diff <= Scalar::ONE)
+            }
         }
     }
 }
