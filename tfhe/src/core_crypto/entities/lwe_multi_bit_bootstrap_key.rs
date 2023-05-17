@@ -147,9 +147,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMultiBitBootstr
             grouping_factor,
         };
         assert!(
-            bsk.ggsw_ciphertext_count().0 % grouping_factor.0 == 0,
-            "Number of GGSW ({}) in the bootstrap key needs to be a multiple of {}",
-            bsk.ggsw_ciphertext_count().0,
+            bsk.input_lwe_dimension().0 % grouping_factor.0 == 0,
+            "Input LWE dimension ({}) of the bootstrap key needs to be a multiple of {}",
+            bsk.input_lwe_dimension().0,
             grouping_factor.0,
         );
         bsk
