@@ -64,3 +64,45 @@ pub fn generate_binary_lwe_secret_key<Scalar, InCont, Gen>(
 {
     generator.fill_slice_with_random_uniform_binary(lwe_secret_key.as_mut())
 }
+
+pub fn allocate_and_generate_new_binary_shared_lwe_secret_key<Scalar, Gen>(
+    lwe_dimension_large: LweDimension,
+    lwe_dimension_small: LweDimension,
+    generator: &mut SecretRandomGenerator<Gen>,
+) -> (LweSecretKeyOwned<Scalar>, LweSecretKeyOwned<Scalar>)
+where
+    Scalar: RandomGenerable<UniformBinary> + Numeric,
+    Gen: ByteRandomGenerator,
+{
+    let mut large_lwe_secret_key =
+        LweSecretKeyOwned::new_empty_key(Scalar::ZERO, lwe_dimension_large);
+
+    generate_binary_lwe_secret_key(&mut large_lwe_secret_key, generator);
+
+    let mut small_lwe_secret_key = LweSecretKey::new_empty_key(Scalar::ZERO, lwe_dimension_small);
+    small_lwe_secret_key
+        .as_mut()
+        .iter_mut()
+        .zip(large_lwe_secret_key.as_ref().iter())
+        .for_each(|(dst, &src)| *dst = src);
+    (large_lwe_secret_key, small_lwe_secret_key)
+}
+
+pub fn allocate_and_generate_new_shared_lwe_secret_key_from_lwe_secret_key<Scalar, InCont>(
+    in_large_lwe_key: &LweSecretKey<InCont>,
+    shared_lwe_dimension: SharedLweSecretKeyCommonCoefCount,
+) -> LweSecretKeyOwned<Scalar>
+where
+    Scalar: RandomGenerable<UniformBinary> + Numeric,
+    InCont: Container<Element = Scalar>,
+{
+    assert!(
+        shared_lwe_dimension.0 <= in_large_lwe_key.lwe_dimension().0,
+        "shared_lwe_dimension ({shared_lwe_dimension:?}) \
+        must be smaller than the total in_large_lwe_key length ({:?}).",
+        in_large_lwe_key.lwe_dimension()
+    );
+
+    let lwe_dimension_small = LweDimension(shared_lwe_dimension.0);
+    LweSecretKey::from_container(in_large_lwe_key.as_ref()[..lwe_dimension_small.0].to_vec())
+}

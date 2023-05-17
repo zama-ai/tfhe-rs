@@ -144,7 +144,7 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U128: TestParams<u128> = TestParams {
     pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(4),
+    message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
@@ -163,7 +163,7 @@ pub const TEST_PARAMS_3_BITS_127_U128: TestParams<u128> = TestParams {
     pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(3),
+    message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 127),
 };
 

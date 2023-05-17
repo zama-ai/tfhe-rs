@@ -185,6 +185,23 @@ rustdoc-args = ["--html-in-header", "katex-header.html"]
 # Benches #
 #         #
 ###########
+[[bench]]
+name = "ccs-2024-fft-shrinking-ks"
+path = "benches/core_crypto/ccs_2024_fft_shrinking_ks.rs"
+harness = false
+required-features = ["internal-keycache"]
+
+[[bench]]
+name = "ccs-2024-cjp"
+path = "benches/core_crypto/ccs_2024_cjp.rs"
+harness = false
+required-features = ["internal-keycache"]
+
+[[bench]]
+name = "ccs-2024-stair-ks"
+path = "benches/core_crypto/ccs_2024_stair_ks.rs"
+harness = false
+required-features = ["internal-keycache"]
 
 [[bench]]
 name = "pbs-bench"

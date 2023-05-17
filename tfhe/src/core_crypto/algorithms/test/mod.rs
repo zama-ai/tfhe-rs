@@ -9,6 +9,7 @@ mod glwe_sample_extraction;
 mod lwe_bootstrap_key_generation;
 mod lwe_compact_public_key_generation;
 mod lwe_encryption;
+mod lwe_fast_keyswitch;
 mod lwe_keyswitch;
 mod lwe_keyswitch_key_generation;
 mod lwe_linear_algebra;
@@ -17,7 +18,8 @@ mod lwe_multi_bit_programmable_bootstrapping;
 mod lwe_packing_keyswitch;
 mod lwe_packing_keyswitch_key_generation;
 mod lwe_private_functional_packing_keyswitch;
-mod lwe_programmable_bootstrapping;
+pub(crate) mod lwe_programmable_bootstrapping;
+mod lwe_stair_keyswitch;
 mod noise_distribution;
 
 pub struct TestResources {
@@ -25,6 +27,9 @@ pub struct TestResources {
     pub encryption_random_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
     pub secret_random_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
 }
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MessageModulusLog(pub usize);
 
 impl TestResources {
     pub fn new() -> Self {
@@ -56,7 +61,7 @@ pub struct TestParams<Scalar: UnsignedTorus> {
     pub pfks_modular_std_dev: StandardDev,
     pub cbs_level: DecompositionLevelCount,
     pub cbs_base_log: DecompositionBaseLog,
-    pub message_modulus_log: CiphertextModulusLog,
+    pub message_modulus_log: MessageModulusLog,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
@@ -76,7 +81,7 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U64: TestParams<u64> = TestParams {
     pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(4),
+    message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
@@ -95,7 +100,7 @@ pub const TEST_PARAMS_3_BITS_63_U64: TestParams<u64> = TestParams {
     pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(3),
+    message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
 };
 
@@ -114,7 +119,7 @@ pub const DUMMY_NATIVE_U32: TestParams<u32> = TestParams {
     pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(4),
+    message_modulus_log: MessageModulusLog(4),
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
@@ -133,7 +138,7 @@ pub const DUMMY_31_U32: TestParams<u32> = TestParams {
     pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(3),
+    message_modulus_log: MessageModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 31),
 };
 
