@@ -31,6 +31,7 @@ mod global_state;
 mod keys;
 mod config;
 mod internal_traits;
+mod ops;
 mod traits;
 
 #[cfg(feature = "boolean")]

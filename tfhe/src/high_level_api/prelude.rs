@@ -10,3 +10,5 @@ pub use crate::high_level_api::traits::{
     FheDecrypt, FheEncrypt, FheEq, FheNumberConstant, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
     FheTryTrivialEncrypt,
 };
+
+pub use crate::high_level_api::ops::*;

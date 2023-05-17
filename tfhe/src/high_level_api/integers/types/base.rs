@@ -4,21 +4,15 @@ use std::ops::{
     Neg, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
+use crate::high_level_api::ops::*;
+
 use crate::errors::{
     UninitializedClientKey, UninitializedCompressedPublicKey, UninitializedPublicKey,
     UnwrapResultExt,
 };
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::integers::parameters::IntegerParameter;
-use crate::high_level_api::integers::server_key::{
-    RadixCiphertextDyn, ServerKeyDefaultAdd, ServerKeyDefaultAddAssign, ServerKeyDefaultBitAnd,
-    ServerKeyDefaultBitAndAssign, ServerKeyDefaultBitOr, ServerKeyDefaultBitOrAssign,
-    ServerKeyDefaultBitXor, ServerKeyDefaultBitXorAssign, ServerKeyDefaultEq, ServerKeyDefaultGe,
-    ServerKeyDefaultGt, ServerKeyDefaultLe, ServerKeyDefaultLt, ServerKeyDefaultMax,
-    ServerKeyDefaultMin, ServerKeyDefaultMul, ServerKeyDefaultMulAssign, ServerKeyDefaultNeg,
-    ServerKeyDefaultShl, ServerKeyDefaultShlAssign, ServerKeyDefaultShr, ServerKeyDefaultShrAssign,
-    ServerKeyDefaultSub, ServerKeyDefaultSubAssign,
-};
+use crate::high_level_api::integers::server_key::*;
 use crate::high_level_api::integers::IntegerServerKey;
 use crate::high_level_api::internal_traits::{DecryptionKey, TypeIdentifier};
 use crate::high_level_api::keys::{CompressedPublicKey, RefKeyFromKeyChain};
@@ -453,7 +447,6 @@ where
         >,
 {
     fn map<F: Fn(u64) -> u64>(&self, func: F) -> Self {
-        use crate::high_level_api::integers::server_key::WopbsEvaluationKey;
         self.id.with_unwrapped_global(|integer_key| {
             let res = integer_key
                 .wopbs_key
@@ -484,7 +477,6 @@ where
     where
         F: Fn(u64, u64) -> u64,
     {
-        use crate::high_level_api::integers::server_key::WopbsEvaluationKey;
         self.id.with_unwrapped_global(|integer_key| {
             let lhs = &self.ciphertext;
             let rhs = &other.ciphertext;
@@ -495,6 +487,155 @@ where
                 .apply_bivariate_wopbs(integer_key.pbs_key(), lhs, rhs, func);
             GenericInteger::<P>::new(res, self.id)
         })
+    }
+}
+
+macro_rules! generic_integer_impl_smart_operation {
+    (
+        $ops_trait_name:ident($ops_trait_method:ident) =>
+            $server_key_trait_name:ident($server_key_trait_method:ident)) => {
+        impl<P> $ops_trait_name<Self> for GenericInteger<P>
+        where
+            P: IntegerParameter,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+        {
+            type Output = Self;
+
+            fn $ops_trait_method(&mut self, rhs: &mut Self) -> Self::Output {
+                let ciphertext = self.id.with_unwrapped_global(|integer_key| {
+                    <crate::integer::ServerKey as $server_key_trait_name<_, _>>::$server_key_trait_method(
+                        integer_key.pbs_key(),
+                        &mut self.ciphertext,
+                        &mut rhs.ciphertext,
+                    )
+                });
+                Self::new(ciphertext, self.id)
+            }
+        }
+    };
+}
+
+macro_rules! generic_integer_impl_smart_operation_assign {
+    (
+        $ops_trait_name:ident($ops_trait_method:ident) =>
+            $server_key_trait_name:ident($server_key_trait_method:ident)) => {
+        impl<P> $ops_trait_name<Self> for GenericInteger<P>
+        where
+            P: IntegerParameter,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+        {
+            fn $ops_trait_method(&mut self, rhs: &mut Self) {
+                self.id.with_unwrapped_global(|integer_key| {
+                    <crate::integer::ServerKey as $server_key_trait_name<_, _>>::$server_key_trait_method(
+                        integer_key.pbs_key(),
+                        &mut self.ciphertext,
+                        &mut rhs.ciphertext,
+                    );
+                });
+            }
+        }
+    };
+}
+
+macro_rules! generic_integer_impl_smart_scalar_operation {
+    (
+        $ops_trait_name:ident($ops_trait_method:ident) =>
+            $server_key_trait_name:ident($server_key_trait_method:ident($($scalar_type:ty),*))) => {
+        $(
+            impl<P> $ops_trait_name<$scalar_type> for GenericInteger<P>
+            where
+            P: IntegerParameter,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+            {
+                type Output = Self;
+
+                fn $ops_trait_method(&mut self, rhs: $scalar_type) -> Self::Output {
+                    let ciphertext = self.id.with_unwrapped_global(|integer_key| {
+                        <crate::integer::ServerKey as $server_key_trait_name<_, _>>::$server_key_trait_method(
+                            integer_key.pbs_key(),
+                            &mut self.ciphertext,
+                            u64::from(rhs),
+                        )
+                    });
+                    Self::new(ciphertext, self.id)
+                }
+            }
+         )*
+    }
+}
+
+macro_rules! generic_integer_impl_smart_scalar_operation_assign {
+    (
+        $ops_trait_name:ident($ops_trait_method:ident) =>
+            $server_key_trait_name:ident($server_key_trait_method:ident($($scalar_type:ty),*))) => {
+        $(
+            impl<P> $ops_trait_name<$scalar_type> for GenericInteger<P>
+            where
+            P: IntegerParameter,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+            {
+                fn $ops_trait_method(&mut self, rhs: $scalar_type) {
+                    self.id.with_unwrapped_global(|integer_key| {
+                        <crate::integer::ServerKey as $server_key_trait_name<_, _>>::$server_key_trait_method(
+                            integer_key.pbs_key(),
+                            &mut self.ciphertext,
+                            u64::from(rhs),
+                        );
+                    });
+                }
+            }
+         )*
+    }
+}
+
+generic_integer_impl_smart_operation!(SmartAdd(smart_add) => ServerKeySmartAdd(smart_add));
+generic_integer_impl_smart_operation!(SmartSub(smart_sub) => ServerKeySmartSub(smart_sub));
+generic_integer_impl_smart_operation!(SmartMul(smart_mul) => ServerKeySmartMul(smart_mul));
+generic_integer_impl_smart_operation!(SmartBitAnd(smart_bitand) => ServerKeySmartBitAnd(smart_bitand));
+generic_integer_impl_smart_operation!(SmartBitOr(smart_bitor) => ServerKeySmartBitOr(smart_bitor));
+generic_integer_impl_smart_operation!(SmartBitXor(smart_bitxor) => ServerKeySmartBitXor(smart_bitxor));
+generic_integer_impl_smart_operation!(SmartEq(smart_eq) => ServerKeySmartEq(smart_eq));
+generic_integer_impl_smart_operation!(SmartGe(smart_ge) => ServerKeySmartGe(smart_ge));
+generic_integer_impl_smart_operation!(SmartGt(smart_gt) => ServerKeySmartGt(smart_gt));
+generic_integer_impl_smart_operation!(SmartLe(smart_le) => ServerKeySmartLe(smart_le));
+generic_integer_impl_smart_operation!(SmartLt(smart_lt) => ServerKeySmartLt(smart_lt));
+generic_integer_impl_smart_operation!(SmartMax(smart_max) => ServerKeySmartMax(smart_max));
+generic_integer_impl_smart_operation!(SmartMin(smart_min) => ServerKeySmartMin(smart_min));
+
+generic_integer_impl_smart_operation_assign!(SmartAddAssign(smart_add_assign) => ServerKeySmartAddAssign(smart_add_assign));
+generic_integer_impl_smart_operation_assign!(SmartSubAssign(smart_sub_assign) => ServerKeySmartSubAssign(smart_sub_assign));
+generic_integer_impl_smart_operation_assign!(SmartMulAssign(smart_mul_assign) => ServerKeySmartMulAssign(smart_mul_assign));
+generic_integer_impl_smart_operation_assign!(SmartBitAndAssign(smart_bitand_assign) => ServerKeySmartBitAndAssign(smart_bitand_assign));
+generic_integer_impl_smart_operation_assign!(SmartBitOrAssign(smart_bitor_assign) => ServerKeySmartBitOrAssign(smart_bitor_assign));
+generic_integer_impl_smart_operation_assign!(SmartBitXorAssign(smart_bitxor_assign) => ServerKeySmartBitXorAssign(smart_bitxor_assign));
+
+generic_integer_impl_smart_scalar_operation!(SmartScalarAdd(smart_scalar_add) => ServerKeySmartScalarAdd(smart_scalar_add(u8, u16, u32, u64)));
+generic_integer_impl_smart_scalar_operation!(SmartScalarSub(smart_scalar_sub) => ServerKeySmartScalarSub(smart_scalar_sub(u8, u16, u32, u64)));
+generic_integer_impl_smart_scalar_operation!(SmartScalarMul(smart_scalar_mul) => ServerKeySmartScalarMul(smart_scalar_mul(u8, u16, u32, u64)));
+generic_integer_impl_smart_scalar_operation!(SmartScalarShl(smart_scalar_shl) => ServerKeySmartScalarShl(smart_scalar_shl(u8, u16, u32, u64)));
+generic_integer_impl_smart_scalar_operation!(SmartScalarShr(smart_scalar_shr) => ServerKeySmartScalarShr(smart_scalar_shr(u8, u16, u32, u64)));
+
+generic_integer_impl_smart_scalar_operation_assign!(SmartScalarAddAssign(smart_scalar_add_assign) => ServerKeySmartScalarAddAssign(smart_scalar_add_assign(u8, u16, u32, u64)));
+generic_integer_impl_smart_scalar_operation_assign!(SmartScalarSubAssign(smart_scalar_sub_assign) => ServerKeySmartScalarSubAssign(smart_scalar_sub_assign(u8, u16, u32, u64)));
+generic_integer_impl_smart_scalar_operation_assign!(SmartScalarMulAssign(smart_scalar_mul_assign) => ServerKeySmartScalarMulAssign(smart_scalar_mul_assign(u8, u16, u32, u64)));
+generic_integer_impl_smart_scalar_operation_assign!(SmartScalarShlAssign(smart_scalar_shl_assign) => ServerKeySmartScalarShlAssign(smart_scalar_shl_assign(u8, u16, u32, u64)));
+generic_integer_impl_smart_scalar_operation_assign!(SmartScalarShrAssign(smart_scalar_shr_assign) => ServerKeySmartScalarShrAssign(smart_scalar_shr_assign(u8, u16, u32, u64)));
+
+impl<P> SmartNeg for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = GenericInteger<P>;
+
+    fn smart_neg(&mut self) -> Self::Output {
+        let ciphertext: RadixCiphertextDyn = self.id.with_unwrapped_global(|integer_key| {
+            <crate::integer::ServerKey as ServerKeySmartNeg<_>>::smart_neg(
+                integer_key.pbs_key(),
+                &mut self.ciphertext,
+            )
+        });
+        GenericInteger::<P>::new(ciphertext, self.id)
     }
 }
 
@@ -559,10 +700,6 @@ macro_rules! generic_integer_impl_operation (
             B: Borrow<Self>,
             GenericInteger<P>: Clone,
             P::Id: WithGlobalKey<Key = IntegerServerKey>,
-            crate::integer::ServerKey: for<'a> $trait_name<
-                                            &'a RadixCiphertextDyn,
-                                            &'a RadixCiphertextDyn,
-                                            Output=RadixCiphertextDyn>,
         {
             type Output = Self;
 
@@ -577,10 +714,6 @@ macro_rules! generic_integer_impl_operation (
             P::Id: WithGlobalKey<Key = IntegerServerKey>,
             B: Borrow<GenericInteger<P>>,
             GenericInteger<P>: Clone,
-            crate::integer::ServerKey: for<'a> $trait_name<
-                                            &'a RadixCiphertextDyn,
-                                            &'a RadixCiphertextDyn,
-                                            Output=RadixCiphertextDyn>,
         {
             type Output = GenericInteger<P>;
 
@@ -605,7 +738,6 @@ macro_rules! generic_integer_impl_operation_assign (
         where
             P: IntegerParameter,
             P::Id: WithGlobalKey<Key = IntegerServerKey>,
-            crate::integer::ServerKey: for<'a> $assign_trait<RadixCiphertextDyn, &'a RadixCiphertextDyn>,
             I: Borrow<Self>,
         {
             fn $rust_trait_method(&mut self, rhs: I) {
@@ -667,7 +799,6 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
                 where
                     P: IntegerParameter,
                     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-                    crate::integer::ServerKey: for<'a> $assign_trait<RadixCiphertextDyn, u64>,
             {
                 fn $rust_trait_method(&mut self, rhs: $scalar_type) {
                     self.id.with_unwrapped_global(|integer_key| {
@@ -713,8 +844,6 @@ impl<P> Neg for GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey:
-        for<'a> ServerKeyDefaultNeg<&'a RadixCiphertextDyn, Output = RadixCiphertextDyn>,
 {
     type Output = GenericInteger<P>;
 
@@ -727,8 +856,6 @@ impl<P> Neg for &GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey:
-        for<'a> ServerKeyDefaultNeg<&'a RadixCiphertextDyn, Output = RadixCiphertextDyn>,
 {
     type Output = GenericInteger<P>;
 

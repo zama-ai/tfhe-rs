@@ -387,3 +387,186 @@ impl_default_scalar_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeyDefaultS
 impl_default_scalar_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeyDefaultMulAssign(mul_assign) => scalar_mul_assign_parallelized);
 impl_default_scalar_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeyDefaultShlAssign(shl_assign) => scalar_left_shift_assign_parallelized);
 impl_default_scalar_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeyDefaultShrAssign(shr_assign) => scalar_right_shift_assign_parallelized);
+
+macro_rules! define_smart_server_key_op {
+    ($op_name:ident) => {
+        paste::paste! {
+            pub trait [< ServerKeySmart $op_name >]<Lhs, Rhs> {
+                type Output;
+
+                fn [< smart_ $op_name:lower >](
+                    &self,
+                    lhs: &mut Lhs,
+                    rhs: &mut Rhs,
+                ) -> Self::Output;
+            }
+
+            pub trait [< ServerKeySmart $op_name Assign >]<Lhs, Rhs> {
+                fn [< smart_ $op_name:lower _assign >](
+                    &self,
+                    lhs: &mut Lhs,
+                    rhs: &mut Rhs,
+                );
+            }
+
+            pub trait [< ServerKeySmartScalar $op_name >]<Lhs, Rhs> {
+                type Output;
+
+                fn [< smart_scalar_ $op_name:lower >](
+                    &self,
+                    lhs: &mut Lhs,
+                    rhs: Rhs,
+                ) -> Self::Output;
+            }
+
+            pub trait [< ServerKeySmartScalar $op_name Assign >]<Lhs, Rhs> {
+                fn [< smart_scalar_ $op_name:lower _assign >](
+                    &self,
+                    lhs: &mut Lhs,
+                    rhs: Rhs,
+                );
+            }
+        }
+    };
+    ($($op:ident),*) => {
+        $(
+            define_smart_server_key_op!($op);
+        )*
+    };
+}
+
+define_smart_server_key_op!(
+    Add, Sub, Mul, BitAnd, BitOr, BitXor, Shl, Shr, Eq, Ge, Gt, Le, Lt, Max, Min
+);
+
+pub(super) trait ServerKeySmartNeg<Ciphertext> {
+    type Output;
+    fn smart_neg(&self, lhs: &mut Ciphertext) -> Self::Output;
+}
+
+macro_rules! impl_smart_op_for_tfhe_integer_server_key_dyn {
+    ($smart_trait:ident($smart_trait_fn:ident) => $method:ident) => {
+        impl $smart_trait<RadixCiphertextDyn, RadixCiphertextDyn> for crate::integer::ServerKey {
+            type Output = RadixCiphertextDyn;
+
+            fn $smart_trait_fn(
+                &self,
+                lhs_enum: &mut RadixCiphertextDyn,
+                rhs_enum: &mut RadixCiphertextDyn,
+            ) -> Self::Output {
+                match (lhs_enum, rhs_enum) {
+                    (RadixCiphertextDyn::Big(lhs), RadixCiphertextDyn::Big(rhs)) => {
+                        RadixCiphertextDyn::Big(self.$method(lhs, rhs))
+                    }
+                    (RadixCiphertextDyn::Small(lhs), RadixCiphertextDyn::Small(rhs)) => {
+                        RadixCiphertextDyn::Small(self.$method(lhs, rhs))
+                    }
+                    (_, _) => unreachable!("internal error: mismatched big and small integer"),
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_smart_assign_op_for_tfhe_integer_server_key_dyn {
+    ($smart_trait:ident($smart_trait_fn:ident) => $method_assign:ident) => {
+        impl $smart_trait<RadixCiphertextDyn, RadixCiphertextDyn> for crate::integer::ServerKey {
+            fn $smart_trait_fn(
+                &self,
+                lhs_enum: &mut RadixCiphertextDyn,
+                rhs_enum: &mut RadixCiphertextDyn,
+            ) {
+                match (lhs_enum, rhs_enum) {
+                    (RadixCiphertextDyn::Big(lhs), RadixCiphertextDyn::Big(rhs)) => {
+                        self.$method_assign(lhs, rhs)
+                    }
+                    (RadixCiphertextDyn::Small(lhs), RadixCiphertextDyn::Small(rhs)) => {
+                        self.$method_assign(lhs, rhs)
+                    }
+                    (_, _) => unreachable!("internal error: mismatched big and small integer"),
+                }
+            }
+        }
+    };
+}
+macro_rules! impl_smart_scalar_op_for_tfhe_integer_server_key_dyn {
+    ($smart_trait:ident($smart_trait_fn:ident) => $method:ident) => {
+        impl $smart_trait<RadixCiphertextDyn, u64> for crate::integer::ServerKey {
+            type Output = RadixCiphertextDyn;
+
+            fn $smart_trait_fn(&self, lhs: &mut RadixCiphertextDyn, rhs: u64) -> Self::Output {
+                match lhs {
+                    RadixCiphertextDyn::Big(lhs) => {
+                        RadixCiphertextDyn::Big(self.$method(lhs, rhs.try_into().unwrap()))
+                    }
+                    RadixCiphertextDyn::Small(lhs) => {
+                        RadixCiphertextDyn::Small(self.$method(lhs, rhs.try_into().unwrap()))
+                    }
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn {
+    ($smart_trait:ident($smart_trait_fn:ident) => $method_assign:ident) => {
+        impl $smart_trait<RadixCiphertextDyn, u64> for crate::integer::ServerKey {
+            fn $smart_trait_fn(&self, lhs: &mut RadixCiphertextDyn, rhs: u64) {
+                match lhs {
+                    RadixCiphertextDyn::Big(lhs) => {
+                        self.$method_assign(lhs, rhs.try_into().unwrap())
+                    }
+                    RadixCiphertextDyn::Small(lhs) => {
+                        self.$method_assign(lhs, rhs.try_into().unwrap())
+                    }
+                }
+            }
+        }
+    };
+}
+
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartAdd(smart_add) => smart_add_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartSub(smart_sub) => smart_sub_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartMul(smart_mul) => smart_mul_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartBitAnd(smart_bitand) => smart_bitand_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartBitOr(smart_bitor) => smart_bitor_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartBitXor(smart_bitxor) => smart_bitxor_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartEq(smart_eq) => smart_eq_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartGe(smart_ge) => smart_ge_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartGt(smart_gt) => smart_gt_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartLe(smart_le) => smart_le_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartLt(smart_lt) => smart_lt_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartMax(smart_max) => smart_max_parallelized);
+impl_smart_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartMin(smart_min) => smart_min_parallelized);
+
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartAddAssign(smart_add_assign) => smart_add_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartSubAssign(smart_sub_assign) => smart_sub_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartMulAssign(smart_mul_assign) => smart_mul_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartBitAndAssign(smart_bitand_assign) => smart_bitand_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartBitOrAssign(smart_bitor_assign) => smart_bitor_assign_parallelized);
+impl_smart_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartBitXorAssign(smart_bitxor_assign) => smart_bitxor_assign_parallelized);
+
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarAdd(smart_scalar_add) => smart_scalar_add_parallelized);
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarSub(smart_scalar_sub) => smart_scalar_sub_parallelized);
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarMul(smart_scalar_mul) => smart_scalar_mul_parallelized);
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarShl(smart_scalar_shl) => smart_scalar_left_shift_parallelized);
+impl_smart_scalar_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarShr(smart_scalar_shr) => smart_scalar_right_shift_parallelized);
+
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarAddAssign(smart_scalar_add_assign) => smart_scalar_add_assign_parallelized);
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarSubAssign(smart_scalar_sub_assign) => smart_scalar_sub_assign_parallelized);
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarMulAssign(smart_scalar_mul_assign) => smart_scalar_mul_assign_parallelized);
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarShlAssign(smart_scalar_shl_assign) => smart_scalar_left_shift_assign_parallelized);
+impl_smart_scalar_assign_op_for_tfhe_integer_server_key_dyn!(ServerKeySmartScalarShrAssign(smart_scalar_shr_assign) => smart_scalar_right_shift_assign_parallelized);
+
+impl ServerKeySmartNeg<RadixCiphertextDyn> for crate::integer::ServerKey {
+    type Output = RadixCiphertextDyn;
+
+    fn smart_neg(&self, lhs: &mut RadixCiphertextDyn) -> Self::Output {
+        match lhs {
+            RadixCiphertextDyn::Big(ct) => RadixCiphertextDyn::Big(self.smart_neg_parallelized(ct)),
+            RadixCiphertextDyn::Small(ct) => {
+                RadixCiphertextDyn::Small(self.smart_neg_parallelized(ct))
+            }
+        }
+    }
+}

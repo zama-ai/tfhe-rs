@@ -145,6 +145,90 @@ fn test_uint32() {
 }
 
 #[test]
+fn test_uint32_smart_add() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+
+    let (cks, sks) = generate_keys(config);
+
+    use rand::prelude::*;
+
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
+
+    let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+    let mut b = FheUint32::try_encrypt(clear_b, &cks).unwrap();
+
+    set_server_key(sks);
+
+    let c = a.smart_add(&mut b);
+
+    let decrypted: u32 = c.decrypt(&cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+
+    let da: u32 = a.decrypt(&cks);
+    assert_eq!(da, clear_a);
+    let db: u32 = b.decrypt(&cks);
+    assert_eq!(db, clear_b);
+}
+
+#[test]
+fn test_uint32_smart_scalar_add() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+
+    let (cks, sks) = generate_keys(config);
+
+    use rand::prelude::*;
+
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
+
+    let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+
+    set_server_key(sks);
+
+    let c = a.smart_scalar_add(clear_b);
+
+    let decrypted: u32 = c.decrypt(&cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+
+    let da: u32 = a.decrypt(&cks);
+    assert_eq!(da, clear_a);
+}
+
+#[test]
+fn test_uint32_smart_scalar_sub() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+
+    let (cks, sks) = generate_keys(config);
+
+    use rand::prelude::*;
+
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
+
+    let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+
+    set_server_key(sks);
+
+    let c = a.smart_scalar_sub(clear_b);
+
+    let decrypted: u32 = c.decrypt(&cks);
+    assert_eq!(decrypted, clear_a.wrapping_sub(clear_b));
+
+    let da: u32 = a.decrypt(&cks);
+    assert_eq!(da, clear_a);
+}
+
+#[test]
 fn test_uint64() {
     let config = ConfigBuilder::all_disabled()
         .enable_default_integers()

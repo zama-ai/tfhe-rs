@@ -276,6 +276,30 @@ impl ServerKey {
         self.unchecked_scalar_right_shift_assign_parallelized(ct, shift);
     }
 
+    pub fn smart_scalar_right_shift_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        shift: u64,
+    ) -> RadixCiphertext<PBSOrder> {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct);
+        }
+
+        self.unchecked_scalar_right_shift_parallelized(ct, shift)
+    }
+
+    pub fn smart_scalar_right_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        shift: u64,
+    ) {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct);
+        }
+
+        self.unchecked_scalar_right_shift_assign_parallelized(ct, shift);
+    }
+
     /// Computes homomorphically a left shift by a scalar.
     ///
     /// The result is returned as a new ciphertext.
@@ -535,6 +559,30 @@ impl ServerKey {
     /// assert_eq!(msg << shift, dec);
     /// ```
     pub fn scalar_left_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        shift: u64,
+    ) {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct);
+        }
+
+        self.unchecked_scalar_left_shift_assign_parallelized(ct, shift);
+    }
+
+    pub fn smart_scalar_left_shift_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+        shift: u64,
+    ) -> RadixCiphertext<PBSOrder> {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct);
+        }
+
+        self.unchecked_scalar_left_shift_parallelized(ct, shift)
+    }
+
+    pub fn smart_scalar_left_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
         shift: u64,
