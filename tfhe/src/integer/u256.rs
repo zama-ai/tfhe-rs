@@ -7,7 +7,23 @@ pub const fn adc(l: u64, r: u64, c: bool) -> (u64, bool) {
 
 // Little endian order
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(transparent)]
 pub struct U256(pub(crate) [u64; 4]);
+
+// SAFETY
+//
+// U256 is allowed to be all zeros
+unsafe impl bytemuck::Zeroable for U256 {}
+
+// SAFETY
+//
+// u64 impl bytemuck::Pod,
+// [T; N] impl bytemuck::Pod if T: bytemuck::Pod
+//
+// https://docs.rs/bytemuck/latest/bytemuck/trait.Pod.html#foreign-impls
+//
+// Thus U256 can safely be considered Pod
+unsafe impl bytemuck::Pod for U256 {}
 
 impl U256 {
     pub const BITS: u32 = 256;

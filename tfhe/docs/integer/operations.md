@@ -183,9 +183,9 @@ fn main() {
     let num_block = 4;
     let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
 
-    let msg1 = 12;
-    let msg2 = 11;
-    let msg3 = 9;
+    let msg1 = 12u64;
+    let msg2 = 11u64;
+    let msg3 = 9u64;
     let scalar = 3;
 
     // message_modulus^vec_length
@@ -222,9 +222,9 @@ fn main() {
     let num_block = 4;
     let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
 
-    let msg1 = 12;
-    let msg2 = 11;
-    let msg3 = 9;
+    let msg1 = 12u64;
+    let msg2 = 11u64;
+    let msg3 = 9u64;
     let scalar = 3;
 
     // message_modulus^vec_length

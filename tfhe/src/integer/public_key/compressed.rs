@@ -1,6 +1,6 @@
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
+use crate::integer::encryption::{encrypt_crt, encrypt_radix_impl};
 use crate::shortint::ciphertext::{BootstrapKeyswitch, KeyswitchBootstrap};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::PBSOrderMarker;
@@ -71,7 +71,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
         self.key.parameters.pbs_parameters().unwrap()
     }
 
-    pub fn encrypt_radix<T: AsLittleEndianWords>(
+    pub fn encrypt_radix<T: bytemuck::Pod>(
         &self,
         message: T,
         num_blocks: usize,
@@ -102,10 +102,10 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
         encrypt_block: F,
     ) -> RadixCiphertextType
     where
-        T: AsLittleEndianWords,
+        T: bytemuck::Pod,
         F: Fn(&crate::shortint::CompressedPublicKeyBase<OpOrder>, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
-        encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
+        encrypt_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
     }
 }

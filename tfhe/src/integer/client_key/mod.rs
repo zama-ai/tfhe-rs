@@ -7,12 +7,13 @@ mod crt;
 mod radix;
 pub(crate) mod utils;
 
+use crate::integer::block_decomposition::BitBlockRecomposer;
 use crate::integer::ciphertext::{
     CompressedCrtCiphertext, CompressedRadixCiphertextBig, CrtCiphertext, RadixCiphertextBig,
     RadixCiphertextSmall,
 };
 use crate::integer::client_key::utils::i_crt;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
+use crate::integer::encryption::{encrypt_crt, encrypt_radix_impl};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::{
     CiphertextBase, CiphertextBig, CiphertextSmall, ClientKey as ShortintClientKey, PBSOrderMarker,
@@ -105,7 +106,7 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_radix<T: AsLittleEndianWords>(
+    pub fn encrypt_radix<T: bytemuck::Pod>(
         &self,
         message: T,
         num_blocks: usize,
@@ -145,7 +146,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_compressed<T: AsLittleEndianWords>(
+    pub fn encrypt_radix_compressed<T: bytemuck::Pod>(
         &self,
         message: T,
         num_blocks: usize,
@@ -157,7 +158,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_without_padding_compressed<T: AsLittleEndianWords>(
+    pub fn encrypt_radix_without_padding_compressed<T: bytemuck::Pod>(
         &self,
         message: T,
         num_blocks: usize,
@@ -169,7 +170,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_small<T: AsLittleEndianWords>(
+    pub fn encrypt_radix_small<T: bytemuck::Pod>(
         &self,
         message: T,
         num_blocks: usize,
@@ -181,7 +182,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_compressed_small<T: AsLittleEndianWords>(
+    pub fn encrypt_radix_compressed_small<T: bytemuck::Pod>(
         &self,
         message: T,
         num_blocks: usize,
@@ -218,11 +219,11 @@ impl ClientKey {
         encrypt_block: F,
     ) -> RadixCiphertextType
     where
-        T: AsLittleEndianWords,
+        T: bytemuck::Pod,
         F: Fn(&crate::shortint::ClientKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
-        encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
+        encrypt_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
     }
 
     /// Encrypts one block.
@@ -287,7 +288,7 @@ impl ClientKey {
     /// ```
     pub fn decrypt_radix<T, PBSOrder>(&self, ctxt: &RadixCiphertext<PBSOrder>) -> T
     where
-        T: AsLittleEndianWords + Default,
+        T: Default + bytemuck::Pod,
         PBSOrder: PBSOrderMarker,
     {
         let mut res = T::default();
@@ -297,8 +298,8 @@ impl ClientKey {
 
     pub fn decrypt_radix_into<T, PBSOrder>(&self, ctxt: &RadixCiphertext<PBSOrder>, out: &mut T)
     where
-        T: AsLittleEndianWords,
         PBSOrder: PBSOrderMarker,
+        T: bytemuck::Pod,
     {
         self.decrypt_radix_into_words(
             ctxt,
@@ -346,51 +347,34 @@ impl ClientKey {
     pub fn decrypt_radix_into_words<T, F, PBSOrder>(
         &self,
         ctxt: &RadixCiphertext<PBSOrder>,
-        clear_words: &mut T,
+        clear_output: &mut T,
         decrypt_block: F,
     ) where
-        T: AsLittleEndianWords,
+        T: bytemuck::Pod,
         PBSOrder: PBSOrderMarker,
         F: Fn(&crate::shortint::ClientKey, &crate::shortint::CiphertextBase<PBSOrder>) -> u64,
     {
-        // limit to know when we have at least 64 bits
-        // of decrypted data
-        const U64_MODULUS: u128 = 1 << 64;
+        let message_modulus = self.key.parameters.message_modulus().0 as u64;
+        assert!(message_modulus.is_power_of_two());
+        let bits_in_message = message_modulus.ilog2();
+        let mut recomposer =
+            BitBlockRecomposer::new_little_endian(clear_output, bits_in_message as u8);
 
-        let clear_words_iter = clear_words.as_little_endian_iter_mut();
-
-        let mut cipher_blocks_iter = ctxt.blocks.iter();
-        let mut bit_buffer = 0u128;
-        let mut valid_until_power = 1u128;
-        for current_clear_word in clear_words_iter {
-            for cipher_block in cipher_blocks_iter.by_ref() {
-                let block_value = decrypt_block(&self.key, cipher_block) as u128;
-
-                let shifted_block_value = block_value * valid_until_power;
-                bit_buffer += shifted_block_value;
-
-                valid_until_power *= self.key.parameters.message_modulus().0 as u128;
-
-                if valid_until_power >= U64_MODULUS {
-                    // We have enough data to fill the current word
-                    // e.g.
-                    // bit_buffer: [b0, ..., b64, b66, b67,..., b128]
-                    //                       ^          ^
-                    //                       |          |-> valid_until_power
-                    //                       |              = end of decrypted bits
-                    //                       |-> U64_MODULUS
-                    break;
-                }
+        // The last block may contain carries which we need
+        // to discard so its done separately
+        for encryped_block in &ctxt.blocks[..ctxt.blocks.len() - 1] {
+            let decrypted_block = decrypt_block(&self.key, encryped_block);
+            if recomposer.write_block_unmasked(decrypted_block).is_none() {
+                // We reached the end of the bytes of clear_output
+                return;
             }
-
-            // We want to take at most 64 bits of data from the bit buffer
-            // since our words are 64 bits
-            let power_to_write = valid_until_power.min(U64_MODULUS);
-            let mask = power_to_write - 1;
-            *current_clear_word = (bit_buffer & mask) as u64;
-            bit_buffer /= power_to_write;
-            valid_until_power /= power_to_write;
         }
+        let decrypted_block = decrypt_block(&self.key, &ctxt.blocks[ctxt.blocks.len() - 1]);
+        // ignore potential carries
+        let _ = recomposer.write_block(decrypted_block);
+        // flushing is necessary when num_block * modulus < u8::BITS
+        // else its harmless to call it
+        let _ = recomposer.flush();
     }
 
     /// Encrypts an integer using crt representation

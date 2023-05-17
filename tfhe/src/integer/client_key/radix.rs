@@ -2,7 +2,6 @@
 
 use super::ClientKey;
 use crate::integer::ciphertext::RadixCiphertext;
-use crate::integer::encryption::AsLittleEndianWords;
 use crate::integer::{RadixCiphertextBig, RadixCiphertextSmall};
 use crate::shortint::{
     CiphertextBase, CiphertextBig as ShortintCiphertext, PBSOrderMarker,
@@ -54,17 +53,17 @@ impl RadixClientKey {
         }
     }
 
-    pub fn encrypt<T: AsLittleEndianWords>(&self, message: T) -> RadixCiphertextBig {
+    pub fn encrypt<T: bytemuck::Pod>(&self, message: T) -> RadixCiphertextBig {
         self.key.encrypt_radix(message, self.num_blocks)
     }
 
-    pub fn encrypt_small<T: AsLittleEndianWords>(&self, message: T) -> RadixCiphertextSmall {
+    pub fn encrypt_small<T: bytemuck::Pod>(&self, message: T) -> RadixCiphertextSmall {
         self.key.encrypt_radix_small(message, self.num_blocks)
     }
 
     pub fn decrypt<T, PBSOrder>(&self, ciphertext: &RadixCiphertext<PBSOrder>) -> T
     where
-        T: AsLittleEndianWords + Default,
+        T: Default + bytemuck::Pod,
         PBSOrder: PBSOrderMarker,
     {
         self.key.decrypt_radix(ciphertext)

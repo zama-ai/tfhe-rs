@@ -12,7 +12,7 @@ mod sub;
 use super::ServerKey;
 
 use crate::integer::ciphertext::RadixCiphertext;
-use crate::integer::encryption::{encrypt_words_radix_impl, AsLittleEndianWords};
+use crate::integer::encryption::encrypt_radix_impl;
 use crate::shortint::PBSOrderMarker;
 
 #[cfg(test)]
@@ -77,10 +77,10 @@ impl ServerKey {
         num_blocks: usize,
     ) -> RadixCiphertext<PBSOrder>
     where
+        T: bytemuck::Pod,
         PBSOrder: PBSOrderMarker,
-        T: AsLittleEndianWords,
     {
-        encrypt_words_radix_impl(
+        encrypt_radix_impl(
             &self.key,
             value,
             num_blocks,

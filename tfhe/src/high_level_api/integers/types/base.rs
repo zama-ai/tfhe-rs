@@ -116,47 +116,8 @@ where
     }
 }
 
-impl<P> FheDecrypt<u8> for GenericInteger<P>
-where
-    P: IntegerParameter,
-    P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
-    crate::integer::ClientKey: DecryptionKey<RadixCiphertextDyn, u16>,
-{
-    fn decrypt(&self, key: &ClientKey) -> u8 {
-        let key = self.id.unwrapped_ref_key(key);
-        let value: u64 = key.decrypt(&self.ciphertext);
-        value as u8
-    }
-}
-
-impl<P> FheDecrypt<u16> for GenericInteger<P>
-where
-    P: IntegerParameter,
-    P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
-    crate::integer::ClientKey: DecryptionKey<RadixCiphertextDyn, u16>,
-{
-    fn decrypt(&self, key: &ClientKey) -> u16 {
-        let key = self.id.unwrapped_ref_key(key);
-        let value: u64 = key.decrypt(&self.ciphertext);
-        value as u16
-    }
-}
-
-impl<P> FheDecrypt<u32> for GenericInteger<P>
-where
-    P: IntegerParameter,
-    P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
-    crate::integer::ClientKey: DecryptionKey<RadixCiphertextDyn, u32>,
-{
-    fn decrypt(&self, key: &ClientKey) -> u32 {
-        let key = self.id.unwrapped_ref_key(key);
-        key.decrypt(&self.ciphertext)
-    }
-}
-
 impl<P, ClearType> FheDecrypt<ClearType> for GenericInteger<P>
 where
-    ClearType: crate::integer::encryption::AsLittleEndianWords,
     P: IntegerParameter,
     P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
     crate::integer::ClientKey: DecryptionKey<RadixCiphertextDyn, ClearType>,
