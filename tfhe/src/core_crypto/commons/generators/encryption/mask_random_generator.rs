@@ -126,6 +126,31 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
     }
 
     // Forks the generator, when splitting a ggsw into level matrices.
+    pub(crate) fn fork_pseudo_ggsw_to_ggsw_levels<T: UnsignedInteger>(
+        &mut self,
+        level: DecompositionLevelCount,
+        glwe_size_in: GlweSize,
+        glwe_size_out: GlweSize,
+        polynomial_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let mask_bytes =
+            mask_bytes_per_pseudo_ggsw_level::<T>(glwe_size_in, glwe_size_out, polynomial_size);
+        self.try_fork(level.0, mask_bytes)
+    }
+
+    // Forks the generator, when splitting a pseudo ggsw level matrix to glwe.
+    pub(crate) fn fork_pseudo_ggsw_level_to_glwe<T: UnsignedInteger>(
+        &mut self,
+        glwe_size_in: GlweSize,
+        glwe_size_out: GlweSize,
+        polynomial_size: PolynomialSize,
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
+        let mask_bytes =
+            mask_bytes_per_glwe::<T>(glwe_size_out.to_glwe_dimension(), polynomial_size);
+        self.try_fork(glwe_size_in.to_glwe_dimension().0, mask_bytes)
+    }
+
+    // Forks the generator, when splitting a ggsw into level matrices.
     pub(crate) fn fork_gsw_to_gsw_levels<T: UnsignedInteger>(
         &mut self,
         level: DecompositionLevelCount,
@@ -390,6 +415,15 @@ fn mask_bytes_per_ggsw<T: UnsignedInteger>(
     poly_size: PolynomialSize,
 ) -> usize {
     level.0 * mask_bytes_per_ggsw_level::<T>(glwe_size, poly_size)
+}
+
+fn mask_bytes_per_pseudo_ggsw_level<T: UnsignedInteger>(
+    glwe_size_in: GlweSize,
+    glwe_size_out: GlweSize,
+    poly_size: PolynomialSize,
+) -> usize {
+    glwe_size_in.to_glwe_dimension().0
+        * mask_bytes_per_glwe::<T>(glwe_size_out.to_glwe_dimension(), poly_size)
 }
 
 fn mask_bytes_per_pfpksk_chunk<T: UnsignedInteger>(

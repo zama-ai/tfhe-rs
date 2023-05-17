@@ -69,3 +69,49 @@ pub fn generate_binary_glwe_secret_key<Scalar, InCont, Gen>(
 {
     generator.fill_slice_with_random_uniform_binary(glwe_secret_key.as_mut())
 }
+
+pub fn allocate_and_generate_new_binary_shared_glwe_secret_key<Scalar, Gen>(
+    glwe_dimension_large: GlweDimension,
+    glwe_dimension_small: GlweDimension,
+    polynomial_size: PolynomialSize,
+    generator: &mut SecretRandomGenerator<Gen>,
+) -> (GlweSecretKeyOwned<Scalar>, GlweSecretKeyOwned<Scalar>)
+where
+    Scalar: RandomGenerable<UniformBinary> + Numeric,
+    Gen: ByteRandomGenerator,
+{
+    let mut large_glwe_secret_key =
+        GlweSecretKeyOwned::new_empty_key(Scalar::ZERO, glwe_dimension_large, polynomial_size);
+
+    generate_binary_glwe_secret_key(&mut large_glwe_secret_key, generator);
+
+    let mut small_glwe_secret_key =
+        GlweSecretKeyOwned::new_empty_key(Scalar::ZERO, glwe_dimension_small, polynomial_size);
+    small_glwe_secret_key
+        .as_mut()
+        .iter_mut()
+        .zip(large_glwe_secret_key.as_ref().iter())
+        .for_each(|(dst, &src)| *dst = src);
+    (large_glwe_secret_key, small_glwe_secret_key)
+}
+
+pub fn allocate_and_generate_new_shared_glwe_secret_key_from_glwe_secret_key<Scalar, InCont>(
+    in_large_glwe_key: &GlweSecretKey<InCont>,
+    glwe_dimension_out: GlweDimension,
+    phi: usize,
+    polynomial_size: PolynomialSize,
+) -> GlweSecretKeyOwned<Scalar>
+where
+    Scalar: RandomGenerable<UniformBinary> + Numeric,
+    InCont: Container<Element = Scalar>,
+{
+    // let lwe_dimension_small = LweDimension(phi);
+    let mut small_glwe_secret_key =
+        GlweSecretKey::new_empty_key(Scalar::ZERO, glwe_dimension_out, polynomial_size);
+
+    small_glwe_secret_key.as_mut()[0..phi]
+        .iter_mut()
+        .zip(in_large_glwe_key.as_ref())
+        .for_each(|(dst, &src)| *dst = src);
+    small_glwe_secret_key
+}

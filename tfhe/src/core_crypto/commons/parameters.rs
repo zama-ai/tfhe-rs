@@ -73,6 +73,32 @@ impl LweDimension {
     pub fn to_lwe_size(&self) -> LweSize {
         LweSize(self.0 + 1)
     }
+
+    #[track_caller]
+    pub fn shared_coef_count_from(
+        &self,
+        unshared_coef_count: SharedLweSecretKeyDifferingCoefCount,
+    ) -> SharedLweSecretKeyCommonCoefCount {
+        assert!(
+            unshared_coef_count.0 <= self.0,
+            "unshared_coef_count {unshared_coef_count:?} must be smaller than self {:?}",
+            *self
+        );
+        SharedLweSecretKeyCommonCoefCount(self.0 - unshared_coef_count.0)
+    }
+
+    #[track_caller]
+    pub fn unshared_coef_count_from(
+        &self,
+        shared_coef_count: SharedLweSecretKeyCommonCoefCount,
+    ) -> SharedLweSecretKeyDifferingCoefCount {
+        assert!(
+            shared_coef_count.0 <= self.0,
+            "shared_coef_count {shared_coef_count:?} must be smaller than self {:?}",
+            *self
+        );
+        SharedLweSecretKeyDifferingCoefCount(self.0 - shared_coef_count.0)
+    }
 }
 
 /// The number of LWE encryptions of 0 in an LWE public key.
@@ -265,3 +291,34 @@ pub enum PBSOrder {
     /// key realm.
     BootstrapKeyswitch = 1,
 }
+
+/// The number of non zero elements in a partial GLWE secret key
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct PartialGlweSecretKeyRandomCoefCount(pub usize);
+
+/// The number of zero elements completing a partial GLWE secret key
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct PartialGlweSecretKeyZeroCoefCount(pub usize);
+
+/// The number of shared elements between two LWE secret keys
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct SharedLweSecretKeyCommonCoefCount(pub usize);
+
+impl SharedLweSecretKeyCommonCoefCount {
+    #[track_caller]
+    pub fn shared_coef_count_from(
+        &self,
+        unshared_coef_count: SharedLweSecretKeyDifferingCoefCount,
+    ) -> Self {
+        assert!(
+            unshared_coef_count.0 <= self.0,
+            "unshared_lwe_dimension {unshared_coef_count:?} must be smaller than self {:?}",
+            *self
+        );
+        Self(self.0 - unshared_coef_count.0)
+    }
+}
+
+/// The number of non shared elements between two LWE secret keys
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct SharedLweSecretKeyDifferingCoefCount(pub usize);

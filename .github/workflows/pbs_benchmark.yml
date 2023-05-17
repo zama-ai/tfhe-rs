@@ -66,9 +66,17 @@ jobs:
           toolchain: nightly
           override: true
 
-      - name: Run benchmarks with AVX512
+      - name: bench_ac2023_CJP
         run: |
-          make AVX512_SUPPORT=ON bench_pbs
+          make AVX512_SUPPORT=ON bench_ac2023_CJP
+
+      - name: bench_ac2023_stairKS
+        run: |
+          make AVX512_SUPPORT=ON bench_ac2023_stairKS
+
+      - name: bench_ac2023_fastKS
+        run: |
+          make AVX512_SUPPORT=ON bench_ac2023_fastKS
 
       - name: Parse results
         run: |

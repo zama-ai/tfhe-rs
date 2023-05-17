@@ -22,10 +22,12 @@ pub mod lwe_private_functional_packing_keyswitch_key;
 pub mod lwe_private_functional_packing_keyswitch_key_list;
 pub mod lwe_public_key;
 pub mod lwe_secret_key;
+pub mod lwe_shrinking_keyswitch_key;
 pub mod plaintext;
 pub mod plaintext_list;
 pub mod polynomial;
 pub mod polynomial_list;
+pub mod pseudo_ggsw_ciphertext;
 pub mod seeded_ggsw_ciphertext;
 pub mod seeded_ggsw_ciphertext_list;
 pub mod seeded_glwe_ciphertext;
@@ -51,6 +53,10 @@ pub use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
 pub use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     FourierGgswCiphertext, FourierGgswCiphertextList, FourierGgswLevelMatrix, FourierGgswLevelRow,
 };
+pub use crate::core_crypto::fft_impl::fft64::crypto::pseudo_ggsw::{
+    PseudoFourierGgswCiphertext, PseudoFourierGgswLevelMatrix, PseudoFourierGgswLevelRow,
+};
+
 pub use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomial;
 pub use cleartext::*;
 pub use ggsw_ciphertext::*;
@@ -71,10 +77,12 @@ pub use lwe_private_functional_packing_keyswitch_key::*;
 pub use lwe_private_functional_packing_keyswitch_key_list::*;
 pub use lwe_public_key::*;
 pub use lwe_secret_key::*;
+pub use lwe_shrinking_keyswitch_key::*;
 pub use plaintext::*;
 pub use plaintext_list::*;
 pub use polynomial::*;
 pub use polynomial_list::*;
+pub use pseudo_ggsw_ciphertext::*;
 pub use seeded_ggsw_ciphertext::*;
 pub use seeded_ggsw_ciphertext_list::*;
 pub use seeded_glwe_ciphertext::*;

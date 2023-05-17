@@ -340,6 +340,24 @@ test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC) -- core_crypto::; \
 	fi
 
+.PHONY: test_ccs_2024_stair_ks # Run the tests of the core_crypto module including experimental ones
+test_ccs_2024_stair_ks: install_rs_build_toolchain install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),experimental -p $(TFHE_SPEC) -- core_crypto::algorithms::test::lwe_stair_keyswitch
+	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC) --  core_crypto::algorithms::test::lwe_stair_keyswitch; \
+	fi
+
+.PHONY: test_ccs_2024_fft_shrinking_ks # Run the tests of the core_crypto module including experimental ones
+test_ccs_2024_fft_shrinking_ks: install_rs_build_toolchain install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),experimental -p $(TFHE_SPEC) --  core_crypto::algorithms::test::lwe_fast_keyswitch
+	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC) -- core_crypto::algorithms::test::lwe_fast_keyswitch; \
+	fi
+
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
@@ -605,6 +623,24 @@ ci_bench_web_js_api_parallel: build_web_js_api_parallel
 	source ~/.nvm/nvm.sh && \
 	nvm use node && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests bench-ci
+
+.PHONY: bench_ccs_2024_cjp # Run benchmarks for PBS
+bench_ccs_2024_cjp: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench ccs-2024-cjp \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+
+.PHONY: bench_ccs_2024_fft_shrinking_ks # Run benchmarks for PBS
+bench_ccs_2024_fft_shrinking_ks: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench ccs-2024-fft-shrinking-ks \
+	--features=$(TARGET_ARCH_FEATURE),internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
+
+.PHONY: bench_ccs_2024_stair_ks # Run benchmarks for PBS
+bench_ccs_2024_stair_ks: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench ccs-2024-stair-ks \
+	--features=$(TARGET_ARCH_FEATURE),internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC)
 
 #
 # Utility tools

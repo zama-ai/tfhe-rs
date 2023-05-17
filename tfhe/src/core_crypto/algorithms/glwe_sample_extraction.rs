@@ -25,8 +25,8 @@ use rayon::prelude::*;
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
 /// // Define parameters for GlweCiphertext creation
-/// let glwe_size = GlweSize(2);
-/// let polynomial_size = PolynomialSize(1024);
+/// let glwe_size = GlweSize(4);
+/// let polynomial_size = PolynomialSize(4);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 ///
@@ -51,11 +51,10 @@ use rayon::prelude::*;
 /// let mut plaintext_list = PlaintextList::new(encoded_msg, PlaintextCount(polynomial_size.0));
 ///
 /// let special_value = 15;
-/// *plaintext_list.get_mut(42).0 = 15 << 60;
+/// *plaintext_list.get_mut(0).0 = 15 << 60;
 ///
 /// // Create a new GlweCiphertext
 /// let mut glwe = GlweCiphertext::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);
-///
 /// encrypt_glwe_ciphertext(
 ///     &glwe_secret_key,
 ///     &mut glwe,
@@ -74,7 +73,7 @@ use rayon::prelude::*;
 /// );
 ///
 /// // Here we chose to extract sample at index 42 (corresponding to the MonomialDegree(42))
-/// extract_lwe_sample_from_glwe_ciphertext(&glwe, &mut extracted_sample, MonomialDegree(42));
+/// extract_lwe_sample_from_glwe_ciphertext(&glwe, &mut extracted_sample, MonomialDegree(0));
 ///
 /// let decrypted_plaintext = decrypt_lwe_ciphertext(&equivalent_lwe_sk, &extracted_sample);
 ///
