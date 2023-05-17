@@ -8,7 +8,6 @@ pub use super::ciphertext::{
     CompressedCiphertextBig, CompressedCiphertextSmall, PBSOrder, PBSOrderMarker,
 };
 pub use super::client_key::ClientKey;
-pub use super::gen_keys;
 pub use super::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
     DecompositionLevelCount, EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus,
@@ -21,3 +20,4 @@ pub use super::parameters::{
 };
 pub use super::public_key::{PublicKeyBase, PublicKeyBig, PublicKeySmall};
 pub use super::server_key::ServerKey;
+pub use super::{gen_keys, gen_multi_keys};
