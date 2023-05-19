@@ -1,5 +1,5 @@
 macro_rules! create_parametrized_test{
-    ($name:ident { $($param:ident),* }) => {
+    ($name:ident { $($param:ident),* $(,)? }) => {
         ::paste::paste! {
             $(
             #[test]

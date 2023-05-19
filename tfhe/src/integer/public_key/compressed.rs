@@ -7,7 +7,7 @@ use crate::shortint::PBSOrderMarker;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CompressedPublicKeyBase<OpOrder: PBSOrderMarker> {
-    key: crate::shortint::CompressedPublicKeyBase<OpOrder>,
+    pub(crate) key: crate::shortint::CompressedPublicKeyBase<OpOrder>,
 }
 
 pub type CompressedPublicKeyBig = CompressedPublicKeyBase<KeyswitchBootstrap>;
