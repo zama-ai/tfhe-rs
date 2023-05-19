@@ -9,7 +9,7 @@ use crate::shortint::ClientKey;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-/// A structure containing a public key.
+/// A structure containing a compressed public key.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompressedPublicKeyBase<OpOrder: PBSOrderMarker> {
     pub(crate) lwe_public_key: SeededLwePublicKeyOwned<u64>,
