@@ -5,7 +5,7 @@
 
 use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::boolean::parameters::BooleanParameters;
-use crate::boolean::{ClientKey, PublicKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
+use crate::boolean::{ClientKey, CompressedPublicKey, PublicKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use std::cell::RefCell;
@@ -144,6 +144,38 @@ impl BooleanEngine {
         }
     }
 
+    pub fn create_compressed_public_key(&mut self, client_key: &ClientKey) -> CompressedPublicKey {
+        let client_parameters = client_key.parameters;
+
+        // Formula is (n + 1) * log2(q) + 128
+        let zero_encryption_count = LwePublicKeyZeroEncryptionCount(
+            client_parameters.lwe_dimension.to_lwe_size().0 * LOG2_Q_32 + 128,
+        );
+
+        #[cfg(not(feature = "__wasm_api"))]
+        let compressed_lwe_public_key = par_allocate_and_generate_new_seeded_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_key.parameters.lwe_modular_std_dev,
+            CiphertextModulus::new_native(),
+            &mut self.bootstrapper.seeder,
+        );
+
+        #[cfg(feature = "__wasm_api")]
+        let compressed_lwe_public_key = allocate_and_generate_new_seeded_lwe_public_key(
+            &client_key.lwe_secret_key,
+            zero_encryption_count,
+            client_key.parameters.lwe_modular_std_dev,
+            CiphertextModulus::new_native(),
+            &mut self.bootstrapper.seeder,
+        );
+
+        CompressedPublicKey {
+            compressed_lwe_public_key,
+            parameters: client_parameters,
+        }
+    }
+
     pub fn trivial_encrypt(&mut self, message: bool) -> Ciphertext {
         Ciphertext::Trivial(message)
     }
@@ -205,6 +237,32 @@ impl BooleanEngine {
         // encryption
         encrypt_lwe_ciphertext_with_public_key(
             &pks.lwe_public_key,
+            &mut output,
+            plain,
+            &mut self.secret_generator,
+        );
+
+        Ciphertext::Encrypted(output)
+    }
+    pub fn encrypt_with_compressed_public_key(
+        &mut self,
+        message: bool,
+        compressed_pk: &CompressedPublicKey,
+    ) -> Ciphertext {
+        let plain: Plaintext<u32> = if message {
+            Plaintext(PLAINTEXT_TRUE)
+        } else {
+            Plaintext(PLAINTEXT_FALSE)
+        };
+
+        let mut output = LweCiphertext::new(
+            0u32,
+            compressed_pk.parameters.lwe_dimension.to_lwe_size(),
+            CiphertextModulus::new_native(),
+        );
+
+        encrypt_lwe_ciphertext_with_seeded_public_key(
+            &compressed_pk.compressed_lwe_public_key,
             &mut output,
             plain,
             &mut self.secret_generator,

@@ -54,7 +54,7 @@
 
 use crate::boolean::client_key::ClientKey;
 use crate::boolean::parameters::DEFAULT_PARAMETERS;
-use crate::boolean::public_key::PublicKey;
+use crate::boolean::public_key::{CompressedPublicKey, PublicKey};
 use crate::boolean::server_key::ServerKey;
 #[cfg(test)]
 use rand::Rng;
