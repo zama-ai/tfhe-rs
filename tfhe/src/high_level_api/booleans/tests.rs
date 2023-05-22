@@ -10,6 +10,7 @@ use crate::high_level_api::{
     generate_keys, set_server_key, ClientKey, CompressedFheBool, ConfigBuilder, FheBool,
     FheBoolParameters,
 };
+use crate::CompressedPublicKey;
 
 fn setup_static_default() -> ClientKey {
     let config = ConfigBuilder::all_disabled().enable_default_bool().build();
@@ -200,4 +201,29 @@ fn test_trivial_bool() {
 
     assert_eq!(a.decrypt(&keys), true);
     assert_eq!(b.decrypt(&keys), false);
+}
+
+#[test]
+fn test_compressed_public_key_encrypt() {
+    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let (client_key, _) = generate_keys(config);
+
+    let public_key = CompressedPublicKey::new(&client_key);
+
+    let a = FheBool::try_encrypt(true, &public_key).unwrap();
+    let clear: bool = a.decrypt(&client_key);
+    assert_eq!(clear, true);
+}
+
+#[test]
+fn test_decompressed_public_key_encrypt() {
+    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let (client_key, _) = generate_keys(config);
+
+    let compressed_public_key = CompressedPublicKey::new(&client_key);
+    let public_key = compressed_public_key.decompress();
+
+    let a = FheBool::try_encrypt(true, &public_key).unwrap();
+    let clear: bool = a.decrypt(&client_key);
+    assert_eq!(clear, true);
 }

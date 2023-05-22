@@ -44,6 +44,11 @@ where
             id,
         }
     }
+
+    pub fn decompress(self) -> GenericInteger<P> {
+        let inner = self.ciphertext.into();
+        GenericInteger::new(inner, self.id)
+    }
 }
 
 impl<P> From<CompressedGenericInteger<P>> for GenericInteger<P>

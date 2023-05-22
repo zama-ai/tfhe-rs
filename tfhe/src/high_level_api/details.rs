@@ -115,6 +115,15 @@ macro_rules! define_key_structs {
                         )*
                     }
                 }
+
+                pub(crate) fn decompress(self) -> [<$base_struct_name PublicKey>] {
+                    [<$base_struct_name PublicKey>] {
+                        $(
+                            [<$name _key>]: self.[<$name _key>]
+                                .map(|key| key.decompress()),
+                        )*
+                    }
+                }
             }
 
             ///////////////////////

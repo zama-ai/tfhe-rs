@@ -2,6 +2,8 @@ use std::borrow::Borrow;
 use std::ops::{BitAnd, BitOr, BitXor};
 
 use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
+use crate::errors::UnwrapResultExt;
+use crate::CompressedPublicKey;
 use serde::{Deserialize, Serialize};
 
 use crate::high_level_api::booleans::client_key::GenericBoolClientKey;
@@ -190,6 +192,27 @@ where
     #[track_caller]
     fn encrypt_trivial(value: bool) -> Self {
         Self::try_encrypt_trivial(value).unwrap()
+    }
+}
+
+impl FheTryEncrypt<bool, CompressedPublicKey> for crate::FheBool {
+    type Error = crate::high_level_api::errors::Error;
+
+    fn try_encrypt(value: bool, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
+        let ciphertext = key
+            .boolean_key
+            .bool_key
+            .as_ref()
+            .ok_or(
+                crate::high_level_api::errors::UninitializedCompressedPublicKey(
+                    crate::high_level_api::errors::Type::FheBool,
+                ),
+            )
+            .unwrap_display()
+            .key
+            .encrypt(value);
+        let id = crate::high_level_api::booleans::types::static_::FheBoolId::default();
+        Ok(GenericBool::new(ciphertext, id))
     }
 }
 
