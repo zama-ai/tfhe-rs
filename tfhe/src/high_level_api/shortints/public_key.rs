@@ -54,5 +54,12 @@ pub(in crate::high_level_api::shortints) mod compressed {
                 _marker: Default::default(),
             }
         }
+
+        pub(crate) fn decompress(self) -> super::GenericShortIntPublicKey<P> {
+            super::GenericShortIntPublicKey {
+                key: self.key.into(),
+                _marker: std::marker::PhantomData,
+            }
+        }
     }
 }

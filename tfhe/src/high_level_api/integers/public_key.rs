@@ -14,4 +14,13 @@ pub(in crate::high_level_api::integers) mod compressed {
         Big(crate::integer::CompressedPublicKeyBig),
         Small(crate::integer::CompressedPublicKeySmall),
     }
+
+    impl CompressedPublicKeyDyn {
+        pub(crate) fn decompress(self) -> super::PublicKeyDyn {
+            match self {
+                CompressedPublicKeyDyn::Big(key) => super::PublicKeyDyn::Big(key.into()),
+                CompressedPublicKeyDyn::Small(key) => super::PublicKeyDyn::Small(key.into()),
+            }
+        }
+    }
 }

@@ -136,6 +136,17 @@ impl CompressedPublicKey {
             },
         }
     }
+
+    pub fn decompress(self) -> PublicKey {
+        PublicKey {
+            #[cfg(feature = "boolean")]
+            boolean_key: self.boolean_key.decompress(),
+            #[cfg(feature = "shortint")]
+            shortint_key: self.shortint_key.decompress(),
+            #[cfg(feature = "integer")]
+            base_integer_key: self.base_integer_key.map(|key| key.decompress()),
+        }
+    }
 }
 
 pub trait RefKeyFromCompressedPublicKeyChain: Sized {

@@ -209,6 +209,21 @@ fn test_integer_compressed_public_key() {
 }
 
 #[test]
+fn test_decompressed_public_key_encrypt() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+    let (client_key, _) = generate_keys(config);
+
+    let compressed_public_key = CompressedPublicKey::new(&client_key);
+    let public_key = compressed_public_key.decompress();
+
+    let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
+    let clear: u8 = a.decrypt(&client_key);
+    assert_eq!(clear, 255u8);
+}
+
+#[test]
 fn test_trivial_fhe_uint8() {
     let config = ConfigBuilder::all_disabled()
         .enable_default_integers()
