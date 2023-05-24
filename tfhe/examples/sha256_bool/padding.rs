@@ -1,14 +1,15 @@
 // This module contains the padding function, which is computed by the client over the plain text.
-// The function returns the padded data as a vector of bools, for later encryption. Note that padding
-// could also be performed by the server, by appending trivially encrypted bools. However, in our
-// implementation, the exact length of the pre-image (hashed message) is not revealed.
+// The function returns the padded data as a vector of bools, for later encryption. Note that
+// padding could also be performed by the server, by appending trivially encrypted bools. However,
+// in our implementation, the exact length of the pre-image (hashed message) is not revealed.
 
 // If input starts with "0x" and following characters are valid hexadecimal values, it's interpreted
 // as hex, otherwise input is interpreted as text
 pub fn pad_sha256_input(input: &str) -> Vec<bool> {
     let bytes = if input.starts_with("0x") && is_valid_hex(&input[2..]) {
         let no_prefix = &input[2..];
-        let hex_input = if no_prefix.len() % 2 == 0 { // hex value can be converted to bytes
+        let hex_input = if no_prefix.len() % 2 == 0 {
+            // hex value can be converted to bytes
             no_prefix.to_string()
         } else {
             format!("0{}", no_prefix) // pad hex value to ensure a correct conversion to bytes
@@ -26,11 +27,14 @@ pub fn pad_sha256_input(input: &str) -> Vec<bool> {
 }
 
 fn is_valid_hex(hex: &str) -> bool {
-    hex.chars().all(|c| c.is_digit(16))
+    hex.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 fn pad_sha256_data(data: &[u8]) -> Vec<bool> {
-    let mut bits: Vec<bool> = data.iter().flat_map(|byte| (0..8).rev().map(move |i| (byte >> i) & 1 == 1)).collect();
+    let mut bits: Vec<bool> = data
+        .iter()
+        .flat_map(|byte| (0..8).rev().map(move |i| (byte >> i) & 1 == 1))
+        .collect();
 
     // Append a single '1' bit
     bits.push(true);
@@ -53,7 +57,6 @@ mod tests {
 
     #[test]
     fn test_pad_sha256_input() {
-
         let input = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
         let expected_output = "6162636462636465636465666465666765666768666768696768696a68696a6\
         b696a6b6c6a6b6c6d6b6c6d6e6c6d6e6f6d6e6f706e6f70718000000000000000000000000000000000000000000\

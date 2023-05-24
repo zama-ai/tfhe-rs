@@ -252,6 +252,12 @@ test_regex_engine: install_rs_build_toolchain
 		--example regex_engine \
 		--features=$(TARGET_ARCH_FEATURE),integer
 
+.PHONY: test_sha256_bool # Run tests for sha256_bool example
+test_sha256_bool: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--example sha256_bool \
+		--features=$(TARGET_ARCH_FEATURE),boolean
+
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
@@ -349,6 +355,12 @@ dark_market: install_rs_check_toolchain
 	--example dark_market \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache \
 	-- fhe-modified fhe-parallel plain fhe
+
+.PHONY: sha256_bool # Run sha256_bool example
+sha256_bool: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+	--example sha256_bool \
+	--features=$(TARGET_ARCH_FEATURE),boolean
 
 .PHONY: pcc # pcc stands for pre commit checks
 pcc: no_tfhe_typo check_fmt doc clippy_all check_compile_tests
