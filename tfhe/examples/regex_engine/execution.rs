@@ -185,10 +185,7 @@ impl Execution {
 
                 let mut ct_a = a.0.clone();
                 let mut ct_b = exec.ct_constant(1).0;
-                (
-                    exec.sk.smart_bitxor(&mut ct_a, &mut ct_b),
-                    ctx.clone(),
-                )
+                (exec.sk.smart_bitxor(&mut ct_a, &mut ct_b), ctx.clone())
             }),
         )
     }

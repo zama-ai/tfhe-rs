@@ -446,7 +446,7 @@ reusing those where possible.
 # Trying out the example implementation
 
 The implementation that guided the writing of this tutorial can be found
-under `thfe/examples/regex_engine`.
+under `tfhe/examples/regex_engine`.
 
 When compiling with `--example regex_engine`, a binary is produced that serves
 as a basic demo. Simply call it with first argument the content string and

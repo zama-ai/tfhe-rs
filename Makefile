@@ -21,6 +21,10 @@ else
 		AVX512_FEATURE=
 endif
 
+# Variables used only for regex_engine example
+REGEX_STRING?=''
+REGEX_PATTERN?=''
+
 .PHONY: rs_check_toolchain # Echo the rust toolchain used for checks
 rs_check_toolchain:
 	@echo $(RS_CHECK_TOOLCHAIN)
@@ -242,6 +246,12 @@ test_user_doc: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p tfhe \
 		-- test_user_docs::
 
+.PHONY: test_regex_engine # Run tests for regex_engine example
+test_regex_engine: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--example regex_engine \
+		--features=$(TARGET_ARCH_FEATURE),integer
+
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
@@ -325,6 +335,13 @@ measure_boolean_key_sizes: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
 	--example boolean_key_sizes \
 	--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache
+
+.PHONY: regex_engine # Run regex_engine example
+regex_engine: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+	--example regex_engine \
+	--features=$(TARGET_ARCH_FEATURE),integer \
+	-- $(REGEX_STRING) $(REGEX_PATTERN)
 
 .PHONY: pcc # pcc stands for pre commit checks
 pcc: no_tfhe_typo check_fmt doc clippy_all check_compile_tests
