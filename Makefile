@@ -343,6 +343,13 @@ regex_engine: install_rs_check_toolchain
 	--features=$(TARGET_ARCH_FEATURE),integer \
 	-- $(REGEX_STRING) $(REGEX_PATTERN)
 
+.PHONY: dark_market # Run dark market example
+dark_market: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+	--example dark_market \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache \
+	-- fhe-modified fhe-parallel plain fhe
+
 .PHONY: pcc # pcc stands for pre commit checks
 pcc: no_tfhe_typo check_fmt doc clippy_all check_compile_tests
 
