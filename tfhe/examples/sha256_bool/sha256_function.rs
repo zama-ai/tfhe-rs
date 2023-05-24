@@ -1,57 +1,63 @@
-// This module implements the main sha256 homomorphic function using parallel processing when possible and some helper functions
+// This module implements the main sha256 homomorphic function using parallel processing when
+// possible and some helper functions
 
+use crate::boolean_ops::{
+    add, ch, csa, maj, sigma0, sigma1, sigma_upper_case_0, sigma_upper_case_1, trivial_bools,
+};
 use std::array;
 use tfhe::boolean::prelude::*;
-use crate::boolean_ops::{add, sigma0, sigma1, ch, maj, sigma_upper_case_0, sigma_upper_case_1, trivial_bools, csa};
 
-pub fn sha256_fhe(padded_input: Vec<Ciphertext>, ladner_fischer: bool, sk: &ServerKey) -> Vec<Ciphertext> {
-    assert_eq!(padded_input.len() % 512, 0, "padded input length is not a multiple of 512");
+pub fn sha256_fhe(
+    padded_input: Vec<Ciphertext>,
+    ladner_fischer: bool,
+    sk: &ServerKey,
+) -> Vec<Ciphertext> {
+    assert_eq!(
+        padded_input.len() % 512,
+        0,
+        "padded input length is not a multiple of 512"
+    );
 
     // Initialize hash values
     let mut hash: [[Ciphertext; 32]; 8] = [
-        trivial_bools(&hex_to_bools(0x6a09e667), &sk),
-        trivial_bools(&hex_to_bools(0xbb67ae85), &sk),
-        trivial_bools(&hex_to_bools(0x3c6ef372), &sk),
-        trivial_bools(&hex_to_bools(0xa54ff53a), &sk),
-        trivial_bools(&hex_to_bools(0x510e527f), &sk),
-        trivial_bools(&hex_to_bools(0x9b05688c), &sk),
-        trivial_bools(&hex_to_bools(0x1f83d9ab), &sk),
-        trivial_bools(&hex_to_bools(0x5be0cd19), &sk),
+        trivial_bools(&hex_to_bools(0x6a09e667), sk),
+        trivial_bools(&hex_to_bools(0xbb67ae85), sk),
+        trivial_bools(&hex_to_bools(0x3c6ef372), sk),
+        trivial_bools(&hex_to_bools(0xa54ff53a), sk),
+        trivial_bools(&hex_to_bools(0x510e527f), sk),
+        trivial_bools(&hex_to_bools(0x9b05688c), sk),
+        trivial_bools(&hex_to_bools(0x1f83d9ab), sk),
+        trivial_bools(&hex_to_bools(0x5be0cd19), sk),
     ];
 
     let chunks = padded_input.chunks_exact(512);
 
     for chunk in chunks {
-
         // Compute the 64 words
-        let mut w = initialize_w(&sk);
+        let mut w = initialize_w(sk);
 
         for i in 0..16 {
             w[i].clone_from_slice(&chunk[i * 32..(i + 1) * 32]);
         }
 
         for i in (16..64).step_by(2) {
-            let u = i+1;
+            let u = i + 1;
 
             let (word_i, word_u) = rayon::join(
                 || {
-                    let (s0, s1) = rayon::join(
-                        || sigma0(&w[i - 15], sk),
-                        || sigma1(&w[i - 2], sk));
+                    let (s0, s1) = rayon::join(|| sigma0(&w[i - 15], sk), || sigma1(&w[i - 2], sk));
 
                     let (sum, carry) = csa(&s0, &w[i - 7], &w[i - 16], sk);
                     let (sum, carry) = csa(&s1, &sum, &carry, sk);
                     add(&sum, &carry, ladner_fischer, sk)
                 },
                 || {
-                    let (s0, s1) = rayon::join(
-                        || sigma0(&w[u - 15], sk),
-                        || sigma1(&w[u - 2], sk));
+                    let (s0, s1) = rayon::join(|| sigma0(&w[u - 15], sk), || sigma1(&w[u - 2], sk));
 
                     let (sum, carry) = csa(&s0, &w[u - 7], &w[u - 16], sk);
                     let (sum, carry) = csa(&s1, &sum, &carry, sk);
                     add(&sum, &carry, ladner_fischer, sk)
-                }
+                },
             );
 
             w[i] = word_i;
@@ -79,14 +85,19 @@ pub fn sha256_fhe(padded_input: Vec<Ciphertext>, ladner_fischer: bool, sk: &Serv
                             );
                             csa(&sum, &carry, &ch, sk)
                         },
-                        || sigma_upper_case_1(&e, sk)
+                        || sigma_upper_case_1(&e, sk),
                     );
 
                     let (sum, carry) = csa(&sum, &carry, &s1, sk);
                     add(&sum, &carry, ladner_fischer, sk)
                 },
                 || {
-                    add(&sigma_upper_case_0(&a, sk), &maj(&a, &b, &c, sk), ladner_fischer, sk)
+                    add(
+                        &sigma_upper_case_0(&a, sk),
+                        &maj(&a, &b, &c, sk),
+                        ladner_fischer,
+                        sk,
+                    )
                 },
             );
 
@@ -118,16 +129,16 @@ pub fn sha256_fhe(padded_input: Vec<Ciphertext>, ladner_fischer: bool, sk: &Serv
     // Concatenate the final hash values to produce a 256-bit hash
     let mut output = vec![];
 
-    for i in 0..8 {
-        for j in 0..32 {
-            output.push(hash[i][j].clone());
+    for item in &hash {
+        for j in item.iter().take(32) {
+            output.push(j.clone());
         }
     }
 
     output
 }
 
-// Initialize the 64 words with trivial encryptions
+// Initialize the 64 words with trivial encryption
 fn initialize_w(sk: &ServerKey) -> [[Ciphertext; 32]; 64] {
     array::from_fn(|_| trivial_bools(&[false; 32], sk))
 }
@@ -167,8 +178,8 @@ fn hex_to_bools(hex_value: u32) -> [bool; 32] {
     let mut bool_array = [false; 32];
     let mut mask = 0x8000_0000;
 
-    for i in 0..32 {
-        bool_array[i] = (hex_value & mask) != 0;
+    for item in &mut bool_array {
+        *item = (hex_value & mask) != 0;
         mask >>= 1;
     }
 
@@ -183,7 +194,7 @@ const K: [u32; 64] = [
     0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
     0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
     0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ];
 
 #[cfg(test)]
@@ -202,7 +213,10 @@ mod tests {
 
     #[test]
     fn test_bools_to_hex() {
-        let bools = to_bool_array([1,0,0,1,0,0,0,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,]);
+        let bools = to_bool_array([
+            1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            0, 1, 0,
+        ]);
         let hex_bools = bools_to_hex(bools.to_vec());
 
         assert_eq!(hex_bools, "90befffa");
@@ -212,7 +226,10 @@ mod tests {
     fn test_hex_to_bools() {
         let hex = 0x428a2f98;
         let result = hex_to_bools(hex);
-        let expected = to_bool_array([0,1,0,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,1,0,1,1,1,1,1,0,0,1,1,0,0,0,]);
+        let expected = to_bool_array([
+            0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1,
+            0, 0, 0,
+        ]);
 
         assert_eq!(result, expected);
     }
