@@ -342,7 +342,9 @@ fn test_volume_match_fhe(
     fhe_function: fn(&mut [RadixCiphertextBig], &mut [RadixCiphertextBig], &ServerKey),
 ) {
     let working_dir = std::env::current_dir().unwrap();
-    std::env::set_current_dir(working_dir.join("tfhe")).unwrap();
+    if working_dir.file_name().unwrap() != std::path::Path::new("tfhe") {
+        std::env::set_current_dir(working_dir.join("tfhe")).unwrap();
+    }
 
     println!("Generating keys...");
     let time = Instant::now();
