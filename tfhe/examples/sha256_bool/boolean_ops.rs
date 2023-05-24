@@ -313,76 +313,11 @@ mod tests {
         bool_arr
     }
     fn encrypt(bools: &[bool; 32], ck: &ClientKey) -> [Ciphertext; 32] {
-        [
-            ck.encrypt(bools[0]),
-            ck.encrypt(bools[1]),
-            ck.encrypt(bools[2]),
-            ck.encrypt(bools[3]),
-            ck.encrypt(bools[4]),
-            ck.encrypt(bools[5]),
-            ck.encrypt(bools[6]),
-            ck.encrypt(bools[7]),
-            ck.encrypt(bools[8]),
-            ck.encrypt(bools[9]),
-            ck.encrypt(bools[10]),
-            ck.encrypt(bools[11]),
-            ck.encrypt(bools[12]),
-            ck.encrypt(bools[13]),
-            ck.encrypt(bools[14]),
-            ck.encrypt(bools[15]),
-            ck.encrypt(bools[16]),
-            ck.encrypt(bools[17]),
-            ck.encrypt(bools[18]),
-            ck.encrypt(bools[19]),
-            ck.encrypt(bools[20]),
-            ck.encrypt(bools[21]),
-            ck.encrypt(bools[22]),
-            ck.encrypt(bools[23]),
-            ck.encrypt(bools[24]),
-            ck.encrypt(bools[25]),
-            ck.encrypt(bools[26]),
-            ck.encrypt(bools[27]),
-            ck.encrypt(bools[28]),
-            ck.encrypt(bools[29]),
-            ck.encrypt(bools[30]),
-            ck.encrypt(bools[31]),
-        ]
+        array::from_fn(|i| ck.encrypt(bools[i]))
     }
+
     fn decrypt(bools: &[Ciphertext; 32], ck: &ClientKey) -> [bool; 32] {
-        [
-            ck.decrypt(&bools[0]),
-            ck.decrypt(&bools[1]),
-            ck.decrypt(&bools[2]),
-            ck.decrypt(&bools[3]),
-            ck.decrypt(&bools[4]),
-            ck.decrypt(&bools[5]),
-            ck.decrypt(&bools[6]),
-            ck.decrypt(&bools[7]),
-            ck.decrypt(&bools[8]),
-            ck.decrypt(&bools[9]),
-            ck.decrypt(&bools[10]),
-            ck.decrypt(&bools[11]),
-            ck.decrypt(&bools[12]),
-            ck.decrypt(&bools[13]),
-            ck.decrypt(&bools[14]),
-            ck.decrypt(&bools[15]),
-            ck.decrypt(&bools[16]),
-            ck.decrypt(&bools[17]),
-            ck.decrypt(&bools[18]),
-            ck.decrypt(&bools[19]),
-            ck.decrypt(&bools[20]),
-            ck.decrypt(&bools[21]),
-            ck.decrypt(&bools[22]),
-            ck.decrypt(&bools[23]),
-            ck.decrypt(&bools[24]),
-            ck.decrypt(&bools[25]),
-            ck.decrypt(&bools[26]),
-            ck.decrypt(&bools[27]),
-            ck.decrypt(&bools[28]),
-            ck.decrypt(&bools[29]),
-            ck.decrypt(&bools[30]),
-            ck.decrypt(&bools[31]),
-        ]
+        array::from_fn(|i| ck.decrypt(&bools[i]))
     }
 
     #[test]
