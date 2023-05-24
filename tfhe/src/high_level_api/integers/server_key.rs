@@ -1,4 +1,8 @@
 use crate::integer::wopbs::WopbsKey;
+use crate::integer::RadixCiphertextBig;
+use crate::integer::RadixCiphertextSmall;
+
+use crate::integer::ciphertext::BaseRadixCiphertext;
 
 pub(crate) fn wopbs_radix<O>(
     wopbs_key: &WopbsKey,
@@ -218,8 +222,29 @@ impl WopbsEvaluationKey<crate::integer::ServerKey, crate::integer::CrtCiphertext
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub enum RadixCiphertextDyn {
-    Big(crate::integer::RadixCiphertextBig),
-    Small(crate::integer::RadixCiphertextSmall),
+    Big(RadixCiphertextBig),
+    Small(RadixCiphertextSmall),
+}
+
+impl From<RadixCiphertextBig> for RadixCiphertextDyn {
+    fn from(other: RadixCiphertextBig) -> Self {
+        Self::Big(other)
+    }
+}
+
+impl From<RadixCiphertextSmall> for RadixCiphertextDyn {
+    fn from(other: RadixCiphertextSmall) -> Self {
+        Self::Small(other)
+    }
+}
+
+impl<Block> From<Vec<Block>> for RadixCiphertextDyn
+where
+    RadixCiphertextDyn: From<BaseRadixCiphertext<Block>>,
+{
+    fn from(blocks: Vec<Block>) -> Self {
+        Self::from(BaseRadixCiphertext::from(blocks))
+    }
 }
 
 pub(super) trait ServerKeyDefaultNeg<Ciphertext> {

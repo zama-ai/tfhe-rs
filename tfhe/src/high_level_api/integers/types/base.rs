@@ -115,6 +115,27 @@ where
     }
 }
 
+impl<P, Block> From<Vec<Block>> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: Default,
+    RadixCiphertextDyn: From<Vec<Block>>,
+{
+    fn from(blocks: Vec<Block>) -> GenericInteger<P> {
+        GenericInteger::<P>::new(RadixCiphertextDyn::from(blocks), Default::default())
+    }
+}
+
+impl<P> From<RadixCiphertextDyn> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: Default,
+{
+    fn from(other: RadixCiphertextDyn) -> GenericInteger<P> {
+        GenericInteger::<P>::new(other, Default::default())
+    }
+}
+
 impl<P, ClearType> FheDecrypt<ClearType> for GenericInteger<P>
 where
     ClearType: crate::integer::block_decomposition::RecomposableFrom<u64>,
