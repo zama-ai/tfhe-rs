@@ -1,8 +1,8 @@
+use crate::execution::{Executed, Execution, LazyExecution};
+use crate::parser::{parse, RegExpr};
 use anyhow::Result;
 use std::rc::Rc;
 use tfhe::integer::{RadixCiphertextBig, ServerKey};
-use crate::parser::{parse, RegExpr};
-use crate::execution::{Executed, Execution, LazyExecution};
 
 pub fn has_match(
     sk: &ServerKey,
@@ -25,7 +25,7 @@ pub fn has_match(
             .0
     } else {
         branches[1..]
-            .into_iter()
+            .iter()
             .fold(branches[0](&mut exec), |res, branch| {
                 let branch_res = branch(&mut exec);
                 exec.ct_or(res, branch_res)
@@ -47,14 +47,14 @@ fn build_branches(
 ) -> Vec<(LazyExecution, usize)> {
     trace!("program pointer: regex={:?}, content pos={}", re, c_pos);
     match re {
-        RegExpr::SOF => {
+        RegExpr::Sof => {
             if c_pos == 0 {
                 return vec![(Rc::new(|exec| exec.ct_true()), c_pos)];
             } else {
                 return vec![];
             }
         }
-        RegExpr::EOF => {
+        RegExpr::Eof => {
             if c_pos == content.len() {
                 return vec![(Rc::new(|exec| exec.ct_true()), c_pos)];
             } else {
@@ -216,11 +216,9 @@ mod tests {
     use crate::engine::has_match;
     use test_case::test_case;
 
-    use tfhe::integer::{ServerKey, RadixClientKey};
     use crate::ciphertext::{encrypt_str, gen_keys, StringCiphertext};
-    use bincode;
     use lazy_static::lazy_static;
-    use std::io::Write;
+    use tfhe::integer::{RadixClientKey, ServerKey};
 
     lazy_static! {
         pub static ref KEYS: (RadixClientKey, ServerKey) = gen_keys();

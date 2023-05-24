@@ -1,13 +1,13 @@
 #[macro_use]
 extern crate log;
 
-mod engine;
 mod ciphertext;
+mod engine;
 mod execution;
 mod parser;
 
-use std::env;
 use env_logger::Env;
+use std::env;
 
 fn main() {
     let env = Env::default().filter_or("RUST_LOG", "info");

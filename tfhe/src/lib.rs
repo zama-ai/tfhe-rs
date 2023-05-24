@@ -38,9 +38,6 @@ pub mod integer;
 /// cbindgen:ignore
 pub mod shortint;
 
-#[cfg(feature = "regex")]
-pub mod regex;
-
 #[cfg(feature = "__wasm_api")]
 /// cbindgen:ignore
 pub mod js_on_wasm_api;
