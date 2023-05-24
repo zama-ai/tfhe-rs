@@ -37,8 +37,9 @@ fn volume_match_plain(sell_orders: &mut [u16], buy_orders: &mut [u16]) {
 
 /// FHE implementation of the volume matching algorithm.
 ///
-/// Matches the given encrypted [sell_orders] with encrypted [buy_orders] using the given [server_key].
-/// The amount of the orders that are successfully filled is written over the original order count.
+/// Matches the given encrypted [sell_orders] with encrypted [buy_orders] using the given
+/// [server_key]. The amount of the orders that are successfully filled is written over the original
+/// order count.
 fn volume_match_fhe(
     sell_orders: &mut [RadixCiphertextBig],
     buy_orders: &mut [RadixCiphertextBig],
@@ -70,8 +71,8 @@ fn volume_match_fhe(
 
     let fill_orders = |orders: &mut [RadixCiphertextBig]| {
         let mut volume_left_to_transact = total_volume.clone();
-        for mut order in orders.iter_mut() {
-            let mut filled_amount = server_key.smart_min(&mut volume_left_to_transact, &mut order);
+        for order in orders.iter_mut() {
+            let mut filled_amount = server_key.smart_min(&mut volume_left_to_transact, order);
             server_key.smart_sub_assign(&mut volume_left_to_transact, &mut filled_amount);
             *order = filled_amount;
         }
@@ -88,8 +89,9 @@ fn volume_match_fhe(
 ///
 /// This version of the algorithm utilizes parallelization to speed up the computation.
 ///
-/// Matches the given encrypted [sell_orders] with encrypted [buy_orders] using the given [server_key].
-/// The amount of the orders that are successfully filled is written over the original order count.
+/// Matches the given encrypted [sell_orders] with encrypted [buy_orders] using the given
+/// [server_key]. The amount of the orders that are successfully filled is written over the original
+/// order count.
 fn volume_match_fhe_parallelized(
     sell_orders: &mut [RadixCiphertextBig],
     buy_orders: &mut [RadixCiphertextBig],
@@ -107,7 +109,8 @@ fn volume_match_fhe_parallelized(
 
     println!("Calculating total sell and buy volumes...");
     let time = Instant::now();
-    // Total sell and buy volumes can be calculated in parallel because they have no dependency on each other.
+    // Total sell and buy volumes can be calculated in parallel because they have no dependency on
+    // each other.
     let (mut total_sell_volume, mut total_buy_volume) = rayon::join(
         || parallel_vector_sum(sell_orders),
         || parallel_vector_sum(buy_orders),
@@ -128,9 +131,9 @@ fn volume_match_fhe_parallelized(
 
     let fill_orders = |orders: &mut [RadixCiphertextBig]| {
         let mut volume_left_to_transact = total_volume.clone();
-        for mut order in orders.iter_mut() {
+        for order in orders.iter_mut() {
             let mut filled_amount =
-                server_key.smart_min_parallelized(&mut volume_left_to_transact, &mut order);
+                server_key.smart_min_parallelized(&mut volume_left_to_transact, order);
             server_key
                 .smart_sub_assign_parallelized(&mut volume_left_to_transact, &mut filled_amount);
             *order = filled_amount;
@@ -146,8 +149,9 @@ fn volume_match_fhe_parallelized(
 ///
 /// In this function, the implemented algorithm is modified to utilize more concurrency.
 ///
-/// Matches the given encrypted [sell_orders] with encrypted [buy_orders] using the given [server_key].
-/// The amount of the orders that are successfully filled is written over the original order count.
+/// Matches the given encrypted [sell_orders] with encrypted [buy_orders] using the given
+/// [server_key]. The amount of the orders that are successfully filled is written over the original
+/// order count.
 fn volume_match_fhe_modified(
     sell_orders: &mut [RadixCiphertextBig],
     buy_orders: &mut [RadixCiphertextBig],
@@ -167,18 +171,18 @@ fn volume_match_fhe_modified(
                 }
             })
             .collect();
-        for d in 0..(prefix_sum.len().ilog2() as u32) {
+        for d in 0..prefix_sum.len().ilog2() {
             prefix_sum
                 .par_chunks_exact_mut(2_usize.pow(d + 1))
                 .for_each(move |chunk| {
                     let length = chunk.len();
                     let mut left = chunk.get((length - 1) / 2).unwrap().clone();
                     server_key.smart_add_assign_parallelized(chunk.last_mut().unwrap(), &mut left)
-               });
+                });
         }
         let last = prefix_sum.last().unwrap().clone();
         *prefix_sum.last_mut().unwrap() = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
-        for d in (0..(prefix_sum.len().ilog2() as u32)).rev() {
+        for d in (0..prefix_sum.len().ilog2()).rev() {
             prefix_sum
                 .par_chunks_exact_mut(2_usize.pow(d + 1))
                 .for_each(move |chunk| {
@@ -256,45 +260,45 @@ fn volume_match_fhe_modified(
 fn run_test_cases<F: Fn(&[u16], &[u16], &[u16], &[u16])>(tester: F) {
     println!("Testing empty sell orders...");
     tester(
-        &vec![],
-        &(1..11).map(|i| i).collect::<Vec<_>>(),
-        &vec![],
+        &[],
+        &(1..11).collect::<Vec<_>>(),
+        &[],
         &(1..11).map(|_| 0).collect::<Vec<_>>(),
     );
     println!();
 
     println!("Testing empty buy orders...");
     tester(
-        &(1..11).map(|i| i).collect::<Vec<_>>(),
-        &vec![],
+        &(1..11).collect::<Vec<_>>(),
+        &[],
         &(1..11).map(|_| 0).collect::<Vec<_>>(),
-        &vec![],
+        &[],
     );
     println!();
 
     println!("Testing exact matching of sell and buy orders...");
     tester(
-        &(1..11).map(|i| i).collect::<Vec<_>>(),
-        &(1..11).map(|i| i).collect::<Vec<_>>(),
-        &(1..11).map(|i| i).collect::<Vec<_>>(),
-        &(1..11).map(|i| i).collect::<Vec<_>>(),
+        &(1..11).collect::<Vec<_>>(),
+        &(1..11).collect::<Vec<_>>(),
+        &(1..11).collect::<Vec<_>>(),
+        &(1..11).collect::<Vec<_>>(),
     );
     println!();
 
     println!("Testing the case where there are more buy orders than sell orders...");
     tester(
         &(1..11).map(|_| 10).collect::<Vec<_>>(),
-        &vec![200],
+        &[200],
         &(1..11).map(|_| 10).collect::<Vec<_>>(),
-        &vec![100],
+        &[100],
     );
     println!();
 
     println!("Testing the case where there are more sell orders than buy orders...");
     tester(
-        &vec![200],
+        &[200],
         &(1..11).map(|_| 10).collect::<Vec<_>>(),
-        &vec![100],
+        &[100],
         &(1..11).map(|_| 10).collect::<Vec<_>>(),
     );
     println!();
