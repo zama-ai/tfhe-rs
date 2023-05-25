@@ -70,11 +70,37 @@ create_parametrized_test!(integer_default_scalar_mul_u128_fix_non_reg_test {
 });
 create_parametrized_test!(integer_smart_scalar_mul);
 create_parametrized_test!(integer_default_scalar_mul);
-// left/right shifts
+// scalar left/right shifts
 create_parametrized_test!(integer_unchecked_scalar_left_shift);
 create_parametrized_test!(integer_default_scalar_left_shift);
 create_parametrized_test!(integer_unchecked_scalar_right_shift);
 create_parametrized_test!(integer_default_scalar_right_shift);
+// left/right shifts
+create_parametrized_test!(integer_unchecked_left_shift {
+    // This algorithm requires 3 bits
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_4
+});
+create_parametrized_test!(integer_unchecked_right_shift {
+    // This algorithm requires 3 bits
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_4
+});
+// left/right rotations
+create_parametrized_test!(integer_unchecked_rotate_left {
+    // This algorithm requires 3 bits
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_4
+});
+create_parametrized_test!(integer_unchecked_rotate_right {
+    // This algorithm requires 3 bits
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_4
+});
 // left/right rotations
 create_parametrized_test!(integer_unchecked_scalar_rotate_right);
 create_parametrized_test!(integer_unchecked_scalar_rotate_left);
@@ -983,6 +1009,189 @@ fn integer_unchecked_scalar_left_shift(param: PBSParameters) {
         let ct_res = sks.unchecked_scalar_left_shift_parallelized(&ct, scalar as u64);
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+    }
+}
+
+fn integer_unchecked_left_shift(param: PBSParameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= shift < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = sks.unchecked_left_shift_parallelized(&ct, &shift);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!((clear << clear_shift) % modulus, dec_res);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = sks.unchecked_left_shift_parallelized(&ct, &shift);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let mut nb_bits = modulus.ilog2();
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            // We mimic wrapping_shl manually as we use a bigger type
+            // than the nb_bits we actually simulate in this test
+            assert_eq!((clear << (clear_shift % nb_bits)) % modulus, dec_res);
+        }
+    }
+}
+
+fn integer_unchecked_right_shift(param: PBSParameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= shift < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = sks.unchecked_right_shift_parallelized(&ct, &shift);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!((clear >> clear_shift) % modulus, dec_res);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = sks.unchecked_right_shift_parallelized(&ct, &shift);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let mut nb_bits = modulus.ilog2();
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            // We mimic wrapping_shr manually as we use a bigger type
+            // than the nb_bits we actually simulate in this test
+            assert_eq!((clear >> (clear_shift % nb_bits)) % modulus, dec_res);
+        }
+    }
+}
+
+fn integer_unchecked_left_rotate(param: PBSParameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = sks.unchecked_left_rotate_parallelized(&ct, &shift);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_left_helper(clear, clear_shift, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = sks.unchecked_left_rotate_parallelized(&ct, &shift);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_left_helper(clear, clear_shift % nb_bits, true_nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+    }
+}
+
+fn integer_unchecked_right_rotate(param: PBSParameters) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = sks.unchecked_right_rotate_parallelized(&ct, &shift);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, clear_shift, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = sks.unchecked_right_rotate_parallelized(&ct, &shift);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_right_helper(clear, clear_shift % nb_bits, true_nb_bits);
+            assert_eq!(expected, dec_res);
+        }
     }
 }
 

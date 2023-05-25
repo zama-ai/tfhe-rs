@@ -670,6 +670,23 @@ define_server_key_bench_default_fn!(method_name: le_parallelized, display_name: 
 define_server_key_bench_default_fn!(method_name: gt_parallelized, display_name: greater_than);
 define_server_key_bench_default_fn!(method_name: ge_parallelized, display_name: greater_or_equal);
 
+define_server_key_bench_default_fn!(
+    method_name: left_shift_parallelized,
+    display_name: left_shift
+);
+define_server_key_bench_default_fn!(
+    method_name: right_shift_parallelized,
+    display_name: right_shift
+);
+define_server_key_bench_default_fn!(
+    method_name: rotate_left_parallelized,
+    display_name: rotate_right
+);
+define_server_key_bench_default_fn!(
+    method_name: rotate_right_parallelized,
+    display_name: rotate_right
+);
+
 criterion_group!(
     smart_arithmetic_operation,
     smart_neg,
@@ -799,6 +816,10 @@ criterion_group!(
     le_parallelized,
     gt_parallelized,
     ge_parallelized,
+    left_shift_parallelized,
+    right_shift_parallelized,
+    rotate_left_parallelized,
+    rotate_right_parallelized,
     scalar_add_parallelized,
     scalar_sub_parallelized,
     scalar_mul_parallelized,
