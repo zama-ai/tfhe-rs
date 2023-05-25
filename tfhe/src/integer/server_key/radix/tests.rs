@@ -718,7 +718,7 @@ fn integer_unchecked_scalar_left_shift(param: PBSParameters) {
             let scalar = scalar % nb_bits;
             let ct_res = sks.unchecked_scalar_left_shift(&ct, scalar as u64);
             let dec_res: u64 = cks.decrypt_radix(&ct_res);
-            assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shl(scalar) % modulus, dec_res);
         }
 
         // case when scalar >= nb_bits
@@ -726,7 +726,7 @@ fn integer_unchecked_scalar_left_shift(param: PBSParameters) {
             let scalar = scalar.saturating_add(nb_bits);
             let ct_res = sks.unchecked_scalar_left_shift(&ct, scalar as u64);
             let dec_res: u64 = cks.decrypt_radix(&ct_res);
-            assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shl(scalar % nb_bits) % modulus, dec_res);
         }
     }
 }
@@ -753,7 +753,7 @@ fn integer_unchecked_scalar_right_shift(param: PBSParameters) {
             let scalar = scalar % nb_bits;
             let ct_res = sks.unchecked_scalar_right_shift(&ct, scalar as u64);
             let dec_res: u64 = cks.decrypt_radix(&ct_res);
-            assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shr(scalar) % modulus, dec_res);
         }
 
         // case when scalar >= nb_bits
@@ -761,7 +761,7 @@ fn integer_unchecked_scalar_right_shift(param: PBSParameters) {
             let scalar = scalar.saturating_add(nb_bits);
             let ct_res = sks.unchecked_scalar_right_shift(&ct, scalar as u64);
             let dec_res: u64 = cks.decrypt_radix(&ct_res);
-            assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shr(scalar % nb_bits) % modulus, dec_res);
         }
     }
 }

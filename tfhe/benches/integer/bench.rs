@@ -680,7 +680,7 @@ define_server_key_bench_default_fn!(
 );
 define_server_key_bench_default_fn!(
     method_name: rotate_left_parallelized,
-    display_name: rotate_right
+    display_name: rotate_left
 );
 define_server_key_bench_default_fn!(
     method_name: rotate_right_parallelized,

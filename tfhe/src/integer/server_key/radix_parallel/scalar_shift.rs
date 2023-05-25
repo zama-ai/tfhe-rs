@@ -109,17 +109,12 @@ impl ServerKey {
         }
 
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
+        let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
+        let shift = shift % total_num_bits;
+
         let rotations = ((shift / num_bits_in_block) as usize).min(ct.blocks.len());
         let shift_within_block = shift % num_bits_in_block;
         let num_blocks = ct.blocks.len();
-        let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
-
-        if shift > total_num_bits {
-            for block in ct.blocks.iter_mut() {
-                self.key.create_trivial_assign(block, 0)
-            }
-            return;
-        }
 
         // rotate left as the blocks are from LSB to MSB
         ct.blocks.rotate_left(rotations);
@@ -149,7 +144,7 @@ impl ServerKey {
                     next_block <<= num_bits_in_block;
                     next_block >>= shift_within_block;
 
-                    // The way of gettint caryy / message is reversed compared
+                    // The way of gettint carry / message is reversed compared
                     // to the usual way but its normal:
                     // The message is in the upper bits, the carry in lower bits
                     let message_of_current_block = current_block >> shift_within_block;
@@ -385,16 +380,11 @@ impl ServerKey {
         }
 
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
+        let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
+        let shift = shift % total_num_bits;
+
         let rotations = ((shift / num_bits_in_block) as usize).min(ct.blocks.len());
         let shift_within_block = shift % num_bits_in_block;
-        let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
-
-        if shift > total_num_bits {
-            for block in ct.blocks.iter_mut() {
-                self.key.create_trivial_assign(block, 0)
-            }
-            return;
-        }
 
         // rotate right as the blocks are from LSB to MSB
         ct.blocks.rotate_right(rotations);

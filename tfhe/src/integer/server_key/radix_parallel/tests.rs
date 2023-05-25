@@ -989,7 +989,7 @@ fn integer_unchecked_scalar_left_shift(param: PBSParameters) {
             let scalar = scalar % nb_bits;
             let ct_res = sks.unchecked_scalar_left_shift_parallelized(&ct, scalar as u64);
             let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shl(scalar) % modulus, dec_res);
         }
 
         // case when scalar >= nb_bits
@@ -997,7 +997,7 @@ fn integer_unchecked_scalar_left_shift(param: PBSParameters) {
             let scalar = scalar.saturating_add(nb_bits);
             let ct_res = sks.unchecked_scalar_left_shift_parallelized(&ct, scalar as u64);
             let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shl(scalar % nb_bits) % modulus, dec_res);
         }
     }
 
@@ -1008,7 +1008,7 @@ fn integer_unchecked_scalar_left_shift(param: PBSParameters) {
     for scalar in 0..nb_bits_in_block {
         let ct_res = sks.unchecked_scalar_left_shift_parallelized(&ct, scalar as u64);
         let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+        assert_eq!(clear.wrapping_shl(scalar) % modulus, dec_res);
     }
 }
 
@@ -1103,7 +1103,7 @@ fn integer_unchecked_right_shift(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_left_rotate(param: PBSParameters) {
+fn integer_unchecked_rotate_left(param: PBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1124,7 +1124,7 @@ fn integer_unchecked_left_rotate(param: PBSParameters) {
         {
             let clear_shift = clear_shift % nb_bits;
             let shift = cks.encrypt(clear_shift as u64);
-            let ct_res = sks.unchecked_left_rotate_parallelized(&ct, &shift);
+            let ct_res = sks.unchecked_rotate_left_parallelized(&ct, &shift);
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_left_helper(clear, clear_shift, nb_bits);
             assert_eq!(expected, dec_res);
@@ -1134,7 +1134,7 @@ fn integer_unchecked_left_rotate(param: PBSParameters) {
         {
             let clear_shift = clear_shift.saturating_add(nb_bits);
             let shift = cks.encrypt(clear_shift as u64);
-            let ct_res = sks.unchecked_left_rotate_parallelized(&ct, &shift);
+            let ct_res = sks.unchecked_rotate_left_parallelized(&ct, &shift);
             let dec_res: u64 = cks.decrypt(&ct_res);
             // When nb_bits is not a power of two
             // then the behaviour is not the same
@@ -1149,7 +1149,7 @@ fn integer_unchecked_left_rotate(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_right_rotate(param: PBSParameters) {
+fn integer_unchecked_rotate_right(param: PBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1170,7 +1170,7 @@ fn integer_unchecked_right_rotate(param: PBSParameters) {
         {
             let clear_shift = clear_shift % nb_bits;
             let shift = cks.encrypt(clear_shift as u64);
-            let ct_res = sks.unchecked_right_rotate_parallelized(&ct, &shift);
+            let ct_res = sks.unchecked_rotate_right_parallelized(&ct, &shift);
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_right_helper(clear, clear_shift, nb_bits);
             assert_eq!(expected, dec_res);
@@ -1180,7 +1180,7 @@ fn integer_unchecked_right_rotate(param: PBSParameters) {
         {
             let clear_shift = clear_shift.saturating_add(nb_bits);
             let shift = cks.encrypt(clear_shift as u64);
-            let ct_res = sks.unchecked_right_rotate_parallelized(&ct, &shift);
+            let ct_res = sks.unchecked_rotate_right_parallelized(&ct, &shift);
             let dec_res: u64 = cks.decrypt(&ct_res);
             // When nb_bits is not a power of two
             // then the behaviour is not the same
@@ -1229,7 +1229,7 @@ fn integer_default_scalar_left_shift(param: PBSParameters) {
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shl(scalar % nb_bits) % modulus, dec_res);
         }
     }
 
@@ -1240,7 +1240,7 @@ fn integer_default_scalar_left_shift(param: PBSParameters) {
     for scalar in 0..nb_bits_in_block {
         let ct_res = sks.scalar_left_shift_parallelized(&ct, scalar as u64);
         let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+        assert_eq!(clear.wrapping_shl(scalar % nb_bits) % modulus, dec_res);
     }
 }
 
@@ -1279,7 +1279,7 @@ fn integer_unchecked_scalar_right_shift(param: PBSParameters) {
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shr(scalar % nb_bits) % modulus, dec_res);
         }
     }
 
@@ -1321,7 +1321,7 @@ fn integer_default_scalar_right_shift(param: PBSParameters) {
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shr(scalar) % modulus, dec_res);
         }
 
         // case when scalar >= nb_bits
@@ -1332,7 +1332,7 @@ fn integer_default_scalar_right_shift(param: PBSParameters) {
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
+            assert_eq!(clear.wrapping_shr(scalar % nb_bits) % modulus, dec_res);
         }
     }
 
@@ -1346,7 +1346,7 @@ fn integer_default_scalar_right_shift(param: PBSParameters) {
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(ct_res, tmp);
         let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
+        assert_eq!(clear.wrapping_shr(scalar) % modulus, dec_res);
     }
 }
 
