@@ -302,7 +302,7 @@ impl ServerKey {
                     giver_block <<= num_bits_in_message;
                     giver_block >>= shift_within_block;
 
-                    // The way of getting caryy / message is reversed compared
+                    // The way of getting carry / message is reversed compared
                     // to the usual way but its normal:
                     // The message is in the upper bits, the carry in lower bits
                     let message_of_current_block = receiver_block >> shift_within_block;
