@@ -571,19 +571,6 @@ impl<'a> Comparator<'a> {
     // Unchecked Single-Threaded operations
     //======================================
 
-    pub fn unchecked_eq<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare,
-            |x| u64::from(x == Self::IS_EQUAL),
-            lhs,
-            rhs,
-        )
-    }
-
     pub fn unchecked_gt<PBSOrder: PBSOrderMarker>(
         &self,
         lhs: &RadixCiphertext<PBSOrder>,
@@ -655,19 +642,6 @@ impl<'a> Comparator<'a> {
     //======================================
     // Unchecked Multi-Threaded operations
     //======================================
-
-    pub fn unchecked_eq_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare_parallelized,
-            |x| u64::from(x == Self::IS_EQUAL),
-            lhs,
-            rhs,
-        )
-    }
 
     pub fn unchecked_gt_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
@@ -741,19 +715,6 @@ impl<'a> Comparator<'a> {
     // Smart Single-Threaded operations
     //======================================
 
-    pub fn smart_eq<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
-        self.smart_comparison_impl(
-            Self::smart_compare,
-            |x| u64::from(x == Self::IS_EQUAL),
-            lhs,
-            rhs,
-        )
-    }
-
     pub fn smart_gt<PBSOrder: PBSOrderMarker>(
         &self,
         lhs: &mut RadixCiphertext<PBSOrder>,
@@ -826,19 +787,6 @@ impl<'a> Comparator<'a> {
     // Smart Multi-Threaded operations
     //======================================
 
-    pub fn smart_eq_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
-        self.smart_comparison_impl(
-            Self::smart_compare_parallelized,
-            |x| u64::from(x == Self::IS_EQUAL),
-            lhs,
-            rhs,
-        )
-    }
-
     pub fn smart_gt_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
         lhs: &mut RadixCiphertext<PBSOrder>,
@@ -910,38 +858,6 @@ impl<'a> Comparator<'a> {
     //======================================
     // "Default" Multi-Threaded operations
     //======================================
-    pub fn eq_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
-        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.server_key.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.server_key.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.server_key.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_eq_parallelized(lhs, rhs)
-    }
 
     pub fn gt_parallelized<PBSOrder: PBSOrderMarker>(
         &self,
@@ -1155,10 +1071,101 @@ impl<'a> Comparator<'a> {
 #[cfg(test)]
 mod tests {
     use super::Comparator;
+    use crate::integer::ciphertext::RadixCiphertext;
     use crate::integer::{gen_keys, RadixCiphertextBig, U256};
-    use crate::shortint::PBSParameters;
+    use crate::shortint::{PBSOrderMarker, PBSParameters};
     use rand;
     use rand::prelude::*;
+
+    // These used to be directly implemented
+    // in Comparator methods, however,
+    // they were made more efficient and don't
+    // use the things stored in the Comparator struct to work
+    // so they were moved out of it.
+    //
+    // But to still benefit from the 'comparator test infrastructure'
+    // we remap them in test cfg
+    impl<'a> Comparator<'a> {
+        pub fn smart_eq<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &mut RadixCiphertext<PBSOrder>,
+            rhs: &mut RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.smart_eq(lhs, rhs)
+        }
+
+        pub fn unchecked_eq<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: &RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.unchecked_eq(lhs, rhs)
+        }
+
+        pub fn unchecked_eq_parallelized<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: &RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.eq_parallelized(lhs, rhs)
+        }
+
+        pub fn smart_eq_parallelized<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &mut RadixCiphertext<PBSOrder>,
+            rhs: &mut RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.smart_eq_parallelized(lhs, rhs)
+        }
+
+        pub fn eq_parallelized<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: &RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.eq_parallelized(lhs, rhs)
+        }
+
+        pub fn smart_ne<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &mut RadixCiphertext<PBSOrder>,
+            rhs: &mut RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.smart_ne(lhs, rhs)
+        }
+
+        pub fn unchecked_ne<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: &RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.unchecked_ne(lhs, rhs)
+        }
+
+        pub fn unchecked_ne_parallelized<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: &RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.ne_parallelized(lhs, rhs)
+        }
+
+        pub fn smart_ne_parallelized<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &mut RadixCiphertext<PBSOrder>,
+            rhs: &mut RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.smart_ne_parallelized(lhs, rhs)
+        }
+
+        pub fn ne_parallelized<PBSOrder: PBSOrderMarker>(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: &RadixCiphertext<PBSOrder>,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.ne_parallelized(lhs, rhs)
+        }
+    }
 
     /// Function to test an "unchecked" compartor function.
     ///
@@ -1191,13 +1198,24 @@ mod tests {
             let a = cks.encrypt_radix(clear_a, num_block);
             let b = cks.encrypt_radix(clear_b, num_block);
 
-            let result = unchecked_comparator_method(&comparator, &a, &b);
-            let mut decrypted = U256::default();
-            cks.decrypt_radix_into(&result, &mut decrypted);
+            {
+                let result = unchecked_comparator_method(&comparator, &a, &b);
+                let mut decrypted = U256::default();
+                cks.decrypt_radix_into(&result, &mut decrypted);
 
-            let expected_result = clear_fn(clear_a, clear_b);
+                let expected_result = clear_fn(clear_a, clear_b);
+                assert_eq!(decrypted, expected_result);
+            }
 
-            assert_eq!(decrypted, expected_result);
+            {
+                // Force case where lhs == rhs
+                let result = unchecked_comparator_method(&comparator, &a, &a);
+                let mut decrypted = U256::default();
+                cks.decrypt_radix_into(&result, &mut decrypted);
+
+                let expected_result = clear_fn(clear_a, clear_a);
+                assert_eq!(decrypted, expected_result);
+            }
         }
     }
 
@@ -1527,14 +1545,14 @@ mod tests {
                 });
 
                 create_parametrized_test!([<$comparison_name _parallelized_256_bits>]
-                    {
-                        PARAM_MESSAGE_2_CARRY_2,
-                        // We don't use PARAM_MESSAGE_3_CARRY_3,
-                        // as default test might overflow values
-                        // and when using 3_3 to represent 256 we actually have more than 256 bits
-                        // of message so the overflow behaviour is not the same, leading to false negatives
-                        PARAM_MESSAGE_4_CARRY_4
-                    });
+                {
+                    PARAM_MESSAGE_2_CARRY_2,
+                    // We don't use PARAM_MESSAGE_3_CARRY_3,
+                    // as default test might overflow values
+                    // and when using 3_3 to represent 256 we actually have more than 256 bits
+                    // of message so the overflow behaviour is not the same, leading to false negatives
+                    PARAM_MESSAGE_4_CARRY_4
+                });
             }
         };
     }
@@ -1546,6 +1564,7 @@ mod tests {
     };
 
     define_comparison_test_functions!(eq);
+    define_comparison_test_functions!(ne);
     define_comparison_test_functions!(lt);
     define_comparison_test_functions!(le);
     define_comparison_test_functions!(gt);

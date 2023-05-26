@@ -664,6 +664,7 @@ define_server_key_bench_fn!(
 define_server_key_bench_default_fn!(method_name: max_parallelized, display_name: max);
 define_server_key_bench_default_fn!(method_name: min_parallelized, display_name: min);
 define_server_key_bench_default_fn!(method_name: eq_parallelized, display_name: equal);
+define_server_key_bench_default_fn!(method_name: ne_parallelized, display_name: not_equal);
 define_server_key_bench_default_fn!(method_name: lt_parallelized, display_name: less_than);
 define_server_key_bench_default_fn!(method_name: le_parallelized, display_name: less_or_equal);
 define_server_key_bench_default_fn!(method_name: gt_parallelized, display_name: greater_than);
@@ -793,6 +794,7 @@ criterion_group!(
     min_parallelized,
     max_parallelized,
     eq_parallelized,
+    ne_parallelized,
     lt_parallelized,
     le_parallelized,
     gt_parallelized,
