@@ -39,7 +39,102 @@ impl ServerKey {
         lhs: &RadixCiphertext<PBSOrder>,
         rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
-        Comparator::new(self).unchecked_eq(lhs, rhs)
+        // Even though the corresponding function
+        // may already exist in self.key
+        // we generate our own lut to do less allocations
+        let lut = self
+            .key
+            .generate_accumulator_bivariate(|x, y| u64::from(x == y));
+        let mut block_comparisons = lhs.blocks.clone();
+        block_comparisons
+            .iter_mut()
+            .zip(rhs.blocks.iter())
+            .for_each(|(lhs_block, rhs_block)| {
+                self.key
+                    .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
+            });
+
+        let message_modulus = self.key.message_modulus.0;
+        let carry_modulus = self.key.carry_modulus.0;
+        let total_modulus = message_modulus * carry_modulus;
+        let max_value = total_modulus - 1;
+
+        let is_max_value = self
+            .key
+            .generate_accumulator(|x| u64::from((x & max_value as u64) == max_value as u64));
+
+        while block_comparisons.len() > 1 {
+            block_comparisons = block_comparisons
+                .chunks(max_value)
+                .map(|blocks| {
+                    let mut sum = blocks[0].clone();
+                    for other_block in &blocks[1..] {
+                        self.key.unchecked_add_assign(&mut sum, other_block);
+                    }
+
+                    if blocks.len() == max_value {
+                        self.key.apply_lookup_table(&sum, &is_max_value)
+                    } else {
+                        let is_equal_to_num_blocks = self.key.generate_accumulator(|x| {
+                            u64::from((x & max_value as u64) == blocks.len() as u64)
+                        });
+                        self.key.apply_lookup_table(&sum, &is_equal_to_num_blocks)
+                    }
+                })
+                .collect::<Vec<_>>();
+        }
+
+        block_comparisons.resize_with(lhs.blocks.len(), || self.key.create_trivial(0));
+
+        RadixCiphertext {
+            blocks: block_comparisons,
+        }
+    }
+
+    pub fn unchecked_ne<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        // Even though the corresponding function
+        // may already exist in self.key
+        // we generate our own lut to do less allocations
+        let lut = self
+            .key
+            .generate_accumulator_bivariate(|x, y| u64::from(x != y));
+        let mut block_comparisons = lhs.blocks.clone();
+        block_comparisons
+            .iter_mut()
+            .zip(rhs.blocks.iter())
+            .for_each(|(lhs_block, rhs_block)| {
+                self.key
+                    .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
+            });
+
+        let message_modulus = self.key.message_modulus.0;
+        let carry_modulus = self.key.carry_modulus.0;
+        let total_modulus = message_modulus * carry_modulus;
+        let max_value = total_modulus - 1;
+        let is_non_zero = self.key.generate_accumulator(|x| u64::from(x != 0));
+
+        while block_comparisons.len() > 1 {
+            block_comparisons = block_comparisons
+                .chunks(max_value)
+                .map(|blocks| {
+                    let mut sum = blocks[0].clone();
+                    for other_block in &blocks[1..] {
+                        self.key.unchecked_add_assign(&mut sum, other_block);
+                    }
+                    self.key.apply_lookup_table(&sum, &is_non_zero)
+                })
+                .collect::<Vec<_>>();
+        }
+
+        block_comparisons.resize_with(lhs.blocks.len(), || self.key.create_trivial(0));
+
+        RadixCiphertext {
+            blocks: block_comparisons,
+        }
     }
 
     /// Compares if lhs is strictly greater than rhs
@@ -294,7 +389,27 @@ impl ServerKey {
         lhs: &mut RadixCiphertext<PBSOrder>,
         rhs: &mut RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
-        Comparator::new(self).smart_eq(lhs, rhs)
+        if !lhs.block_carries_are_empty() {
+            self.full_propagate(lhs);
+        }
+        if !rhs.block_carries_are_empty() {
+            self.full_propagate(rhs);
+        }
+        self.unchecked_eq(lhs, rhs)
+    }
+
+    pub fn smart_ne<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &mut RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        if !lhs.block_carries_are_empty() {
+            self.full_propagate(lhs);
+        }
+        if !rhs.block_carries_are_empty() {
+            self.full_propagate(rhs);
+        }
+        self.unchecked_ne(lhs, rhs)
     }
 
     /// Compares if lhs is strictly greater than rhs
