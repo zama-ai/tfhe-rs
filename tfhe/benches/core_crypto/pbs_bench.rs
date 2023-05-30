@@ -49,19 +49,19 @@ criterion_group!(
 
 criterion_group!(
     name = tensor_prod_with_relin_group;
-    config = Criterion::default().sample_size(1000);
+    config = Criterion::default().sample_size(100);
     targets = tensor_product_with_relin::<u64>
 );
 
 criterion_group!(
     name = packed_mult_group;
-    config = Criterion::default().sample_size(1000);
+    config = Criterion::default().sample_size(100);
     targets = packed_mul::<u64>
 );
 
 criterion_group!(
     name = sum_of_products_group;
-    config = Criterion::default().sample_size(1000);
+    config = Criterion::default().sample_size(100);
     targets = packed_sum_prod::<u64>
 );
 
