@@ -455,3 +455,146 @@ pub fn glwe_relinearisation<InputCont, KeyCont, OutputCont, Scalar>(
         )
     }
 }
+
+pub fn tensor_mult_with_relin<InputCont, KeyCont, OutputCont, Scalar>(
+    input_glwe_ciphertext_lhs: &GlweCiphertext<InputCont>,
+    input_glwe_ciphertext_rhs: &GlweCiphertext<InputCont>,
+    scale: Scalar,
+    relinearisation_key: &GlweRelinearisationKey<KeyCont>,
+    output_glwe_ciphertext: &mut GlweCiphertext<OutputCont>,
+) where
+    Scalar: UnsignedTorus + CastInto<u128> + CastFrom<u128>,
+    InputCont: Container<Element = Scalar>,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let tensor_output = glwe_tensor_product(
+        &input_glwe_ciphertext_lhs,
+        &input_glwe_ciphertext_rhs,
+        scale,
+    );
+    glwe_relinearisation(&tensor_output, &relinearisation_key, output_glwe_ciphertext);
+}
+
+pub fn packed_mult<InputCont, KeyCont, OutputCont, Scalar>(
+    input_lwe_ciphertext_list_1: &LweCiphertextList<InputCont>,
+    input_lwe_ciphertext_list_2: &LweCiphertextList<InputCont>,
+    lwe_pubfpksk: &LwePublicFunctionalPackingKeyswitchKey<KeyCont>,
+    relinearisation_key: &GlweRelinearisationKey<KeyCont>,
+    scale: Scalar,
+    output_lwe_ciphertext_list: &mut LweCiphertextList<OutputCont>,
+) where
+    Scalar: UnsignedTorus + CastInto<u128> + CastFrom<u128>,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let mut packed_glwe_1 =
+        GlweCiphertext::new(Scalar::ZERO, 
+            lwe_pubfpksk.output_glwe_size(), 
+            lwe_pubfpksk.output_polynomial_size(), 
+            lwe_pubfpksk.ciphertext_modulus());
+    public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext(
+        &lwe_pubfpksk,
+        &mut packed_glwe_1,
+        &input_lwe_ciphertext_list_1,
+        | x: Vec<Scalar>| {
+            let mut packed1: Vec<Scalar> = vec![Scalar::ZERO;lwe_pubfpksk.output_polynomial_size().0];
+            x.iter().enumerate().for_each(|(iter,y)| packed1[iter] = *y);
+            Polynomial::from_container(packed1)
+            }
+        );
+    let mut packed_glwe_2 =
+        GlweCiphertext::new(Scalar::ZERO,
+            lwe_pubfpksk.output_glwe_size(), 
+            lwe_pubfpksk.output_polynomial_size(), 
+            lwe_pubfpksk.ciphertext_modulus());
+    public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext(
+        &lwe_pubfpksk,
+        &mut packed_glwe_2,
+        &input_lwe_ciphertext_list_2,
+        | x| {
+            let mut packed2: Vec<Scalar> = vec![Scalar::ZERO;lwe_pubfpksk.output_polynomial_size().0];
+            x.iter().enumerate().for_each(|(iter,y)| packed2[input_lwe_ciphertext_list_1.lwe_ciphertext_count().0*iter] = *y);
+            Polynomial::from_container(packed2)
+            },
+        );
+    let mut relin_glwe_ciphertext =
+        GlweCiphertext::new(Scalar::ZERO, lwe_pubfpksk.output_glwe_size(), 
+            lwe_pubfpksk.output_polynomial_size(), 
+            lwe_pubfpksk.ciphertext_modulus());
+    tensor_mult_with_relin(
+        &packed_glwe_1,
+        &packed_glwe_2,
+        scale,
+        &relinearisation_key,
+        &mut relin_glwe_ciphertext,
+        );
+        
+    output_lwe_ciphertext_list.iter_mut().enumerate().
+        for_each(|(iter, mut el)| extract_lwe_sample_from_glwe_ciphertext(&relin_glwe_ciphertext, 
+            &mut el, 
+            MonomialDegree(iter*(input_lwe_ciphertext_list_1.lwe_ciphertext_count().0+1))));
+
+}
+
+pub fn packed_sum_product<InputCont, KeyCont, OutputCont, Scalar>(
+    input_lwe_ciphertext_list_1: &LweCiphertextList<InputCont>,
+    input_lwe_ciphertext_list_2: &LweCiphertextList<InputCont>,
+    lwe_pubfpksk: &LwePublicFunctionalPackingKeyswitchKey<KeyCont>,
+    relinearisation_key: &GlweRelinearisationKey<KeyCont>,
+    scale: Scalar,
+    output_lwe_ciphertext: &mut LweCiphertext<OutputCont>,
+) where
+    Scalar: UnsignedTorus + CastInto<u128> + CastFrom<u128>,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let mut packed_glwe_1 =
+        GlweCiphertext::new(Scalar::ZERO, 
+            lwe_pubfpksk.output_glwe_size(), 
+            lwe_pubfpksk.output_polynomial_size(), 
+            lwe_pubfpksk.ciphertext_modulus());
+    public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext(
+        &lwe_pubfpksk,
+        &mut packed_glwe_1,
+        &input_lwe_ciphertext_list_1,
+        | x: Vec<Scalar>| {
+            let mut packed1: Vec<Scalar> = vec![Scalar::ZERO;lwe_pubfpksk.output_polynomial_size().0];
+            x.iter().enumerate().for_each(|(iter,y)| packed1[iter] = *y);
+            Polynomial::from_container(packed1)
+            }
+        );
+    let mut packed_glwe_2 =
+        GlweCiphertext::new(Scalar::ZERO,
+            lwe_pubfpksk.output_glwe_size(), 
+            lwe_pubfpksk.output_polynomial_size(), 
+            lwe_pubfpksk.ciphertext_modulus());
+    public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext(
+        &lwe_pubfpksk,
+        &mut packed_glwe_2,
+        &input_lwe_ciphertext_list_2,
+        | x| {
+            let mut packed2: Vec<Scalar> = vec![Scalar::ZERO;lwe_pubfpksk.output_polynomial_size().0];
+            x.iter().enumerate().for_each(|(iter,y)| 
+                packed2[input_lwe_ciphertext_list_1.lwe_ciphertext_count().0-1-iter] = *y);
+            Polynomial::from_container(packed2)
+            },
+        );
+    let mut relin_glwe_ciphertext =
+        GlweCiphertext::new(Scalar::ZERO, lwe_pubfpksk.output_glwe_size(), 
+            lwe_pubfpksk.output_polynomial_size(), 
+            lwe_pubfpksk.ciphertext_modulus());
+    tensor_mult_with_relin(
+        &packed_glwe_1,
+        &packed_glwe_2,
+        scale,
+        &relinearisation_key,
+        &mut relin_glwe_ciphertext,
+        );
+        
+    extract_lwe_sample_from_glwe_ciphertext(&relin_glwe_ciphertext, 
+        output_lwe_ciphertext, 
+        MonomialDegree(input_lwe_ciphertext_list_1.lwe_ciphertext_count().0-1));
+}
