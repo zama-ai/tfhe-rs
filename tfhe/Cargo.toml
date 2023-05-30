@@ -33,7 +33,6 @@ num_cpus = "1.15"
 libm = "0.2.6"
 test-case = "*"
 combine = "*"
-anyhow = "*"
 env_logger = "*"
 log = "*"
 
