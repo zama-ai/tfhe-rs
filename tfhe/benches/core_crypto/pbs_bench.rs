@@ -49,24 +49,23 @@ criterion_group!(
 
 criterion_group!(
     name = tensor_prod_with_relin_group;
-    config = Criterion::default().sample_size(2000);
+    config = Criterion::default().sample_size(1000);
     targets = tensor_product_with_relin::<u64>
 );
 
 criterion_group!(
     name = packed_mult_group;
-    config = Criterion::default().sample_size(2000);
+    config = Criterion::default().sample_size(1000);
     targets = packed_mul::<u64>
 );
 
 criterion_group!(
     name = sum_of_products_group;
-    config = Criterion::default().sample_size(2000);
+    config = Criterion::default().sample_size(1000);
     targets = packed_sum_prod::<u64>
 );
 
-//criterion_main!(tensor_prod_with_relin_group,packed_mult_group,sum_of_products_group);
-criterion_main!(packed_mult_group);
+criterion_main!(tensor_prod_with_relin_group,packed_mult_group,sum_of_products_group);
 
 fn benchmark_parameters<Scalar: Numeric>() -> Vec<(String, CryptoParametersRecord)> {
     if Scalar::BITS == 64 {
@@ -902,10 +901,8 @@ fn packed_sum_prod<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) {
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
-    let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> =
-        tfhe::core_crypto::prelude::CiphertextModulus::new_native();
-
-    for (name, params) in tensor_prod_with_relin_benchmark_parameters::<Scalar>().iter() {
+    for (name, params) in packed_operations_benchmark_parameters::<Scalar>().iter() 
+    {
         // Create the LweSecretKey
         let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             params.lwe_dimension.unwrap(),
