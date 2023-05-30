@@ -1,6 +1,5 @@
 use crate::execution::{Executed, Execution, LazyExecution};
 use crate::parser::{parse, RegExpr};
-use anyhow::Result;
 use std::rc::Rc;
 use tfhe::integer::{RadixCiphertextBig, ServerKey};
 
@@ -8,7 +7,7 @@ pub fn has_match(
     sk: &ServerKey,
     content: &[RadixCiphertextBig],
     pattern: &str,
-) -> Result<RadixCiphertextBig> {
+) -> Result<RadixCiphertextBig, Box<dyn std::error::Error>> {
     let re = parse(pattern)?;
 
     let branches: Vec<LazyExecution> = (0..content.len())

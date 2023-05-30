@@ -1,12 +1,14 @@
-use anyhow::{anyhow, Result};
 use tfhe::integer::{gen_keys_radix, RadixCiphertextBig, RadixClientKey, ServerKey};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 
 pub type StringCiphertext = Vec<RadixCiphertextBig>;
 
-pub fn encrypt_str(client_key: &RadixClientKey, s: &str) -> Result<StringCiphertext> {
+pub fn encrypt_str(
+    client_key: &RadixClientKey,
+    s: &str,
+) -> Result<StringCiphertext, Box<dyn std::error::Error>> {
     if !s.is_ascii() {
-        return Err(anyhow!("content contains non-ascii characters"));
+        return Err("content contains non-ascii characters".into());
     }
     Ok(s.as_bytes()
         .iter()

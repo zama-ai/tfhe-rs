@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use combine::parser::byte;
 use combine::parser::byte::byte;
 use combine::*;
@@ -147,7 +146,7 @@ impl fmt::Debug for RegExpr {
     }
 }
 
-pub(crate) fn parse(pattern: &str) -> Result<RegExpr> {
+pub(crate) fn parse(pattern: &str) -> Result<RegExpr, Box<dyn std::error::Error>> {
     let (parsed, unparsed) = (
         between(
             byte(b'/'),
@@ -179,10 +178,11 @@ pub(crate) fn parse(pattern: &str) -> Result<RegExpr> {
         })
         .parse(pattern.as_bytes())?;
     if !unparsed.is_empty() {
-        return Err(anyhow!(
+        return Err(format!(
             "failed to parse regular expression, unexpected token at start of: {}",
             std::str::from_utf8(unparsed).unwrap()
-        ));
+        )
+        .into());
     }
 
     Ok(parsed)
