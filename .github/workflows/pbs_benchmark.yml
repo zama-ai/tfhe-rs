@@ -61,56 +61,44 @@ jobs:
         run: |
           make AVX512_SUPPORT=ON bench_pbs
 
-      - name: Parse results
-        run: |
-          COMMIT_DATE="$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})"
-          COMMIT_HASH="$(git describe --tags --dirty)"
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
-          --database tfhe_rs \
-          --hardware ${{ inputs.instance_type }} \
-          --project-version "${COMMIT_HASH}" \
-          --branch ${{ github.ref_name }} \
-          --commit-date "${COMMIT_DATE}" \
-          --bench-date "${{ env.BENCH_DATE }}" \
-          --name-suffix avx512 \
-          --walk-subdirs \
-          --throughput
+#       - name: Parse results
+#         run: |
+#          COMMIT_DATE="$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})"
+#          COMMIT_HASH="$(git describe --tags --dirty)"
+#          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+#          --database tfhe_rs \
+#          --hardware ${{ inputs.instance_type }} \
+#          --project-version "${COMMIT_HASH}" \
+#          --branch ${{ github.ref_name }} \
+#          --commit-date "${COMMIT_DATE}" \
+#          --bench-date "${{ env.BENCH_DATE }}" \
+#          --name-suffix avx512 \
+#          --walk-subdirs \
+#          --throughput
 
-      - name: Upload parsed results artifact
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce
-        with:
-          name: ${{ github.sha }}_pbs
-          path: ${{ env.RESULTS_FILENAME }}
+#      - name: Upload parsed results artifact
+#        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce
+#        with:
+#          name: ${{ github.sha }}_pbs
+#          path: ${{ env.RESULTS_FILENAME }}
+#
+#      - name: Checkout Slab repo
+#        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
+#        with:
+#          repository: zama-ai/slab
+#          path: slab
+#          token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
 
-      - name: Checkout Slab repo
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          repository: zama-ai/slab
-          path: slab
-          token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
-
-      - name: Send data to Slab
-        shell: bash
-        run: |
-          echo "Computing HMac on downloaded artifact"
-          SIGNATURE="$(slab/scripts/hmac_calculator.sh ${{ env.RESULTS_FILENAME }} '${{ secrets.JOB_SECRET }}')"
-          echo "Sending results to Slab..."
-          curl -v -k \
-          -H "Content-Type: application/json" \
-          -H "X-Slab-Repository: ${{ github.repository }}" \
-          -H "X-Slab-Command: store_data_v2" \
-          -H "X-Hub-Signature-256: sha256=${SIGNATURE}" \
-          -d @${{ env.RESULTS_FILENAME }} \
-          ${{ secrets.SLAB_URL }}
-
-      - name: Slack Notification
-        if: ${{ failure() }}
-        continue-on-error: true
-        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-          SLACK_MESSAGE: "PBS benchmarks failed. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+#      - name: Send data to Slab
+#        shell: bash
+#        run: |
+#          echo "Computing HMac on downloaded artifact"
+#          SIGNATURE="$(slab/scripts/hmac_calculator.sh ${{ env.RESULTS_FILENAME }} '${{ secrets.JOB_SECRET }}')"
+#          echo "Sending results to Slab..."
+#          curl -v -k \
+#          -H "Content-Type: application/json" \
+#          -H "X-Slab-Repository: ${{ github.repository }}" \
+#          -H "X-Slab-Command: store_data_v2" \
+#         -H "X-Hub-Signature-256: sha256=${SIGNATURE}" \
+#          -d @${{ env.RESULTS_FILENAME }} \
+#          ${{ secrets.SLAB_URL }}

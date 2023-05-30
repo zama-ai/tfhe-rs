@@ -93,7 +93,7 @@ use crate::core_crypto::entities::*;
 ///         Polynomial::from_container(temp)
 ///     },
 /// );
-///
+/// 
 /// let mut output_plaintext_list = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
 /// let decomposer = SignedDecomposer::new(DecompositionBaseLog(1), DecompositionLevelCount(4));
 ///
