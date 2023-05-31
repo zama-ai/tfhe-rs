@@ -1,4 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::U256;
 use crate::shortint::parameters::*;
 use crate::shortint::PBSParameters;
 use rand::Rng;
@@ -92,8 +93,7 @@ fn integer_encrypt_decrypt_128_bits(param: PBSParameters) {
         let ct = cks.encrypt_radix(clear, num_block);
 
         // decryption
-        let mut dec = 0u128;
-        cks.decrypt_radix_into(&ct, &mut dec);
+        let dec: u128 = cks.decrypt_radix(&ct);
 
         // assert
         assert_eq!(clear, dec);
@@ -108,8 +108,7 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: PBSParameters) {
         let a = u64::MAX as u128;
         let ct = cks.encrypt_radix(a, num_block);
 
-        let mut dec = 0u128;
-        cks.decrypt_radix_into(&ct, &mut dec);
+        let dec: u128 = cks.decrypt_radix(&ct);
 
         assert_eq!(a, dec);
     }
@@ -117,8 +116,7 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: PBSParameters) {
         let a = (u64::MAX as u128) << 64;
         let ct = cks.encrypt_radix(a, num_block);
 
-        let mut dec = 0u128;
-        cks.decrypt_radix_into(&ct, &mut dec);
+        let dec: u128 = cks.decrypt_radix(&ct);
 
         assert_eq!(a, dec);
     }
@@ -132,8 +130,7 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: PBSParameters) {
         let ct = sks.smart_add(&mut ct, &mut ct2);
 
         // decryption
-        let mut dec = 0u128;
-        cks.decrypt_radix_into(&ct, &mut dec);
+        let dec: u128 = cks.decrypt_radix(&ct);
 
         // assert
         assert_eq!(clear_0.wrapping_add(clear_1), dec);
@@ -148,8 +145,7 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: PBSParameters) {
         let ct = sks.smart_add(&mut ct, &mut ct2);
 
         // decryption
-        let mut dec = 0u128;
-        cks.decrypt_radix_into(&ct, &mut dec);
+        let dec: u128 = cks.decrypt_radix(&ct);
 
         // assert
         assert_eq!(clear_0.wrapping_add(clear_1), dec);
@@ -166,9 +162,7 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: PBSParameters) {
         let clear = crate::integer::U256::from((a, b));
         let ct = cks.encrypt_radix(clear, num_block);
 
-        let mut dec = crate::integer::U256::from((0, 0));
-        cks.decrypt_radix_into(&ct, &mut dec);
-
+        let dec: U256 = cks.decrypt_radix(&ct);
         assert_eq!(clear, dec);
     }
     {
@@ -177,9 +171,7 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: PBSParameters) {
         let clear = crate::integer::U256::from((a, b));
         let ct = cks.encrypt_radix(clear, num_block);
 
-        let mut dec = crate::integer::U256::from((0, 0));
-        cks.decrypt_radix_into(&ct, &mut dec);
-
+        let dec: U256 = cks.decrypt_radix(&ct);
         assert_eq!(clear, dec);
     }
 }
@@ -201,8 +193,7 @@ fn integer_encrypt_decrypt_256_bits(param: PBSParameters) {
         let ct = cks.encrypt_radix(clear, num_block);
 
         // decryption
-        let mut dec = crate::integer::U256::default();
-        cks.decrypt_radix_into(&ct, &mut dec);
+        let dec: U256 = cks.decrypt_radix(&ct);
 
         // assert
         assert_eq!(clear, dec);
@@ -240,8 +231,7 @@ fn integer_smart_add_128_bits(param: PBSParameters) {
             clear_result += clear_0;
 
             // decryption of ct_res
-            let mut dec_res = 0u128;
-            cks.decrypt_radix_into(&ct_res, &mut dec_res);
+            let dec_res: u128 = cks.decrypt_radix(&ct_res);
             // println!("clear = {}, dec_res = {}", clear, dec_res);
             assert_eq!(clear_result, dec_res);
         }

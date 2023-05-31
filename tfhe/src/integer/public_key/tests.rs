@@ -33,8 +33,7 @@ fn big_radix_encrypt_decrypt_128_bits(param: PBSParameters) {
     let ct = public_key.encrypt_radix(clear, num_block);
 
     // decryption
-    let mut dec = 0u128;
-    cks.decrypt_radix_into(&ct, &mut dec);
+    let dec: u128 = cks.decrypt_radix(&ct);
 
     // assert
     assert_eq!(clear, dec);
@@ -54,8 +53,7 @@ fn radix_encrypt_decrypt_compressed_128_bits(param: PBSParameters) {
     let ct = public_key.encrypt_radix(clear, num_block);
 
     // decryption
-    let mut dec = 0u128;
-    cks.decrypt_radix_into(&ct, &mut dec);
+    let dec: u128 = cks.decrypt_radix(&ct);
 
     // assert
     assert_eq!(clear, dec);
