@@ -2,14 +2,10 @@ use std::borrow::Borrow;
 use std::ops::{BitAnd, BitOr, BitXor};
 
 use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
-use crate::errors::UnwrapResultExt;
+use crate::errors::{Type, UnwrapResultExt};
 use crate::CompressedPublicKey;
 use serde::{Deserialize, Serialize};
 
-use crate::high_level_api::booleans::client_key::GenericBoolClientKey;
-use crate::high_level_api::booleans::parameters::BooleanParameterSet;
-use crate::high_level_api::booleans::public_key::GenericBoolPublicKey;
-use crate::high_level_api::booleans::server_key::GenericBoolServerKey;
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::keys::{
     ClientKey, PublicKey, RefKeyFromKeyChain, RefKeyFromPublicKeyChain,
@@ -17,6 +13,35 @@ use crate::high_level_api::keys::{
 use crate::high_level_api::traits::{
     FheDecrypt, FheEq, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
 };
+
+use super::static_::{FheBoolClientKey, FheBoolPublicKey, FheBoolServerKey};
+
+#[derive(Default, Copy, Clone, Serialize, Deserialize)]
+struct FheBoolId;
+
+impl_with_global_key!(
+    for FheBoolId {
+        key_type: FheBoolServerKey,
+        keychain_member: boolean_key.bool_key,
+        type_variant: Type::FheBool,
+    }
+);
+
+impl_ref_key_from_keychain!(
+    for FheBoolId {
+        key_type: FheBoolClientKey,
+        keychain_member: boolean_key.bool_key,
+        type_variant: Type::FheBool,
+    }
+);
+
+impl_ref_key_from_public_keychain!(
+    for FheBoolId {
+        key_type: FheBoolPublicKey,
+        keychain_member: boolean_key.bool_key,
+        type_variant: Type::FheBool,
+    }
+);
 
 /// The FHE boolean data type.
 ///
@@ -48,37 +73,24 @@ use crate::high_level_api::traits::{
 /// ```
 #[cfg_attr(all(doc, not(doctest)), cfg(feature = "boolean"))]
 #[derive(Clone, Serialize, Deserialize)]
-pub struct GenericBool<P>
-where
-    P: BooleanParameterSet,
-{
+pub struct FheBool {
     pub(in crate::high_level_api::booleans) ciphertext: Ciphertext,
-    pub(in crate::high_level_api::booleans) id: P::Id,
+    id: FheBoolId,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct CompressedBool<P>
-where
-    P: BooleanParameterSet,
-{
+pub struct CompressedFheBool {
     pub(in crate::high_level_api::booleans) ciphertext: CompressedCiphertext,
-    pub(in crate::high_level_api::booleans) id: P::Id,
 }
 
-impl<P> GenericBool<P>
-where
-    P: BooleanParameterSet,
-{
-    pub(in crate::high_level_api::booleans) fn new(ciphertext: Ciphertext, id: P::Id) -> Self {
-        Self { ciphertext, id }
+impl FheBool {
+    pub(in crate::high_level_api::booleans) fn new(ciphertext: Ciphertext) -> Self {
+        Self {
+            ciphertext,
+            id: Default::default(),
+        }
     }
-}
 
-impl<P> GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: WithGlobalKey<Key = GenericBoolServerKey<P>>,
-{
     pub fn nand(&self, rhs: &Self) -> Self {
         self.id.with_unwrapped_global(|key| key.nand(self, rhs))
     }
@@ -91,11 +103,9 @@ where
     }
 }
 
-impl<P, B> FheEq<B> for GenericBool<P>
+impl<B> FheEq<B> for FheBool
 where
     B: Borrow<Self>,
-    P: BooleanParameterSet,
-    P::Id: WithGlobalKey<Key = GenericBoolServerKey<P>>,
 {
     type Output = Self;
 
@@ -107,12 +117,10 @@ where
 
 #[allow(dead_code)]
 #[cfg_attr(all(doc, not(doctest)), cfg(feature = "boolean"))]
-pub fn if_then_else<B1, B2, P>(ct_condition: B1, ct_then: B2, ct_else: B2) -> GenericBool<P>
+pub fn if_then_else<B1, B2>(ct_condition: B1, ct_then: B2, ct_else: B2) -> FheBool
 where
-    B1: Borrow<GenericBool<P>>,
-    B2: Borrow<GenericBool<P>>,
-    P: BooleanParameterSet,
-    P::Id: WithGlobalKey<Key = GenericBoolServerKey<P>>,
+    B1: Borrow<FheBool>,
+    B2: Borrow<FheBool>,
 {
     let ct_condition = ct_condition.borrow();
     ct_condition
@@ -120,75 +128,52 @@ where
         .with_unwrapped_global(|key| key.mux(ct_condition, ct_then.borrow(), ct_else.borrow()))
 }
 
-impl<P> CompressedBool<P>
-where
-    P: BooleanParameterSet,
-{
-    fn new(ciphertext: CompressedCiphertext, id: P::Id) -> Self {
-        Self { ciphertext, id }
+impl CompressedFheBool {
+    fn new(ciphertext: CompressedCiphertext) -> Self {
+        Self { ciphertext }
     }
 }
 
-impl<P> From<CompressedBool<P>> for GenericBool<P>
-where
-    P: BooleanParameterSet,
-{
-    fn from(value: CompressedBool<P>) -> Self {
-        Self::new(value.ciphertext.into(), value.id)
+impl From<CompressedFheBool> for FheBool {
+    fn from(value: CompressedFheBool) -> Self {
+        Self::new(value.ciphertext.into())
     }
 }
 
-impl<P> FheTryEncrypt<bool, ClientKey> for CompressedBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: RefKeyFromKeyChain<Key = GenericBoolClientKey<P>> + Default,
-{
+impl FheTryEncrypt<bool, ClientKey> for CompressedFheBool {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
-        let id = P::Id::default();
-        let key = id.ref_key(key)?;
+        let id = FheBoolId::default();
+        let key = <FheBoolId as RefKeyFromKeyChain>::ref_key(id, key)?;
         let ciphertext = key.key.encrypt_compressed(value);
-        Ok(CompressedBool::<P>::new(ciphertext, id))
+        Ok(CompressedFheBool::new(ciphertext))
     }
 }
 
-impl<P> FheTryEncrypt<bool, ClientKey> for GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: RefKeyFromKeyChain<Key = GenericBoolClientKey<P>> + Default,
-{
+impl FheTryEncrypt<bool, ClientKey> for FheBool {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
-        let id = P::Id::default();
-        let key = id.ref_key(key)?;
+        let id = FheBoolId::default();
+        let key = <FheBoolId as RefKeyFromKeyChain>::ref_key(id, key)?;
         let ciphertext = key.key.encrypt(value);
-        Ok(GenericBool::<P>::new(ciphertext, id))
+        Ok(FheBool::new(ciphertext))
     }
 }
 
-impl<P> FheTryTrivialEncrypt<bool> for GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: Default + WithGlobalKey<Key = GenericBoolServerKey<P>>,
-{
+impl FheTryTrivialEncrypt<bool> for FheBool {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt_trivial(value: bool) -> Result<Self, Self::Error> {
-        let id = P::Id::default();
-        id.with_global(|key| {
+        FheBoolId::default().with_global(|key| {
             let ciphertext = key.key.trivial_encrypt(value);
-            Ok(GenericBool::new(ciphertext, id))
+            Ok(FheBool::new(ciphertext))
         })?
     }
 }
 
-impl<P> FheTrivialEncrypt<bool> for GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: Default + WithGlobalKey<Key = GenericBoolServerKey<P>>,
-{
+impl FheTrivialEncrypt<bool> for FheBool {
     #[track_caller]
     fn encrypt_trivial(value: bool) -> Self {
         Self::try_encrypt_trivial(value).unwrap()
@@ -211,58 +196,46 @@ impl FheTryEncrypt<bool, CompressedPublicKey> for crate::FheBool {
             .unwrap_display()
             .key
             .encrypt(value);
-        let id = crate::high_level_api::booleans::types::static_::FheBoolId::default();
-        Ok(GenericBool::new(ciphertext, id))
+        Ok(FheBool::new(ciphertext))
     }
 }
 
-impl<P> FheTryEncrypt<bool, PublicKey> for GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: RefKeyFromPublicKeyChain<Key = GenericBoolPublicKey<P>> + Default,
-{
+impl FheTryEncrypt<bool, PublicKey> for FheBool {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: bool, key: &PublicKey) -> Result<Self, Self::Error> {
-        let id = P::Id::default();
-        let key = id.ref_key(key)?;
+        let id = FheBoolId::default();
+        let key = <FheBoolId as RefKeyFromPublicKeyChain>::ref_key(id, key)?;
         let ciphertext = key.key.encrypt(value);
-        Ok(GenericBool::<P>::new(ciphertext, id))
+        Ok(FheBool::new(ciphertext))
     }
 }
 
-impl<P> FheDecrypt<bool> for GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: RefKeyFromKeyChain<Key = GenericBoolClientKey<P>>,
-{
+impl FheDecrypt<bool> for FheBool {
     #[track_caller]
     fn decrypt(&self, key: &ClientKey) -> bool {
-        let key = self.id.unwrapped_ref_key(key);
+        let id = FheBoolId::default();
+        let key = <FheBoolId as RefKeyFromKeyChain>::unwrapped_ref_key(id, key);
         key.key.decrypt(&self.ciphertext)
     }
 }
 
 macro_rules! fhe_bool_impl_operation(
     ($trait_name:ident($trait_method:ident) => $key_method:ident) => {
-        impl<P, B> $trait_name<B> for GenericBool<P>
-        where B: Borrow<GenericBool<P>>,
-              P: BooleanParameterSet,
-              P::Id: WithGlobalKey<Key=GenericBoolServerKey<P>>,
+        impl<B> $trait_name<B> for FheBool
+        where B: Borrow<FheBool>,
         {
-            type Output = GenericBool<P>;
+            type Output = FheBool;
 
             fn $trait_method(self, rhs: B) -> Self::Output {
                 <&Self as $trait_name<B>>::$trait_method(&self, rhs)
             }
         }
 
-        impl<P, B> $trait_name<B> for &GenericBool<P>
-        where B: Borrow<GenericBool<P>>,
-              P: BooleanParameterSet,
-              P::Id: WithGlobalKey<Key=GenericBoolServerKey<P>>,
+        impl<B> $trait_name<B> for &FheBool
+        where B: Borrow<FheBool>,
         {
-            type Output = GenericBool<P>;
+            type Output = FheBool;
 
             fn $trait_method(self, rhs: B) -> Self::Output {
                 self.id.with_unwrapped_global(|key| {
@@ -277,11 +250,7 @@ fhe_bool_impl_operation!(BitAnd(bitand) => and);
 fhe_bool_impl_operation!(BitOr(bitor) => or);
 fhe_bool_impl_operation!(BitXor(bitxor) => xor);
 
-impl<P> ::std::ops::Not for GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: WithGlobalKey<Key = GenericBoolServerKey<P>>,
-{
+impl ::std::ops::Not for FheBool {
     type Output = Self;
 
     fn not(self) -> Self::Output {
@@ -289,12 +258,8 @@ where
     }
 }
 
-impl<P> ::std::ops::Not for &GenericBool<P>
-where
-    P: BooleanParameterSet,
-    P::Id: WithGlobalKey<Key = GenericBoolServerKey<P>>,
-{
-    type Output = GenericBool<P>;
+impl ::std::ops::Not for &FheBool {
+    type Output = FheBool;
 
     fn not(self) -> Self::Output {
         self.id.with_unwrapped_global(|key| key.not(self))

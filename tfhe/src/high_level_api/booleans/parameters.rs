@@ -6,10 +6,6 @@ pub use crate::boolean::parameters::{DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS};
 
 use serde::{Deserialize, Serialize};
 
-pub trait BooleanParameterSet: Into<BooleanParameters> {
-    type Id: Copy;
-}
-
 /// Parameters for [FheBool].
 ///
 /// [FheBool]: crate::high_level_api::FheBool

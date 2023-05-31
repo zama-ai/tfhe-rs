@@ -3,7 +3,7 @@ pub(crate) use keys::{
     BooleanPublicKey, BooleanServerKey,
 };
 pub use parameters::FheBoolParameters;
-pub use types::{CompressedFheBool, FheBool, GenericBool};
+pub use types::{CompressedFheBool, FheBool};
 
 mod client_key;
 mod keys;

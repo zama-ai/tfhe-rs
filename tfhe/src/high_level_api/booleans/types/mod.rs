@@ -1,5 +1,4 @@
-pub use base::{CompressedBool, GenericBool};
-pub use static_::{CompressedFheBool, FheBool};
+pub use base::{CompressedFheBool, FheBool};
 
 mod base;
-pub mod static_;
+pub(in crate::high_level_api) mod static_;
