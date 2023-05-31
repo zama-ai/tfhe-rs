@@ -892,7 +892,7 @@ fn packed_mul<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
             LweCiphertextList::new(
                 Scalar::ZERO,
                 //fix this LWE dimension to be k*N
-                LweDimension(2048),
+                params.lwe_dimension.unwrap().to_lwe_size(),
                 lwe_ciphertext_count,
                 ciphertext_modulus,
                 );
