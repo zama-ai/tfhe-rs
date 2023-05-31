@@ -4,7 +4,7 @@
 //! Having `tfhe::core_crypto::prelude::*;` should be enough to start using the lib.
 
 pub use super::algorithms::{
-    add_external_product_assign, polynomial_algorithms, slice_algorithms, glwe_tensor_product, lwe_public_functional_packing_keyswitch, *,
+         polynomial_algorithms, slice_algorithms, *,
 };
 pub use super::commons::computation_buffers::ComputationBuffers;
 pub use super::commons::dispersion::*;
