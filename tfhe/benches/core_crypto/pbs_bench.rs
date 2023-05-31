@@ -615,7 +615,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>(
 ) -> Vec<(String, CryptoParametersRecord)> {
     if Scalar::BITS == 64 {
         vec![
-            (
+            /*(
                 "1_bits_prec".to_string(),
                 (
                     CryptoParametersRecord {
@@ -633,7 +633,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>(
                     }
                 ),
             ),
-            /*(
+            (
                 "2_bits_prec".to_string(),
                 (
                     CryptoParametersRecord {
@@ -678,7 +678,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>(
                     }
                 ),
             ),
-            (
+            */(
                 "8_bits_prec".to_string(),
                 (
                     CryptoParametersRecord {
@@ -696,7 +696,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>(
                     }
                 ),
             ),
-            (
+            /*(
                 "6_bits_prec".to_string(),
                 (
                     CryptoParametersRecord {
