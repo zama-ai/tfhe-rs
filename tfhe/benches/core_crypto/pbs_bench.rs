@@ -705,7 +705,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>() -> Vec<(String, Cry
 {
     if Scalar::BITS == 64 {
         vec![
-            /*(
+            (
                 "1_bits_prec".to_string(),
                 (CryptoParametersRecord {
                     lwe_dimension: Some(LweDimension(12288)),
@@ -718,7 +718,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>() -> Vec<(String, Cry
                     ..Default::default()
                 }),
             ),
-            (
+            /*(
                 "2_bits_prec".to_string(),
                 (CryptoParametersRecord {
                     lwe_dimension: Some(LweDimension(6144)),
@@ -773,6 +773,42 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>() -> Vec<(String, Cry
                         message_modulus: Some(2^8),
                         pbs_base_log: Some(DecompositionBaseLog(20)),
                         pbs_level: Some(DecompositionLevelCount(2)),
+                        ..Default::default()
+                    }
+                ),
+            ),
+            (
+                "6_bits_prec".to_string(),
+                (
+                    CryptoParametersRecord {
+                        lwe_dimension: Some(LweDimension(2048)),
+                        lwe_modular_std_dev: Some(StandardDev(0.000000012752307213087621)),
+                        ks_base_log: Some(DecompositionBaseLog(8)),
+                        ks_level: Some(DecompositionLevelCount(8)),
+                        glwe_dimension: Some(GlweDimension(1)),
+                        glwe_modular_std_dev: Some(StandardDev(0.0000000000000003152931493498455)),
+                        polynomial_size: Some(PolynomialSize(1 << 12)),
+                        message_modulus: Some(2^6),
+                        pbs_base_log: Some(DecompositionBaseLog(8)),
+                        pbs_level: Some(DecompositionLevelCount(8)),
+                        ..Default::default()
+                    }
+                ),
+            ),
+            (
+                "7_bits_prec".to_string(),
+                (
+                    CryptoParametersRecord {
+                        lwe_dimension: Some(LweDimension(2048)),
+                        lwe_modular_std_dev: Some(StandardDev(0.000000012752307213087621)),
+                        ks_base_log: Some(DecompositionBaseLog(8)),
+                        ks_level: Some(DecompositionLevelCount(8)),
+                        glwe_dimension: Some(GlweDimension(1)),
+                        glwe_modular_std_dev: Some(StandardDev(0.0000000000000003152931493498455)),
+                        polynomial_size: Some(PolynomialSize(1 << 12)),
+                        message_modulus: Some(2^7),
+                        pbs_base_log: Some(DecompositionBaseLog(8)),
+                        pbs_level: Some(DecompositionLevelCount(8)),
                         ..Default::default()
                     }
                 ),
