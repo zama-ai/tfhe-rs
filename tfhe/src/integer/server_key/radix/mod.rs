@@ -11,8 +11,9 @@ mod sub;
 
 use super::ServerKey;
 
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::RadixCiphertext;
-use crate::integer::encryption::{encrypt_words_radix_impl, AsLittleEndianWords};
+use crate::integer::encryption::encrypt_words_radix_impl;
 use crate::shortint::PBSOrderMarker;
 
 #[cfg(test)]
@@ -78,7 +79,7 @@ impl ServerKey {
     ) -> RadixCiphertext<PBSOrder>
     where
         PBSOrder: PBSOrderMarker,
-        T: AsLittleEndianWords,
+        T: DecomposableInto<u64>,
     {
         encrypt_words_radix_impl(
             &self.key,

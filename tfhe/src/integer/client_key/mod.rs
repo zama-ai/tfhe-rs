@@ -7,12 +7,13 @@ mod crt;
 mod radix;
 pub(crate) mod utils;
 
+use crate::integer::block_decomposition::BlockRecomposer;
 use crate::integer::ciphertext::{
     CompressedCrtCiphertext, CompressedRadixCiphertextBig, CrtCiphertext, RadixCiphertextBig,
     RadixCiphertextSmall,
 };
 use crate::integer::client_key::utils::i_crt;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
+use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::{
     CiphertextBase, CiphertextBig, CiphertextSmall, ClientKey as ShortintClientKey, PBSOrderMarker,
@@ -24,6 +25,7 @@ pub use utils::radix_decomposition;
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 
+use super::block_decomposition::{DecomposableInto, RecomposableFrom};
 use super::ciphertext::RadixCiphertext;
 use super::CompressedRadixCiphertextSmall;
 
@@ -105,11 +107,10 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_radix<T: AsLittleEndianWords>(
-        &self,
-        message: T,
-        num_blocks: usize,
-    ) -> RadixCiphertextBig {
+    pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertextBig
+    where
+        T: DecomposableInto<u64>,
+    {
         self.encrypt_words_radix(message, num_blocks, crate::shortint::ClientKey::encrypt)
     }
 
@@ -145,7 +146,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_compressed<T: AsLittleEndianWords>(
+    pub fn encrypt_radix_compressed<T: DecomposableInto<u64>>(
         &self,
         message: T,
         num_blocks: usize,
@@ -157,7 +158,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_without_padding_compressed<T: AsLittleEndianWords>(
+    pub fn encrypt_radix_without_padding_compressed<T: DecomposableInto<u64>>(
         &self,
         message: T,
         num_blocks: usize,
@@ -169,7 +170,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_small<T: AsLittleEndianWords>(
+    pub fn encrypt_radix_small<T: DecomposableInto<u64>>(
         &self,
         message: T,
         num_blocks: usize,
@@ -181,7 +182,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_compressed_small<T: AsLittleEndianWords>(
+    pub fn encrypt_radix_compressed_small<T: DecomposableInto<u64>>(
         &self,
         message: T,
         num_blocks: usize,
@@ -218,7 +219,7 @@ impl ClientKey {
         encrypt_block: F,
     ) -> RadixCiphertextType
     where
-        T: AsLittleEndianWords,
+        T: DecomposableInto<u64>,
         F: Fn(&crate::shortint::ClientKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
@@ -287,24 +288,10 @@ impl ClientKey {
     /// ```
     pub fn decrypt_radix<T, PBSOrder>(&self, ctxt: &RadixCiphertext<PBSOrder>) -> T
     where
-        T: AsLittleEndianWords + Default,
+        T: RecomposableFrom<u64>,
         PBSOrder: PBSOrderMarker,
     {
-        let mut res = T::default();
-        self.decrypt_radix_into(ctxt, &mut res);
-        res
-    }
-
-    pub fn decrypt_radix_into<T, PBSOrder>(&self, ctxt: &RadixCiphertext<PBSOrder>, out: &mut T)
-    where
-        T: AsLittleEndianWords,
-        PBSOrder: PBSOrderMarker,
-    {
-        self.decrypt_radix_into_words(
-            ctxt,
-            out,
-            crate::shortint::ClientKey::decrypt_message_and_carry,
-        );
+        self.decrypt_radix_impl(ctxt, crate::shortint::ClientKey::decrypt_message_and_carry)
     }
 
     /// Decrypts a ciphertext encrypting an radix integer encrypted without padding
@@ -331,66 +318,42 @@ impl ClientKey {
         &self,
         ctxt: &RadixCiphertext<PBSOrder>,
     ) -> u64 {
-        let mut res = 0u64;
-        self.decrypt_radix_into_words(
+        self.decrypt_radix_impl(
             ctxt,
-            &mut res,
             crate::shortint::ClientKey::decrypt_message_and_carry_without_padding,
-        );
-        res
+        )
     }
 
     /// Decrypts a ciphertext in radix decomposition into 64bits
     ///
     /// The words are assumed to be in little endian order.
-    pub fn decrypt_radix_into_words<T, F, PBSOrder>(
+    pub fn decrypt_radix_impl<T, F, PBSOrder>(
         &self,
         ctxt: &RadixCiphertext<PBSOrder>,
-        clear_words: &mut T,
         decrypt_block: F,
-    ) where
-        T: AsLittleEndianWords,
+    ) -> T
+    where
+        T: RecomposableFrom<u64>,
         PBSOrder: PBSOrderMarker,
         F: Fn(&crate::shortint::ClientKey, &crate::shortint::CiphertextBase<PBSOrder>) -> u64,
     {
-        // limit to know when we have at least 64 bits
-        // of decrypted data
-        const U64_MODULUS: u128 = 1 << 64;
-
-        let clear_words_iter = clear_words.as_little_endian_iter_mut();
-
-        let mut cipher_blocks_iter = ctxt.blocks.iter();
-        let mut bit_buffer = 0u128;
-        let mut valid_until_power = 1u128;
-        for current_clear_word in clear_words_iter {
-            for cipher_block in cipher_blocks_iter.by_ref() {
-                let block_value = decrypt_block(&self.key, cipher_block) as u128;
-
-                let shifted_block_value = block_value * valid_until_power;
-                bit_buffer += shifted_block_value;
-
-                valid_until_power *= self.key.parameters.message_modulus().0 as u128;
-
-                if valid_until_power >= U64_MODULUS {
-                    // We have enough data to fill the current word
-                    // e.g.
-                    // bit_buffer: [b0, ..., b64, b66, b67,..., b128]
-                    //                       ^          ^
-                    //                       |          |-> valid_until_power
-                    //                       |              = end of decrypted bits
-                    //                       |-> U64_MODULUS
-                    break;
-                }
-            }
-
-            // We want to take at most 64 bits of data from the bit buffer
-            // since our words are 64 bits
-            let power_to_write = valid_until_power.min(U64_MODULUS);
-            let mask = power_to_write - 1;
-            *current_clear_word = (bit_buffer & mask) as u64;
-            bit_buffer /= power_to_write;
-            valid_until_power /= power_to_write;
+        if ctxt.blocks.is_empty() {
+            return T::ZERO;
         }
+
+        let bits_in_block = self.key.parameters.message_modulus().0.ilog2();
+        let mut recomposer = BlockRecomposer::<T>::new(bits_in_block);
+
+        for encrypted_block in &ctxt.blocks {
+            let decrypted_block = decrypt_block(&self.key, encrypted_block);
+            if !recomposer.add_unmasked(decrypted_block) {
+                // End of T::BITS reached no need to try more
+                // recomposition
+                break;
+            };
+        }
+
+        recomposer.value()
     }
 
     /// Encrypts an integer using crt representation

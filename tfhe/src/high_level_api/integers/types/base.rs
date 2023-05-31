@@ -26,7 +26,6 @@ use crate::high_level_api::traits::{
     FheBootstrap, FheDecrypt, FheEq, FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
 };
 use crate::high_level_api::{ClientKey, PublicKey};
-use crate::integer::U256;
 
 /// A Generic FHE unsigned integer
 ///
@@ -116,47 +115,9 @@ where
     }
 }
 
-impl<P> FheDecrypt<u8> for GenericInteger<P>
-where
-    P: IntegerParameter,
-    P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
-    crate::integer::ClientKey: DecryptionKey<RadixCiphertextDyn, u16>,
-{
-    fn decrypt(&self, key: &ClientKey) -> u8 {
-        let key = self.id.unwrapped_ref_key(key);
-        let value: u64 = key.decrypt(&self.ciphertext);
-        value as u8
-    }
-}
-
-impl<P> FheDecrypt<u16> for GenericInteger<P>
-where
-    P: IntegerParameter,
-    P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
-    crate::integer::ClientKey: DecryptionKey<RadixCiphertextDyn, u16>,
-{
-    fn decrypt(&self, key: &ClientKey) -> u16 {
-        let key = self.id.unwrapped_ref_key(key);
-        let value: u64 = key.decrypt(&self.ciphertext);
-        value as u16
-    }
-}
-
-impl<P> FheDecrypt<u32> for GenericInteger<P>
-where
-    P: IntegerParameter,
-    P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
-    crate::integer::ClientKey: DecryptionKey<RadixCiphertextDyn, u32>,
-{
-    fn decrypt(&self, key: &ClientKey) -> u32 {
-        let key = self.id.unwrapped_ref_key(key);
-        key.decrypt(&self.ciphertext)
-    }
-}
-
 impl<P, ClearType> FheDecrypt<ClearType> for GenericInteger<P>
 where
-    ClearType: crate::integer::encryption::AsLittleEndianWords,
+    ClearType: crate::integer::block_decomposition::RecomposableFrom<u64>,
     P: IntegerParameter,
     P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
     crate::integer::ClientKey: DecryptionKey<RadixCiphertextDyn, ClearType>,
@@ -169,14 +130,13 @@ where
 
 impl<P, T> FheTryEncrypt<T, ClientKey> for GenericInteger<P>
 where
-    T: Into<U256>,
+    T: crate::integer::block_decomposition::DecomposableInto<u64>,
     P: IntegerParameter,
     P::Id: Default + TypeIdentifier,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
-        let value = value.into();
         let id = P::Id::default();
 
         let integer_client_key = key
@@ -200,14 +160,13 @@ where
 
 impl<P, T> FheTryEncrypt<T, PublicKey> for GenericInteger<P>
 where
-    T: Into<U256>,
+    T: crate::integer::block_decomposition::DecomposableInto<u64>,
     P: IntegerParameter,
     P::Id: Default + TypeIdentifier,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: T, key: &PublicKey) -> Result<Self, Self::Error> {
-        let value = value.into();
         let id = P::Id::default();
         let integer_public_key = key
             .base_integer_key
@@ -228,14 +187,13 @@ where
 
 impl<P, T> FheTryEncrypt<T, CompressedPublicKey> for GenericInteger<P>
 where
-    T: Into<U256>,
+    T: crate::integer::block_decomposition::DecomposableInto<u64>,
     P: IntegerParameter,
     P::Id: Default + TypeIdentifier,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: T, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
-        let value = value.into();
         let id = P::Id::default();
         let integer_public_key = key
             .base_integer_key
@@ -256,14 +214,13 @@ where
 
 impl<P, T> FheTryTrivialEncrypt<T> for GenericInteger<P>
 where
-    T: Into<U256>,
+    T: crate::integer::block_decomposition::DecomposableInto<u64>,
     P: IntegerParameter,
     P::Id: Default + WithGlobalKey<Key = IntegerServerKey>,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt_trivial(value: T) -> Result<Self, Self::Error> {
-        let value = value.into();
         let id = P::Id::default();
         let ciphertext =
             id.with_unwrapped_global(|integer_key| match integer_key.encryption_type {
@@ -284,7 +241,7 @@ where
 
 impl<P, T> FheTrivialEncrypt<T> for GenericInteger<P>
 where
-    T: Into<U256>,
+    T: crate::integer::block_decomposition::DecomposableInto<u64>,
     P: IntegerParameter,
     P::Id: Default + WithGlobalKey<Key = IntegerServerKey>,
 {

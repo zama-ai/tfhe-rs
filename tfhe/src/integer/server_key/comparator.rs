@@ -1200,9 +1200,7 @@ mod tests {
 
             {
                 let result = unchecked_comparator_method(&comparator, &a, &b);
-                let mut decrypted = U256::default();
-                cks.decrypt_radix_into(&result, &mut decrypted);
-
+                let decrypted: U256 = cks.decrypt_radix(&result);
                 let expected_result = clear_fn(clear_a, clear_b);
                 assert_eq!(decrypted, expected_result);
             }
@@ -1210,9 +1208,7 @@ mod tests {
             {
                 // Force case where lhs == rhs
                 let result = unchecked_comparator_method(&comparator, &a, &a);
-                let mut decrypted = U256::default();
-                cks.decrypt_radix_into(&result, &mut decrypted);
-
+                let decrypted: U256 = cks.decrypt_radix(&result);
                 let expected_result = clear_fn(clear_a, clear_a);
                 assert_eq!(decrypted, expected_result);
             }
@@ -1266,12 +1262,11 @@ mod tests {
 
             // Sanity decryption checks
             {
-                let mut a = U256::default();
-                cks.decrypt_radix_into(&ct_0, &mut a);
+                let a: U256 = cks.decrypt_radix(&ct_0);
                 assert_eq!(a, clear_0);
 
-                cks.decrypt_radix_into(&ct_1, &mut a);
-                assert_eq!(a, clear_1);
+                let b: U256 = cks.decrypt_radix(&ct_1);
+                assert_eq!(b, clear_1);
             }
 
             assert!(super::has_non_zero_carries(&ct_0));
@@ -1282,15 +1277,14 @@ mod tests {
 
             // Sanity decryption checks
             {
-                let mut a = U256::default();
-                cks.decrypt_radix_into(&ct_0, &mut a);
+                let a: U256 = cks.decrypt_radix(&ct_0);
                 assert_eq!(a, clear_0);
-                cks.decrypt_radix_into(&ct_1, &mut a);
-                assert_eq!(a, clear_1);
+
+                let b: U256 = cks.decrypt_radix(&ct_1);
+                assert_eq!(b, clear_1);
             }
 
-            let mut decrypted_result = U256::default();
-            cks.decrypt_radix_into(&encrypted_result, &mut decrypted_result);
+            let decrypted_result: U256 = cks.decrypt_radix(&encrypted_result);
 
             let expected_result = clear_fn(clear_0, clear_1);
             assert_eq!(decrypted_result, expected_result);
@@ -1344,12 +1338,11 @@ mod tests {
 
             // Sanity decryption checks
             {
-                let mut a = U256::default();
-                cks.decrypt_radix_into(&ct_0, &mut a);
+                let a: U256 = cks.decrypt_radix(&ct_0);
                 assert_eq!(a, clear_0);
 
-                cks.decrypt_radix_into(&ct_1, &mut a);
-                assert_eq!(a, clear_1);
+                let b: U256 = cks.decrypt_radix(&ct_1);
+                assert_eq!(b, clear_1);
             }
 
             assert!(super::has_non_zero_carries(&ct_0));
@@ -1359,15 +1352,14 @@ mod tests {
 
             // Sanity decryption checks
             {
-                let mut a = U256::default();
-                cks.decrypt_radix_into(&ct_0, &mut a);
+                let a: U256 = cks.decrypt_radix(&ct_0);
                 assert_eq!(a, clear_0);
-                cks.decrypt_radix_into(&ct_1, &mut a);
-                assert_eq!(a, clear_1);
+
+                let b: U256 = cks.decrypt_radix(&ct_1);
+                assert_eq!(b, clear_1);
             }
 
-            let mut decrypted_result = U256::default();
-            cks.decrypt_radix_into(&encrypted_result, &mut decrypted_result);
+            let decrypted_result: U256 = cks.decrypt_radix(&encrypted_result);
 
             let expected_result = clear_fn(clear_0, clear_1);
             assert_eq!(decrypted_result, expected_result);

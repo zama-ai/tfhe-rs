@@ -1,3 +1,5 @@
+use crate::core_crypto::prelude::{CastFrom, Numeric};
+
 #[inline(always)]
 pub const fn adc(l: u64, r: u64, c: bool) -> (u64, bool) {
     let (lr, o0) = l.overflowing_add(r);
@@ -7,12 +9,16 @@ pub const fn adc(l: u64, r: u64, c: bool) -> (u64, bool) {
 
 // Little endian order
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(transparent)]
 pub struct U256(pub(crate) [u64; 4]);
 
 impl U256 {
     pub const BITS: u32 = 256;
     pub const MAX: Self = Self([u64::MAX; 4]);
     pub const MIN: Self = Self([0; 4]);
+    pub const ZERO: Self = Self([0; 4]);
+    pub const ONE: Self = Self([1, 0, 0, 0]);
+    pub const TWO: Self = Self([2, 0, 0, 0]);
 
     /// Replaces the current value by interpreting the bytes in big endian order
     pub fn copy_from_be_byte_slice(&mut self, bytes: &[u8]) {
@@ -164,14 +170,17 @@ impl std::ops::ShrAssign<u32> for U256 {
 
         let shift_in_words = shift % u64::BITS;
 
-        let carry_mask = (1 << shift_in_words) - 1;
+        let value_mask = u64::MAX >> shift_in_words;
+        let carry_mask = ((1u64 << shift_in_words) - 1u64).rotate_right(shift_in_words);
+
         let mut carry = 0u64;
         for word in &mut head.iter_mut().rev() {
-            let value = (*word >> shift_in_words) + carry;
-            let carry_for_next = *word & carry_mask;
+            let rotated = word.rotate_right(shift_in_words);
+            let value = (rotated & value_mask) | carry;
+            let carry_for_next = rotated & carry_mask;
 
             *word = value;
-            carry = carry_for_next.rotate_right(shift_in_words);
+            carry = carry_for_next;
         }
     }
 }
@@ -181,6 +190,45 @@ impl std::ops::Shr<u32> for U256 {
 
     fn shr(mut self, rhs: u32) -> Self::Output {
         self >>= rhs;
+        self
+    }
+}
+
+impl std::ops::ShlAssign<u32> for U256 {
+    // move bits from LSB to MSB
+    fn shl_assign(&mut self, shift: u32) {
+        if shift > 256 {
+            self.0.as_mut_slice().fill(0);
+        }
+
+        let num_rotations = (shift / u64::BITS) as usize;
+        self.0.rotate_right(num_rotations);
+
+        let (head, tail) = self.0.as_mut_slice().split_at_mut(num_rotations);
+        head.fill(0);
+
+        let shift_in_words = shift % u64::BITS;
+
+        let carry_mask = (1u64 << shift_in_words) - 1u64;
+        let value_mask = u64::MAX << (shift_in_words);
+
+        let mut carry = 0u64;
+        for word in &mut tail.iter_mut() {
+            let rotated = word.rotate_left(shift_in_words);
+            let value = (rotated & value_mask) | carry;
+            let carry_for_next = rotated & carry_mask;
+
+            *word = value;
+            carry = carry_for_next;
+        }
+    }
+}
+
+impl std::ops::Shl<u32> for U256 {
+    type Output = Self;
+
+    fn shl(mut self, rhs: u32) -> Self::Output {
+        self <<= rhs;
         self
     }
 }
@@ -312,6 +360,17 @@ mod tests {
     }
 
     #[test]
+    fn test_shl() {
+        let input = (u64::MAX as u128) << 64;
+        let a = U256::from(input);
+
+        // input a u128 with its 64 MSB set to one
+        // so left shifting it by one will move one bit
+        // to the next inner u64 block
+        assert_eq!(a << 1, U256::from((input << 1, 1u128)));
+    }
+
+    #[test]
     fn test_le_byte_slice() {
         let low = u64::MAX as u128;
         let high = (u64::MAX as u128) << 64;
@@ -350,4 +409,49 @@ mod tests {
 
         assert_eq!(be_bytes_2, be_bytes);
     }
+}
+
+impl CastFrom<U256> for u64 {
+    fn cast_from(input: U256) -> Self {
+        input.0[0]
+    }
+}
+
+impl CastFrom<u32> for U256 {
+    fn cast_from(input: u32) -> Self {
+        Self::from(input)
+    }
+}
+
+impl CastFrom<u64> for U256 {
+    fn cast_from(input: u64) -> Self {
+        Self::from(input)
+    }
+}
+
+// SAFETY
+//
+// U256 is allowed to be all zeros
+unsafe impl bytemuck::Zeroable for U256 {}
+
+// SAFETY
+//
+// u64 impl bytemuck::Pod,
+// [T; N] impl bytemuck::Pod if T: bytemuck::Pod
+//
+// https://docs.rs/bytemuck/latest/bytemuck/trait.Pod.html#foreign-impls
+//
+// Thus U256 can safely be considered Pod
+unsafe impl bytemuck::Pod for U256 {}
+
+impl Numeric for U256 {
+    const BITS: usize = Self::BITS as usize;
+
+    const ZERO: Self = Self::ZERO;
+
+    const ONE: Self = Self::ONE;
+
+    const TWO: Self = Self::TWO;
+
+    const MAX: Self = Self::MAX;
 }

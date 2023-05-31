@@ -1,6 +1,7 @@
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl, AsLittleEndianWords};
+use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
 use crate::integer::public_key::compressed::CompressedPublicKeyBase;
 use crate::shortint::ciphertext::{BootstrapKeyswitch, KeyswitchBootstrap};
 use crate::shortint::parameters::MessageModulus;
@@ -68,12 +69,12 @@ impl<PBSOrder: PBSOrderMarker> PublicKey<PBSOrder> {
         self.key.parameters.pbs_parameters().unwrap()
     }
 
-    pub fn encrypt_radix<T: AsLittleEndianWords>(
+    pub fn encrypt_radix<T: DecomposableInto<u64>>(
         &self,
         message: T,
         num_blocks: usize,
     ) -> RadixCiphertext<PBSOrder> {
-        self.encrypt_words_radix(message, num_blocks, PublicKeyBase::encrypt)
+        encrypt_words_radix_impl(&self.key, message, num_blocks, PublicKeyBase::encrypt)
     }
 
     pub fn encrypt_radix_without_padding(
@@ -81,21 +82,12 @@ impl<PBSOrder: PBSOrderMarker> PublicKey<PBSOrder> {
         message: u64,
         num_blocks: usize,
     ) -> RadixCiphertext<PBSOrder> {
-        self.encrypt_words_radix(message, num_blocks, PublicKeyBase::encrypt_without_padding)
-    }
-
-    pub fn encrypt_words_radix<Block, RadixCiphertextType, T, F>(
-        &self,
-        message_words: T,
-        num_blocks: usize,
-        encrypt_block: F,
-    ) -> RadixCiphertextType
-    where
-        T: AsLittleEndianWords,
-        F: Fn(&PublicKeyBase<PBSOrder>, u64) -> Block,
-        RadixCiphertextType: From<Vec<Block>>,
-    {
-        encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
+        encrypt_words_radix_impl(
+            &self.key,
+            message,
+            num_blocks,
+            PublicKeyBase::encrypt_without_padding,
+        )
     }
 }
 
