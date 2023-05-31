@@ -68,7 +68,7 @@ criterion_group!(
     targets = packed_sum_prod::<u64>
 );
 
-criterion_main!(pbs_group,tensor_prod_with_relin_group);
+criterion_main!(public_funct_ks_group);
 
 fn benchmark_parameters<Scalar: Numeric>() -> Vec<(String, CryptoParametersRecord)> {
     if Scalar::BITS == 64 {
