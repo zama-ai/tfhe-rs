@@ -851,7 +851,7 @@ fn public_funct_ks<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
 
-                    packedpublic_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext_mult(
+                    public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext_mult(
                         &lwe_pubfpksk,
                         &mut output_glwe_ciphertext,
                         &lwe_list_1,
@@ -861,7 +861,7 @@ fn public_funct_ks<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
                             Polynomial::from_container(packed1)
                             }
                     );
-                black_box(&mut output_lwe_list);
+                black_box(&mut output_glwe_ciphertext);
                 })
             });
         }
