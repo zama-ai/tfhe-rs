@@ -1,91 +1,9 @@
-use crate::boolean::parameters::BooleanParameters;
-use serde::{Deserialize, Serialize};
-
-use crate::high_level_api::booleans::client_key::GenericBoolClientKey;
-use crate::high_level_api::booleans::parameters::BooleanParameterSet;
-pub(crate) use crate::high_level_api::booleans::parameters::FheBoolParameters;
-use crate::high_level_api::booleans::public_key::{
-    GenericBoolCompressedPublicKey, GenericBoolPublicKey,
+// This contains re-export to keep working a macro that expect these to be here
+pub(in crate::high_level_api) use crate::high_level_api::booleans::client_key::FheBoolClientKey;
+pub(in crate::high_level_api) use crate::high_level_api::booleans::parameters::FheBoolParameters;
+pub(in crate::high_level_api) use crate::high_level_api::booleans::public_key::{
+    FheBoolCompressedPublicKey, FheBoolPublicKey,
 };
-use crate::high_level_api::booleans::server_key::{
-    GenericBoolCompressedServerKey, GenericBoolServerKey,
+pub(in crate::high_level_api) use crate::high_level_api::booleans::server_key::{
+    FheBoolCompressedServerKey, FheBoolServerKey,
 };
-use crate::high_level_api::booleans::types::CompressedBool;
-use crate::high_level_api::errors::Type;
-
-use super::base::GenericBool;
-
-// Has Overridable Operator:
-// - and => BitAnd => &
-// - not => Not => !
-// - or => BitOr => |
-// - xor => BitXor => ^
-//
-// Does Not have overridable operator:
-// - mux -> But maybe by using a macro_rules with regular function we can have some sufficiently
-//   nice syntax sugar
-// - nand
-// - nor
-// - xnor should be Eq => ==,  But Eq requires to return a bool not a FHE bool So we cant do it
-// - ||, && cannot be overloaded, maybe a well-crafted macro-rules that implements `if-else` could
-//   bring this syntax sugar
-
-/// The struct to identify the static boolean type
-#[derive(Copy, Clone, Default, Serialize, Deserialize)]
-pub struct FheBoolId;
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct StaticBoolParameters(pub(crate) FheBoolParameters);
-
-impl From<StaticBoolParameters> for BooleanParameters {
-    fn from(p: StaticBoolParameters) -> Self {
-        p.0.into()
-    }
-}
-
-impl From<FheBoolParameters> for StaticBoolParameters {
-    fn from(p: FheBoolParameters) -> Self {
-        Self(p)
-    }
-}
-
-impl BooleanParameterSet for StaticBoolParameters {
-    type Id = FheBoolId;
-}
-
-pub type FheBool = GenericBool<StaticBoolParameters>;
-pub type CompressedFheBool = CompressedBool<StaticBoolParameters>;
-pub(in crate::high_level_api::booleans) type FheBoolClientKey =
-    GenericBoolClientKey<StaticBoolParameters>;
-pub(in crate::high_level_api::booleans) type FheBoolServerKey =
-    GenericBoolServerKey<StaticBoolParameters>;
-pub(in crate::high_level_api::booleans) type FheBoolPublicKey =
-    GenericBoolPublicKey<StaticBoolParameters>;
-pub(in crate::high_level_api::booleans) type FheBoolCompressedServerKey =
-    GenericBoolCompressedServerKey<StaticBoolParameters>;
-pub(in crate::high_level_api::booleans) type FheBoolCompressedPublicKey =
-    GenericBoolCompressedPublicKey<StaticBoolParameters>;
-
-impl_with_global_key!(
-    for FheBoolId {
-        key_type: FheBoolServerKey,
-        keychain_member: boolean_key.bool_key,
-        type_variant: Type::FheBool,
-    }
-);
-
-impl_ref_key_from_keychain!(
-    for FheBoolId {
-        key_type: FheBoolClientKey,
-        keychain_member: boolean_key.bool_key,
-        type_variant: Type::FheBool,
-    }
-);
-
-impl_ref_key_from_public_keychain!(
-    for FheBoolId {
-        key_type: FheBoolPublicKey,
-        keychain_member: boolean_key.bool_key,
-        type_variant: Type::FheBool,
-    }
-);
