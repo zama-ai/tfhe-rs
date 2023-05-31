@@ -34,7 +34,7 @@ const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
 
 criterion_group!(
     name = pbs_group;
-    config = Criterion::default().sample_size(2000);
+    config = Criterion::default().sample_size(100);
     targets = mem_optimized_pbs::<u64>, mem_optimized_pbs::<u32>
 );
 
@@ -71,7 +71,7 @@ criterion_group!(
     targets = packed_sum_prod::<u64>
 );
 
-criterion_main!(public_funct_ks_group);
+criterion_main!(pbs_group, tensor_prod_with_relin_group, public_funct_ks_group);
 
 fn benchmark_parameters<Scalar: Numeric>() -> Vec<(String, CryptoParametersRecord)> {
     if Scalar::BITS == 64 {
@@ -264,7 +264,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
-    for (name, params) in benchmark_parameters::<Scalar>().iter() {
+    for (name, params) in packed_operations_benchmark_parameters::<Scalar>().iter() {
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             params.lwe_dimension.unwrap(),
@@ -764,12 +764,15 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>() -> Vec<(String, Cry
                 (
                     CryptoParametersRecord {
                         lwe_dimension: Some(LweDimension(2048)),
+                        lwe_modular_std_dev: Some(StandardDev(0.000000012752307213087621)),
                         ks_base_log: Some(DecompositionBaseLog(20)),
                         ks_level: Some(DecompositionLevelCount(2)),
                         glwe_dimension: Some(GlweDimension(1)),
                         glwe_modular_std_dev: Some(StandardDev(0.0000000000000003152931493498455)),
                         polynomial_size: Some(PolynomialSize(1 << 11)),
-                        message_modulus: Some(2),
+                        message_modulus: Some(2^8),
+                        pbs_base_log: Some(DecompositionBaseLog(20)),
+                        pbs_level: Some(DecompositionLevelCount(2)),
                         ..Default::default()
                     }
                 ),
@@ -784,7 +787,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>() -> Vec<(String, Cry
 fn public_funct_ks<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
 {
     //only written for local development benchmarking
-    let bench_name = "packed_multiplication";
+    let bench_name = "public_funct_ks";
     let mut bench_group = c.benchmark_group(bench_name);
 
     // Create the PRNG
