@@ -678,7 +678,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>(
                     }
                 ),
             ),
-            */(
+            (
                 "8_bits_prec".to_string(),
                 (
                     CryptoParametersRecord {
@@ -695,8 +695,8 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>(
                         ..Default::default()
                     }
                 ),
-            ),
-            /*(
+            ),*/
+            (
                 "6_bits_prec".to_string(),
                 (
                     CryptoParametersRecord {
@@ -731,7 +731,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>(
                         ..Default::default()
                     }
                 ),
-            ),*/
+            ),
         ]
     } else {
         // For now there are no parameters available to test multi bit PBS on 32 bits.
