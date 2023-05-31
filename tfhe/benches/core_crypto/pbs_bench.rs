@@ -54,6 +54,12 @@ criterion_group!(
 );
 
 criterion_group!(
+    name = public_funct_ks_group;
+    config = Criterion::default().sample_size(100);
+    targets = public_funct_ks::<u64>
+);
+
+criterion_group!(
     name = packed_mult_group;
     config = Criterion::default().sample_size(100);
     targets = packed_mul::<u64>
@@ -65,7 +71,7 @@ criterion_group!(
     targets = packed_sum_prod::<u64>
 );
 
-criterion_main!(tensor_prod_with_relin_group,packed_mult_group,sum_of_products_group);
+criterion_main!(public_funct_ks_group);
 
 fn benchmark_parameters<Scalar: Numeric>() -> Vec<(String, CryptoParametersRecord)> {
     if Scalar::BITS == 64 {
@@ -699,7 +705,7 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>() -> Vec<(String, Cry
 {
     if Scalar::BITS == 64 {
         vec![
-            (
+            /*(
                 "1_bits_prec".to_string(),
                 (CryptoParametersRecord {
                     lwe_dimension: Some(LweDimension(12288)),
@@ -739,17 +745,34 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>() -> Vec<(String, Cry
                 }),
             ),
             (
-                "4_bits_multi_bit_group_2".to_string(),
-                (CryptoParametersRecord {
-                    lwe_dimension: Some(LweDimension(6144)),
-                    ks_base_log: Some(DecompositionBaseLog(12)),
-                    ks_level: Some(DecompositionLevelCount(4)),
-                    glwe_dimension: Some(GlweDimension(3)),
-                    glwe_modular_std_dev: Some(StandardDev(0.0000000000000003152931493498455)),
-                    polynomial_size: Some(PolynomialSize(1 << 11)),
-                    message_modulus: Some(2),
-                    ..Default::default()
-                }),
+                "4_bits_prec".to_string(),
+                (
+                    CryptoParametersRecord {
+                        lwe_dimension: Some(LweDimension(6144)),
+                        ks_base_log: Some(DecompositionBaseLog(12)),
+                        ks_level: Some(DecompositionLevelCount(4)),
+                        glwe_dimension: Some(GlweDimension(3)),
+                        glwe_modular_std_dev: Some(StandardDev(0.0000000000000003152931493498455)),
+                        polynomial_size: Some(PolynomialSize(1 << 11)),
+                        message_modulus: Some(2),
+                        ..Default::default()
+                    }
+                ),
+            ),*/
+            (
+                "8_bits_prec".to_string(),
+                (
+                    CryptoParametersRecord {
+                        lwe_dimension: Some(LweDimension(2048)),
+                        ks_base_log: Some(DecompositionBaseLog(20)),
+                        ks_level: Some(DecompositionLevelCount(2)),
+                        glwe_dimension: Some(GlweDimension(1)),
+                        glwe_modular_std_dev: Some(StandardDev(0.0000000000000003152931493498455)),
+                        polynomial_size: Some(PolynomialSize(1 << 11)),
+                        message_modulus: Some(2),
+                        ..Default::default()
+                    }
+                ),
             ),
         ]
     } else {
@@ -758,7 +781,106 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>() -> Vec<(String, Cry
     }
 }
 
-fn packed_mul<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) {
+fn public_funct_ks<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
+{
+    //only written for local development benchmarking
+    let bench_name = "packed_multiplication";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+        
+    let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
+
+    for (name, params) in packed_operations_benchmark_parameters::<Scalar>().iter() 
+    {
+        // Create the LweSecretKey
+        let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension.unwrap(),
+            &mut secret_generator,
+        );
+
+        // Create the GlweSecretKey
+        let glwe_secret_key: GlweSecretKeyOwned<Scalar>  = allocate_and_generate_new_binary_glwe_secret_key(
+            params.glwe_dimension.unwrap(),
+            params.polynomial_size.unwrap(),
+            &mut secret_generator,
+        );
+        let mut lwe_pubfpksk = LwePublicFunctionalPackingKeyswitchKey::new(
+            Scalar::ZERO,
+            params.ks_base_log.unwrap(),
+            params.ks_level.unwrap(),
+            params.lwe_dimension.unwrap(),
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            ciphertext_modulus,
+            );
+        generate_lwe_public_functional_packing_keyswitch_key(
+            &lwe_secret_key,
+            &glwe_secret_key,
+            &mut lwe_pubfpksk,
+            params.glwe_modular_std_dev.unwrap(),
+            &mut encryption_generator,
+            );
+            let lwe_ciphertext_count = LweCiphertextCount(20);
+        let lwe_plaintext_list = PlaintextList::new(Scalar::ONE << 59, PlaintextCount(20));
+        let mut lwe_list_1 = LweCiphertextList::new(
+            Scalar::ZERO,
+            params.lwe_dimension.unwrap().to_lwe_size(),
+            lwe_ciphertext_count,
+            ciphertext_modulus,
+            );
+        encrypt_lwe_ciphertext_list(
+            &lwe_secret_key,
+            &mut lwe_list_1,
+            &lwe_plaintext_list,
+            params.glwe_modular_std_dev.unwrap(),
+            &mut encryption_generator,
+            );
+
+        let mut output_glwe_ciphertext =
+        GlweCiphertext::new(Scalar::ZERO, params.glwe_dimension.unwrap().to_glwe_size(), params.polynomial_size.unwrap(), ciphertext_modulus);
+        
+        let id = format!("{bench_name}_{name}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+
+                    packedpublic_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext_mult(
+                        &lwe_pubfpksk,
+                        &mut output_glwe_ciphertext,
+                        &lwe_list_1,
+                        | x: Vec<Scalar>| {
+                            let mut packed1: Vec<Scalar> = vec![Scalar::ZERO;lwe_pubfpksk.output_polynomial_size().0];
+                            x.iter().enumerate().for_each(|(iter,y)| packed1[iter] = *y);
+                            Polynomial::from_container(packed1)
+                            }
+                    );
+                black_box(&mut output_lwe_list);
+                })
+            });
+        }
+    
+        let bit_size = (params.message_modulus.unwrap_or(2) as u64).ilog2();
+        write_to_json(
+            &id,
+            *params,
+            name,
+            "packed mult",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+fn packed_mul<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) 
+{
     //only written for local development benchmarking
     let bench_name = "packed_multiplication";
     let mut bench_group = c.benchmark_group(bench_name);
@@ -851,12 +973,14 @@ fn packed_mul<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) {
         // Perform the tensor product
         let scale = Scalar::ONE << log_delta;
 
-        let mut output_lwe_list = LweCiphertextList::new(
-            Scalar::ZERO,
-            params.lwe_dimension.unwrap().to_lwe_size(),
-            lwe_ciphertext_count,
-            ciphertext_modulus,
-        );
+        let mut output_lwe_list = 
+            LweCiphertextList::new(
+                Scalar::ZERO,
+                //fix this LWE dimension to be k*N
+                LweDimension(2048),
+                lwe_ciphertext_count,
+                ciphertext_modulus,
+                );
 
         let id = format!("{bench_name}_{name}");
         {
