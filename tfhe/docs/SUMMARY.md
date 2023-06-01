@@ -3,7 +3,6 @@
 * [What is TFHE-rs?](README.md)
 
 ## Getting Started
-
 * [Installation](getting\_started/installation.md)
 * [Quick Start](getting\_started/quick\_start.md)
 * [Supported Operations](getting\_started/operations.md)
@@ -32,6 +31,12 @@
 * [Operations](integer/operations.md)
 * [Cryptographic Parameters](integer/parameters.md)
 * [Serialization/Deserialization](integer/serialization.md)
+
+## Tutorials for real-life applications
+* [Dark Market](tutorial/dark_market.md)
+* [SHA256](tutorial/sha256_bool.md)
+* [Homomorphic Regular Expressions](tutorial/regex/tutorial.md)
+
 
 ## C API
 * [High-Level API](c_api/high-level-api.md)
