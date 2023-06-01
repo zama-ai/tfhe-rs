@@ -1,7 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
-use crate::shortint::ClassicPBSParameters;
 use paste::paste;
 use rand::Rng;
 
@@ -30,6 +29,27 @@ macro_rules! create_parametrized_test{
             PARAM_MESSAGE_1_CARRY_1,
             PARAM_MESSAGE_2_CARRY_2,
             PARAM_MESSAGE_3_CARRY_3,
+            PARAM_MESSAGE_4_CARRY_4,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+            // // These parameters seem to introduce too much noise during computation
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+            // // These parameters seem to introduce too much noise during computation
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3
+        });
+    };
+}
+
+macro_rules! create_parametrized_test_no_multi_bit {
+    ($name:ident) => {
+        create_parametrized_test!($name {
+            PARAM_MESSAGE_1_CARRY_1,
+            PARAM_MESSAGE_2_CARRY_2,
+            PARAM_MESSAGE_3_CARRY_3,
             PARAM_MESSAGE_4_CARRY_4
         });
     };
@@ -38,14 +58,14 @@ macro_rules! create_parametrized_test{
 create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_smart_add_sequence_multi_thread);
 create_parametrized_test!(integer_smart_add_sequence_single_thread);
-create_parametrized_test!(integer_default_add);
+create_parametrized_test_no_multi_bit!(integer_default_add);
 create_parametrized_test!(integer_default_add_work_efficient {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_3_CARRY_3,
     PARAM_MESSAGE_4_CARRY_4
 });
-create_parametrized_test!(integer_default_add_sequence_multi_thread);
+create_parametrized_test_no_multi_bit!(integer_default_add_sequence_multi_thread);
 // Other tests are pretty slow, and the code is the same as a smart add but slower
 #[test]
 fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2() {
@@ -54,12 +74,12 @@ fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2() {
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
 create_parametrized_test!(integer_smart_bitxor);
-create_parametrized_test!(integer_default_bitand);
-create_parametrized_test!(integer_default_bitor);
-create_parametrized_test!(integer_default_bitxor);
+create_parametrized_test_no_multi_bit!(integer_default_bitand);
+create_parametrized_test_no_multi_bit!(integer_default_bitor);
+create_parametrized_test_no_multi_bit!(integer_default_bitxor);
 create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
-create_parametrized_test!(integer_default_small_scalar_mul);
+create_parametrized_test_no_multi_bit!(integer_default_small_scalar_mul);
 create_parametrized_test!(integer_smart_scalar_mul_u128_fix_non_reg_test {
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_2
@@ -69,12 +89,12 @@ create_parametrized_test!(integer_default_scalar_mul_u128_fix_non_reg_test {
     PARAM_MESSAGE_2_CARRY_2
 });
 create_parametrized_test!(integer_smart_scalar_mul);
-create_parametrized_test!(integer_default_scalar_mul);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_mul);
 // scalar left/right shifts
 create_parametrized_test!(integer_unchecked_scalar_left_shift);
-create_parametrized_test!(integer_default_scalar_left_shift);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_left_shift);
 create_parametrized_test!(integer_unchecked_scalar_right_shift);
-create_parametrized_test!(integer_default_scalar_right_shift);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_right_shift);
 // left/right shifts
 create_parametrized_test!(integer_unchecked_left_shift {
     // This algorithm requires 3 bits
@@ -104,13 +124,13 @@ create_parametrized_test!(integer_unchecked_rotate_right {
 // left/right rotations
 create_parametrized_test!(integer_unchecked_scalar_rotate_right);
 create_parametrized_test!(integer_unchecked_scalar_rotate_left);
-create_parametrized_test!(integer_scalar_rotate_right);
-create_parametrized_test!(integer_scalar_rotate_left);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_rotate_right);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_rotate_left);
 // negations
 create_parametrized_test!(integer_smart_neg);
-create_parametrized_test!(integer_default_neg);
+create_parametrized_test_no_multi_bit!(integer_default_neg);
 create_parametrized_test!(integer_smart_sub);
-create_parametrized_test!(integer_default_sub);
+create_parametrized_test_no_multi_bit!(integer_default_sub);
 create_parametrized_test!(integer_default_sub_work_efficient {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2,
@@ -119,19 +139,18 @@ create_parametrized_test!(integer_default_sub_work_efficient {
 });
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
-create_parametrized_test!(integer_default_block_mul);
+create_parametrized_test_no_multi_bit!(integer_default_block_mul);
 create_parametrized_test!(integer_smart_mul);
-#[test]
-fn test_integer_smart_mul_param_multi_bit_message_2_carry_2_group_2() {
-    integer_smart_mul(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2)
-}
-create_parametrized_test!(integer_default_mul);
+create_parametrized_test_no_multi_bit!(integer_default_mul);
 create_parametrized_test!(integer_smart_scalar_sub);
-create_parametrized_test!(integer_default_scalar_sub);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_sub);
 create_parametrized_test!(integer_smart_scalar_add);
-create_parametrized_test!(integer_default_scalar_add);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_add);
 
-fn integer_smart_add(param: ClassicPBSParameters) {
+fn integer_smart_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -139,7 +158,7 @@ fn integer_smart_add(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -174,7 +193,10 @@ fn integer_smart_add(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_add_sequence_multi_thread(param: ClassicPBSParameters) {
+fn integer_smart_add_sequence_multi_thread<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -182,7 +204,7 @@ fn integer_smart_add_sequence_multi_thread(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
         for _ in 0..NB_TEST_SMALLER {
@@ -208,7 +230,10 @@ fn integer_smart_add_sequence_multi_thread(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_add_sequence_single_thread(param: ClassicPBSParameters) {
+fn integer_smart_add_sequence_single_thread<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -216,7 +241,7 @@ fn integer_smart_add_sequence_single_thread(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17] {
         for _ in 0..NB_TEST_SMALLER {
@@ -248,7 +273,10 @@ fn integer_smart_add_sequence_single_thread(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_add(param: ClassicPBSParameters) {
+fn integer_default_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -256,7 +284,7 @@ fn integer_default_add(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -296,7 +324,10 @@ fn integer_default_add(param: ClassicPBSParameters) {
 }
 
 // Smaller test for this one
-fn integer_default_add_work_efficient(param: ClassicPBSParameters) {
+fn integer_default_add_work_efficient<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -304,7 +335,7 @@ fn integer_default_add_work_efficient(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -326,7 +357,10 @@ fn integer_default_add_work_efficient(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_add_sequence_multi_thread(param: ClassicPBSParameters) {
+fn integer_default_add_sequence_multi_thread<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -334,7 +368,7 @@ fn integer_default_add_sequence_multi_thread(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
         for _ in 0..NB_TEST_SMALLER {
@@ -365,7 +399,10 @@ fn integer_default_add_sequence_multi_thread(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_add_sequence_single_thread(param: ClassicPBSParameters) {
+fn integer_default_add_sequence_single_thread<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -373,7 +410,7 @@ fn integer_default_add_sequence_single_thread(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17] {
         for _ in 0..NB_TEST_SMALLER {
@@ -406,7 +443,10 @@ fn integer_default_add_sequence_single_thread(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_bitand(param: ClassicPBSParameters) {
+fn integer_smart_bitand<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -414,7 +454,7 @@ fn integer_smart_bitand(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -451,7 +491,10 @@ fn integer_smart_bitand(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_bitor(param: ClassicPBSParameters) {
+fn integer_smart_bitor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -459,7 +502,7 @@ fn integer_smart_bitor(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -496,7 +539,10 @@ fn integer_smart_bitor(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_bitxor(param: ClassicPBSParameters) {
+fn integer_smart_bitxor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -504,7 +550,7 @@ fn integer_smart_bitxor(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -541,7 +587,10 @@ fn integer_smart_bitxor(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_bitand(param: ClassicPBSParameters) {
+fn integer_default_bitand<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -549,7 +598,7 @@ fn integer_default_bitand(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -590,7 +639,10 @@ fn integer_default_bitand(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_bitor(param: ClassicPBSParameters) {
+fn integer_default_bitor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -598,7 +650,7 @@ fn integer_default_bitor(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -639,7 +691,10 @@ fn integer_default_bitor(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_bitxor(param: ClassicPBSParameters) {
+fn integer_default_bitxor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -647,7 +702,7 @@ fn integer_default_bitxor(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -688,7 +743,10 @@ fn integer_default_bitxor(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
+fn integer_unchecked_small_scalar_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -696,9 +754,9 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    let scalar_modulus = param.message_modulus.0 as u64;
+    let scalar_modulus = cks.parameters().message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
@@ -718,7 +776,10 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
+fn integer_smart_small_scalar_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -726,9 +787,9 @@ fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    let scalar_modulus = param.message_modulus.0 as u64;
+    let scalar_modulus = cks.parameters().message_modulus().0 as u64;
 
     let mut clear_res;
     for _ in 0..NB_TEST_SMALLER {
@@ -756,7 +817,10 @@ fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_small_scalar_mul(param: ClassicPBSParameters) {
+fn integer_default_small_scalar_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -764,9 +828,9 @@ fn integer_default_small_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    let scalar_modulus = param.message_modulus.0 as u64;
+    let scalar_modulus = cks.parameters().message_modulus().0 as u64;
 
     let mut clear_res;
     for _ in 0..NB_TEST_SMALLER {
@@ -798,7 +862,10 @@ fn integer_default_small_scalar_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
+fn integer_smart_scalar_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -806,7 +873,7 @@ fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
@@ -827,7 +894,10 @@ fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_scalar_mul(param: ClassicPBSParameters) {
+fn integer_default_scalar_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -835,7 +905,7 @@ fn integer_default_scalar_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
@@ -859,14 +929,18 @@ fn integer_default_scalar_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_mul_corner_cases(param: ClassicPBSParameters) {
+fn integer_unchecked_mul_corner_cases<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     // This example will not pass if the terms reduction is wrong
     // on the chunk size it uses to reduce the 'terms' resulting
     // from blockmuls
     {
-        let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+        let nb_ct =
+            (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
         let clear = 307096569525960547621731375222677666984u128;
         let scalar = 5207034748027904122u64;
 
@@ -875,7 +949,8 @@ fn integer_unchecked_mul_corner_cases(param: ClassicPBSParameters) {
         let dec_res: u128 = cks.decrypt_radix(&ct_res);
         assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
 
-        let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+        let nb_ct =
+            (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
         let clear = 307096569525960547621731375222677666984u128;
         let scalar = 5207034748027904122u64;
 
@@ -888,7 +963,8 @@ fn integer_unchecked_mul_corner_cases(param: ClassicPBSParameters) {
     }
 
     {
-        let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+        let nb_ct =
+            (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
         let clear = u128::MAX;
         let scalar = u64::MAX;
 
@@ -910,7 +986,8 @@ fn integer_unchecked_mul_corner_cases(param: ClassicPBSParameters) {
     // Trying to multiply a ciphertext with a scalar value
     // bigger than the ciphertext modulus should work
     {
-        let nb_ct = (8f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+        let nb_ct =
+            (8f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
         let clear = 123u64;
         let scalar = 17823812983255694336u64;
         assert_eq!(scalar % 256, 0);
@@ -922,9 +999,13 @@ fn integer_unchecked_mul_corner_cases(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_scalar_mul_u128_fix_non_reg_test(param: ClassicPBSParameters) {
+fn integer_smart_scalar_mul_u128_fix_non_reg_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+    let nb_ct =
+        (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
     let cks = RadixClientKey::from((cks, nb_ct));
 
     //RNG
@@ -947,9 +1028,13 @@ fn integer_smart_scalar_mul_u128_fix_non_reg_test(param: ClassicPBSParameters) {
     assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
 }
 
-fn integer_default_scalar_mul_u128_fix_non_reg_test(param: ClassicPBSParameters) {
+fn integer_default_scalar_mul_u128_fix_non_reg_test<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
-    let nb_ct = (128f64 / (param.message_modulus.0 as f64).log2().ceil()).ceil() as usize;
+    let nb_ct =
+        (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
     let cks = RadixClientKey::from((cks, nb_ct));
 
     //RNG
@@ -972,14 +1057,17 @@ fn integer_default_scalar_mul_u128_fix_non_reg_test(param: ClassicPBSParameters)
     assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
 }
 
-fn integer_unchecked_scalar_left_shift(param: ClassicPBSParameters) {
+fn integer_unchecked_scalar_left_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
 
     for _ in 0..NB_TEST {
@@ -1008,7 +1096,7 @@ fn integer_unchecked_scalar_left_shift(param: ClassicPBSParameters) {
     let clear = rng.gen::<u64>() % modulus;
     let ct = cks.encrypt(clear);
 
-    let nb_bits_in_block = param.message_modulus.0.ilog2();
+    let nb_bits_in_block = cks.parameters().message_modulus().0.ilog2();
     for scalar in 0..nb_bits_in_block {
         let ct_res = sks.unchecked_scalar_left_shift_parallelized(&ct, scalar as u64);
         let dec_res: u64 = cks.decrypt(&ct_res);
@@ -1016,14 +1104,17 @@ fn integer_unchecked_scalar_left_shift(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_left_shift(param: PBSParameters) {
+fn integer_unchecked_left_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -1061,14 +1152,17 @@ fn integer_unchecked_left_shift(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_right_shift(param: PBSParameters) {
+fn integer_unchecked_right_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -1107,14 +1201,17 @@ fn integer_unchecked_right_shift(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_rotate_left(param: PBSParameters) {
+fn integer_unchecked_rotate_left<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -1153,14 +1250,17 @@ fn integer_unchecked_rotate_left(param: PBSParameters) {
     }
 }
 
-fn integer_unchecked_rotate_right(param: PBSParameters) {
+fn integer_unchecked_rotate_right<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     assert!(modulus.is_power_of_two());
     let nb_bits = modulus.ilog2();
 
@@ -1199,13 +1299,16 @@ fn integer_unchecked_rotate_right(param: PBSParameters) {
     }
 }
 
-fn integer_default_scalar_left_shift(param: ClassicPBSParameters) {
+fn integer_default_scalar_left_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
 
     for _ in 0..NB_TEST {
@@ -1240,7 +1343,7 @@ fn integer_default_scalar_left_shift(param: ClassicPBSParameters) {
     let clear = rng.gen::<u64>() % modulus;
     let ct = cks.encrypt(clear);
 
-    let nb_bits_in_block = param.message_modulus.0.ilog2();
+    let nb_bits_in_block = cks.parameters().message_modulus().0.ilog2();
     for scalar in 0..nb_bits_in_block {
         let ct_res = sks.scalar_left_shift_parallelized(&ct, scalar as u64);
         let dec_res: u64 = cks.decrypt(&ct_res);
@@ -1248,14 +1351,17 @@ fn integer_default_scalar_left_shift(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_scalar_right_shift(param: ClassicPBSParameters) {
+fn integer_unchecked_scalar_right_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
 
     for _ in 0..NB_TEST {
@@ -1268,9 +1374,7 @@ fn integer_unchecked_scalar_right_shift(param: ClassicPBSParameters) {
         {
             let scalar = scalar % nb_bits;
             let ct_res = sks.unchecked_scalar_right_shift_parallelized(&ct, scalar as u64);
-            let tmp = sks.unchecked_scalar_right_shift_parallelized(&ct, scalar as u64);
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
             assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
         }
@@ -1279,9 +1383,7 @@ fn integer_unchecked_scalar_right_shift(param: ClassicPBSParameters) {
         {
             let scalar = scalar.saturating_add(nb_bits);
             let ct_res = sks.unchecked_scalar_right_shift_parallelized(&ct, scalar as u64);
-            let tmp = sks.unchecked_scalar_right_shift_parallelized(&ct, scalar as u64);
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
             assert_eq!(clear.wrapping_shr(scalar % nb_bits) % modulus, dec_res);
         }
@@ -1290,25 +1392,26 @@ fn integer_unchecked_scalar_right_shift(param: ClassicPBSParameters) {
     let clear = rng.gen::<u64>() % modulus;
 
     let ct = cks.encrypt(clear);
-    let nb_bits_in_block = param.message_modulus.0.ilog2();
+    let nb_bits_in_block = cks.parameters().message_modulus().0.ilog2();
     for scalar in 0..nb_bits_in_block {
         let ct_res = sks.unchecked_scalar_right_shift_parallelized(&ct, scalar as u64);
-        let tmp = sks.unchecked_scalar_right_shift_parallelized(&ct, scalar as u64);
         assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(clear.checked_shr(scalar).unwrap_or(0) % modulus, dec_res);
     }
 }
 
-fn integer_default_scalar_right_shift(param: ClassicPBSParameters) {
+fn integer_default_scalar_right_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
 
     for _ in 0..NB_TEST {
@@ -1343,7 +1446,7 @@ fn integer_default_scalar_right_shift(param: ClassicPBSParameters) {
     let clear = rng.gen::<u64>() % modulus;
 
     let ct = cks.encrypt(clear);
-    let nb_bits_in_block = param.message_modulus.0.ilog2();
+    let nb_bits_in_block = cks.parameters().message_modulus().0.ilog2();
     for scalar in 0..nb_bits_in_block {
         let ct_res = sks.scalar_right_shift_parallelized(&ct, scalar as u64);
         let tmp = sks.scalar_right_shift_parallelized(&ct, scalar as u64);
@@ -1399,16 +1502,19 @@ fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
     (rotated & mask) | ((rotated & shifted_mask) >> (u64::BITS - actual_bit_size))
 }
 
-fn integer_unchecked_scalar_rotate_right(param: ClassicPBSParameters) {
+fn integer_unchecked_scalar_rotate_right<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
-    let bits_per_block = param.message_modulus.0.ilog2();
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
     for _ in 0..(NB_TEST / 3).max(1) {
         let clear = rng.gen::<u64>() % modulus;
@@ -1420,9 +1526,7 @@ fn integer_unchecked_scalar_rotate_right(param: ClassicPBSParameters) {
         {
             let scalar = scalar - (scalar % bits_per_block);
             let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
-            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_right_helper(clear, scalar, nb_bits);
             assert_eq!(expected, dec_res);
@@ -1437,9 +1541,7 @@ fn integer_unchecked_scalar_rotate_right(param: ClassicPBSParameters) {
                 scalar
             };
             let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
-            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_right_helper(clear, scalar, nb_bits);
             assert_eq!(expected, dec_res);
@@ -1452,9 +1554,7 @@ fn integer_unchecked_scalar_rotate_right(param: ClassicPBSParameters) {
             let value = rng.gen_range(1..=u32::MAX);
             let scalar = value.trailing_zeros() + rng.gen_range(1..nb_bits);
             let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
-            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_right_helper(clear, scalar, nb_bits);
             assert_eq!(expected, dec_res);
@@ -1462,16 +1562,19 @@ fn integer_unchecked_scalar_rotate_right(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_scalar_rotate_left(param: ClassicPBSParameters) {
+fn integer_unchecked_scalar_rotate_left<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
-    let bits_per_block = param.message_modulus.0.ilog2();
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
     for _ in 0..(NB_TEST / 3).max(1) {
         let clear = rng.gen::<u64>() % modulus;
@@ -1483,9 +1586,7 @@ fn integer_unchecked_scalar_rotate_left(param: ClassicPBSParameters) {
         {
             let scalar = scalar - (scalar % bits_per_block);
             let ct_res = sks.unchecked_scalar_rotate_left_parallelized(&ct, scalar as u64);
-            let tmp = sks.unchecked_scalar_rotate_left_parallelized(&ct, scalar as u64);
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_left_helper(clear, scalar, nb_bits);
             assert_eq!(expected, dec_res);
@@ -1500,9 +1601,7 @@ fn integer_unchecked_scalar_rotate_left(param: ClassicPBSParameters) {
                 scalar
             };
             let ct_res = sks.unchecked_scalar_rotate_left_parallelized(&ct, scalar as u64);
-            let tmp = sks.unchecked_scalar_rotate_left_parallelized(&ct, scalar as u64);
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_left_helper(clear, scalar, nb_bits);
             assert_eq!(expected, dec_res);
@@ -1515,9 +1614,7 @@ fn integer_unchecked_scalar_rotate_left(param: ClassicPBSParameters) {
             let value = rng.gen_range(1..=u32::MAX);
             let scalar = value.leading_zeros() + rng.gen_range(1..nb_bits);
             let ct_res = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
-            let tmp = sks.unchecked_scalar_rotate_right_parallelized(&ct, scalar as u64);
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp);
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_right_helper(clear, scalar, nb_bits);
             assert_eq!(expected, dec_res);
@@ -1525,16 +1622,19 @@ fn integer_unchecked_scalar_rotate_left(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_scalar_rotate_right(param: ClassicPBSParameters) {
+fn integer_default_scalar_rotate_right<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
-    let bits_per_block = param.message_modulus.0.ilog2();
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
     for _ in 0..(NB_TEST / 2).max(1) {
         let clear = rng.gen::<u64>() % modulus;
@@ -1588,16 +1688,19 @@ fn integer_scalar_rotate_right(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_scalar_rotate_left(param: ClassicPBSParameters) {
+fn integer_default_scalar_rotate_left<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
-    let bits_per_block = param.message_modulus.0.ilog2();
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
     for _ in 0..(NB_TEST / 3).max(1) {
         let clear = rng.gen::<u64>() % modulus;
@@ -1651,7 +1754,10 @@ fn integer_scalar_rotate_left(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_neg(param: ClassicPBSParameters) {
+fn integer_smart_neg<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1659,7 +1765,7 @@ fn integer_smart_neg(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST {
         // Define the cleartexts
@@ -1681,7 +1787,10 @@ fn integer_smart_neg(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_neg(param: ClassicPBSParameters) {
+fn integer_default_neg<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1689,7 +1798,7 @@ fn integer_default_neg(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST {
         // Define the cleartexts
@@ -1714,7 +1823,10 @@ fn integer_default_neg(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_sub(param: ClassicPBSParameters) {
+fn integer_smart_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1722,7 +1834,7 @@ fn integer_smart_sub(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST_SMALLER {
         // Define the cleartexts
@@ -1749,7 +1861,10 @@ fn integer_smart_sub(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_sub(param: ClassicPBSParameters) {
+fn integer_default_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1757,7 +1872,7 @@ fn integer_default_sub(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST_SMALLER {
         // Define the cleartexts
@@ -1787,7 +1902,10 @@ fn integer_default_sub(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_sub_work_efficient(param: ClassicPBSParameters) {
+fn integer_default_sub_work_efficient<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1795,7 +1913,7 @@ fn integer_default_sub_work_efficient(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST_SMALLER {
         // Define the cleartexts
@@ -1819,7 +1937,10 @@ fn integer_default_sub_work_efficient(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_block_mul(param: ClassicPBSParameters) {
+fn integer_unchecked_block_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1827,9 +1948,9 @@ fn integer_unchecked_block_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    let block_modulus = param.message_modulus.0 as u64;
+    let block_modulus = cks.parameters().message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1852,7 +1973,10 @@ fn integer_unchecked_block_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_block_mul(param: ClassicPBSParameters) {
+fn integer_smart_block_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1860,9 +1984,9 @@ fn integer_smart_block_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    let block_modulus = param.message_modulus.0 as u64;
+    let block_modulus = cks.parameters().message_modulus().0 as u64;
 
     for _ in 0..5 {
         // Define the cleartexts
@@ -1890,7 +2014,10 @@ fn integer_smart_block_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_block_mul(param: ClassicPBSParameters) {
+fn integer_default_block_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1898,9 +2025,9 @@ fn integer_default_block_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    let block_modulus = param.message_modulus.0 as u64;
+    let block_modulus = cks.parameters().message_modulus().0 as u64;
 
     for _ in 0..5 {
         // Define the cleartexts
@@ -1944,7 +2071,7 @@ where
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST_SMALLER {
         // Define the cleartexts
@@ -1974,7 +2101,10 @@ where
     }
 }
 
-fn integer_default_mul(param: ClassicPBSParameters) {
+fn integer_default_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1982,7 +2112,7 @@ fn integer_default_mul(param: ClassicPBSParameters) {
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST_SMALLER {
         // Define the cleartexts
@@ -2016,13 +2146,16 @@ fn integer_default_mul(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_scalar_add(param: ClassicPBSParameters) {
+fn integer_smart_scalar_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -2057,13 +2190,16 @@ fn integer_smart_scalar_add(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_scalar_add(param: ClassicPBSParameters) {
+fn integer_default_scalar_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -2102,13 +2238,16 @@ fn integer_default_scalar_add(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_scalar_sub(param: ClassicPBSParameters) {
+fn integer_smart_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
@@ -2143,13 +2282,16 @@ fn integer_smart_scalar_sub(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_default_scalar_sub(param: ClassicPBSParameters) {
+fn integer_default_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 

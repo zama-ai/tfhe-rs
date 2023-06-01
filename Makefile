@@ -142,9 +142,13 @@ clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_ta
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
+	if [[ "$${MULTI_BIT_ONLY}" == TRUE ]]; then \
+		multi_bit_flag="--multi-bit-only"; \
+	fi && \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 		--example generates_test_keys \
-		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe
+		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe -- \
+		$${multi_bit_flag:+"$${multi_bit_flag}"}
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
@@ -234,7 +238,12 @@ test_c_api: build_c_api
 .PHONY: test_shortint_ci # Run the tests for shortint ci
 test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
-		./scripts/shortint-tests.sh $(CARGO_RS_BUILD_TOOLCHAIN)
+		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN)
+
+.PHONY: test_shortint_multi_bit_ci # Run the tests for shortint ci running only multibit tests
+test_shortint_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) --multi-bit
 
 .PHONY: test_shortint # Run all the tests for shortint
 test_shortint: install_rs_build_toolchain
@@ -244,7 +253,12 @@ test_shortint: install_rs_build_toolchain
 .PHONY: test_integer_ci # Run the tests for integer ci
 test_integer_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
-		./scripts/integer-tests.sh $(CARGO_RS_BUILD_TOOLCHAIN)
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN)
+
+.PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
+test_integer_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) --multi-bit
 
 .PHONY: test_integer # Run all the tests for integer
 test_integer: install_rs_build_toolchain

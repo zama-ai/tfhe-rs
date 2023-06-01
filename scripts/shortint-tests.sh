@@ -2,6 +2,47 @@
 
 set -e
 
+function usage() {
+    echo "$0: shortint test runner"
+    echo
+    echo "--help                    Print this message"
+    echo "--rust-toolchain          The toolchain to run the tests with default: stable"
+    echo "--multi-bit               Run multi-bit tests only: default off"
+    echo
+}
+
+RUST_TOOLCHAIN="+stable"
+multi_bit=""
+
+while [ -n "$1" ]
+do
+   case "$1" in
+        "--help" | "-h" )
+            usage
+            exit 0
+            ;;
+
+        "--rust-toolchain" )
+            shift
+            RUST_TOOLCHAIN="$1"
+            ;;
+
+        "--multi-bit" )
+            multi_bit="_multi_bit"
+            ;;
+
+        *)
+            echo "Unknown param : $1"
+            exit 1
+            ;;
+   esac
+   shift
+done
+
+if [[ "${RUST_TOOLCHAIN::1}" != "+" ]]; then
+    RUST_TOOLCHAIN="+${RUST_TOOLCHAIN}"
+fi
+
 CURR_DIR="$(dirname "$0")"
 ARCH_FEATURE="$("${CURR_DIR}/get_arch_feature.sh")"
 
@@ -31,25 +72,25 @@ else
 fi
 
 if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
-    filter_expression_small_params=''\
-'('\
-'   test(/^shortint::.*_param_message_1_carry_1$/)'\
-'or test(/^shortint::.*_param_message_1_carry_2$/)'\
-'or test(/^shortint::.*_param_message_1_carry_3$/)'\
-'or test(/^shortint::.*_param_message_1_carry_4$/)'\
-'or test(/^shortint::.*_param_message_1_carry_5$/)'\
-'or test(/^shortint::.*_param_message_1_carry_6$/)'\
-'or test(/^shortint::.*_param_message_2_carry_1$/)'\
-'or test(/^shortint::.*_param_message_2_carry_2$/)'\
-'or test(/^shortint::.*_param_message_2_carry_3$/)'\
-'or test(/^shortint::.*_param_message_3_carry_1$/)'\
-'or test(/^shortint::.*_param_message_3_carry_2$/)'\
-'or test(/^shortint::.*_param_message_3_carry_3$/)'\
-')'\
-'and not test(~smart_add_and_mul)' # This test is too slow
+    filter_expression_small_params="""\
+(\
+   test(/^shortint::.*_param${multi_bit}_message_1_carry_1/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_2/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_3/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_4/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_5/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_6/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_1/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_2/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_3/) \
+or test(/^shortint::.*_param${multi_bit}_message_3_carry_1/) \
+or test(/^shortint::.*_param${multi_bit}_message_3_carry_2/) \
+or test(/^shortint::.*_param${multi_bit}_message_3_carry_3/) \
+) \
+and not test(~smart_add_and_mul)""" # This test is too slow
 
     # Run tests only no examples or benches with small params and more threads
-    cargo ${1:+"${1}"} nextest run \
+    cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --release \
         --package tfhe \
@@ -58,14 +99,14 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
         --test-threads "${n_threads_small}" \
         -E "${filter_expression_small_params}"
 
-    filter_expression_big_params=''\
-'('\
-'   test(/^shortint::.*_param_message_4_carry_4$/)'\
-')'\
-'and not test(~smart_add_and_mul)'
+    filter_expression_big_params="""\
+(\
+   test(/^shortint::.*_param${multi_bit}_message_4_carry_4/) \
+) \
+and not test(~smart_add_and_mul)"""
 
     # Run tests only no examples or benches with big params and less threads
-    cargo ${1:+"${1}"} nextest run \
+    cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --release \
         --package tfhe \
@@ -74,33 +115,35 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
         --test-threads "${n_threads_big}" \
         -E "${filter_expression_big_params}"
 
-    cargo ${1:+"${1}"} test \
-        --release \
-        --package tfhe \
-        --features="${ARCH_FEATURE}",shortint,internal-keycache \
-        --doc \
-        shortint::
+    if [[ "${multi_bit}" == "" ]]; then
+        cargo "${RUST_TOOLCHAIN}" test \
+            --release \
+            --package tfhe \
+            --features="${ARCH_FEATURE}",shortint,internal-keycache \
+            --doc \
+            shortint::
+    fi
 else
-    filter_expression=''\
-'('\
-'   test(/^shortint::.*_param_message_1_carry_1$/)'\
-'or test(/^shortint::.*_param_message_1_carry_2$/)'\
-'or test(/^shortint::.*_param_message_1_carry_3$/)'\
-'or test(/^shortint::.*_param_message_1_carry_4$/)'\
-'or test(/^shortint::.*_param_message_1_carry_5$/)'\
-'or test(/^shortint::.*_param_message_1_carry_6$/)'\
-'or test(/^shortint::.*_param_message_2_carry_1$/)'\
-'or test(/^shortint::.*_param_message_2_carry_2$/)'\
-'or test(/^shortint::.*_param_message_2_carry_3$/)'\
-'or test(/^shortint::.*_param_message_3_carry_1$/)'\
-'or test(/^shortint::.*_param_message_3_carry_2$/)'\
-'or test(/^shortint::.*_param_message_3_carry_3$/)'\
-'or test(/^shortint::.*_param_message_4_carry_4$/)'\
-')'\
-'and not test(~smart_add_and_mul)' # This test is too slow
+    filter_expression="""\
+(\
+   test(/^shortint::.*_param${multi_bit}_message_1_carry_1/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_2/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_3/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_4/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_5/) \
+or test(/^shortint::.*_param${multi_bit}_message_1_carry_6/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_1/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_2/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_3/) \
+or test(/^shortint::.*_param${multi_bit}_message_3_carry_1/) \
+or test(/^shortint::.*_param${multi_bit}_message_3_carry_2/) \
+or test(/^shortint::.*_param${multi_bit}_message_3_carry_3/) \
+or test(/^shortint::.*_param${multi_bit}_message_4_carry_4/) \
+)\
+and not test(~smart_add_and_mul)""" # This test is too slow
 
     # Run tests only no examples or benches with small params and more threads
-    cargo ${1:+"${1}"} nextest run \
+    cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --release \
         --package tfhe \
@@ -109,12 +152,14 @@ else
         --test-threads "$(${nproc_bin})" \
         -E "${filter_expression}"
 
-    cargo ${1:+"${1}"} test \
-        --release \
-        --package tfhe \
-        --features="${ARCH_FEATURE}",shortint,internal-keycache \
-        --doc \
-        shortint:: -- --test-threads="$(${nproc_bin})"
+    if [[ "${multi_bit}" == "" ]]; then
+        cargo "${RUST_TOOLCHAIN}" test \
+            --release \
+            --package tfhe \
+            --features="${ARCH_FEATURE}",shortint,internal-keycache \
+            --doc \
+            shortint:: -- --test-threads="$(${nproc_bin})"
+    fi
 fi
 
 echo "Test ran in $SECONDS seconds"
