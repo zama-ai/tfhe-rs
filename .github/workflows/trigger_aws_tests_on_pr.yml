@@ -16,3 +16,4 @@ jobs:
           message: |
             @slab-ci cpu_test
             @slab-ci cpu_integer_test
+            @slab-ci cpu_multi_bit_test

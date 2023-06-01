@@ -49,7 +49,17 @@ macro_rules! create_parametrized_test{
             PARAM_MESSAGE_5_CARRY_3,
             PARAM_MESSAGE_6_CARRY_1,
             PARAM_MESSAGE_6_CARRY_2,
-            PARAM_MESSAGE_7_CARRY_1
+            PARAM_MESSAGE_7_CARRY_1,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+            // // These parameters seem to introduce too much noise during computation
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+            // // These parameters seem to introduce too much noise during computation
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3
         });
     };
 }
@@ -84,7 +94,17 @@ macro_rules! create_parametrized_test_bivariate_pbs_compliant{
             PARAM_MESSAGE_3_CARRY_3,
             PARAM_MESSAGE_3_CARRY_4,
             PARAM_MESSAGE_3_CARRY_5,
-            PARAM_MESSAGE_4_CARRY_4
+            PARAM_MESSAGE_4_CARRY_4,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+            // // These parameters seem to introduce too much noise during computation
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+            // // These parameters seem to introduce too much noise during computation
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3
         });
     };
 }
@@ -124,11 +144,6 @@ create_parametrized_test!(shortint_smart_sub);
 create_parametrized_test!(shortint_default_sub);
 create_parametrized_test!(shortint_mul_small_carry);
 create_parametrized_test!(shortint_mux);
-
-#[test]
-fn test_shortint_mux_param_multi_bit_message_2_carry_2_group_2() {
-    shortint_mux(PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2)
-}
 
 // Public key tests are limited to small parameter sets to avoid blowing up memory and large testing
 // times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
@@ -195,7 +210,10 @@ create_parametrized_test_bivariate_pbs_compliant!(
 create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal_trivial);
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_decrypt(param: ClassicPBSParameters) {
+fn shortint_encrypt_decrypt<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
@@ -217,7 +235,10 @@ fn shortint_encrypt_decrypt(param: ClassicPBSParameters) {
 }
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_with_message_modulus_decrypt(param: ClassicPBSParameters) {
+fn shortint_encrypt_with_message_modulus_decrypt<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
@@ -241,7 +262,10 @@ fn shortint_encrypt_with_message_modulus_decrypt(param: ClassicPBSParameters) {
     }
 }
 
-fn shortint_encrypt_decrypt_without_padding(param: ClassicPBSParameters) {
+fn shortint_encrypt_decrypt_without_padding<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
@@ -263,7 +287,10 @@ fn shortint_encrypt_decrypt_without_padding(param: ClassicPBSParameters) {
     }
 }
 
-fn shortint_keyswitch_bootstrap(param: ClassicPBSParameters) {
+fn shortint_keyswitch_bootstrap<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -296,7 +323,10 @@ fn shortint_keyswitch_bootstrap(param: ClassicPBSParameters) {
     assert_eq!(0, failures);
 }
 
-fn shortint_keyswitch_programmable_bootstrap(param: ClassicPBSParameters) {
+fn shortint_keyswitch_programmable_bootstrap<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -323,7 +353,10 @@ fn shortint_keyswitch_programmable_bootstrap(param: ClassicPBSParameters) {
     }
 }
 
-fn shortint_keyswitch_bivariate_programmable_bootstrap(param: ClassicPBSParameters) {
+fn shortint_keyswitch_bivariate_programmable_bootstrap<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -352,7 +385,10 @@ fn shortint_keyswitch_bivariate_programmable_bootstrap(param: ClassicPBSParamete
 }
 
 /// test extraction of a carry
-fn shortint_carry_extract(param: ClassicPBSParameters) {
+fn shortint_carry_extract<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -385,15 +421,19 @@ fn shortint_carry_extract(param: ClassicPBSParameters) {
 }
 
 /// test extraction of a message
-fn shortint_message_extract(param: ClassicPBSParameters) {
+fn shortint_message_extract<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
     let mut rng = rand::thread_rng();
 
-    let modulus_sup = (param.message_modulus.0 * param.carry_modulus.0) as u64;
+    let modulus_sup =
+        (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
-    let modulus = param.message_modulus.0 as u64;
+    let modulus = cks.parameters.message_modulus().0 as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus_sup;
@@ -413,7 +453,10 @@ fn shortint_message_extract(param: ClassicPBSParameters) {
 }
 
 /// test multiplication with the LWE server key
-fn shortint_generate_accumulator(param: ClassicPBSParameters) {
+fn shortint_generate_accumulator<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let double = |x| 2 * x;
@@ -441,7 +484,10 @@ fn shortint_generate_accumulator(param: ClassicPBSParameters) {
 }
 
 /// test addition with the LWE server key
-fn shortint_unchecked_add(param: ClassicPBSParameters) {
+fn shortint_unchecked_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -476,7 +522,10 @@ fn shortint_unchecked_add(param: ClassicPBSParameters) {
 }
 
 /// test addition with the LWE server key
-fn shortint_smart_add(param: ClassicPBSParameters) {
+fn shortint_smart_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -515,7 +564,10 @@ fn shortint_smart_add(param: ClassicPBSParameters) {
 }
 
 /// test default addition with the LWE server key
-fn shortint_default_add(param: ClassicPBSParameters) {
+fn shortint_default_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -554,7 +606,10 @@ fn shortint_default_add(param: ClassicPBSParameters) {
 }
 
 /// test addition with the LWE server key using the a public key for encryption
-fn shortint_compressed_public_key_smart_add(param: ClassicPBSParameters) {
+fn shortint_compressed_public_key_smart_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompressedPublicKeyBig::new(cks);
@@ -594,7 +649,10 @@ fn shortint_compressed_public_key_smart_add(param: ClassicPBSParameters) {
 }
 
 /// test addition with the LWE server key using the a public key for encryption
-fn shortint_public_key_smart_add(param: ClassicPBSParameters) {
+fn shortint_public_key_smart_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::PublicKeyBig::new(cks);
@@ -634,7 +692,10 @@ fn shortint_public_key_smart_add(param: ClassicPBSParameters) {
 }
 
 /// test bitwise 'and' with the LWE server key
-fn shortint_unchecked_bitand(param: ClassicPBSParameters) {
+fn shortint_unchecked_bitand<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -664,7 +725,10 @@ fn shortint_unchecked_bitand(param: ClassicPBSParameters) {
 }
 
 /// test bitwise 'or' with the LWE server key
-fn shortint_unchecked_bitor(param: ClassicPBSParameters) {
+fn shortint_unchecked_bitor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -694,7 +758,10 @@ fn shortint_unchecked_bitor(param: ClassicPBSParameters) {
 }
 
 /// test bitwise 'xor' with the LWE server key
-fn shortint_unchecked_bitxor(param: ClassicPBSParameters) {
+fn shortint_unchecked_bitxor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -724,7 +791,10 @@ fn shortint_unchecked_bitxor(param: ClassicPBSParameters) {
 }
 
 /// test bitwise 'and' with the LWE server key
-fn shortint_smart_bitand(param: ClassicPBSParameters) {
+fn shortint_smart_bitand<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -762,7 +832,10 @@ fn shortint_smart_bitand(param: ClassicPBSParameters) {
 }
 
 /// test default bitwise 'and' with the LWE server key
-fn shortint_default_bitand(param: ClassicPBSParameters) {
+fn shortint_default_bitand<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -800,7 +873,10 @@ fn shortint_default_bitand(param: ClassicPBSParameters) {
 }
 
 /// test bitwise 'or' with the LWE server key
-fn shortint_smart_bitor(param: ClassicPBSParameters) {
+fn shortint_smart_bitor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -838,7 +914,10 @@ fn shortint_smart_bitor(param: ClassicPBSParameters) {
 }
 
 /// test default bitwise 'or' with the LWE server key
-fn shortint_default_bitor(param: ClassicPBSParameters) {
+fn shortint_default_bitor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -876,7 +955,10 @@ fn shortint_default_bitor(param: ClassicPBSParameters) {
 }
 
 /// test bitwise 'xor' with the LWE server key
-fn shortint_smart_bitxor(param: ClassicPBSParameters) {
+fn shortint_smart_bitxor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -914,7 +996,10 @@ fn shortint_smart_bitxor(param: ClassicPBSParameters) {
 }
 
 /// test default bitwise 'xor' with the LWE server key
-fn shortint_default_bitxor(param: ClassicPBSParameters) {
+fn shortint_default_bitxor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -952,7 +1037,10 @@ fn shortint_default_bitxor(param: ClassicPBSParameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_unchecked_greater(param: ClassicPBSParameters) {
+fn shortint_unchecked_greater<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -982,7 +1070,10 @@ fn shortint_unchecked_greater(param: ClassicPBSParameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_smart_greater(param: ClassicPBSParameters) {
+fn shortint_smart_greater<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1012,7 +1103,10 @@ fn shortint_smart_greater(param: ClassicPBSParameters) {
 }
 
 /// test default '>' with the LWE server key
-fn shortint_default_greater(param: ClassicPBSParameters) {
+fn shortint_default_greater<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1042,7 +1136,10 @@ fn shortint_default_greater(param: ClassicPBSParameters) {
 }
 
 /// test '>=' with the LWE server key
-fn shortint_unchecked_greater_or_equal(param: ClassicPBSParameters) {
+fn shortint_unchecked_greater_or_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1072,7 +1169,10 @@ fn shortint_unchecked_greater_or_equal(param: ClassicPBSParameters) {
 }
 
 /// test '>=' with the LWE server key
-fn shortint_smart_greater_or_equal(param: ClassicPBSParameters) {
+fn shortint_smart_greater_or_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1110,7 +1210,10 @@ fn shortint_smart_greater_or_equal(param: ClassicPBSParameters) {
 }
 
 /// test default '>=' with the LWE server key
-fn shortint_default_greater_or_equal(param: ClassicPBSParameters) {
+fn shortint_default_greater_or_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1148,7 +1251,10 @@ fn shortint_default_greater_or_equal(param: ClassicPBSParameters) {
 }
 
 /// test '<' with the LWE server key
-fn shortint_unchecked_less(param: ClassicPBSParameters) {
+fn shortint_unchecked_less<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1178,7 +1284,10 @@ fn shortint_unchecked_less(param: ClassicPBSParameters) {
 }
 
 /// test '<' with the LWE server key
-fn shortint_smart_less(param: ClassicPBSParameters) {
+fn shortint_smart_less<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1216,7 +1325,10 @@ fn shortint_smart_less(param: ClassicPBSParameters) {
 }
 
 /// test default '<' with the LWE server key
-fn shortint_default_less(param: ClassicPBSParameters) {
+fn shortint_default_less<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1254,7 +1366,10 @@ fn shortint_default_less(param: ClassicPBSParameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_unchecked_less_or_equal(param: ClassicPBSParameters) {
+fn shortint_unchecked_less_or_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1284,7 +1399,10 @@ fn shortint_unchecked_less_or_equal(param: ClassicPBSParameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_unchecked_less_or_equal_trivial(param: ClassicPBSParameters) {
+fn shortint_unchecked_less_or_equal_trivial<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1314,7 +1432,10 @@ fn shortint_unchecked_less_or_equal_trivial(param: ClassicPBSParameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_smart_less_or_equal(param: ClassicPBSParameters) {
+fn shortint_smart_less_or_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1352,7 +1473,10 @@ fn shortint_smart_less_or_equal(param: ClassicPBSParameters) {
 }
 
 /// test default '<=' with the LWE server key
-fn shortint_default_less_or_equal(param: ClassicPBSParameters) {
+fn shortint_default_less_or_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1389,7 +1513,10 @@ fn shortint_default_less_or_equal(param: ClassicPBSParameters) {
     }
 }
 
-fn shortint_unchecked_equal(param: ClassicPBSParameters) {
+fn shortint_unchecked_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1419,7 +1546,10 @@ fn shortint_unchecked_equal(param: ClassicPBSParameters) {
 }
 
 /// test '==' with the LWE server key
-fn shortint_smart_equal(param: ClassicPBSParameters) {
+fn shortint_smart_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1457,7 +1587,10 @@ fn shortint_smart_equal(param: ClassicPBSParameters) {
 }
 
 /// test default '==' with the LWE server key
-fn shortint_default_equal(param: ClassicPBSParameters) {
+fn shortint_default_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1495,7 +1628,10 @@ fn shortint_default_equal(param: ClassicPBSParameters) {
 }
 
 /// test '==' with the LWE server key
-fn shortint_smart_scalar_equal(param: ClassicPBSParameters) {
+fn shortint_smart_scalar_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1524,7 +1660,10 @@ fn shortint_smart_scalar_equal(param: ClassicPBSParameters) {
 }
 
 /// test '<' with the LWE server key
-fn shortint_smart_scalar_less(param: ClassicPBSParameters) {
+fn shortint_smart_scalar_less<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1553,7 +1692,10 @@ fn shortint_smart_scalar_less(param: ClassicPBSParameters) {
 }
 
 /// test '<=' with the LWE server key
-fn shortint_smart_scalar_less_or_equal(param: ClassicPBSParameters) {
+fn shortint_smart_scalar_less_or_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1582,7 +1724,10 @@ fn shortint_smart_scalar_less_or_equal(param: ClassicPBSParameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_smart_scalar_greater(param: ClassicPBSParameters) {
+fn shortint_smart_scalar_greater<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1611,7 +1756,10 @@ fn shortint_smart_scalar_greater(param: ClassicPBSParameters) {
 }
 
 /// test '>' with the LWE server key
-fn shortint_smart_scalar_greater_or_equal(param: ClassicPBSParameters) {
+fn shortint_smart_scalar_greater_or_equal<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1640,7 +1788,10 @@ fn shortint_smart_scalar_greater_or_equal(param: ClassicPBSParameters) {
 }
 
 /// test division with the LWE server key
-fn shortint_unchecked_div(param: ClassicPBSParameters) {
+fn shortint_unchecked_div<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1670,7 +1821,10 @@ fn shortint_unchecked_div(param: ClassicPBSParameters) {
 }
 
 /// test scalar division with the LWE server key
-fn shortint_unchecked_scalar_div(param: ClassicPBSParameters) {
+fn shortint_unchecked_scalar_div<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1697,7 +1851,10 @@ fn shortint_unchecked_scalar_div(param: ClassicPBSParameters) {
 }
 
 /// test modulus with the LWE server key
-fn shortint_unchecked_mod(param: ClassicPBSParameters) {
+fn shortint_unchecked_mod<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1724,7 +1881,10 @@ fn shortint_unchecked_mod(param: ClassicPBSParameters) {
 }
 
 /// test LSB multiplication with the LWE server key
-fn shortint_unchecked_mul_lsb(param: ClassicPBSParameters) {
+fn shortint_unchecked_mul_lsb<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1754,7 +1914,10 @@ fn shortint_unchecked_mul_lsb(param: ClassicPBSParameters) {
 }
 
 /// test MSB multiplication with the LWE server key
-fn shortint_unchecked_mul_msb(param: ClassicPBSParameters) {
+fn shortint_unchecked_mul_msb<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1784,7 +1947,10 @@ fn shortint_unchecked_mul_msb(param: ClassicPBSParameters) {
 }
 
 /// test LSB multiplication with the LWE server key
-fn shortint_smart_mul_lsb(param: ClassicPBSParameters) {
+fn shortint_smart_mul_lsb<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1823,7 +1989,10 @@ fn shortint_smart_mul_lsb(param: ClassicPBSParameters) {
 }
 
 /// test default LSB multiplication with the LWE server key
-fn shortint_default_mul_lsb(param: ClassicPBSParameters) {
+fn shortint_default_mul_lsb<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1862,7 +2031,10 @@ fn shortint_default_mul_lsb(param: ClassicPBSParameters) {
 }
 
 /// test MSB multiplication with the LWE server key
-fn shortint_smart_mul_msb(param: ClassicPBSParameters) {
+fn shortint_smart_mul_msb<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1905,7 +2077,10 @@ fn shortint_smart_mul_msb(param: ClassicPBSParameters) {
 }
 
 /// test default MSB multiplication with the LWE server key
-fn shortint_default_mul_msb(param: ClassicPBSParameters) {
+fn shortint_default_mul_msb<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1948,7 +2123,10 @@ fn shortint_default_mul_msb(param: ClassicPBSParameters) {
 }
 
 /// test unchecked negation
-fn shortint_unchecked_neg(param: ClassicPBSParameters) {
+fn shortint_unchecked_neg<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -1977,7 +2155,10 @@ fn shortint_unchecked_neg(param: ClassicPBSParameters) {
 }
 
 /// test smart negation
-fn shortint_smart_neg(param: ClassicPBSParameters) {
+fn shortint_smart_neg<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2010,7 +2191,10 @@ fn shortint_smart_neg(param: ClassicPBSParameters) {
 }
 
 /// test default negation
-fn shortint_default_neg(param: ClassicPBSParameters) {
+fn shortint_default_neg<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2043,13 +2227,16 @@ fn shortint_default_neg(param: ClassicPBSParameters) {
 }
 
 /// test scalar add
-fn shortint_unchecked_scalar_add(param: ClassicPBSParameters) {
+fn shortint_unchecked_scalar_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     let mut rng = rand::thread_rng();
 
-    let message_modulus = param.message_modulus.0 as u8;
+    let message_modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u8>() % message_modulus;
@@ -2071,7 +2258,10 @@ fn shortint_unchecked_scalar_add(param: ClassicPBSParameters) {
 }
 
 /// test smart scalar add
-fn shortint_smart_scalar_add(param: ClassicPBSParameters) {
+fn shortint_smart_scalar_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2106,7 +2296,10 @@ fn shortint_smart_scalar_add(param: ClassicPBSParameters) {
 }
 
 /// test default smart scalar add
-fn shortint_default_scalar_add(param: ClassicPBSParameters) {
+fn shortint_default_scalar_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2141,13 +2334,16 @@ fn shortint_default_scalar_add(param: ClassicPBSParameters) {
 }
 
 /// test unchecked scalar sub
-fn shortint_unchecked_scalar_sub(param: ClassicPBSParameters) {
+fn shortint_unchecked_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     let mut rng = rand::thread_rng();
 
-    let message_modulus = param.message_modulus.0 as u8;
+    let message_modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u8>() % message_modulus;
@@ -2168,7 +2364,10 @@ fn shortint_unchecked_scalar_sub(param: ClassicPBSParameters) {
     }
 }
 
-fn shortint_smart_scalar_sub(param: ClassicPBSParameters) {
+fn shortint_smart_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2208,7 +2407,10 @@ fn shortint_smart_scalar_sub(param: ClassicPBSParameters) {
     }
 }
 
-fn shortint_default_scalar_sub(param: ClassicPBSParameters) {
+fn shortint_default_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2249,14 +2451,17 @@ fn shortint_default_scalar_sub(param: ClassicPBSParameters) {
 }
 
 /// test scalar multiplication with the LWE server key
-fn shortint_unchecked_scalar_mul(param: ClassicPBSParameters) {
+fn shortint_unchecked_scalar_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     let mut rng = rand::thread_rng();
 
-    let message_modulus = param.message_modulus.0 as u8;
-    let carry_modulus = param.carry_modulus.0 as u8;
+    let message_modulus = cks.parameters.message_modulus().0 as u8;
+    let carry_modulus = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u8>() % message_modulus;
@@ -2278,7 +2483,10 @@ fn shortint_unchecked_scalar_mul(param: ClassicPBSParameters) {
 }
 
 /// test default smart scalar multiplication with the LWE server key
-fn shortint_smart_scalar_mul(param: ClassicPBSParameters) {
+fn shortint_smart_scalar_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2314,7 +2522,10 @@ fn shortint_smart_scalar_mul(param: ClassicPBSParameters) {
 }
 
 /// test default smart scalar multiplication with the LWE server key
-fn shortint_default_scalar_mul(param: ClassicPBSParameters) {
+fn shortint_default_scalar_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2350,7 +2561,10 @@ fn shortint_default_scalar_mul(param: ClassicPBSParameters) {
 }
 
 /// test unchecked '>>' operation
-fn shortint_unchecked_right_shift(param: ClassicPBSParameters) {
+fn shortint_unchecked_right_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2377,7 +2591,10 @@ fn shortint_unchecked_right_shift(param: ClassicPBSParameters) {
 }
 
 /// test default unchecked '>>' operation
-fn shortint_default_right_shift(param: ClassicPBSParameters) {
+fn shortint_default_right_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2404,7 +2621,10 @@ fn shortint_default_right_shift(param: ClassicPBSParameters) {
 }
 
 /// test '<<' operation
-fn shortint_unchecked_left_shift(param: ClassicPBSParameters) {
+fn shortint_unchecked_left_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2431,7 +2651,10 @@ fn shortint_unchecked_left_shift(param: ClassicPBSParameters) {
 }
 
 /// test default '<<' operation
-fn shortint_default_left_shift(param: ClassicPBSParameters) {
+fn shortint_default_left_shift<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2458,7 +2681,10 @@ fn shortint_default_left_shift(param: ClassicPBSParameters) {
 }
 
 /// test unchecked subtraction
-fn shortint_unchecked_sub(param: ClassicPBSParameters) {
+fn shortint_unchecked_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2486,7 +2712,10 @@ fn shortint_unchecked_sub(param: ClassicPBSParameters) {
     }
 }
 
-fn shortint_smart_sub(param: ClassicPBSParameters) {
+fn shortint_smart_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2517,7 +2746,10 @@ fn shortint_smart_sub(param: ClassicPBSParameters) {
     }
 }
 
-fn shortint_default_sub(param: ClassicPBSParameters) {
+fn shortint_default_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2549,7 +2781,10 @@ fn shortint_default_sub(param: ClassicPBSParameters) {
 }
 
 /// test multiplication
-fn shortint_mul_small_carry(param: ClassicPBSParameters) {
+fn shortint_mul_small_carry<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     //RNG
@@ -2580,7 +2815,10 @@ fn shortint_mul_small_carry(param: ClassicPBSParameters) {
 }
 
 /// test encryption and decryption with the LWE client key
-fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: ClassicPBSParameters) {
+fn shortint_encrypt_with_message_modulus_smart_add_and_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 

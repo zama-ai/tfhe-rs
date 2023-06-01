@@ -1,4 +1,4 @@
-name: AWS Tests on CPU
+name: AWS Multi Bit Tests on CPU
 
 env:
   CARGO_TERM_COLOR: always
@@ -48,3 +48,43 @@ jobs:
           echo "Request ID: ${{ inputs.request_id }}"
           echo "Fork repo: ${{ inputs.fork_repo }}"
           echo "Fork git sha: ${{ inputs.fork_git_sha }}"
+
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
+        with:
+          repository: ${{ inputs.fork_repo }}
+          ref: ${{ inputs.fork_git_sha }}
+
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install latest stable
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        with:
+          toolchain: stable
+          default: true
+
+      - name: Gen Keys if required
+        run: |
+          MULTI_BIT_ONLY=TRUE make gen_key_cache
+
+      - name: Run shortint multi-bit tests
+        run: |
+          make test_shortint_multi_bit_ci
+
+      - name: Run integer multi-bit tests
+        run: |
+          make test_integer_multi_bit_ci
+
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "Shortint tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

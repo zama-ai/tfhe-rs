@@ -18,6 +18,11 @@ workflow = "aws_tfhe_integer_tests.yml"
 profile = "cpu-big"
 check_run_name = "CPU Integer AWS Tests"
 
+[command.cpu_multi_bit_test]
+workflow = "aws_tfhe_multi_bit_tests.yml"
+profile = "cpu-big"
+check_run_name = "CPU AWS Multi Bit Tests"
+
 [command.integer_bench]
 workflow = "integer_benchmark.yml"
 profile = "bench"
