@@ -475,7 +475,7 @@ where
     }
 }
 
-/// Vector containing all parameter sets
+/// Vector containing all [`ClassicPBSParameters`] parameter sets
 pub const ALL_PARAMETER_VEC: [ClassicPBSParameters; 28] = WITH_CARRY_PARAMETERS_VEC;
 
 /// Vector containing all parameter sets where the carry space is strictly greater than one
@@ -528,6 +528,18 @@ pub const BIVARIATE_PBS_COMPLIANT_PARAMETER_SET_VEC: [ClassicPBSParameters; 16] 
     PARAM_MESSAGE_3_CARRY_4,
     PARAM_MESSAGE_3_CARRY_5,
     PARAM_MESSAGE_4_CARRY_4,
+];
+
+/// Vector containing all [`MultiBitPBSParameters`] parameter sets
+pub const ALL_MULTI_BIT_PARAMETER_VEC: [MultiBitPBSParameters; 8] = [
+    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3,
 ];
 
 /// Nomenclature: PARAM_MESSAGE_X_CARRY_Y: the message (respectively carry) modulus is

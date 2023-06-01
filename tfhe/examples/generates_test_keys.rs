@@ -4,8 +4,9 @@ use tfhe::shortint::parameters::parameters_wopbs_message_carry::{
     WOPBS_PARAM_MESSAGE_4_CARRY_4,
 };
 use tfhe::shortint::parameters::{
-    ClassicPBSParameters, WopbsParameters, ALL_PARAMETER_VEC, PARAM_MESSAGE_1_CARRY_1,
-    PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3, PARAM_MESSAGE_4_CARRY_4,
+    ClassicPBSParameters, WopbsParameters, ALL_MULTI_BIT_PARAMETER_VEC, ALL_PARAMETER_VEC,
+    PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_4,
 };
 
 fn client_server_keys() {
@@ -15,6 +16,27 @@ fn client_server_keys() {
             "Generating [{} / {}] : {}",
             i + 1,
             ALL_PARAMETER_VEC.len(),
+            params.name()
+        );
+
+        let start = std::time::Instant::now();
+
+        let _ = KEY_CACHE.get_from_param(params);
+
+        let stop = start.elapsed().as_secs();
+
+        println!("Generation took {stop} seconds");
+
+        // Clear keys as we go to avoid filling the RAM
+        KEY_CACHE.clear_in_memory_cache()
+    }
+
+    println!("Generating shortint multibit (ClientKey, ServerKey)");
+    for (i, params) in ALL_MULTI_BIT_PARAMETER_VEC.iter().copied().enumerate() {
+        println!(
+            "Generating [{} / {}] : {}",
+            i + 1,
+            ALL_MULTI_BIT_PARAMETER_VEC.len(),
             params.name()
         );
 
