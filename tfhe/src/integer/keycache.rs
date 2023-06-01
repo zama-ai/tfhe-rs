@@ -10,7 +10,7 @@ pub struct IntegerKeyCache;
 impl IntegerKeyCache {
     pub fn get_from_params<P>(&self, params: P) -> (ClientKey, ServerKey)
     where
-        PBSParameters: From<P>,
+        P: Into<PBSParameters>,
     {
         let keys = crate::shortint::keycache::KEY_CACHE.get_from_param(params);
         let (client_key, server_key) = (keys.client_key(), keys.server_key());
@@ -28,7 +28,7 @@ pub struct WopbsKeyCache;
 impl WopbsKeyCache {
     pub fn get_from_params<P>(&self, (pbs_params, wopbs_params): (P, WopbsParameters)) -> WopbsKey
     where
-        PBSParameters: From<P>,
+        P: Into<PBSParameters>,
     {
         let shortint_wops_key =
             crate::shortint::keycache::KEY_CACHE_WOPBS.get_from_param((pbs_params, wopbs_params));

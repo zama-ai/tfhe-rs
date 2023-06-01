@@ -49,10 +49,10 @@ impl AsRef<ClientKey> for RadixClientKey {
 impl RadixClientKey {
     pub fn new<P>(parameters: P, num_blocks: usize) -> Self
     where
-        ShortintParameters: From<P>,
+        P: Into<ShortintParameters>,
     {
         Self {
-            key: ClientKey::new(ShortintParameters::from(parameters)),
+            key: ClientKey::new(parameters.into()),
             num_blocks,
         }
     }

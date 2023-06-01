@@ -2615,7 +2615,7 @@ fn shortint_encrypt_with_message_modulus_smart_add_and_mul(param: ClassicPBSPara
 /// test simulating a MUX
 fn shortint_mux<P>(param: P)
 where
-    PBSParameters: From<P>,
+    P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
