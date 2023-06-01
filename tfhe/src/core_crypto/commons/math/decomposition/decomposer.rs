@@ -15,6 +15,9 @@ pub struct SignedDecomposer<Scalar>
 where
     Scalar: UnsignedInteger,
 {
+    // non_rep_bit_count: usize,
+    rounding_half_interval: Scalar,
+    representable_bits_mask: Scalar,
     pub(crate) base_log: usize,
     pub(crate) level_count: usize,
     integer_type: PhantomData<Scalar>,
@@ -44,7 +47,14 @@ where
             Scalar::BITS > base_log.0 * level_count.0,
             "Decomposed bits exceeds the size of the integer to be decomposed"
         );
+
+        let rounding_half_interval = Scalar::ONE << (Scalar::BITS - base_log.0 * level_count.0 - 1);
+        let representable_bits_mask = !((rounding_half_interval << 1).wrapping_sub(Scalar::ONE));
+
         SignedDecomposer {
+            // non_rep_bit_count: Scalar::BITS - base_log.0 * level_count.0,
+            rounding_half_interval,
+            representable_bits_mask,
             base_log: base_log.0,
             level_count: level_count.0,
             integer_type: PhantomData,
@@ -102,19 +112,78 @@ where
         // The closest number representable by the decomposition can be computed by performing
         // the rounding at the appropriate bit.
 
-        // We compute the number of least significant bits which can not be represented by the
-        // decomposition
-        let non_rep_bit_count: usize = <Scalar as Numeric>::BITS - self.level_count * self.base_log;
-        // We generate a mask which captures the non representable bits
-        let non_rep_mask = Scalar::ONE << (non_rep_bit_count - 1);
-        // We retrieve the non representable bits
-        let non_rep_bits = input & non_rep_mask;
-        // We extract the msb of the  non representable bits to perform the rounding
-        let non_rep_msb = non_rep_bits >> (non_rep_bit_count - 1);
-        // We remove the non-representable bits and perform the rounding
-        let res = input >> non_rep_bit_count;
-        let res = res + non_rep_msb;
-        res << non_rep_bit_count
+        // // We compute the number of least significant bits which can not be represented by the
+        // // decomposition
+        // let non_rep_bit_count: usize = <Scalar as Numeric>::BITS - self.level_count *
+        // self.base_log; // We generate a mask which captures the non representable bits
+        // let non_rep_mask = Scalar::ONE << (non_rep_bit_count - 1);
+        // // We retrieve the non representable bits
+        // let non_rep_bits = input & non_rep_mask;
+        // // We extract the msb of the  non representable bits to perform the rounding
+        // let non_rep_msb = non_rep_bits >> (non_rep_bit_count - 1);
+        // // We remove the non-representable bits and perform the rounding
+        // let res = input >> non_rep_bit_count;
+        // let res = res + non_rep_msb;
+        // res << non_rep_bit_count
+
+        // // simplified
+        // // We compute the number of least significant bits which can not be represented by the
+        // // decomposition
+        // // Example with level_count = 3, base_log = 4 and BITS == 64
+        // let non_rep_bit_count: usize = <Scalar as Numeric>::BITS - self.level_count *
+        // self.base_log; //       |-----| 64 - (64 - 12 - 1) == 13 bits
+        // // 0....0XX...XX
+        // let mut res = input >> (non_rep_bit_count - 1);
+        // // Add one to do the rounding by adding the half interval
+        // res += Scalar::ONE;
+        // // Discard the LSB which was the one deciding in which direction we round
+        // res >>= 1;
+        // // Shift back to the right position with the rounding
+        // res << non_rep_bit_count
+
+        // // cached
+        // // We compute the number of least significant bits which can not be represented by the
+        // // decomposition
+        // // Example with level_count = 3, base_log = 4 and BITS == 64
+        // //       |-----| 64 - (64 - 12 - 1) == 13 bits
+        // // 0....0XX...XX
+        // let mut res = input >> (self.non_rep_bit_count - 1);
+        // // Add one to do the rounding by adding the half interval
+        // res += Scalar::ONE;
+        // // Discard the LSB which was the one deciding in which direction we round
+        // res >>= 1;
+        // // Shift back to the right position with the rounding
+        // res << self.non_rep_bit_count
+
+        // // alternative
+        // let representable_bits = self.base_log * self.level_count;
+        // // Half interval
+        // //
+        // // 0...0010...0
+        // // ^    ^
+        // // |____|__ 12 representable bits
+        // let rounding_half_interval = Scalar::ONE << (Scalar::BITS - representable_bits - 1);
+        // // Representable mask
+        // // 0...0100...0
+        // // ^   ^
+        // // |___|__ 11 bits
+        // //
+        // // minus 1
+        // //
+        // // 0...0011...1
+        // // ^    ^
+        // // |____|__ 12 bits
+        // //
+        // // Not
+        // //
+        // // 1...1100...0
+        // // ^    ^
+        // // |____|__ 12 representable bits
+        // let representable_bits_mask = !((rounding_half_interval << 1).wrapping_sub(Scalar::ONE));
+        // input.wrapping_add(rounding_half_interval) & representable_bits_mask
+
+        // alternative cached
+        input.wrapping_add(self.rounding_half_interval) & self.representable_bits_mask
     }
 
     /// Generate an iterator over the terms of the decomposition of the input.
@@ -389,4 +458,23 @@ where
             self.ciphertext_modulus,
         )
     }
+}
+
+#[test]
+pub fn test_closest_rep() {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let values: Vec<u64> = Vec::from_iter((0..1_000_000_000).map(|_| rng.gen()));
+    let mut rounded = vec![0u64; values.len()];
+
+    let decomp = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
+
+    let start = std::time::Instant::now();
+    values
+        .into_iter()
+        .zip(rounded.iter_mut())
+        .for_each(|(input, output)| *output = decomp.closest_representable(input));
+    let elapsed = start.elapsed().as_secs_f64();
+
+    panic!("{elapsed} s");
 }

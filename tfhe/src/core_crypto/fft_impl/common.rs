@@ -25,7 +25,7 @@ pub fn pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
     // Start doing the right shift
     output >>= Scalar::BITS - poly_size.log2().0 - 2 + lut_count_log.0;
     // Do the rounding
-    output += output & Scalar::ONE;
+    output += Scalar::ONE;
     // Finish the right shift
     output >>= 1;
     // Apply the lsb padding
