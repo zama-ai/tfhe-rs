@@ -2,7 +2,7 @@ use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
     SignedDecompositionIter, SignedDecompositionIterNonNative,
 };
-use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
+use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
 use crate::core_crypto::prelude::misc::divide_round_to_u128_custom_mod;
 use std::marker::PhantomData;
@@ -102,19 +102,32 @@ where
         // The closest number representable by the decomposition can be computed by performing
         // the rounding at the appropriate bit.
 
-        // We compute the number of least significant bits which can not be represented by the
-        // decomposition
-        let non_rep_bit_count: usize = <Scalar as Numeric>::BITS - self.level_count * self.base_log;
-        // We generate a mask which captures the non representable bits
-        let non_rep_mask = Scalar::ONE << (non_rep_bit_count - 1);
-        // We retrieve the non representable bits
-        let non_rep_bits = input & non_rep_mask;
-        // We extract the msb of the  non representable bits to perform the rounding
-        let non_rep_msb = non_rep_bits >> (non_rep_bit_count - 1);
-        // We remove the non-representable bits and perform the rounding
-        let res = input >> non_rep_bit_count;
-        let res = res + non_rep_msb;
-        res << non_rep_bit_count
+        // Example base_log = 4, level_count = 3
+        let representable_bits = self.base_log * self.level_count;
+        // Half interval
+        //
+        // 0...0010...0
+        // ^    ^
+        // |____|__ 12 representable bits
+        let rounding_half_interval = Scalar::ONE << (Scalar::BITS - representable_bits - 1);
+        // Representable mask
+        // 0...0100...0
+        // ^   ^
+        // |___|__ 11 bits
+        //
+        // minus 1
+        //
+        // 0...0011...1
+        // ^    ^
+        // |____|__ 12 bits
+        //
+        // Not
+        //
+        // 1...1100...0
+        // ^    ^
+        // |____|__ 12 representable bits
+        let representable_bits_mask = !((rounding_half_interval << 1).wrapping_sub(Scalar::ONE));
+        input.wrapping_add(rounding_half_interval) & representable_bits_mask
     }
 
     /// Generate an iterator over the terms of the decomposition of the input.
