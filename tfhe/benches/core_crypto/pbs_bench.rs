@@ -939,7 +939,7 @@ fn packed_mul<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
         
     let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
-    for (name, params) in packed_operations_benchmark_parameters::<Scalar>().iter() 
+    for (name, params) in packed_tensor_prod_optimized::<Scalar>().iter() 
     {
         // Create the LweSecretKey
         let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
@@ -1072,7 +1072,7 @@ fn packed_sum_prod<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
         
     let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
 
-    for (name, params) in packed_operations_benchmark_parameters::<Scalar>().iter() 
+    for (name, params) in packed_tensor_prod_optimized::<Scalar>().iter() 
     {
         // Create the LweSecretKey
         let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
