@@ -297,14 +297,14 @@ impl ShortintParameterSet {
         (pbs_params, wopbs_params): (P, WopbsParameters),
     ) -> Result<Self, &'static str>
     where
-        PBSParameters: From<P>,
+        P: Into<PBSParameters>,
     {
-        let pbs_params_base = PBSParameters::from(pbs_params);
+        let pbs_params: PBSParameters = pbs_params.into();
 
-        if pbs_params_base.carry_modulus() != wopbs_params.carry_modulus
-            || pbs_params_base.message_modulus() != wopbs_params.message_modulus
-            || pbs_params_base.ciphertext_modulus() != wopbs_params.ciphertext_modulus
-            || pbs_params_base.encryption_key_choice() != wopbs_params.encryption_key_choice
+        if pbs_params.carry_modulus() != wopbs_params.carry_modulus
+            || pbs_params.message_modulus() != wopbs_params.message_modulus
+            || pbs_params.ciphertext_modulus() != wopbs_params.ciphertext_modulus
+            || pbs_params.encryption_key_choice() != wopbs_params.encryption_key_choice
         {
             return Err(
                 "Incompatible ClassicPBSParameters and WopbsParameters, this may be due to mismatched \
@@ -312,7 +312,7 @@ impl ShortintParameterSet {
             );
         }
         Ok(Self {
-            inner: ShortintParameterSetInner::PBSAndWopbs(pbs_params_base, wopbs_params),
+            inner: ShortintParameterSetInner::PBSAndWopbs(pbs_params, wopbs_params),
         })
     }
 
@@ -451,10 +451,10 @@ impl ShortintParameterSet {
 
 impl<P> From<P> for ShortintParameterSet
 where
-    PBSParameters: From<P>,
+    P: Into<PBSParameters>,
 {
     fn from(value: P) -> Self {
-        Self::new_pbs_param_set(PBSParameters::from(value))
+        Self::new_pbs_param_set(value.into())
     }
 }
 
@@ -466,7 +466,7 @@ impl From<WopbsParameters> for ShortintParameterSet {
 
 impl<P> TryFrom<(P, WopbsParameters)> for ShortintParameterSet
 where
-    PBSParameters: From<P>,
+    P: Into<PBSParameters>,
 {
     type Error = &'static str;
 

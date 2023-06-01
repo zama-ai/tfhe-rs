@@ -476,10 +476,10 @@ impl SharedWopbsKey {
 impl Keycache {
     pub fn get_from_param<P>(&self, param: P) -> SharedKey
     where
-        PBSParameters: From<P>,
+        P: Into<PBSParameters>,
     {
         SharedKey {
-            inner: self.inner.get(PBSParameters::from(param)),
+            inner: self.inner.get(param.into()),
         }
     }
 
@@ -493,10 +493,10 @@ pub struct WopbsParamPair(pub PBSParameters, pub WopbsParameters);
 
 impl<P> From<(P, WopbsParameters)> for WopbsParamPair
 where
-    PBSParameters: From<P>,
+    P: Into<PBSParameters>,
 {
     fn from(tuple: (P, WopbsParameters)) -> Self {
-        Self(PBSParameters::from(tuple.0), tuple.1)
+        Self(tuple.0.into(), tuple.1)
     }
 }
 

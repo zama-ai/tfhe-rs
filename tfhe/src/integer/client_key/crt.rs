@@ -41,10 +41,10 @@ impl AsRef<ClientKey> for CrtClientKey {
 impl CrtClientKey {
     pub fn new<P>(parameters: P, moduli: Vec<u64>) -> Self
     where
-        crate::shortint::PBSParameters: From<P>,
+        P: Into<crate::shortint::PBSParameters>,
     {
         Self {
-            key: ClientKey::new(crate::shortint::PBSParameters::from(parameters)),
+            key: ClientKey::new(parameters.into()),
             moduli,
         }
     }
