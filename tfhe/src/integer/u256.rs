@@ -163,9 +163,7 @@ impl std::ops::Sub<Self> for U256 {
 impl std::ops::ShrAssign<u32> for U256 {
     // move bits from MSB to LSB
     fn shr_assign(&mut self, shift: u32) {
-        if shift > 256 {
-            self.0.as_mut_slice().fill(0);
-        }
+        let shift = shift % Self::BITS;
 
         let num_rotations = (shift / u64::BITS) as usize;
         self.0.rotate_left(num_rotations);
@@ -203,9 +201,7 @@ impl std::ops::Shr<u32> for U256 {
 impl std::ops::ShlAssign<u32> for U256 {
     // move bits from LSB to MSB
     fn shl_assign(&mut self, shift: u32) {
-        if shift > 256 {
-            self.0.as_mut_slice().fill(0);
-        }
+        let shift = shift % Self::BITS;
 
         let num_rotations = (shift / u64::BITS) as usize;
         self.0.rotate_right(num_rotations);
@@ -353,6 +349,26 @@ mod tests {
         // To prove we are testing the correct thing
         assert_eq!(!u128::MAX, u128::MIN);
         assert_eq!(!u128::MIN, u128::MAX);
+    }
+
+    #[test]
+    fn test_shl_limits() {
+        assert_eq!(U256::ONE << 256, U256::ONE << (256 % U256::BITS));
+        assert_eq!(U256::ONE << 257, U256::ONE << (257 % U256::BITS));
+
+        // We aim to have same behaviour as rust native types
+        assert_eq!(1u128.wrapping_shl(128), 1u128 << (128 % u128::BITS));
+        assert_eq!(1u128.wrapping_shl(129), 1u128 << (129 % u128::BITS));
+    }
+
+    #[test]
+    fn test_shr_limits() {
+        assert_eq!(U256::MAX >> 256, U256::MAX >> (256 % U256::BITS));
+        assert_eq!(U256::MAX >> 257, U256::MAX >> (257 % U256::BITS));
+
+        // We aim to have same behaviour as rust native types
+        assert_eq!(u128::MAX.wrapping_shr(128), u128::MAX >> (128 % u128::BITS));
+        assert_eq!(u128::MAX.wrapping_shr(129), u128::MAX >> (129 % u128::BITS));
     }
 
     #[test]
