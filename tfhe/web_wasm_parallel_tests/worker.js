@@ -67,10 +67,6 @@ async function publicKeyTest() {
     let publicKey = TfhePublicKey.new(clientKey);
     console.timeEnd('PublicKey Gen')
 
-    let data = publicKey.serialize()
-    console.log("PublicKey size:", data.length)
-    data = null;
-
     console.time('FheUint8 encrypt with PublicKey')
     let encrypted = FheUint8.encrypt_with_public_key(255, publicKey);
     console.timeEnd('FheUint8 encrypt with PublicKey')
