@@ -43,7 +43,7 @@ impl ShortintEngine {
             secret_encryption_key.lwe_dimension().to_lwe_size(),
         );
 
-        #[cfg(not(feature = "__wasm_api"))]
+        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         let lwe_public_key = par_allocate_and_generate_new_lwe_public_key(
             secret_encryption_key,
             zero_encryption_count,
@@ -52,7 +52,7 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
-        #[cfg(feature = "__wasm_api")]
+        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         let lwe_public_key = allocate_and_generate_new_lwe_public_key(
             secret_encryption_key,
             zero_encryption_count,
@@ -89,7 +89,7 @@ impl ShortintEngine {
             secret_encryption_key.lwe_dimension().to_lwe_size(),
         );
 
-        #[cfg(not(feature = "__wasm_api"))]
+        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         let compressed_public_key = par_allocate_and_generate_new_seeded_lwe_public_key(
             secret_encryption_key,
             zero_encryption_count,
@@ -98,7 +98,7 @@ impl ShortintEngine {
             &mut self.seeder,
         );
 
-        #[cfg(feature = "__wasm_api")]
+        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         let compressed_public_key = allocate_and_generate_new_seeded_lwe_public_key(
             secret_encryption_key,
             zero_encryption_count,

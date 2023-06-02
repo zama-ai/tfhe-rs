@@ -85,6 +85,11 @@ jobs:
         run: |
           make test_nodejs_wasm_api_in_docker
 
+      - name: Run parallel wasm tests
+        run: |
+          make install_node
+          make ci_test_web_js_api_parallel
+
       - name: Gen Keys if required
         run: |
           make gen_key_cache

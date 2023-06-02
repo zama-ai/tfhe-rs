@@ -291,6 +291,12 @@ impl<OpOder: PBSOrderMarker> From<CompressedPublicKeyBase<OpOder>> for PublicKey
     fn from(compressed_public_key: CompressedPublicKeyBase<OpOder>) -> Self {
         let parameters = compressed_public_key.parameters;
 
+        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
+        let decompressed_public_key = compressed_public_key
+            .lwe_public_key
+            .par_decompress_into_lwe_public_key();
+
+        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
         let decompressed_public_key = compressed_public_key
             .lwe_public_key
             .decompress_into_lwe_public_key();

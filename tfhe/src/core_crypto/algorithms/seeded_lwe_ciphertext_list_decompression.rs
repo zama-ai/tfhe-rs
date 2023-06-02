@@ -5,6 +5,8 @@ use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
+use rayon::prelude::*;
+
 /// Convenience function to share the core logic of the decompression algorithm for
 /// [`SeededLweCiphertextList`] between all functions needing it.
 pub fn decompress_seeded_lwe_ciphertext_list_with_existing_generator<
@@ -48,6 +50,89 @@ pub fn decompress_seeded_lwe_ciphertext_list_with_existing_generator<
         }
         *output_body.data = *body_in.data;
     }
+}
+
+/// Convenience function to share the core logic of the decompression algorithm for
+/// [`SeededLweCiphertextList`] between all functions needing it.
+pub fn par_decompress_seeded_lwe_ciphertext_list_with_existing_generator<
+    Scalar,
+    InputCont,
+    OutputCont,
+    Gen,
+>(
+    output_list: &mut LweCiphertextList<OutputCont>,
+    input_seeded_list: &SeededLweCiphertextList<InputCont>,
+    generator: &mut RandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus + Send + Sync,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ParallelByteRandomGenerator,
+{
+    assert_eq!(
+        output_list.ciphertext_modulus(),
+        input_seeded_list.ciphertext_modulus(),
+        "Mismatched CiphertextModulus \
+    between input SeededLweCiphertextList ({:?}) and output LweCiphertextList ({:?})",
+        input_seeded_list.ciphertext_modulus(),
+        output_list.ciphertext_modulus(),
+    );
+
+    let ciphertext_modulus = output_list.ciphertext_modulus();
+
+    let bytes_per_child = (Scalar::BITS / 8) * (output_list.lwe_size().to_lwe_dimension().0);
+    let generators = generator
+        .par_try_fork(output_list.lwe_ciphertext_count().0, bytes_per_child)
+        .expect("Failed to fork generator");
+
+    output_list
+        .par_iter_mut()
+        .zip(input_seeded_list.par_iter())
+        .zip(generators)
+        .for_each(|((mut lwe_out, body_in), mut generator)| {
+            let (mut output_mask, output_body) = lwe_out.get_mut_mask_and_body();
+
+            // generate a uniformly random mask
+            generator.fill_slice_with_random_uniform_custom_mod(
+                output_mask.as_mut(),
+                ciphertext_modulus,
+            );
+            if !ciphertext_modulus.is_native_modulus() {
+                slice_wrapping_scalar_mul_assign(
+                    output_mask.as_mut(),
+                    ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
+                );
+            }
+            *output_body.data = *body_in.data;
+        });
+}
+
+/// Decompress a [`SeededLweCiphertextList`], without consuming it, into a standard
+/// [`LweCiphertextList`].
+pub fn par_decompress_seeded_lwe_ciphertext_list<Scalar, InputCont, OutputCont, Gen>(
+    output_list: &mut LweCiphertextList<OutputCont>,
+    input_seeded_list: &SeededLweCiphertextList<InputCont>,
+) where
+    Scalar: UnsignedTorus + Send + Sync,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ParallelByteRandomGenerator,
+{
+    assert_eq!(
+        output_list.ciphertext_modulus(),
+        input_seeded_list.ciphertext_modulus(),
+        "Mismatched CiphertextModulus \
+    between input SeededLweCiphertextList ({:?}) and output LweCiphertextList ({:?})",
+        input_seeded_list.ciphertext_modulus(),
+        output_list.ciphertext_modulus(),
+    );
+
+    let mut generator = RandomGenerator::<Gen>::new(input_seeded_list.compression_seed().seed);
+    par_decompress_seeded_lwe_ciphertext_list_with_existing_generator::<_, _, _, Gen>(
+        output_list,
+        input_seeded_list,
+        &mut generator,
+    )
 }
 
 /// Decompress a [`SeededLweCiphertextList`], without consuming it, into a standard

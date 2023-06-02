@@ -62,6 +62,13 @@ install_wasm_pack: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install wasm-pack || \
 	( echo "Unable to install cargo wasm-pack, unknown error." && exit 1 )
 
+.PHONY: install_node # Install last version of NodeJS via nvm
+install_node:
+	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | $(SHELL)
+	source ~/.bashrc
+	$(SHELL) -i -c 'nvm install node' || \
+	( echo "Unable to install node, unknown error." && exit 1 )
+
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
@@ -190,6 +197,15 @@ build_web_js_api: install_rs_build_toolchain install_wasm_pack
 		wasm-pack build --release --target=web \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api
 
+.PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
+build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
+	cd tfhe && \
+	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
+	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory,+mutable-globals" rustup run $(RS_CHECK_TOOLCHAIN) \
+		wasm-pack build --release --target=web \
+		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api \
+		-Z build-std=panic_abort,std
+
 .PHONY: build_node_js_api # Build the js API targeting nodejs
 build_node_js_api: install_rs_build_toolchain install_wasm_pack
 	cd tfhe && \
@@ -301,6 +317,16 @@ test_nodejs_wasm_api_in_docker: build_nodejs_test_docker
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api: build_node_js_api
 	cd tfhe && node --test js_on_wasm_tests
+
+.PHONY: test_web_js_api_parallel # Run tests for the web wasm api
+test_web_js_api_parallel: build_web_js_api_parallel
+	$(MAKE) -C tfhe/web_wasm_parallel_tests test
+
+.PHONY: ci_test_web_js_api_parallel # Run tests for the web wasm api
+ci_test_web_js_api_parallel: build_web_js_api_parallel
+	source ~/.nvm/nvm.sh && \
+	nvm use node && \
+	$(MAKE) -C tfhe/web_wasm_parallel_tests test-ci; \
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
 no_tfhe_typo:

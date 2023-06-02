@@ -171,17 +171,38 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePublicKey
     where
         Scalar: UnsignedTorus,
     {
-        let mut decompressed_list = LwePublicKey::new(
+        let mut decompressed_public_key = LwePublicKey::new(
             Scalar::ZERO,
             self.lwe_size(),
             self.zero_encryption_count(),
             self.ciphertext_modulus(),
         );
         decompress_seeded_lwe_public_key::<_, _, _, ActivatedRandomGenerator>(
-            &mut decompressed_list,
+            &mut decompressed_public_key,
             &self,
         );
-        decompressed_list
+        decompressed_public_key
+    }
+
+    /// Consume the [`SeededLwePublicKey`] and decompress it into a standard
+    /// [`LwePublicKey`].
+    ///
+    /// See [`SeededLwePublicKey::from_container`] for usage.
+    pub fn par_decompress_into_lwe_public_key(self) -> LwePublicKeyOwned<Scalar>
+    where
+        Scalar: UnsignedTorus + Send + Sync,
+    {
+        let mut decompressed_public_key = LwePublicKey::new(
+            Scalar::ZERO,
+            self.lwe_size(),
+            self.zero_encryption_count(),
+            self.ciphertext_modulus(),
+        );
+        par_decompress_seeded_lwe_public_key::<_, _, _, ActivatedRandomGenerator>(
+            &mut decompressed_public_key,
+            &self,
+        );
+        decompressed_public_key
     }
 
     /// Return a view of the [`SeededLwePublicKey`]. This is useful if an algorithm takes a view by

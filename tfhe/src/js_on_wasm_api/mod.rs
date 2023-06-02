@@ -8,6 +8,12 @@ pub mod boolean;
 #[cfg(feature = "boolean-client-js-wasm-api")]
 pub use boolean::*;
 
+#[cfg(feature = "parallel-wasm-api")]
+pub use wasm_bindgen_rayon::init_thread_pool;
+
+pub mod high_level_api;
+pub use high_level_api::*;
+
 pub(self) mod js_wasm_seeder {
     use crate::core_crypto::commons::math::random::{Seed, Seeder};
 
