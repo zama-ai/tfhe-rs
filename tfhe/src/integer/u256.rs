@@ -107,6 +107,12 @@ impl U256 {
             sub_slice.reverse();
         }
     }
+
+    pub fn to_low_high_u128(self) -> (u128, u128) {
+        let low = self.0[0] as u128 | ((self.0[1] as u128) << 64);
+        let high = self.0[2] as u128 | ((self.0[3] as u128) << 64);
+        (low, high)
+    }
 }
 
 #[cfg(test)]
