@@ -4,15 +4,6 @@ use crate::shortint::{CiphertextBase, PBSOrderMarker};
 
 use rayon::prelude::*;
 
-/// Enum to tell parallel additions whether they should
-/// add an extra one to the first pair of block being added
-///
-/// It is useful when implementing the parallel subtraction
-pub(crate) enum AddExtraOne {
-    Yes,
-    No,
-}
-
 #[repr(u64)]
 #[derive(PartialEq, Eq)]
 enum OutputCarry {
@@ -47,6 +38,29 @@ fn prefix_sum_carry_propagation(msb: u64, lsb: u64) -> u64 {
 }
 
 impl ServerKey {
+    pub fn unchecked_add_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) -> RadixCiphertext<PBSOrder> {
+        let mut result = lhs.clone();
+        self.unchecked_add_assign_parallelized(&mut result, rhs);
+        result
+    }
+
+    pub fn unchecked_add_assign_parallelized<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
+    ) {
+        lhs.blocks
+            .par_iter_mut()
+            .zip(rhs.blocks.par_iter())
+            .for_each(|(ct_left_i, ct_right_i)| {
+                self.key.unchecked_add_assign(ct_left_i, ct_right_i);
+            });
+    }
+
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// # Warning
@@ -184,7 +198,7 @@ impl ServerKey {
         };
 
         if self.is_eligible_for_parallel_carryless_add() {
-            self.unchecked_add_assign_parallelized_low_latency(lhs, rhs, AddExtraOne::No);
+            self.unchecked_add_assign_parallelized_low_latency(lhs, rhs);
         } else {
             self.unchecked_add_assign(lhs, rhs);
             self.full_propagate_parallelized(lhs);
@@ -232,7 +246,7 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_add_assign_parallelized_work_efficient(lhs, rhs, AddExtraOne::No);
+        self.unchecked_add_assign_parallelized_work_efficient(lhs, rhs);
     }
 
     pub(crate) fn is_eligible_for_parallel_carryless_add(&self) -> bool {
@@ -267,24 +281,12 @@ impl ServerKey {
         &self,
         lhs: &mut RadixCiphertext<PBSOrder>,
         rhs: &RadixCiphertext<PBSOrder>,
-        add_extra_one: AddExtraOne,
     ) {
         debug_assert!(lhs.block_carries_are_empty());
         debug_assert!(rhs.block_carries_are_empty());
 
-        let generates_or_propagates =
-            self.add_and_generate_init_carry_array(lhs, rhs, add_extra_one);
-
-        let input_carries =
-            self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
-
-        lhs.blocks
-            .par_iter_mut()
-            .zip(input_carries.par_iter())
-            .for_each(|(block, input_carry)| {
-                self.key.unchecked_add_assign(block, input_carry);
-                self.key.message_extract_assign(block);
-            });
+        self.unchecked_add_assign_parallelized(lhs, rhs);
+        self.propagate_single_carry_parallelized_low_latency(lhs)
     }
 
     /// This function takes an input ciphertext for which at most one bit of carry
@@ -382,13 +384,32 @@ impl ServerKey {
         &self,
         lhs: &mut RadixCiphertext<PBSOrder>,
         rhs: &RadixCiphertext<PBSOrder>,
-        add_extra_one: AddExtraOne,
     ) {
         debug_assert!(lhs.block_carries_are_empty());
         debug_assert!(rhs.block_carries_are_empty());
         debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 3));
 
-        let mut carry_out = self.add_and_generate_init_carry_array(lhs, rhs, add_extra_one);
+        self.unchecked_add_assign_parallelized(lhs, rhs);
+        let generates_or_propagates = self.generate_init_carry_array(lhs);
+        let carry_out =
+            self.compute_carry_propagation_parallelized_work_efficient(generates_or_propagates);
+
+        lhs.blocks
+            .par_iter_mut()
+            .zip(carry_out.par_iter())
+            .for_each(|(block, carry_in)| {
+                self.key.unchecked_add_assign(block, carry_in);
+                self.key.message_extract_assign(block);
+            });
+    }
+
+    pub(crate) fn compute_carry_propagation_parallelized_work_efficient<
+        PBSOrder: PBSOrderMarker,
+    >(
+        &self,
+        mut carry_out: Vec<CiphertextBase<PBSOrder>>,
+    ) -> Vec<CiphertextBase<PBSOrder>> {
+        debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 3));
 
         let num_blocks = carry_out.len();
         let num_steps = carry_out.len().ilog2() as usize;
@@ -482,41 +503,7 @@ impl ServerKey {
 
         // The first step of the Down-Sweep phase sets the
         // first block to 0, so no need to re-do it
-        lhs.blocks
-            .par_iter_mut()
-            .zip(carry_out.par_iter())
-            .for_each(|(block, carry_in)| {
-                self.key.unchecked_add_assign(block, carry_in);
-                self.key.message_extract_assign(block);
-            });
-    }
-
-    /// Initialization function for parallal carryless sum
-    ///
-    /// This function adds rhs into lhs
-    ///
-    /// It returns the array that tells whether the
-    /// block resulting from the sum will propagate or generate
-    /// a carry. A Prefix sum / cumulative sum then needs to be done
-    /// to get the final carry that the block will output
-    fn add_and_generate_init_carry_array<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-        add_extra_one: AddExtraOne,
-    ) -> Vec<crate::shortint::CiphertextBase<PBSOrder>> {
-        lhs.blocks
-            .par_iter_mut()
-            .zip(rhs.blocks.par_iter())
-            .enumerate()
-            .for_each(|(i, (ct_left_i, ct_right_i))| {
-                self.key.unchecked_add_assign(ct_left_i, ct_right_i);
-                if i == 0 && matches!(add_extra_one, AddExtraOne::Yes) {
-                    self.key.unchecked_scalar_add_assign(ct_left_i, 1);
-                }
-            });
-
-        self.generate_init_carry_array(lhs)
+        carry_out
     }
 
     pub(super) fn generate_init_carry_array<PBSOrder: PBSOrderMarker>(

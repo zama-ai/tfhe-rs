@@ -3,10 +3,6 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::PBSOrderMarker;
 
-use rayon::prelude::*;
-
-use super::add::AddExtraOne;
-
 impl ServerKey {
     /// Computes homomorphically the addition of ciphertext with a scalar.
     ///
@@ -186,37 +182,11 @@ impl ServerKey {
         };
 
         if self.is_eligible_for_parallel_carryless_add() {
-            let generates_or_propagates =
-                self.scalar_add_and_generate_init_carry_array(ct, scalar, AddExtraOne::No);
-            let input_carries =
-                self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
-            ct.blocks
-                .par_iter_mut()
-                .zip(input_carries.par_iter())
-                .for_each(|(block, carry_in)| {
-                    self.key.unchecked_add_assign(block, carry_in);
-                    self.key.message_extract_assign(block);
-                });
+            self.unchecked_scalar_add_assign(ct, scalar);
+            self.propagate_single_carry_parallelized_low_latency(ct);
         } else {
             self.unchecked_scalar_add_assign(ct, scalar);
             self.full_propagate_parallelized(ct);
         }
-    }
-
-    fn scalar_add_and_generate_init_carry_array<PBSOrder, T>(
-        &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        scalar: T,
-        add_extra_one: AddExtraOne,
-    ) -> Vec<crate::shortint::CiphertextBase<PBSOrder>>
-    where
-        PBSOrder: PBSOrderMarker,
-        T: DecomposableInto<u8>,
-    {
-        self.unchecked_scalar_add_assign(lhs, scalar);
-        if matches!(add_extra_one, AddExtraOne::Yes) {
-            self.key.unchecked_scalar_add_assign(&mut lhs.blocks[0], 1);
-        }
-        self.generate_init_carry_array(lhs)
     }
 }
