@@ -1,3 +1,4 @@
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
@@ -34,11 +35,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn unchecked_scalar_add<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_scalar_add<PBSOrder, T>(
         &self,
         ct: &RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+        scalar: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
         let mut result = ct.clone();
         self.unchecked_scalar_add_assign(&mut result, scalar);
         result
@@ -50,25 +55,20 @@ impl ServerKey {
     /// ciphertext.
     ///
     /// The result is assigned to the `ct_left` ciphertext.
-    pub fn unchecked_scalar_add_assign<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_scalar_add_assign<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) {
-        // Bits of message put to 1
-        let mask = (self.key.message_modulus.0 - 1) as u64;
-
-        let mut power = 1_u64;
-        // Put each decomposition into a new ciphertext
-        for ct_i in ct.blocks.iter_mut() {
-            let mut decomp = scalar & (mask * power);
-            decomp /= power;
-
-            self.key.unchecked_scalar_add_assign(ct_i, decomp as u8);
-
-            //modulus to the power i
-            let Some(new_power) = power.checked_mul(self.key.message_modulus.0 as u64) else {break};
-            power = new_power;
+        scalar: T,
+    ) where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        let bits_in_message = self.key.message_modulus.0.ilog2();
+        let decomposer =
+            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
+        for (ciphertext_block, scalar_block) in ct.blocks.iter_mut().zip(decomposer) {
+            self.key
+                .unchecked_scalar_add_assign(ciphertext_block, scalar_block);
         }
     }
 
@@ -96,29 +96,26 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_scalar_add_possible<PBSOrder: PBSOrderMarker>(
+    pub fn is_scalar_add_possible<PBSOrder, T>(
         &self,
         ct: &RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> bool {
-        //Bits of message put to 1
-        let mask = (self.key.message_modulus.0 - 1) as u64;
+        scalar: T,
+    ) -> bool
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        let bits_in_message = self.key.message_modulus.0.ilog2();
+        let decomposer =
+            BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
 
-        let mut power = 1_u64;
-
-        for ct_i in ct.blocks.iter() {
-            let mut decomp = scalar & (mask * power);
-            decomp /= power;
-
-            if !self.key.is_scalar_add_possible(ct_i, decomp as u8) {
-                return false;
-            }
-
-            //modulus to the power i
-            let Some(new_power) = power.checked_mul(self.key.message_modulus.0 as u64) else {break};
-            power = new_power;
-        }
-        true
+        ct.blocks
+            .iter()
+            .zip(decomposer)
+            .all(|(ciphertext_block, scalar_block)| {
+                self.key
+                    .is_scalar_add_possible(ciphertext_block, scalar_block)
+            })
     }
 
     /// Computes homomorphically an addition between a scalar and a ciphertext.
@@ -151,11 +148,15 @@ impl ServerKey {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn checked_scalar_add<PBSOrder: PBSOrderMarker>(
+    pub fn checked_scalar_add<PBSOrder, T>(
         &self,
         ct: &RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
+        scalar: T,
+    ) -> Result<RadixCiphertext<PBSOrder>, CheckError>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
         if self.is_scalar_add_possible(ct, scalar) {
             Ok(self.unchecked_scalar_add(ct, scalar))
         } else {
@@ -167,11 +168,15 @@ impl ServerKey {
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
     /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
-    pub fn checked_scalar_add_assign<PBSOrder: PBSOrderMarker>(
+    pub fn checked_scalar_add_assign<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> Result<(), CheckError> {
+        scalar: T,
+    ) -> Result<(), CheckError>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
         if self.is_scalar_add_possible(ct, scalar) {
             self.unchecked_scalar_add_assign(ct, scalar);
             Ok(())
@@ -206,11 +211,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_add<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+        scalar: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate(ct);
         }
@@ -246,11 +255,14 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_assign<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_add_assign<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) {
+        scalar: T,
+    ) where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate(ct);
         }

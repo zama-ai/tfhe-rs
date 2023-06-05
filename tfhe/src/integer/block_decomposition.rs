@@ -1,5 +1,5 @@
 use core::ops::{AddAssign, BitAnd, ShlAssign, ShrAssign};
-use std::ops::{Shl, Sub};
+use std::ops::{BitOrAssign, Shl, Sub};
 
 use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric};
 use crate::integer::U256;
@@ -9,7 +9,13 @@ use crate::integer::U256;
 // https://doc.rust-lang.org/reference/expressions/operator-expr.html#arithmetic-and-logical-binary-operators
 
 pub trait Decomposable:
-    Numeric + BitAnd<Self, Output = Self> + ShrAssign<u32> + Eq + CastFrom<u32>
+    Numeric
+    + BitAnd<Self, Output = Self>
+    + ShrAssign<u32>
+    + Eq
+    + CastFrom<u32>
+    + Shl<u32, Output = Self>
+    + BitOrAssign<Self>
 {
 }
 pub trait Recomposable:
@@ -27,14 +33,6 @@ pub trait Recomposable:
 pub trait RecomposableFrom<T>: Recomposable + CastFrom<T> {}
 pub trait DecomposableInto<T>: Decomposable + CastInto<T> {}
 
-pub struct BlockDecomposer<T> {
-    data: T,
-    bit_mask: T,
-    num_bits_in_mask: u32,
-    num_bits_valid: u32,
-    limit: Option<T>,
-}
-
 macro_rules! impl_recomposable_decomposable {
     (
         $($type:ty),* $(,)?
@@ -44,26 +42,41 @@ macro_rules! impl_recomposable_decomposable {
             impl Recomposable for $type { }
             impl RecomposableFrom<u64> for $type { }
             impl DecomposableInto<u64> for $type { }
+            impl RecomposableFrom<u8> for $type { }
+            impl DecomposableInto<u8> for $type { }
         )*
-
     };
 }
 
 impl_recomposable_decomposable!(u8, u16, u32, u64, u128, U256, i8, i16, i32, i64, i128);
+
+#[derive(Copy, Clone)]
+pub struct BlockDecomposer<T> {
+    data: T,
+    bit_mask: T,
+    num_bits_in_mask: u32,
+    num_bits_valid: u32,
+    padding_bit: T,
+    limit: Option<T>,
+}
 
 impl<T> BlockDecomposer<T>
 where
     T: Decomposable,
 {
     pub fn with_early_stop_at_zero(value: T, bits_per_block: u32) -> Self {
-        Self::new_(value, bits_per_block, Some(T::ZERO))
+        Self::new_(value, bits_per_block, Some(T::ZERO), T::ZERO)
+    }
+
+    pub fn with_padding_bit(value: T, bits_per_block: u32, padding_bit: T) -> Self {
+        Self::new_(value, bits_per_block, None, padding_bit)
     }
 
     pub fn new(value: T, bits_per_block: u32) -> Self {
-        Self::new_(value, bits_per_block, None)
+        Self::new_(value, bits_per_block, None, T::ZERO)
     }
 
-    fn new_(value: T, bits_per_block: u32, limit: Option<T>) -> Self {
+    fn new_(value: T, bits_per_block: u32, limit: Option<T>, padding_bit: T) -> Self {
         assert!(bits_per_block <= T::BITS as u32);
         let num_bits_valid = T::BITS as u32;
 
@@ -77,6 +90,7 @@ where
             num_bits_in_mask,
             num_bits_valid,
             limit,
+            padding_bit,
         }
     }
 }
@@ -88,6 +102,9 @@ where
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // This works by using the mask to get the bits we need
+        // then shifting the source value to remove the bits
+        // we just masked to be ready for the next iteration.
         if self.num_bits_valid == 0 {
             return None;
         }
@@ -96,8 +113,19 @@ where
             return None;
         }
 
-        let masked = self.data & self.bit_mask;
+        let mut masked = self.data & self.bit_mask;
         self.data >>= self.num_bits_in_mask;
+
+        if self.num_bits_valid < self.num_bits_in_mask {
+            // This will be the case when self.num_bits_in_mask is not a multiple
+            // of T::BITS.  We replace bits that
+            // do not come from the actual T but from the padding
+            // intoduced by the shift, to a specific value.
+            for i in self.num_bits_valid..self.num_bits_in_mask {
+                masked |= self.padding_bit << i;
+            }
+        }
+
         self.num_bits_valid = self.num_bits_valid.saturating_sub(self.num_bits_in_mask);
 
         Some(masked)

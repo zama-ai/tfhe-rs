@@ -269,6 +269,23 @@ impl std::ops::AddAssign<Self> for U256 {
     }
 }
 
+impl std::ops::BitOr<Self> for U256 {
+    type Output = Self;
+
+    fn bitor(mut self, rhs: Self) -> Self::Output {
+        self |= rhs;
+        self
+    }
+}
+
+impl std::ops::BitOrAssign<Self> for U256 {
+    fn bitor_assign(&mut self, rhs: Self) {
+        for (self_word, rhs_word) in self.0.iter_mut().zip(rhs.0) {
+            *self_word |= rhs_word;
+        }
+    }
+}
+
 impl std::cmp::PartialOrd for U256 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -439,6 +456,12 @@ impl CastFrom<U256> for u64 {
     }
 }
 
+impl CastFrom<U256> for u8 {
+    fn cast_from(input: U256) -> Self {
+        input.0[0] as u8
+    }
+}
+
 impl CastFrom<u32> for U256 {
     fn cast_from(input: u32) -> Self {
         Self::from(input)
@@ -448,6 +471,12 @@ impl CastFrom<u32> for U256 {
 impl CastFrom<u64> for U256 {
     fn cast_from(input: u64) -> Self {
         Self::from(input)
+    }
+}
+
+impl CastFrom<u8> for U256 {
+    fn cast_from(input: u8) -> Self {
+        Self::from(input as u64)
     }
 }
 

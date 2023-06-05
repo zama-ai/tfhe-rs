@@ -1,3 +1,5 @@
+use crate::core_crypto::prelude::UnsignedInteger;
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
@@ -34,44 +36,83 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn unchecked_scalar_sub<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_scalar_sub<PBSOrder, T>(
         &self,
         ct: &RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+        scalar: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         let mut result = ct.clone();
         self.unchecked_scalar_sub_assign(&mut result, scalar);
         result
     }
 
-    pub fn unchecked_scalar_sub_assign<PBSOrder: PBSOrderMarker>(
+    // Creates an iterator that return decomposed blocks of the negated
+    // value of `scalar`
+    //
+    // Returns
+    // - `None` if scalar is zero
+    // - `Some` if scalar is non-zero
+    //
+    fn create_negated_block_decomposer<T>(&self, scalar: T) -> Option<impl Iterator<Item = u8>>
+    where
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
+        if scalar == T::ZERO {
+            return None;
+        }
+        let bits_in_message = self.key.message_modulus.0.ilog2();
+        assert!(bits_in_message <= u8::BITS);
+
+        // The whole idea behind this iterator we construct is:
+        // - to support combos of parameters and num blocks for which the total number of bits is
+        //   not a multiple of T::BITS
+        //
+        // - Support subtraction in the case the T::BITS is lower than the target ciphertext bits.
+        //   In clear rust this would require an upcast, to support that we have to do a few things
+
+        //  The negation of a numeric value of type T, in two complemement
+        //  is neg(v) = bitwise_not(v) + 1
+        let flipped = !scalar;
+        let neg_scalar = flipped.wrapping_add(T::ONE);
+
+        // If we had upcasted the scalar, its msb would be zeros (0)
+        // then they would become ones (1) after the bitwise_not (!).
+        // The only case where these msb could become 0 after the addition
+        // is if scalar == T::ZERO (=> !T::ZERO == T::MAX => T::MAX + 1 == overlfow),
+        // but this case has been handled earlier.
+        let padding_bit = 1u32; // To handle when bits is not a multiple of T::BITS
+                                // All bits of message set to one
+        let pad_block = (1 << bits_in_message as u8) - 1;
+
+        let decomposer = BlockDecomposer::with_padding_bit(
+            neg_scalar,
+            bits_in_message,
+            T::cast_from(padding_bit),
+        )
+        .iter_as::<u8>()
+        .chain(std::iter::repeat(pad_block));
+        Some(decomposer)
+    }
+
+    pub fn unchecked_scalar_sub_assign<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) {
-        // Widen to 128 bits to avoid overflow when doing wrapped negation.
-        let scalar = scalar as u128;
-        //Bits of message put to 1
-        let mask = (self.key.message_modulus.0 - 1) as u128;
-
-        let modulus = (self.key.message_modulus.0 as u128).checked_pow(ct.blocks.len() as u32);
-
-        let neg_scalar = match modulus {
-            Some(modul) => scalar.wrapping_neg() % modul,
-            None => scalar.wrapping_neg(),
+        scalar: T,
+    ) where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
+        let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
+            // subtraction by zero
+            return;
         };
-
-        let mut power = 1_u128;
-        //Put each decomposition into a new ciphertext
-        for ct_i in ct.blocks.iter_mut() {
-            let mut decomp = neg_scalar & (mask * power);
-            decomp /= power;
-
-            self.key.unchecked_scalar_add_assign(ct_i, decomp as u8);
-
-            //modulus to the power i
-            let Some(new_power) = power.checked_mul(self.key.message_modulus.0 as u128) else {break};
-            power = new_power;
+        for (ciphertext_block, scalar_block) in ct.blocks.iter_mut().zip(decomposer) {
+            self.key
+                .unchecked_scalar_add_assign(ciphertext_block, scalar_block);
         }
     }
 
@@ -88,7 +129,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_blocks);
     ///
     /// let msg = 40u64;
-    /// let scalar = 2;
+    /// let scalar = 2u64;
     ///
     /// let ct1 = cks.encrypt(msg);
     ///
@@ -97,37 +138,28 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_scalar_sub_possible<PBSOrder: PBSOrderMarker>(
+    pub fn is_scalar_sub_possible<PBSOrder, T>(
         &self,
         ct: &RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> bool {
-        //Bits of message put to 1
-        let mask = (self.key.message_modulus.0 - 1) as u64;
-
-        let modulus = self
-            .key
-            .message_modulus
-            .0
-            .saturating_pow(ct.blocks.len() as u32) as u64;
-
-        let neg_scalar = scalar.wrapping_neg() % modulus;
-
-        let mut power = 1_u64;
-
-        for ct_i in ct.blocks.iter() {
-            let mut decomp = neg_scalar & (mask * power);
-            decomp /= power;
-
-            if !self.key.is_scalar_add_possible(ct_i, decomp as u8) {
-                return false;
-            }
-
-            //modulus to the power i
-            let Some(new_power) = power.checked_mul(self.key.message_modulus.0 as u64) else {break};
-            power = new_power;
-        }
-        true
+        scalar: T,
+    ) -> bool
+    where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
+        let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
+            // subtraction by zero
+            return true;
+        };
+        ct.blocks
+            .iter()
+            .zip(decomposer)
+            .all(|(ciphertext_block, scalar_block)| {
+                // The decomposer gives the block of the negated
+                // scalar (-scalar) that we will be adding
+                self.key
+                    .is_scalar_add_possible(ciphertext_block, scalar_block)
+            })
     }
 
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
@@ -160,11 +192,15 @@ impl ServerKey {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn checked_scalar_sub<PBSOrder: PBSOrderMarker>(
+    pub fn checked_scalar_sub<PBSOrder, T>(
         &self,
         ct: &RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
+        scalar: T,
+    ) -> Result<RadixCiphertext<PBSOrder>, CheckError>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if self.is_scalar_sub_possible(ct, scalar) {
             Ok(self.unchecked_scalar_sub(ct, scalar))
         } else {
@@ -202,11 +238,15 @@ impl ServerKey {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn checked_scalar_sub_assign<PBSOrder: PBSOrderMarker>(
+    pub fn checked_scalar_sub_assign<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> Result<(), CheckError> {
+        scalar: T,
+    ) -> Result<(), CheckError>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if self.is_scalar_sub_possible(ct, scalar) {
             self.unchecked_scalar_sub_assign(ct, scalar);
             Ok(())
@@ -239,11 +279,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn smart_scalar_sub<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_sub<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+        scalar: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate(ct);
         }
@@ -251,11 +295,14 @@ impl ServerKey {
         self.unchecked_scalar_sub(ct, scalar)
     }
 
-    pub fn smart_scalar_sub_assign<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_sub_assign<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) {
+        scalar: T,
+    ) where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate(ct);
         }

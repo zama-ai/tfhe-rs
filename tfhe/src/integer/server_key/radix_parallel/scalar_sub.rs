@@ -1,3 +1,5 @@
+use crate::core_crypto::prelude::UnsignedInteger;
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::PBSOrderMarker;
@@ -27,22 +29,29 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn smart_scalar_sub_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_sub_parallelized<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+        scalar: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
         self.unchecked_scalar_sub(ct, scalar)
     }
 
-    pub fn smart_scalar_sub_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_sub_assign_parallelized<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) {
+        scalar: T,
+    ) where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
@@ -82,25 +91,38 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg - scalar, dec);
     /// ```
-    pub fn scalar_sub_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn scalar_sub_parallelized<PBSOrder, T>(
         &self,
         ct: &RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+        scalar: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         let mut ct_res = ct.clone();
         self.scalar_sub_assign_parallelized(&mut ct_res, scalar);
         ct_res
     }
 
-    pub fn scalar_sub_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn scalar_sub_assign_parallelized<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) {
+        scalar: T,
+    ) where
+        PBSOrder: PBSOrderMarker,
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         };
+
         self.unchecked_scalar_sub_assign(ct, scalar);
-        self.full_propagate_parallelized(ct);
+
+        if self.is_eligible_for_parallel_carryless_add() {
+            self.propagate_single_carry_parallelized_low_latency(ct);
+        } else {
+            self.full_propagate_parallelized(ct);
+        }
     }
 }
