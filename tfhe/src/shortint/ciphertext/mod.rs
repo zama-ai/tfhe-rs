@@ -131,6 +131,34 @@ pub struct CiphertextBase<OpOrder: PBSOrderMarker> {
 pub type CiphertextBig = CiphertextBase<KeyswitchBootstrap>;
 pub type CiphertextSmall = CiphertextBase<BootstrapKeyswitch>;
 
+pub struct CiphertextTypeError<InputOpOrder, OutputOpOrder>
+where
+    InputOpOrder: PBSOrderMarker,
+    OutputOpOrder: PBSOrderMarker,
+{
+    input_type: PhantomData<InputOpOrder>,
+    output_type: PhantomData<OutputOpOrder>,
+}
+
+impl<InputOpOrder, OutputOpOrder> std::fmt::Debug
+    for CiphertextTypeError<InputOpOrder, OutputOpOrder>
+where
+    InputOpOrder: PBSOrderMarker,
+    OutputOpOrder: PBSOrderMarker,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Expected PBSOrder: {:?}, got {:?}, \
+            did you mix CiphertextBig or CompressedCiphertextBig ({:?}) with CiphertextSmall or CompressedCiphertextSmall ({:?})?",
+            InputOpOrder::pbs_order(),
+            OutputOpOrder::pbs_order(),
+            PBSOrder::KeyswitchBootstrap,
+            PBSOrder::BootstrapKeyswitch
+        )
+    }
+}
+
 impl<OpOrder: PBSOrderMarker> CiphertextBase<OpOrder> {
     pub fn carry_is_empty(&self) -> bool {
         self.degree.0 < self.message_modulus.0
@@ -141,6 +169,44 @@ impl<OpOrder: PBSOrderMarker> CiphertextBase<OpOrder> {
         self.message_modulus = other.message_modulus;
         self.carry_modulus = other.carry_modulus;
         self._order_marker = other._order_marker;
+    }
+
+    pub fn to_concrete_type<OtherOpOrder: PBSOrderMarker>(&self) -> &CiphertextBase<OtherOpOrder> {
+        self.try_to_concrete_type().unwrap()
+    }
+
+    pub fn to_concrete_type_mut<OtherOpOrder: PBSOrderMarker>(
+        &mut self,
+    ) -> &mut CiphertextBase<OtherOpOrder> {
+        self.try_to_concrete_type_mut().unwrap()
+    }
+
+    pub fn try_to_concrete_type<OtherOpOrder: PBSOrderMarker>(
+        &self,
+    ) -> Result<&CiphertextBase<OtherOpOrder>, CiphertextTypeError<OpOrder, OtherOpOrder>> {
+        match (OpOrder::pbs_order(), OtherOpOrder::pbs_order()) {
+            (op_order, other_op_order) if op_order == other_op_order => {
+                Ok(unsafe { std::mem::transmute(self) })
+            }
+            _ => Err(CiphertextTypeError {
+                input_type: PhantomData,
+                output_type: PhantomData,
+            }),
+        }
+    }
+
+    pub fn try_to_concrete_type_mut<OtherOpOrder: PBSOrderMarker>(
+        &mut self,
+    ) -> Result<&mut CiphertextBase<OtherOpOrder>, CiphertextTypeError<OpOrder, OtherOpOrder>> {
+        match (OpOrder::pbs_order(), OtherOpOrder::pbs_order()) {
+            (op_order, other_op_order) if op_order == other_op_order => {
+                Ok(unsafe { std::mem::transmute(self) })
+            }
+            _ => Err(CiphertextTypeError {
+                input_type: PhantomData,
+                output_type: PhantomData,
+            }),
+        }
     }
 }
 
@@ -295,6 +361,7 @@ impl<OpOrder: PBSOrderMarker> From<CompressedCiphertextBase<OpOrder>> for Cipher
 
 #[cfg(test)]
 mod tests {
+    use super::{BootstrapKeyswitch, KeyswitchBootstrap};
     use crate::shortint::gen_keys;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 
@@ -313,5 +380,30 @@ mod tests {
 
         ct_1.copy_from(&ct_2);
         assert_eq!(ct_1, ct_2);
+    }
+
+    #[test]
+    fn test_concrete_type_conversion() {
+        let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+
+        let msg = 3;
+
+        // Encrypt two messages using the (private) client key:
+        let mut ct = client_key.encrypt(msg);
+
+        let _test = ct.try_to_concrete_type_mut::<KeyswitchBootstrap>().unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_concrete_type_conversion_fail() {
+        let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+
+        let msg = 3;
+
+        // Encrypt two messages using the (private) client key:
+        let mut ct = client_key.encrypt(msg);
+
+        let _test = ct.try_to_concrete_type_mut::<BootstrapKeyswitch>().unwrap();
     }
 }
