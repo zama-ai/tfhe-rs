@@ -4,7 +4,8 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
+use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm,
+                                                       DecompositionTermNonNative};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -60,6 +61,46 @@ use rayon::prelude::*;
 /// );
 /// ```
 pub fn generate_lwe_public_functional_packing_keyswitch_key<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    KSKeyCont,
+    Gen,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    lwe_pubfpksk: &mut LwePublicFunctionalPackingKeyswitchKey<KSKeyCont>,
+    noise_parameters: impl DispersionParameter + Sync,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar>,
+    KSKeyCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    let ciphertext_modulus = lwe_pubfpksk.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        generate_lwe_public_functional_packing_keyswitch_key_native_mod_compatible(
+            input_lwe_secret_key,
+            output_glwe_secret_key,
+            lwe_pubfpksk,
+            noise_parameters,
+            generator,
+        )
+    } else {
+        generate_lwe_public_functional_packing_keyswitch_key_non_native_mod(
+            input_lwe_secret_key,
+            output_glwe_secret_key,
+            lwe_pubfpksk,
+            noise_parameters,
+            generator,
+        )
+    }
+}
+
+pub fn generate_lwe_public_functional_packing_keyswitch_key_native_mod_compatible<
     Scalar,
     InputKeyCont,
     OutputKeyCont,
@@ -158,9 +199,155 @@ pub fn generate_lwe_public_functional_packing_keyswitch_key<
     }
 }
 
+pub fn generate_lwe_public_functional_packing_keyswitch_key_non_native_mod<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    KSKeyCont,
+    Gen,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    lwe_pubfpksk: &mut LwePublicFunctionalPackingKeyswitchKey<KSKeyCont>,
+    noise_parameters: impl DispersionParameter + Sync,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar>,
+    KSKeyCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        input_lwe_secret_key.lwe_dimension() == lwe_pubfpksk.input_lwe_key_dimension(),
+        "Mismatched LweDimension between input_lwe_secret_key {:?} and lwe_pfpksk input dimension \
+        {:?}.",
+        input_lwe_secret_key.lwe_dimension(),
+        lwe_pubfpksk.input_lwe_key_dimension()
+    );
+    assert!(
+        output_glwe_secret_key.glwe_dimension() == lwe_pubfpksk.output_glwe_key_dimension(),
+        "Mismatched GlweDimension between output_glwe_secret_key {:?} and lwe_pfpksk output \
+        dimension {:?}.",
+        output_glwe_secret_key.glwe_dimension(),
+        lwe_pubfpksk.output_glwe_key_dimension()
+    );
+    assert!(
+        output_glwe_secret_key.polynomial_size() == lwe_pubfpksk.output_polynomial_size(),
+        "Mismatched PolynomialSize between output_glwe_secret_key {:?} and lwe_pfpksk output \
+        polynomial size {:?}.",
+        output_glwe_secret_key.polynomial_size(),
+        lwe_pubfpksk.output_polynomial_size()
+    );
+
+    let ciphertext_modulus = lwe_pubfpksk.ciphertext_modulus();
+
+    // We instantiate a buffer
+    let mut messages = PlaintextListOwned::new(
+        Scalar::ZERO,
+        PlaintextCount(
+            lwe_pubfpksk.decomposition_level_count().0 * lwe_pubfpksk.output_polynomial_size().0,
+        ),
+    );
+
+    // We retrieve decomposition arguments
+    let decomp_level_count = lwe_pubfpksk.decomposition_level_count();
+    let decomp_base_log = lwe_pubfpksk.decomposition_base_log();
+    let polynomial_size = lwe_pubfpksk.output_polynomial_size();
+
+    let last_key_iter_bit = [Scalar::cast_from(ciphertext_modulus.get_custom_modulus()) -
+        Scalar::ONE];
+    // add minus one for the function which will be applied to the decomposed body
+    let input_key_bit_iter = input_lwe_secret_key
+        .as_ref()
+        .iter()
+        .chain(last_key_iter_bit.iter());
+
+    //TODO should we rename fork_pfpksk_to_pfpksk_chunks?
+    let gen_iter = generator
+        .fork_pfpksk_to_pfpksk_chunks::<Scalar>(
+            decomp_level_count,
+            output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+            output_glwe_secret_key.polynomial_size(),
+            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+        )
+        .unwrap();
+
+    // loop over the before key blocks
+    for ((&input_key_bit, mut keyswitch_key_block), mut loop_generator) in input_key_bit_iter
+        .zip(lwe_pubfpksk.iter_mut())
+        .zip(gen_iter)
+    {
+        //we reset the buffer
+
+        // We fill the buffer with the powers of the decomposition scale times the key bits
+        for (level, mut message) in (1..=decomp_level_count.0)
+            .map(DecompositionLevel)
+            .zip(messages.chunks_exact_mut(polynomial_size.0))
+        {
+            message.as_mut()[0] = DecompositionTermNonNative::new(
+                level,
+                decomp_base_log,
+                input_key_bit,
+                ciphertext_modulus,
+            )
+            .to_recomposition_summand();
+        }
+
+        // We encrypt the buffer
+        encrypt_glwe_ciphertext_list(
+            output_glwe_secret_key,
+            &mut keyswitch_key_block,
+            &messages,
+            noise_parameters,
+            &mut loop_generator,
+        )
+    }
+}
+
 /// Parallel variant of [`generate_lwe_public_functional_packing_keyswitch_key`]. You may want to
 /// use this variant for better key generation times.
 pub fn par_generate_lwe_public_functional_packing_keyswitch_key<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    KSKeyCont,
+    Gen,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    lwe_pubfpksk: &mut LwePublicFunctionalPackingKeyswitchKey<KSKeyCont>,
+    noise_parameters: impl DispersionParameter + Sync,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus + Sync + Send,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar> + Sync,
+    KSKeyCont: ContainerMut<Element = Scalar> + Sync,
+    Gen: ParallelByteRandomGenerator,
+{
+    let ciphertext_modulus = lwe_pubfpksk.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        par_generate_lwe_public_functional_packing_keyswitch_key_native_mod_compatible(
+            input_lwe_secret_key,
+            output_glwe_secret_key,
+            lwe_pubfpksk,
+            noise_parameters,
+            generator,
+        )
+    } else {
+        par_generate_lwe_public_functional_packing_keyswitch_key_non_native_mod(
+            input_lwe_secret_key,
+            output_glwe_secret_key,
+            lwe_pubfpksk,
+            noise_parameters,
+            generator,
+        )
+    }
+}
+
+pub fn par_generate_lwe_public_functional_packing_keyswitch_key_native_mod_compatible<
     Scalar,
     InputKeyCont,
     OutputKeyCont,
@@ -244,6 +431,110 @@ pub fn par_generate_lwe_public_functional_packing_keyswitch_key<
                     message.as_mut()[0] =
                         DecompositionTerm::new(level, decomp_base_log, input_key_bit)
                             .to_recomposition_summand();
+                }
+
+                // We encrypt the buffer
+                encrypt_glwe_ciphertext_list(
+                    output_glwe_secret_key,
+                    &mut keyswitch_key_block,
+                    &messages,
+                    noise_parameters,
+                    &mut loop_generator,
+                )
+            },
+        );
+}
+
+pub fn par_generate_lwe_public_functional_packing_keyswitch_key_non_native_mod<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    KSKeyCont,
+    Gen,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    lwe_pubfpksk: &mut LwePublicFunctionalPackingKeyswitchKey<KSKeyCont>,
+    noise_parameters: impl DispersionParameter + Sync,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus + Sync + Send,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar> + Sync,
+    KSKeyCont: ContainerMut<Element = Scalar> + Sync,
+    Gen: ParallelByteRandomGenerator,
+{
+    assert!(
+        input_lwe_secret_key.lwe_dimension() == lwe_pubfpksk.input_lwe_key_dimension(),
+        "Mismatched LweDimension between input_lwe_secret_key {:?} and lwe_pfpksk input dimension \
+        {:?}.",
+        input_lwe_secret_key.lwe_dimension(),
+        lwe_pubfpksk.input_lwe_key_dimension()
+    );
+    assert!(
+        output_glwe_secret_key.glwe_dimension() == lwe_pubfpksk.output_glwe_key_dimension(),
+        "Mismatched GlweDimension between output_glwe_secret_key {:?} and lwe_pfpksk output \
+        dimension {:?}.",
+        output_glwe_secret_key.glwe_dimension(),
+        lwe_pubfpksk.output_glwe_key_dimension()
+    );
+    assert!(
+        output_glwe_secret_key.polynomial_size() == lwe_pubfpksk.output_polynomial_size(),
+        "Mismatched PolynomialSize between output_glwe_secret_key {:?} and lwe_pfpksk output \
+        polynomial size {:?}.",
+        output_glwe_secret_key.polynomial_size(),
+        lwe_pubfpksk.output_polynomial_size()
+    );
+
+    let ciphertext_modulus = lwe_pubfpksk.ciphertext_modulus();
+
+    // We retrieve decomposition arguments
+    let decomp_level_count = lwe_pubfpksk.decomposition_level_count();
+    let decomp_base_log = lwe_pubfpksk.decomposition_base_log();
+    let polynomial_size = lwe_pubfpksk.output_polynomial_size();
+
+    let last_key_iter_bit = [Scalar::cast_from(ciphertext_modulus.get_custom_modulus()) -
+        Scalar::ONE];
+    // add minus one for the function which will be applied to the decomposed body
+    let input_key_bit_iter = input_lwe_secret_key
+        .as_ref()
+        .par_iter()
+        .chain(last_key_iter_bit.par_iter());
+
+    let gen_iter = generator
+        .par_fork_pfpksk_to_pfpksk_chunks::<Scalar>(
+            decomp_level_count,
+            output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+            output_glwe_secret_key.polynomial_size(),
+            input_lwe_secret_key.lwe_dimension().to_lwe_size(),
+        )
+        .unwrap();
+
+    let plaintext_count = PlaintextCount(
+        lwe_pubfpksk.decomposition_level_count().0 * lwe_pubfpksk.output_polynomial_size().0,
+    );
+
+    // loop over the before key blocks
+    input_key_bit_iter
+        .zip(lwe_pubfpksk.par_iter_mut())
+        .zip(gen_iter)
+        .for_each(
+            |((&input_key_bit, mut keyswitch_key_block), mut loop_generator)| {
+                // We instantiate a buffer
+                let mut messages = PlaintextListOwned::new(Scalar::ZERO, plaintext_count);
+
+                // We fill the buffer with the powers of the key bits
+                for (level, mut message) in (1..=decomp_level_count.0)
+                    .map(DecompositionLevel)
+                    .zip(messages.chunks_exact_mut(polynomial_size.0))
+                {
+                    message.as_mut()[0] = DecompositionTermNonNative::new(
+                        level,
+                        decomp_base_log,
+                        input_key_bit,
+                        ciphertext_modulus,
+                    )
+                    .to_recomposition_summand();
                 }
 
                 // We encrypt the buffer

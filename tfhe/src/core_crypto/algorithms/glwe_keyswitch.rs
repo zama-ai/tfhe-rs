@@ -2,7 +2,7 @@
 //! keyswitch`](`GlweKeyswitchKey#glwe-keyswitch`).
 
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::math::decomposition::{SignedDecomposer, SignedDecomposerNonNative};
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -125,6 +125,31 @@ pub fn keyswitch_glwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
     InputCont: ContainerMut<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
+    if glwe_keyswitch_key.ciphertext_modulus().is_compatible_with_native_modulus() {
+        keyswitch_glwe_ciphertext_native_mod_compatible(
+            glwe_keyswitch_key,
+            input_glwe_ciphertext,
+            output_glwe_ciphertext,
+        )
+    } else {
+        keyswitch_glwe_ciphertext_non_native_mod(
+            glwe_keyswitch_key,
+            input_glwe_ciphertext,
+            output_glwe_ciphertext,
+        )
+    }
+}
+
+pub fn keyswitch_glwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCont, OutputCont>(
+    glwe_keyswitch_key: &GlweKeyswitchKey<KSKCont>,
+    input_glwe_ciphertext: &mut GlweCiphertext<InputCont>,
+    output_glwe_ciphertext: &mut GlweCiphertext<OutputCont>,
+) where
+    Scalar: UnsignedInteger,
+    KSKCont: Container<Element = Scalar>,
+    InputCont: ContainerMut<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
     assert!(
         glwe_keyswitch_key.input_key_glwe_dimension()
             == input_glwe_ciphertext.glwe_size().to_glwe_dimension(),
@@ -155,6 +180,9 @@ pub fn keyswitch_glwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
         glwe_keyswitch_key.polynomial_size(),
         output_glwe_ciphertext.polynomial_size(),
     );
+    assert!(glwe_keyswitch_key
+        .ciphertext_modulus()
+        .is_compatible_with_native_modulus());
 
     // Clear the output ciphertext, as it will get updated gradually
     output_glwe_ciphertext.as_mut().fill(Scalar::ZERO);
@@ -183,6 +211,84 @@ pub fn keyswitch_glwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
                 &mut output_glwe_ciphertext.as_mut_polynomial_list(),
                 &level_key_ciphertext.as_polynomial_list(),
                 &Polynomial::from_container(decomposed.as_slice()),
+            );
+        }
+    }
+}
+
+pub fn keyswitch_glwe_ciphertext_non_native_mod<Scalar, KSKCont, InputCont, OutputCont>(
+    glwe_keyswitch_key: &GlweKeyswitchKey<KSKCont>,
+    input_glwe_ciphertext: &mut GlweCiphertext<InputCont>,
+    output_glwe_ciphertext: &mut GlweCiphertext<OutputCont>,
+) where
+    Scalar: UnsignedInteger,
+    KSKCont: Container<Element = Scalar>,
+    InputCont: ContainerMut<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    assert!(
+        glwe_keyswitch_key.input_key_glwe_dimension()
+            == input_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+        "Mismatched input GlweDimension. \
+        GlweKeyswitchKey input GlweDimension: {:?}, input GlweCiphertext GlweDimension {:?}.",
+        glwe_keyswitch_key.input_key_glwe_dimension(),
+        input_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+    );
+    assert!(
+        glwe_keyswitch_key.output_key_glwe_dimension()
+            == output_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+        "Mismatched output GlweDimension. \
+        GlweKeyswitchKey output GlweDimension: {:?}, output GlweCiphertext GlweDimension {:?}.",
+        glwe_keyswitch_key.output_key_glwe_dimension(),
+        output_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+    );
+    assert!(
+        glwe_keyswitch_key.polynomial_size() == input_glwe_ciphertext.polynomial_size(),
+        "Mismatched input PolynomialSize. \
+        GlweKeyswithcKey input PolynomialSize: {:?}, input GlweCiphertext PolynomialSize {:?}.",
+        glwe_keyswitch_key.polynomial_size(),
+        input_glwe_ciphertext.polynomial_size(),
+    );
+    assert!(
+        glwe_keyswitch_key.polynomial_size() == output_glwe_ciphertext.polynomial_size(),
+        "Mismatched output PolynomialSize. \
+        GlweKeyswitchKey output PolynomialSize: {:?}, output GlweCiphertext PolynomialSize {:?}.",
+        glwe_keyswitch_key.polynomial_size(),
+        output_glwe_ciphertext.polynomial_size(),
+    );
+    let ciphertext_modulus = glwe_keyswitch_key.ciphertext_modulus();
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    // Clear the output ciphertext, as it will get updated gradually
+    output_glwe_ciphertext.as_mut().fill(Scalar::ZERO);
+
+    // Copy the input body to the output ciphertext
+    polynomial_wrapping_add_assign_custom_mod(
+        &mut output_glwe_ciphertext.get_mut_body().as_mut_polynomial(),
+        &input_glwe_ciphertext.get_body().as_polynomial(),
+        ciphertext_modulus.get_custom_modulus().cast_into(),
+    );
+
+    // We instantiate a decomposer
+    let decomposer = SignedDecomposerNonNative::new(
+        glwe_keyswitch_key.decomposition_base_log(),
+        glwe_keyswitch_key.decomposition_level_count(),
+        ciphertext_modulus,
+    );
+
+    for (keyswitch_key_block, input_mask_element) in glwe_keyswitch_key
+        .iter()
+        .zip(input_glwe_ciphertext.get_mask().as_polynomial_list().iter())
+    {
+        let mut decomposition_iter = decomposer.decompose_slice(input_mask_element.as_ref());
+        // loop over the number of levels in reverse (from highest to lowest)
+        for level_key_ciphertext in keyswitch_key_block.iter().rev() {
+            let decomposed = decomposition_iter.next_term().unwrap();
+            polynomial_list_wrapping_sub_scalar_mul_assign_custom_mod(
+                &mut output_glwe_ciphertext.as_mut_polynomial_list(),
+                &level_key_ciphertext.as_polynomial_list(),
+                &Polynomial::from_container(decomposed.as_slice()),
+                ciphertext_modulus.get_custom_modulus().cast_into(),
             );
         }
     }

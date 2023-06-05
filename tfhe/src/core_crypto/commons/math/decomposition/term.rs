@@ -210,7 +210,6 @@ impl<T> DecompositionTermNonNative<T>
     }
 }
 
-
 /// A tensor whose elements are the terms of the decomposition of another tensor.
 ///
 /// If we decompose each elements of a set of values $(\theta^{(a)})\_{a\in\mathbb{N}}$ as a set of
@@ -259,7 +258,7 @@ impl<'a, Scalar> DecompositionTermSlice<'a, Scalar>
     /// let input = vec![2u32.pow(19); 2];
     /// let mut decomp = decomposer.decompose_slice(&input);
     /// let term = decomp.next_term().unwrap();
-    /// let mut output = vec![0, 2];
+    /// let mut output = vec![0; 2];
     /// term.fill_slice_with_recomposition_summand(&mut output);
     /// assert!(output.iter().all(|&x| x == 1048576));
     /// ```
@@ -313,6 +312,150 @@ impl<'a, Scalar> DecompositionTermSlice<'a, Scalar>
     /// use tfhe::core_crypto::prelude::{DecompositionBaseLog, DecompositionLevelCount};
     /// let decomposer =
     ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
+    /// let input = vec![2u32.pow(19); 2];
+    /// let mut decomp = decomposer.decompose_slice(&input);
+    /// let term = decomp.next_term().unwrap();
+    /// assert_eq!(term.level(), DecompositionLevel(3));
+    /// ```
+    pub fn level(&self) -> DecompositionLevel {
+        DecompositionLevel(self.level)
+    }
+}
+
+/// A tensor whose elements are the terms of the decomposition of another tensor.
+///
+/// If we decompose each elements of a set of values $(\theta^{(a)})\_{a\in\mathbb{N}}$ as a set of
+/// sums $(\sum\_{i=1}^l\tilde{\theta}^{(a)}\_i\frac{q}{B^i})\_{a\in\mathbb{N}}$, this represents a
+/// set of $(\tilde{\theta}^{(a)}\_i)\_{a\in\mathbb{N}}$.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct DecompositionTermSliceNonNative<'a, Scalar>
+    where
+        Scalar: UnsignedInteger,
+{
+    level: usize,
+    base_log: usize,
+    slice: &'a [Scalar],
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+
+impl<'a, Scalar> DecompositionTermSliceNonNative<'a, Scalar>
+    where
+        Scalar: UnsignedInteger,
+{
+    // Creates a new tensor decomposition term.
+    pub(crate) fn new(
+        level: DecompositionLevel,
+        base_log: DecompositionBaseLog,
+        slice: &'a [Scalar],
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> DecompositionTermSliceNonNative<Scalar> {
+        DecompositionTermSliceNonNative {
+            level: level.0,
+            base_log: base_log.0,
+            slice,
+            ciphertext_modulus,
+        }
+    }
+
+    /// Fills the output tensor with the terms turned to summands.
+    ///
+    /// If our term tensor represents a set of $(\tilde{\theta}^{(a)}\_i)\_{a\in\mathbb{N}}$ of the
+    /// decomposition, this method fills the output tensor with a set of
+    /// $(\tilde{\theta}^{(a)}\_i\frac{q}{B^i})\_{a\in\mathbb{N}}$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog,
+    /// DecompositionLevelCount};
+    /// let decomposer = SignedDecomposerNonNative::<u32>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 32) - 1).unwrap(),
+    /// );
+    /// let input = vec![2u32.pow(19); 2];
+    /// let mut decomp = decomposer.decompose_slice(&input);
+    /// let term = decomp.next_term().unwrap();
+    /// let mut output = vec![0; 2];
+    /// term.fill_slice_with_recomposition_summand(&mut output);
+    /// assert!(output.iter().all(|&x| x == 1048575));
+    /// ```
+    pub fn fill_slice_with_recomposition_summand(&self, output: &mut [Scalar]) {
+        // Floored approach
+        // * floor(q / B^j)
+        let base_to_the_level = Scalar::ONE << (self.base_log * self.level);
+        let digit_radix =
+            Scalar::cast_from(self.ciphertext_modulus.get_custom_modulus()) / base_to_the_level;
+
+        output
+            .iter_mut()
+            .zip(self.slice.iter())
+            .for_each(|(dst, &value)| {
+                *dst = value.wrapping_mul_custom_mod(
+                    digit_radix,
+                    self.ciphertext_modulus.get_custom_modulus().cast_into(),
+                )
+            });
+    }
+
+    pub(crate) fn update_slice_with_recomposition_summand_wrapping_addition(
+        &self,
+        output: &mut [Scalar],
+    ) {
+        // Floored approach
+        // * floor(q / B^j)
+        let base_to_the_level = Scalar::ONE << (self.base_log * self.level);
+        let digit_radix =
+            Scalar::cast_from(self.ciphertext_modulus.get_custom_modulus()) / base_to_the_level;
+
+        output
+            .iter_mut()
+            .zip(self.slice.iter())
+            .for_each(|(out, &value)| {
+                *out = (*out).wrapping_add(
+                    value.wrapping_mul_custom_mod(
+                        digit_radix,
+                        self.ciphertext_modulus.get_custom_modulus().cast_into(),
+                    )
+                );
+            });
+    }
+
+    /// Returns a tensor with the values of term.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer = SignedDecomposerNonNative::<u32>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 32) - 1).unwrap(),
+    /// );
+    /// let input = vec![2u32.pow(19); 2];
+    /// let mut decomp = decomposer.decompose_slice(&input);
+    /// let term = decomp.next_term().unwrap();
+    /// assert_eq!(term.as_slice()[0], 1);
+    /// ```
+    pub fn as_slice(&self) -> &'a [Scalar] {
+        self.slice
+    }
+
+    /// Returns the level of this decomposition term tensor.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::{DecompositionLevel,
+    /// SignedDecomposerNonNative};
+    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer = SignedDecomposerNonNative::<u32>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 32) - 1).unwrap(),
+    /// );
     /// let input = vec![2u32.pow(19); 2];
     /// let mut decomp = decomposer.decompose_slice(&input);
     /// let term = decomp.next_term().unwrap();
