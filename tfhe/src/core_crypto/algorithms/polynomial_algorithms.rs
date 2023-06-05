@@ -363,124 +363,6 @@ pub fn polynomial_wrapping_monic_monomial_mul_assign<Scalar, OutputCont>(
         .for_each(|a| *a = a.wrapping_neg());
 }
 
-/// Divides (mod $(X^{N}+1)$), the input polynomial with a monic monomial of a given degree i.e.
-/// $X^{degree}$.
-///
-/// # Note
-///
-/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
-/// unsigned integer capacity.
-///
-/// # Examples
-///
-/// ```
-/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
-/// use tfhe::core_crypto::commons::parameters::*;
-/// use tfhe::core_crypto::entities::*;
-/// let input = Polynomial::from_container(vec![1u8, 2, 3]);
-/// let mut output = Polynomial::from_container(vec![0, 0, 0]);
-/// polynomial_wrapping_monic_monomial_div(&mut output, &input, MonomialDegree(2));
-/// assert_eq!(output.as_ref(), &[3, 255, 254]);
-/// ```
-pub fn polynomial_wrapping_monic_monomial_div<Scalar, OutputCont, InputCont>(
-    output: &mut Polynomial<OutputCont>,
-    input: &Polynomial<InputCont>,
-    monomial_degree: MonomialDegree,
-) where
-    Scalar: UnsignedInteger,
-    OutputCont: ContainerMut<Element = Scalar>,
-    InputCont: Container<Element = Scalar>,
-{
-    assert!(
-        output.polynomial_size() == input.polynomial_size(),
-        "Output polynomial size {:?} is not the same as input polynomial size {:?}.",
-        output.polynomial_size(),
-        input.polynomial_size(),
-    );
-
-    let polynomial_size = output.polynomial_size().0;
-    let remaining_degree = monomial_degree.0 % polynomial_size;
-
-    let src_slice = &input[remaining_degree..];
-    let src_slice_len = src_slice.len();
-    let dst_slice = &mut output[..src_slice_len];
-    dst_slice.copy_from_slice(src_slice);
-
-    for (dst, &src) in output[polynomial_size - remaining_degree..]
-        .iter_mut()
-        .zip(input[..remaining_degree].iter())
-    {
-        *dst = src.wrapping_neg();
-    }
-
-    let full_cycles_count = monomial_degree.0 / polynomial_size;
-    if full_cycles_count % 2 != 0 {
-        output
-            .as_mut()
-            .iter_mut()
-            .for_each(|a| *a = a.wrapping_neg());
-    }
-}
-
-/// Multiply (mod $(X^{N}+1)$), the input polynomial with a monic monomial of a given degree i.e.
-/// $X^{degree}$.
-///
-/// # Note
-///
-/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
-/// unsigned integer capacity.
-///
-/// # Examples
-///
-/// ```
-/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
-/// use tfhe::core_crypto::commons::parameters::*;
-/// use tfhe::core_crypto::entities::*;
-/// let input = Polynomial::from_container(vec![1u8, 2, 3]);
-/// let mut output = Polynomial::from_container(vec![0, 0, 0]);
-/// polynomial_wrapping_monic_monomial_mul(&mut output, &input, MonomialDegree(2));
-/// assert_eq!(output.as_ref(), &[254, 253, 1]);
-/// ```
-pub fn polynomial_wrapping_monic_monomial_mul<Scalar, OutputCont, InputCont>(
-    output: &mut Polynomial<OutputCont>,
-    input: &Polynomial<InputCont>,
-    monomial_degree: MonomialDegree,
-) where
-    Scalar: UnsignedInteger,
-    OutputCont: ContainerMut<Element = Scalar>,
-    InputCont: Container<Element = Scalar>,
-{
-    assert!(
-        output.polynomial_size() == input.polynomial_size(),
-        "Output polynomial size {:?} is not the same as input polynomial size {:?}.",
-        output.polynomial_size(),
-        input.polynomial_size(),
-    );
-
-    let polynomial_size = output.polynomial_size().0;
-    let remaining_degree = monomial_degree.0 % polynomial_size;
-
-    for (dst, &src) in output[..remaining_degree]
-        .iter_mut()
-        .zip(input[polynomial_size - remaining_degree..].iter())
-    {
-        *dst = src.wrapping_neg();
-    }
-
-    let dst_slice = &mut output[remaining_degree..];
-    let dst_slice_len = dst_slice.len();
-    let src_slice = &input[..dst_slice_len];
-    dst_slice.copy_from_slice(src_slice);
-
-    let full_cycles_count = monomial_degree.0 / polynomial_size;
-    if full_cycles_count % 2 != 0 {
-        output
-            .as_mut()
-            .iter_mut()
-            .for_each(|a| *a = a.wrapping_neg());
-    }
-}
-
 /// Subtract the sum of the element-wise product between two lists of polynomials, to the output
 /// polynomial.
 ///
@@ -731,6 +613,28 @@ pub fn polynomial_wrapping_scalar_mul_assign<Scalar, PolyCont>(
     PolyCont: ContainerMut<Element = Scalar>,
 {
     slice_wrapping_scalar_mul_assign(output.as_mut(), scalar)
+}
+
+pub fn polynomial_wrapping_scalar_mul_assign_custom_mod<Scalar, PolyCont>(
+    output: &mut Polynomial<PolyCont>,
+    scalar: Scalar,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    PolyCont: ContainerMut<Element = Scalar>,
+{
+    slice_wrapping_scalar_mul_assign_custom_mod(output, scalar, custom_modulus)
+}
+
+pub fn polynomial_wrapping_scalar_mul_assign_custom_mod<Scalar, PolyCont>(
+    output: &mut Polynomial<PolyCont>,
+    scalar: Scalar,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    PolyCont: ContainerMut<Element = Scalar>,
+{
+    slice_wrapping_scalar_mul_assign_custom_mod(output, scalar, custom_modulus)
 }
 
 /// Fill the output polynomial, with the result of the product of two polynomials, reduced modulo
@@ -1034,6 +938,10 @@ pub fn apply_automorphism_wrapping_add_assign<Scalar, OutputCont, PolyCont>(
 {
     // check input and output polynomials have the same size
     assert_eq!(input.polynomial_size(), output.polynomial_size());
+
+    // check dimensions are a power of 2
+    assert!(input.polynomial_size().0.is_power_of_two());
+
     // check the automorphism exponent is odd so the function X -> X^automorphism_exponent is an
     // automorphism (assumes polysize is a power of 2)
     assert_eq!(automorphism_exponent % 2, 1);
@@ -1046,6 +954,38 @@ pub fn apply_automorphism_wrapping_add_assign<Scalar, OutputCont, PolyCont>(
             output[new_index] = output[new_index].wrapping_add(*coef);
         } else {
             output[new_index] = output[new_index].wrapping_sub(*coef);
+        }
+    }
+}
+
+pub fn apply_automorphism_wrapping_add_assign_custom_mod<Scalar, OutputCont, PolyCont>(
+    output: &mut Polynomial<OutputCont>,
+    input: &Polynomial<PolyCont>,
+    automorphism_exponent: usize,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    // check input and output polynomials have the same size
+    assert_eq!(input.polynomial_size(), output.polynomial_size());
+
+    // check dimensions are a power of 2
+    assert!(input.polynomial_size().0.is_power_of_two());
+
+    // check the automorphism exponent is odd so the function X -> X^automorphism_exponent is an
+    // automorphism (assumes polysize is a power of 2)
+    assert_eq!(automorphism_exponent % 2, 1);
+
+    let poly_size = input.polynomial_size().0;
+
+    for (index, coef) in input.iter().enumerate() {
+        let new_index = (index * automorphism_exponent) % poly_size;
+        if (index * automorphism_exponent) % (2 * poly_size) == new_index {
+            output[new_index] = output[new_index].wrapping_add_custom_mod(*coef, custom_modulus);
+        } else {
+            output[new_index] = output[new_index].wrapping_sub_custom_mod(*coef, custom_modulus);
         }
     }
 }
@@ -1063,6 +1003,20 @@ pub fn apply_automorphism_assign<Scalar, PolyCont>(
     polynomial_wrapping_add_assign(input, &temp);
 }
 
+pub fn apply_automorphism_assign_custom_mod<Scalar, PolyCont>(
+    input: &mut Polynomial<PolyCont>,
+    automorphism_exponent: usize,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    PolyCont: ContainerMut<Element = Scalar>,
+{
+    let mut temp = Polynomial::new(Scalar::ZERO, input.polynomial_size());
+    apply_automorphism_wrapping_add_assign_custom_mod(&mut temp, input, automorphism_exponent,
+                                                      custom_modulus);
+    input.fill(Scalar::ZERO);
+    polynomial_wrapping_add_assign_custom_mod(input, &temp, custom_modulus);
+}
 pub fn polynomial_list_wrapping_sub_scalar_mul_assign<Scalar, InputCont, OutputCont, PolyCont>(
     output_poly_list: &mut PolynomialList<OutputCont>,
     input_poly_list: &PolynomialList<InputCont>,
@@ -1083,6 +1037,32 @@ pub fn polynomial_list_wrapping_sub_scalar_mul_assign<Scalar, InputCont, OutputC
     );
     for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip(input_poly_list.iter()) {
         polynomial_wrapping_sub_mul_assign(&mut output_poly, &input_poly, scalar_poly)
+    }
+}
+
+pub fn polynomial_list_wrapping_sub_scalar_mul_assign_custom_mod<Scalar, InputCont, OutputCont,
+    PolyCont>(
+    output_poly_list: &mut PolynomialList<OutputCont>,
+    input_poly_list: &PolynomialList<InputCont>,
+    scalar_poly: &Polynomial<PolyCont>,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    PolyCont: Container<Element = Scalar>,
+{
+    assert_eq!(
+        output_poly_list.polynomial_size(),
+        input_poly_list.polynomial_size()
+    );
+    assert_eq!(
+        output_poly_list.polynomial_count(),
+        input_poly_list.polynomial_count()
+    );
+    for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip(input_poly_list.iter()) {
+        polynomial_wrapping_sub_mul_assign_custom_mod(&mut output_poly, &input_poly, scalar_poly,
+                                                      custom_modulus)
     }
 }
 

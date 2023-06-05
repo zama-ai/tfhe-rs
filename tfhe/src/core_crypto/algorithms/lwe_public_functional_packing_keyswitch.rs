@@ -9,7 +9,7 @@
 
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 //use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::math::decomposition::{SignedDecomposer, SignedDecomposerNonNative};
 //use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -141,6 +141,52 @@ pub fn public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext<
     Func: Fn(Vec<Scalar>) -> Polynomial<Vec<Scalar>>,
 {
     assert_eq!(
+        input_lwe_ciphertext_list.ciphertext_modulus(),
+        lwe_pubfpksk.ciphertext_modulus(),
+    );
+    assert_eq!(
+        input_lwe_ciphertext_list.ciphertext_modulus(),
+        output_glwe_ciphertext.ciphertext_modulus(),
+    );
+
+    let ciphertext_modulus = input_lwe_ciphertext_list.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext_native_mod_compatible(
+            lwe_pubfpksk,
+            output_glwe_ciphertext,
+            input_lwe_ciphertext_list,
+            f,
+        )
+    } else {
+        public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext_non_native_mod(
+            lwe_pubfpksk,
+            output_glwe_ciphertext,
+            input_lwe_ciphertext_list,
+            f,
+        )
+    }
+}
+
+pub fn public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext_native_mod_compatible<
+    KeyCont,
+    InputCont,
+    OutputCont,
+    Func,
+    Scalar,
+>(
+    lwe_pubfpksk: &LwePublicFunctionalPackingKeyswitchKey<KeyCont>,
+    output_glwe_ciphertext: &mut GlweCiphertext<OutputCont>,
+    input_lwe_ciphertext_list: &LweCiphertextList<InputCont>,
+    f: Func,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Func: Fn(Vec<Scalar>) -> Polynomial<Vec<Scalar>>,
+{
+    assert_eq!(
         output_glwe_ciphertext.polynomial_size(),
         lwe_pubfpksk.output_polynomial_size()
     );
@@ -196,6 +242,90 @@ pub fn public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext<
                 &mut output_glwe_ciphertext.as_mut_polynomial_list(),
                 &level_key_ciphertext.as_polynomial_list(),
                 &Polynomial::from_container(decomposed.as_slice()),
+            );
+        }
+    }
+}
+
+pub fn public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext_non_native_mod<
+    KeyCont,
+    InputCont,
+    OutputCont,
+    Func,
+    Scalar,
+>(
+    lwe_pubfpksk: &LwePublicFunctionalPackingKeyswitchKey<KeyCont>,
+    output_glwe_ciphertext: &mut GlweCiphertext<OutputCont>,
+    input_lwe_ciphertext_list: &LweCiphertextList<InputCont>,
+    f: Func,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Func: Fn(Vec<Scalar>) -> Polynomial<Vec<Scalar>>,
+{
+    assert_eq!(
+        output_glwe_ciphertext.polynomial_size(),
+        lwe_pubfpksk.output_polynomial_size()
+    );
+    assert_eq!(
+        output_glwe_ciphertext.glwe_size(),
+        lwe_pubfpksk.output_glwe_size()
+    );
+    assert_eq!(
+        input_lwe_ciphertext_list.lwe_size().to_lwe_dimension(),
+        lwe_pubfpksk.input_lwe_key_dimension()
+    );
+
+    let ciphertext_modulus = input_lwe_ciphertext_list.ciphertext_modulus();
+
+    //evaluate the function on this list of first elements
+    let mut list_output_function =
+        Vec::with_capacity(input_lwe_ciphertext_list.lwe_ciphertext_count().0);
+    for i in 0..input_lwe_ciphertext_list.lwe_size().to_lwe_dimension().0 {
+        //get list of ith elements of the input lwes
+        let vec_of_ai: Vec<Scalar> = input_lwe_ciphertext_list
+            .iter()
+            .map(|lwe| lwe.get_mask().as_ref()[i])
+            .collect();
+        list_output_function.push(f(vec_of_ai));
+    }
+    // We reset the output
+    output_glwe_ciphertext.as_mut().fill(Scalar::ZERO);
+    let vec_of_b: Vec<Scalar> = input_lwe_ciphertext_list
+        .iter()
+        .map(|lwe| *lwe.get_body().data)
+        .collect();
+
+    assert!(f(vec_of_b.clone()).polynomial_size() == output_glwe_ciphertext.polynomial_size(),
+            "the polynomial size of the output_glwe_ciphertext value needs to be equal to the polynomial size of the output of the function f");
+
+    //initiate the body of the output glwe ciphertext
+    output_glwe_ciphertext
+        .get_mut_body()
+        .as_mut()
+        .copy_from_slice(f(vec_of_b).as_ref());
+
+    //decompose the result of the function
+    // We instantiate a decomposer
+    let decomposer = SignedDecomposerNonNative::new(
+        lwe_pubfpksk.decomposition_base_log(),
+        lwe_pubfpksk.decomposition_level_count(),
+        ciphertext_modulus,
+    );
+    for (keyswitch_key_block, output_function) in
+    lwe_pubfpksk.iter().zip(list_output_function.iter_mut())
+    {
+        let mut decomposition_iter = decomposer.decompose_slice(output_function.as_ref());
+        // loop over the number of levels in reverse (from highest to lowest)
+        for level_key_ciphertext in keyswitch_key_block.iter().rev() {
+            let decomposed = decomposition_iter.next_term().unwrap();
+            polynomial_list_wrapping_sub_scalar_mul_assign_custom_mod(
+                &mut output_glwe_ciphertext.as_mut_polynomial_list(),
+                &level_key_ciphertext.as_polynomial_list(),
+                &Polynomial::from_container(decomposed.as_slice()),
+                ciphertext_modulus.get_custom_modulus().cast_into(),
             );
         }
     }

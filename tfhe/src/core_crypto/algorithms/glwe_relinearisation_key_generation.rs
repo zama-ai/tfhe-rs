@@ -63,6 +63,35 @@ pub fn generate_glwe_relinearisation_key<Scalar, GlweKeyCont, RelinKeyCont, Gen>
     RelinKeyCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    let ciphertext_modulus = glwe_relinearisation_key.ciphertext_modulus();
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        generate_glwe_relinearisation_key_native_mod_compatible(
+            glwe_secret_key,
+            glwe_relinearisation_key,
+            noise_parameters,
+            generator,
+        )
+    } else {
+        generate_glwe_relinearisation_key_non_native_mod(
+            glwe_secret_key,
+            glwe_relinearisation_key,
+            noise_parameters,
+            generator,
+        )
+    }
+}
+
+pub fn generate_glwe_relinearisation_key_native_mod_compatible<Scalar, GlweKeyCont, RelinKeyCont, Gen>(
+    glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
+    glwe_relinearisation_key: &mut GlweRelinearisationKey<RelinKeyCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    GlweKeyCont: Container<Element = Scalar>,
+    RelinKeyCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
     assert_eq!(
         glwe_secret_key.glwe_dimension(),
         glwe_relinearisation_key.glwe_dimension()
@@ -95,6 +124,75 @@ pub fn generate_glwe_relinearisation_key<Scalar, GlweKeyCont, RelinKeyCont, Gen>
                 &mut input_key_pol,
                 &glwe_secret_key.as_polynomial_list().get(i),
                 &glwe_secret_key.as_polynomial_list().get(j),
+            );
+        }
+    }
+
+    let input_glwe_sk = GlweSecretKey::from_container(input_sk_poly_list.as_ref(), polynomial_size);
+
+    let mut glwe_ks_key = GlweKeyswitchKey::from_container(
+        glwe_relinearisation_key.as_mut(),
+        decomp_base_log,
+        decomp_level_count,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        ciphertext_modulus,
+    );
+
+    generate_glwe_keyswitch_key(
+        &input_glwe_sk,
+        glwe_secret_key,
+        &mut glwe_ks_key,
+        noise_parameters,
+        generator,
+    );
+}
+
+pub fn generate_glwe_relinearisation_key_non_native_mod<Scalar, GlweKeyCont,
+    RelinKeyCont, Gen>(
+    glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
+    glwe_relinearisation_key: &mut GlweRelinearisationKey<RelinKeyCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    GlweKeyCont: Container<Element = Scalar>,
+    RelinKeyCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert_eq!(
+        glwe_secret_key.glwe_dimension(),
+        glwe_relinearisation_key.glwe_dimension()
+    );
+    assert_eq!(
+        glwe_secret_key.polynomial_size(),
+        glwe_relinearisation_key.polynomial_size()
+    );
+
+    // We retrieve decomposition arguments
+    let glwe_dimension = glwe_relinearisation_key.glwe_dimension();
+    let decomp_level_count = glwe_relinearisation_key.decomposition_level_count();
+    let decomp_base_log = glwe_relinearisation_key.decomposition_base_log();
+    let polynomial_size = glwe_relinearisation_key.polynomial_size();
+    let ciphertext_modulus = glwe_relinearisation_key.ciphertext_modulus();
+
+    // Construct the "glwe secret key" we want to keyswitch from, this is made up of the square
+    // and cross terms appearing when squaring glwe_secret_key
+    let mut input_sk_poly_list = PolynomialList::new(
+        Scalar::ZERO,
+        polynomial_size,
+        PolynomialCount(glwe_dimension.0 * (glwe_dimension.0 + 1) / 2),
+    );
+    let mut input_sk_poly_list_iter = input_sk_poly_list.iter_mut();
+
+    for i in 0..glwe_dimension.0 {
+        for j in 0..i + 1 {
+            let mut input_key_pol = input_sk_poly_list_iter.next().unwrap();
+            polynomial_wrapping_sub_mul_assign_custom_mod(
+                &mut input_key_pol,
+                &glwe_secret_key.as_polynomial_list().get(i),
+                &glwe_secret_key.as_polynomial_list().get(j),
+                ciphertext_modulus.get_custom_modulus().cast_into(),
             );
         }
     }

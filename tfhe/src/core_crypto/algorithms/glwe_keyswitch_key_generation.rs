@@ -3,7 +3,8 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm};
+use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm,
+                                                       DecompositionTermNonNative};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -16,7 +17,7 @@ use crate::core_crypto::entities::*;
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
-/// // Define parameters for LweKeyswitchKey creation
+/// // Define parameters for GlweKeyswitchKey creation
 /// let input_glwe_dimension = GlweDimension(2);
 /// let polynomial_size = PolynomialSize(1024);
 /// let glwe_modular_std_dev = StandardDev(0.000007069849454709433);
@@ -78,6 +79,40 @@ pub fn generate_glwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCon
     KSKeyCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
+    let ciphertext_modulus = glwe_keyswitch_key.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        generate_glwe_keyswitch_key_native_mod_compatible(
+            input_glwe_sk,
+            output_glwe_sk,
+            glwe_keyswitch_key,
+            noise_parameters,
+            generator,
+        )
+    } else {
+        generate_glwe_keyswitch_key_non_native_mod(
+            input_glwe_sk,
+            output_glwe_sk,
+            glwe_keyswitch_key,
+            noise_parameters,
+            generator,
+        )
+    }
+}
+
+pub fn generate_glwe_keyswitch_key_native_mod_compatible<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont, Gen>(
+    input_glwe_sk: &GlweSecretKey<InputKeyCont>,
+    output_glwe_sk: &GlweSecretKey<OutputKeyCont>,
+    glwe_keyswitch_key: &mut GlweKeyswitchKey<KSKeyCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar>,
+    KSKeyCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
     assert!(
         glwe_keyswitch_key.input_key_glwe_dimension() == input_glwe_sk.glwe_dimension(),
         "The destination GlweKeyswitchKey input GlweDimension is not equal \
@@ -106,9 +141,117 @@ pub fn generate_glwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCon
         glwe_keyswitch_key.polynomial_size(),
         output_glwe_sk.polynomial_size(),
     );
+    assert!(glwe_keyswitch_key
+    .ciphertext_modulus()
+    .is_compatible_with_native_modulus());
 
     let decomp_base_log = glwe_keyswitch_key.decomposition_base_log();
     let decomp_level_count = glwe_keyswitch_key.decomposition_level_count();
+    /*
+    // forking the generator and using loop_generator works to generate glwe keyswitch keys but
+    // breaks lwe_trace_packing_keyswotch_key_generation
+    let gen_iter = generator
+        .fork_glweks_to_glweks_chunks::<Scalar>(
+            decomp_level_count,
+            input_glwe_sk.glwe_dimension(),
+            output_glwe_sk.glwe_dimension().to_glwe_size(),
+            input_glwe_sk.polynomial_size(),
+        )
+        .unwrap();
+     */
+
+    // Iterate over the input key elements and the destination glwe_keyswitch_key memory
+    //for ((input_key_polynomial, mut keyswitch_key_block), mut _loop_generator) in input_glwe_sk
+    for (input_key_polynomial, mut keyswitch_key_block) in input_glwe_sk
+        .as_polynomial_list()
+        .iter()
+        .zip(glwe_keyswitch_key.iter_mut())
+    //.zip(gen_iter)
+    {
+        // The plaintexts used to encrypt a key element will be stored in this buffer
+        let mut decomposition_polynomials_buffer = PolynomialList::new(
+            Scalar::ZERO,
+            input_glwe_sk.polynomial_size(),
+            PolynomialCount(decomp_level_count.0),
+        );
+
+        // We fill the buffer with the powers of the key elmements
+        for (level, mut message_polynomial) in (1..=decomp_level_count.0)
+            .map(DecompositionLevel)
+            .zip(decomposition_polynomials_buffer.as_mut_view().iter_mut())
+        {
+            for (message, input_key_element) in message_polynomial
+                .iter_mut()
+                .zip(input_key_polynomial.iter())
+            {
+                *message = DecompositionTerm::new(level, decomp_base_log, *input_key_element)
+                    .to_recomposition_summand();
+            }
+        }
+
+        let decomposition_plaintexts_buffer =
+            PlaintextList::from_container(decomposition_polynomials_buffer.into_container());
+
+        encrypt_glwe_ciphertext_list(
+            output_glwe_sk,
+            &mut keyswitch_key_block,
+            &decomposition_plaintexts_buffer,
+            noise_parameters,
+            //&mut loop_generator,
+            generator,
+        );
+    }
+}
+
+pub fn generate_glwe_keyswitch_key_non_native_mod<Scalar, InputKeyCont, OutputKeyCont,
+    KSKeyCont, Gen>(
+    input_glwe_sk: &GlweSecretKey<InputKeyCont>,
+    output_glwe_sk: &GlweSecretKey<OutputKeyCont>,
+    glwe_keyswitch_key: &mut GlweKeyswitchKey<KSKeyCont>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar>,
+    KSKeyCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert!(
+        glwe_keyswitch_key.input_key_glwe_dimension() == input_glwe_sk.glwe_dimension(),
+        "The destination GlweKeyswitchKey input GlweDimension is not equal \
+    to the input GlweSecretKey GlweDimension. Destination: {:?}, input: {:?}",
+        glwe_keyswitch_key.input_key_glwe_dimension(),
+        input_glwe_sk.glwe_dimension()
+    );
+    assert!(
+        glwe_keyswitch_key.output_key_glwe_dimension() == output_glwe_sk.glwe_dimension(),
+        "The destination GlweKeyswitchKey output GlweDimension is not equal \
+    to the output GlweSecretKey GlweDimension. Destination: {:?}, output: {:?}",
+        glwe_keyswitch_key.output_key_glwe_dimension(),
+        input_glwe_sk.glwe_dimension()
+    );
+    assert!(
+        glwe_keyswitch_key.polynomial_size() == input_glwe_sk.polynomial_size(),
+        "The destination GlweKeyswitchKey input PolynomialSize is not equal \
+     to the input GlweSecretKey PolynomialSize. Destination: {:?}, input: {:?}",
+        glwe_keyswitch_key.polynomial_size(),
+        input_glwe_sk.polynomial_size(),
+    );
+    assert!(
+        glwe_keyswitch_key.polynomial_size() == output_glwe_sk.polynomial_size(),
+        "The distination GlweKeyswitchKey output PolynomialSize is not equal \
+    to the output GlweSecretKey PolynomialSize. Destination: {:?}, output: {:?}",
+        glwe_keyswitch_key.polynomial_size(),
+        output_glwe_sk.polynomial_size(),
+    );
+    assert!(!glwe_keyswitch_key
+        .ciphertext_modulus()
+        .is_compatible_with_native_modulus());
+
+    let decomp_base_log = glwe_keyswitch_key.decomposition_base_log();
+    let decomp_level_count = glwe_keyswitch_key.decomposition_level_count();
+    let ciphertext_modulus = glwe_keyswitch_key.ciphertext_modulus();
     /*
     // forking the generator and using loop_generator works to generate glwe keyswitch keys but
     // break lwe_trace_packing_keyswotch_key_generation
@@ -146,8 +289,13 @@ pub fn generate_glwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCon
                 .iter_mut()
                 .zip(input_key_polynomial.iter())
             {
-                *message = DecompositionTerm::new(level, decomp_base_log, *input_key_element)
-                    .to_recomposition_summand();
+                *message = DecompositionTermNonNative::new(
+                    level,
+                    decomp_base_log,
+                    *input_key_element,
+                    ciphertext_modulus,
+                )
+                .to_recomposition_summand();
             }
         }
 

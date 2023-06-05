@@ -1,6 +1,7 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
     DecompositionLevel, DecompositionTerm, DecompositionTermNonNative, DecompositionTermSlice,
+    DecompositionTermSliceNonNative,
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
@@ -115,6 +116,15 @@ where
             output,
         ))
     }
+}
+
+fn decompose_one_level<S: UnsignedInteger>(base_log: usize, state: &mut S, mod_b_mask: S) -> S {
+    let res = *state & mod_b_mask;
+    *state >>= base_log;
+    let mut carry = (res.wrapping_sub(S::ONE) | *state) & res;
+    carry >>= base_log - 1;
+    *state += carry;
+    res.wrapping_sub(carry << base_log)
 }
 
 /// An iterator-like object that yields the terms of the signed decomposition of a tensor of values.
@@ -266,15 +276,6 @@ where
     }
 }
 
-fn decompose_one_level<S: UnsignedInteger>(base_log: usize, state: &mut S, mod_b_mask: S) -> S {
-    let res = *state & mod_b_mask;
-    *state >>= base_log;
-    let mut carry = (res.wrapping_sub(S::ONE) | *state) & res;
-    carry >>= base_log - 1;
-    *state += carry;
-    res.wrapping_sub(carry << base_log)
-}
-
 /// An iterator that yields the terms of the signed decomposition of an integer.
 ///
 /// # Warning
@@ -424,4 +425,186 @@ fn decompose_one_level_non_native<S: UnsignedInteger>(
     carry >>= base_log - 1;
     *state += carry;
     res.wrapping_sub_custom_mod(carry << base_log, ciphertext_modulus)
+}
+
+/// An iterator-like object that yields the terms of the signed decomposition of a tensor of values.
+///
+/// # Note
+///
+/// On each call to [`SliceSignedDecompositionIterNonNative::next_term`], this structure yields a
+/// new
+/// [`DecompositionTermSlice`], backed by a `Vec` owned by the structure. This vec is mutated at
+/// each call of the `next_term` method, and as such the term must be dropped before `next_term` is
+/// called again.
+///
+/// Such a pattern can not be implemented with iterators yet (without GATs), which is why this
+/// iterator must be explicitly called.
+///
+/// # Warning
+///
+/// This iterator yields the decomposition in reverse order. That means that the highest level
+/// will be yielded first.
+pub struct SliceSignedDecompositionIterNonNative<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    // The base log of the decomposition
+    base_log: usize,
+    // The number of levels of the decomposition
+    level_count: usize,
+    // The current level
+    current_level: usize,
+    // A mask which allows to compute the mod B of a value. For B=2^4, this guy is of the form:
+    // ...0001111
+    mod_b_mask: Scalar,
+    // Ciphertext modulus
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+    // The values being decomposed
+    inputs: Vec<Scalar>,
+    // The internal states of each decomposition
+    states: Vec<Scalar>,
+    // In order to avoid allocating a new Vec every time we yield a decomposition term, we store
+    // a Vec inside the structure and yield slices pointing to it.
+    outputs: Vec<Scalar>,
+    // A flag which stores whether the iterator is a fresh one (for the recompose method).
+    fresh: bool,
+}
+
+impl<Scalar> SliceSignedDecompositionIterNonNative<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    // Creates a new tensor decomposition iterator.
+    pub(crate) fn new(
+        input: &[Scalar],
+        base_log: DecompositionBaseLog,
+        level: DecompositionLevelCount,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> SliceSignedDecompositionIterNonNative<Scalar> {
+        let base_to_the_level = 1 << (base_log.0 * level.0);
+        let smallest_representable = ciphertext_modulus.get_custom_modulus() / base_to_the_level;
+        let len = input.len();
+        SliceSignedDecompositionIterNonNative {
+            base_log: base_log.0,
+            level_count: level.0,
+            current_level: level.0,
+            mod_b_mask: (Scalar::ONE << base_log.0) - Scalar::ONE,
+            ciphertext_modulus,
+            inputs: input.to_vec(),
+            outputs: vec![Scalar::ZERO; len],
+            states: input
+                .iter()
+                .map(|i| {
+                    let input_128: u128 = Scalar::cast_into(*i);
+                    Scalar::cast_from(input_128 / smallest_representable)
+                })
+                .collect(),
+            fresh: true,
+        }
+    }
+
+    pub(crate) fn is_fresh(&self) -> bool {
+        self.fresh
+    }
+
+    /// Returns the logarithm in base two of the base of this decomposition.
+    ///
+    /// If the decomposition uses a base $B=2^b$, this returns $b$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::<u32>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 32) - (1 << 16) + 1).unwrap(),
+    /// );
+    /// let decomposable = vec![1_340_987_234_u32; 2];
+    /// let decomp = decomposer.decompose_slice(&decomposable);
+    /// assert_eq!(decomp.base_log(), DecompositionBaseLog(4));
+    /// ```
+    pub fn base_log(&self) -> DecompositionBaseLog {
+        DecompositionBaseLog(self.base_log)
+    }
+
+    /// Returns the number of levels of this decomposition.
+    ///
+    /// If the decomposition uses $l$ levels, this returns $l$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::<u32>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 32) - (1 << 16) + 1).unwrap(),
+    /// );
+    /// let decomposable = vec![1_340_987_234_u32; 2];
+    /// let decomp = decomposer.decompose_slice(&decomposable);
+    /// assert_eq!(decomp.level_count(), DecompositionLevelCount(3));
+    /// ```
+    pub fn level_count(&self) -> DecompositionLevelCount {
+        DecompositionLevelCount(self.level_count)
+    }
+
+    /// Yield the next term of the decomposition, if any.
+    ///
+    /// # Note
+    ///
+    /// Because this function returns a borrowed tensor, owned by the iterator, the term must be
+    /// dropped before `next_term` is called again.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::{
+    ///     DecompositionLevel, SignedDecomposerNonNative,
+    /// };
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::<u32>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 32) - (1 << 16) + 1).unwrap(),
+    /// );
+    /// let decomposable = vec![1_340_987_234_u32; 2];
+    /// let mut decomp = decomposer.decompose_slice(&decomposable);
+    /// let term = decomp.next_term().unwrap();
+    /// assert_eq!(term.level(), DecompositionLevel(3));
+    /// assert_eq!(term.as_slice()[0], 4294901760);
+    /// ```
+    pub fn next_term(&mut self) -> Option<DecompositionTermSliceNonNative<'_, Scalar>> {
+        // The iterator is not fresh anymore.
+        self.fresh = false;
+        // We check if the decomposition is over
+        if self.current_level == 0 {
+            return None;
+        }
+        // We iterate over the elements of the outputs and decompose
+        for (output_i, state_i) in self.outputs.iter_mut().zip(self.states.iter_mut()) {
+            *output_i = decompose_one_level_non_native(
+                self.base_log,
+                state_i,
+                self.mod_b_mask,
+                Scalar::cast_from(self.ciphertext_modulus.get_custom_modulus()),
+            );
+        }
+        self.current_level -= 1;
+        // We return the term tensor.
+        Some(DecompositionTermSliceNonNative::new(
+            DecompositionLevel(self.current_level + 1),
+            DecompositionBaseLog(self.base_log),
+            &self.outputs,
+            self.ciphertext_modulus,
+        ))
+    }
 }

@@ -1,6 +1,7 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
     SignedDecompositionIter, SignedDecompositionIterNonNative, SliceSignedDecompositionIter,
+    SliceSignedDecompositionIterNonNative
 };
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
@@ -455,6 +456,32 @@ where
         (res << non_rep_bit_count) >> (zero_left_pad as usize)
     }
 
+    /// Fills a mutable tensor-like objects with the closest representable values from another
+    /// tensor-like object.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer = SignedDecomposerNonNative::<u32>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 32) - (1 << 16) + 1).unwrap(),
+    /// );
+    ///
+    /// let input = vec![1_340_987_234_u32; 2];
+    /// let mut closest = vec![0u32; 2];
+    /// decomposer.fill_slice_with_closest_representable(&mut closest, &input);
+    /// assert!(closest.iter().all(|&x| x == 1_341_108_240_u32));
+    /// ```
+    pub fn fill_slice_with_closest_representable(&self, output: &mut [Scalar], input: &[Scalar]) {
+        output
+            .iter_mut()
+            .zip(input.iter())
+            .for_each(|(dst, &src)| *dst = self.closest_representable(src));
+    }
+
     /// Generate an iterator over the terms of the decomposition of the input.
     ///
     /// # Warning
@@ -500,6 +527,60 @@ where
         // not rounded to the closest representable first. We then perform it before decomposing.
         SignedDecompositionIterNonNative::new(
             self.closest_representable(input),
+            DecompositionBaseLog(self.base_log),
+            DecompositionLevelCount(self.level_count),
+            self.ciphertext_modulus,
+        )
+    }
+
+    /// Generates an iterator-like object over tensors of terms of the decomposition of the input
+    /// tensor.
+    ///
+    /// # Warning
+    ///
+    /// The returned iterator yields the terms $(\tilde{\theta}^{(a)}\_i)\_{a\in\mathbb{N}}$ in
+    /// order of decreasing $i$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::commons::numeric::UnsignedInteger;
+    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog,
+    /// DecompositionLevelCount};
+    /// let decomposer = SignedDecomposerNonNative::<u32>::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 32) - (1 << 16) + 1).unwrap(),
+    /// );
+    /// let decomposable = vec![1_340_987_234_u32, 1_340_987_234_u32];
+    /// let mut decomp = decomposer.decompose_slice(&decomposable);
+    ///
+    /// let mut count = 0;
+    /// while let Some(term) = decomp.next_term() {
+    ///     assert!(1 <= term.level().0);
+    ///     assert!(term.level().0 <= 3);
+    ///     for elmt in term.as_slice().iter() {
+    ///         let mut signed_term = elmt.into_signed();
+    ///         if *elmt > 1_u32 << 31 {
+    ///             signed_term += ((1_i32 << 16) - 1);
+    ///         }
+    ///         let half_basis = 2i32.pow(4) / 2i32;
+    ///         assert!(-half_basis <= signed_term);
+    ///         assert!(signed_term < half_basis);
+    ///     }
+    ///     count += 1;
+    /// }
+    /// assert_eq!(count, 3);
+    /// ```
+    pub fn decompose_slice(&self, input: &[Scalar]) ->
+                                                    SliceSignedDecompositionIterNonNative<Scalar> {
+        // Note that there would be no sense of making the decomposition on an input which was
+        // not rounded to the closest representable first. We then perform it before decomposing.
+        let mut rounded = vec![Scalar::ZERO; input.len()];
+        self.fill_slice_with_closest_representable(&mut rounded, input);
+        SliceSignedDecompositionIterNonNative::new(
+            &rounded,
             DecompositionBaseLog(self.base_log),
             DecompositionLevelCount(self.level_count),
             self.ciphertext_modulus,
