@@ -2,8 +2,6 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::PBSOrderMarker;
 
-use super::add::AddExtraOne;
-
 impl ServerKey {
     /// Computes homomorphically the subtraction between ct_left and ct_right.
     ///
@@ -214,17 +212,8 @@ impl ServerKey {
         };
 
         if self.is_eligible_for_parallel_carryless_add() {
-            // we can't use unchecked_neg to get the negation of rhs
-            // because unchecked_neg gets us a ciphertext with non clean carries
-            //
-            // Since negation is: neg(a) = bitwise_not(a) + 1
-            // We compute the bitwise_not, then add it asking the add impl
-            // to automatically add the extra one and account for it.
-            //
-            // (If we would have added the one ourselves, we would have
-            // had to propagate carry before calling add)
-            let bitwise_not = self.bitnot_parallelized(rhs);
-            self.unchecked_add_assign_parallelized_low_latency(lhs, &bitwise_not, AddExtraOne::Yes);
+            let neg = self.unchecked_neg(rhs);
+            self.unchecked_add_assign_parallelized_low_latency(lhs, &neg);
         } else {
             self.unchecked_sub_assign(lhs, rhs);
             self.full_propagate_parallelized(lhs);
@@ -272,16 +261,7 @@ impl ServerKey {
             }
         };
 
-        // we can't use unchecked_neg to get the negation of rhs
-        // because unchecked_neg gets us a ciphertext with non clean carries
-        //
-        // Since negation is: neg(a) = bitwise_not(a) + 1
-        // We compute the bitwise_not, then add it asking the add impl
-        // to automatically add the extra one and account for it.
-        //
-        // (If we would have added the one ourselves, we would have
-        // had to propagate carry before calling add)
-        let bitwise_not = self.bitnot_parallelized(rhs);
-        self.unchecked_add_assign_parallelized_work_efficient(lhs, &bitwise_not, AddExtraOne::Yes);
+        let neg = self.unchecked_neg(rhs);
+        self.unchecked_add_assign_parallelized_work_efficient(lhs, &neg);
     }
 }
