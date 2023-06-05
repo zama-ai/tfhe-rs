@@ -375,12 +375,10 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         match OpOrder::pbs_order() {
             PBSOrder::KeyswitchBootstrap => {
-                let ct = unsafe { std::mem::transmute(ct) };
-                self.keyswitch_bootstrap_assign(server_key, ct)?;
+                self.keyswitch_bootstrap_assign(server_key, ct.to_concrete_type_mut())?;
             }
             PBSOrder::BootstrapKeyswitch => {
-                let ct = unsafe { std::mem::transmute(ct) };
-                self.bootstrap_keyswitch_assign(server_key, ct)?;
+                self.bootstrap_keyswitch_assign(server_key, ct.to_concrete_type_mut())?;
             }
         }
         Ok(())
@@ -726,14 +724,20 @@ impl ShortintEngine {
         // layout is the same as the type information is just encoded in a phantom data marker
         match OpOrder::pbs_order() {
             PBSOrder::KeyswitchBootstrap => {
-                let ct = unsafe { std::mem::transmute(ct) };
                 // This updates the ciphertext degree
-                self.keyswitch_programmable_bootstrap_assign(server_key, ct, acc)?;
+                self.keyswitch_programmable_bootstrap_assign(
+                    server_key,
+                    ct.to_concrete_type_mut(),
+                    acc,
+                )?;
             }
             PBSOrder::BootstrapKeyswitch => {
-                let ct = unsafe { std::mem::transmute(ct) };
                 // This updates the ciphertext degree
-                self.programmable_bootstrap_keyswitch_assign(server_key, ct, acc)?;
+                self.programmable_bootstrap_keyswitch_assign(
+                    server_key,
+                    ct.to_concrete_type_mut(),
+                    acc,
+                )?;
             }
         };
 
@@ -762,14 +766,12 @@ impl ShortintEngine {
         // layout is the same as the type information is just encoded in a phantom data marker
         match OpOrder::pbs_order() {
             PBSOrder::KeyswitchBootstrap => {
-                let ct = unsafe { std::mem::transmute(ct) };
                 // This updates the ciphertext degree
-                self.keyswitch_bootstrap_assign(server_key, ct)?;
+                self.keyswitch_bootstrap_assign(server_key, ct.to_concrete_type_mut())?;
             }
             PBSOrder::BootstrapKeyswitch => {
-                let ct = unsafe { std::mem::transmute(ct) };
                 // This updates the ciphertext degree
-                self.bootstrap_keyswitch_assign(server_key, ct)?;
+                self.bootstrap_keyswitch_assign(server_key, ct.to_concrete_type_mut())?;
             }
         };
 
