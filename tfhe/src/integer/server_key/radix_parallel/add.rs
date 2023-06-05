@@ -1,6 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
+use crate::shortint::{CiphertextBase, PBSOrderMarker};
 
 use rayon::prelude::*;
 
@@ -271,25 +271,71 @@ impl ServerKey {
     ) {
         debug_assert!(lhs.block_carries_are_empty());
         debug_assert!(rhs.block_carries_are_empty());
-        debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 3));
 
-        let mut carry_out = self.add_and_generate_init_carry_array(lhs, rhs, add_extra_one);
+        let generates_or_propagates =
+            self.add_and_generate_init_carry_array(lhs, rhs, add_extra_one);
 
-        let num_blocks = carry_out.len();
-        let num_steps = carry_out.len().ilog2() as usize;
+        let input_carries =
+            self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
+
+        lhs.blocks
+            .par_iter_mut()
+            .zip(input_carries.par_iter())
+            .for_each(|(block, input_carry)| {
+                self.key.unchecked_add_assign(block, input_carry);
+                self.key.message_extract_assign(block);
+            });
+    }
+
+    /// This function takes an input ciphertext for which at most one bit of carry
+    /// is consummed in each block, and does the carry propagation in place.
+    ///
+    /// Used in (among other) 'default' addition:
+    /// - first unchecked_add
+    /// - at this point at most on bit of carry is taken
+    /// - use this function to propagate them in parallel
+    pub(crate) fn propagate_single_carry_parallelized_low_latency<PBSOrder: PBSOrderMarker>(
+        &self,
+        ct: &mut RadixCiphertext<PBSOrder>,
+    ) {
+        let generates_or_propagates = self.generate_init_carry_array(ct);
+        let input_carries =
+            self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
+        ct.blocks
+            .par_iter_mut()
+            .zip(input_carries.par_iter())
+            .for_each(|(block, input_carry)| {
+                self.key.unchecked_add_assign(block, input_carry);
+                self.key.message_extract_assign(block);
+            });
+    }
+
+    /// Backbone algorithm of parallel carry (only one bit) propagation
+    ///
+    /// Uses the Hillis and Steele prefix scan
+    ///
+    /// Requires the blocks to have at least 4 bits
+    pub(crate) fn compute_carry_propagation_parallelized_low_latency<PBSOrder: PBSOrderMarker>(
+        &self,
+        mut generates_or_propagates: Vec<CiphertextBase<PBSOrder>>,
+    ) -> Vec<CiphertextBase<PBSOrder>> {
+        debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 4));
+
+        let num_blocks = generates_or_propagates.len();
+        let num_steps = generates_or_propagates.len().ilog2() as usize;
 
         let lut_carry_propagation_sum = self
             .key
             .generate_accumulator_bivariate(prefix_sum_carry_propagation);
 
         let mut space = 1;
-        let mut step_output = carry_out.clone();
+        let mut step_output = generates_or_propagates.clone();
         for _ in 0..=num_steps {
             step_output[space..num_blocks]
                 .par_iter_mut()
                 .enumerate()
                 .for_each(|(i, block)| {
-                    let prev_block_carry = &carry_out[i];
+                    let prev_block_carry = &generates_or_propagates[i];
                     self.key.unchecked_apply_lookup_table_bivariate_assign(
                         block,
                         prev_block_carry,
@@ -297,7 +343,7 @@ impl ServerKey {
                     )
                 });
             for i in space..num_blocks {
-                carry_out[i].copy_from(&step_output[i]);
+                generates_or_propagates[i].copy_from(&step_output[i]);
             }
 
             space *= 2;
@@ -305,15 +351,10 @@ impl ServerKey {
 
         // The output carry of block i-1 becomes the input
         // carry of block i
+        let mut carry_out = generates_or_propagates;
         carry_out.rotate_right(1);
         self.key.create_trivial_assign(&mut carry_out[0], 0);
-        lhs.blocks
-            .par_iter_mut()
-            .zip(carry_out.par_iter())
-            .for_each(|(block, input_carry)| {
-                self.key.unchecked_add_assign(block, input_carry);
-                self.key.message_extract_assign(block);
-            });
+        carry_out
     }
 
     /// This add_assign two numbers
@@ -464,6 +505,24 @@ impl ServerKey {
         rhs: &RadixCiphertext<PBSOrder>,
         add_extra_one: AddExtraOne,
     ) -> Vec<crate::shortint::CiphertextBase<PBSOrder>> {
+        lhs.blocks
+            .par_iter_mut()
+            .zip(rhs.blocks.par_iter())
+            .enumerate()
+            .for_each(|(i, (ct_left_i, ct_right_i))| {
+                self.key.unchecked_add_assign(ct_left_i, ct_right_i);
+                if i == 0 && matches!(add_extra_one, AddExtraOne::Yes) {
+                    self.key.unchecked_scalar_add_assign(ct_left_i, 1);
+                }
+            });
+
+        self.generate_init_carry_array(lhs)
+    }
+
+    pub(super) fn generate_init_carry_array<PBSOrder: PBSOrderMarker>(
+        &self,
+        sum_ct: &RadixCiphertext<PBSOrder>,
+    ) -> Vec<crate::shortint::CiphertextBase<PBSOrder>> {
         let modulus = self.key.message_modulus.0 as u64;
 
         // This used for the first pair of blocks
@@ -486,28 +545,24 @@ impl ServerKey {
             }
         });
 
-        let mut carry_out = Vec::with_capacity(lhs.blocks.len());
-        lhs.blocks
-            .par_iter_mut()
-            .zip(rhs.blocks.par_iter())
+        let mut generates_or_propagates = Vec::with_capacity(sum_ct.blocks.len());
+        sum_ct
+            .blocks
+            .par_iter()
             .enumerate()
-            .map(|(i, (ct_left_i, ct_right_i))| {
-                self.key.unchecked_add_assign(ct_left_i, ct_right_i);
+            .map(|(i, block)| {
                 if i == 0 {
-                    if matches!(add_extra_one, AddExtraOne::Yes) {
-                        self.key.unchecked_scalar_add_assign(ct_left_i, 1);
-                    }
                     // The first block can only ouput a carry
                     self.key
-                        .apply_lookup_table(ct_left_i, &lut_does_block_generate_carry)
+                        .apply_lookup_table(block, &lut_does_block_generate_carry)
                 } else {
                     self.key
-                        .apply_lookup_table(ct_left_i, &lut_does_block_generate_or_propagate)
+                        .apply_lookup_table(block, &lut_does_block_generate_or_propagate)
                 }
             })
-            .collect_into_vec(&mut carry_out);
+            .collect_into_vec(&mut generates_or_propagates);
 
-        carry_out
+        generates_or_propagates
     }
 
     /// op must be associative and commutative

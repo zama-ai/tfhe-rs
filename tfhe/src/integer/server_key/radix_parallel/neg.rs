@@ -80,14 +80,22 @@ impl ServerKey {
     ) -> RadixCiphertext<PBSOrder> {
         let mut tmp_ctxt: RadixCiphertext<PBSOrder>;
 
-        let mut ctxt = if ctxt.block_carries_are_empty() {
-            self.unchecked_neg(ctxt)
-        } else {
+        let ct = if !ctxt.block_carries_are_empty() {
             tmp_ctxt = ctxt.clone();
             self.full_propagate_parallelized(&mut tmp_ctxt);
-            self.unchecked_neg(&tmp_ctxt)
+            &tmp_ctxt
+        } else {
+            ctxt
         };
-        self.full_propagate_parallelized(&mut ctxt);
-        ctxt
+
+        if self.is_eligible_for_parallel_carryless_add() {
+            let mut ct = self.unchecked_neg(ct);
+            self.propagate_single_carry_parallelized_low_latency(&mut ct);
+            ct
+        } else {
+            let mut ct = self.unchecked_neg(ct);
+            self.full_propagate_parallelized(&mut ct);
+            ct
+        }
     }
 }

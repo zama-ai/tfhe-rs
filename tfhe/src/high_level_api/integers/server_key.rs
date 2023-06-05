@@ -325,12 +325,13 @@ macro_rules! impl_default_scalar_op_for_tfhe_integer_server_key_dyn {
             type Output = RadixCiphertextDyn;
 
             fn $default_trait_fn(&self, lhs: &RadixCiphertextDyn, rhs: u64) -> Self::Output {
+                let value: u64 = rhs.try_into().unwrap();
                 match lhs {
                     RadixCiphertextDyn::Big(lhs) => {
-                        RadixCiphertextDyn::Big(self.$method(lhs, rhs.try_into().unwrap()))
+                        RadixCiphertextDyn::Big(self.$method(lhs, value))
                     }
                     RadixCiphertextDyn::Small(lhs) => {
-                        RadixCiphertextDyn::Small(self.$method(lhs, rhs.try_into().unwrap()))
+                        RadixCiphertextDyn::Small(self.$method(lhs, value))
                     }
                 }
             }
@@ -342,13 +343,10 @@ macro_rules! impl_default_scalar_assign_op_for_tfhe_integer_server_key_dyn {
     ($default_trait:ident($default_trait_fn:ident) => $method_assign:ident) => {
         impl $default_trait<RadixCiphertextDyn, u64> for crate::integer::ServerKey {
             fn $default_trait_fn(&self, lhs: &mut RadixCiphertextDyn, rhs: u64) {
+                let value: u64 = rhs.try_into().unwrap();
                 match lhs {
-                    RadixCiphertextDyn::Big(lhs) => {
-                        self.$method_assign(lhs, rhs.try_into().unwrap())
-                    }
-                    RadixCiphertextDyn::Small(lhs) => {
-                        self.$method_assign(lhs, rhs.try_into().unwrap())
-                    }
+                    RadixCiphertextDyn::Big(lhs) => self.$method_assign(lhs, value),
+                    RadixCiphertextDyn::Small(lhs) => self.$method_assign(lhs, value),
                 }
             }
         }

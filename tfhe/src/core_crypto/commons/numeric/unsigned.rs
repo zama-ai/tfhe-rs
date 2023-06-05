@@ -67,6 +67,8 @@ pub trait UnsignedInteger:
     #[must_use]
     fn wrapping_shr(self, rhs: u32) -> Self;
     #[must_use]
+    fn overflowing_add(self, rhs: Self) -> (Self, bool);
+    #[must_use]
     fn is_power_of_two(self) -> bool;
     /// Return the casting of the current value to the signed type of the same size.
     fn into_signed(self) -> Self::Signed;
@@ -139,6 +141,10 @@ macro_rules! implement {
             #[inline]
             fn wrapping_pow(self, exp: u32) -> Self {
                 self.wrapping_pow(exp)
+            }
+            #[inline]
+            fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+                self.overflowing_add(rhs)
             }
             #[inline]
             fn is_power_of_two(self) -> bool {

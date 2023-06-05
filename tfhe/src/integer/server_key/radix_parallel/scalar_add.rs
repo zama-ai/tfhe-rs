@@ -1,6 +1,11 @@
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::PBSOrderMarker;
+
+use rayon::prelude::*;
+
+use super::add::AddExtraOne;
 
 impl ServerKey {
     /// Computes homomorphically the addition of ciphertext with a scalar.
@@ -29,11 +34,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_add_parallelized<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+        scalar: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
@@ -66,11 +75,14 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_add_assign_parallelized<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) {
+        scalar: T,
+    ) where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
@@ -112,11 +124,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn scalar_add_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn scalar_add_parallelized<PBSOrder, T>(
         &self,
         ct: &RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+        scalar: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
         let mut ct_res = ct.clone();
         self.scalar_add_assign_parallelized(&mut ct_res, scalar);
         ct_res
@@ -157,15 +173,50 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn scalar_add_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn scalar_add_assign_parallelized<PBSOrder, T>(
         &self,
         ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) {
+        scalar: T,
+    ) where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         };
-        self.unchecked_scalar_add_assign(ct, scalar);
-        self.full_propagate_parallelized(ct);
+
+        if self.is_eligible_for_parallel_carryless_add() {
+            let generates_or_propagates =
+                self.scalar_add_and_generate_init_carry_array(ct, scalar, AddExtraOne::No);
+            let input_carries =
+                self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
+            ct.blocks
+                .par_iter_mut()
+                .zip(input_carries.par_iter())
+                .for_each(|(block, carry_in)| {
+                    self.key.unchecked_add_assign(block, carry_in);
+                    self.key.message_extract_assign(block);
+                });
+        } else {
+            self.unchecked_scalar_add_assign(ct, scalar);
+            self.full_propagate_parallelized(ct);
+        }
+    }
+
+    fn scalar_add_and_generate_init_carry_array<PBSOrder, T>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        scalar: T,
+        add_extra_one: AddExtraOne,
+    ) -> Vec<crate::shortint::CiphertextBase<PBSOrder>>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.unchecked_scalar_add_assign(lhs, scalar);
+        if matches!(add_extra_one, AddExtraOne::Yes) {
+            self.key.unchecked_scalar_add_assign(&mut lhs.blocks[0], 1);
+        }
+        self.generate_init_carry_array(lhs)
     }
 }

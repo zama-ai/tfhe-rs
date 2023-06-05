@@ -1105,11 +1105,22 @@ fn integer_unchecked_scalar_sub(param: ClassicPBSParameters) {
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
 
+    // To force having one case where we subtract zero
+    {
+        let clear_0 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
+        let ct_res = sks.unchecked_scalar_sub(&ctxt_0, 0u64);
+
+        let dec_res: u64 = cks.decrypt_radix(&ct_res);
+
+        assert_eq!(clear_0, dec_res);
+    }
+
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
-
         // encryption of an integer
         let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
 
@@ -1120,7 +1131,7 @@ fn integer_unchecked_scalar_sub(param: ClassicPBSParameters) {
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         // assert
-        assert_eq!((clear_0 - clear_1) % modulus, dec_res);
+        assert_eq!((clear_0.wrapping_sub(clear_1)) % modulus, dec_res);
     }
 }
 
@@ -1166,11 +1177,11 @@ fn integer_smart_scalar_sub(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) {
-    // This is a regression test. The purpose here is to check if the number of decomposition
-    // blocks doesn't exceed 64 bits. This is why we test only 128 bits size.
-    // If overflow occurs the test case will panic.
+    // This is a regression test.
+    //
+    // The purpose here is to check the behaviour when the scalar value has less bits
+    // than the ciphertext.
 
-    // RNG
     let mut rng = rand::thread_rng();
 
     let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
