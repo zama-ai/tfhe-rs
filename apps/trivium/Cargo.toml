@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tfhe = { path = "../../tfhe", features = [ "boolean", "shortint", "integer", "x86_64-unix" ] }
+tfhe = { path = "../../tfhe", features = [ "boolean", "shortint", "integer", "nightly-avx512", "x86_64-unix" ] }
 rayon = { version = "1.7.0"}
 
 [dev-dependencies]
