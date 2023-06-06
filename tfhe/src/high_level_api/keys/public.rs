@@ -5,6 +5,8 @@
 #[cfg(feature = "boolean")]
 use crate::high_level_api::booleans::{BooleanCompressedPublicKey, BooleanPublicKey};
 use crate::high_level_api::errors::{UninitializedPublicKey, UnwrapResultExt};
+#[cfg(feature = "integer")]
+use crate::high_level_api::integers::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
 #[cfg(feature = "shortint")]
 use crate::high_level_api::shortints::{ShortIntCompressedPublicKey, ShortIntPublicKey};
 
@@ -186,6 +188,79 @@ macro_rules! impl_ref_key_from_compressed_public_keychain {
                     .as_ref()
                     .ok_or(crate::high_level_api::errors::UninitializedPublicKey($enum_variant))
             }
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct CompactPublicKey {
+    #[cfg(feature = "integer")]
+    pub(in crate::high_level_api) integer_key: IntegerCompactPublicKey,
+}
+
+impl CompactPublicKey {
+    /// Creates a CompactPublicKey
+    ///
+    /// Compared to the  [PublicKey], this one is much smaller
+    /// however it supports less parameters.
+    ///
+    /// # Panic
+    ///
+    /// This will panic if parameters are not compatible
+    pub fn new(client_key: &ClientKey) -> Self {
+        #[cfg(feature = "integer")]
+        {
+            Self {
+                integer_key: IntegerCompactPublicKey::new(&client_key.integer_key),
+            }
+        }
+        #[cfg(not(feature = "integer"))]
+        {
+            let _ = client_key;
+            Self {}
+        }
+    }
+
+    pub fn try_new(client_key: &ClientKey) -> Option<Self> {
+        #[cfg(feature = "integer")]
+        {
+            Some(Self {
+                integer_key: IntegerCompactPublicKey::try_new(&client_key.integer_key)?,
+            })
+        }
+        #[cfg(not(feature = "integer"))]
+        {
+            let _ = client_key;
+            Some(Self {})
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct CompressedCompactPublicKey {
+    #[cfg(feature = "integer")]
+    pub(in crate::high_level_api) integer_key: IntegerCompressedCompactPublicKey,
+}
+
+impl CompressedCompactPublicKey {
+    pub fn new(client_key: &ClientKey) -> Self {
+        #[cfg(feature = "integer")]
+        {
+            Self {
+                integer_key: IntegerCompressedCompactPublicKey::new(&client_key.integer_key),
+            }
+        }
+        #[cfg(not(feature = "integer"))]
+        {
+            let _ = client_key;
+            Self {}
+        }
+    }
+
+    pub fn decompress(self) -> CompactPublicKey {
+        CompactPublicKey {
+            #[cfg(feature = "integer")]
+            integer_key: self.integer_key.decompress(),
         }
     }
 }

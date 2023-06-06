@@ -67,6 +67,8 @@ pub use parameters::{
     MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
 };
 pub use public_key::{
+    CompactPublicKeyBase, CompactPublicKeyBig, CompactPublicKeySmall,
+    CompressedCompactPublicKeyBase, CompressedCompactPublicKeyBig, CompressedCompactPublicKeySmall,
     CompressedPublicKeyBase, CompressedPublicKeyBig, CompressedPublicKeySmall, PublicKeyBase,
     PublicKeyBig, PublicKeySmall,
 };

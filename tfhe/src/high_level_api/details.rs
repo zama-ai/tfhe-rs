@@ -60,6 +60,24 @@ macro_rules! define_key_structs {
                 )*
             }
 
+            impl [<$base_struct_name ClientKey>] {
+                pub(crate) fn with_seed(
+                    config: [<$base_struct_name Config>],
+                    seed: ::concrete_csprng::seeders::Seed
+                ) -> Self {
+                    Self {
+                        $(
+                            [<$name _params>]: None,
+                            [<$name _key>]: config
+                                .[<$name _params>]
+                                .map(|params| {
+                                    <[<$base_ty_name ClientKey>]>::with_seed(params, seed)
+                                }),
+                        )*
+                    }
+                }
+            }
+
             impl From<[<$base_struct_name Config>]> for [<$base_struct_name ClientKey>] {
                 fn from(config: [<$base_struct_name Config>]) -> Self {
                     Self {

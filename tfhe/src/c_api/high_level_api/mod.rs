@@ -7,4 +7,6 @@ pub mod config;
 pub mod integers;
 pub mod keys;
 #[cfg(feature = "integer")]
+pub mod u128;
+#[cfg(feature = "integer")]
 pub mod u256;

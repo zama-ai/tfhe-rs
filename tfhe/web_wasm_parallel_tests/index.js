@@ -24,7 +24,16 @@ async function setup() {
     );
     const demos = await Comlink.wrap(worker).demos;
 
-    const demoNames = ['publicKeyTest', 'compressedPublicKeyTest']
+    const demoNames = [
+        'publicKeyTest',
+        'compressedPublicKeyTest',
+        'compactPublicKeyTest32BitBig',
+        'compactPublicKeyTest32BitSmall',
+        'compactPublicKeyTest256BitBig',
+        'compactPublicKeyTest256BitSmall',
+        'compressedCompactPublicKeyTest256BitBig',
+        'compressedCompactPublicKeyTest256BitSmall'
+    ]
 
     function setupBtn(id) {
         // Handlers are named in the same way as buttons.
@@ -32,6 +41,7 @@ async function setup() {
 
         let button = document.getElementById(id);
         if (button === null) {
+            console.error("button with id: ", id , "not found")
             return null;
         }
 
@@ -42,11 +52,12 @@ async function setup() {
                 document.getElementById("testSuccess").checked = false
                 setButtonsDisabledState(demoNames, true);
 
+                console.log("Running: ", id)
                 try {
                     await fn()
                     document.getElementById("testSuccess").checked = true
                 } catch (error) {
-                    console.error(error)
+                    console.error(`Test Failed: ${error}`)
                     document.getElementById("testSuccess").checked = false
                 }
                 document.getElementById("loader").hidden = true

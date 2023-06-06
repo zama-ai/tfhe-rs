@@ -3,14 +3,20 @@ use std::os::raw::c_int;
 
 pub struct ClientKey(pub(crate) crate::high_level_api::ClientKey);
 pub struct PublicKey(pub(crate) crate::high_level_api::PublicKey);
+pub struct CompactPublicKey(pub(crate) crate::high_level_api::CompactPublicKey);
+pub struct CompressedCompactPublicKey(pub(crate) crate::high_level_api::CompressedCompactPublicKey);
 pub struct ServerKey(pub(crate) crate::high_level_api::ServerKey);
 
 impl_destroy_on_type!(ClientKey);
 impl_destroy_on_type!(PublicKey);
+impl_destroy_on_type!(CompactPublicKey);
+impl_destroy_on_type!(CompressedCompactPublicKey);
 impl_destroy_on_type!(ServerKey);
 
 impl_serialize_deserialize_on_type!(ClientKey);
 impl_serialize_deserialize_on_type!(PublicKey);
+impl_serialize_deserialize_on_type!(CompactPublicKey);
+impl_serialize_deserialize_on_type!(CompressedCompactPublicKey);
 impl_serialize_deserialize_on_type!(ServerKey);
 
 #[no_mangle]
@@ -67,5 +73,45 @@ pub unsafe extern "C" fn public_key_new(
         let inner = crate::high_level_api::PublicKey::new(&client_key.0);
 
         *result_public_key = Box::into_raw(Box::new(PublicKey(inner)));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn compact_public_key_new(
+    client_key: *const ClientKey,
+    result_public_key: *mut *mut CompactPublicKey,
+) -> c_int {
+    catch_panic(|| {
+        let client_key = get_ref_checked(client_key).unwrap();
+        let inner = crate::high_level_api::CompactPublicKey::new(&client_key.0);
+
+        *result_public_key = Box::into_raw(Box::new(CompactPublicKey(inner)));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn compressed_compact_public_key_new(
+    client_key: *const ClientKey,
+    result_public_key: *mut *mut CompressedCompactPublicKey,
+) -> c_int {
+    catch_panic(|| {
+        let client_key = get_ref_checked(client_key).unwrap();
+        let inner = crate::high_level_api::CompressedCompactPublicKey::new(&client_key.0);
+
+        *result_public_key = Box::into_raw(Box::new(CompressedCompactPublicKey(inner)));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn compressed_compact_public_key_decompress(
+    public_key: *const CompressedCompactPublicKey,
+    result_public_key: *mut *mut CompactPublicKey,
+) -> c_int {
+    catch_panic(|| {
+        let public_key = get_ref_checked(public_key).unwrap();
+
+        *result_public_key = Box::into_raw(Box::new(CompactPublicKey(
+            public_key.0.clone().decompress(),
+        )));
     })
 }

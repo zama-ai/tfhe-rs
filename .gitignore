@@ -12,3 +12,4 @@ target/
 
 # Some of our bench outputs
 /tfhe/benchmarks_parameters
+/tfhe/shortint_key_sizes.csv

@@ -278,7 +278,7 @@ pub fn glwe_ciphertext_mask_size(
 ///
 /// **Remark:** Observe that the decryption is followed by a decoding phase that will contain a
 /// rounding.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GlweCiphertext<C: Container>
 where
     C::Element: UnsignedInteger,

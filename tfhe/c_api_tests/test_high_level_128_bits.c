@@ -9,22 +9,24 @@ int uint128_client_key(const ClientKey *client_key) {
   FheUint128 *lhs = NULL;
   FheUint128 *rhs = NULL;
   FheUint128 *result = NULL;
+  U128 lhs_clear = {10, 20};
+  U128 rhs_clear = {1, 2};
+  U128 result_clear = {0};
 
-  ok = fhe_uint128_try_encrypt_with_client_key_u128(10, 20, client_key, &lhs);
+  ok = fhe_uint128_try_encrypt_with_client_key_u128(lhs_clear, client_key, &lhs);
   assert(ok == 0);
 
-  ok = fhe_uint128_try_encrypt_with_client_key_u128(1, 2, client_key, &rhs);
+  ok = fhe_uint128_try_encrypt_with_client_key_u128(rhs_clear, client_key, &rhs);
   assert(ok == 0);
 
   ok = fhe_uint128_sub(lhs, rhs, &result);
   assert(ok == 0);
 
-  uint64_t w0, w1;
-  ok = fhe_uint128_decrypt(result, client_key, &w0, &w1);
+  ok = fhe_uint128_decrypt(result, client_key, &result_clear);
   assert(ok == 0);
 
-  assert(w0 == 9);
-  assert(w1 == 18);
+  assert(result_clear.w0 == 9);
+  assert(result_clear.w1 == 18);
 
   fhe_uint128_destroy(lhs);
   fhe_uint128_destroy(rhs);
@@ -37,22 +39,24 @@ int uint128_encrypt_trivial(const ClientKey *client_key) {
   FheUint128 *lhs = NULL;
   FheUint128 *rhs = NULL;
   FheUint128 *result = NULL;
-
-  ok = fhe_uint128_try_encrypt_trivial_u128(10, 20, &lhs);
+  U128 lhs_clear = {10, 20};
+  U128 rhs_clear = {1, 2};
+  U128 result_clear = {0};
+  
+  ok = fhe_uint128_try_encrypt_trivial_u128(lhs_clear, &lhs);
   assert(ok == 0);
 
-  ok = fhe_uint128_try_encrypt_trivial_u128(1, 2, &rhs);
+  ok = fhe_uint128_try_encrypt_trivial_u128(rhs_clear, &rhs);
   assert(ok == 0);
 
   ok = fhe_uint128_sub(lhs, rhs, &result);
   assert(ok == 0);
 
-  uint64_t w0, w1;
-  ok = fhe_uint128_decrypt(result, client_key, &w0, &w1);
+  ok = fhe_uint128_decrypt(result, client_key, &result_clear);
   assert(ok == 0);
 
-  assert(w0 == 9);
-  assert(w1 == 18);
+  assert(result_clear.w0 == 9);
+  assert(result_clear.w1 == 18);
 
   fhe_uint128_destroy(lhs);
   fhe_uint128_destroy(rhs);
@@ -65,22 +69,24 @@ int uint128_public_key(const ClientKey *client_key, const PublicKey *public_key)
   FheUint128 *lhs = NULL;
   FheUint128 *rhs = NULL;
   FheUint128 *result = NULL;
+  U128 lhs_clear = {10, 20};
+  U128 rhs_clear = {1, 2};
+  U128 result_clear = {0};
 
-  ok = fhe_uint128_try_encrypt_with_public_key_u128(1, 2, public_key, &lhs);
+  ok = fhe_uint128_try_encrypt_with_public_key_u128(lhs_clear, public_key, &lhs);
   assert(ok == 0);
 
-  ok = fhe_uint128_try_encrypt_with_public_key_u128(10, 20, public_key, &rhs);
+  ok = fhe_uint128_try_encrypt_with_public_key_u128(rhs_clear, public_key, &rhs);
   assert(ok == 0);
 
   ok = fhe_uint128_add(lhs, rhs, &result);
   assert(ok == 0);
 
-  uint64_t w0, w1;
-  ok = fhe_uint128_decrypt(result, client_key, &w0, &w1);
+  ok = fhe_uint128_decrypt(result, client_key, &result_clear);
   assert(ok == 0);
 
-  assert(w0 == 11);
-  assert(w1 == 22);
+  assert(result_clear.w0 == 11);
+  assert(result_clear.w1 == 22);
 
   fhe_uint128_destroy(lhs);
   fhe_uint128_destroy(rhs);

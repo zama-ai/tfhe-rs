@@ -359,6 +359,66 @@ impl<OpOrder: PBSOrderMarker> From<CompressedCiphertextBase<OpOrder>> for Cipher
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CompactCiphertextList<OpOrder: PBSOrderMarker> {
+    pub ct_list: LweCompactCiphertextListOwned<u64>,
+    pub degree: Degree,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub _order_marker: PhantomData<OpOrder>,
+}
+
+impl<OpOrder: PBSOrderMarker> CompactCiphertextList<OpOrder> {
+    pub fn expand(&self) -> Vec<CiphertextBase<OpOrder>> {
+        let mut output_lwe_ciphertext_list = LweCiphertextList::new(
+            0u64,
+            self.ct_list.lwe_size(),
+            self.ct_list.lwe_ciphertext_count(),
+            self.ct_list.ciphertext_modulus(),
+        );
+
+        // No parallelism allowed
+        #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
+        {
+            use crate::core_crypto::prelude::expand_lwe_compact_ciphertext_list;
+            expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
+        }
+
+        // Parallelism allowed
+        #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
+        {
+            use crate::core_crypto::prelude::par_expand_lwe_compact_ciphertext_list;
+            par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
+        }
+
+        output_lwe_ciphertext_list
+            .as_ref()
+            .chunks_exact(self.ct_list.lwe_size().0)
+            .map(|lwe_data| {
+                let ct = LweCiphertext::from_container(
+                    lwe_data.to_vec(),
+                    self.ct_list.ciphertext_modulus(),
+                );
+                CiphertextBase {
+                    ct,
+                    degree: self.degree,
+                    message_modulus: self.message_modulus,
+                    carry_modulus: self.carry_modulus,
+                    _order_marker: self._order_marker,
+                }
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn size_elements(&self) -> usize {
+        self.ct_list.size_elements()
+    }
+
+    pub fn size_bytes(&self) -> usize {
+        self.ct_list.size_bytes()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{BootstrapKeyswitch, KeyswitchBootstrap};

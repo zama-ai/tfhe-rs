@@ -7,7 +7,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
 /// A [`seeded GLWE ciphertext`](`SeededGlweCiphertext`).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SeededGlweCiphertext<C: Container>
 where
     C::Element: UnsignedInteger,

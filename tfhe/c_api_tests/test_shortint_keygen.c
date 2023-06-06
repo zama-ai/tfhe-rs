@@ -8,16 +8,13 @@
 void test_predefined_keygen_w_serde(void) {
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
-  ShortintParameters *params = NULL;
   ShortintCiphertext *ct = NULL;
   Buffer ct_ser_buffer = {.pointer = NULL, .length = 0};
   ShortintCiphertext *deser_ct = NULL;
   ShortintCompressedCiphertext *cct = NULL;
   ShortintCompressedCiphertext *deser_cct = NULL;
   ShortintCiphertext *decompressed_ct = NULL;
-
-  int get_params_ok = shortint_get_parameters(2, 2, &params);
-  assert(get_params_ok == 0);
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
@@ -67,7 +64,6 @@ void test_predefined_keygen_w_serde(void) {
 
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);
-  destroy_shortint_parameters(params);
   destroy_shortint_ciphertext(ct);
   destroy_shortint_ciphertext(deser_ct);
   destroy_shortint_compressed_ciphertext(cct);
@@ -79,11 +75,8 @@ void test_predefined_keygen_w_serde(void) {
 void test_server_key_trivial_encrypt(void) {
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
-  ShortintParameters *params = NULL;
   ShortintCiphertext *ct = NULL;
-
-  int get_params_ok = shortint_get_parameters(2, 2, &params);
-  assert(get_params_ok == 0);
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
@@ -99,24 +92,32 @@ void test_server_key_trivial_encrypt(void) {
 
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);
-  destroy_shortint_parameters(params);
   destroy_shortint_ciphertext(ct);
 }
 
 void test_custom_keygen(void) {
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
-  ShortintParameters *params = NULL;
-
-  int params_ok = shortint_create_parameters(10, 1, 1024, 10e-100, 10e-100, 2, 3, 2, 3, 2, 2, 64,
-                                             ShortintEncryptionKeyChoiceBig, &params);
-  assert(params_ok == 0);
+  ShortintPBSParameters params = {
+      .lwe_dimension = 10,
+      .glwe_dimension = 1,
+      .polynomial_size = 1024,
+      .lwe_modular_std_dev = 10e-100,
+      .glwe_modular_std_dev = 10e-100,
+      .pbs_base_log = 2,
+      .pbs_level = 3,
+      .ks_base_log = 2,
+      .ks_level = 3,
+      .message_modulus = 2,
+      .carry_modulus = 2,
+      .modulus_power_of_2_exponent = 64,
+      .encryption_key_choice = ShortintEncryptionKeyChoiceBig,
+  };
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
 
   assert(gen_keys_ok == 0);
 
-  destroy_shortint_parameters(params);
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);
 }
@@ -125,12 +126,9 @@ void test_public_keygen(ShortintPublicKeyKind pk_kind) {
   ShortintClientKey *cks = NULL;
   ShortintPublicKey *pks = NULL;
   ShortintPublicKey *pks_deser = NULL;
-  ShortintParameters *params = NULL;
   ShortintCiphertext *ct = NULL;
   Buffer pks_ser_buff = {.pointer = NULL, .length = 0};
-
-  int get_params_ok = shortint_get_parameters(2, 2, &params);
-  assert(get_params_ok == 0);
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
 
   int gen_keys_ok = shortint_gen_client_key(params, &cks);
   assert(gen_keys_ok == 0);
@@ -156,7 +154,6 @@ void test_public_keygen(ShortintPublicKeyKind pk_kind) {
 
   assert(result == 2);
 
-  destroy_shortint_parameters(params);
   destroy_shortint_client_key(cks);
   destroy_shortint_public_key(pks);
   destroy_shortint_public_key(pks_deser);
@@ -168,11 +165,8 @@ void test_compressed_public_keygen(ShortintPublicKeyKind pk_kind) {
   ShortintClientKey *cks = NULL;
   ShortintCompressedPublicKey *cpks = NULL;
   ShortintPublicKey *pks = NULL;
-  ShortintParameters *params = NULL;
   ShortintCiphertext *ct = NULL;
-
-  int get_params_ok = shortint_get_parameters(2, 2, &params);
-  assert(get_params_ok == 0);
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
 
   int gen_keys_ok = shortint_gen_client_key(params, &cks);
   assert(gen_keys_ok == 0);
@@ -203,7 +197,6 @@ void test_compressed_public_keygen(ShortintPublicKeyKind pk_kind) {
 
   assert(result == 2);
 
-  destroy_shortint_parameters(params);
   destroy_shortint_client_key(cks);
   destroy_shortint_compressed_public_key(cpks);
   destroy_shortint_public_key(pks);

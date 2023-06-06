@@ -10,14 +10,9 @@ int uint256_client_key(const ClientKey *client_key) {
   FheUint256 *rhs = NULL;
   FheUint256 *result = NULL;
   FheUint64 *cast_result = NULL;
-  U256 *lhs_clear = NULL;
-  U256 *rhs_clear = NULL;
-  U256 *result_clear = NULL;
-
-  ok = u256_from_u64_words(1, 2, 3, 4, &lhs_clear);
-  assert(ok == 0);
-  ok = u256_from_u64_words(5, 6, 7, 8, &rhs_clear);
-  assert(ok == 0);
+  U256 lhs_clear = {1 , 2, 3, 4};
+  U256 rhs_clear = {5, 6, 7, 8};
+  U256 result_clear = { 0 };
 
   ok = fhe_uint256_try_encrypt_with_client_key_u256(lhs_clear, client_key, &lhs);
   assert(ok == 0);
@@ -31,14 +26,10 @@ int uint256_client_key(const ClientKey *client_key) {
   ok = fhe_uint256_decrypt(result, client_key, &result_clear);
   assert(ok == 0);
 
-  uint64_t w0, w1, w2, w3;
-  ok = u256_to_u64_words(result_clear, &w0, &w1, &w2, &w3);
-  assert(ok == 0);
-
-  assert(w0 == 6);
-  assert(w1 == 8);
-  assert(w2 == 10);
-  assert(w3 == 12);
+  assert(result_clear.w0 == 6);
+  assert(result_clear.w1 == 8);
+  assert(result_clear.w2 == 10);
+  assert(result_clear.w3 == 12);
 
   // try some casting
   ok = fhe_uint256_cast_into_fhe_uint64(result, &cast_result);
@@ -48,9 +39,6 @@ int uint256_client_key(const ClientKey *client_key) {
   assert(ok == 0);
   assert(u64_clear == 6);
 
-  u256_destroy(lhs_clear);
-  u256_destroy(rhs_clear);
-  u256_destroy(result_clear);
   fhe_uint256_destroy(lhs);
   fhe_uint256_destroy(rhs);
   fhe_uint256_destroy(result);
@@ -63,14 +51,9 @@ int uint256_encrypt_trivial(const ClientKey *client_key) {
   FheUint256 *lhs = NULL;
   FheUint256 *rhs = NULL;
   FheUint256 *result = NULL;
-  U256 *lhs_clear = NULL;
-  U256 *rhs_clear = NULL;
-  U256 *result_clear = NULL;
-
-  ok = u256_from_u64_words(1, 2, 3, 4, &lhs_clear);
-  assert(ok == 0);
-  ok = u256_from_u64_words(5, 6, 7, 8, &rhs_clear);
-  assert(ok == 0);
+  U256 lhs_clear = {1 , 2, 3, 4};
+  U256 rhs_clear = {5, 6, 7, 8};
+  U256 result_clear = { 0 };
 
   ok = fhe_uint256_try_encrypt_trivial_u256(lhs_clear, &lhs);
   assert(ok == 0);
@@ -84,18 +67,11 @@ int uint256_encrypt_trivial(const ClientKey *client_key) {
   ok = fhe_uint256_decrypt(result, client_key, &result_clear);
   assert(ok == 0);
 
-  uint64_t w0, w1, w2, w3;
-  ok = u256_to_u64_words(result_clear, &w0, &w1, &w2, &w3);
-  assert(ok == 0);
+  assert(result_clear.w0 == 6);
+  assert(result_clear.w1 == 8);
+  assert(result_clear.w2 == 10);
+  assert(result_clear.w3 == 12);
 
-  assert(w0 == 6);
-  assert(w1 == 8);
-  assert(w2 == 10);
-  assert(w3 == 12);
-
-  u256_destroy(lhs_clear);
-  u256_destroy(rhs_clear);
-  u256_destroy(result_clear);
   fhe_uint256_destroy(lhs);
   fhe_uint256_destroy(rhs);
   fhe_uint256_destroy(result);
@@ -107,14 +83,9 @@ int uint256_public_key(const ClientKey *client_key, const PublicKey *public_key)
   FheUint256 *lhs = NULL;
   FheUint256 *rhs = NULL;
   FheUint256 *result = NULL;
-  U256 *lhs_clear = NULL;
-  U256 *rhs_clear = NULL;
-  U256 *result_clear = NULL;
-
-  ok = u256_from_u64_words(5, 6, 7, 8, &lhs_clear);
-  assert(ok == 0);
-  ok = u256_from_u64_words(1, 2, 3, 4, &rhs_clear);
-  assert(ok == 0);
+  U256 lhs_clear = {5, 6, 7, 8};
+  U256 rhs_clear = {1 , 2, 3, 4};
+  U256 result_clear = { 0 };
 
   ok = fhe_uint256_try_encrypt_with_public_key_u256(lhs_clear, public_key, &lhs);
   assert(ok == 0);
@@ -128,18 +99,11 @@ int uint256_public_key(const ClientKey *client_key, const PublicKey *public_key)
   ok = fhe_uint256_decrypt(result, client_key, &result_clear);
   assert(ok == 0);
 
-  uint64_t w0, w1, w2, w3;
-  ok = u256_to_u64_words(result_clear, &w0, &w1, &w2, &w3);
-  assert(ok == 0);
+  assert(result_clear.w0 == 4);
+  assert(result_clear.w1 == 4);
+  assert(result_clear.w2 == 4);
+  assert(result_clear.w3 == 4);
 
-  assert(w0 == 4);
-  assert(w1 == 4);
-  assert(w2 == 4);
-  assert(w3 == 4);
-
-  u256_destroy(lhs_clear);
-  u256_destroy(rhs_clear);
-  u256_destroy(result_clear);
   fhe_uint256_destroy(lhs);
   fhe_uint256_destroy(rhs);
   fhe_uint256_destroy(result);

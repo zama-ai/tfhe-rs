@@ -44,8 +44,9 @@ macro_rules! create_wrapper_type_non_native_type(
         {
             type_name: $type_name:ident,
             compressed_type_name: $compressed_type_name:ident,
-            rust_type: $rust_type:ty
-            $(,)?
+            compact_type_name: $compact_type_name:ident,
+            compact_list_type_name: $compact_list_type_name:ident,
+            rust_type: $rust_type:ty $(,)?
         }
     ) => {
         #[wasm_bindgen]
@@ -96,6 +97,20 @@ macro_rules! create_wrapper_type_non_native_type(
             }
 
             #[wasm_bindgen]
+            pub fn encrypt_with_compact_public_key(
+                value: JsValue,
+                compact_public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+            ) -> Result<$type_name, JsError> {
+                catch_panic_result(|| {
+                    let value = <$rust_type>::try_from(value)
+                        .map_err(|_| JsError::new(&format!("Failed to convert the value to a {}", stringify!($rust_type))))?;
+                    crate::high_level_api::$type_name::try_encrypt(value, &compact_public_key.0)
+                        .map($type_name)
+                        .map_err(into_js_error)
+                })
+            }
+
+            #[wasm_bindgen]
             pub fn decrypt(
                 &self,
                 client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheClientKey,
@@ -122,6 +137,7 @@ macro_rules! create_wrapper_type_non_native_type(
                 })
             }
         }
+
         #[wasm_bindgen]
         pub struct $compressed_type_name(pub(crate) crate::high_level_api::$compressed_type_name);
 
@@ -164,14 +180,113 @@ macro_rules! create_wrapper_type_non_native_type(
                 })
             }
         }
+
+        #[wasm_bindgen]
+        pub struct $compact_type_name(pub(crate) crate::high_level_api::$compact_type_name);
+
+        #[wasm_bindgen]
+        impl $compact_type_name {
+            #[wasm_bindgen]
+            pub fn encrypt_with_compact_public_key(
+                value: JsValue,
+                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+            ) -> Result<$compact_type_name, JsError> {
+                catch_panic_result(|| {
+                    let value = <$rust_type>::try_from(value)
+                        .map_err(|_| JsError::new(&format!("Failed to convert the value to a {}", stringify!($rust_type))))?;
+                    crate::high_level_api::$compact_type_name::try_encrypt(value, &client_key.0)
+                        .map($compact_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn expand(
+                &self,
+            ) -> Result<$type_name, JsError> {
+                catch_panic(||{
+                    $type_name(self.0.expand())
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
+                catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
+            }
+
+            #[wasm_bindgen]
+            pub fn deserialize(buffer: &[u8]) -> Result<$compact_type_name, JsError> {
+                catch_panic_result(|| {
+                    bincode::deserialize(buffer)
+                        .map($compact_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+        }
+
+        #[wasm_bindgen]
+        pub struct $compact_list_type_name(pub(crate) crate::high_level_api::$compact_list_type_name);
+
+        #[wasm_bindgen]
+        impl $compact_list_type_name {
+            #[wasm_bindgen]
+            pub fn encrypt_with_compact_public_key(
+                values: Vec<JsValue>,
+                public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+            ) -> Result<$compact_list_type_name, JsError> {
+                catch_panic_result(|| {
+                    let values = values
+                        .into_iter()
+                        .map(|value| {
+                            <$rust_type>::try_from(value)
+                                .map_err(|_| {
+                                    JsError::new(&format!("Failed to convert the value to a {}", stringify!($rust_type)))
+                                })
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    crate::high_level_api::$compact_list_type_name::try_encrypt(&values, &public_key.0)
+                        .map($compact_list_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn expand(
+                &self,
+            ) -> Result<Vec<JsValue>, JsError> {
+                catch_panic(||{
+                    self.0.expand()
+                        .into_iter()
+                        .map($type_name)
+                        .map(JsValue::from)
+                        .collect::<Vec<_>>()
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
+                catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
+            }
+
+            #[wasm_bindgen]
+            pub fn deserialize(buffer: &[u8]) -> Result<$compact_list_type_name, JsError> {
+                catch_panic_result(|| {
+                    bincode::deserialize(buffer)
+                        .map($compact_list_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+        }
     };
+
     (
         $(
             {
                 type_name: $type_name:ident,
                 compressed_type_name: $compressed_type_name:ident,
-                rust_type: $rust_type:ty
-                $(,)?
+                compact_type_name: $compact_type_name:ident,
+                compact_list_type_name: $compact_list_type_name:ident,
+                rust_type: $rust_type:ty $(,)?
             }
         ),*
         $(,)?
@@ -181,6 +296,8 @@ macro_rules! create_wrapper_type_non_native_type(
                 {
                     type_name: $type_name,
                     compressed_type_name: $compressed_type_name,
+                    compact_type_name: $compact_type_name,
+                    compact_list_type_name: $compact_list_type_name,
                     rust_type: $rust_type
                 }
             );
@@ -192,13 +309,17 @@ create_wrapper_type_non_native_type!(
     {
         type_name: FheUint128,
         compressed_type_name: CompressedFheUint128,
+        compact_type_name: CompactFheUint128,
+        compact_list_type_name: CompactFheUint128List,
         rust_type: u128,
     },
     {
         type_name: FheUint256,
         compressed_type_name: CompressedFheUint256,
+        compact_type_name: CompactFheUint256,
+        compact_list_type_name: CompactFheUint256List,
         rust_type: U256,
-    },
+    }
 );
 
 // We use this macro to define wasm wrapper for
@@ -209,8 +330,9 @@ macro_rules! create_wrapper_type_that_has_native_type(
         {
             type_name: $type_name:ident,
             compressed_type_name: $compressed_type_name:ident,
-            native_type: $native_type:ty
-            $(,)?
+            compact_type_name: $compact_type_name:ident,
+            compact_list_type_name: $compact_list_type_name:ident,
+            native_type: $native_type:ty $(,)?
         }
     ) => {
         #[wasm_bindgen]
@@ -253,6 +375,19 @@ macro_rules! create_wrapper_type_that_has_native_type(
                         .map_err(into_js_error)
                 })
             }
+
+            #[wasm_bindgen]
+            pub fn encrypt_with_compact_public_key(
+                value: $native_type,
+                compact_public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+            ) -> Result<$type_name, JsError> {
+                catch_panic_result(|| {
+                    crate::high_level_api::$type_name::try_encrypt(value, &compact_public_key.0)
+                        .map($type_name)
+                        .map_err(into_js_error)
+                })
+            }
+
 
             #[wasm_bindgen]
             pub fn decrypt(
@@ -316,14 +451,102 @@ macro_rules! create_wrapper_type_that_has_native_type(
                 })
             }
         }
+
+        #[wasm_bindgen]
+        pub struct $compact_type_name(pub(crate) crate::high_level_api::$compact_type_name);
+
+        #[wasm_bindgen]
+        impl $compact_type_name {
+            #[wasm_bindgen]
+            pub fn encrypt_with_compact_public_key(
+                value: $native_type,
+                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+            ) -> Result<$compact_type_name, JsError> {
+                catch_panic_result(|| {
+                    crate::high_level_api::$compact_type_name::try_encrypt(value, &client_key.0)
+                        .map($compact_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn expand(
+                &self,
+            ) -> Result<$type_name, JsError> {
+                catch_panic(||{
+                    $type_name(self.0.expand())
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
+                catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
+            }
+
+            #[wasm_bindgen]
+            pub fn deserialize(buffer: &[u8]) -> Result<$compact_type_name, JsError> {
+                catch_panic_result(|| {
+                    bincode::deserialize(buffer)
+                        .map($compact_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+        }
+
+        #[wasm_bindgen]
+        pub struct $compact_list_type_name(pub(crate) crate::high_level_api::$compact_list_type_name);
+
+        #[wasm_bindgen]
+        impl $compact_list_type_name {
+            #[wasm_bindgen]
+            pub fn encrypt_with_compact_public_key(
+                values: Vec<$native_type>,
+                public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+            ) -> Result<$compact_list_type_name, JsError> {
+                catch_panic_result(|| {
+                    crate::high_level_api::$compact_list_type_name::try_encrypt(&values, &public_key.0)
+                        .map($compact_list_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn expand(
+                &self,
+            ) -> Result<Vec<JsValue>, JsError> {
+                catch_panic(||{
+                    self.0.expand()
+                        .into_iter()
+                        .map($type_name)
+                        .map(JsValue::from)
+                        .collect::<Vec<_>>()
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
+                catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
+            }
+
+            #[wasm_bindgen]
+            pub fn deserialize(buffer: &[u8]) -> Result<$compact_list_type_name, JsError> {
+                catch_panic_result(|| {
+                    bincode::deserialize(buffer)
+                        .map($compact_list_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+        }
+
     };
     (
         $(
             {
                 type_name: $type_name:ident,
                 compressed_type_name: $compressed_type_name:ident,
-                native_type: $native_type:ty
-                $(,)?
+                compact_type_name: $compact_type_name:ident,
+                compact_list_type_name: $compact_list_type_name:ident,
+                native_type: $native_type:ty $(,)?
             }
         ),*
         $(,)?
@@ -333,6 +556,8 @@ macro_rules! create_wrapper_type_that_has_native_type(
                 {
                     type_name: $type_name,
                     compressed_type_name: $compressed_type_name,
+                    compact_type_name: $compact_type_name,
+                    compact_list_type_name: $compact_list_type_name,
                     native_type: $native_type
                 }
             );
@@ -344,21 +569,29 @@ create_wrapper_type_that_has_native_type!(
     {
         type_name: FheUint8,
         compressed_type_name: CompressedFheUint8,
+        compact_type_name: CompactFheUint8,
+        compact_list_type_name: CompactFheUint8List,
         native_type: u8,
     },
     {
         type_name: FheUint16,
         compressed_type_name: CompressedFheUint16,
+        compact_type_name: CompactFheUint16,
+        compact_list_type_name: CompactFheUint16List,
         native_type: u16,
     },
     {
         type_name: FheUint32,
         compressed_type_name: CompressedFheUint32,
+        compact_type_name: CompactFheUint32,
+        compact_list_type_name: CompactFheUint32List,
         native_type: u32,
     },
     {
         type_name: FheUint64,
         compressed_type_name: CompressedFheUint64,
+        compact_type_name: CompactFheUint64,
+        compact_list_type_name: CompactFheUint64List,
         native_type: u64,
     },
 );

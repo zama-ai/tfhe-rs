@@ -19,5 +19,8 @@ pub use super::parameters::{
     PARAM_MESSAGE_2_CARRY_6, PARAM_MESSAGE_3_CARRY_3, PARAM_MESSAGE_3_CARRY_4,
     PARAM_MESSAGE_3_CARRY_5, PARAM_MESSAGE_4_CARRY_4,
 };
-pub use super::public_key::{PublicKeyBase, PublicKeyBig, PublicKeySmall};
+pub use super::public_key::{
+    CompactPublicKeyBase, CompactPublicKeyBig, CompactPublicKeySmall, PublicKeyBase, PublicKeyBig,
+    PublicKeySmall,
+};
 pub use super::server_key::ServerKey;

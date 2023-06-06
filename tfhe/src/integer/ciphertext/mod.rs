@@ -30,6 +30,58 @@ pub type RadixCiphertextSmall = BaseRadixCiphertext<CiphertextSmall>;
 pub type CompressedRadixCiphertextBig = BaseRadixCiphertext<CompressedCiphertextBig>;
 pub type CompressedRadixCiphertextSmall = BaseRadixCiphertext<CompressedCiphertextSmall>;
 
+pub type CompactCiphertextListBig = CompactCiphertextList<KeyswitchBootstrap>;
+pub type CompactCiphertextListSmall = CompactCiphertextList<BootstrapKeyswitch>;
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct CompactCiphertextList<PBSOrder: PBSOrderMarker> {
+    pub(crate) ct_list: crate::shortint::ciphertext::CompactCiphertextList<PBSOrder>,
+    // Keep track of the num_blocks, as we allow
+    // storing many integer that have the same num_blocks
+    // into ct_list
+    pub(crate) num_blocks: usize,
+}
+
+impl<PBSOrder: PBSOrderMarker> CompactCiphertextList<PBSOrder> {
+    pub fn expand_one(&self) -> RadixCiphertext<PBSOrder> {
+        let mut blocks = self.ct_list.expand();
+        blocks.truncate(self.num_blocks);
+        RadixCiphertext::from(blocks)
+    }
+
+    pub fn ciphertext_count(&self) -> usize {
+        self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks
+    }
+
+    pub fn expand(&self) -> Vec<RadixCiphertext<PBSOrder>> {
+        let mut all_block_iter = self.ct_list.expand().into_iter();
+        let num_ct = self.ciphertext_count();
+        let mut ciphertexts = Vec::with_capacity(num_ct);
+
+        for _ in 0..num_ct {
+            let ct_blocks = all_block_iter
+                .by_ref()
+                .take(self.num_blocks)
+                .collect::<Vec<_>>();
+            if ct_blocks.len() < self.num_blocks {
+                break;
+            }
+            let ct = RadixCiphertext::from(ct_blocks);
+            ciphertexts.push(ct);
+        }
+
+        ciphertexts
+    }
+
+    pub fn size_elements(&self) -> usize {
+        self.ct_list.size_elements()
+    }
+
+    pub fn size_bytes(&self) -> usize {
+        self.ct_list.size_bytes()
+    }
+}
+
 impl<PBSOrder: PBSOrderMarker> RadixCiphertext<PBSOrder> {
     pub fn block_carries_are_empty(&self) -> bool {
         self.blocks.iter().all(|block| block.carry_is_empty())

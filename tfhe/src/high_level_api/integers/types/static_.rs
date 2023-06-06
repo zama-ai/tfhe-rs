@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use super::base::GenericInteger;
 use crate::high_level_api::integers::parameters::{EvaluationIntegerKey, IntegerParameter};
+use crate::high_level_api::integers::types::compact::{
+    GenericCompactInteger, GenericCompactIntegerList,
+};
 use crate::high_level_api::integers::types::compressed::CompressedGenericInteger;
 use crate::high_level_api::internal_traits::{ParameterType, TypeIdentifier};
 #[cfg(feature = "internal-keycache")]
@@ -67,6 +70,11 @@ macro_rules! static_int_type {
             #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<Compressed $name>] = CompressedGenericInteger<[<$name Parameters>]>;
 
+            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
+            pub type [<Compact $name>] = GenericCompactInteger<[<$name Parameters>]>;
+
+            #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
+            pub type [<Compact $name List>] = GenericCompactIntegerList<[<$name Parameters>]>;
 
             impl $crate::high_level_api::keys::RefKeyFromKeyChain for [<FheUint $num_bits Id>] {
                 type Key = crate::integer::ClientKey;

@@ -59,6 +59,49 @@ macro_rules! impl_try_encrypt_with_public_key_on_type {
     };
 }
 
+macro_rules! impl_try_encrypt_with_compact_public_key_on_type {
+    ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn  [<$wrapper_type:snake _try_encrypt_with_compact_public_key_ $input_type:snake>](
+                value: $input_type,
+                public_key: *const $crate::c_api::high_level_api::keys::CompactPublicKey,
+                result: *mut *mut $wrapper_type,
+            ) -> ::std::os::raw::c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let public_key = $crate::c_api::utils::get_ref_checked(public_key).unwrap();
+
+                    let inner = <$wrapped_type>::try_encrypt(value, &public_key.0).unwrap();
+
+                    *result = Box::into_raw(Box::new($wrapper_type(inner)));
+                })
+            }
+        }
+    };
+}
+
+macro_rules! impl_try_encrypt_list_with_compact_public_key_on_type {
+    ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn  [<$wrapper_type:snake _try_encrypt_with_compact_public_key_ $input_type:snake>](
+                input: *const $input_type,
+                input_len: usize,
+                public_key: *const $crate::c_api::high_level_api::keys::CompactPublicKey,
+                result: *mut *mut $wrapper_type,
+            ) -> ::std::os::raw::c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let public_key = $crate::c_api::utils::get_ref_checked(public_key).unwrap();
+                    let slc = ::std::slice::from_raw_parts(input, input_len);
+                    let inner = <$wrapped_type>::try_encrypt(slc, &public_key.0).unwrap();
+
+                    *result = Box::into_raw(Box::new($wrapper_type(inner)));
+                })
+            }
+        }
+    };
+}
+
 macro_rules! impl_try_encrypt_trivial_on_type {
     ($wrapper_type:ty{$wrapped_type:ty}, $input_type:ty) => {
         ::paste::paste! {

@@ -83,7 +83,12 @@ experimental-force_fft_algo_dif4 = []
 __c_api = ["cbindgen", "bincode"]
 boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
-high-level-c-api = ["boolean", "shortint", "integer", "__c_api"]
+high-level-c-api = [
+    "boolean-c-api",
+    "shortint-c-api",
+    "integer",
+    "__c_api"
+]
 
 __wasm_api = [
     "wasm-bindgen",
@@ -199,6 +204,10 @@ required-features = ["integer", "internal-keycache"]
 [[example]]
 name = "shortint_key_sizes"
 required-features = ["shortint", "internal-keycache"]
+
+[[example]]
+name = "integer_compact_pk_ct_sizes"
+required-features = ["integer", "internal-keycache"]
 
 [[example]]
 name = "micro_bench_and"

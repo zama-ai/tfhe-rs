@@ -232,7 +232,13 @@ test_boolean: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
 
 .PHONY: test_c_api # Run the tests for the C API
-test_c_api: build_c_api
+test_c_api: install_rs_check_toolchain 
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api \
+		-p tfhe \
+		c_api
+	
+	"$(MAKE)" build_c_api
 	./scripts/c_api_tests.sh
 
 .PHONY: test_shortint_ci # Run the tests for shortint ci
@@ -304,13 +310,15 @@ format_doc_latex:
 	@printf "\n===============================\n"
 
 .PHONY: check_compile_tests # Build tests in debug without running them
-check_compile_tests: build_c_api
+check_compile_tests:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
 		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache \
 		-p tfhe
-		@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
-			./scripts/c_api_tests.sh --build-only; \
-		fi
+
+	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
+		"$(MAKE)" build_c_api; \
+		./scripts/c_api_tests.sh --build-only; \
+	fi
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
 build_nodejs_test_docker:

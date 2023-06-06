@@ -9,7 +9,7 @@ use crate::high_level_api::{generate_keys, ClientKey, ConfigBuilder, PublicKey};
 use crate::high_level_api::{FheUint256, FheUint8};
 #[cfg(feature = "integer")]
 use crate::integer::U256;
-use crate::{CompressedPublicKey, CompressedServerKey};
+use crate::{CompactPublicKey, CompressedPublicKey, CompressedServerKey};
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 use std::fmt::Debug;
 
@@ -129,6 +129,41 @@ fn test_server_key_decompression() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[test]
+fn test_with_seed() -> Result<(), Box<dyn std::error::Error>> {
+    use crate::Seed;
+    let mut builder = ConfigBuilder::all_disabled();
+    #[cfg(feature = "integer")]
+    {
+        builder = builder.enable_default_integers();
+    }
+    #[cfg(feature = "shortint")]
+    {
+        builder = builder.enable_default_uint2();
+    }
+    #[cfg(feature = "boolean")]
+    {
+        builder = builder.enable_default_bool();
+    }
+    let config = builder.build();
+
+    let cks1 = ClientKey::generate_with_seed(config.clone(), Seed(125));
+    let cks2 = ClientKey::generate(config.clone());
+    let cks3 = ClientKey::generate_with_seed(config.clone(), Seed(125));
+    let cks4 = ClientKey::generate_with_seed(config, Seed(127));
+
+    let cks1_serialized = bincode::serialize(&cks1).unwrap();
+    let cks2_serialized = bincode::serialize(&cks2).unwrap();
+    let cks3_serialized = bincode::serialize(&cks3).unwrap();
+    let cks4_serialized = bincode::serialize(&cks4).unwrap();
+
+    assert_eq!(&cks1_serialized, &cks3_serialized);
+    assert_ne!(&cks1_serialized, &cks2_serialized);
+    assert_ne!(&cks1_serialized, &cks4_serialized);
+
+    Ok(())
+}
+
 #[cfg(feature = "integer")]
 #[test]
 #[should_panic]
@@ -172,10 +207,12 @@ fn test_serialize_deserialize_are_implemented() {
     let pks = PublicKey::new(&cks);
     let cpks = CompressedPublicKey::new(&cks);
     let csks = CompressedServerKey::new(&cks);
+    let pksz = CompactPublicKey::new(&cks);
 
     can_be_deserialized(&cks);
     can_be_deserialized(&sks);
     can_be_deserialized(&pks);
     can_be_deserialized(&cpks);
     can_be_deserialized(&csks);
+    can_be_deserialized(&pksz);
 }

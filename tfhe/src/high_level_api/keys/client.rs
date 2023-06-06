@@ -2,6 +2,8 @@
 //!
 //! - [ClientKey] aggregates the keys used to encrypt/decrypt between normal and homomorphic types.
 
+use concrete_csprng::seeders::Seed;
+
 #[cfg(feature = "boolean")]
 use crate::high_level_api::booleans::BooleanClientKey;
 use crate::high_level_api::config::Config;
@@ -41,6 +43,19 @@ impl ClientKey {
             shortint_key: ShortIntClientKey::from(config.shortint_config),
             #[cfg(feature = "integer")]
             integer_key: IntegerClientKey::from(config.integer_config),
+        }
+    }
+
+    pub fn generate_with_seed<C: Into<Config>>(config: C, seed: Seed) -> ClientKey {
+        #[allow(unused_variables)]
+        let config: Config = config.into();
+        ClientKey {
+            #[cfg(feature = "boolean")]
+            boolean_key: BooleanClientKey::with_seed(config.boolean_config, seed),
+            #[cfg(feature = "shortint")]
+            shortint_key: ShortIntClientKey::with_seed(config.shortint_config, seed),
+            #[cfg(feature = "integer")]
+            integer_key: IntegerClientKey::with_seed(config.integer_config, seed),
         }
     }
 

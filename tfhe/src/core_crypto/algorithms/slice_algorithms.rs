@@ -1,6 +1,8 @@
 //! Module providing algorithms to perform computations on raw slices.
 
+use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_add_mul_assign;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
+use crate::core_crypto::entities::Polynomial;
 
 /// Compute a dot product between two slices containing unsigned integers.
 ///
@@ -308,4 +310,55 @@ where
 {
     lhs.iter_mut()
         .for_each(|lhs| *lhs = (*lhs).wrapping_div(rhs));
+}
+
+/// Primitive for compact LWE public key
+///
+/// Here $i$ from section 3 of <https://eprint.iacr.org/2023/603> is taken equal to $n$.
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let lhs = vec![1u8, 2u8, 3u8];
+/// let rhs = vec![4u8, 5u8, 6u8];
+/// let mut output = vec![0u8; 3];
+/// slice_semi_reverse_negacyclic_convolution(&mut output, &lhs, &rhs);
+/// assert_eq!(&output, &[(-17i8) as u8, 5, 32]);
+/// ```
+pub fn slice_semi_reverse_negacyclic_convolution<Scalar>(
+    output: &mut [Scalar],
+    lhs: &[Scalar],
+    rhs: &[Scalar],
+) where
+    Scalar: UnsignedInteger,
+{
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+    assert!(
+        output.len() == lhs.len(),
+        "output (len: {}) and lhs (len: {}) must have the same length",
+        output.len(),
+        lhs.len()
+    );
+
+    // Apply phi_1 to the rhs term
+    let mut phi_1_rhs: Vec<_> = rhs.to_vec();
+    phi_1_rhs.reverse();
+
+    let phi_1_rhs_as_polynomial = Polynomial::from_container(phi_1_rhs.as_slice());
+
+    // Clear output as we'll add the multiplication result
+    output.fill(Scalar::ZERO);
+    let mut output_as_polynomial = Polynomial::from_container(output);
+    let lhs_as_polynomial = Polynomial::from_container(lhs);
+
+    // Apply the classic negacyclic convolution via polynomial mul in the X^N + 1 ring, with the
+    // phi_1 rhs it is equivalent to the operator we need
+    polynomial_wrapping_add_mul_assign(
+        &mut output_as_polynomial,
+        &lhs_as_polynomial,
+        &phi_1_rhs_as_polynomial,
+    );
 }

@@ -27,6 +27,14 @@ impl<OpOrder: crate::shortint::PBSOrderMarker> KnowsMessageModulus
     }
 }
 
+impl<OpOrder: crate::shortint::PBSOrderMarker> KnowsMessageModulus
+    for crate::shortint::CompactPublicKeyBase<OpOrder>
+{
+    fn message_modulus(&self) -> MessageModulus {
+        self.parameters.message_modulus()
+    }
+}
+
 impl KnowsMessageModulus for crate::shortint::ServerKey {
     fn message_modulus(&self) -> MessageModulus {
         self.message_modulus
@@ -53,24 +61,32 @@ where
     F: Fn(&BlockKey, u64) -> Block,
     RadixCiphertextType: From<Vec<Block>>,
 {
-    let bits_in_block = encrypting_key.message_modulus().0.ilog2();
-    let decomposer = BlockDecomposer::new(message, bits_in_block);
-    let mut blocks = Vec::with_capacity(num_blocks);
-    for clear_block in decomposer.iter_as::<u64>().take(num_blocks) {
-        let ct = encrypt_block(encrypting_key, clear_block);
-        blocks.push(ct);
-    }
+    let message_modulus = encrypting_key.message_modulus();
+    let clear_block_iterator =
+        create_clear_radix_block_iterator(message, message_modulus, num_blocks);
 
-    // This will happen if T has less bits than
-    // bits_in_block * num_blocks
-    if blocks.len() < num_blocks {
-        for _ in 0..num_blocks - blocks.len() {
-            let ct = encrypt_block(encrypting_key, 0);
-            blocks.push(ct);
-        }
-    }
+    let blocks = clear_block_iterator
+        .map(|clear_block| encrypt_block(encrypting_key, clear_block))
+        .collect::<Vec<_>>();
 
     RadixCiphertextType::from(blocks)
+}
+
+pub(crate) fn create_clear_radix_block_iterator<T>(
+    message: T,
+    message_modulus: MessageModulus,
+    num_blocks: usize,
+) -> impl Iterator<Item = u64>
+where
+    T: DecomposableInto<u64>,
+{
+    let bits_in_block = message_modulus.0.ilog2();
+    let decomposer = BlockDecomposer::new(message, bits_in_block);
+
+    decomposer
+        .iter_as::<u64>()
+        .chain(std::iter::repeat(0u64))
+        .take(num_blocks)
 }
 
 pub(crate) fn encrypt_crt<BlockKey, Block, CrtCiphertextType, F>(
