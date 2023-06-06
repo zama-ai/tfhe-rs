@@ -57,12 +57,62 @@ impl Display for CheckError {
 
 impl std::error::Error for CheckError {}
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ShortintBootstrappingKey {
     Classic(FourierLweBootstrapKeyOwned),
-    // TODO: do not serialize ThreadCount, manage that case separately for ser/de and repopulate
-    // on deserialization
     MultiBit(FourierLweMultiBitBootstrapKeyOwned, ThreadCount),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(bound(deserialize = "C: IntoContainerOwned"))]
+enum SerializableShortintBootstrappingKey<C: Container<Element = concrete_fft::c64>> {
+    Classic(FourierLweBootstrapKey<C>),
+    MultiBit(FourierLweMultiBitBootstrapKey<C>),
+}
+
+impl Serialize for ShortintBootstrappingKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ShortintBootstrappingKey::Classic(bsk) => {
+                SerializableShortintBootstrappingKey::Classic(bsk.as_view())
+            }
+            ShortintBootstrappingKey::MultiBit(bsk, _) => {
+                SerializableShortintBootstrappingKey::MultiBit(bsk.as_view())
+            }
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let deser_sk = SerializableShortintBootstrappingKey::deserialize(deserializer)?;
+
+        match deser_sk {
+            SerializableShortintBootstrappingKey::Classic(bsk) => {
+                Ok(ShortintBootstrappingKey::Classic(bsk))
+            }
+            SerializableShortintBootstrappingKey::MultiBit(bsk) => {
+                let thread_count = ShortintEngine::with_thread_local_mut(|engine| {
+                    engine.get_thread_count_for_multi_bit_pbs(
+                        bsk.input_lwe_dimension(),
+                        bsk.glwe_size().to_glwe_dimension(),
+                        bsk.polynomial_size(),
+                        bsk.decomposition_base_log(),
+                        bsk.decomposition_level_count(),
+                        bsk.grouping_factor(),
+                    )
+                });
+                Ok(ShortintBootstrappingKey::MultiBit(bsk, thread_count))
+            }
+        }
+    }
 }
 
 impl ShortintBootstrappingKey {
