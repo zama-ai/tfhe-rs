@@ -1,4 +1,4 @@
-name: AWS Tests on CPU
+name: AWS WASM Tests on CPU
 
 env:
   CARGO_TERM_COLOR: always
@@ -33,7 +33,7 @@ on:
         type: string
 
 jobs:
-  shortint-tests:
+  wasm-tests:
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
       cancel-in-progress: true
@@ -65,33 +65,14 @@ jobs:
           toolchain: stable
           default: true
 
-      - name: Run core tests
+      - name: Run js on wasm API tests
         run: |
-          AVX512_SUPPORT=ON make test_core_crypto
+          make test_nodejs_wasm_api_in_docker
 
-      - name: Run boolean tests
+      - name: Run parallel wasm tests
         run: |
-          make test_boolean
-
-      - name: Run C API tests
-        run: |
-          make test_c_api
-
-      - name: Run user docs tests
-        run: |
-          make test_user_doc
-
-      - name: Gen Keys if required
-        run: |
-          make gen_key_cache
-
-      - name: Run shortint tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_shortint_ci
-
-      - name: Run high-level API tests
-        run: |
-          BIG_TESTS_INSTANCE=TRUE make test_high_level_api
+          make install_node
+          make ci_test_web_js_api_parallel
 
       - name: Slack Notification
         if: ${{ always() }}
@@ -101,6 +82,6 @@ jobs:
           SLACK_COLOR: ${{ job.status }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
           SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-          SLACK_MESSAGE: "Shortint tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "WASM tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
           SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

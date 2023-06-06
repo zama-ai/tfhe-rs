@@ -3,6 +3,11 @@ region = "eu-west-3"
 image_id = "ami-04deffe45b5b236fd"
 instance_type = "m6i.32xlarge"
 
+[profile.cpu-small]
+region = "eu-west-3"
+image_id = "ami-04deffe45b5b236fd"
+instance_type = "m6i.4xlarge"
+
 [profile.bench]
 region = "eu-west-3"
 image_id = "ami-04deffe45b5b236fd"
@@ -22,6 +27,11 @@ check_run_name = "CPU Integer AWS Tests"
 workflow = "aws_tfhe_multi_bit_tests.yml"
 profile = "cpu-big"
 check_run_name = "CPU AWS Multi Bit Tests"
+
+[command.cpu_wasm_test]
+workflow = "aws_tfhe_wasm_tests.yml"
+profile = "cpu-small"
+check_run_name = "CPU AWS WASM Tests"
 
 [command.integer_bench]
 workflow = "integer_benchmark.yml"
