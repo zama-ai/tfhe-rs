@@ -270,6 +270,11 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
         accumulator.ciphertext_modulus(),
     );
 
+    assert!(
+        thread_count.0 != 0,
+        "Got thread_count == 0, this is not supported"
+    );
+
     assert!(accumulator
         .ciphertext_modulus()
         .is_compatible_with_native_modulus());
@@ -803,6 +808,11 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
         "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
         input.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
+    );
+
+    assert!(
+        thread_count.0 != 0,
+        "Got thread_count == 0, this is not supported"
     );
 
     let mut local_accumulator = GlweCiphertext::new(
