@@ -19,7 +19,7 @@ pub use server_key::{ShortintCompressedServerKey, ShortintServerKey};
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_gen_keys_with_parameters(
-    shortint_parameters: *const parameters::ShortintParameters,
+    shortint_parameters: parameters::ShortintPBSParameters,
     result_client_key: *mut *mut ShortintClientKey,
     result_server_key: *mut *mut ShortintServerKey,
 ) -> c_int {
@@ -32,9 +32,10 @@ pub unsafe extern "C" fn shortint_gen_keys_with_parameters(
         *result_client_key = std::ptr::null_mut();
         *result_server_key = std::ptr::null_mut();
 
-        let shortint_parameters = get_ref_checked(shortint_parameters).unwrap();
+        let shortint_parameters: crate::shortint::parameters::ClassicPBSParameters =
+            shortint_parameters.into();
 
-        let client_key = shortint::client_key::ClientKey::new(shortint_parameters.0);
+        let client_key = shortint::client_key::ClientKey::new(shortint_parameters);
         let server_key = shortint::server_key::ServerKey::new(&client_key);
 
         let heap_allocated_client_key = Box::new(ShortintClientKey(client_key));

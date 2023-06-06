@@ -1,7 +1,8 @@
+use crate::core_crypto::commons::generators::DeterministicSeeder;
+pub use crate::core_crypto::commons::math::random::Seed;
+use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use bincode;
 use wasm_bindgen::prelude::*;
-
-use super::js_wasm_seeder;
 
 use std::panic::set_hook;
 
@@ -70,6 +71,84 @@ impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::Encrypti
             }
         }
     }
+}
+
+macro_rules! expose_predefined_parameters {
+    (
+        $(
+            $param_name:ident
+        ),*
+        $(,)?
+    ) => {
+        #[wasm_bindgen]
+        #[allow(non_camel_case_types)]
+        pub enum ShortintParametersName {
+            $(
+                $param_name,
+            )*
+        }
+
+        #[wasm_bindgen]
+        impl ShortintParameters {
+            #[wasm_bindgen(constructor)]
+            pub fn new(name: ShortintParametersName) -> Self {
+                match name {
+                    $(
+                        ShortintParametersName::$param_name => {
+                            Self(crate::shortint::parameters::$param_name)
+                        }
+                    )*
+                }
+            }
+        }
+    }
+}
+
+expose_predefined_parameters! {
+    PARAM_MESSAGE_1_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_1,
+    PARAM_MESSAGE_2_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_2,
+    PARAM_MESSAGE_2_CARRY_1,
+    PARAM_MESSAGE_3_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_3,
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_1,
+    PARAM_MESSAGE_4_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_4,
+    PARAM_MESSAGE_2_CARRY_3,
+    PARAM_MESSAGE_3_CARRY_2,
+    PARAM_MESSAGE_4_CARRY_1,
+    PARAM_MESSAGE_5_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_5,
+    PARAM_MESSAGE_2_CARRY_4,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_2,
+    PARAM_MESSAGE_5_CARRY_1,
+    PARAM_MESSAGE_6_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_6,
+    PARAM_MESSAGE_2_CARRY_5,
+    PARAM_MESSAGE_3_CARRY_4,
+    PARAM_MESSAGE_4_CARRY_3,
+    PARAM_MESSAGE_5_CARRY_2,
+    PARAM_MESSAGE_6_CARRY_1,
+    PARAM_MESSAGE_7_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_7,
+    PARAM_MESSAGE_2_CARRY_6,
+    PARAM_MESSAGE_3_CARRY_5,
+    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MESSAGE_5_CARRY_3,
+    PARAM_MESSAGE_6_CARRY_2,
+    PARAM_MESSAGE_7_CARRY_1,
+    PARAM_MESSAGE_8_CARRY_0,
+
+    PARAM_SMALL_MESSAGE_1_CARRY_1,
+    PARAM_SMALL_MESSAGE_2_CARRY_2,
+    PARAM_SMALL_MESSAGE_3_CARRY_3,
+    PARAM_SMALL_MESSAGE_4_CARRY_4,
+
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
+    PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
 }
 
 #[wasm_bindgen]
@@ -198,14 +277,8 @@ impl Shortint {
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
 
-        let mut constant_seeder = Box::new(js_wasm_seeder::ConstantSeeder::new(
-            crate::core_crypto::commons::math::random::Seed(seed),
-        ));
-
-        let mut tmp_shortint_engine =
-            crate::shortint::engine::ShortintEngine::new_from_seeder(constant_seeder.as_mut());
-
-        tmp_shortint_engine
+        let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(seed));
+        crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
             .new_client_key(parameters.0.try_into().unwrap())
             .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(ShortintClientKey)

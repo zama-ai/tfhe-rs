@@ -1,9 +1,32 @@
 #![allow(unused_doc_comments)]
+
+#[allow(unused)]
+macro_rules! expand_pub_use_fhe_type(
+    (
+       pub use $module_path:path { $($fhe_type_name:ident),* $(,)? };
+    )=> {
+
+        ::paste::paste! {
+            pub use $module_path::{
+                $(
+                    $fhe_type_name,
+                    [<Compressed $fhe_type_name>],
+                    [<Compact $fhe_type_name>],
+                    [<Compact $fhe_type_name List>],
+                )*
+            };
+
+        }
+    }
+);
+
+pub use crate::core_crypto::commons::math::random::Seed;
 pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, OutOfRangeError};
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
 pub use keys::{
-    generate_keys, ClientKey, CompressedPublicKey, CompressedServerKey, PublicKey, ServerKey,
+    generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
+    CompressedServerKey, PublicKey, ServerKey,
 };
 
 #[cfg(test)]
@@ -12,12 +35,12 @@ mod tests;
 #[cfg(feature = "boolean")]
 pub use crate::high_level_api::booleans::{CompressedFheBool, FheBool, FheBoolParameters};
 #[cfg(feature = "integer")]
-pub use crate::high_level_api::integers::{
-    CompressedFheUint10, CompressedFheUint12, CompressedFheUint128, CompressedFheUint14,
-    CompressedFheUint16, CompressedFheUint256, CompressedFheUint32, CompressedFheUint64,
-    CompressedFheUint8, FheUint10, FheUint12, FheUint128, FheUint14, FheUint16, FheUint256,
-    FheUint32, FheUint64, FheUint8, GenericInteger,
-};
+expand_pub_use_fhe_type!(
+    pub use crate::high_level_api::integers{
+        FheUint8, FheUint10, FheUint12, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128,
+        FheUint256
+    };
+);
 #[cfg(feature = "shortint")]
 pub use crate::high_level_api::shortints::{
     CompressedFheUint2, CompressedFheUint3, CompressedFheUint4, FheUint2, FheUint2Parameters,

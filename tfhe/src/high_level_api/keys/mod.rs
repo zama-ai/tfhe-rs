@@ -7,7 +7,8 @@ mod server;
 use crate::high_level_api::config::Config;
 pub use client::{ClientKey, RefKeyFromKeyChain};
 pub use public::{
-    CompressedPublicKey, PublicKey, RefKeyFromCompressedPublicKeyChain, RefKeyFromPublicKeyChain,
+    CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
+    RefKeyFromCompressedPublicKeyChain, RefKeyFromPublicKeyChain,
 };
 pub use server::{CompressedServerKey, ServerKey};
 

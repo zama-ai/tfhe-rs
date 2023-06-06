@@ -21,6 +21,19 @@ impl TfheClientKey {
     }
 
     #[wasm_bindgen]
+    pub fn generate_with_seed(
+        config: &TfheConfig,
+        seed: JsValue,
+    ) -> Result<TfheClientKey, JsError> {
+        catch_panic_result(|| {
+            let seed =
+                u128::try_from(seed).map_err(|_| JsError::new("Value does not fit in a u128"))?;
+            let key = hlapi::ClientKey::generate_with_seed(config.0.clone(), crate::Seed(seed));
+            Ok(Self(key))
+        })
+    }
+
+    #[wasm_bindgen]
     pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
         catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
     }
@@ -124,5 +137,60 @@ impl TfheCompressedPublicKey {
                 .map(Self)
                 .map_err(into_js_error)
         })
+    }
+}
+
+#[wasm_bindgen]
+pub struct TfheCompactPublicKey(pub(crate) hlapi::CompactPublicKey);
+
+#[wasm_bindgen]
+impl TfheCompactPublicKey {
+    #[wasm_bindgen]
+    pub fn new(client_key: &TfheClientKey) -> Result<TfheCompactPublicKey, JsError> {
+        catch_panic(|| Self(hlapi::CompactPublicKey::new(&client_key.0)))
+    }
+
+    #[wasm_bindgen]
+    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
+        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
+    }
+
+    #[wasm_bindgen]
+    pub fn deserialize(buffer: &[u8]) -> Result<TfheCompactPublicKey, JsError> {
+        catch_panic_result(|| {
+            bincode::deserialize(buffer)
+                .map(Self)
+                .map_err(into_js_error)
+        })
+    }
+}
+
+#[wasm_bindgen]
+pub struct TfheCompressedCompactPublicKey(pub(crate) hlapi::CompressedCompactPublicKey);
+
+#[wasm_bindgen]
+impl TfheCompressedCompactPublicKey {
+    #[wasm_bindgen]
+    pub fn new(client_key: &TfheClientKey) -> Result<TfheCompressedCompactPublicKey, JsError> {
+        catch_panic(|| Self(hlapi::CompressedCompactPublicKey::new(&client_key.0)))
+    }
+
+    #[wasm_bindgen]
+    pub fn serialize(&self) -> Result<Vec<u8>, JsError> {
+        catch_panic_result(|| bincode::serialize(&self.0).map_err(into_js_error))
+    }
+
+    #[wasm_bindgen]
+    pub fn deserialize(buffer: &[u8]) -> Result<TfheCompressedCompactPublicKey, JsError> {
+        catch_panic_result(|| {
+            bincode::deserialize(buffer)
+                .map(Self)
+                .map_err(into_js_error)
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn decompress(&self) -> Result<TfheCompactPublicKey, JsError> {
+        catch_panic(|| TfheCompactPublicKey(self.0.clone().decompress()))
     }
 }

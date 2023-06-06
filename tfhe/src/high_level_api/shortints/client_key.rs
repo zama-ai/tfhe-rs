@@ -7,6 +7,10 @@ use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::ClientKey;
 
 use super::parameters::ShortIntegerParameter;
+use concrete_csprng::seeders::Seed;
+
+use crate::core_crypto::commons::generators::DeterministicSeeder;
+use crate::core_crypto::prelude::ActivatedRandomGenerator;
 
 /// The key associated to a short integer type
 ///
@@ -15,6 +19,23 @@ use super::parameters::ShortIntegerParameter;
 pub struct GenericShortIntClientKey<P: ShortIntegerParameter> {
     pub(super) key: ClientKey,
     _marker: PhantomData<P>,
+}
+
+impl<P> GenericShortIntClientKey<P>
+where
+    P: ShortIntegerParameter,
+{
+    pub(crate) fn with_seed(parameters: P, seed: Seed) -> Self {
+        let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let key = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
+            .new_client_key(parameters.into().into())
+            .unwrap();
+
+        Self {
+            key,
+            _marker: PhantomData,
+        }
+    }
 }
 
 impl<P> From<P> for GenericShortIntClientKey<P>

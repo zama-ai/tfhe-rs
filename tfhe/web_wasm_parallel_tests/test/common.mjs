@@ -12,6 +12,7 @@ async function runActualTest(page, buttonId) {
     const testSuccessCheckbox = await page.waitForSelector(
         successCheckBoxSelector
     );
+    await page.waitForSelector(buttonSelector)
 
     const isCheckedBefore = await testSuccessCheckbox?.evaluate(el => el.checked);
     expect(isCheckedBefore).toBe(false);
@@ -28,7 +29,6 @@ async function runActualTest(page, buttonId) {
 }
 
 async function runTestAttachedToButton(buttonId) {
-    console.log(puppeteer.launch)
     let browser
     if (isRoot()) {
         browser = await puppeteer.launch({
@@ -45,7 +45,7 @@ async function runTestAttachedToButton(buttonId) {
 
     await page.goto('http://localhost:3000');
     page.on('console', msg => console.log('PAGE LOG:', msg.text()));
-
+ 
     await page.reload({ waitUntil: ["networkidle0", "domcontentloaded"] });
 
     let errorCaught = null;

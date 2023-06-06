@@ -8,6 +8,7 @@ use std::os::raw::c_int;
 use crate::shortint;
 
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub enum ShortintEncryptionKeyChoice {
     ShortintEncryptionKeyChoiceBig,
     ShortintEncryptionKeyChoiceSmall,
@@ -26,13 +27,185 @@ impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::Encrypti
     }
 }
 
-pub struct ShortintParameters(pub(in crate::c_api) shortint::parameters::ClassicPBSParameters);
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct ShortintPBSParameters {
+    pub lwe_dimension: usize,
+    pub glwe_dimension: usize,
+    pub polynomial_size: usize,
+    pub lwe_modular_std_dev: f64,
+    pub glwe_modular_std_dev: f64,
+    pub pbs_base_log: usize,
+    pub pbs_level: usize,
+    pub ks_base_log: usize,
+    pub ks_level: usize,
+    pub message_modulus: usize,
+    pub carry_modulus: usize,
+    pub modulus_power_of_2_exponent: usize,
+    pub encryption_key_choice: ShortintEncryptionKeyChoice,
+}
+
+impl From<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
+    fn from(c_params: ShortintPBSParameters) -> Self {
+        Self {
+            lwe_dimension: LweDimension(c_params.lwe_dimension),
+            glwe_dimension: GlweDimension(c_params.glwe_dimension),
+            polynomial_size: PolynomialSize(c_params.polynomial_size),
+            lwe_modular_std_dev: StandardDev(c_params.lwe_modular_std_dev),
+            glwe_modular_std_dev: StandardDev(c_params.glwe_modular_std_dev),
+            pbs_base_log: DecompositionBaseLog(c_params.pbs_base_log),
+            pbs_level: DecompositionLevelCount(c_params.pbs_level),
+            ks_base_log: DecompositionBaseLog(c_params.ks_base_log),
+            ks_level: DecompositionLevelCount(c_params.ks_level),
+            message_modulus: crate::shortint::parameters::MessageModulus(c_params.message_modulus),
+            carry_modulus: crate::shortint::parameters::CarryModulus(c_params.carry_modulus),
+            ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
+                c_params.modulus_power_of_2_exponent,
+            )
+            .unwrap(),
+            encryption_key_choice: c_params.encryption_key_choice.into(),
+        }
+    }
+}
+
+impl From<crate::shortint::ClassicPBSParameters> for ShortintPBSParameters {
+    fn from(rust_params: crate::shortint::ClassicPBSParameters) -> Self {
+        Self::convert(rust_params)
+    }
+}
+
+impl ShortintEncryptionKeyChoice {
+    // From::from cannot be marked as const, so we have to have
+    // our own function
+    const fn convert(rust_choice: crate::shortint::EncryptionKeyChoice) -> Self {
+        match rust_choice {
+            crate::shortint::EncryptionKeyChoice::Big => Self::ShortintEncryptionKeyChoiceBig,
+            crate::shortint::EncryptionKeyChoice::Small => Self::ShortintEncryptionKeyChoiceSmall,
+        }
+    }
+}
+
+const fn convert_modulus(rust_modulus: crate::shortint::CiphertextModulus) -> usize {
+    if rust_modulus.is_native_modulus() {
+        64 // shortints are on 64 bits
+    } else {
+        assert!(rust_modulus.is_power_of_two());
+        let modulus = rust_modulus.get_custom_modulus();
+        let exponent = modulus.ilog2() as usize;
+        assert!(exponent <= 64);
+        exponent
+    }
+}
+
+impl ShortintPBSParameters {
+    const fn convert(rust_params: crate::shortint::ClassicPBSParameters) -> Self {
+        Self {
+            lwe_dimension: rust_params.lwe_dimension.0,
+            glwe_dimension: rust_params.glwe_dimension.0,
+            polynomial_size: rust_params.polynomial_size.0,
+            lwe_modular_std_dev: rust_params.lwe_modular_std_dev.0,
+            glwe_modular_std_dev: rust_params.glwe_modular_std_dev.0,
+            pbs_base_log: rust_params.pbs_base_log.0,
+            pbs_level: rust_params.pbs_level.0,
+            ks_base_log: rust_params.ks_base_log.0,
+            ks_level: rust_params.ks_level.0,
+            message_modulus: rust_params.message_modulus.0,
+            carry_modulus: rust_params.carry_modulus.0,
+            modulus_power_of_2_exponent: convert_modulus(rust_params.ciphertext_modulus),
+            encryption_key_choice: ShortintEncryptionKeyChoice::convert(
+                rust_params.encryption_key_choice,
+            ),
+        }
+    }
+}
+
+macro_rules! expose_as_shortint_pbs_parameters(
+    (
+        $(
+            $param_name:ident
+        ),*
+        $(,)?
+    ) => {
+        ::paste::paste!{
+            $(
+                #[no_mangle]
+                pub static [<SHORTINT_ $param_name>]: ShortintPBSParameters =
+                    ShortintPBSParameters::convert(crate::shortint::parameters::$param_name);
+
+            )*
+        }
+
+        // Test that converting a param from its rust struct
+        // to the c struct and then to the rust struct again
+        // yields the same values as the original struct
+        //
+        // This is what will essentially happen in the real code
+        #[test]
+        fn test_shortint_pbs_parameters_roundtrip_c_rust() {
+            $(
+                // 1 scope for each parameters
+                {
+                    let rust_params = crate::shortint::parameters::$param_name;
+                    let c_params = ShortintPBSParameters::from(rust_params);
+                    let rust_params_from_c = crate::shortint::parameters::ClassicPBSParameters::from(c_params);
+                    assert_eq!(rust_params, rust_params_from_c);
+                }
+            )*
+        }
+    }
+);
+
+expose_as_shortint_pbs_parameters!(
+    PARAM_MESSAGE_1_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_1,
+    PARAM_MESSAGE_2_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_2,
+    PARAM_MESSAGE_2_CARRY_1,
+    PARAM_MESSAGE_3_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_3,
+    PARAM_MESSAGE_2_CARRY_2,
+    PARAM_MESSAGE_3_CARRY_1,
+    PARAM_MESSAGE_4_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_4,
+    PARAM_MESSAGE_2_CARRY_3,
+    PARAM_MESSAGE_3_CARRY_2,
+    PARAM_MESSAGE_4_CARRY_1,
+    PARAM_MESSAGE_5_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_5,
+    PARAM_MESSAGE_2_CARRY_4,
+    PARAM_MESSAGE_3_CARRY_3,
+    PARAM_MESSAGE_4_CARRY_2,
+    PARAM_MESSAGE_5_CARRY_1,
+    PARAM_MESSAGE_6_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_6,
+    PARAM_MESSAGE_2_CARRY_5,
+    PARAM_MESSAGE_3_CARRY_4,
+    PARAM_MESSAGE_4_CARRY_3,
+    PARAM_MESSAGE_5_CARRY_2,
+    PARAM_MESSAGE_6_CARRY_1,
+    PARAM_MESSAGE_7_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_7,
+    PARAM_MESSAGE_2_CARRY_6,
+    PARAM_MESSAGE_3_CARRY_5,
+    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MESSAGE_5_CARRY_3,
+    PARAM_MESSAGE_6_CARRY_2,
+    PARAM_MESSAGE_7_CARRY_1,
+    PARAM_MESSAGE_8_CARRY_0,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
+    // Small params
+    PARAM_SMALL_MESSAGE_1_CARRY_1,
+    PARAM_SMALL_MESSAGE_2_CARRY_2,
+    PARAM_SMALL_MESSAGE_3_CARRY_3,
+    PARAM_SMALL_MESSAGE_4_CARRY_4,
+    PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+);
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_get_parameters(
     message_bits: u32,
     carry_bits: u32,
-    result: *mut *mut ShortintParameters,
+    result: *mut ShortintPBSParameters,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
@@ -76,12 +249,8 @@ pub unsafe extern "C" fn shortint_get_parameters(
             _ => None,
         };
 
-        match params {
-            Some(params) => {
-                let params = Box::new(ShortintParameters(params));
-                *result = Box::into_raw(params);
-            }
-            None => *result = std::ptr::null_mut(),
+        if let Some(params) = params {
+            *result = params.into();
         }
     })
 }
@@ -90,7 +259,7 @@ pub unsafe extern "C" fn shortint_get_parameters(
 pub unsafe extern "C" fn shortint_get_parameters_small(
     message_bits: u32,
     carry_bits: u32,
-    result: *mut *mut ShortintParameters,
+    result: *mut ShortintPBSParameters,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
@@ -102,62 +271,8 @@ pub unsafe extern "C" fn shortint_get_parameters_small(
             _ => None,
         };
 
-        match params {
-            Some(params) => {
-                let params = Box::new(ShortintParameters(params));
-                *result = Box::into_raw(params);
-            }
-            None => *result = std::ptr::null_mut(),
+        if let Some(params) = params {
+            *result = params.into();
         }
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn shortint_create_parameters(
-    lwe_dimension: usize,
-    glwe_dimension: usize,
-    polynomial_size: usize,
-    lwe_modular_std_dev: f64,
-    glwe_modular_std_dev: f64,
-    pbs_base_log: usize,
-    pbs_level: usize,
-    ks_base_log: usize,
-    ks_level: usize,
-    message_modulus: usize,
-    carry_modulus: usize,
-    modulus_power_of_2_exponent: usize,
-    encryption_key_choice: ShortintEncryptionKeyChoice,
-    result: *mut *mut ShortintParameters,
-) -> c_int {
-    catch_panic(|| {
-        check_ptr_is_non_null_and_aligned(result).unwrap();
-
-        // First fill the result with a null ptr so that if we fail and the return code is not
-        // checked, then any access to the result pointer will segfault (mimics malloc on failure)
-        *result = std::ptr::null_mut();
-
-        let heap_allocated_parameters = Box::new(ShortintParameters(
-            shortint::parameters::ClassicPBSParameters {
-                lwe_dimension: LweDimension(lwe_dimension),
-                glwe_dimension: GlweDimension(glwe_dimension),
-                polynomial_size: PolynomialSize(polynomial_size),
-                lwe_modular_std_dev: StandardDev(lwe_modular_std_dev),
-                glwe_modular_std_dev: StandardDev(glwe_modular_std_dev),
-                pbs_base_log: DecompositionBaseLog(pbs_base_log),
-                pbs_level: DecompositionLevelCount(pbs_level),
-                ks_base_log: DecompositionBaseLog(ks_base_log),
-                ks_level: DecompositionLevelCount(ks_level),
-                message_modulus: crate::shortint::parameters::MessageModulus(message_modulus),
-                carry_modulus: crate::shortint::parameters::CarryModulus(carry_modulus),
-                ciphertext_modulus:
-                    crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
-                        modulus_power_of_2_exponent,
-                    )
-                    .unwrap(),
-                encryption_key_choice: encryption_key_choice.into(),
-            },
-        ));
-
-        *result = Box::into_raw(heap_allocated_parameters);
     })
 }

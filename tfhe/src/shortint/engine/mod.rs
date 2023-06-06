@@ -189,17 +189,17 @@ pub(crate) type EngineResult<T> = Result<T, EngineError>;
 /// This structs actually implements the logics into its methods.
 pub struct ShortintEngine {
     /// A structure containing a single CSPRNG to generate secret key coefficients.
-    secret_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
+    pub(crate) secret_generator: SecretRandomGenerator<ActivatedRandomGenerator>,
     /// A structure containing two CSPRNGs to generate material for encryption like public masks
     /// and secret errors.
     ///
     /// The [`EncryptionRandomGenerator`] contains two CSPRNGs, one publicly seeded used to
     /// generate mask coefficients and one privately seeded used to generate errors during
     /// encryption.
-    encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
+    pub(crate) encryption_generator: EncryptionRandomGenerator<ActivatedRandomGenerator>,
     /// A seeder that can be called to generate 128 bits seeds, useful to create new
     /// [`EncryptionRandomGenerator`] to encrypt seeded types.
-    seeder: DeterministicSeeder<ActivatedRandomGenerator>,
+    pub(crate) seeder: DeterministicSeeder<ActivatedRandomGenerator>,
     computation_buffers: ComputationBuffers,
     ciphertext_buffers: Memory,
 }

@@ -1,9 +1,12 @@
+use rand::Rng;
+
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::integer::U256;
 use crate::{
-    CompressedFheUint16, CompressedFheUint256, CompressedPublicKey, FheUint128, FheUint16,
-    FheUint256, FheUint32, FheUint64,
+    CompactFheUint32, CompactFheUint32List, CompactPublicKey, CompressedFheUint16,
+    CompressedFheUint256, CompressedPublicKey, Config, FheUint128, FheUint16, FheUint256,
+    FheUint32, FheUint64,
 };
 
 #[test]
@@ -217,6 +220,98 @@ fn test_decompressed_public_key_encrypt() {
 
     let compressed_public_key = CompressedPublicKey::new(&client_key);
     let public_key = compressed_public_key.decompress();
+
+    let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
+    let clear: u8 = a.decrypt(&client_key);
+    assert_eq!(clear, 255u8);
+}
+
+#[test]
+fn test_compact_public_key_big() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_custom_integers(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
+            None,
+        )
+        .build();
+    let (client_key, _) = generate_keys(config);
+
+    let public_key = CompactPublicKey::new(&client_key);
+
+    let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
+    let clear: u8 = a.decrypt(&client_key);
+    assert_eq!(clear, 255u8);
+}
+
+#[test]
+fn test_compact_public_key_list_big() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_custom_integers(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
+            None,
+        )
+        .build();
+    test_compact_public_key_list(config);
+}
+
+#[test]
+fn test_compact_public_key_list_small() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_custom_integers(
+            crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+            None,
+        )
+        .build();
+    test_compact_public_key_list(config);
+}
+
+fn test_compact_public_key_list(config: Config) {
+    let (client_key, server_key) = generate_keys(config);
+
+    let public_key = CompactPublicKey::new(&client_key);
+
+    let mut rng = rand::thread_rng();
+
+    let clear_xs = (0..50).map(|_| rng.gen::<u32>()).collect::<Vec<_>>();
+    let clear_ys = (0..50).map(|_| rng.gen::<u32>()).collect::<Vec<_>>();
+
+    let compacted_xs = CompactFheUint32List::encrypt(&clear_xs, &public_key);
+    let compacted_ys = CompactFheUint32List::encrypt(&clear_ys, &public_key);
+
+    let exs = compacted_xs.expand();
+    let eys = compacted_ys.expand();
+
+    set_server_key(server_key);
+
+    let encrypted_results = exs.iter().zip(eys).map(|(x, y)| x + y).collect::<Vec<_>>();
+    let clear_results = clear_xs
+        .iter()
+        .zip(clear_ys)
+        .map(|(x, y)| x + y)
+        .collect::<Vec<_>>();
+
+    for (encrypted, clear) in encrypted_results.iter().zip(clear_results) {
+        let decrypted: u32 = encrypted.decrypt(&client_key);
+        assert_eq!(clear, decrypted);
+    }
+
+    let compact_single = CompactFheUint32::encrypt(clear_xs[0], &public_key);
+    let a = compact_single.expand();
+    let decrypted: u32 = a.decrypt(&client_key);
+    assert_eq!(clear_xs[0], decrypted);
+}
+
+#[test]
+fn test_compact_public_key_small() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_custom_integers(
+            crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+            None,
+        )
+        .build();
+    let (client_key, _) = generate_keys(config);
+
+    let public_key = CompactPublicKey::new(&client_key);
 
     let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
     let clear: u8 = a.decrypt(&client_key);

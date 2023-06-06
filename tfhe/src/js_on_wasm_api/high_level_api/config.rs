@@ -26,6 +26,14 @@ impl TfheConfigBuilder {
     }
 
     #[wasm_bindgen]
+    pub fn enable_custom_integers(
+        self,
+        block_parameters: crate::js_on_wasm_api::shortint::ShortintParameters,
+    ) -> Self {
+        Self(self.0.enable_custom_integers(block_parameters.0, None))
+    }
+
+    #[wasm_bindgen]
     pub fn build(self) -> TfheConfig {
         TfheConfig(self.0.build())
     }

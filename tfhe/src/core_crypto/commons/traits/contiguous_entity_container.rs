@@ -12,7 +12,15 @@ type WrappingFunction<'data, Element, WrappingType> = fn(
     ),
 ) -> WrappingType;
 
-type WrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
+type ChunksWrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
+    std::iter::Zip<
+        std::slice::Chunks<'data, Element>,
+        itertools::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
+    >,
+    WrappingFunction<'data, Element, WrappingType>,
+>;
+
+type ChunksExactWrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::ChunksExact<'data, Element>,
         itertools::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
@@ -20,7 +28,15 @@ type WrappingLendingIterator<'data, Element, WrappingType> = std::iter::Map<
     WrappingFunction<'data, Element, WrappingType>,
 >;
 
-type ParallelWrappingLendingIterator<'data, Element, WrappingType> = rayon::iter::Map<
+type ParallelChunksWrappingLendingIterator<'data, Element, WrappingType> = rayon::iter::Map<
+    rayon::iter::Zip<
+        rayon::slice::Chunks<'data, Element>,
+        rayon::iter::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
+    >,
+    WrappingFunction<'data, Element, WrappingType>,
+>;
+
+type ParallelChunksExactWrappingLendingIterator<'data, Element, WrappingType> = rayon::iter::Map<
     rayon::iter::Zip<
         rayon::slice::ChunksExact<'data, Element>,
         rayon::iter::RepeatN<<WrappingType as CreateFrom<&'data [Element]>>::Metadata>,
@@ -35,7 +51,15 @@ type WrappingFunctionMut<'data, Element, WrappingType> = fn(
     ),
 ) -> WrappingType;
 
-type WrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
+type ChunksWrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
+    std::iter::Zip<
+        std::slice::ChunksMut<'data, Element>,
+        itertools::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
+    >,
+    WrappingFunctionMut<'data, Element, WrappingType>,
+>;
+
+type ChunksExactWrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
     std::iter::Zip<
         std::slice::ChunksExactMut<'data, Element>,
         itertools::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
@@ -43,7 +67,15 @@ type WrappingLendingIteratorMut<'data, Element, WrappingType> = std::iter::Map<
     WrappingFunctionMut<'data, Element, WrappingType>,
 >;
 
-type ParallelWrappingLendingIteratorMut<'data, Element, WrappingType> = rayon::iter::Map<
+type ParallelChunksWrappingLendingIteratorMut<'data, Element, WrappingType> = rayon::iter::Map<
+    rayon::iter::Zip<
+        rayon::slice::ChunksMut<'data, Element>,
+        rayon::iter::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
+    >,
+    WrappingFunctionMut<'data, Element, WrappingType>,
+>;
+
+type ParallelChunksExactWrappingLendingIteratorMut<'data, Element, WrappingType> = rayon::iter::Map<
     rayon::iter::Zip<
         rayon::slice::ChunksExactMut<'data, Element>,
         rayon::iter::RepeatN<<WrappingType as CreateFrom<&'data mut [Element]>>::Metadata>,
@@ -92,7 +124,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
 
     /// Return an iterator borrowing immutably from the current contiguous container which returns
     /// [`Self::EntityView`] entities.
-    fn iter(&self) -> WrappingLendingIterator<'_, Self::Element, Self::EntityView<'_>> {
+    fn iter(&self) -> ChunksExactWrappingLendingIterator<'_, Self::Element, Self::EntityView<'_>> {
         let meta = self.get_entity_view_creation_metadata();
         let entity_count = self.entity_count();
         let entity_view_pod_size = self.get_entity_view_pod_size();
@@ -165,10 +197,26 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         }
     }
 
+    fn chunks(
+        &self,
+        chunk_size: usize,
+    ) -> ChunksWrappingLendingIterator<'_, Self::Element, Self::SelfView<'_>> {
+        let entity_count = self.entity_count();
+
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
+
+        let meta = self.get_self_view_creation_metadata();
+        self.as_ref()
+            .chunks(pod_chunk_size)
+            .zip(itertools::repeat_n(meta, entity_count))
+            .map(|(elt, meta)| Self::SelfView::<'_>::create_from(elt, meta))
+    }
+
     fn chunks_exact(
         &self,
         chunk_size: usize,
-    ) -> WrappingLendingIterator<'_, Self::Element, Self::SelfView<'_>> {
+    ) -> ChunksExactWrappingLendingIterator<'_, Self::Element, Self::SelfView<'_>> {
         let entity_count = self.entity_count();
         assert!(
             entity_count % chunk_size == 0,
@@ -188,7 +236,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
 
     fn par_iter<'this>(
         &'this self,
-    ) -> ParallelWrappingLendingIterator<'this, Self::Element, Self::EntityView<'this>>
+    ) -> ParallelChunksExactWrappingLendingIterator<'this, Self::Element, Self::EntityView<'this>>
     where
         Self::Element: Sync,
         Self::EntityView<'this>: Send,
@@ -201,6 +249,53 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
             .par_chunks_exact(entity_view_pod_size)
             .zip(rayon::iter::repeatn(meta, entity_count))
             .map(|(elt, meta)| Self::EntityView::<'this>::create_from(elt, meta))
+    }
+
+    fn par_chunks<'this>(
+        &'this self,
+        chunk_size: usize,
+    ) -> ParallelChunksWrappingLendingIterator<'_, Self::Element, Self::SelfView<'_>>
+    where
+        Self::Element: Sync,
+        Self::SelfView<'this>: Send,
+        Self::SelfViewMetadata: Send,
+    {
+        let entity_count = self.entity_count();
+
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
+
+        let meta = self.get_self_view_creation_metadata();
+        self.as_ref()
+            .par_chunks(pod_chunk_size)
+            .zip(rayon::iter::repeatn(meta, entity_count))
+            .map(|(elt, meta)| Self::SelfView::<'_>::create_from(elt, meta))
+    }
+
+    fn par_chunks_exact<'this>(
+        &'this self,
+        chunk_size: usize,
+    ) -> ParallelChunksExactWrappingLendingIterator<'_, Self::Element, Self::SelfView<'_>>
+    where
+        Self::Element: Sync,
+        Self::SelfView<'this>: Send,
+        Self::SelfViewMetadata: Send,
+    {
+        let entity_count = self.entity_count();
+        assert!(
+            entity_count % chunk_size == 0,
+            "The current container has {entity_count} entities, which is not dividable by the \
+            requested chunk_size: {chunk_size}, preventing chunks_exact from returning an iterator."
+        );
+
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
+
+        let meta = self.get_self_view_creation_metadata();
+        self.as_ref()
+            .par_chunks_exact(pod_chunk_size)
+            .zip(rayon::iter::repeatn(meta, entity_count))
+            .map(|(elt, meta)| Self::SelfView::<'_>::create_from(elt, meta))
     }
 }
 
@@ -230,7 +325,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
     /// [`Self::EntityMutView`] entities.
     fn iter_mut(
         &mut self,
-    ) -> WrappingLendingIteratorMut<'_, Self::Element, Self::EntityMutView<'_>> {
+    ) -> ChunksExactWrappingLendingIteratorMut<'_, Self::Element, Self::EntityMutView<'_>> {
         let meta = self.get_entity_view_creation_metadata();
         let entity_count = self.entity_count();
         let entity_view_pod_size = self.get_entity_view_pod_size();
@@ -300,10 +395,26 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         }
     }
 
+    fn chunks_mut(
+        &mut self,
+        chunk_size: usize,
+    ) -> ChunksWrappingLendingIteratorMut<'_, Self::Element, Self::SelfMutView<'_>> {
+        let entity_count = self.entity_count();
+
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
+
+        let meta = self.get_self_view_creation_metadata();
+        self.as_mut()
+            .chunks_mut(pod_chunk_size)
+            .zip(itertools::repeat_n(meta, entity_count))
+            .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
+    }
+
     fn chunks_exact_mut(
         &mut self,
         chunk_size: usize,
-    ) -> WrappingLendingIteratorMut<'_, Self::Element, Self::SelfMutView<'_>> {
+    ) -> ChunksExactWrappingLendingIteratorMut<'_, Self::Element, Self::SelfMutView<'_>> {
         let entity_count = self.entity_count();
         assert!(
             entity_count % chunk_size == 0,
@@ -324,7 +435,11 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
 
     fn par_iter_mut<'this>(
         &'this mut self,
-    ) -> ParallelWrappingLendingIteratorMut<'this, Self::Element, Self::EntityMutView<'this>>
+    ) -> ParallelChunksExactWrappingLendingIteratorMut<
+        'this,
+        Self::Element,
+        Self::EntityMutView<'this>,
+    >
     where
         Self::Element: Sync + Send,
         Self::EntityMutView<'this>: Send,
@@ -337,5 +452,52 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
             .par_chunks_exact_mut(entity_view_pod_size)
             .zip(rayon::iter::repeatn(meta, entity_count))
             .map(|(elt, meta)| Self::EntityMutView::<'this>::create_from(elt, meta))
+    }
+
+    fn par_chunks_mut<'this>(
+        &'this mut self,
+        chunk_size: usize,
+    ) -> ParallelChunksWrappingLendingIteratorMut<'_, Self::Element, Self::SelfMutView<'_>>
+    where
+        Self::Element: Sync + Send,
+        Self::SelfMutView<'this>: Send,
+        Self::SelfViewMetadata: Send,
+    {
+        let entity_count = self.entity_count();
+
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
+
+        let meta = self.get_self_view_creation_metadata();
+        self.as_mut()
+            .par_chunks_mut(pod_chunk_size)
+            .zip(rayon::iter::repeatn(meta, entity_count))
+            .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
+    }
+
+    fn par_chunks_exact_mut<'this>(
+        &'this mut self,
+        chunk_size: usize,
+    ) -> ParallelChunksExactWrappingLendingIteratorMut<'_, Self::Element, Self::SelfMutView<'_>>
+    where
+        Self::Element: Sync + Send,
+        Self::SelfMutView<'this>: Send,
+        Self::SelfViewMetadata: Send,
+    {
+        let entity_count = self.entity_count();
+        assert!(
+            entity_count % chunk_size == 0,
+            "The current container has {entity_count} entities, which is not dividable by the \
+            requested chunk_size: {chunk_size}, preventing chunks_exact from returning an iterator."
+        );
+
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let pod_chunk_size = entity_view_pod_size * chunk_size;
+
+        let meta = self.get_self_view_creation_metadata();
+        self.as_mut()
+            .par_chunks_exact_mut(pod_chunk_size)
+            .zip(rayon::iter::repeatn(meta, entity_count))
+            .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
     }
 }

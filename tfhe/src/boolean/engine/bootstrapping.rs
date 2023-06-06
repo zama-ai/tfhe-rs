@@ -94,7 +94,7 @@ impl ServerKey {
     }
 
     pub fn bootstrapping_key_size_bytes(&self) -> usize {
-        self.bootstrapping_key_size_elements() * std::mem::size_of::<concrete_fft::c64>()
+        std::mem::size_of_val(self.bootstrapping_key.as_view().data())
     }
 
     pub fn key_switching_key_size_elements(&self) -> usize {
@@ -102,7 +102,7 @@ impl ServerKey {
     }
 
     pub fn key_switching_key_size_bytes(&self) -> usize {
-        self.key_switching_key_size_elements() * std::mem::size_of::<u64>()
+        std::mem::size_of_val(self.key_switching_key.as_ref())
     }
 }
 

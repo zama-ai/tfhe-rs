@@ -419,10 +419,10 @@ void test_server_key(void) {
   ShortintCompressedServerKey *deser_csks = NULL;
   Buffer sks_ser_buffer = {.pointer = NULL, .length = 0};
   ShortintServerKey *deser_sks = NULL;
-  ShortintParameters *params = NULL;
   ShortintClientKey *cks_small = NULL;
   ShortintServerKey *sks_small = NULL;
-  ShortintParameters *params_small = NULL;
+  ShortintPBSParameters params = { 0 };
+  ShortintPBSParameters params_small = { 0 };
 
   const uint32_t message_bits = 2;
   const uint32_t carry_bits = 2;
@@ -736,8 +736,6 @@ void test_server_key(void) {
   destroy_shortint_client_key(deser_cks);
   destroy_shortint_compressed_server_key(deser_csks);
   destroy_shortint_server_key(deser_sks);
-  destroy_shortint_parameters(params);
-  destroy_shortint_parameters(params_small);
   destroy_buffer(&cks_ser_buffer);
   destroy_buffer(&csks_ser_buffer);
   destroy_buffer(&sks_ser_buffer);

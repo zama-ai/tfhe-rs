@@ -911,7 +911,7 @@ impl ServerKey {
     }
 
     pub fn key_switching_key_size_bytes(&self) -> usize {
-        self.key_switching_key_size_elements() * std::mem::size_of::<u64>()
+        std::mem::size_of_val(self.key_switching_key.as_ref())
     }
 }
 

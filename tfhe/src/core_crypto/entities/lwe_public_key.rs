@@ -7,7 +7,7 @@ use crate::core_crypto::entities::*;
 // An LwePublicKey is literally an LweCiphertextList, so we wrap an LweCiphertextList and use
 // Deref to have access to all the primitives of the LweCiphertextList easily
 
-/// A [`public LWE bootstrap key`](`LwePublicKey`).
+/// A [`public LWE encryption key`](`LwePublicKey`).
 ///
 /// This is a wrapper type of [`LweCiphertextList`], [`std::ops::Deref`] and [`std::ops::DerefMut`]
 /// are implemented to dereference to the underlying [`LweCiphertextList`] for ease of use. See

@@ -9,7 +9,8 @@ use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionLevelCount, FunctionalPackingKeyswitchKeyCount, GlweDimension,
-    GlweSize, LweBskGroupingFactor, LweCiphertextCount, LweDimension, LweSize, PolynomialSize,
+    GlweSize, LweBskGroupingFactor, LweCiphertextCount, LweDimension, LweMaskCount, LweSize,
+    PolynomialSize,
 };
 use concrete_csprng::generators::ForkError;
 use rayon::prelude::*;
@@ -167,6 +168,16 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         let mask_bytes = mask_bytes_per_pfpksk_chunk::<T>(level, glwe_size, poly_size);
         let noise_bytes = noise_bytes_per_pfpksk_chunk(level, poly_size);
         self.try_fork(lwe_size.0, mask_bytes, noise_bytes)
+    }
+
+    pub(crate) fn fork_lwe_compact_ciphertext_list_to_bin<T: UnsignedInteger>(
+        &mut self,
+        lwe_mask_count: LweMaskCount,
+        lwe_dimension: LweDimension,
+    ) -> Result<impl Iterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
+        let mask_bytes = mask_bytes_per_lwe_compact_ciphertext_bin::<T>(lwe_dimension);
+        let noise_bytes = noise_bytes_per_lwe_compact_ciphertext_bin(lwe_dimension);
+        self.try_fork(lwe_mask_count.0, mask_bytes, noise_bytes)
     }
 
     // Forks both generators into an iterator
@@ -431,6 +442,16 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
         self.par_try_fork(lwe_size.0, mask_bytes, noise_bytes)
     }
 
+    pub(crate) fn par_fork_lwe_compact_ciphertext_list_to_bin<T: UnsignedInteger>(
+        &mut self,
+        lwe_mask_count: LweMaskCount,
+        lwe_dimension: LweDimension,
+    ) -> Result<impl IndexedParallelIterator<Item = EncryptionRandomGenerator<G>>, ForkError> {
+        let mask_bytes = mask_bytes_per_lwe_compact_ciphertext_bin::<T>(lwe_dimension);
+        let noise_bytes = noise_bytes_per_lwe_compact_ciphertext_bin(lwe_dimension);
+        self.par_try_fork(lwe_mask_count.0, mask_bytes, noise_bytes)
+    }
+
     // Forks both generators into a parallel iterator.
     fn par_try_fork(
         &mut self,
@@ -504,6 +525,12 @@ fn mask_bytes_per_pfpksk<T: UnsignedInteger>(
     lwe_size.0 * mask_bytes_per_pfpksk_chunk::<T>(level, glwe_size, poly_size)
 }
 
+fn mask_bytes_per_lwe_compact_ciphertext_bin<T: UnsignedInteger>(
+    lwe_dimension: LweDimension,
+) -> usize {
+    lwe_dimension.0 * mask_bytes_per_coef::<T>()
+}
+
 fn noise_bytes_per_coef() -> usize {
     // We use f64 to sample the noise for every precision, and we need 4/pi inputs to generate
     // such an output (here we take 32 to keep a safety margin).
@@ -551,6 +578,10 @@ fn noise_bytes_per_pfpksk(
     lwe_size: LweSize,
 ) -> usize {
     lwe_size.0 * noise_bytes_per_pfpksk_chunk(level, poly_size)
+}
+
+fn noise_bytes_per_lwe_compact_ciphertext_bin(lwe_dimension: LweDimension) -> usize {
+    lwe_dimension.0 * noise_bytes_per_coef()
 }
 
 #[cfg(test)]

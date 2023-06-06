@@ -1297,6 +1297,27 @@ pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3: MultiBitPBSParameters =
         grouping_factor: LweBskGroupingFactor(3),
     };
 
+pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+    lwe_dimension: LweDimension(1024),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.000000049029381729),
+    glwe_modular_std_dev: StandardDev(0.00000000000000031528),
+    pbs_base_log: DecompositionBaseLog(21),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(2),
+    ks_base_log: DecompositionBaseLog(8),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
+};
+
+pub const PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+    encryption_key_choice: EncryptionKeyChoice::Small,
+    ..PARAM_MESSAGE_2_CARRY_2_COMPACT_PK
+};
+
 /// Return a parameter set from a message and carry moduli.
 ///
 /// # Example

@@ -250,7 +250,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 {
     type Element = C::Element;
 
-    type EntityViewMetadata = LweCiphertextCreationMetadata<Self::Element>;
+    type EntityViewMetadata = LweBodyCreationMetadata<Self::Element>;
 
     type EntityView<'this> = LweBodyRef<'this, Self::Element>
     where
@@ -263,7 +263,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        LweCiphertextCreationMetadata(self.ciphertext_modulus())
+        LweBodyCreationMetadata(self.ciphertext_modulus())
     }
 
     fn get_entity_view_pod_size(&self) -> usize {

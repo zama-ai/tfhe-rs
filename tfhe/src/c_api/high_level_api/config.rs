@@ -72,6 +72,20 @@ define_enable_default_fn!(integers);
 #[cfg(feature = "integer")]
 define_enable_default_fn!(integers @small);
 
+#[no_mangle]
+pub unsafe extern "C" fn config_builder_enable_custom_integers(
+    builder: *mut *mut ConfigBuilder,
+    shortint_block_parameters: crate::c_api::shortint::parameters::ShortintPBSParameters,
+) -> ::std::os::raw::c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(builder).unwrap();
+
+        let inner = Box::from_raw(*builder)
+            .0
+            .enable_custom_integers(shortint_block_parameters.into(), None);
+        *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
+    })
+}
 /// Takes ownership of the builder
 #[no_mangle]
 pub unsafe extern "C" fn config_builder_build(

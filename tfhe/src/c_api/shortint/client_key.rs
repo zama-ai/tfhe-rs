@@ -10,7 +10,7 @@ pub struct ShortintClientKey(pub(in crate::c_api) shortint::client_key::ClientKe
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_gen_client_key(
-    shortint_parameters: *const super::parameters::ShortintParameters,
+    shortint_parameters: super::parameters::ShortintPBSParameters,
     result_client_key: *mut *mut ShortintClientKey,
 ) -> c_int {
     catch_panic(|| {
@@ -20,9 +20,10 @@ pub unsafe extern "C" fn shortint_gen_client_key(
         // checked, then any access to the result pointer will segfault (mimics malloc on failure)
         *result_client_key = std::ptr::null_mut();
 
-        let shortint_parameters = get_ref_checked(shortint_parameters).unwrap();
+        let shortint_parameters: crate::shortint::parameters::ClassicPBSParameters =
+            shortint_parameters.into();
 
-        let client_key = shortint::client_key::ClientKey::new(shortint_parameters.0.to_owned());
+        let client_key = shortint::client_key::ClientKey::new(shortint_parameters);
 
         let heap_allocated_client_key = Box::new(ShortintClientKey(client_key));
 

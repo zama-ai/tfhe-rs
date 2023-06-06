@@ -127,7 +127,7 @@ impl ConfigBuilder {
     }
 
     #[cfg(feature = "integer")]
-    pub fn enable_default_custom_integers(
+    pub fn enable_custom_integers(
         mut self,
         block_parameters: crate::shortint::ClassicPBSParameters,
         wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,

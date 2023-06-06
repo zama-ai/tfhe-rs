@@ -69,7 +69,9 @@ pub use ciphertext::{
 };
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
 pub use public_key::{
-    CompressedPublicKeyBig, CompressedPublicKeySmall, PublicKeyBig, PublicKeySmall,
+    CompactPublicKeyBig, CompactPublicKeySmall, CompressedCompactPublicKeyBase,
+    CompressedCompactPublicKeyBig, CompressedCompactPublicKeySmall, CompressedPublicKeyBig,
+    CompressedPublicKeySmall, PublicKeyBig, PublicKeySmall,
 };
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 pub use u256::U256;

@@ -1,4 +1,13 @@
+use concrete_csprng::seeders::Seed;
+use serde::{Deserialize, Serialize};
+
+use crate::core_crypto::commons::generators::DeterministicSeeder;
+use crate::core_crypto::prelude::ActivatedRandomGenerator;
+use crate::integer::U256;
 use crate::shortint::EncryptionKeyChoice;
+
+use super::server_key::RadixCiphertextDyn;
+use super::types::compact::CompactCiphertextListDyn;
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IntegerConfig {
@@ -61,6 +70,26 @@ pub(crate) struct IntegerClientKey {
 }
 
 impl IntegerClientKey {
+    pub(crate) fn with_seed(config: IntegerConfig, seed: Seed) -> Self {
+        let (key, encryption_type) = match config.block_parameters {
+            Some(params) => {
+                let encryption_type = params.encryption_key_choice;
+                let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+                let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
+                    .new_client_key(params.into())
+                    .unwrap();
+                let cks = crate::integer::ClientKey::from(cks);
+                (Some(cks), encryption_type)
+            }
+            None => (None, EncryptionKeyChoice::Big),
+        };
+        Self {
+            key,
+            wopbs_block_parameters: config.wopbs_block_parameters,
+            encryption_type,
+        }
+    }
+
     pub(crate) fn encryption_type(&self) -> EncryptionKeyChoice {
         self.encryption_type
     }
@@ -168,6 +197,136 @@ impl IntegerCompressedServerKey {
             key: self.key.map(crate::integer::ServerKey::from),
             wopbs_key: None,
             encryption_type: self.encryption_type,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(in crate::high_level_api) enum CompactPublicKeyDyn {
+    Big(crate::integer::CompactPublicKeyBig),
+    Small(crate::integer::CompactPublicKeySmall),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(in crate::high_level_api) struct IntegerCompactPublicKey {
+    pub(in crate::high_level_api) key: Option<CompactPublicKeyDyn>,
+}
+
+impl IntegerCompactPublicKey {
+    pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
+        Self::try_new(client_key).expect("Incompatible parameters")
+    }
+
+    pub(in crate::high_level_api) fn try_new(client_key: &IntegerClientKey) -> Option<Self> {
+        let Some(cks) = client_key.key.as_ref() else {
+            return Some(Self {
+                key: None,
+            });
+        };
+
+        let key = match client_key.encryption_type {
+            crate::shortint::EncryptionKeyChoice::Big => {
+                CompactPublicKeyDyn::Big(crate::integer::CompactPublicKeyBig::try_new(cks)?)
+            }
+            crate::shortint::EncryptionKeyChoice::Small => {
+                CompactPublicKeyDyn::Small(crate::integer::CompactPublicKeySmall::try_new(cks)?)
+            }
+        };
+
+        Some(Self { key: Some(key) })
+    }
+
+    pub(in crate::high_level_api) fn try_encrypt<T>(
+        &self,
+        value: T,
+        num_blocks: usize,
+    ) -> Option<RadixCiphertextDyn>
+    where
+        T: Into<U256>,
+    {
+        let Some(key) = self.key.as_ref() else {
+            return None;
+        };
+        let value = value.into();
+        let ct = match key {
+            CompactPublicKeyDyn::Big(pk) => {
+                RadixCiphertextDyn::Big(pk.encrypt_radix(value, num_blocks))
+            }
+            CompactPublicKeyDyn::Small(pk) => {
+                RadixCiphertextDyn::Small(pk.encrypt_radix(value, num_blocks))
+            }
+        };
+        Some(ct)
+    }
+
+    pub(in crate::high_level_api::integers) fn try_encrypt_compact<T>(
+        &self,
+        values: &[T],
+        num_blocks: usize,
+    ) -> Option<CompactCiphertextListDyn>
+    where
+        T: crate::integer::block_decomposition::DecomposableInto<u64>,
+    {
+        let Some(key) = self.key.as_ref() else {
+            return None;
+        };
+        let ct = match key {
+            CompactPublicKeyDyn::Big(pk) => {
+                CompactCiphertextListDyn::Big(pk.encrypt_slice_radix_compact(values, num_blocks))
+            }
+            CompactPublicKeyDyn::Small(pk) => {
+                CompactCiphertextListDyn::Small(pk.encrypt_slice_radix_compact(values, num_blocks))
+            }
+        };
+        Some(ct)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(in crate::high_level_api) enum CompressedCompactPublicKeyDyn {
+    Big(crate::integer::CompressedCompactPublicKeyBig),
+    Small(crate::integer::CompressedCompactPublicKeySmall),
+}
+
+impl CompressedCompactPublicKeyDyn {
+    fn decompress(self) -> CompactPublicKeyDyn {
+        match self {
+            CompressedCompactPublicKeyDyn::Big(big) => CompactPublicKeyDyn::Big(big.decompress()),
+            CompressedCompactPublicKeyDyn::Small(small) => {
+                CompactPublicKeyDyn::Small(small.decompress())
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(in crate::high_level_api) struct IntegerCompressedCompactPublicKey {
+    pub(in crate::high_level_api) key: Option<CompressedCompactPublicKeyDyn>,
+}
+
+impl IntegerCompressedCompactPublicKey {
+    pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
+        let Some(cks) = client_key.key.as_ref() else {
+            return Self {
+                key: None,
+            };
+        };
+
+        let key = match client_key.encryption_type {
+            crate::shortint::EncryptionKeyChoice::Big => CompressedCompactPublicKeyDyn::Big(
+                crate::integer::CompressedCompactPublicKeyBig::new(cks),
+            ),
+            crate::shortint::EncryptionKeyChoice::Small => CompressedCompactPublicKeyDyn::Small(
+                crate::integer::CompressedCompactPublicKeySmall::new(cks),
+            ),
+        };
+
+        Self { key: Some(key) }
+    }
+
+    pub(in crate::high_level_api) fn decompress(self) -> IntegerCompactPublicKey {
+        IntegerCompactPublicKey {
+            key: self.key.map(CompressedCompactPublicKeyDyn::decompress),
         }
     }
 }

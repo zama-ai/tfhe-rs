@@ -5,9 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "jest ./test --runInBand",
-    "build": "cp -r ../../tfhe/pkg ./ && webpack build ./index.js --mode production -o dist --output-filename index.js && cp index.html dist/",
+    "build": "cp -r ../../tfhe/pkg ./ && webpack build ./index.js --mode production -o dist --output-filename index.js && cp index.html dist/ && cp favicon.ico dist/",
     "server": "serve --config ../serve.json dist/",
-    "test-separate-processes": "jest --listTests | xargs -L 1 jest",
+    "test-separate-processes": "jest --listTests | xargs -L 1 jest --runInBand",
     "test2": "mocha"
   },
   "author": "",

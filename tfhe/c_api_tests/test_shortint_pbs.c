@@ -41,10 +41,7 @@ void test_shortint_pbs_2_bits_message(void) {
   ShortintPBSLookupTable *accumulator = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
-  ShortintParameters *params = NULL;
-
-  int get_params_ok = shortint_get_parameters(2, 2, &params);
-  assert(get_params_ok == 0);
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
@@ -111,17 +108,13 @@ void test_shortint_pbs_2_bits_message(void) {
   destroy_shortint_pbs_accumulator(accumulator);
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);
-  destroy_shortint_parameters(params);
 }
 
 void test_shortint_bivariate_pbs_2_bits_message(void) {
   ShortintBivariatePBSLookupTable *accumulator = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
-  ShortintParameters *params = NULL;
-
-  int get_params_ok = shortint_get_parameters(2, 2, &params);
-  assert(get_params_ok == 0);
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
@@ -187,7 +180,6 @@ void test_shortint_bivariate_pbs_2_bits_message(void) {
   destroy_shortint_bivariate_pbs_accumulator(accumulator);
   destroy_shortint_client_key(cks);
   destroy_shortint_server_key(sks);
-  destroy_shortint_parameters(params);
 }
 
 int main(void) {

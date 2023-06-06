@@ -26,6 +26,8 @@ use crate::high_level_api::traits::{
     FheBootstrap, FheDecrypt, FheEq, FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
 };
 use crate::high_level_api::{ClientKey, PublicKey};
+use crate::integer::U256;
+use crate::CompactPublicKey;
 
 /// A Generic FHE unsigned integer
 ///
@@ -208,6 +210,25 @@ where
                 RadixCiphertextDyn::Small(pk.encrypt_radix(value, P::num_blocks()))
             }
         };
+        Ok(Self::new(ciphertext, id))
+    }
+}
+
+impl<P, T> FheTryEncrypt<T, CompactPublicKey> for GenericInteger<P>
+where
+    T: Into<U256>,
+    P: IntegerParameter,
+    P::Id: Default + TypeIdentifier,
+{
+    type Error = crate::high_level_api::errors::Error;
+
+    fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
+        let id = P::Id::default();
+        let ciphertext = key
+            .integer_key
+            .try_encrypt(value, P::num_blocks())
+            .ok_or(UninitializedPublicKey(id.type_variant()))
+            .unwrap_display();
         Ok(Self::new(ciphertext, id))
     }
 }

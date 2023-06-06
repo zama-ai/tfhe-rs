@@ -43,6 +43,8 @@ void micro_bench_and() {
 
   destroy_boolean_client_key(cks);
   destroy_boolean_server_key(sks);
+  destroy_boolean_ciphertext(ct_left);
+  destroy_boolean_ciphertext(ct_right);
 }
 
 int main(void) {
