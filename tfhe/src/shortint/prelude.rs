@@ -9,6 +9,8 @@ pub use super::ciphertext::{
 };
 pub use super::client_key::ClientKey;
 pub use super::gen_keys;
+pub use super::key_switching_key::KeySwitchingKey;
+pub use super::parameters::key_switching::PARAM_KEYSWITCH_1_1_TO_2_2;
 pub use super::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
     DecompositionLevelCount, EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus,

@@ -10,7 +10,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapK
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::EngineResult;
-use crate::shortint::parameters::MessageModulus;
+use crate::shortint::parameters::{MessageModulus, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{
     BivariateLookupTableOwned, LookupTableOwned, MaxDegree, ShortintBootstrappingKey,
     ShortintCompressedBootstrappingKey,
@@ -192,6 +192,24 @@ impl ShortintEngine {
             max_degree,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
         })
+    }
+
+    pub(crate) fn new_key_switching_key(
+        &mut self,
+        cks1: &ClientKey,
+        cks2: &ClientKey,
+        params: ShortintKeySwitchingParameters,
+    ) -> EngineResult<LweKeyswitchKeyOwned<u64>> {
+        // Creation of the key switching key
+        Ok(allocate_and_generate_new_lwe_keyswitch_key(
+            &cks1.large_lwe_secret_key,
+            &cks2.large_lwe_secret_key,
+            params.ks_base_log,
+            params.ks_level,
+            cks2.parameters.lwe_modular_std_dev(),
+            cks2.parameters.ciphertext_modulus(),
+            &mut self.encryption_generator,
+        ))
     }
 
     pub(crate) fn new_compressed_server_key(
