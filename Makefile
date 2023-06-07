@@ -294,6 +294,9 @@ doc: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer --no-deps
 
+.PHONY: docs # Build rust doc alias for doc
+docs: doc
+
 .PHONY: format_doc_latex # Format the documentation latex equations to avoid broken rendering.
 format_doc_latex:
 	cargo xtask format_latex_doc
