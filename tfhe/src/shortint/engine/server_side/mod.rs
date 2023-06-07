@@ -194,6 +194,23 @@ impl ShortintEngine {
         })
     }
 
+    pub(crate) fn new_key_switching_key(
+        &mut self,
+        cks1: &ClientKey,
+        cks2: &ClientKey,
+    ) -> EngineResult<LweKeyswitchKeyOwned<u64>> {
+        // Creation of the key switching key
+        Ok(allocate_and_generate_new_lwe_keyswitch_key(
+            &cks1.large_lwe_secret_key,
+            &cks2.large_lwe_secret_key,
+            cks2.parameters.ks_base_log(),
+            cks2.parameters.ks_level(),
+            cks2.parameters.lwe_modular_std_dev(),
+            cks2.parameters.ciphertext_modulus(),
+            &mut self.encryption_generator,
+        ))
+    }
+
     pub(crate) fn new_compressed_server_key(
         &mut self,
         cks: &ClientKey,

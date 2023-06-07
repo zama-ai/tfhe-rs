@@ -3,12 +3,12 @@
 //! The TFHE-rs preludes include convenient imports.
 //! Having `tfhe::shortint::prelude::*;` should be enough to start using the lib.
 
+pub use super::casting_key::CastingKey;
 pub use super::ciphertext::{
     CiphertextBase, CiphertextBig, CiphertextSmall, CompressedCiphertextBase,
     CompressedCiphertextBig, CompressedCiphertextSmall, PBSOrder, PBSOrderMarker,
 };
 pub use super::client_key::ClientKey;
-pub use super::gen_keys;
 pub use super::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
     DecompositionLevelCount, EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus,
@@ -24,3 +24,4 @@ pub use super::public_key::{
     PublicKeySmall,
 };
 pub use super::server_key::ServerKey;
+pub use super::{gen_keys, gen_multi_keys};

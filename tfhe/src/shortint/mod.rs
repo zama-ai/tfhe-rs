@@ -46,6 +46,7 @@
 //! let output = client_key.decrypt(&ct_3);
 //! assert_eq!(output, 1);
 //! ```
+pub mod casting_key;
 pub mod ciphertext;
 pub mod client_key;
 pub mod engine;
@@ -57,6 +58,7 @@ pub mod public_key;
 pub mod server_key;
 pub mod wopbs;
 
+pub use casting_key::CastingKey;
 pub use ciphertext::{
     CiphertextBase, CiphertextBig, CiphertextSmall, CompressedCiphertextBase,
     CompressedCiphertextBig, CompressedCiphertextSmall, PBSOrder, PBSOrderMarker,
@@ -125,4 +127,38 @@ where
     let sks = ServerKey::new(&cks);
 
     (cks, sks)
+}
+
+/// Generate two sets of client and server keys, as well as a keyswitching key to cast
+/// from the first parameter set to the second.
+///
+/// # Example
+///
+/// Generating a pair of (ClientKey, ServerKey) using the default parameters.
+///
+/// ```rust
+/// use tfhe::shortint::gen_multi_keys;
+/// use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2};
+///
+/// // generate the client keys, server keys, and keyswitching key:
+/// let ((cks1, sks1), (cks2, sks2), ksk1_2) =
+///     gen_multi_keys(PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2);
+/// ```
+pub fn gen_multi_keys<P>(
+    parameters_set_1: P,
+    parameters_set_2: P,
+) -> ((ClientKey, ServerKey), (ClientKey, ServerKey), CastingKey)
+where
+    P: TryInto<ShortintParameterSet>,
+    <P as TryInto<ShortintParameterSet>>::Error: std::fmt::Debug,
+{
+    let cks_1 = ClientKey::new(parameters_set_1.try_into().unwrap());
+    let sks_1 = ServerKey::new(&cks_1);
+
+    let cks_2 = ClientKey::new(parameters_set_2.try_into().unwrap());
+    let sks_2 = ServerKey::new(&cks_2);
+
+    let ksk = CastingKey::new((&cks_1, &sks_1), (&cks_2, &sks_2));
+
+    ((cks_1, sks_1), (cks_2, sks_2), ksk)
 }
