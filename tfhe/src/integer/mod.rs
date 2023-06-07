@@ -53,6 +53,7 @@ mod tests;
 pub mod block_decomposition;
 pub(crate) mod encryption;
 
+pub mod casting_key;
 pub mod ciphertext;
 pub mod client_key;
 #[cfg(any(test, feature = "internal-keycache"))]
@@ -63,6 +64,7 @@ pub mod server_key;
 pub mod u256;
 pub mod wopbs;
 
+pub use casting_key::CastingKey;
 pub use ciphertext::{
     CompressedRadixCiphertextBig, CompressedRadixCiphertextSmall, CrtCiphertext, IntegerCiphertext,
     RadixCiphertextBig, RadixCiphertextSmall,
