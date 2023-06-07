@@ -55,6 +55,7 @@ pub(crate) mod encryption;
 
 pub mod ciphertext;
 pub mod client_key;
+pub mod key_switching_key;
 #[cfg(any(test, feature = "internal-keycache"))]
 pub mod keycache;
 pub mod parameters;
@@ -68,6 +69,7 @@ pub use ciphertext::{
     RadixCiphertextBig, RadixCiphertextSmall,
 };
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
+pub use key_switching_key::KeySwitchingKey;
 pub use public_key::{
     CompactPublicKeyBig, CompactPublicKeySmall, CompressedCompactPublicKeyBase,
     CompressedCompactPublicKeyBig, CompressedCompactPublicKeySmall, CompressedPublicKeyBig,
