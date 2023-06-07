@@ -480,6 +480,12 @@ impl CastFrom<u8> for U256 {
     }
 }
 
+impl From<bool> for U256 {
+    fn from(input: bool) -> Self {
+        Self::from(if input { 1u64 } else { 0u64 })
+    }
+}
+
 // SAFETY
 //
 // U256 is allowed to be all zeros

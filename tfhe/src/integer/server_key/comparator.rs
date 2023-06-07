@@ -1,9 +1,19 @@
 use rayon::prelude::*;
 
 use super::ServerKey;
+use crate::core_crypto::prelude::Plaintext;
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::{CiphertextBase, PBSOrderMarker};
+
+/// Used for compare_blocks_with_zero
+pub(crate) enum ZeroComparisonType {
+    // We want to compare with zeros for equality (==)
+    Equality,
+    // We want to compare with zeros for differeece (!=)
+    Difference,
+}
 
 /// Simple enum to select whether we are looking for the min or the max
 enum MinMaxSelector {
@@ -90,10 +100,13 @@ impl<'a> Comparator<'a> {
             .unwrap_or(0)
         });
 
-        let mask_accumulator =
-            server_key
-                .key
-                .generate_accumulator(|x| if x == 0 { message_modulus } else { 0 });
+        let mask_accumulator = server_key.key.generate_accumulator(|sign| {
+            if sign == Self::IS_INFERIOR {
+                message_modulus
+            } else {
+                0
+            }
+        });
 
         let x_accumulator =
             server_key
@@ -130,30 +143,7 @@ impl<'a> Comparator<'a> {
         &self,
         chunk: &[crate::shortint::CiphertextBase<PBSOrder>],
     ) -> crate::shortint::CiphertextBase<PBSOrder> {
-        let low = &chunk[0];
-        let mut high = chunk[1].clone();
-        debug_assert!(high.degree.0 < high.message_modulus.0);
-        self.pack_block_assign(low, &mut high);
-        high
-    }
-
-    /// Packs the low ciphertext in the message parts of the high ciphertext
-    /// and moves the high ciphertext into the carry part.
-    ///
-    /// This requires the block parameters to have enough room for two ciphertexts,
-    /// so at least as many carry modulus as the message modulus
-    ///
-    /// Expects the carry buffer to be empty
-    fn pack_block_assign<PBSOrder: PBSOrderMarker>(
-        &self,
-        low: &crate::shortint::CiphertextBase<PBSOrder>,
-        high: &mut crate::shortint::CiphertextBase<PBSOrder>,
-    ) {
-        debug_assert!(high.degree.0 < high.message_modulus.0);
-        self.server_key
-            .key
-            .unchecked_scalar_mul_assign(high, high.message_modulus.0 as u8);
-        self.server_key.key.unchecked_add_assign(high, low);
+        self.server_key.pack_block_chunk(chunk)
     }
 
     // lhs will be assigned
@@ -188,6 +178,75 @@ impl<'a> Comparator<'a> {
         self.server_key.key.unchecked_scalar_add_assign(lhs, 1);
     }
 
+    // lhs will be assigned
+    // - 0 if lhs < rhs
+    // - 1 if lhs == rhs
+    // - 2 if lhs > rhs
+    fn scalar_compare_block_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        lhs: &mut crate::shortint::CiphertextBase<PBSOrder>,
+        scalar: u8,
+    ) {
+        // Same logic as compare_block_assign
+        // but rhs is a scalar
+        let delta =
+            (1u64 << (u64::BITS as u64 - 1)) / (lhs.carry_modulus.0 * lhs.message_modulus.0) as u64;
+        let plaintext = Plaintext((scalar as u64) * delta);
+        crate::core_crypto::algorithms::lwe_ciphertext_plaintext_sub_assign(&mut lhs.ct, plaintext);
+        self.server_key
+            .key
+            .apply_lookup_table_assign(lhs, &self.sign_accumulator);
+
+        self.server_key.key.unchecked_scalar_add_assign(lhs, 1);
+    }
+
+    fn reduce_two_sign_blocks_assign<PBSOrder: PBSOrderMarker>(
+        &self,
+        msb_sign: &mut crate::shortint::CiphertextBase<PBSOrder>,
+        lsb_sign: &crate::shortint::CiphertextBase<PBSOrder>,
+    ) {
+        // We don't use pack_block_assign as the offset '4' does not depend on params
+        self.server_key.key.unchecked_scalar_mul_assign(msb_sign, 4);
+        self.server_key.key.unchecked_add_assign(msb_sign, lsb_sign);
+
+        self.server_key
+            .key
+            .apply_lookup_table_assign(msb_sign, &self.selection_accumulator);
+    }
+
+    /// Reduces a vec containing shortint blocks that encrypts a sign
+    /// (inferior, equal, superior) to one single shortint block containing the
+    /// final sign
+    fn reduce_signs_parallelized<PBSOrder>(
+        &self,
+        mut sign_blocks: Vec<crate::shortint::CiphertextBase<PBSOrder>>,
+    ) -> crate::shortint::CiphertextBase<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+    {
+        let mut sign_blocks_2 = Vec::with_capacity(sign_blocks.len() / 2);
+        while sign_blocks.len() != 1 {
+            sign_blocks
+                .par_chunks_exact(2)
+                .map(|chunk| {
+                    let (low, high) = (&chunk[0], &chunk[1]);
+                    let mut high = high.clone();
+                    self.reduce_two_sign_blocks_assign(&mut high, low);
+                    high
+                })
+                .collect_into_vec(&mut sign_blocks_2);
+
+            if (sign_blocks.len() % 2) == 1 {
+                sign_blocks_2.push(sign_blocks[sign_blocks.len() - 1].clone());
+            }
+
+            std::mem::swap(&mut sign_blocks_2, &mut sign_blocks);
+        }
+        let selection = sign_blocks.drain(..).next().unwrap();
+
+        selection
+    }
+
     /// returns:
     ///
     /// - 0 if lhs < rhs
@@ -197,7 +256,7 @@ impl<'a> Comparator<'a> {
     /// Expects the carry buffers to be empty
     ///
     /// Requires that the RadixCiphertext block have 4 bits minimum (carry + message)
-    fn unchecked_compare<PBSOrder: PBSOrderMarker>(
+    fn unchecked_sign<PBSOrder: PBSOrderMarker>(
         &self,
         lhs: &RadixCiphertext<PBSOrder>,
         rhs: &RadixCiphertext<PBSOrder>,
@@ -260,7 +319,7 @@ impl<'a> Comparator<'a> {
     /// Expects the carry buffers to be empty
     ///
     /// Requires that the RadixCiphertext block have 4 bits minimum (carry + message)
-    fn unchecked_compare_parallelized<'b, PBSOrder>(
+    fn unchecked_sign_parallelized<'b, PBSOrder>(
         &self,
         lhs: &'b RadixCiphertext<PBSOrder>,
         rhs: &'b RadixCiphertext<PBSOrder>,
@@ -275,7 +334,7 @@ impl<'a> Comparator<'a> {
         let num_block = lhs.blocks.len();
         let num_block_is_odd = num_block % 2;
 
-        let mut comparisons = if lhs.blocks[0].carry_modulus.0 < lhs.blocks[0].message_modulus.0 {
+        let comparisons = if lhs.blocks[0].carry_modulus.0 < lhs.blocks[0].message_modulus.0 {
             let mut comparisons = Vec::with_capacity(num_block);
             lhs.blocks
                 .par_iter()
@@ -313,36 +372,142 @@ impl<'a> Comparator<'a> {
             comparisons
         };
 
-        let mut comparisons_2 = Vec::with_capacity(comparisons.len() / 2);
-        while comparisons.len() != 1 {
-            comparisons
-                .par_chunks_exact(2)
-                .map(|chunk| {
-                    let (low, high) = (&chunk[0], &chunk[1]);
-                    let mut high = high.clone();
+        self.reduce_signs_parallelized(comparisons)
+    }
 
-                    // We don't use pack_block_assign as the offset '4' does not depend on params
-                    self.server_key
-                        .key
-                        .unchecked_scalar_mul_assign(&mut high, 4);
-                    self.server_key.key.unchecked_add_assign(&mut high, low);
+    fn unchecked_scalar_block_slice_sign_parallelized<'b, PBSOrder>(
+        &self,
+        lhs_blocks: &'b [CiphertextBase<PBSOrder>],
+        scalar_blocks: &[u8],
+    ) -> Vec<crate::shortint::CiphertextBase<PBSOrder>>
+    where
+        PBSOrder: PBSOrderMarker,
+        &'b [CiphertextBase<PBSOrder>]:
+            rayon::iter::IntoParallelIterator<Item = &'b CiphertextBase<PBSOrder>>,
+    {
+        assert_eq!(lhs_blocks.len(), scalar_blocks.len());
+        let num_blocks = lhs_blocks.len();
+        let num_blocks_halved = (num_blocks / 2) + (num_blocks % 2);
 
-                    self.server_key
-                        .key
-                        .apply_lookup_table_assign(&mut high, &self.selection_accumulator);
-                    high
-                })
-                .collect_into_vec(&mut comparisons_2);
+        let message_modulus = self.server_key.key.message_modulus.0;
+        let mut signs = Vec::with_capacity(num_blocks_halved);
+        lhs_blocks
+            .par_chunks(2)
+            .zip(scalar_blocks.par_chunks(2))
+            .map(|(lhs_chunk, scalar_chunk)| {
+                let packed_scalar = scalar_chunk[0]
+                    + (scalar_chunk.get(1).copied().unwrap_or(0) * message_modulus as u8);
+                let mut packed_lhs = self.pack_block_chunk(lhs_chunk);
+                self.scalar_compare_block_assign(&mut packed_lhs, packed_scalar);
+                packed_lhs
+            })
+            .collect_into_vec(&mut signs);
 
-            if (comparisons.len() % 2) == 1 {
-                comparisons_2.push(comparisons[comparisons.len() - 1].clone());
-            }
+        signs
+    }
 
-            std::mem::swap(&mut comparisons_2, &mut comparisons);
+    pub fn unchecked_scalar_sign_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> CiphertextBase<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        assert!(!lhs.blocks.is_empty());
+
+        let message_modulus = self.server_key.key.message_modulus.0;
+
+        let mut scalar_blocks =
+            BlockDecomposer::with_early_stop_at_zero(rhs, message_modulus.ilog2())
+                .iter_as::<u8>()
+                .collect::<Vec<_>>();
+
+        // scalar is obviously bigger if it has non-zero
+        // blocks  after lhs's last block
+        let is_scalar_obviously_bigger = scalar_blocks
+            .get(lhs.blocks.len()..)
+            .map(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0))
+            .unwrap_or(false);
+        if is_scalar_obviously_bigger {
+            return self.server_key.key.create_trivial(Self::IS_INFERIOR);
         }
-        let selection = comparisons.drain(..).next().unwrap();
+        // If we are sill here, that means scalar_blocks above
+        // num_blocks are 0s, we can remove them
+        // as we will handle them separately.
+        scalar_blocks.truncate(lhs.blocks.len());
 
-        selection
+        let (least_significant_blocks, most_significant_blocks) =
+            lhs.blocks.split_at(scalar_blocks.len());
+
+        // Reducing the signs is the bottleneck of the comparison algorithms,
+        // however if the scalar case there is an improvement:
+        //
+        // The idea is to reduce the number of signs block we have to
+        // reduce. We can do that by splitting the comparison problem in two parts.
+        //
+        // - One part where we compute the signs block between the scalar with just enough blocks
+        //   from the ciphertext that can represent the scalar value
+        //
+        // - The other part is to compare the ciphertext blocks not considered for the sign
+        //   computation with zero, and create a signle sign block from that.
+        //
+        // The smaller the scalar value is comparaed to the ciphertext num bits encrypted,
+        // the more the comparisons with zeros we have to do,
+        // and the less signs block we will have to reduce.
+        //
+        // This will create a speedup as comparing a bunch of blocks with 0
+        // is faster
+        let (lsb_sign, msb_sign) = rayon::join(
+            || {
+                if least_significant_blocks.is_empty() {
+                    None
+                } else {
+                    let signs = self.unchecked_scalar_block_slice_sign_parallelized(
+                        least_significant_blocks,
+                        &scalar_blocks,
+                    );
+                    Some(self.reduce_signs_parallelized(signs))
+                }
+            },
+            || {
+                if most_significant_blocks.is_empty() {
+                    return None;
+                }
+                let msb_cmp_zero = self.server_key.compare_blocks_with_zero(
+                    most_significant_blocks,
+                    ZeroComparisonType::Equality,
+                );
+                let are_all_msb_equal_to_zero =
+                    self.server_key.are_all_comparisons_block_true(msb_cmp_zero);
+                let lut = self.server_key.key.generate_accumulator(|x| {
+                    if x == 1 {
+                        Self::IS_EQUAL
+                    } else {
+                        Self::IS_SUPERIOR
+                    }
+                });
+                let sign = self
+                    .server_key
+                    .key
+                    .apply_lookup_table(&are_all_msb_equal_to_zero, &lut);
+                Some(sign)
+            },
+        );
+
+        match (lsb_sign, msb_sign) {
+            (None, Some(sign)) => sign,
+            (Some(sign), None) => sign,
+            (Some(lsb_sign), Some(mut msb_sign)) => {
+                self.reduce_two_sign_blocks_assign(&mut msb_sign, &lsb_sign);
+                msb_sign
+            }
+            (None, None) => {
+                // assert should have  been hit earlier
+                unreachable!("Empty input ciphertext")
+            }
+        }
     }
 
     fn smart_compare<PBSOrder: PBSOrderMarker>(
@@ -356,7 +521,7 @@ impl<'a> Comparator<'a> {
         if has_non_zero_carries(rhs) {
             self.server_key.full_propagate(rhs);
         }
-        self.unchecked_compare(lhs, rhs)
+        self.unchecked_sign(lhs, rhs)
     }
 
     fn smart_compare_parallelized<PBSOrder: PBSOrderMarker>(
@@ -376,7 +541,7 @@ impl<'a> Comparator<'a> {
                 }
             },
         );
-        self.unchecked_compare_parallelized(lhs, rhs)
+        self.unchecked_sign_parallelized(lhs, rhs)
     }
 
     /// Expects the carry buffers to be empty
@@ -392,7 +557,7 @@ impl<'a> Comparator<'a> {
         };
         let num_block = lhs.blocks.len();
 
-        let mut mask = self.unchecked_compare(lhs, rhs);
+        let mut mask = self.unchecked_sign(lhs, rhs);
         self.server_key
             .key
             .apply_lookup_table_assign(&mut mask, &self.mask_accumulator);
@@ -430,7 +595,7 @@ impl<'a> Comparator<'a> {
             MinMaxSelector::Min => (&self.y_accumulator, &self.x_accumulator),
         };
 
-        let mut mask = self.unchecked_compare_parallelized(lhs, rhs);
+        let mut mask = self.unchecked_sign_parallelized(lhs, rhs);
         self.server_key
             .key
             .apply_lookup_table_assign(&mut mask, &self.mask_accumulator);
@@ -450,6 +615,69 @@ impl<'a> Comparator<'a> {
                     },
                     || {
                         let mut rhs_masked = self.server_key.key.unchecked_add(rhs_block, &mask);
+                        self.server_key
+                            .key
+                            .apply_lookup_table_assign(&mut rhs_masked, y_accumulator);
+                        rhs_masked
+                    },
+                );
+
+                self.server_key.key.unchecked_add(&maybe_x, &maybe_y)
+            })
+            .collect::<Vec<_>>();
+
+        RadixCiphertext { blocks }
+    }
+
+    fn unchecked_scalar_min_or_max_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+        selector: MinMaxSelector,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        let (x_accumulator, y_accumulator) = match selector {
+            MinMaxSelector::Max => (&self.x_accumulator, &self.y_accumulator),
+            MinMaxSelector::Min => (&self.y_accumulator, &self.x_accumulator),
+        };
+
+        let mut mask = self.unchecked_scalar_sign_parallelized(lhs, rhs);
+        self.server_key
+            .key
+            .apply_lookup_table_assign(&mut mask, &self.mask_accumulator);
+
+        let message_modulus = self.server_key.key.message_modulus.0 as u64;
+        let bits_in_message = message_modulus.ilog2();
+        let scalar_blocks = BlockDecomposer::with_early_stop_at_zero(rhs, bits_in_message)
+            .iter_as::<u8>()
+            .chain(std::iter::repeat(0))
+            .take(lhs.blocks.len())
+            .collect::<Vec<_>>();
+
+        let blocks = lhs
+            .blocks
+            .par_iter()
+            .zip(scalar_blocks.into_par_iter())
+            .map(|(lhs_block, scalar_block)| {
+                let (maybe_x, maybe_y) = rayon::join(
+                    || {
+                        let mut lhs_masked = self.server_key.key.unchecked_add(lhs_block, &mask);
+                        self.server_key
+                            .key
+                            .apply_lookup_table_assign(&mut lhs_masked, x_accumulator);
+                        lhs_masked
+                    },
+                    || {
+                        let mut rhs_masked = if scalar_block != 0 {
+                            self.server_key
+                                .key
+                                .unchecked_scalar_add(&mask, scalar_block)
+                        } else {
+                            mask.clone()
+                        };
                         self.server_key
                             .key
                             .apply_lookup_table_assign(&mut rhs_masked, y_accumulator);
@@ -500,20 +728,20 @@ impl<'a> Comparator<'a> {
         self.unchecked_min_or_max_parallelized(lhs, rhs, selector)
     }
 
-    fn map_comparison_result<F, PBSOrder>(
+    fn map_sign_result<F, PBSOrder>(
         &self,
         comparison: crate::shortint::CiphertextBase<PBSOrder>,
         sign_result_handler_fn: F,
         num_blocks: usize,
     ) -> RadixCiphertext<PBSOrder>
     where
-        F: Fn(u64) -> u64,
+        F: Fn(u64) -> bool,
         PBSOrder: PBSOrderMarker,
     {
         let acc = self
             .server_key
             .key
-            .generate_accumulator(sign_result_handler_fn);
+            .generate_accumulator(|x| u64::from(sign_result_handler_fn(x)));
         let result_block = self.server_key.key.apply_lookup_table(&comparison, &acc);
 
         let mut blocks = Vec::with_capacity(num_blocks);
@@ -539,11 +767,11 @@ impl<'a> Comparator<'a> {
             &'b RadixCiphertext<PBSOrder>,
             &'b RadixCiphertext<PBSOrder>,
         ) -> crate::shortint::CiphertextBase<PBSOrder>,
-        F: Fn(u64) -> u64,
+        F: Fn(u64) -> bool,
         PBSOrder: PBSOrderMarker,
     {
         let comparison = comparison_fn(self, lhs, rhs);
-        self.map_comparison_result(comparison, sign_result_handler_fn, lhs.blocks.len())
+        self.map_sign_result(comparison, sign_result_handler_fn, lhs.blocks.len())
     }
 
     /// Expects the carry buffers to be empty
@@ -560,11 +788,11 @@ impl<'a> Comparator<'a> {
             &mut RadixCiphertext<PBSOrder>,
             &mut RadixCiphertext<PBSOrder>,
         ) -> crate::shortint::CiphertextBase<PBSOrder>,
-        F: Fn(u64) -> u64,
+        F: Fn(u64) -> bool,
         PBSOrder: PBSOrderMarker,
     {
         let comparison = smart_comparison_fn(self, lhs, rhs);
-        self.map_comparison_result(comparison, sign_result_handler_fn, lhs.blocks.len())
+        self.map_sign_result(comparison, sign_result_handler_fn, lhs.blocks.len())
     }
 
     //======================================
@@ -576,12 +804,7 @@ impl<'a> Comparator<'a> {
         lhs: &RadixCiphertext<PBSOrder>,
         rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare,
-            |x| u64::from(x == Self::IS_SUPERIOR),
-            lhs,
-            rhs,
-        )
+        self.unchecked_comparison_impl(Self::unchecked_sign, |x| x == Self::IS_SUPERIOR, lhs, rhs)
     }
 
     pub fn unchecked_ge<PBSOrder: PBSOrderMarker>(
@@ -590,8 +813,8 @@ impl<'a> Comparator<'a> {
         rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
-            Self::unchecked_compare,
-            |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR),
+            Self::unchecked_sign,
+            |x| x == Self::IS_EQUAL || x == Self::IS_SUPERIOR,
             lhs,
             rhs,
         )
@@ -602,12 +825,7 @@ impl<'a> Comparator<'a> {
         lhs: &RadixCiphertext<PBSOrder>,
         rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
-        self.unchecked_comparison_impl(
-            Self::unchecked_compare,
-            |x| u64::from(x == Self::IS_INFERIOR),
-            lhs,
-            rhs,
-        )
+        self.unchecked_comparison_impl(Self::unchecked_sign, |x| x == Self::IS_INFERIOR, lhs, rhs)
     }
 
     pub fn unchecked_le<PBSOrder: PBSOrderMarker>(
@@ -616,8 +834,8 @@ impl<'a> Comparator<'a> {
         rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
-            Self::unchecked_compare,
-            |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR),
+            Self::unchecked_sign,
+            |x| x == Self::IS_EQUAL || x == Self::IS_INFERIOR,
             lhs,
             rhs,
         )
@@ -649,8 +867,8 @@ impl<'a> Comparator<'a> {
         rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
-            Self::unchecked_compare_parallelized,
-            |x| u64::from(x == Self::IS_SUPERIOR),
+            Self::unchecked_sign_parallelized,
+            |x| x == Self::IS_SUPERIOR,
             lhs,
             rhs,
         )
@@ -662,8 +880,8 @@ impl<'a> Comparator<'a> {
         rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
-            Self::unchecked_compare_parallelized,
-            |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR),
+            Self::unchecked_sign_parallelized,
+            |x| x == Self::IS_EQUAL || x == Self::IS_SUPERIOR,
             lhs,
             rhs,
         )
@@ -675,8 +893,8 @@ impl<'a> Comparator<'a> {
         rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
-            Self::unchecked_compare_parallelized,
-            |x| u64::from(x == Self::IS_INFERIOR),
+            Self::unchecked_sign_parallelized,
+            |x| x == Self::IS_INFERIOR,
             lhs,
             rhs,
         )
@@ -688,8 +906,8 @@ impl<'a> Comparator<'a> {
         rhs: &RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
         self.unchecked_comparison_impl(
-            Self::unchecked_compare_parallelized,
-            |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR),
+            Self::unchecked_sign_parallelized,
+            |x| x == Self::IS_EQUAL || x == Self::IS_INFERIOR,
             lhs,
             rhs,
         )
@@ -720,12 +938,7 @@ impl<'a> Comparator<'a> {
         lhs: &mut RadixCiphertext<PBSOrder>,
         rhs: &mut RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
-        self.smart_comparison_impl(
-            Self::smart_compare,
-            |x| u64::from(x == Self::IS_SUPERIOR),
-            lhs,
-            rhs,
-        )
+        self.smart_comparison_impl(Self::smart_compare, |x| x == Self::IS_SUPERIOR, lhs, rhs)
     }
 
     pub fn smart_ge<PBSOrder: PBSOrderMarker>(
@@ -735,7 +948,7 @@ impl<'a> Comparator<'a> {
     ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare,
-            |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR),
+            |x| x == Self::IS_EQUAL || x == Self::IS_SUPERIOR,
             lhs,
             rhs,
         )
@@ -746,12 +959,7 @@ impl<'a> Comparator<'a> {
         lhs: &mut RadixCiphertext<PBSOrder>,
         rhs: &mut RadixCiphertext<PBSOrder>,
     ) -> RadixCiphertext<PBSOrder> {
-        self.smart_comparison_impl(
-            Self::smart_compare,
-            |x| u64::from(x == Self::IS_INFERIOR),
-            lhs,
-            rhs,
-        )
+        self.smart_comparison_impl(Self::smart_compare, |x| x == Self::IS_INFERIOR, lhs, rhs)
     }
 
     pub fn smart_le<PBSOrder: PBSOrderMarker>(
@@ -761,7 +969,7 @@ impl<'a> Comparator<'a> {
     ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare,
-            |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR),
+            |x| x == Self::IS_EQUAL || x == Self::IS_INFERIOR,
             lhs,
             rhs,
         )
@@ -794,7 +1002,7 @@ impl<'a> Comparator<'a> {
     ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare_parallelized,
-            |x| u64::from(x == Self::IS_SUPERIOR),
+            |x| x == Self::IS_SUPERIOR,
             lhs,
             rhs,
         )
@@ -807,7 +1015,7 @@ impl<'a> Comparator<'a> {
     ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare_parallelized,
-            |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_SUPERIOR),
+            |x| x == Self::IS_EQUAL || x == Self::IS_SUPERIOR,
             lhs,
             rhs,
         )
@@ -820,7 +1028,7 @@ impl<'a> Comparator<'a> {
     ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare_parallelized,
-            |x| u64::from(x == Self::IS_INFERIOR),
+            |x| x == Self::IS_INFERIOR,
             lhs,
             rhs,
         )
@@ -833,7 +1041,7 @@ impl<'a> Comparator<'a> {
     ) -> RadixCiphertext<PBSOrder> {
         self.smart_comparison_impl(
             Self::smart_compare_parallelized,
-            |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR),
+            |x| x == Self::IS_EQUAL || x == Self::IS_INFERIOR,
             lhs,
             rhs,
         )
@@ -1066,11 +1274,328 @@ impl<'a> Comparator<'a> {
             .for_each(|block| self.server_key.key.message_extract_assign(block));
         res
     }
+
+    //===========================================
+    // Unchecked Scalar Multi-Threaded operations
+    //===========================================
+    //
+    pub fn unchecked_scalar_compare_parallelized<PBSOrder, T, F>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+        sign_result_handler_fn: F,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+        F: Fn(u64) -> bool + Sync,
+    {
+        let sign_block = self.unchecked_scalar_sign_parallelized(lhs, rhs);
+        self.map_sign_result(sign_block, sign_result_handler_fn, lhs.blocks.len())
+    }
+
+    pub fn unchecked_scalar_gt_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.unchecked_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_SUPERIOR)
+    }
+
+    pub fn unchecked_scalar_ge_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.unchecked_scalar_compare_parallelized(lhs, rhs, |x| {
+            x == Self::IS_SUPERIOR || x == Self::IS_EQUAL
+        })
+    }
+
+    pub fn unchecked_scalar_lt_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.unchecked_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_INFERIOR)
+    }
+
+    pub fn unchecked_scalar_le_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.unchecked_scalar_compare_parallelized(lhs, rhs, |x| {
+            x == Self::IS_INFERIOR || x == Self::IS_EQUAL
+        })
+    }
+
+    pub fn unchecked_scalar_max_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.unchecked_scalar_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Max)
+    }
+
+    pub fn unchecked_scalar_min_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.unchecked_scalar_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Min)
+    }
+
+    //=======================================
+    // Smart Scalar Multi-Threaded operations
+    //=======================================
+
+    fn smart_scalar_compare_parallelized<PBSOrder, T, F>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: T,
+        sign_result_handler_fn: F,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+        F: Fn(u64) -> bool + Sync,
+    {
+        if has_non_zero_carries(lhs) {
+            self.server_key.full_propagate_parallelized(lhs);
+        }
+        self.unchecked_scalar_compare_parallelized(lhs, rhs, sign_result_handler_fn)
+    }
+
+    pub fn smart_scalar_gt_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.smart_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_SUPERIOR)
+    }
+
+    pub fn smart_scalar_ge_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.smart_scalar_compare_parallelized(lhs, rhs, |x| {
+            x == Self::IS_SUPERIOR || x == Self::IS_EQUAL
+        })
+    }
+
+    pub fn smart_scalar_lt_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.smart_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_INFERIOR)
+    }
+
+    pub fn smart_scalar_le_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.smart_scalar_compare_parallelized(lhs, rhs, |x| {
+            x == Self::IS_INFERIOR || x == Self::IS_EQUAL
+        })
+    }
+
+    pub fn smart_scalar_max_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        if has_non_zero_carries(lhs) {
+            self.server_key.full_propagate_parallelized(lhs);
+        }
+        self.unchecked_scalar_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Max)
+    }
+
+    pub fn smart_scalar_min_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &mut RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        if has_non_zero_carries(lhs) {
+            self.server_key.full_propagate_parallelized(lhs);
+        }
+        self.unchecked_scalar_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Min)
+    }
+
+    //======================================
+    // "Default" Scalar Multi-Threaded operations
+    //======================================
+
+    fn default_scalar_compare_parallelized<PBSOrder, T, F>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+        sign_result_handler_fn: F,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+        F: Fn(u64) -> bool + Sync,
+    {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let lhs = if has_non_zero_carries(lhs) {
+            tmp_lhs = lhs.clone();
+            self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+            &tmp_lhs
+        } else {
+            lhs
+        };
+        self.unchecked_scalar_compare_parallelized(lhs, rhs, sign_result_handler_fn)
+    }
+
+    pub fn scalar_gt_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.default_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_SUPERIOR)
+    }
+
+    pub fn scalar_ge_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.default_scalar_compare_parallelized(lhs, rhs, |x| {
+            x == Self::IS_SUPERIOR || x == Self::IS_EQUAL
+        })
+    }
+
+    pub fn scalar_lt_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.default_scalar_compare_parallelized(lhs, rhs, |x| x == Self::IS_INFERIOR)
+    }
+
+    pub fn scalar_le_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        self.default_scalar_compare_parallelized(lhs, rhs, |x| {
+            x == Self::IS_INFERIOR || x == Self::IS_EQUAL
+        })
+    }
+
+    pub fn scalar_max_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let lhs = if has_non_zero_carries(lhs) {
+            tmp_lhs = lhs.clone();
+            self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+            &tmp_lhs
+        } else {
+            lhs
+        };
+        self.unchecked_scalar_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Max)
+    }
+
+    pub fn scalar_min_parallelized<PBSOrder, T>(
+        &self,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: T,
+    ) -> RadixCiphertext<PBSOrder>
+    where
+        PBSOrder: PBSOrderMarker,
+        T: DecomposableInto<u8>,
+    {
+        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let lhs = if has_non_zero_carries(lhs) {
+            tmp_lhs = lhs.clone();
+            self.server_key.full_propagate_parallelized(&mut tmp_lhs);
+            &tmp_lhs
+        } else {
+            lhs
+        };
+        self.unchecked_scalar_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Min)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::Comparator;
+    use crate::integer::block_decomposition::DecomposableInto;
     use crate::integer::ciphertext::RadixCiphertext;
     use crate::integer::{gen_keys, RadixCiphertextBig, U256};
     use crate::shortint::{ClassicPBSParameters, PBSOrderMarker};
@@ -1164,6 +1689,62 @@ mod tests {
             rhs: &RadixCiphertext<PBSOrder>,
         ) -> RadixCiphertext<PBSOrder> {
             self.server_key.ne_parallelized(lhs, rhs)
+        }
+    }
+
+    impl<'a> Comparator<'a> {
+        pub fn unchecked_scalar_eq_parallelized<
+            PBSOrder: PBSOrderMarker,
+            T: DecomposableInto<u8>,
+        >(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: T,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.unchecked_scalar_eq_parallelized(lhs, rhs)
+        }
+
+        pub fn smart_scalar_eq_parallelized<PBSOrder: PBSOrderMarker, T: DecomposableInto<u8>>(
+            &self,
+            lhs: &mut RadixCiphertext<PBSOrder>,
+            rhs: T,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.smart_scalar_eq_parallelized(lhs, rhs)
+        }
+
+        pub fn scalar_eq_parallelized<PBSOrder: PBSOrderMarker, T: DecomposableInto<u8>>(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: T,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.scalar_eq_parallelized(lhs, rhs)
+        }
+
+        pub fn unchecked_scalar_ne_parallelized<
+            PBSOrder: PBSOrderMarker,
+            T: DecomposableInto<u8>,
+        >(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: T,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.unchecked_scalar_ne_parallelized(lhs, rhs)
+        }
+
+        pub fn smart_scalar_ne_parallelized<PBSOrder: PBSOrderMarker, T: DecomposableInto<u8>>(
+            &self,
+            lhs: &mut RadixCiphertext<PBSOrder>,
+            rhs: T,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.smart_scalar_ne_parallelized(lhs, rhs)
+        }
+
+        pub fn scalar_ne_parallelized<PBSOrder: PBSOrderMarker, T: DecomposableInto<u8>>(
+            &self,
+            lhs: &RadixCiphertext<PBSOrder>,
+            rhs: T,
+        ) -> RadixCiphertext<PBSOrder> {
+            self.server_key.scalar_ne_parallelized(lhs, rhs)
         }
     }
 
@@ -1518,13 +2099,13 @@ mod tests {
                 create_parametrized_test!([<unchecked_ $comparison_name _256_bits>]
                 {
                     PARAM_MESSAGE_2_CARRY_2,
-                    // PARAM_MESSAGE_3_CARRY_3,
+                    PARAM_MESSAGE_3_CARRY_3,
                     PARAM_MESSAGE_4_CARRY_4
                 });
                 create_parametrized_test!([<unchecked_ $comparison_name _parallelized_256_bits>]
                 {
                     PARAM_MESSAGE_2_CARRY_2,
-                    // PARAM_MESSAGE_3_CARRY_3,
+                    PARAM_MESSAGE_3_CARRY_3,
                     PARAM_MESSAGE_4_CARRY_4
                 });
 
@@ -1562,9 +2143,7 @@ mod tests {
     }
 
     use crate::shortint::parameters::{
-        PARAM_MESSAGE_2_CARRY_2,
-        // PARAM_MESSAGE_3_CARRY_3
-        PARAM_MESSAGE_4_CARRY_4,
+        PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3, PARAM_MESSAGE_4_CARRY_4,
     };
 
     define_comparison_test_functions!(eq);
@@ -1583,10 +2162,10 @@ mod tests {
         test_unchecked_min_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
     }
 
-    // #[test]
-    // fn test_unchecked_min_256_bits_param_message_3_carry_3() {
-    //     test_unchecked_min_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    // }
+    #[test]
+    fn test_unchecked_min_256_bits_param_message_3_carry_3() {
+        test_unchecked_min_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
+    }
 
     #[test]
     fn test_unchecked_min_256_bits_param_message_4_carry_4() {
@@ -1601,13 +2180,13 @@ mod tests {
         )
     }
 
-    // #[test]
-    // fn test_unchecked_min_parallelized_256_bits_param_message_3_carry_3() {
-    //     test_unchecked_min_parallelized_256_bits(
-    //         crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
-    //         2,
-    //     )
-    // }
+    #[test]
+    fn test_unchecked_min_parallelized_256_bits_param_message_3_carry_3() {
+        test_unchecked_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+            2,
+        )
+    }
 
     #[test]
     fn test_unchecked_min_parallelized_256_bits_param_message_4_carry_4() {
@@ -1641,10 +2220,10 @@ mod tests {
         test_unchecked_max_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
     }
 
-    // #[test]
-    // fn test_unchecked_max_256_bits_param_message_3_carry_3() {
-    //     test_unchecked_max_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    // }
+    #[test]
+    fn test_unchecked_max_256_bits_param_message_3_carry_3() {
+        test_unchecked_max_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
+    }
 
     #[test]
     fn test_unchecked_max_256_bits_param_message_4_carry_4() {
@@ -1659,13 +2238,13 @@ mod tests {
         )
     }
 
-    // #[test]
-    // fn test_unchecked_max_parallelized_256_bits_param_message_3_carry_3() {
-    //     test_unchecked_max_parallelized_256_bits(
-    //         crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
-    //         2,
-    //     )
-    // }
+    #[test]
+    fn test_unchecked_max_parallelized_256_bits_param_message_3_carry_3() {
+        test_unchecked_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+            2,
+        )
+    }
 
     #[test]
     fn test_unchecked_max_parallelized_256_bits_param_message_4_carry_4() {
@@ -1689,4 +2268,502 @@ mod tests {
     fn test_max_parallelized_256_bits_param_message_4_carry_4() {
         test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4, 2)
     }
+
+    //=============================================================
+    // Scalar comparison tests
+    //=============================================================
+
+    /// Function to test an "unchecked_scalar" compartor function.
+    ///
+    /// This calls the `unchecked_scalar_comparator_method` with fresh ciphertexts
+    /// and compares that it gives the same results as the `clear_fn`.
+    fn test_unchecked_scalar_function<UncheckedFn, ClearF>(
+        param: ClassicPBSParameters,
+        num_test: usize,
+        unchecked_comparator_method: UncheckedFn,
+        clear_fn: ClearF,
+    ) where
+        UncheckedFn:
+            for<'a, 'b> Fn(&'a Comparator<'b>, &'a RadixCiphertextBig, U256) -> RadixCiphertextBig,
+        ClearF: Fn(U256, U256) -> U256,
+    {
+        let mut rng = rand::thread_rng();
+
+        let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+
+        let (cks, sks) = gen_keys(param);
+        let comparator = Comparator::new(&sks);
+
+        for _ in 0..num_test {
+            let clear_a = rng.gen::<U256>();
+            let clear_b = rng.gen::<U256>();
+
+            let a = cks.encrypt_radix(clear_a, num_block);
+
+            {
+                let result = unchecked_comparator_method(&comparator, &a, clear_b);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                let expected_result = clear_fn(clear_a, clear_b);
+                assert_eq!(decrypted, expected_result);
+            }
+
+            {
+                // Force case where lhs == rhs
+                let result = unchecked_comparator_method(&comparator, &a, clear_a);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                let expected_result = clear_fn(clear_a, clear_a);
+                assert_eq!(decrypted, expected_result);
+            }
+        }
+    }
+
+    /// Function to test a "smart_scalar" comparator function.
+    fn test_smart_scalar_function<SmartFn, ClearF>(
+        param: ClassicPBSParameters,
+        num_test: usize,
+        smart_comparator_method: SmartFn,
+        clear_fn: ClearF,
+    ) where
+        SmartFn: for<'a, 'b> Fn(
+            &'a Comparator<'b>,
+            &'a mut RadixCiphertextBig,
+            U256,
+        ) -> RadixCiphertextBig,
+        ClearF: Fn(U256, U256) -> U256,
+    {
+        let (cks, sks) = gen_keys(param);
+        let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+        let comparator = Comparator::new(&sks);
+
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..num_test {
+            let mut clear_0 = rng.gen::<U256>();
+            let clear_1 = rng.gen::<U256>();
+            let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+            // Raise the degree, so as to ensure worst case path in operations
+            while !super::has_non_zero_carries(&ct_0) {
+                let clear_2 = rng.gen::<U256>();
+                let ct_2 = cks.encrypt_radix(clear_2, num_block);
+                sks.unchecked_add_assign(&mut ct_0, &ct_2);
+                clear_0 += clear_2;
+            }
+
+            // Sanity decryption checks
+            {
+                let a: U256 = cks.decrypt_radix(&ct_0);
+                assert_eq!(a, clear_0);
+            }
+
+            assert!(super::has_non_zero_carries(&ct_0));
+            let encrypted_result = smart_comparator_method(&comparator, &mut ct_0, clear_1);
+            assert!(!super::has_non_zero_carries(&ct_0));
+
+            // Sanity decryption checks
+            {
+                let a: U256 = cks.decrypt_radix(&ct_0);
+                assert_eq!(a, clear_0);
+            }
+
+            let decrypted_result: U256 = cks.decrypt_radix(&encrypted_result);
+
+            let expected_result = clear_fn(clear_0, clear_1);
+            assert_eq!(decrypted_result, expected_result);
+        }
+    }
+
+    /// Function to test a "default_scalar" comparator function.
+    fn test_default_scalar_function<SmartFn, ClearF>(
+        param: ClassicPBSParameters,
+        num_test: usize,
+        default_comparator_method: SmartFn,
+        clear_fn: ClearF,
+    ) where
+        SmartFn:
+            for<'a, 'b> Fn(&'a Comparator<'b>, &'a RadixCiphertextBig, U256) -> RadixCiphertextBig,
+        ClearF: Fn(U256, U256) -> U256,
+    {
+        let (cks, sks) = gen_keys(param);
+        let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+        let comparator = Comparator::new(&sks);
+
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..num_test {
+            let mut clear_0 = rng.gen::<U256>();
+            let clear_1 = rng.gen::<U256>();
+
+            let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+            // Raise the degree, so as to ensure worst case path in operations
+            while !super::has_non_zero_carries(&ct_0) {
+                let clear_2 = rng.gen::<U256>();
+                let ct_2 = cks.encrypt_radix(clear_2, num_block);
+                sks.unchecked_add_assign(&mut ct_0, &ct_2);
+                clear_0 += clear_2;
+            }
+
+            // Sanity decryption checks
+            {
+                let a: U256 = cks.decrypt_radix(&ct_0);
+                assert_eq!(a, clear_0);
+            }
+
+            assert!(super::has_non_zero_carries(&ct_0));
+            let encrypted_result = default_comparator_method(&comparator, &ct_0, clear_1);
+            assert!(!super::has_non_zero_carries(&encrypted_result));
+
+            // Sanity decryption checks
+            {
+                let a: U256 = cks.decrypt_radix(&ct_0);
+                assert_eq!(a, clear_0);
+            }
+
+            let decrypted_result: U256 = cks.decrypt_radix(&encrypted_result);
+
+            let expected_result = clear_fn(clear_0, clear_1);
+            assert_eq!(decrypted_result, expected_result);
+        }
+    }
+
+    /// This macro generates the tests for a given scalar comparison fn
+    ///
+    /// All our scalar comparison function have 3 variants:
+    /// - unchecked_scalar_$comparison_name_parallelized
+    /// - smart_scalar_$comparison_name_parallelized
+    /// - scalar_$comparison_name_parallelized
+    ///
+    /// So, for example, for the `gt` comparison fn,
+    /// this macro will generate the tests for the 3 variants described above
+    macro_rules! define_scalar_comparison_test_functions {
+        ($comparison_name:ident) => {
+            paste::paste!{
+
+                fn [<unchecked_scalar_ $comparison_name _parallelized_256_bits>](params:  crate::shortint::ClassicPBSParameters) {
+                    let num_tests = 1;
+                    test_unchecked_scalar_function(
+                        params,
+                        num_tests,
+                        |comparator, lhs, rhs| comparator.[<unchecked_scalar_ $comparison_name _parallelized>](lhs, rhs),
+                        |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
+                    )
+                }
+
+                fn [<smart_scalar_ $comparison_name _parallelized_256_bits>](params:  crate::shortint::ClassicPBSParameters) {
+                    let num_tests = 1;
+                    test_smart_scalar_function(
+                        params,
+                        num_tests,
+                        |comparator, lhs, rhs| comparator.[<smart_scalar_ $comparison_name _parallelized>](lhs, rhs),
+                        |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
+                    )
+                }
+
+                fn [<scalar_ $comparison_name _parallelized_256_bits>](params:  crate::shortint::ClassicPBSParameters) {
+                    let num_tests = 1;
+                    test_default_scalar_function(
+                        params,
+                        num_tests,
+                        |comparator, lhs, rhs| comparator.[<scalar_ $comparison_name _parallelized>](lhs, rhs),
+                        |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
+                    )
+                }
+
+                create_parametrized_test!([<unchecked_scalar_ $comparison_name _parallelized_256_bits>]
+                {
+                    PARAM_MESSAGE_2_CARRY_2,
+                    PARAM_MESSAGE_3_CARRY_3,
+                    PARAM_MESSAGE_4_CARRY_4
+                });
+
+                create_parametrized_test!([<smart_scalar_ $comparison_name _parallelized_256_bits>]
+                {
+                    PARAM_MESSAGE_2_CARRY_2,
+                    // We don't use PARAM_MESSAGE_3_CARRY_3,
+                    // as smart test might overflow values
+                    // and when using 3_3 to represent 256 we actually have more than 256 bits
+                    // of message so the overflow behaviour is not the same, leading to false negatives
+                    PARAM_MESSAGE_4_CARRY_4
+                });
+
+                create_parametrized_test!([<scalar_ $comparison_name _parallelized_256_bits>]
+                {
+                    PARAM_MESSAGE_2_CARRY_2,
+                    // We don't use PARAM_MESSAGE_3_CARRY_3,
+                    // as default test might overflow values
+                    // and when using 3_3 to represent 256 we actually have more than 256 bits
+                    // of message so the overflow behaviour is not the same, leading to false negatives
+                    PARAM_MESSAGE_4_CARRY_4
+                });
+            }
+        };
+    }
+
+    define_scalar_comparison_test_functions!(eq);
+    define_scalar_comparison_test_functions!(ne);
+    define_scalar_comparison_test_functions!(lt);
+    define_scalar_comparison_test_functions!(le);
+    define_scalar_comparison_test_functions!(gt);
+    define_scalar_comparison_test_functions!(ge);
+
+    fn test_unchecked_scalar_min_parallelized_256_bits(
+        params: crate::shortint::ClassicPBSParameters,
+        num_tests: usize,
+    ) {
+        test_unchecked_function(
+            params,
+            num_tests,
+            |comparator, lhs, rhs| comparator.unchecked_min_parallelized(lhs, rhs),
+            std::cmp::min,
+        )
+    }
+
+    fn test_unchecked_scalar_max_parallelized_256_bits(
+        params: crate::shortint::ClassicPBSParameters,
+        num_tests: usize,
+    ) {
+        test_unchecked_function(
+            params,
+            num_tests,
+            |comparator, lhs, rhs| comparator.unchecked_max_parallelized(lhs, rhs),
+            std::cmp::max,
+        )
+    }
+
+    fn test_scalar_min_parallelized_256_bits(
+        params: crate::shortint::ClassicPBSParameters,
+        num_tests: usize,
+    ) {
+        test_default_function(
+            params,
+            num_tests,
+            |comparator, lhs, rhs| comparator.min_parallelized(lhs, rhs),
+            std::cmp::min,
+        )
+    }
+
+    fn test_scalar_max_parallelized_256_bits(
+        params: crate::shortint::ClassicPBSParameters,
+        num_tests: usize,
+    ) {
+        test_default_function(
+            params,
+            num_tests,
+            |comparator, lhs, rhs| comparator.max_parallelized(lhs, rhs),
+            std::cmp::max,
+        )
+    }
+
+    //================
+    // Scalar Min
+    //================
+
+    #[test]
+    fn test_unchecked_scalar_min_parallelized_256_bits_param_message_2_carry_2() {
+        test_unchecked_scalar_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            4,
+        )
+    }
+
+    #[test]
+    fn test_unchecked_scalar_min_parallelized_256_bits_param_message_3_carry_3() {
+        test_unchecked_scalar_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+            2,
+        )
+    }
+
+    #[test]
+    fn test_unchecked_scalar_min_parallelized_256_bits_param_message_4_carry_4() {
+        test_unchecked_scalar_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+            2,
+        )
+    }
+
+    #[test]
+    fn test_scalar_min_parallelized_256_bits_param_message_2_carry_2() {
+        test_scalar_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            4,
+        )
+    }
+
+    #[test]
+    fn test_scalar_min_parallelized_256_bits_param_message_4_carry_4() {
+        test_scalar_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+            2,
+        )
+    }
+
+    //================
+    // Scalar Max
+    //================
+
+    #[test]
+    fn test_unchecked_scalar_max_parallelized_256_bits_param_message_2_carry_2() {
+        test_unchecked_scalar_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            4,
+        )
+    }
+
+    #[test]
+    fn test_unchecked_scalar_max_parallelized_256_bits_param_message_3_carry_3() {
+        test_unchecked_scalar_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+            2,
+        )
+    }
+
+    #[test]
+    fn test_unchecked_scalar_max_parallelized_256_bits_param_message_4_carry_4() {
+        test_unchecked_scalar_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+            2,
+        )
+    }
+
+    #[test]
+    fn test_scalar_max_parallelized_256_bits_param_message_2_carry_2() {
+        test_scalar_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            4,
+        )
+    }
+
+    #[test]
+    fn test_scalar_max_parallelized_256_bits_param_message_4_carry_4() {
+        test_scalar_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+            2,
+        )
+    }
+
+    /// The goal of this function is to ensure that scalar comparisons
+    /// work when the scalar type used is either bigger or small (in bit size)
+    /// comparaed to the ciphertext
+    fn test_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
+        let mut rng = rand::thread_rng();
+
+        let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+
+        let (cks, sks) = gen_keys(param);
+        let comparator = Comparator::new(&sks);
+
+        for _ in 0..4 {
+            let clear_a = rng.gen::<u128>();
+            let smaller_clear = rng.gen::<u64>();
+            let bigger_clear = rng.gen::<U256>();
+
+            let a = cks.encrypt_radix(clear_a, num_block);
+
+            // >=
+            {
+                let result = comparator.unchecked_scalar_ge_parallelized(&a, smaller_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(
+                    decrypted,
+                    U256::from(U256::from(clear_a) >= U256::from(smaller_clear))
+                );
+
+                let result = comparator.unchecked_scalar_ge_parallelized(&a, bigger_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) >= bigger_clear));
+            }
+
+            // >
+            {
+                let result = comparator.unchecked_scalar_gt_parallelized(&a, smaller_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(
+                    decrypted,
+                    U256::from(U256::from(clear_a) > U256::from(smaller_clear))
+                );
+
+                let result = comparator.unchecked_scalar_gt_parallelized(&a, bigger_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) > bigger_clear));
+            }
+
+            // <=
+            {
+                let result = comparator.unchecked_scalar_le_parallelized(&a, smaller_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(
+                    decrypted,
+                    U256::from(U256::from(clear_a) <= U256::from(smaller_clear))
+                );
+
+                let result = comparator.unchecked_scalar_le_parallelized(&a, bigger_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) <= bigger_clear));
+            }
+
+            // <
+            {
+                let result = comparator.unchecked_scalar_lt_parallelized(&a, smaller_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(
+                    decrypted,
+                    U256::from(U256::from(clear_a) < U256::from(smaller_clear))
+                );
+
+                let result = comparator.unchecked_scalar_lt_parallelized(&a, bigger_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) < bigger_clear));
+            }
+
+            // ==
+            {
+                let result = comparator.unchecked_scalar_eq_parallelized(&a, smaller_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(
+                    decrypted,
+                    U256::from(U256::from(clear_a) == U256::from(smaller_clear))
+                );
+
+                let result = comparator.unchecked_scalar_eq_parallelized(&a, bigger_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) == bigger_clear));
+            }
+
+            // !=
+            {
+                let result = comparator.unchecked_scalar_ne_parallelized(&a, smaller_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(
+                    decrypted,
+                    U256::from(U256::from(clear_a) != U256::from(smaller_clear))
+                );
+
+                let result = comparator.unchecked_scalar_ne_parallelized(&a, bigger_clear);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) != bigger_clear));
+            }
+
+            // Here the goal is to test, the branching
+            // made in in the scalar sign function
+            //
+            // We are forcing one of the two branches to work on empty slices
+            {
+                let result = comparator.unchecked_scalar_lt_parallelized(&a, U256::ZERO);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) < U256::ZERO));
+
+                let result = comparator.unchecked_scalar_lt_parallelized(&a, U256::MAX);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) < U256::MAX));
+            }
+        }
+    }
+
+    create_parametrized_test!(test_unchecked_scalar_comparisons_edge {
+        PARAM_MESSAGE_2_CARRY_2,
+        PARAM_MESSAGE_3_CARRY_3,
+        PARAM_MESSAGE_4_CARRY_4
+    });
 }

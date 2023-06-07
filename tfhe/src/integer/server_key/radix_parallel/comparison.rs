@@ -28,42 +28,13 @@ impl ServerKey {
                     .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
             });
 
-        let message_modulus = self.key.message_modulus.0;
-        let carry_modulus = self.key.carry_modulus.0;
-        let total_modulus = message_modulus * carry_modulus;
-        let max_value = total_modulus - 1;
+        let is_equal_result = self.are_all_comparisons_block_true(block_comparisons);
 
-        let mut block_comparisons_2 = Vec::with_capacity(block_comparisons.len() / 2);
-        let is_max_value = self
-            .key
-            .generate_accumulator(|x| u64::from((x & max_value as u64) == max_value as u64));
+        let mut blocks = Vec::with_capacity(lhs.blocks.len());
+        blocks.push(is_equal_result);
+        blocks.resize_with(lhs.blocks.len(), || self.key.create_trivial(0));
 
-        while block_comparisons.len() > 1 {
-            block_comparisons
-                .par_chunks(max_value)
-                .map(|blocks| {
-                    let mut sum = blocks[0].clone();
-                    for other_block in &blocks[1..] {
-                        self.key.unchecked_add_assign(&mut sum, other_block);
-                    }
-                    if blocks.len() == max_value {
-                        self.key.apply_lookup_table(&sum, &is_max_value)
-                    } else {
-                        let is_equal_to_num_blocks = self.key.generate_accumulator(|x| {
-                            u64::from((x & max_value as u64) == blocks.len() as u64)
-                        });
-                        self.key.apply_lookup_table(&sum, &is_equal_to_num_blocks)
-                    }
-                })
-                .collect_into_vec(&mut block_comparisons_2);
-            std::mem::swap(&mut block_comparisons_2, &mut block_comparisons);
-        }
-
-        block_comparisons.resize_with(lhs.blocks.len(), || self.key.create_trivial(0));
-
-        RadixCiphertext {
-            blocks: block_comparisons,
-        }
+        RadixCiphertext { blocks }
     }
 
     pub fn unchecked_ne_parallelized<PBSOrder: PBSOrderMarker>(
