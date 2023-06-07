@@ -13,10 +13,12 @@ pub use crate::core_crypto::commons::parameters::{
 use crate::shortint::ciphertext::PBSOrder;
 use serde::{Deserialize, Serialize};
 
+pub mod key_switching;
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub(crate) mod parameters_wopbs_prime_moduli;
 
+pub use key_switching::ShortintKeySwitchingParameters;
 pub use parameters_wopbs::WopbsParameters;
 
 /// The choice of encryption key for (`shortint ciphertext`)[`super::ciphertext::CiphertextBase`].

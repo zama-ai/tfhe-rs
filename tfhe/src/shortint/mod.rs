@@ -49,6 +49,7 @@
 pub mod ciphertext;
 pub mod client_key;
 pub mod engine;
+pub mod key_switching_key;
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
 pub mod keycache;
 pub mod parameters;
@@ -62,6 +63,7 @@ pub use ciphertext::{
     CompressedCiphertextBig, CompressedCiphertextSmall, PBSOrder, PBSOrderMarker,
 };
 pub use client_key::ClientKey;
+pub use key_switching_key::KeySwitchingKey;
 pub use parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MessageModulus,
     MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
