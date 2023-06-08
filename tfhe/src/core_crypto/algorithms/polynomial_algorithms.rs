@@ -593,6 +593,89 @@ pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, Output
     }
 }
 
+/// Divides (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
+/// $X^{degree}$.
+///
+/// # Note
+///
+/// Computations wrap around modulo `modulus` when exceeding the modulus.
+///
+/// # Examples
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::commons::parameters::*;
+/// use tfhe::core_crypto::entities::*;
+/// let mut poly = Polynomial::from_container(vec![1u8, 2, 3]);
+/// polynomial_wrapping_monic_monomial_div_assign(&mut poly, MonomialDegree(2));
+/// assert_eq!(poly.as_ref(), &[3, 255, 254]);
+/// ```
+pub fn polynomial_wrapping_monic_monomial_div_assign_custom_modulus<Scalar, OutputCont>(
+    output: &mut Polynomial<OutputCont>,
+    monomial_degree: MonomialDegree,
+    modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let full_cycles_count = monomial_degree.0 / output.as_ref().container_len();
+    if full_cycles_count % 2 != 0 {
+        output
+            .as_mut()
+            .iter_mut()
+            .for_each(|a| *a = (*a).wrapping_neg_custom_mod(modulus));
+    }
+    let remaining_degree = monomial_degree.0 % output.as_ref().container_len();
+    output.as_mut().rotate_left(remaining_degree);
+    output
+        .as_mut()
+        .iter_mut()
+        .rev()
+        .take(remaining_degree)
+        .for_each(|a| *a = (*a).wrapping_neg_custom_mod(modulus));
+}
+
+/// Multiply (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
+/// $X^{degree}$.
+///
+/// # Note
+///
+/// Computations wrap around modulo `modulus` when exceeding the modulus.
+///
+/// # Examples
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::commons::parameters::*;
+/// use tfhe::core_crypto::entities::*;
+/// let mut poly = Polynomial::from_container(vec![1u8, 2, 3]);
+/// polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(2));
+/// assert_eq!(poly.as_ref(), &[254, 253, 1]);
+/// ```
+pub fn polynomial_wrapping_monic_monomial_mul_assign_custom_modulus<Scalar, OutputCont>(
+    output: &mut Polynomial<OutputCont>,
+    monomial_degree: MonomialDegree,
+    modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let full_cycles_count = monomial_degree.0 / output.as_ref().container_len();
+    if full_cycles_count % 2 != 0 {
+        output
+            .as_mut()
+            .iter_mut()
+            .for_each(|a| *a = (*a).wrapping_neg_custom_mod(modulus));
+    }
+    let remaining_degree = monomial_degree.0 % output.as_ref().container_len();
+    output.as_mut().rotate_right(remaining_degree);
+    output
+        .as_mut()
+        .iter_mut()
+        .take(remaining_degree)
+        .for_each(|a| *a = (*a).wrapping_neg_custom_mod(modulus));
+}
+
 /// Subtract the sum of the element-wise product between two lists of polynomials, to the output
 /// polynomial.
 ///

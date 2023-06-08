@@ -282,7 +282,7 @@ fn decompose_one_level_w_shift<S: UnsignedInteger>(
     res.wrapping_sub(carry * shift)
 }
 
-fn decompose_one_level_non_native<S: UnsignedInteger>(
+pub(crate) fn decompose_one_level_non_native<S: UnsignedInteger>(
     base_log: usize,
     state: &mut S,
     mod_b_mask: S,

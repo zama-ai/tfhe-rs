@@ -22,3 +22,4 @@ pub mod fft_impl;
 pub mod gpu;
 #[cfg(test)]
 pub mod keycache;
+pub mod ntt_impl;
