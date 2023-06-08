@@ -11,6 +11,8 @@ MIN_RUST_VERSION:=$(shell grep rust-version tfhe/Cargo.toml | cut -d '=' -f 2 | 
 AVX512_SUPPORT?=OFF
 WASM_RUSTFLAGS:=
 BIG_TESTS_INSTANCE?=FALSE
+GEN_KEY_CACHE_MULTI_BIT_ONLY?=FALSE
+PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -19,6 +21,12 @@ ifeq ($(AVX512_SUPPORT),ON)
 		AVX512_FEATURE=nightly-avx512
 else
 		AVX512_FEATURE=
+endif
+
+ifeq ($(GEN_KEY_CACHE_MULTI_BIT_ONLY),TRUE)
+		MULTI_BIT_ONLY=--multi-bit-only
+else
+		MULTI_BIT_ONLY=
 endif
 
 # Variables used only for regex_engine example
@@ -142,13 +150,10 @@ clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_ta
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
-	if [[ "$${MULTI_BIT_ONLY}" == TRUE ]]; then \
-		multi_bit_flag="--multi-bit-only"; \
-	fi && \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 		--example generates_test_keys \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe -- \
-		$${multi_bit_flag:+"$${multi_bit_flag}"}
+		$(MULTI_BIT_ONLY)
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
@@ -388,6 +393,12 @@ bench_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
 	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,$(AVX512_FEATURE) -p tfhe
+
+.PHONY: parse_integer_benches # Run python parser to output a csv containing integer benches data
+parse_integer_benches:
+	python3 ./ci/parse_integer_benches_to_csv.py \
+		--criterion-dir target/criterion \
+		--output-file "$(PARSE_INTEGER_BENCH_CSV_FILE)"
 
 .PHONY: measure_shortint_key_sizes # Measure sizes of bootstrapping and key switching keys for shortint
 measure_shortint_key_sizes: install_rs_check_toolchain

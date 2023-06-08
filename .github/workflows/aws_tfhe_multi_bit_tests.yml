@@ -33,7 +33,7 @@ on:
         type: string
 
 jobs:
-  shortint-tests:
+  multi-bit-tests:
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
       cancel-in-progress: true
@@ -67,7 +67,7 @@ jobs:
 
       - name: Gen Keys if required
         run: |
-          MULTI_BIT_ONLY=TRUE make gen_key_cache
+          make GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
 
       - name: Run shortint multi-bit tests
         run: |
