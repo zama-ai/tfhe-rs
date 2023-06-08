@@ -16,9 +16,9 @@ use crate::core_crypto::prelude::*;
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
 /// // Define parameters for LweCiphertext creation
-/// let glwe_size = GlweSize(3);
-/// let polynomial_size = PolynomialSize(64);
-/// let glwe_modular_std_dev = StandardDev(0.000000000000000000029403601535432533);
+/// let glwe_size = GlweSize(2);
+/// let polynomial_size = PolynomialSize(4096);
+/// let glwe_modular_std_dev = StandardDev(0.000000000000000000000000029403601535432533);
 /// let decomp_base_log = DecompositionBaseLog(3);
 /// let decomp_level_count = DecompositionLevelCount(8);
 /// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
@@ -27,6 +27,78 @@ use crate::core_crypto::prelude::*;
 /// let delta2 = ciphertext_modulus.get_custom_modulus() as u64 / (1 << 4);
 /// let delta = std::cmp::min(delta1, delta2);
 /// let output_delta = std::cmp::max(delta1, delta2);
+///
+/// /*
+/// use concrete_csprng::generators::SoftwareRandomGenerator;
+/// use concrete_csprng::seeders::Seed;
+/// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+/// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+///
+/// let ps = 4;
+/// let mut vec = vec![0u64; ps];
+/// generator.fill_slice_with_random_uniform(&mut vec);
+///
+/// let p1 = Polynomial::from_container(vec);
+/// let mut p2 = Polynomial::from_container(vec![0u64; ps]);
+/// //polynomial_karatsuba_wrapping_mul_custom_mod(&mut p2, &p1, &p1, ciphertext_modulus
+/// //.get_custom_modulus().cast_into());
+/// //println!("p1 {:?}", p1);
+/// //println!("p2 {:?}", p2);
+///
+/// let p3 = Polynomial::from_container(
+///         p1
+///             .as_ref()
+///             .iter()
+///             .map(|&x| <u64 as CastInto<u128>>::cast_into(x))
+///             .collect::<Vec<_>>(),
+///     );
+/// let mut p4 = Polynomial::from_container(vec![0u128; ps]);
+/// polynomial_karatsuba_wrapping_mul_custom_mod(&mut p4, &p3, &p3, ciphertext_modulus
+/// .get_custom_modulus().pow(2));
+/// println!("p3 {:?}", p3);
+/// println!("p4 {:?}", p4);
+/// p4.as_mut().iter_mut().for_each(|x| *x = x.wrapping_rem(ciphertext_modulus.get_custom_modulus()));
+/// println!("p4 red {:?}", p4);
+/// assert!(false);
+///
+/// let v = 9816488788024904681u128;
+/// let w = v.wrapping_mul_custom_mod(v,ciphertext_modulus.get_custom_modulus().pow(2));
+/// println!("qs {:?}", ciphertext_modulus.get_custom_modulus().pow(2));
+/// println!("v = {:?}, w = {:?}", v, w);
+///
+/// let p1 = Polynomial::from_container(vec![16062859596568299876_u128, 7899512748733662416_u128]);
+/// let p2 = Polynomial::from_container(vec![1651968223614049387_u128, 1928936459732803060_u128]);
+/// let pprod = Polynomial::from_container(vec![11297675478748365703425208303038183052_u128,
+/// 44033979566331622341777191932940159552_u128]);
+///
+/// let mut p3  = Polynomial::from_container(vec![0_u128,0_u128]);
+/// polynomial_karatsuba_wrapping_mul_custom_mod(&mut p3, &p1, &p2, ciphertext_modulus
+/// .get_custom_modulus().pow(2));
+/// assert_eq!(pprod, p3);
+/// let mut p4  = Polynomial::from_container(vec![0_u64,0_u64]);
+/// p4
+///         .as_mut()
+///         .iter_mut()
+///         .zip(p3.as_ref().iter())
+///         .for_each(|(dest, &source)| {
+///             let shifted = source.wrapping_add_custom_mod(<u64 as CastInto<u128>>::cast_into
+///             (delta) / 2, ciphertext_modulus.get_custom_modulus().pow(2));
+///             let temp = (shifted / <u64 as CastInto<u128>>::cast_into(delta)).wrapping_rem(ciphertext_modulus.get_custom_modulus());
+///             *dest = temp2.cast_into()
+///         });
+/// println!("p4: {:?}", p4);
+/// let pout = Polynomial::from_container(vec![1151598807805846333_u64, 2599801817345464797_u64]);
+/// let pproper = Polynomial::from_container(vec![1151598812100813628_u64,
+/// 2599801834525333977_u64]);
+/// assert_eq!(p4, pout);
+/// assert!(false);
+/// */
+/// // First create a decomposer working on the high 5 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposerNonNative::new(
+///     DecompositionBaseLog(5),
+///     DecompositionLevelCount(1),
+///     ciphertext_modulus,
+/// );
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -61,6 +133,51 @@ use crate::core_crypto::prelude::*;
 ///     &mut encryption_generator,
 /// );
 ///
+/// let mut output_plaintext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
+/// let mut output_cleartext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
+/// let mut output_error = vec![0i64; polynomial_size.0];
+///
+/// decrypt_glwe_ciphertext(&glwe_secret_key, &glwe_1, &mut output_plaintext);
+/// output_plaintext
+///     .iter()
+///     .zip(output_cleartext.iter_mut())
+///     .zip(output_error.iter_mut())
+///     .for_each(|((src, dst), err)| {
+///         *dst.0 = decomposer.closest_representable(*src.0);
+///         let err_unsigned = src.0.wrapping_sub_custom_mod(*dst.0, ciphertext_modulus
+/// .get_custom_modulus().cast_into());
+///         if err_unsigned > (ciphertext_modulus.get_custom_modulus() as u64)/ 2_u64 {
+///                 let neg_err = (ciphertext_modulus.get_custom_modulus() as u64).wrapping_sub
+/// (err_unsigned);
+///                 *err = - (neg_err as i64)
+///         } else {
+///             *err = err_unsigned as i64
+///         }
+///     });
+///
+/// //println!("ciphertext1: {:?}", glwe_1);
+/// //println!("secret: {:?}", glwe_secret_key);
+/// //println!("plaintext1: {:?}", output_plaintext);
+/// //println!("rounded1: {:?}", output_cleartext);
+/// println!("error1: {:?}", output_error);
+///
+/// // Get the raw vector
+/// let mut cleartext = output_cleartext.into_container();
+/// // Remove the encoding
+/// cleartext
+///     .iter_mut()
+///     .for_each(|elt| *elt = *elt / delta1);
+/// // Get the list immutably
+/// let cleartext = cleartext;
+/// //println!("cleartext1: {:?}", cleartext);
+///
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposerNonNative::new(
+///     DecompositionBaseLog(4),
+///     DecompositionLevelCount(1),
+///     ciphertext_modulus,
+/// );
+///
 /// // Create the second plaintext
 /// let msg_2 = 2u64;
 /// let encoded_msg_2 = msg_2 * delta2;
@@ -78,6 +195,44 @@ use crate::core_crypto::prelude::*;
 ///     glwe_modular_std_dev,
 ///     &mut encryption_generator,
 /// );
+///
+/// let mut output_plaintext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
+/// let mut output_cleartext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
+/// let mut output_error = vec![0i64; polynomial_size.0];
+///
+/// decrypt_glwe_ciphertext(&glwe_secret_key, &glwe_2, &mut output_plaintext);
+/// output_plaintext
+///     .iter()
+///     .zip(output_cleartext.iter_mut())
+///     .zip(output_error.iter_mut())
+///     .for_each(|((src, dst), err)| {
+///         *dst.0 = decomposer.closest_representable(*src.0);
+///         let err_unsigned = src.0.wrapping_sub_custom_mod(*dst.0, ciphertext_modulus
+/// .get_custom_modulus().cast_into());
+///         if err_unsigned > (ciphertext_modulus.get_custom_modulus() as u64)/ 2_u64 {
+///                 let neg_err = (ciphertext_modulus.get_custom_modulus() as u64).wrapping_sub
+/// (err_unsigned);
+///                 *err = - (neg_err as i64)
+///         } else {
+///             *err = err_unsigned as i64
+///         }
+///     });
+///
+/// //println!("ciphertext2: {:?}", glwe_2);
+/// //println!("secret: {:?}", glwe_secret_key);
+/// //println!("plaintext2: {:?}", output_plaintext);
+/// //println!("rounded2: {:?}", output_cleartext);
+/// println!("error2: {:?}", output_error);
+///
+/// // Get the raw vector
+/// let mut cleartext = output_cleartext.into_container();
+/// // Remove the encoding
+/// cleartext
+///     .iter_mut()
+///     .for_each(|elt| *elt = *elt / delta2);
+/// // Get the list immutably
+/// let cleartext = cleartext;
+/// //println!("cleartext2: {:?}", cleartext);
 ///
 /// // Perform the tensor product
 /// let tensor_output = glwe_tensor_product(&glwe_1, &glwe_2, delta);
@@ -105,11 +260,48 @@ use crate::core_crypto::prelude::*;
 ///
 /// let tensor_key = GlweSecretKey::from_container(tensor_key_poly_list.as_ref(), polynomial_size);
 ///
+///
+/// let mut output_plaintext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
+/// let mut output_cleartext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
+/// let mut output_error = vec![0i64; polynomial_size.0];
+///
+/// decrypt_glwe_ciphertext(&tensor_key, &tensor_output, &mut output_plaintext);
+/// output_plaintext
+///     .iter()
+///     .zip(output_cleartext.iter_mut())
+///     .zip(output_error.iter_mut())
+///     .for_each(|((src, dst), err)| {
+///         *dst.0 = decomposer.closest_representable(*src.0);
+///         let err_unsigned = src.0.wrapping_sub_custom_mod(*dst.0, ciphertext_modulus
+/// .get_custom_modulus().cast_into());
+///         if err_unsigned > (ciphertext_modulus.get_custom_modulus() as u64)/ 2_u64 {
+///                 let neg_err = (ciphertext_modulus.get_custom_modulus() as u64).wrapping_sub
+/// (err_unsigned);
+///                 *err = - (neg_err as i64)
+///         } else {
+///             *err = err_unsigned as i64
+///         }
+///     });
+///
+/// //println!("ciphertext: {:?}", tensor_output);
+/// //println!("tensor_secret: {:?}", tensor_key);
+/// //println!("plaintext: {:?}", output_plaintext);
+/// //println!("rounded: {:?}", output_cleartext);
+/// println!("error: {:?}", output_error);
+///
+/// // Get the raw vector
+/// let mut cleartext = output_cleartext.into_container();
+/// // Remove the encoding
+/// cleartext
+///     .iter_mut()
+///     .for_each(|elt| *elt = (*elt + (output_delta)/2) / output_delta);
+/// // Get the list immutably
+/// let cleartext = cleartext;
+/// println!("cleartext: {:?}", cleartext);
+/// /*
 /// // Decrypt the tensor product ciphertext
 /// let mut output_plaintext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
 ///
-/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
-/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(2), DecompositionLevelCount(4));
 ///
 /// decrypt_glwe_ciphertext(&tensor_key, &tensor_output, &mut output_plaintext);
 /// output_plaintext
@@ -124,7 +316,7 @@ use crate::core_crypto::prelude::*;
 ///     .for_each(|elt| *elt = *elt / output_delta);
 /// // Get the list immutably
 /// let cleartext = cleartext;
-///
+/// */
 /// // Compute what the product should be
 /// let pt1 = Polynomial::from_container(
 ///     plaintext_list_1
@@ -153,6 +345,8 @@ use crate::core_crypto::prelude::*;
 ///         *dest = u64::cast_from(source / <u64 as CastInto<u128>>::cast_into(delta))
 ///             / output_delta
 ///     });
+///
+/// //println!("correct: {:?}", scaled_product);
 ///
 /// // Check we recovered the correct message
 /// cleartext
@@ -483,18 +677,21 @@ pub fn glwe_tensor_product_non_native_mod<InputCont, Scalar>(
                 let mut temp_poly_sq = Polynomial::new(0u128, a_lhs_i.polynomial_size());
                 polynomial_wrapping_add_mul_assign_custom_mod(&mut temp_poly_sq, &a_lhs_i,
                                                               &a_rhs_j, square_ct_mod);
-
                 let mut output_poly_sq = iter_output_mask.next().unwrap();
                 output_poly_sq
                     .as_mut()
                     .iter_mut()
                     .zip(temp_poly_sq.as_ref().iter())
                     .for_each(|(dest, &source)| {
-                        let temp =
-                            Scalar::cast_from(source / <Scalar as CastInto<u128>>::cast_into
-                                (scale));
-                        *dest = temp.wrapping_rem(ciphertext_modulus.get_custom_modulus().cast_into())
+                        let shifted = source.wrapping_add_custom_mod(
+                            <Scalar as CastInto<u128>>::cast_into(scale) / 2,
+                            square_ct_mod,
+                        );
+                        let temp = (shifted / <Scalar as CastInto<u128>>::cast_into(scale))
+                            .wrapping_rem(ciphertext_modulus.get_custom_modulus());
+                        *dest = temp.cast_into()
                     });
+
 
                 //tensor elements corresponding to key s_i
                 let mut temp_poly_s1 = Polynomial::new(0u128, a_lhs_i.polynomial_size());
@@ -534,10 +731,13 @@ pub fn glwe_tensor_product_non_native_mod<InputCont, Scalar>(
                     .iter_mut()
                     .zip(temp_poly_s1.as_ref().iter())
                     .for_each(|(dest, &source)| {
-                        let temp =
-                            Scalar::cast_from(source / <Scalar as CastInto<u128>>::cast_into
-                                (scale));
-                        *dest = temp.wrapping_rem(ciphertext_modulus.get_custom_modulus().cast_into())
+                        let shifted = source.wrapping_add_custom_mod(
+                            <Scalar as CastInto<u128>>::cast_into(scale) / 2,
+                            square_ct_mod,
+                        );
+                        let temp = (shifted / <Scalar as CastInto<u128>>::cast_into(scale))
+                            .wrapping_rem(ciphertext_modulus.get_custom_modulus());
+                        *dest = temp.cast_into()
                     });
             } else {
                 //when i and j are different we only compute the terms where j < i
@@ -563,10 +763,13 @@ pub fn glwe_tensor_product_non_native_mod<InputCont, Scalar>(
                         .iter_mut()
                         .zip(temp_poly.as_ref().iter())
                         .for_each(|(dest, &source)| {
-                            let temp = Scalar::cast_from(
-                                source / <Scalar as CastInto<u128>>::cast_into(scale),
+                            let shifted = source.wrapping_add_custom_mod(
+                                <Scalar as CastInto<u128>>::cast_into(scale) / 2,
+                                square_ct_mod,
                             );
-                            *dest = temp.wrapping_rem(ciphertext_modulus.get_custom_modulus().cast_into())
+                            let temp = (shifted / <Scalar as CastInto<u128>>::cast_into(scale))
+                                .wrapping_rem(ciphertext_modulus.get_custom_modulus());
+                            *dest = temp.cast_into()
                         });
                 }
             }
@@ -602,8 +805,13 @@ pub fn glwe_tensor_product_non_native_mod<InputCont, Scalar>(
         .iter_mut()
         .zip(temp_poly_body.as_ref().iter())
         .for_each(|(dest, &source)| {
-            let temp = Scalar::cast_from(source / <Scalar as CastInto<u128>>::cast_into(scale));
-            *dest = temp.wrapping_rem(ciphertext_modulus.get_custom_modulus().cast_into())
+            let shifted = source.wrapping_add_custom_mod(
+                <Scalar as CastInto<u128>>::cast_into(scale) / 2,
+                square_ct_mod,
+            );
+            let temp = (shifted / <Scalar as CastInto<u128>>::cast_into(scale))
+                .wrapping_rem(ciphertext_modulus.get_custom_modulus());
+            *dest = temp.cast_into()
 
         });
     output_glwe_ciphertext
@@ -941,9 +1149,9 @@ pub fn packed_sum_product<InputCont, KeyCont, OutputCont, Scalar>(
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
 /// // Define parameters for LweTracePackingKeyswitchKey creation
-/// let lwe_dimension = LweDimension(30);
-/// let lwe_count = LweCiphertextCount(2);
-/// let polynomial_size = PolynomialSize(32);
+/// let lwe_dimension = LweDimension(500);
+/// let lwe_count = LweCiphertextCount(20);
+/// let polynomial_size = PolynomialSize(512);
 /// let glwe_dimension = GlweDimension(1);
 /// let lwe_modular_std_dev = StandardDev(0.00000000000000000000000000000000000000001);
 /// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
@@ -1167,7 +1375,7 @@ pub fn packed_sum_product<InputCont, KeyCont, OutputCont, Scalar>(
 /// let cleartext = (rounded + (scale/2))/scale;
 ///
 /// // Check we recovered the original message for each plaintext we encrypted
-/// assert_eq!(cleartext, msg_1 * msg_2 * lwe_count.0 as u64);
+/// assert_eq!(cleartext, (msg_1 * msg_2 * lwe_count.0 as u64) % 64);
 /// ```
 pub fn packed_sum_product_via_trace_packing<InputCont, KeyCont, OutputCont, Scalar>(
     input_lwe_ciphertext_list_1: &LweCiphertextList<InputCont>,
