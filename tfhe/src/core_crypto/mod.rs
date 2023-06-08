@@ -17,3 +17,4 @@ pub mod prelude;
 pub mod seeders;
 
 pub mod fft_impl;
+pub mod ntt_impl;

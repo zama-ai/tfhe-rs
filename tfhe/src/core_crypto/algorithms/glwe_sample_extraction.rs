@@ -126,16 +126,40 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     // turned into their opposite
     let opposite_count = input_glwe.polynomial_size().0 - nth.0 - 1;
 
-    // We loop through the polynomials
-    for lwe_mask_poly in lwe_mask
-        .as_mut()
-        .chunks_exact_mut(input_glwe.polynomial_size().0)
+    if input_glwe
+        .ciphertext_modulus()
+        .is_compatible_with_native_modulus()
     {
-        // We reverse the polynomial
-        lwe_mask_poly.reverse();
-        // We compute the opposite of the proper coefficients
-        slice_wrapping_opposite_assign(&mut lwe_mask_poly[0..opposite_count]);
-        // We rotate the polynomial properly
-        lwe_mask_poly.rotate_left(opposite_count);
+        // We loop through the polynomials
+        for lwe_mask_poly in lwe_mask
+            .as_mut()
+            .chunks_exact_mut(input_glwe.polynomial_size().0)
+        {
+            // We reverse the polynomial
+            lwe_mask_poly.reverse();
+            // We compute the opposite of the proper coefficients
+            slice_wrapping_opposite_assign(&mut lwe_mask_poly[0..opposite_count]);
+            // We rotate the polynomial properly
+            lwe_mask_poly.rotate_left(opposite_count);
+        }
+    } else {
+        // We loop through the polynomials
+        for lwe_mask_poly in lwe_mask
+            .as_mut()
+            .chunks_exact_mut(input_glwe.polynomial_size().0)
+        {
+            let modulus: Scalar = input_glwe
+                .ciphertext_modulus()
+                .get_custom_modulus()
+                .cast_into();
+            // We reverse the polynomial
+            lwe_mask_poly.reverse();
+            // We compute the opposite of the proper coefficients
+            lwe_mask_poly[0..opposite_count]
+                .iter_mut()
+                .for_each(|elt| *elt = (*elt).wrapping_neg_custom_mod(modulus));
+            // We rotate the polynomial properly
+            lwe_mask_poly.rotate_left(opposite_count);
+        }
     }
 }

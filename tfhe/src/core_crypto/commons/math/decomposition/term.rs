@@ -3,7 +3,6 @@ use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
 use crate::core_crypto::commons::parameters::DecompositionBaseLog;
-use crate::core_crypto::commons::traits::CastInto;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -152,15 +151,23 @@ where
     /// }
     /// ```
     pub fn to_recomposition_summand(&self) -> T {
-        // Floored approach
-        // * floor(q / B^j)
-        let base_to_the_level = T::ONE << (self.base_log * self.level);
-        let digit_radix =
-            T::cast_from(self.ciphertext_modulus.get_custom_modulus()) / base_to_the_level;
+        // // Formulation with T, slower than u128 when measuring
+        // let base_to_the_level = T::ONE << (self.base_log * self.level);
+        // let ciphertext_modulus_as_t = T::cast_from(self.ciphertext_modulus.get_custom_modulus());
+        // let modulus_over_base_to_level = divide_round(ciphertext_modulus_as_t,
+        // base_to_the_level);
+        // self.value
+        //     .wrapping_mul_custom_mod(modulus_over_base_to_level, ciphertext_modulus_as_t)
 
+        // This u128 formulation looks to be faster than the with T, so we keep this one for now
+        let base_to_the_level = 1u128 << (self.base_log * self.level);
+        let modulus_over_base_to_level = T::cast_from(divide_round(
+            self.ciphertext_modulus.get_custom_modulus(),
+            base_to_the_level,
+        ));
         self.value.wrapping_mul_custom_mod(
-            digit_radix,
-            self.ciphertext_modulus.get_custom_modulus().cast_into(),
+            modulus_over_base_to_level,
+            T::cast_from(self.ciphertext_modulus.get_custom_modulus()),
         )
     }
 

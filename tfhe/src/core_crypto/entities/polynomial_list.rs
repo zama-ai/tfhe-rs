@@ -6,7 +6,7 @@ use crate::core_crypto::entities::*;
 
 /// A contiguous list containing
 /// [`polynomials`](`crate::core_crypto::entities::Polynomial`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PolynomialList<C: Container> {
     data: C,
     polynomial_size: PolynomialSize,
