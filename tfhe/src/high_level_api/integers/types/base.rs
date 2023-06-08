@@ -5,8 +5,8 @@ use std::ops::{
 };
 
 use crate::errors::{
-    UninitializedClientKey, UninitializedCompressedPublicKey, UninitializedPublicKey,
-    UnwrapResultExt,
+    UninitializedCastingKey, UninitializedClientKey, UninitializedCompressedPublicKey,
+    UninitializedPublicKey, UnwrapResultExt,
 };
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::integers::parameters::IntegerParameter;
@@ -23,9 +23,10 @@ use crate::high_level_api::integers::IntegerServerKey;
 use crate::high_level_api::internal_traits::{DecryptionKey, TypeIdentifier};
 use crate::high_level_api::keys::{CompressedPublicKey, RefKeyFromKeyChain};
 use crate::high_level_api::traits::{
-    FheBootstrap, FheDecrypt, FheEq, FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
+    FheBootstrap, FheCast, FheDecrypt, FheEq, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
+    FheTryTrivialEncrypt,
 };
-use crate::high_level_api::{ClientKey, PublicKey};
+use crate::high_level_api::{CastingKey, ClientKey, PublicKey};
 use crate::integer::U256;
 use crate::CompactPublicKey;
 
@@ -445,6 +446,32 @@ where
     fn apply<F: Fn(u64) -> u64>(&mut self, func: F) {
         let result = self.map(func);
         *self = result;
+    }
+}
+
+impl<P> FheCast for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: Default + TypeIdentifier,
+{
+    fn cast(&self, key: &CastingKey) -> Self {
+        let id = P::Id::default();
+
+        let integer_casting_key = key
+            .integer_key
+            .key
+            .as_ref()
+            .ok_or(UninitializedCastingKey(id.type_variant()))
+            .unwrap_display();
+
+        let ciphertext = match &self.ciphertext {
+            RadixCiphertextDyn::Big(val) => RadixCiphertextDyn::from(integer_casting_key.cast(val)),
+            RadixCiphertextDyn::Small(val) => {
+                RadixCiphertextDyn::from(integer_casting_key.cast(val))
+            }
+        };
+
+        Self::new(ciphertext, id)
     }
 }
 

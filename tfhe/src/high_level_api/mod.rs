@@ -25,8 +25,8 @@ pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, OutOfRangeError};
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
 pub use keys::{
-    generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
-    CompressedServerKey, PublicKey, ServerKey,
+    generate_keys, CastingKey, ClientKey, CompactPublicKey, CompressedCompactPublicKey,
+    CompressedPublicKey, CompressedServerKey, PublicKey, ServerKey,
 };
 
 #[cfg(test)]

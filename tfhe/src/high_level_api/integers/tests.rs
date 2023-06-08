@@ -4,7 +4,7 @@ use crate::high_level_api::prelude::*;
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::integer::U256;
 use crate::{
-    CompactFheUint32, CompactFheUint32List, CompactPublicKey, CompressedFheUint16,
+    CastingKey, CompactFheUint32, CompactFheUint32List, CompactPublicKey, CompressedFheUint16,
     CompressedFheUint256, CompressedPublicKey, Config, FheUint128, FheUint16, FheUint256,
     FheUint32, FheUint64,
 };
@@ -405,4 +405,25 @@ fn test_integer_casting() {
         let da: u16 = a.decrypt(&client_key);
         assert_eq!(da, clear);
     }
+}
+
+#[test]
+fn test_integer_keyswitch_casting() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+    let (client_key_1, server_key_1) = generate_keys(config.clone());
+    let (client_key_2, server_key_2) = generate_keys(config);
+    let ksk = CastingKey::new(
+        (&client_key_1, &server_key_1),
+        (&client_key_2, &server_key_2),
+    );
+
+    let clear = 12_837u16;
+    let a = FheUint16::encrypt(clear, &client_key_1);
+
+    // Downcasting
+    let a = a.cast(&ksk);
+    let da: u16 = a.decrypt(&client_key_2);
+    assert_eq!(da, clear);
 }

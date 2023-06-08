@@ -330,3 +330,29 @@ impl IntegerCompressedCompactPublicKey {
         }
     }
 }
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct IntegerCastingKey {
+    pub(crate) key: Option<crate::integer::CastingKey>,
+}
+
+impl IntegerCastingKey {
+    pub(in crate::high_level_api) fn new(
+        key_pair_1: (&IntegerClientKey, &IntegerServerKey),
+        key_pair_2: (&IntegerClientKey, &IntegerServerKey),
+    ) -> Self {
+        Self {
+            key: match (
+                &key_pair_1.0.key,
+                &key_pair_1.1.key,
+                &key_pair_2.0.key,
+                &key_pair_2.1.key,
+            ) {
+                (Some(ck1), Some(sk1), Some(ck2), Some(sk2)) => {
+                    Some(crate::integer::CastingKey::new((ck1, sk1), (ck2, sk2)))
+                }
+                _ => None,
+            },
+        }
+    }
+}

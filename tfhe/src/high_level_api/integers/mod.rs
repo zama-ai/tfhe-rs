@@ -6,8 +6,8 @@ expand_pub_use_fhe_type!(
 );
 
 pub(in crate::high_level_api) use keys::{
-    IntegerClientKey, IntegerCompactPublicKey, IntegerCompressedCompactPublicKey,
-    IntegerCompressedServerKey, IntegerConfig, IntegerServerKey,
+    IntegerCastingKey, IntegerClientKey, IntegerCompactPublicKey,
+    IntegerCompressedCompactPublicKey, IntegerCompressedServerKey, IntegerConfig, IntegerServerKey,
 };
 pub(in crate::high_level_api) use public_key::compressed::CompressedPublicKeyDyn;
 pub(in crate::high_level_api) use public_key::PublicKeyDyn;

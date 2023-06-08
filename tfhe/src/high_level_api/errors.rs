@@ -92,6 +92,24 @@ impl Display for UninitializedClientKey {
 
 impl std::error::Error for UninitializedClientKey {}
 
+/// The casting key of a given type was not initialized
+#[derive(Debug)]
+pub struct UninitializedCastingKey(pub(crate) Type);
+
+impl Display for UninitializedCastingKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The casting key for the type '{:?}' was not properly initialized\n\
+             Dis you forget to enable the type in the config ?
+            ",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for UninitializedCastingKey {}
+
 /// The public key of a given type was not initialized
 #[derive(Debug)]
 pub struct UninitializedPublicKey(pub(crate) Type);
@@ -145,6 +163,7 @@ impl std::error::Error for OutOfRangeError {}
 pub enum Error {
     OutOfRange,
     UninitializedClientKey(Type),
+    UninitializedCastingKey(Type),
     UninitializedPublicKey(Type),
     UninitializedServerKey(Type),
 }
@@ -158,6 +177,12 @@ impl From<OutOfRangeError> for Error {
 impl From<UninitializedClientKey> for Error {
     fn from(value: UninitializedClientKey) -> Self {
         Self::UninitializedClientKey(value.0)
+    }
+}
+
+impl From<UninitializedCastingKey> for Error {
+    fn from(value: UninitializedCastingKey) -> Self {
+        Self::UninitializedCastingKey(value.0)
     }
 }
 
@@ -181,6 +206,9 @@ impl Display for Error {
             }
             Error::UninitializedClientKey(ty) => {
                 write!(f, "{}", UninitializedClientKey(*ty))
+            }
+            Error::UninitializedCastingKey(ty) => {
+                write!(f, "{}", UninitializedCastingKey(*ty))
             }
             Error::UninitializedPublicKey(ty) => {
                 write!(f, "{}", UninitializedPublicKey(*ty))
