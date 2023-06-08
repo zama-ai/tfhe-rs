@@ -885,7 +885,7 @@ fn induction_karatsuba_custom_mod<Scalar>(
                 *res = (*res).wrapping_add_custom_mod(
                     lhs_elt.wrapping_mul_custom_mod(rhs_elt, custom_modulus),
                     custom_modulus,
-                )
+                );
             }
         }
     } else {

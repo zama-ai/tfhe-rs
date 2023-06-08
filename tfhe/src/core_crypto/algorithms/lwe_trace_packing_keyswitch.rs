@@ -15,11 +15,11 @@ use crate::core_crypto::entities::*;
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
 /// // Define parameters for LweTracePackingKeyswitchKey creation
-/// let lwe_dimension = LweDimension(60);
-/// let lwe_count = LweCiphertextCount(26);
-/// let polynomial_size = PolynomialSize(64);
+/// let lwe_dimension = LweDimension(742);
+/// let lwe_count = LweCiphertextCount(20);
+/// let polynomial_size = PolynomialSize(2048);
 /// let glwe_dimension = GlweDimension(2);
-/// let lwe_modular_std_dev = StandardDev(0.00000000000000000000001);
+/// //let lwe_modular_std_dev = StandardDev(0.00000000000000000000001);
 /// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
 ///
 /// let mut seeder = new_seeder();
@@ -32,9 +32,10 @@ use crate::core_crypto::entities::*;
 ///
 /// generate_tpksk_output_glwe_secret_key(&lwe_secret_key, &mut glwe_secret_key, ciphertext_modulus);
 ///
-/// let decomp_base_log = DecompositionBaseLog(2);
-/// let decomp_level_count = DecompositionLevelCount(8);
-/// let var_small = Variance::from_variance(2f64.powf(-90.0));
+/// let decomp_base_log = DecompositionBaseLog(12);
+/// let decomp_level_count = DecompositionLevelCount(4);
+/// let glwe_modular_std_dev = StandardDev(0.00000000000000029403601535432533);
+/// //let var_small = Variance::from_variance(2f64.powf(-90.0));
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
 /// let mut encryption_generator =
@@ -53,7 +54,7 @@ use crate::core_crypto::entities::*;
 /// generate_lwe_trace_packing_keyswitch_key(
 ///     &glwe_secret_key,
 ///     &mut lwe_tpksk,
-///     var_small,
+///     glwe_modular_std_dev,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -71,7 +72,7 @@ use crate::core_crypto::entities::*;
 ///     &lwe_secret_key,
 ///     &mut lwe_ctxt_list,
 ///     &plaintext_list,
-///     lwe_modular_std_dev,
+///     glwe_modular_std_dev,
 ///     &mut encryption_generator,
 /// );
 ///
@@ -94,6 +95,31 @@ use crate::core_crypto::entities::*;
 ///     indices,
 /// );
 ///
+/// let mut output_plaintext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
+/// let mut output_cleartext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
+/// let mut output_error = vec![0i64; polynomial_size.0];
+/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+///
+/// decrypt_glwe_ciphertext(&glwe_secret_key, &output_glwe_ciphertext, &mut output_plaintext);
+/// output_plaintext
+///     .iter()
+///     .zip(output_cleartext.iter_mut())
+///     .zip(output_error.iter_mut())
+///     .for_each(|((src, dst), err)| {
+///         *dst.0 = decomposer.closest_representable(*src.0);
+///         let err_unsigned = src.0.wrapping_sub_custom_mod(*dst.0, ciphertext_modulus
+/// .get_custom_modulus().cast_into());
+///         if err_unsigned > (ciphertext_modulus.get_custom_modulus() as u64)/ 2_u64 {
+///                 let neg_err = (ciphertext_modulus.get_custom_modulus() as u64).wrapping_sub
+/// (err_unsigned);
+///                 *err = - (neg_err as i64)
+///         } else {
+///             *err = err_unsigned as i64
+///         }
+///     });
+///
+/// println!("error: {:?}", output_error);
+/// /*
 /// let mut output_plaintext_list = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
 ///
 /// decrypt_glwe_ciphertext(
@@ -103,15 +129,14 @@ use crate::core_crypto::entities::*;
 /// );
 ///
 /// // Round and remove encoding
-/// // First create a decomposer working on the high 8 bits corresponding to our encoding.
-/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(8), DecompositionLevelCount(1));
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
 ///
 /// output_plaintext_list
 ///     .iter_mut()
 ///     .for_each(|elt| *elt.0 = decomposer.closest_representable(*elt.0));
-///
+/// */
 /// // Get the raw vector
-/// let mut cleartext_list = output_plaintext_list.into_container();
+/// let mut cleartext_list = output_cleartext.into_container();
 /// // Remove the encoding
 /// cleartext_list
 ///     .iter_mut()
@@ -127,6 +152,7 @@ use crate::core_crypto::entities::*;
 ///         assert_eq!(*elt, 0);
 ///     }
 /// }
+/// assert!(false);
 /// ```
 pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<
     Scalar,
