@@ -101,13 +101,18 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
             self.parameters.ciphertext_modulus(),
         );
 
+        let encryption_noise = match OpOrder::pbs_order() {
+            crate::shortint::PBSOrder::KeyswitchBootstrap => self.parameters.glwe_modular_std_dev(),
+            crate::shortint::PBSOrder::BootstrapKeyswitch => self.parameters.lwe_modular_std_dev(),
+        };
+
         ShortintEngine::with_thread_local_mut(|engine| {
             encrypt_lwe_ciphertext_with_compact_public_key(
                 &self.key,
                 &mut encrypted_ct,
                 plain,
-                self.parameters.glwe_modular_std_dev(),
-                self.parameters.lwe_modular_std_dev(),
+                encryption_noise,
+                encryption_noise,
                 &mut engine.secret_generator,
                 &mut engine.encryption_generator,
             );
