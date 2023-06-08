@@ -70,6 +70,8 @@ pub trait UnsignedInteger:
     fn overflowing_add(self, rhs: Self) -> (Self, bool);
     #[must_use]
     fn is_power_of_two(self) -> bool;
+    #[must_use]
+    fn ilog2(self) -> u32;
     /// Return the casting of the current value to the signed type of the same size.
     fn into_signed(self) -> Self::Signed;
     /// Return a bit representation of the integer, where blocks of length `block_length` are
@@ -149,6 +151,10 @@ macro_rules! implement {
             #[inline]
             fn is_power_of_two(self) -> bool {
                 self.is_power_of_two()
+            }
+            #[inline]
+            fn ilog2(self) -> u32 {
+                self.ilog2()
             }
         }
     };
