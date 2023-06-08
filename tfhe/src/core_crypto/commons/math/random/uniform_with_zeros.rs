@@ -9,7 +9,6 @@ pub struct UniformWithZeros {
     pub prob_zero: f32,
 }
 
-#[allow(unused_macros)]
 macro_rules! implement_uniform_with_zeros {
     ($T:ty, $bits:literal) => {
         impl RandomGenerable<UniformWithZeros> for $T {
