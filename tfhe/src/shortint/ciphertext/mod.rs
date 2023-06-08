@@ -171,6 +171,24 @@ impl<OpOrder: PBSOrderMarker> CiphertextBase<OpOrder> {
         self._order_marker = other._order_marker;
     }
 
+    pub fn into_concrete_type<OtherOpOrder: PBSOrderMarker>(self) -> CiphertextBase<OtherOpOrder> {
+        self.try_into_concrete_type().unwrap()
+    }
+
+    pub fn try_into_concrete_type<OtherOpOrder: PBSOrderMarker>(
+        self,
+    ) -> Result<CiphertextBase<OtherOpOrder>, CiphertextTypeError<OpOrder, OtherOpOrder>> {
+        match (OpOrder::pbs_order(), OtherOpOrder::pbs_order()) {
+            (op_order, other_op_order) if op_order == other_op_order => {
+                Ok(unsafe { std::mem::transmute(self) })
+            }
+            _ => Err(CiphertextTypeError {
+                input_type: PhantomData,
+                output_type: PhantomData,
+            }),
+        }
+    }
+
     pub fn to_concrete_type<OtherOpOrder: PBSOrderMarker>(&self) -> &CiphertextBase<OtherOpOrder> {
         self.try_to_concrete_type().unwrap()
     }

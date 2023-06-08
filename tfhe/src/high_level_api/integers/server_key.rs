@@ -1,4 +1,7 @@
+use crate::integer::ciphertext::{IntegerCiphertext, RadixCiphertext};
 use crate::integer::wopbs::WopbsKey;
+
+use crate::shortint::PBSOrderMarker;
 
 pub(crate) fn wopbs_radix<O>(
     wopbs_key: &WopbsKey,
@@ -8,7 +11,7 @@ pub(crate) fn wopbs_radix<O>(
 ) -> crate::integer::ciphertext::RadixCiphertext<O>
 where
     O: crate::shortint::PBSOrderMarker,
-    crate::integer::ciphertext::RadixCiphertext<O>: crate::integer::IntegerCiphertext,
+    crate::integer::ciphertext::RadixCiphertext<O>: IntegerCiphertext,
 {
     let switched_ct = wopbs_key.keyswitch_to_wopbs_params(server_key, ct_in);
     let luts = wopbs_key.generate_lut_radix(&switched_ct, func);
@@ -25,7 +28,7 @@ pub(crate) fn bivariate_wopbs_radix<O>(
 ) -> crate::integer::ciphertext::RadixCiphertext<O>
 where
     O: crate::shortint::PBSOrderMarker,
-    crate::integer::ciphertext::RadixCiphertext<O>: crate::integer::IntegerCiphertext,
+    crate::integer::ciphertext::RadixCiphertext<O>: IntegerCiphertext,
 {
     let switched_lhs = wopbs_key.keyswitch_to_wopbs_params(server_key, lhs);
     let switched_rhs = wopbs_key.keyswitch_to_wopbs_params(server_key, rhs);
@@ -220,6 +223,31 @@ impl WopbsEvaluationKey<crate::integer::ServerKey, crate::integer::CrtCiphertext
 pub enum RadixCiphertextDyn {
     Big(crate::integer::RadixCiphertextBig),
     Small(crate::integer::RadixCiphertextSmall),
+}
+
+impl<OpOrder: PBSOrderMarker> From<RadixCiphertext<OpOrder>> for RadixCiphertextDyn {
+    fn from(other: RadixCiphertext<OpOrder>) -> Self {
+        match OpOrder::pbs_order() {
+            crate::shortint::ciphertext::PBSOrder::KeyswitchBootstrap => {
+                Self::Big(RadixCiphertext::from_blocks(
+                    other
+                        .blocks
+                        .into_iter()
+                        .map(|x| x.into_concrete_type())
+                        .collect::<Vec<_>>(),
+                ))
+            }
+            crate::shortint::ciphertext::PBSOrder::BootstrapKeyswitch => {
+                Self::Small(RadixCiphertext::from_blocks(
+                    other
+                        .blocks
+                        .into_iter()
+                        .map(|x| x.into_concrete_type())
+                        .collect::<Vec<_>>(),
+                ))
+            }
+        }
+    }
 }
 
 pub(super) trait ServerKeyDefaultNeg<Ciphertext> {
