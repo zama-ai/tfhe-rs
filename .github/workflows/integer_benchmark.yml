@@ -61,6 +61,17 @@ jobs:
         run: |
           make AVX512_SUPPORT=ON bench_integer
 
+      - name: Parse benchmarks to csv
+        run: |
+          make PARSE_INTEGER_BENCH_CSV_FILE=tfhe_rs_integer_benches_${{ github.sha }}.csv \
+            parse_integer_benches
+
+      - name: Upload csv results artifact
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce
+        with:
+          name: ${{ github.sha }}_csv_integer
+          path: ${{ env.BENCH_CSV_FILE }}
+
       - name: Parse results
         run: |
           COMMIT_DATE="$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})"
