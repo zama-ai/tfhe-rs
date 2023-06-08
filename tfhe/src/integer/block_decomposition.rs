@@ -130,6 +130,17 @@ where
 
         Some(masked)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // In the case self we constructed with an early stop value
+        // the upper bound might be higher than the actual number of iteration.
+        //
+        // The size_hint docs states that it is ok (not best thing
+        // but won't break code)
+        let max_remaining_iter = self.num_bits_valid / self.num_bits_in_mask;
+        let min_remaining_iter = if max_remaining_iter != 0 { 1 } else { 0 };
+        (min_remaining_iter, Some(max_remaining_iter as usize))
+    }
 }
 
 impl<T> BlockDecomposer<T>
