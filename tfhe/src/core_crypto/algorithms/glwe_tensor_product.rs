@@ -958,11 +958,11 @@ pub fn packed_sum_product<InputCont, KeyCont, OutputCont, Scalar>(
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
 /// // Define parameters for LweTracePackingKeyswitchKey creation
-/// let lwe_dimension = LweDimension(50);
+/// let lwe_dimension = LweDimension(100);
 /// let lwe_count = LweCiphertextCount(5);
-/// let polynomial_size = PolynomialSize(64);
+/// let polynomial_size = PolynomialSize(256);
 /// let glwe_dimension = GlweDimension(1);
-/// let lwe_modular_std_dev = StandardDev(0.00000000000000000000000000000000000000001);
+/// let lwe_modular_std_dev = StandardDev(0.000_000_000_000_000_000_1);
 /// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
 ///
 /// let mut seeder = new_seeder();
@@ -976,11 +976,11 @@ pub fn packed_sum_product<InputCont, KeyCont, OutputCont, Scalar>(
 /// generate_tpksk_output_glwe_secret_key(&lwe_secret_key, &mut glwe_secret_key,
 /// ciphertext_modulus);
 ///
-/// let tp_decomp_base_log = DecompositionBaseLog(12);
-/// let tp_decomp_level_count = DecompositionLevelCount(4);
-/// let var_small = Variance::from_variance(2f64.powf(-120.0));
-/// let relin_decomp_base_log = DecompositionBaseLog(12);
-/// let relin_decomp_level_count = DecompositionLevelCount(4);
+/// let tp_decomp_base_log = DecompositionBaseLog(2);
+/// let tp_decomp_level_count = DecompositionLevelCount(12);
+/// let var_small = Variance::from_variance(2f64.powf(-64.0));
+/// let relin_decomp_base_log = DecompositionBaseLog(2);
+/// let relin_decomp_level_count = DecompositionLevelCount(12);
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000000000000000000000000029403601535432533);
 /// let scale = (1u64 << 58) - (1u64 << 26);
 ///
