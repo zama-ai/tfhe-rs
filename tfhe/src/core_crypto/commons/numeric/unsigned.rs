@@ -161,7 +161,7 @@ macro_rules! implement {
                 // if we are not able to multiply directly without wrapping around
                 if wrong {
                     // we try to do the multiplication as
-                    // (a + b*2^64)*(c + d*2^64) = ac + (bc + ad)*2^64 + bd*2^18
+                    // (a + b*2^64)*(c + d*2^64) = ac + (bc + ad)*2^64 + bd*2^128
                     // with the assumption that b and d are very small
                     // writing bc + ad = e + f*2^64 where again f should be small if b and d are
                     // we have that the product is
@@ -181,27 +181,38 @@ macro_rules! implement {
                     let middle1 = self_bottom.wrapping_mul(other_top);
                     let middle2 = other_bottom.wrapping_mul(self_top);
                     let (middle, wrong) = middle1.overflowing_add(middle2);
-                    assert!(!wrong, "multiplication of custom u128s failed: {:?}, {:?}",
-                    self_u128, other_u128);
+                    assert!(
+                        !wrong,
+                        "multiplication of custom u128s failed: {:?}, {:?}",
+                        self_u128, other_u128
+                    );
                     let middle_top = middle >> 64;
                     let middle_bottom = middle - (middle_top << 64);
                     let middle = (middle_bottom << 64).wrapping_rem(custom_modulus_u128);
-                    let rem = 0u128.wrapping_sub(1u128).wrapping_rem(custom_modulus_u128)
-                    .wrapping_add(1u128);
+                    let rem = 0u128
+                        .wrapping_sub(1u128)
+                        .wrapping_rem(custom_modulus_u128)
+                        .wrapping_add(1u128);
                     let top = self_top.wrapping_mul(other_top);
                     let (top, wrong) = top.overflowing_add(middle_top);
-                    assert!(!wrong, "multiplication of custom u128s failed: {:?}, \
-                    {:?}", self_u128, other_u128);
+                    assert!(
+                        !wrong,
+                        "multiplication of custom u128s failed: {:?}, {:?}",
+                        self_u128, other_u128
+                    );
                     let (top, wrong) = top.overflowing_mul(rem);
-                    assert!(!wrong, "multiplication of custom u128s failed: {:?}, \
-                    {:?}", self_u128, other_u128);
+                    assert!(
+                        !wrong,
+                        "multiplication of custom u128s failed: {:?}, {:?}",
+                        self_u128, other_u128
+                    );
                     let top = top.wrapping_rem(custom_modulus_u128);
                     let out = top.wrapping_add(middle).wrapping_rem(custom_modulus_u128);
-                    out.wrapping_add(bottom).wrapping_rem(custom_modulus_u128).cast_into()
-                } else {
-                    prod
+                    out.wrapping_add(bottom)
                         .wrapping_rem(custom_modulus_u128)
                         .cast_into()
+                } else {
+                    prod.wrapping_rem(custom_modulus_u128).cast_into()
                 }
             }
             #[inline]
