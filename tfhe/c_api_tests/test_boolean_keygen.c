@@ -75,7 +75,7 @@ void test_predefined_keygen_w_serde(void) {
   BooleanClientKey *cks = NULL;
   BooleanServerKey *sks = NULL;
 
-  int gen_keys_ok = boolean_gen_keys_with_predefined_parameters_set(
+  int gen_keys_ok = boolean_gen_keys_with_parameters(
       BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &cks, &sks);
 
   assert(gen_keys_ok == 0);
@@ -83,7 +83,7 @@ void test_predefined_keygen_w_serde(void) {
   destroy_boolean_client_key(cks);
   destroy_boolean_server_key(sks);
 
-  gen_keys_ok = boolean_gen_keys_with_predefined_parameters_set(
+  gen_keys_ok = boolean_gen_keys_with_parameters(
       BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS, &cks, &sks);
 
   assert(gen_keys_ok == 0);
@@ -95,16 +95,22 @@ void test_predefined_keygen_w_serde(void) {
 void test_custom_keygen(void) {
   BooleanClientKey *cks = NULL;
   BooleanServerKey *sks = NULL;
-  BooleanParameters *params = NULL;
-
-  int params_ok = boolean_create_parameters(10, 1, 1024, 10e-100, 10e-100, 3, 1, 4, 2, &params);
-  assert(params_ok == 0);
+  BooleanParameters params = {
+      .lwe_dimension = 10,
+      .glwe_dimension = 1,
+      .polynomial_size = 1024,
+      .lwe_modular_std_dev = 10e-100,
+      .glwe_modular_std_dev = 10e-100,
+      .pbs_base_log = 3,
+      .pbs_level = 1,
+      .ks_base_log = 4,
+      .ks_level = 2,
+  };
 
   int gen_keys_ok = boolean_gen_keys_with_parameters(params, &cks, &sks);
 
   assert(gen_keys_ok == 0);
 
-  destroy_boolean_parameters(params);
   destroy_boolean_client_key(cks);
   destroy_boolean_server_key(sks);
 }
@@ -112,13 +118,9 @@ void test_custom_keygen(void) {
 void test_public_keygen(void) {
   BooleanClientKey *cks = NULL;
   BooleanPublicKey *pks = NULL;
-  BooleanParameters *params = NULL;
   BooleanCiphertext *ct = NULL;
 
-  int get_params_ok = boolean_get_parameters(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &params);
-  assert(get_params_ok == 0);
-
-  int gen_keys_ok = boolean_gen_client_key(params, &cks);
+  int gen_keys_ok = boolean_gen_client_key(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &cks);
   assert(gen_keys_ok == 0);
 
   int gen_pks = boolean_gen_public_key(cks, &pks);
@@ -135,7 +137,6 @@ void test_public_keygen(void) {
 
   assert(result == true);
 
-  destroy_boolean_parameters(params);
   destroy_boolean_client_key(cks);
   destroy_boolean_public_key(pks);
   destroy_boolean_ciphertext(ct);

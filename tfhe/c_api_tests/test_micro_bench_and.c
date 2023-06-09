@@ -13,8 +13,8 @@ void micro_bench_and() {
   // int gen_keys_ok = boolean_gen_keys_with_default_parameters(&cks, &sks);
   // assert(gen_keys_ok == 0);
 
-  int gen_keys_ok = boolean_gen_keys_with_predefined_parameters_set(
-      BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS, &cks, &sks);
+  int gen_keys_ok =
+      boolean_gen_keys_with_parameters(BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS, &cks, &sks);
   assert(gen_keys_ok == 0);
 
   int num_loops = 10000;
