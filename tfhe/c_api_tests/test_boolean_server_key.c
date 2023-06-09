@@ -334,12 +334,8 @@ void test_server_key(void) {
   BooleanCompressedServerKey *deser_csks = NULL;
   Buffer sks_ser_buffer = {.pointer = NULL, .length = 0};
   BooleanServerKey *deser_sks = NULL;
-  BooleanParameters *params = NULL;
 
-  int get_params_ok = boolean_get_parameters(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &params);
-  assert(get_params_ok == 0);
-
-  int gen_cks_ok = boolean_gen_client_key(params, &cks);
+  int gen_cks_ok = boolean_gen_client_key(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &cks);
   assert(gen_cks_ok == 0);
 
   int gen_csks_ok = boolean_gen_compressed_server_key(cks, &csks);
@@ -417,7 +413,6 @@ void test_server_key(void) {
   destroy_boolean_client_key(deser_cks);
   destroy_boolean_compressed_server_key(deser_csks);
   destroy_boolean_server_key(deser_sks);
-  destroy_boolean_parameters(params);
   destroy_buffer(&cks_ser_buffer);
   destroy_buffer(&csks_ser_buffer);
   destroy_buffer(&sks_ser_buffer);

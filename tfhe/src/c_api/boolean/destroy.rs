@@ -1,7 +1,6 @@
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
-use super::parameters::BooleanParameters;
 use super::{
     BooleanCiphertext, BooleanClientKey, BooleanCompressedCiphertext, BooleanCompressedServerKey,
     BooleanPublicKey, BooleanServerKey,
@@ -42,17 +41,6 @@ pub unsafe extern "C" fn destroy_boolean_public_key(public_key: *mut BooleanPubl
         check_ptr_is_non_null_and_aligned(public_key).unwrap();
 
         drop(Box::from_raw(public_key));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn destroy_boolean_parameters(
-    boolean_parameters: *mut BooleanParameters,
-) -> c_int {
-    catch_panic(|| {
-        check_ptr_is_non_null_and_aligned(boolean_parameters).unwrap();
-
-        drop(Box::from_raw(boolean_parameters));
     })
 }
 
