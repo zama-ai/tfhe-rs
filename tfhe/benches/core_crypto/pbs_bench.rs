@@ -46,7 +46,7 @@ criterion_group!(
 
 criterion_group!(
     name = tensor_prod_with_relin_group;
-    config = Criterion::default().sample_size(100);
+    config = Criterion::default().sample_size(10);
     targets = tensor_product_with_relin::<u64>
 );
 
@@ -75,7 +75,8 @@ criterion_group!(
 );
 
 criterion_main!(
-    //pbs_group, tensor_prod_with_relin_group,
+    //pbs_group,
+    tensor_prod_with_relin_group,
     trace_packing_ks_group,
     public_funct_ks_group,
 );
@@ -540,7 +541,10 @@ fn tensor_product_with_relin<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Cr
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
         
-    let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> = tfhe::core_crypto::prelude::CiphertextModulus::new_native();
+    //let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> =
+    //tfhe::core_crypto::prelude::CiphertextModulus::new_native();
+    let ciphertext_modulus: tfhe::core_crypto::prelude::CiphertextModulus<Scalar> =
+    tfhe::core_crypto::prelude::CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
 
     for (name, params) in packed_operations_benchmark_parameters::<Scalar>().iter() 
     {
@@ -561,7 +565,7 @@ fn tensor_product_with_relin<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Cr
         );
 
         let log_delta1 = 59;
-        let log_delta2 = 60;
+        let log_delta2 = 59;
         let log_delta = std::cmp::min(log_delta1, log_delta2);
         //let output_log_delta = log_delta1 + log_delta2 - log_delta;
 
@@ -678,8 +682,8 @@ fn packed_operations_benchmark_parameters<Scalar: Numeric>(
                 (
                     CryptoParametersRecord {
                         lwe_dimension: Some(LweDimension(742)),
-                        ks_base_log: Some(DecompositionBaseLog(12)),
-                        ks_level: Some(DecompositionLevelCount(2)),
+                        ks_base_log: Some(DecompositionBaseLog(3)),
+                        ks_level: Some(DecompositionLevelCount(5)),
                         glwe_dimension: Some(GlweDimension(1)),
                         glwe_modular_std_dev: Some(StandardDev(0.000007069849454709433)),
                         polynomial_size: Some(PolynomialSize(1 << 11)),
