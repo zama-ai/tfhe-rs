@@ -1,0 +1,119 @@
+# Run a small subset of shortint and integer tests to ensure quick feedback.
+name: Fast AWS Tests on CPU
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+
+on:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
+  workflow_dispatch:
+    # All the inputs are provided by Slab
+    inputs:
+      instance_id:
+        description: "AWS instance ID"
+        type: string
+      instance_image_id:
+        description: "AWS instance AMI ID"
+        type: string
+      instance_type:
+        description: "AWS instance product type"
+        type: string
+      runner_name:
+        description: "Action runner name"
+        type: string
+      request_id:
+        description: 'Slab request ID'
+        type: string
+      fork_repo:
+        description: 'Name of forked repo as user/repo'
+        type: string
+      fork_git_sha:
+        description: 'Git SHA to checkout from fork'
+        type: string
+
+jobs:
+  fast-tests:
+    concurrency:
+      group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
+      cancel-in-progress: true
+    runs-on: ${{ inputs.runner_name }}
+    steps:
+      # Step used for log purpose.
+      - name: Instance configuration used
+        run: |
+          echo "ID: ${{ inputs.instance_id }}"
+          echo "AMI: ${{ inputs.instance_image_id }}"
+          echo "Type: ${{ inputs.instance_type }}"
+          echo "Request ID: ${{ inputs.request_id }}"
+          echo "Fork repo: ${{ inputs.fork_repo }}"
+          echo "Fork git sha: ${{ inputs.fork_git_sha }}"
+
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
+        with:
+          repository: ${{ inputs.fork_repo }}
+          ref: ${{ inputs.fork_git_sha }}
+
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install latest stable
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        with:
+          toolchain: stable
+          default: true
+
+      - name: Run core tests
+        run: |
+          AVX512_SUPPORT=ON make test_core_crypto
+
+      - name: Run boolean tests
+        run: |
+          make test_boolean
+
+      - name: Run user docs tests
+        run: |
+          make test_user_doc
+
+      - name: Run js on wasm API tests
+        run: |
+          make test_nodejs_wasm_api_in_docker
+
+      - name: Gen Keys if required
+        run: |
+          make gen_key_cache
+
+      - name: Run shortint tests
+        run: |
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_shortint_ci
+
+      - name: Run integer tests
+        run: |
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_ci
+
+      - name: Run shortint multi-bit tests
+        run: |
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_shortint_multi_bit_ci
+
+      - name: Run integer multi-bit tests
+        run: |
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_multi_bit_ci
+
+      - name: Run high-level API tests
+        run: |
+          make test_high_level_api
+
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "Fast AWS tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

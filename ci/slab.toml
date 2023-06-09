@@ -33,6 +33,11 @@ workflow = "aws_tfhe_wasm_tests.yml"
 profile = "cpu-small"
 check_run_name = "CPU AWS WASM Tests"
 
+[command.cpu_fast_test]
+workflow = "aws_tfhe_fast_tests.yml"
+profile = "cpu-big"
+check_run_name = "CPU AWS Fast Tests"
+
 [command.integer_bench]
 workflow = "integer_benchmark.yml"
 profile = "bench"

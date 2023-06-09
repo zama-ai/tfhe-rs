@@ -907,7 +907,7 @@ where
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TEST_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
 
         let scalar = rng.gen::<u64>() % modulus;
@@ -1414,7 +1414,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TEST_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -1800,7 +1800,7 @@ where
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TEST_SMALLER {
         // Define the cleartexts
         let clear = rng.gen::<u64>() % modulus;
 

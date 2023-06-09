@@ -13,6 +13,7 @@ WASM_RUSTFLAGS:=
 BIG_TESTS_INSTANCE?=FALSE
 GEN_KEY_CACHE_MULTI_BIT_ONLY?=FALSE
 PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
+FAST_TESTS?=FALSE
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -249,11 +250,13 @@ test_c_api: install_rs_check_toolchain
 .PHONY: test_shortint_ci # Run the tests for shortint ci
 test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN)
 
 .PHONY: test_shortint_multi_bit_ci # Run the tests for shortint ci running only multibit tests
 test_shortint_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) --multi-bit
 
 .PHONY: test_shortint # Run all the tests for shortint
@@ -264,11 +267,13 @@ test_shortint: install_rs_build_toolchain
 .PHONY: test_integer_ci # Run the tests for integer ci
 test_integer_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN)
 
 .PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
 test_integer_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) --multi-bit
 
 .PHONY: test_integer # Run all the tests for integer

@@ -3,17 +3,31 @@ name: PR AWS build trigger
 
 on:
   pull_request:
+  pull_request_review:
+    types: [submitted]
 
 jobs:
-  test:
+  trigger-tests:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
-      - uses: mshick/add-pr-comment@a65df5f64fc741e91c59b8359a4bc56e57aaf5b1
+      - name: Launch fast tests
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: mshick/add-pr-comment@a65df5f64fc741e91c59b8359a4bc56e57aaf5b1
         with:
           allow-repeats: true
           message: |
+            @slab-ci cpu_fast_test
+
+      - name: Launch full tests suite
+        if: ${{ github.event_name == 'pull_request_review' && github.event.review.state == 'approved' }}
+        uses: mshick/add-pr-comment@a65df5f64fc741e91c59b8359a4bc56e57aaf5b1
+        with:
+          allow-repeats: true
+          message: |
+            Pull Request has been approved :tada:
+            Launching full test suite...
             @slab-ci cpu_test
             @slab-ci cpu_integer_test
             @slab-ci cpu_multi_bit_test
