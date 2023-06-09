@@ -3,6 +3,7 @@
 //! The TFHE-rs preludes include convenient imports.
 //! Having `tfhe::boolean::prelude::*;` should be enough to start using the lib.
 
+pub use super::casting_key::CastingKey;
 pub use super::ciphertext::{Ciphertext, CompressedCiphertext};
 pub use super::client_key::ClientKey;
 pub use super::gen_keys;
