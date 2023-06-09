@@ -39,6 +39,8 @@ parser.add_argument('--walk-subdirs', dest='walk_subdirs', action='store_true',
                     help='Check for results in subdirectories')
 parser.add_argument('--key-sizes', dest='key_sizes', action='store_true',
                     help='Parse only the results regarding keys size measurements')
+parser.add_argument('--key-gen', dest='key_gen', action='store_true',
+                    help='Parse only the results regarding keys generation time measurements')
 parser.add_argument('--throughput', dest='throughput', action='store_true',
                     help='Compute and append number of operations per second and'
                          'operations per dollar')
@@ -177,9 +179,9 @@ def parse_estimate_file(directory):
     }
 
 
-def parse_key_sizes(result_file):
+def _parse_key_results(result_file, bench_type):
     """
-    Parse file containing key sizes results. The file must be formatted as CSV.
+    Parse file containing results about operation on keys. The file must be formatted as CSV.
 
     :param result_file: results file as :class:`pathlib.Path`
 
@@ -202,11 +204,33 @@ def parse_key_sizes(result_file):
                 "test": test_name,
                 "name": display_name,
                 "class": "keygen",
-                "type": "keysize",
+                "type": bench_type,
                 "operator": operator,
                 "params": params})
 
     return result_values, parsing_failures
+
+
+def parse_key_sizes(result_file):
+    """
+    Parse file containing key sizes results. The file must be formatted as CSV.
+
+    :param result_file: results file as :class:`pathlib.Path`
+
+    :return: tuple of :class:`list` as (data points, parsing failures)
+    """
+    return _parse_key_results(result_file, "keysize")
+
+
+def parse_key_gen_time(result_file):
+    """
+    Parse file containing key generation time results. The file must be formatted as CSV.
+
+    :param result_file: results file as :class:`pathlib.Path`
+
+    :return: tuple of :class:`list` as (data points, parsing failures)
+    """
+    return _parse_key_results(result_file, "latency")
 
 
 def get_parameters(bench_id):
@@ -301,7 +325,7 @@ def check_mandatory_args(input_args):
     for arg_name in vars(input_args):
         if arg_name in ["results_dir", "output_file", "name_suffix",
                         "append_results", "walk_subdirs", "key_sizes",
-                        "throughput"]:
+                        "key_gen", "throughput"]:
             continue
         if not getattr(input_args, arg_name):
             missing_args.append(arg_name)
@@ -318,7 +342,15 @@ if __name__ == "__main__":
 
     #failures = []
     raw_results = pathlib.Path(args.results)
-    if not args.key_sizes:
+    if args.key_sizes or args.key_gen:
+        if args.key_sizes:
+            print("Parsing key sizes results... ")
+            results, failures = parse_key_sizes(raw_results)
+
+        if args.key_gen:
+            print("Parsing key generation time results... ")
+            results, failures = parse_key_gen_time(raw_results)
+    else:
         print("Parsing benchmark results... ")
         hardware_cost = None
         if args.throughput:
@@ -334,9 +366,7 @@ if __name__ == "__main__":
 
         results, failures = recursive_parse(raw_results, args.walk_subdirs, args.name_suffix,
                                             args.throughput, hardware_cost)
-    else:
-        print("Parsing key sizes results... ")
-        results, failures = parse_key_sizes(raw_results)
+
     print("Parsing results done")
 
     output_file = pathlib.Path(args.output_file)

@@ -32,7 +32,11 @@ async function setup() {
         'compactPublicKeyTest256BitBig',
         'compactPublicKeyTest256BitSmall',
         'compressedCompactPublicKeyTest256BitBig',
-        'compressedCompactPublicKeyTest256BitSmall'
+        'compressedCompactPublicKeyTest256BitSmall',
+        'compactPublicKeyBench32BitBig',
+        'compactPublicKeyBench32BitSmall',
+        'compactPublicKeyBench256BitBig',
+        'compactPublicKeyBench256BitSmall'
     ]
 
     function setupBtn(id) {
@@ -54,8 +58,11 @@ async function setup() {
 
                 console.log("Running: ", id)
                 try {
-                    await fn()
+                    let results = await fn()
                     document.getElementById("testSuccess").checked = true
+                    if (results !== undefined) {
+                        document.getElementById("benchmarkResults").value = JSON.stringify(results);
+                    }
                 } catch (error) {
                     console.error(`Test Failed: ${error}`)
                     document.getElementById("testSuccess").checked = false

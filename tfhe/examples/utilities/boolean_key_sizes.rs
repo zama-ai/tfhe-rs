@@ -1,15 +1,12 @@
-#[path = "../benches/utilities.rs"]
+#[path = "../../benches/utilities.rs"]
 mod utilities;
 use crate::utilities::{write_to_json, OperatorType};
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use tfhe::shortint::keycache::{NamedParam, KEY_CACHE};
-use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
-};
+use tfhe::boolean::parameters::{DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS};
+use tfhe::boolean::{client_key, server_key};
 
 fn write_result(file: &mut File, name: &str, value: usize) {
     let line = format!("{name},{value}\n");
@@ -18,11 +15,9 @@ fn write_result(file: &mut File, name: &str, value: usize) {
 }
 
 fn client_server_key_sizes(results_file: &Path) {
-    let shortint_params_vec = vec![
-        PARAM_MESSAGE_1_CARRY_1,
-        PARAM_MESSAGE_2_CARRY_2,
-        PARAM_MESSAGE_3_CARRY_3,
-        PARAM_MESSAGE_4_CARRY_4,
+    let boolean_params_vec = vec![
+        (DEFAULT_PARAMETERS, "DEFAULT_PARAMETERS"),
+        (TFHE_LIB_PARAMETERS, "TFHE_LIB_PARAMETERS"),
     ];
     File::create(results_file).expect("create results file failed");
     let mut file = OpenOptions::new()
@@ -32,28 +27,25 @@ fn client_server_key_sizes(results_file: &Path) {
 
     let operator = OperatorType::Atomic;
 
-    println!("Generating shortint (ClientKey, ServerKey)");
-    for (i, params) in shortint_params_vec.iter().enumerate() {
+    println!("Generating boolean (ClientKey, ServerKey)");
+    for (i, (params, params_name)) in boolean_params_vec.iter().enumerate() {
         println!(
             "Generating [{} / {}] : {}",
             i + 1,
-            shortint_params_vec.len(),
-            params.name().to_lowercase()
+            boolean_params_vec.len(),
+            params_name.to_lowercase()
         );
 
-        let keys = KEY_CACHE.get_from_param(*params);
-
-        // Client keys don't have public access to members, but the keys in there are small anyways
-        // let cks = keys.client_key();
-        let sks = keys.server_key();
+        let cks = client_key::ClientKey::new(params);
+        let sks = server_key::ServerKey::new(&cks);
         let ksk_size = sks.key_switching_key_size_bytes();
-        let test_name = format!("shortint_key_sizes_{}_ksk", params.name());
+        let test_name = format!("boolean_key_sizes_{params_name}_ksk");
 
         write_result(&mut file, &test_name, ksk_size);
         write_to_json(
             &test_name,
             *params,
-            params.name(),
+            *params_name,
             "KSK",
             &operator,
             0,
@@ -67,13 +59,13 @@ fn client_server_key_sizes(results_file: &Path) {
         );
 
         let bsk_size = sks.bootstrapping_key_size_bytes();
-        let test_name = format!("shortint_key_sizes_{}_bsk", params.name());
+        let test_name = format!("boolean_key_sizes_{params_name}_bsk");
 
         write_result(&mut file, &test_name, bsk_size);
         write_to_json(
             &test_name,
             *params,
-            params.name(),
+            *params_name,
             "BSK",
             &operator,
             0,
@@ -85,20 +77,10 @@ fn client_server_key_sizes(results_file: &Path) {
             sks.bootstrapping_key_size_elements(),
             bsk_size,
         );
-
-        // Clear keys as we go to avoid filling the RAM
-        KEY_CACHE.clear_in_memory_cache()
     }
 }
 
 fn main() {
-    let work_dir = std::env::current_dir().unwrap();
-    println!("work_dir: {}", std::env::current_dir().unwrap().display());
-    // Change workdir so that the location of the keycache matches the one for tests
-    let mut new_work_dir = work_dir;
-    new_work_dir.push("tfhe");
-    std::env::set_current_dir(new_work_dir).unwrap();
-
-    let results_file = Path::new("shortint_key_sizes.csv");
+    let results_file = Path::new("tfhe/boolean_key_sizes.csv");
     client_server_key_sizes(results_file)
 }
