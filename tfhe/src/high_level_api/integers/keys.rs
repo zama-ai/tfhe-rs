@@ -10,13 +10,13 @@ use crate::shortint::EncryptionKeyChoice;
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IntegerConfig {
-    pub(crate) block_parameters: Option<crate::shortint::ClassicPBSParameters>,
+    pub(crate) block_parameters: Option<crate::shortint::PBSParameters>,
     pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
 }
 
 impl IntegerConfig {
     pub(crate) fn new(
-        block_parameters: Option<crate::shortint::ClassicPBSParameters>,
+        block_parameters: Option<crate::shortint::PBSParameters>,
         wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
     ) -> Self {
         Self {
@@ -35,14 +35,18 @@ impl IntegerConfig {
 
     pub(in crate::high_level_api) fn default_big() -> Self {
         Self {
-            block_parameters: Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            block_parameters: Some(
+                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+            ),
             wopbs_block_parameters: None,
         }
     }
 
     pub(in crate::high_level_api) fn default_small() -> Self {
         Self {
-            block_parameters: Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS),
+            block_parameters: Some(
+                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS.into(),
+            ),
             wopbs_block_parameters: None,
         }
     }
@@ -50,11 +54,11 @@ impl IntegerConfig {
     pub fn enable_wopbs(&mut self) {
         let block_parameter = self
             .block_parameters
-            .get_or_insert(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+            .get_or_insert(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS.into());
 
-        let wopbs_block_parameters = match block_parameter.encryption_key_choice {
+        let wopbs_block_parameters = match block_parameter.encryption_key_choice() {
             EncryptionKeyChoice::Big => crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            EncryptionKeyChoice::Small => crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            _ => panic!("WOPBS only support KS_PBS parameters")
         };
 
         self.wopbs_block_parameters = Some(wopbs_block_parameters);

@@ -127,13 +127,16 @@ impl ConfigBuilder {
     }
 
     #[cfg(feature = "integer")]
-    pub fn enable_custom_integers(
+    pub fn enable_custom_integers<P>(
         mut self,
-        block_parameters: crate::shortint::ClassicPBSParameters,
+        block_parameters: P,
         wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
-    ) -> Self {
+    ) -> Self
+    where
+        P: Into<crate::shortint::PBSParameters>,
+    {
         self.config.integer_config =
-            IntegerConfig::new(Some(block_parameters), wopbs_block_parameters);
+            IntegerConfig::new(Some(block_parameters.into()), wopbs_block_parameters);
         self
     }
 
