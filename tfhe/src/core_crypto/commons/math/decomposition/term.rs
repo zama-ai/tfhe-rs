@@ -151,9 +151,9 @@ impl<T> DecompositionTermNonNative<T>
     pub fn to_recomposition_summand(&self) -> T {
         // Floored approach
         // * floor(q / B^j)
-        let base_to_the_level = T::ONE << (self.base_log * self.level);
+        let base_to_the_level = 1_u128 << (self.base_log * self.level);
         let digit_radix =
-            T::cast_from(self.ciphertext_modulus.get_custom_modulus()) / base_to_the_level;
+            T::cast_from(self.ciphertext_modulus.get_custom_modulus() / base_to_the_level);
 
         self.value.wrapping_mul_custom_mod(
             digit_radix,
