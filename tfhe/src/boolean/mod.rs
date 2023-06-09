@@ -62,6 +62,7 @@ use rand::Rng;
 pub mod ciphertext;
 pub mod client_key;
 pub mod engine;
+pub mod key_switching_key;
 pub mod parameters;
 pub mod prelude;
 pub mod public_key;
