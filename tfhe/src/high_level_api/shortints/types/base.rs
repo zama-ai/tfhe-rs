@@ -12,17 +12,17 @@ use crate::shortint::ciphertext::CiphertextBig as ShortintCiphertext;
 use crate::high_level_api::errors::OutOfRangeError;
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::keys::{
-    ClientKey, CompressedPublicKey, RefKeyFromCompressedPublicKeyChain, RefKeyFromKeyChain,
-    RefKeyFromPublicKeyChain,
+    ClientKey, CompressedPublicKey, RefKeyFromCastingKeyChain, RefKeyFromCompressedPublicKeyChain,
+    RefKeyFromKeyChain, RefKeyFromPublicKeyChain,
 };
 use crate::high_level_api::shortints::public_key::compressed::GenericShortIntCompressedPublicKey;
 use crate::high_level_api::traits::{
-    FheBootstrap, FheDecrypt, FheEq, FheNumberConstant, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
-    FheTryTrivialEncrypt,
+    FheBootstrap, FheCast, FheDecrypt, FheEq, FheNumberConstant, FheOrd, FheTrivialEncrypt,
+    FheTryEncrypt, FheTryTrivialEncrypt,
 };
-use crate::high_level_api::PublicKey;
+use crate::high_level_api::{CastingKey, PublicKey};
 
-use super::{GenericShortIntClientKey, GenericShortIntServerKey};
+use super::{GenericShortIntCastingKey, GenericShortIntClientKey, GenericShortIntServerKey};
 
 use crate::high_level_api::shortints::parameters::{
     ShortIntegerParameter, StaticShortIntegerParameter,
@@ -442,6 +442,21 @@ where
         self.id.with_unwrapped_global(|key| {
             key.bootstrap_inplace_with(self, func);
         })
+    }
+}
+
+impl<P> FheCast for GenericShortInt<P>
+where
+    P: ShortIntegerParameter,
+    P::Id: Default + RefKeyFromCastingKeyChain<Key = GenericShortIntCastingKey<P>>,
+{
+    fn cast(&self, key: &CastingKey) -> Self {
+        let id = P::Id::default();
+        let key: &GenericShortIntCastingKey<_> = id.unwrapped_ref_key(key);
+        Self {
+            ciphertext: RefCell::new(key.key.cast(&self.ciphertext.borrow())),
+            id,
+        }
     }
 }
 

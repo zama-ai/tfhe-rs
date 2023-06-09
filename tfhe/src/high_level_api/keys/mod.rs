@@ -2,11 +2,12 @@
 mod client;
 #[macro_use]
 mod public;
+#[macro_use]
 mod casting;
 mod server;
 
 use crate::high_level_api::config::Config;
-pub use casting::CastingKey;
+pub use casting::{CastingKey, RefKeyFromCastingKeyChain};
 pub use client::{ClientKey, RefKeyFromKeyChain};
 pub use public::{
     CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,

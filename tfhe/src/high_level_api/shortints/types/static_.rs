@@ -10,7 +10,7 @@ use crate::shortint::parameters::{
 use crate::high_level_api::shortints::{CompressedGenericShortint, GenericShortInt};
 
 use super::{
-    GenericShortIntClientKey, GenericShortIntCompressedPublicKey,
+    GenericShortIntCastingKey, GenericShortIntClientKey, GenericShortIntCompressedPublicKey,
     GenericShortIntCompressedServerKey, GenericShortIntPublicKey, GenericShortIntServerKey,
 };
 
@@ -157,6 +157,7 @@ macro_rules! static_shortint_type {
             pub type [<$name Parameters>] = ShortIntegerParameterSet<$num_bits>;
 
             pub(in crate::high_level_api) type [<$name ClientKey>] = GenericShortIntClientKey<[<$name Parameters>]>;
+            pub(in crate::high_level_api) type [<$name CastingKey>] = GenericShortIntCastingKey<[<$name Parameters>]>;
             pub(in crate::high_level_api) type [<$name PublicKey>] = GenericShortIntPublicKey<[<$name Parameters>]>;
             pub(in crate::high_level_api) type [<$name CompressedPublicKey>] = GenericShortIntCompressedPublicKey<[<$name Parameters>]>;
             pub(in crate::high_level_api) type [<$name ServerKey>] = GenericShortIntServerKey<[<$name Parameters>]>;
@@ -173,6 +174,14 @@ macro_rules! static_shortint_type {
             impl_ref_key_from_keychain!(
                 for <[<$name Parameters>] as ShortIntegerParameter>::Id {
                     key_type: [<$name ClientKey>],
+                    keychain_member: $($member).*,
+                    type_variant: crate::high_level_api::errors::Type::$name,
+                }
+            );
+
+            impl_ref_key_from_casting_keychain!(
+                for <[<$name Parameters>] as ShortIntegerParameter>::Id {
+                    key_type: [<$name CastingKey>],
                     keychain_member: $($member).*,
                     type_variant: crate::high_level_api::errors::Type::$name,
                 }

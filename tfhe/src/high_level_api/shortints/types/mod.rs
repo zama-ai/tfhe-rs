@@ -6,6 +6,7 @@ pub use static_::{
     FheUint3, FheUint3Parameters, FheUint4, FheUint4Parameters,
 };
 
+use super::casting_key::GenericShortIntCastingKey;
 use super::client_key::GenericShortIntClientKey;
 use super::public_key::compressed::GenericShortIntCompressedPublicKey;
 use super::public_key::GenericShortIntPublicKey;
