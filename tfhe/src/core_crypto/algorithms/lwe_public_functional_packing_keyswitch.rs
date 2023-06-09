@@ -43,7 +43,9 @@ use crate::core_crypto::entities::*;
 /// let decomp_base_log = DecompositionBaseLog(12);
 /// let decomp_level_count = DecompositionLevelCount(4);
 /// //let ciphertext_modulus = CiphertextModulus::new_native();
+/// //let delta = (1 << 60);
 /// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
+/// let delta = (1 << 60) - (1 << 28);
 /// let mut lwe_pubfpksk = LwePublicFunctionalPackingKeyswitchKey::new(
 ///     0u64,
 ///     decomp_base_log,
@@ -71,7 +73,7 @@ use crate::core_crypto::entities::*;
 ///     lwe_ciphertext_count,
 ///     ciphertext_modulus,
 /// );
-/// let lwe_plaintext_list = PlaintextList::new(1u64 << 60, PlaintextCount(20));
+/// let lwe_plaintext_list = PlaintextList::new(1u64 * delta, PlaintextCount(20));
 /// encrypt_lwe_ciphertext_list(
 ///     &lwe_secret_key,
 ///     &mut lwe_list,
@@ -97,33 +99,14 @@ use crate::core_crypto::entities::*;
 ///     },
 /// );
 ///
-/// let mut output_plaintext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
-/// let mut output_cleartext = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
-/// let mut output_error = vec![0i64; polynomial_size.0];
-/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
-///
-/// decrypt_glwe_ciphertext(&glwe_secret_key, &output_glwe_ciphertext, &mut output_plaintext);
-/// output_plaintext
-///     .iter()
-///     .zip(output_cleartext.iter_mut())
-///     .zip(output_error.iter_mut())
-///     .for_each(|((src, dst), err)| {
-///         *dst.0 = decomposer.closest_representable(*src.0);
-///         let err_unsigned = src.0.wrapping_sub_custom_mod(*dst.0, ciphertext_modulus
-/// .get_custom_modulus().cast_into());
-///         if err_unsigned > (ciphertext_modulus.get_custom_modulus() as u64)/ 2_u64 {
-///                 let neg_err = (ciphertext_modulus.get_custom_modulus() as u64).wrapping_sub
-/// (err_unsigned);
-///                 *err = - (neg_err as i64)
-///         } else {
-///             *err = err_unsigned as i64
-///         }
-///     });
-///
-/// println!("error: {:?}", output_error);
-/// /*
 /// let mut output_plaintext_list = PlaintextList::new(0u64, PlaintextCount(polynomial_size.0));
-/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposerNonNative::new(
+///     DecompositionBaseLog(4),
+///     DecompositionLevelCount(1),
+///     ciphertext_modulus,
+/// );
+/// //let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
 ///
 /// decrypt_glwe_ciphertext(
 ///     &glwe_secret_key,
@@ -133,11 +116,11 @@ use crate::core_crypto::entities::*;
 /// output_plaintext_list
 ///     .iter_mut()
 ///     .for_each(|x| *x.0 = decomposer.closest_representable(*x.0));
-/// */
+///
 /// // Get the raw vecor
-/// let mut cleartext = output_cleartext.into_container();
+/// let mut cleartext = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext.iter_mut().for_each(|x| *x = *x >> 60);
+/// cleartext.iter_mut().for_each(|x| *x = (*x + (delta/2)) / delta);
 /// // Get the list immutably
 /// let cleartext = cleartext;
 ///
@@ -149,7 +132,6 @@ use crate::core_crypto::entities::*;
 ///         assert_eq!(0, *clear);
 ///     }
 /// }
-/// assert!(false);
 /// ```
 pub fn public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext<
     KeyCont,
