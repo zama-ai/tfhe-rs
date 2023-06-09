@@ -3,6 +3,8 @@ use crate::{ClientKey, ServerKey};
 use crate::errors::UninitializedCastingKey;
 use crate::high_level_api::errors::UnwrapResultExt;
 
+#[cfg(feature = "boolean")]
+use crate::high_level_api::booleans::BooleanCastingKey;
 #[cfg(feature = "integer")]
 use crate::high_level_api::integers::IntegerCastingKey;
 #[cfg(feature = "shortint")]
@@ -12,8 +14,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CastingKey {
-    // #[cfg(feature = "boolean")]
-    // pub(crate) boolean_key: BooleanClientKey,
+    #[cfg(feature = "boolean")]
+    pub(crate) boolean_key: BooleanCastingKey,
     #[cfg(feature = "shortint")]
     pub(crate) shortint_key: ShortIntCastingKey,
     #[cfg(feature = "integer")]
@@ -23,8 +25,11 @@ pub struct CastingKey {
 impl CastingKey {
     pub fn new(key_pair_1: (&ClientKey, &ServerKey), key_pair_2: (&ClientKey, &ServerKey)) -> Self {
         Self {
-            // #[cfg(feature = "boolean")]
-            // boolean_key: Arc::new(BooleanServerKey::new(&keys.boolean_key)),
+            #[cfg(feature = "boolean")]
+            boolean_key: BooleanCastingKey::new(
+                (&key_pair_1.0.boolean_key, &key_pair_1.1.boolean_key),
+                (&key_pair_2.0.boolean_key, &key_pair_2.1.boolean_key),
+            ),
             #[cfg(feature = "shortint")]
             shortint_key: ShortIntCastingKey::new(
                 (&key_pair_1.0.shortint_key, &key_pair_1.1.shortint_key),

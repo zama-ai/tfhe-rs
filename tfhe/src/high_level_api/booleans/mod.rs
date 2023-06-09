@@ -1,10 +1,11 @@
 pub(crate) use keys::{
-    BooleanClientKey, BooleanCompressedPublicKey, BooleanCompressedServerKey, BooleanConfig,
-    BooleanPublicKey, BooleanServerKey,
+    BooleanCastingKey, BooleanClientKey, BooleanCompressedPublicKey, BooleanCompressedServerKey,
+    BooleanConfig, BooleanPublicKey, BooleanServerKey,
 };
 pub use parameters::FheBoolParameters;
 pub use types::{CompressedFheBool, FheBool};
 
+mod casting_key;
 mod client_key;
 mod keys;
 mod public_key;
