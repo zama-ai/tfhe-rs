@@ -80,9 +80,10 @@ pub unsafe extern "C" fn config_builder_enable_custom_integers(
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(builder).unwrap();
 
+        let params: crate::shortint::ClassicPBSParameters = shortint_block_parameters.into();
         let inner = Box::from_raw(*builder)
             .0
-            .enable_custom_integers(shortint_block_parameters.into(), None);
+            .enable_custom_integers(params, None);
         *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
     })
 }

@@ -213,12 +213,7 @@ fn test_uint32() {
     assert_eq!(decrypted, !clear_c);
 }
 
-#[test]
-fn test_uint32_shift() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
-
+fn fhe_uint32_shift(config: Config) {
     let (cks, sks) = generate_keys(config);
 
     use rand::prelude::*;
@@ -276,11 +271,25 @@ fn test_uint32_shift() {
 }
 
 #[test]
-fn test_uint32_rotate() {
+fn test_uint32_shift() {
     let config = ConfigBuilder::all_disabled()
         .enable_default_integers()
         .build();
+    fhe_uint32_shift(config);
+}
 
+#[test]
+fn test_multi_bit_shift() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_custom_integers(
+            crate::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            None,
+        )
+        .build();
+    fhe_uint32_shift(config);
+}
+
+fn fhe_uint32_rotate(config: Config) {
     let (cks, sks) = generate_keys(config);
 
     use rand::prelude::*;
@@ -335,6 +344,25 @@ fn test_uint32_rotate() {
         let decrypted: u32 = c.decrypt(&cks);
         assert_eq!(decrypted, clear_a.rotate_left(clear_b));
     }
+}
+
+#[test]
+fn test_uint32_rotate() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+    fhe_uint32_rotate(config);
+}
+
+#[test]
+fn test_multi_bit_rotate() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_custom_integers(
+            crate::shortint::parameters::PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            None,
+        )
+        .build();
+    fhe_uint32_rotate(config);
 }
 
 #[test]
