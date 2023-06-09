@@ -370,6 +370,10 @@ ci_test_web_js_api_parallel: build_web_js_api_parallel
 no_tfhe_typo:
 	@./scripts/no_tfhe_typo.sh
 
+#
+# Benchmarks
+#
+
 .PHONY: bench_integer # Run benchmarks for integer
 bench_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
@@ -394,23 +398,54 @@ bench_pbs: install_rs_check_toolchain
 	--bench pbs-bench \
 	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,$(AVX512_FEATURE) -p tfhe
 
+.PHONY: bench_web_js_api_parallel # Run benchmarks for the web wasm api
+bench_web_js_api_parallel: build_web_js_api_parallel
+	$(MAKE) -C tfhe/web_wasm_parallel_tests bench
+
+.PHONY: ci_bench_web_js_api_parallel # Run benchmarks for the web wasm api
+ci_bench_web_js_api_parallel: build_web_js_api_parallel
+	source ~/.nvm/nvm.sh && \
+	nvm use node && \
+	$(MAKE) -C tfhe/web_wasm_parallel_tests bench-ci
+
+#
+# Utility tools
+#
+
+.PHONY: measure_hlapi_compact_pk_ct_sizes # Measure sizes of public keys and ciphertext for high-level API
+measure_hlapi_compact_pk_ct_sizes: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+	--example hlapi_compact_pk_ct_sizes \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache
+
+.PHONY: measure_shortint_key_sizes # Measure sizes of bootstrapping and key switching keys for shortint
+measure_shortint_key_sizes: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+	--example shortint_key_sizes \
+	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache
+
+.PHONY: measure_boolean_key_sizes # Measure sizes of bootstrapping and key switching keys for boolean
+measure_boolean_key_sizes: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+	--example boolean_key_sizes \
+	--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache
+
 .PHONY: parse_integer_benches # Run python parser to output a csv containing integer benches data
 parse_integer_benches:
 	python3 ./ci/parse_integer_benches_to_csv.py \
 		--criterion-dir target/criterion \
 		--output-file "$(PARSE_INTEGER_BENCH_CSV_FILE)"
 
-.PHONY: measure_shortint_key_sizes # Measure sizes of bootstrapping and key switching keys for shortint
-measure_shortint_key_sizes: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
-	--example shortint_key_sizes \
-	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache
+.PHONY: parse_wasm_benchmarks # Parse benchmarks performed with WASM web client into a CSV file
+parse_wasm_benchmarks: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+	--example wasm_benchmarks_parser \
+	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache \
+	-- tfhe/web_wasm_parallel_tests/test/benchmark_results
 
-.PHONY: measure_boolean_key_sizes # Measure sizes of bootstrapping and key switching keys for boolean
-measure_boolean_key_sizes: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
-	--example boolean_key_sizes \
-	--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache
+#
+# Real use case examples
+#
 
 .PHONY: regex_engine # Run regex_engine example
 regex_engine: install_rs_check_toolchain

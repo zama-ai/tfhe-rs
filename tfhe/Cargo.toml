@@ -10,7 +10,13 @@ repository = "https://github.com/zama-ai/tfhe-rs"
 license = "BSD-3-Clause-Clear"
 description = "TFHE-rs is a fully homomorphic encryption (FHE) library that implements Zama's variant of TFHE."
 build = "build.rs"
-exclude = ["/docs/", "/c_api_tests/", "/CMakeLists.txt", "/js_on_wasm_tests/"]
+exclude = [
+    "/docs/",
+    "/c_api_tests/",
+    "/CMakeLists.txt",
+    "/js_on_wasm_tests/",
+    "/web_wasm_parallel_tests/",
+]
 rust-version = "1.67"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -23,7 +29,7 @@ lazy_static = { version = "1.4.0" }
 criterion = "0.4.0"
 doc-comment = "0.3.3"
 serde_json = "1.0.94"
-clap = "4.2.7"
+clap = { version = "4.2.7", features = ["derive"] }
 # Used in user documentation
 bincode = "1.3.3"
 fs2 = { version = "0.4.3" }
@@ -83,12 +89,7 @@ experimental-force_fft_algo_dif4 = []
 __c_api = ["cbindgen", "bincode"]
 boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
-high-level-c-api = [
-    "boolean-c-api",
-    "shortint-c-api",
-    "integer",
-    "__c_api"
-]
+high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer", "__c_api"]
 
 __wasm_api = [
     "wasm-bindgen",
@@ -189,29 +190,43 @@ path = "benches/utilities.rs"
 harness = false
 required-features = ["boolean", "shortint", "integer", "internal-keycache"]
 
+# Examples used as tools
+
+[[example]]
+name = "wasm_benchmarks_parser"
+path = "examples/utilities/wasm_benchmarks_parser.rs"
+required-features = ["shortint", "internal-keycache"]
+
 [[example]]
 name = "generates_test_keys"
+path = "examples/utilities/generates_test_keys.rs"
 required-features = ["shortint", "internal-keycache"]
 
 [[example]]
 name = "boolean_key_sizes"
+path = "examples/utilities/boolean_key_sizes.rs"
 required-features = ["boolean", "internal-keycache"]
 
 [[example]]
-name = "dark_market"
-required-features = ["integer", "internal-keycache"]
-
-[[example]]
 name = "shortint_key_sizes"
+path = "examples/utilities/shortint_key_sizes.rs"
 required-features = ["shortint", "internal-keycache"]
 
 [[example]]
-name = "integer_compact_pk_ct_sizes"
+name = "hlapi_compact_pk_ct_sizes"
+path = "examples/utilities/hlapi_compact_pk_ct_sizes.rs"
 required-features = ["integer", "internal-keycache"]
 
 [[example]]
 name = "micro_bench_and"
+path = "examples/utilities/micro_bench_and.rs"
 required-features = ["boolean"]
+
+# Real use-case examples
+
+[[example]]
+name = "dark_market"
+required-features = ["integer", "internal-keycache"]
 
 [[example]]
 name = "regex_engine"

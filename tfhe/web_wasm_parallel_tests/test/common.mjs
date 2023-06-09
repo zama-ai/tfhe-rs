@@ -1,5 +1,11 @@
 import puppeteer from 'puppeteer';
 import process from 'process';
+import * as fs from 'node:fs';
+
+const benchmark_dir = __dirname + '/benchmark_results';
+if (!fs.existsSync(benchmark_dir)){
+    fs.mkdirSync(benchmark_dir);
+}
 
 function isRoot() {
     return process.getuid && process.getuid() === 0;
@@ -8,9 +14,13 @@ function isRoot() {
 async function runActualTest(page, buttonId) {
     const buttonSelector = `input#${buttonId}`
     const successCheckBoxSelector = `input#testSuccess`
+    const benchmarkResultsSelector = `input#benchmarkResults`
 
     const testSuccessCheckbox = await page.waitForSelector(
         successCheckBoxSelector
+    );
+    const benchmarkResultsTextbox = await page.waitForSelector(
+        benchmarkResultsSelector
     );
     await page.waitForSelector(buttonSelector)
 
@@ -26,6 +36,12 @@ async function runActualTest(page, buttonId) {
 
     const isCheckedAfter = await testSuccessCheckbox?.evaluate(el => el.checked);
     expect(isCheckedAfter).toBe(true);
+
+    const results = await benchmarkResultsTextbox?.evaluate(el => el.value);
+    if (results) {
+        const parsed_results = JSON.parse(results);
+        fs.writeFileSync(`${benchmark_dir}/${buttonId}.json`, results, {'flag': 'w'});
+    }
 }
 
 async function runTestAttachedToButton(buttonId) {
