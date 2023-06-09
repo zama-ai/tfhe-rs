@@ -72,7 +72,8 @@ else
 fi
 
 if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
-    filter_expression_small_params="""\
+    if [[ "${FAST_TESTS}" != TRUE ]]; then
+       filter_expression_small_params="""\
 (\
    test(/^shortint::.*_param${multi_bit}_message_1_carry_1/) \
 or test(/^shortint::.*_param${multi_bit}_message_1_carry_2/) \
@@ -86,8 +87,17 @@ or test(/^shortint::.*_param${multi_bit}_message_2_carry_3/) \
 or test(/^shortint::.*_param${multi_bit}_message_3_carry_1/) \
 or test(/^shortint::.*_param${multi_bit}_message_3_carry_2/) \
 or test(/^shortint::.*_param${multi_bit}_message_3_carry_3/) \
-) \
+)\
 and not test(~smart_add_and_mul)""" # This test is too slow
+    else
+        filter_expression_small_params="""\
+(\
+   test(/^shortint::.*_param${multi_bit}_message_2_carry_1/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_2/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_3/) \
+)\
+and not test(~smart_add_and_mul)""" # This test is too slow
+    fi
 
     # Run tests only no examples or benches with small params and more threads
     cargo "${RUST_TOOLCHAIN}" nextest run \
@@ -99,7 +109,8 @@ and not test(~smart_add_and_mul)""" # This test is too slow
         --test-threads "${n_threads_small}" \
         -E "${filter_expression_small_params}"
 
-    filter_expression_big_params="""\
+    if [[ "${FAST_TESTS}" != TRUE ]]; then
+        filter_expression_big_params="""\
 (\
    test(/^shortint::.*_param${multi_bit}_message_4_carry_4/) \
 ) \
@@ -115,16 +126,18 @@ and not test(~smart_add_and_mul)"""
         --test-threads "${n_threads_big}" \
         -E "${filter_expression_big_params}"
 
-    if [[ "${multi_bit}" == "" ]]; then
-        cargo "${RUST_TOOLCHAIN}" test \
-            --release \
-            --package tfhe \
-            --features="${ARCH_FEATURE}",shortint,internal-keycache \
-            --doc \
-            shortint::
+        if [[ "${multi_bit}" == "" ]]; then
+            cargo "${RUST_TOOLCHAIN}" test \
+                --release \
+                --package tfhe \
+                --features="${ARCH_FEATURE}",shortint,internal-keycache \
+                --doc \
+                shortint::
+        fi
     fi
 else
-    filter_expression="""\
+    if [[ "${FAST_TESTS}" != TRUE ]]; then
+        filter_expression="""\
 (\
    test(/^shortint::.*_param${multi_bit}_message_1_carry_1/) \
 or test(/^shortint::.*_param${multi_bit}_message_1_carry_2/) \
@@ -141,6 +154,15 @@ or test(/^shortint::.*_param${multi_bit}_message_3_carry_3/) \
 or test(/^shortint::.*_param${multi_bit}_message_4_carry_4/) \
 )\
 and not test(~smart_add_and_mul)""" # This test is too slow
+    else
+        filter_expression="""\
+(\
+   test(/^shortint::.*_param${multi_bit}_message_2_carry_1/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_2/) \
+or test(/^shortint::.*_param${multi_bit}_message_2_carry_3/) \
+)\
+and not test(~smart_add_and_mul)""" # This test is too slow
+    fi
 
     # Run tests only no examples or benches with small params and more threads
     cargo "${RUST_TOOLCHAIN}" nextest run \
