@@ -73,6 +73,32 @@ impl BooleanParameters {
     }
 }
 
+/// A set of cryptographic parameters for homomorphic Boolean key switching.
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BooleanKeySwitchingParameters {
+    pub ks_base_log: DecompositionBaseLog,
+    pub ks_level: DecompositionLevelCount,
+}
+impl BooleanKeySwitchingParameters {
+    /// Constructs a new set of parameters for boolean circuit evaluation.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe, as failing to fix the parameters properly would yield incorrect
+    /// and insecure computation. Unless you are a cryptographer who really knows the impact of each
+    /// of those parameters, you __must__ stick with the provided parameters (if any),
+    /// which both offer correct results with 128 bits of security.
+    pub unsafe fn new(
+        ks_base_log: DecompositionBaseLog,
+        ks_level: DecompositionLevelCount,
+    ) -> BooleanKeySwitchingParameters {
+        BooleanKeySwitchingParameters {
+            ks_level,
+            ks_base_log,
+        }
+    }
+}
+
 /// Default parameter set.
 ///
 /// This parameter set ensures 128-bits of security, and a probability of error is upper-bounded by

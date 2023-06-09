@@ -4,7 +4,7 @@
 //! underlying `core_crypto` module.
 
 use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
-use crate::boolean::parameters::BooleanParameters;
+use crate::boolean::parameters::{BooleanKeySwitchingParameters, BooleanParameters};
 use crate::boolean::{ClientKey, CompressedPublicKey, PublicKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
@@ -174,6 +174,24 @@ impl BooleanEngine {
             compressed_lwe_public_key,
             parameters: client_parameters,
         }
+    }
+
+    pub(crate) fn new_key_switching_key(
+        &mut self,
+        cks1: &ClientKey,
+        cks2: &ClientKey,
+        params: BooleanKeySwitchingParameters,
+    ) -> LweKeyswitchKeyOwned<u32> {
+        // Creation of the key switching key
+        allocate_and_generate_new_lwe_keyswitch_key(
+            &cks1.lwe_secret_key,
+            &cks2.lwe_secret_key,
+            params.ks_base_log,
+            params.ks_level,
+            cks2.parameters.lwe_modular_std_dev,
+            CiphertextModulus::new_native(),
+            &mut self.encryption_generator,
+        )
     }
 
     pub fn trivial_encrypt(&mut self, message: bool) -> Ciphertext {
