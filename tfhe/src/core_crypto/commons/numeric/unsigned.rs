@@ -186,30 +186,49 @@ macro_rules! implement {
                     let self_u128: u128 = self.cast_into();
                     let other_u128: u128 = other.cast_into();
                     let custom_modulus_u128: u128 = custom_modulus.cast_into();
-                    let self_top = self_u128 >> 64;
-                    let other_top = other_u128 >> 64;
-                    if self_top > 0 && other_top > 0 {
+                    let (prod, wrong) = self_u128.overflowing_mul(other_u128);
+                    // if we are not able to multiply directly without wrapping around
+                    if wrong {
+                        // we try to do the multiplication as
+                        // (a + b*2^64)*(c + d*2^64) = ac + (bc + ad)*2^64 + bd*2^18
+                        // with the assumption that b and d are very small
+                        // writing bc + ad = e + f*2^64 where again f should be small if b and d are
+                        // we have that the product is
+                        // ac + e*2^64 + (bd + f)*2^128
+                        // where bd + f is small
+                        // let 2^128 = r modulo the custom modulus
+                        // so that the product is ac + e*2^64 + (bd + f)*r
+                        // this can be computed without wrap around modulo 2^128 if
+                        // (bd + f)*r < 2^128 otherwise there is an error
+                        // there should be no error if the modulus is not close to 2^128 or is equal to
+                        // 2^128 -r with r not too close to 2^128
+                        let self_top = self_u128 >> 64;
+                        let other_top = other_u128 >> 64;
                         let self_bottom = self_u128 - (self_top << 64);
                         let other_bottom = other_u128 - (other_top << 64);
                         let bottom = self_bottom.wrapping_mul(other_bottom);
                         let middle1 = self_bottom.wrapping_mul(other_top);
                         let middle2 = other_bottom.wrapping_mul(self_top);
-                        let middle = middle1.wrapping_add(middle2);
+                        let (middle, wrong) = middle1.overflowing_add(middle2);
+                        assert!(!wrong, "multiplication of custom u128s failed: {:?}, {:?}",
+                        self_u128, other_u128);
                         let middle_top = middle >> 64;
                         let middle_bottom = middle - (middle_top << 64);
                         let middle = (middle_bottom << 64).wrapping_rem(custom_modulus_u128);
                         let rem = 0u128.wrapping_sub(1u128).wrapping_rem(custom_modulus_u128)
                         .wrapping_add(1u128);
-                        let top = self_top.wrapping_mul(other_top).wrapping_add(middle_top);
-                        let (top, wrong) = rem.overflowing_mul(top);
+                        let top = self_top.wrapping_mul(other_top);
+                        let (top, wrong) = top.overflowing_add(middle_top);
+                        assert!(!wrong, "multiplication of custom u128s failed: {:?}, \
+                        {:?}", self_u128, other_u128);
+                        let (top, wrong) = top.overflowing_mul(rem);
                         assert!(!wrong, "multiplication of custom u128s failed: {:?}, \
                         {:?}", self_u128, other_u128);
                         let top = top.wrapping_rem(custom_modulus_u128);
                         let out = top.wrapping_add(middle).wrapping_rem(custom_modulus_u128);
                         out.wrapping_add(bottom).wrapping_rem(custom_modulus_u128).cast_into()
                     } else {
-                        self_u128
-                            .wrapping_mul(other_u128)
+                        prod
                             .wrapping_rem(custom_modulus_u128)
                             .cast_into()
                 }
