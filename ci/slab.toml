@@ -52,3 +52,8 @@ check_run_name = "Boolean CPU AWS Benchmarks"
 workflow = "pbs_benchmark.yml"
 profile = "bench"
 check_run_name = "PBS CPU AWS Benchmarks"
+
+[command.wasm_client_bench]
+workflow = "wasm_client_benchmark.yml"
+profile = "cpu-small"
+check_run_name = "WASM Client AWS Benchmarks"
