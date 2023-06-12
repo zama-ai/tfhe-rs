@@ -81,6 +81,11 @@ fn client_server_key_sizes(results_file: &Path) {
 }
 
 fn main() {
+    let work_dir = std::env::current_dir().unwrap();
+    let mut new_work_dir = work_dir;
+    new_work_dir.push("tfhe");
+    std::env::set_current_dir(new_work_dir).unwrap();
+
     let results_file = Path::new("tfhe/boolean_key_sizes.csv");
     client_server_key_sizes(results_file)
 }

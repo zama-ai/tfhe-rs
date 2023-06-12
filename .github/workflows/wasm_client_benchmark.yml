@@ -60,7 +60,7 @@ jobs:
       - name: Run benchmarks
         run: |
           make install_node
-          make bench_web_js_api_parallel
+          make ci_bench_web_js_api_parallel
 
       - name: Parse results
         run: |
