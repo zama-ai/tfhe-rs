@@ -1,3 +1,4 @@
+// use itertools::Itertools;
 use std::sync::RwLock;
 
 use super::ServerKey;
@@ -80,9 +81,11 @@ impl ServerKey {
 
         let is_max_value = self
             .key
-            .generate_accumulator(|x| u64::from((x & max_value as u64) == max_value as u64));
+            .generate_accumulator(|x| u64::from(x == max_value as u64));
 
         while block_comparisons.len() > 1 {
+            // Since all blocks encrypt either 0 or 1, we can sum max_value of them
+            // as in the worst case we will be adding `max_value` ones
             block_comparisons = block_comparisons
                 .par_chunks(max_value)
                 .map(|blocks| {
@@ -94,9 +97,9 @@ impl ServerKey {
                     if blocks.len() == max_value {
                         self.key.apply_lookup_table(&sum, &is_max_value)
                     } else {
-                        let is_equal_to_num_blocks = self.key.generate_accumulator(|x| {
-                            u64::from((x & max_value as u64) == blocks.len() as u64)
-                        });
+                        let is_equal_to_num_blocks = self
+                            .key
+                            .generate_accumulator(|x| u64::from(x == blocks.len() as u64));
                         self.key.apply_lookup_table(&sum, &is_equal_to_num_blocks)
                     }
                 })
@@ -116,7 +119,7 @@ impl ServerKey {
     /// otherwise the block encrypts 0 (all blocks encrypts 0)
     ///
     /// if the vec is empty, a trivial 1 is returned
-    pub(crate) fn is_at_last_one_comparisons_block_true<PBSOrder>(
+    pub(crate) fn is_at_least_one_comparisons_block_true<PBSOrder>(
         &self,
         mut block_comparisons: Vec<CiphertextBase<PBSOrder>>,
     ) -> CiphertextBase<PBSOrder>
@@ -132,9 +135,7 @@ impl ServerKey {
         let total_modulus = message_modulus * carry_modulus;
         let max_value = total_modulus - 1;
 
-        let is_not_zero = self
-            .key
-            .generate_accumulator(|x| u64::from((x & max_value as u64) != 0));
+        let is_not_zero = self.key.generate_accumulator(|x| u64::from(x != 0));
 
         while block_comparisons.len() > 1 {
             block_comparisons = block_comparisons
@@ -214,6 +215,7 @@ impl ServerKey {
                 for other_block in &chunk[1..] {
                     self.key.unchecked_add_assign(&mut sum, other_block);
                 }
+
                 self.key
                     .apply_lookup_table_assign(&mut sum, &is_equal_to_zero);
                 sum
@@ -221,20 +223,20 @@ impl ServerKey {
             .collect::<Vec<_>>()
     }
 
-    // Given a slice of scalar values, and a total_modulus
-    // where  each scalar value is < total_modulus
-    //
-    // This will return a vector of size `total_modulus`,
-    // where for each index, the vec contains either
-    // - `None` if fhe scalar was not present in the slice,
-    // - or `Some` lookuptable that allows to compare a shortint block to the scalar value at this
-    //  index
-    //
-    //
-    //  E.g.
-    //  - input slice: [0, 2],
-    //  - total_modulus: 4,
-    //  returns -> [Some(LUT(|x| x == 0)), None, Some(LUT(|x| x == 2), None]
+    /// Given a slice of scalar values, and a total_modulus
+    /// where  each scalar value is < total_modulus
+    ///
+    /// This will return a vector of size `total_modulus`,
+    /// where for each index, the vec contains either
+    /// - `None` if fhe scalar was not present in the slice,
+    /// - or `Some` lookuptable that allows to compare a shortint block to the scalar value at this
+    ///  index
+    ///
+    ///
+    ///  E.g.
+    ///  - input slice: [0, 2],
+    ///  - total_modulus: 4,
+    ///  returns -> [Some(LUT(|x| x == 0)), None, Some(LUT(|x| x == 2), None]
     fn create_scalar_comparison_luts<F>(
         &self,
         scalar_blocks: &[u8],
@@ -256,10 +258,12 @@ impl ServerKey {
         //     }
         //     let lut = self
         //         .key
-        //         .generate_accumulator(|x| u64::from(x == scalar_block as u64));
+        //         .generate_accumulator(|x| u64::from(comparison_fn(x as u8, scalar_block)));
         //     scalar_comp_luts[scalar_block as usize] = Some(lut);
         // }
         // scalar_comp_luts
+
+        // let unique_scalar_blocks = scalar_blocks.iter().copied().unique();
 
         let scalar_comp_luts = (0..total_modulus)
             .map(|_| RwLock::new(None))
@@ -268,10 +272,21 @@ impl ServerKey {
         scalar_blocks.par_iter().copied().for_each(|scalar_block| {
             let lock = &scalar_comp_luts[scalar_block as usize];
 
-            let readable = lock.read().unwrap();
-            if readable.is_some() {
-                return;
-            }
+            let readable = match lock.try_read() {
+                Ok(r) if r.is_some() => {
+                    return;
+                }
+                Ok(r) => r,
+                Err(std::sync::TryLockError::WouldBlock) => {
+                    // The lock is locked in write mode, so
+                    // another thread is generating the lut
+                    return;
+                }
+                Err(std::sync::TryLockError::Poisoned(e)) => {
+                    panic!("Poisoned lock: {:?}", e);
+                }
+            };
+
             drop(readable);
             let mut writeable = lock.write().unwrap();
             let lut = self
@@ -308,7 +323,7 @@ impl ServerKey {
     ///
     /// let ct1 = cks.encrypt(msg1);
     ///
-    /// let ct_res = sks.unchecked_scalar_eq(&ct1, ms2);
+    /// let ct_res = sks.unchecked_scalar_eq_parallelized(&ct1, msg2);
     ///
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt(&ct_res);
@@ -342,7 +357,7 @@ impl ServerKey {
                 .collect::<Vec<_>>();
 
         // If we have more scalar blocks than lhs.blocks
-        // and that any of these block additional blocks is != 0
+        // and that any of these additional blocks is != 0
         // then lhs != rhs
         let is_scalar_obviously_bigger = scalar_blocks
             .get(num_blocks_halved..) // We may have less scalar blocks
@@ -476,7 +491,7 @@ impl ServerKey {
             },
         );
         cmp_1.append(&mut cmp_2);
-        let is_equal_result = self.is_at_last_one_comparisons_block_true(cmp_1);
+        let is_equal_result = self.is_at_least_one_comparisons_block_true(cmp_1);
 
         let mut blocks = Vec::with_capacity(lhs.blocks.len());
         blocks.push(is_equal_result);

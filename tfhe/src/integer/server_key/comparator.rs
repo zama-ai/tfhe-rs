@@ -319,15 +319,13 @@ impl<'a> Comparator<'a> {
     /// Expects the carry buffers to be empty
     ///
     /// Requires that the RadixCiphertext block have 4 bits minimum (carry + message)
-    fn unchecked_sign_parallelized<'b, PBSOrder>(
+    fn unchecked_sign_parallelized<PBSOrder>(
         &self,
-        lhs: &'b RadixCiphertext<PBSOrder>,
-        rhs: &'b RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext<PBSOrder>,
+        rhs: &RadixCiphertext<PBSOrder>,
     ) -> crate::shortint::CiphertextBase<PBSOrder>
     where
         PBSOrder: PBSOrderMarker,
-        &'b [CiphertextBase<PBSOrder>]:
-            rayon::iter::IntoParallelIterator<Item = &'b CiphertextBase<PBSOrder>>,
     {
         assert_eq!(lhs.blocks.len(), rhs.blocks.len());
 
@@ -375,15 +373,13 @@ impl<'a> Comparator<'a> {
         self.reduce_signs_parallelized(comparisons)
     }
 
-    fn unchecked_scalar_block_slice_sign_parallelized<'b, PBSOrder>(
+    fn unchecked_scalar_block_slice_sign_parallelized<PBSOrder>(
         &self,
-        lhs_blocks: &'b [CiphertextBase<PBSOrder>],
+        lhs_blocks: &[CiphertextBase<PBSOrder>],
         scalar_blocks: &[u8],
     ) -> Vec<crate::shortint::CiphertextBase<PBSOrder>>
     where
         PBSOrder: PBSOrderMarker,
-        &'b [CiphertextBase<PBSOrder>]:
-            rayon::iter::IntoParallelIterator<Item = &'b CiphertextBase<PBSOrder>>,
     {
         assert_eq!(lhs_blocks.len(), scalar_blocks.len());
         let num_blocks = lhs_blocks.len();
@@ -2645,7 +2641,7 @@ mod tests {
 
     /// The goal of this function is to ensure that scalar comparisons
     /// work when the scalar type used is either bigger or small (in bit size)
-    /// comparaed to the ciphertext
+    /// compared to the ciphertext
     fn test_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
         let mut rng = rand::thread_rng();
 
@@ -2757,6 +2753,16 @@ mod tests {
                 let result = comparator.unchecked_scalar_lt_parallelized(&a, U256::MAX);
                 let decrypted: U256 = cks.decrypt_radix(&result);
                 assert_eq!(decrypted, U256::from(U256::from(clear_a) < U256::MAX));
+
+                // == (as it does not share same code)
+                let result = comparator.unchecked_scalar_eq_parallelized(&a, U256::ZERO);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) == U256::ZERO));
+
+                // != (as it does not share same code)
+                let result = comparator.unchecked_scalar_ne_parallelized(&a, U256::MAX);
+                let decrypted: U256 = cks.decrypt_radix(&result);
+                assert_eq!(decrypted, U256::from(U256::from(clear_a) != U256::MAX));
             }
         }
     }
