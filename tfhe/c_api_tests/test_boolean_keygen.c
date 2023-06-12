@@ -61,13 +61,13 @@ void test_default_keygen_w_serde(void) {
 
   assert(c_result == true);
 
-  destroy_boolean_client_key(cks);
-  destroy_boolean_server_key(sks);
-  destroy_boolean_ciphertext(ct);
-  destroy_boolean_ciphertext(deser_ct);
-  destroy_boolean_compressed_ciphertext(cct);
-  destroy_boolean_compressed_ciphertext(deser_cct);
-  destroy_boolean_ciphertext(decompressed_ct);
+  boolean_destroy_client_key(cks);
+  boolean_destroy_server_key(sks);
+  boolean_destroy_ciphertext(ct);
+  boolean_destroy_ciphertext(deser_ct);
+  boolean_destroy_compressed_ciphertext(cct);
+  boolean_destroy_compressed_ciphertext(deser_cct);
+  boolean_destroy_ciphertext(decompressed_ct);
   destroy_buffer(&ct_ser_buffer);
 }
 
@@ -80,16 +80,16 @@ void test_predefined_keygen_w_serde(void) {
 
   assert(gen_keys_ok == 0);
 
-  destroy_boolean_client_key(cks);
-  destroy_boolean_server_key(sks);
+  boolean_destroy_client_key(cks);
+  boolean_destroy_server_key(sks);
 
   gen_keys_ok = boolean_gen_keys_with_parameters(
       BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS, &cks, &sks);
 
   assert(gen_keys_ok == 0);
 
-  destroy_boolean_client_key(cks);
-  destroy_boolean_server_key(sks);
+  boolean_destroy_client_key(cks);
+  boolean_destroy_server_key(sks);
 }
 
 void test_custom_keygen(void) {
@@ -111,8 +111,8 @@ void test_custom_keygen(void) {
 
   assert(gen_keys_ok == 0);
 
-  destroy_boolean_client_key(cks);
-  destroy_boolean_server_key(sks);
+  boolean_destroy_client_key(cks);
+  boolean_destroy_server_key(sks);
 }
 
 void test_public_keygen(void) {
@@ -137,9 +137,9 @@ void test_public_keygen(void) {
 
   assert(result == true);
 
-  destroy_boolean_client_key(cks);
-  destroy_boolean_public_key(pks);
-  destroy_boolean_ciphertext(ct);
+  boolean_destroy_client_key(cks);
+  boolean_destroy_public_key(pks);
+  boolean_destroy_ciphertext(ct);
 }
 
 int main(void) {

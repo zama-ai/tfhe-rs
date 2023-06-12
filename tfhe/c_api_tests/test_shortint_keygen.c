@@ -62,13 +62,13 @@ void test_predefined_keygen_w_serde(void) {
 
   assert(c_result == 3);
 
-  destroy_shortint_client_key(cks);
-  destroy_shortint_server_key(sks);
-  destroy_shortint_ciphertext(ct);
-  destroy_shortint_ciphertext(deser_ct);
-  destroy_shortint_compressed_ciphertext(cct);
-  destroy_shortint_compressed_ciphertext(deser_cct);
-  destroy_shortint_ciphertext(decompressed_ct);
+  shortint_destroy_client_key(cks);
+  shortint_destroy_server_key(sks);
+  shortint_destroy_ciphertext(ct);
+  shortint_destroy_ciphertext(deser_ct);
+  shortint_destroy_compressed_ciphertext(cct);
+  shortint_destroy_compressed_ciphertext(deser_cct);
+  shortint_destroy_ciphertext(decompressed_ct);
   destroy_buffer(&ct_ser_buffer);
 }
 
@@ -90,9 +90,9 @@ void test_server_key_trivial_encrypt(void) {
 
   assert(result == 3);
 
-  destroy_shortint_client_key(cks);
-  destroy_shortint_server_key(sks);
-  destroy_shortint_ciphertext(ct);
+  shortint_destroy_client_key(cks);
+  shortint_destroy_server_key(sks);
+  shortint_destroy_ciphertext(ct);
 }
 
 void test_custom_keygen(void) {
@@ -118,8 +118,8 @@ void test_custom_keygen(void) {
 
   assert(gen_keys_ok == 0);
 
-  destroy_shortint_client_key(cks);
-  destroy_shortint_server_key(sks);
+  shortint_destroy_client_key(cks);
+  shortint_destroy_server_key(sks);
 }
 
 void test_public_keygen(ShortintPublicKeyKind pk_kind) {
@@ -154,11 +154,11 @@ void test_public_keygen(ShortintPublicKeyKind pk_kind) {
 
   assert(result == 2);
 
-  destroy_shortint_client_key(cks);
-  destroy_shortint_public_key(pks);
-  destroy_shortint_public_key(pks_deser);
+  shortint_destroy_client_key(cks);
+  shortint_destroy_public_key(pks);
+  shortint_destroy_public_key(pks_deser);
   destroy_buffer(&pks_ser_buff);
-  destroy_shortint_ciphertext(ct);
+  shortint_destroy_ciphertext(ct);
 }
 
 void test_compressed_public_keygen(ShortintPublicKeyKind pk_kind) {
@@ -197,10 +197,10 @@ void test_compressed_public_keygen(ShortintPublicKeyKind pk_kind) {
 
   assert(result == 2);
 
-  destroy_shortint_client_key(cks);
-  destroy_shortint_compressed_public_key(cpks);
-  destroy_shortint_public_key(pks);
-  destroy_shortint_ciphertext(ct);
+  shortint_destroy_client_key(cks);
+  shortint_destroy_compressed_public_key(cpks);
+  shortint_destroy_public_key(pks);
+  shortint_destroy_ciphertext(ct);
 }
 
 int main(void) {

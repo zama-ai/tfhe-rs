@@ -101,13 +101,13 @@ void test_shortint_pbs_2_bits_message(void) {
 
     assert(result_assign == double_accumulator_2_bits_message(result_non_assign));
 
-    destroy_shortint_ciphertext(ct);
-    destroy_shortint_ciphertext(ct_out);
+    shortint_destroy_ciphertext(ct);
+    shortint_destroy_ciphertext(ct_out);
   }
 
-  destroy_shortint_pbs_accumulator(accumulator);
-  destroy_shortint_client_key(cks);
-  destroy_shortint_server_key(sks);
+  shortint_destroy_pbs_accumulator(accumulator);
+  shortint_destroy_client_key(cks);
+  shortint_destroy_server_key(sks);
 }
 
 void test_shortint_bivariate_pbs_2_bits_message(void) {
@@ -171,15 +171,15 @@ void test_shortint_bivariate_pbs_2_bits_message(void) {
       assert(result_assign ==
              product_accumulator_2_bits_encrypted_mul(result_non_assign, right_val));
 
-      destroy_shortint_ciphertext(ct_left);
-      destroy_shortint_ciphertext(ct_right);
-      destroy_shortint_ciphertext(ct_out);
+      shortint_destroy_ciphertext(ct_left);
+      shortint_destroy_ciphertext(ct_right);
+      shortint_destroy_ciphertext(ct_out);
     }
   }
 
-  destroy_shortint_bivariate_pbs_accumulator(accumulator);
-  destroy_shortint_client_key(cks);
-  destroy_shortint_server_key(sks);
+  shortint_destroy_bivariate_pbs_accumulator(accumulator);
+  shortint_destroy_client_key(cks);
+  shortint_destroy_server_key(sks);
 }
 
 int main(void) {

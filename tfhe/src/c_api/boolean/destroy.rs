@@ -7,7 +7,11 @@ use super::{
 };
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_boolean_client_key(client_key: *mut BooleanClientKey) -> c_int {
+pub unsafe extern "C" fn boolean_destroy_client_key(client_key: *mut BooleanClientKey) -> c_int {
+    if client_key.is_null() {
+        return 0;
+    }
+
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(client_key).unwrap();
 
@@ -16,7 +20,10 @@ pub unsafe extern "C" fn destroy_boolean_client_key(client_key: *mut BooleanClie
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_boolean_server_key(server_key: *mut BooleanServerKey) -> c_int {
+pub unsafe extern "C" fn boolean_destroy_server_key(server_key: *mut BooleanServerKey) -> c_int {
+    if server_key.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(server_key).unwrap();
 
@@ -25,9 +32,12 @@ pub unsafe extern "C" fn destroy_boolean_server_key(server_key: *mut BooleanServ
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_boolean_compressed_server_key(
+pub unsafe extern "C" fn boolean_destroy_compressed_server_key(
     server_key: *mut BooleanCompressedServerKey,
 ) -> c_int {
+    if server_key.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(server_key).unwrap();
 
@@ -36,7 +46,10 @@ pub unsafe extern "C" fn destroy_boolean_compressed_server_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_boolean_public_key(public_key: *mut BooleanPublicKey) -> c_int {
+pub unsafe extern "C" fn boolean_destroy_public_key(public_key: *mut BooleanPublicKey) -> c_int {
+    if public_key.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(public_key).unwrap();
 
@@ -45,9 +58,12 @@ pub unsafe extern "C" fn destroy_boolean_public_key(public_key: *mut BooleanPubl
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_boolean_ciphertext(
+pub unsafe extern "C" fn boolean_destroy_ciphertext(
     boolean_ciphertext: *mut BooleanCiphertext,
 ) -> c_int {
+    if boolean_ciphertext.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(boolean_ciphertext).unwrap();
 
@@ -56,9 +72,12 @@ pub unsafe extern "C" fn destroy_boolean_ciphertext(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_boolean_compressed_ciphertext(
+pub unsafe extern "C" fn boolean_destroy_compressed_ciphertext(
     boolean_ciphertext: *mut BooleanCompressedCiphertext,
 ) -> c_int {
+    if boolean_ciphertext.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(boolean_ciphertext).unwrap();
 

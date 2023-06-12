@@ -61,8 +61,8 @@ void test_shortint_unary_op(const ShortintClientKey *cks, const ShortintServerKe
 
       assert(decrypted_result == expected);
 
-      destroy_shortint_ciphertext(ct_in);
-      destroy_shortint_ciphertext(ct_result);
+      shortint_destroy_ciphertext(ct_in);
+      shortint_destroy_ciphertext(ct_result);
     }
   }
 }
@@ -109,7 +109,7 @@ void test_shortint_unary_op_assign(const ShortintClientKey *cks, const ShortintS
 
       assert(decrypted_result == expected);
 
-      destroy_shortint_ciphertext(ct_in_and_result);
+      shortint_destroy_ciphertext(ct_in_and_result);
     }
   }
 }
@@ -165,9 +165,9 @@ void test_shortint_binary_op(const ShortintClientKey *cks, const ShortintServerK
 
         assert(decrypted_result == expected);
 
-        destroy_shortint_ciphertext(ct_left);
-        destroy_shortint_ciphertext(ct_right);
-        destroy_shortint_ciphertext(ct_result);
+        shortint_destroy_ciphertext(ct_left);
+        shortint_destroy_ciphertext(ct_right);
+        shortint_destroy_ciphertext(ct_result);
       }
     }
   }
@@ -227,8 +227,8 @@ void test_shortint_binary_op_assign(const ShortintClientKey *cks, const Shortint
 
         assert(decrypted_result == expected);
 
-        destroy_shortint_ciphertext(ct_left_and_result);
-        destroy_shortint_ciphertext(ct_right);
+        shortint_destroy_ciphertext(ct_left_and_result);
+        shortint_destroy_ciphertext(ct_right);
       }
     }
   }
@@ -294,8 +294,8 @@ void test_shortint_binary_scalar_op(
 
         assert(decrypted_result == expected);
 
-        destroy_shortint_ciphertext(ct_left);
-        destroy_shortint_ciphertext(ct_result);
+        shortint_destroy_ciphertext(ct_left);
+        shortint_destroy_ciphertext(ct_result);
       }
     }
   }
@@ -362,7 +362,7 @@ void test_shortint_binary_scalar_op_assign(
 
         assert(decrypted_result == expected);
 
-        destroy_shortint_ciphertext(ct_left_and_result);
+        shortint_destroy_ciphertext(ct_left_and_result);
       }
     }
   }
@@ -728,14 +728,14 @@ void test_server_key(void) {
       deser_cks, deser_sks, cks_small, sks_small, message_bits, carry_bits, scalar_mod,
       shortint_server_key_unchecked_scalar_mod_assign, forbidden_scalar_mod_values, 1);
 
-  destroy_shortint_client_key(cks);
-  destroy_shortint_client_key(cks_small);
-  destroy_shortint_compressed_server_key(csks);
-  destroy_shortint_server_key(sks);
-  destroy_shortint_server_key(sks_small);
-  destroy_shortint_client_key(deser_cks);
-  destroy_shortint_compressed_server_key(deser_csks);
-  destroy_shortint_server_key(deser_sks);
+  shortint_destroy_client_key(cks);
+  shortint_destroy_client_key(cks_small);
+  shortint_destroy_compressed_server_key(csks);
+  shortint_destroy_server_key(sks);
+  shortint_destroy_server_key(sks_small);
+  shortint_destroy_client_key(deser_cks);
+  shortint_destroy_compressed_server_key(deser_csks);
+  shortint_destroy_server_key(deser_sks);
   destroy_buffer(&cks_ser_buffer);
   destroy_buffer(&csks_ser_buffer);
   destroy_buffer(&sks_ser_buffer);
