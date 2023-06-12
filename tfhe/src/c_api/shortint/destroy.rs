@@ -8,7 +8,10 @@ use super::{
 };
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_shortint_client_key(client_key: *mut ShortintClientKey) -> c_int {
+pub unsafe extern "C" fn shortint_destroy_client_key(client_key: *mut ShortintClientKey) -> c_int {
+    if client_key.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(client_key).unwrap();
 
@@ -17,7 +20,10 @@ pub unsafe extern "C" fn destroy_shortint_client_key(client_key: *mut ShortintCl
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_shortint_server_key(server_key: *mut ShortintServerKey) -> c_int {
+pub unsafe extern "C" fn shortint_destroy_server_key(server_key: *mut ShortintServerKey) -> c_int {
+    if server_key.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(server_key).unwrap();
 
@@ -26,9 +32,12 @@ pub unsafe extern "C" fn destroy_shortint_server_key(server_key: *mut ShortintSe
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_shortint_compressed_server_key(
+pub unsafe extern "C" fn shortint_destroy_compressed_server_key(
     server_key: *mut ShortintCompressedServerKey,
 ) -> c_int {
+    if server_key.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(server_key).unwrap();
 
@@ -37,7 +46,10 @@ pub unsafe extern "C" fn destroy_shortint_compressed_server_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_shortint_public_key(public_key: *mut ShortintPublicKey) -> c_int {
+pub unsafe extern "C" fn shortint_destroy_public_key(public_key: *mut ShortintPublicKey) -> c_int {
+    if public_key.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(public_key).unwrap();
 
@@ -46,9 +58,12 @@ pub unsafe extern "C" fn destroy_shortint_public_key(public_key: *mut ShortintPu
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_shortint_compressed_public_key(
+pub unsafe extern "C" fn shortint_destroy_compressed_public_key(
     compressed_public_key: *mut ShortintCompressedPublicKey,
 ) -> c_int {
+    if compressed_public_key.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(compressed_public_key).unwrap();
 
@@ -57,9 +72,12 @@ pub unsafe extern "C" fn destroy_shortint_compressed_public_key(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_shortint_ciphertext(
+pub unsafe extern "C" fn shortint_destroy_ciphertext(
     shortint_ciphertext: *mut ShortintCiphertext,
 ) -> c_int {
+    if shortint_ciphertext.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(shortint_ciphertext).unwrap();
 
@@ -68,9 +86,12 @@ pub unsafe extern "C" fn destroy_shortint_ciphertext(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_shortint_compressed_ciphertext(
+pub unsafe extern "C" fn shortint_destroy_compressed_ciphertext(
     shortint_ciphertext: *mut ShortintCompressedCiphertext,
 ) -> c_int {
+    if shortint_ciphertext.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(shortint_ciphertext).unwrap();
 
@@ -79,9 +100,12 @@ pub unsafe extern "C" fn destroy_shortint_compressed_ciphertext(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_shortint_pbs_accumulator(
+pub unsafe extern "C" fn shortint_destroy_pbs_accumulator(
     pbs_accumulator: *mut ShortintPBSLookupTable,
 ) -> c_int {
+    if pbs_accumulator.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(pbs_accumulator).unwrap();
 
@@ -90,9 +114,12 @@ pub unsafe extern "C" fn destroy_shortint_pbs_accumulator(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn destroy_shortint_bivariate_pbs_accumulator(
+pub unsafe extern "C" fn shortint_destroy_bivariate_pbs_accumulator(
     pbs_accumulator: *mut ShortintBivariatePBSLookupTable,
 ) -> c_int {
+    if pbs_accumulator.is_null() {
+        return 0;
+    }
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(pbs_accumulator).unwrap();
 

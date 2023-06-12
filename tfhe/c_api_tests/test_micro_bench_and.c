@@ -32,7 +32,7 @@ void micro_bench_and() {
   for (int idx_loops = 0; idx_loops < num_loops; ++idx_loops) {
     BooleanCiphertext *ct_result = NULL;
     boolean_server_key_and(sks, ct_left, ct_right, &ct_result);
-    destroy_boolean_ciphertext(ct_result);
+    boolean_destroy_ciphertext(ct_result);
   }
 
   clock_t stop = clock();
@@ -41,10 +41,10 @@ void micro_bench_and() {
 
   printf("%g ms, mean %g ms\n", elapsed_ms, mean_ms);
 
-  destroy_boolean_client_key(cks);
-  destroy_boolean_server_key(sks);
-  destroy_boolean_ciphertext(ct_left);
-  destroy_boolean_ciphertext(ct_right);
+  boolean_destroy_client_key(cks);
+  boolean_destroy_server_key(sks);
+  boolean_destroy_ciphertext(ct_left);
+  boolean_destroy_ciphertext(ct_right);
 }
 
 int main(void) {

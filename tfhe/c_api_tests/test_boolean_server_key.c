@@ -51,9 +51,9 @@ void test_binary_boolean_function(BooleanClientKey *cks, BooleanServerKey *sks,
 
           assert(decrypted_result == expected);
 
-          destroy_boolean_ciphertext(ct_left);
-          destroy_boolean_ciphertext(ct_right);
-          destroy_boolean_ciphertext(ct_result);
+          boolean_destroy_ciphertext(ct_left);
+          boolean_destroy_ciphertext(ct_right);
+          boolean_destroy_ciphertext(ct_result);
         }
       }
     }
@@ -103,8 +103,8 @@ void test_binary_boolean_function_assign(
 
           assert(decrypted_result == expected);
 
-          destroy_boolean_ciphertext(ct_left_and_result);
-          destroy_boolean_ciphertext(ct_right);
+          boolean_destroy_ciphertext(ct_left_and_result);
+          boolean_destroy_ciphertext(ct_right);
         }
       }
     }
@@ -139,8 +139,8 @@ void test_binary_boolean_function_scalar(BooleanClientKey *cks, BooleanServerKey
 
       assert(decrypted_result == expected);
 
-      destroy_boolean_ciphertext(ct_left);
-      destroy_boolean_ciphertext(ct_result);
+      boolean_destroy_ciphertext(ct_left);
+      boolean_destroy_ciphertext(ct_result);
     }
   }
 }
@@ -171,7 +171,7 @@ void test_binary_boolean_function_scalar_assign(BooleanClientKey *cks, BooleanSe
 
       assert(decrypted_result == expected);
 
-      destroy_boolean_ciphertext(ct_left_and_result);
+      boolean_destroy_ciphertext(ct_left_and_result);
     }
   }
 }
@@ -205,8 +205,8 @@ void test_not(BooleanClientKey *cks, BooleanServerKey *sks) {
 
       assert(decrypted_result == expected);
 
-      destroy_boolean_ciphertext(ct_in);
-      destroy_boolean_ciphertext(ct_result);
+      boolean_destroy_ciphertext(ct_in);
+      boolean_destroy_ciphertext(ct_result);
     }
   }
 }
@@ -239,7 +239,7 @@ void test_not_assign(BooleanClientKey *cks, BooleanServerKey *sks) {
 
       assert(decrypted_result == expected);
 
-      destroy_boolean_ciphertext(ct_in_and_result);
+      boolean_destroy_ciphertext(ct_in_and_result);
     }
   }
 }
@@ -300,10 +300,10 @@ void test_mux(BooleanClientKey *cks, BooleanServerKey *sks) {
 
               assert(decrypted_result == expected);
 
-              destroy_boolean_ciphertext(ct_cond);
-              destroy_boolean_ciphertext(ct_then);
-              destroy_boolean_ciphertext(ct_else);
-              destroy_boolean_ciphertext(ct_result);
+              boolean_destroy_ciphertext(ct_cond);
+              boolean_destroy_ciphertext(ct_then);
+              boolean_destroy_ciphertext(ct_else);
+              boolean_destroy_ciphertext(ct_result);
             }
           }
         }
@@ -407,12 +407,12 @@ void test_server_key(void) {
   test_binary_boolean_function_scalar_assign(deser_cks, deser_sks, c_xnor,
                                              boolean_server_key_xnor_scalar_assign);
 
-  destroy_boolean_client_key(cks);
-  destroy_boolean_compressed_server_key(csks);
-  destroy_boolean_server_key(sks);
-  destroy_boolean_client_key(deser_cks);
-  destroy_boolean_compressed_server_key(deser_csks);
-  destroy_boolean_server_key(deser_sks);
+  boolean_destroy_client_key(cks);
+  boolean_destroy_compressed_server_key(csks);
+  boolean_destroy_server_key(sks);
+  boolean_destroy_client_key(deser_cks);
+  boolean_destroy_compressed_server_key(deser_csks);
+  boolean_destroy_server_key(deser_sks);
   destroy_buffer(&cks_ser_buffer);
   destroy_buffer(&csks_ser_buffer);
   destroy_buffer(&sks_ser_buffer);

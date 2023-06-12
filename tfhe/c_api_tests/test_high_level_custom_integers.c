@@ -111,6 +111,9 @@ int uint256_public_key(const ClientKey *client_key,
     // transfer ownership
     lhs = expand_output[0];
     rhs = expand_output[1];
+    // We can destroy the compact list 
+    // The expanded ciphertext are independant from it
+    compact_fhe_uint256_list_destroy(list);
 
     ok = fhe_uint256_sub(lhs, rhs, &result);
     assert(ok == 0);
