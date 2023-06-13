@@ -446,7 +446,7 @@ parse_wasm_benchmarks: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 	--example wasm_benchmarks_parser \
 	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache \
-	-- tfhe/web_wasm_parallel_tests/test/benchmark_results
+	-- web_wasm_parallel_tests/test/benchmark_results
 
 #
 # Real use case examples
