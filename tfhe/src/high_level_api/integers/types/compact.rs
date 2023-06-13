@@ -1,7 +1,6 @@
 use crate::errors::{UninitializedPublicKey, UnwrapResultExt};
 use crate::high_level_api::integers::parameters::IntegerParameter;
-use crate::high_level_api::integers::server_key::RadixCiphertextDyn;
-use crate::high_level_api::integers::types::base::GenericInteger;
+use crate::high_level_api::integers::types::base::{GenericInteger, RadixCiphertextDyn};
 use crate::high_level_api::internal_traits::TypeIdentifier;
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::integer::ciphertext::{CompactCiphertextListBig, CompactCiphertextListSmall};
