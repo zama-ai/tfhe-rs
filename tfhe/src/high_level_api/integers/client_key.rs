@@ -1,4 +1,4 @@
-use super::server_key::RadixCiphertextDyn;
+use super::types::base::RadixCiphertextDyn;
 use crate::high_level_api::internal_traits::DecryptionKey;
 
 impl<ClearType> DecryptionKey<RadixCiphertextDyn, ClearType> for crate::integer::ClientKey

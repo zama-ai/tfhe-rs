@@ -10,15 +10,6 @@ use crate::errors::{
 };
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::integers::parameters::IntegerParameter;
-use crate::high_level_api::integers::server_key::{
-    RadixCiphertextDyn, ServerKeyDefaultAdd, ServerKeyDefaultAddAssign, ServerKeyDefaultBitAnd,
-    ServerKeyDefaultBitAndAssign, ServerKeyDefaultBitOr, ServerKeyDefaultBitOrAssign,
-    ServerKeyDefaultBitXor, ServerKeyDefaultBitXorAssign, ServerKeyDefaultEq, ServerKeyDefaultGe,
-    ServerKeyDefaultGt, ServerKeyDefaultLe, ServerKeyDefaultLt, ServerKeyDefaultMax,
-    ServerKeyDefaultMin, ServerKeyDefaultMul, ServerKeyDefaultMulAssign, ServerKeyDefaultNeg,
-    ServerKeyDefaultShl, ServerKeyDefaultShlAssign, ServerKeyDefaultShr, ServerKeyDefaultShrAssign,
-    ServerKeyDefaultSub, ServerKeyDefaultSubAssign,
-};
 use crate::high_level_api::integers::IntegerServerKey;
 use crate::high_level_api::internal_traits::{DecryptionKey, TypeIdentifier};
 use crate::high_level_api::keys::{CompressedPublicKey, RefKeyFromKeyChain};
@@ -28,6 +19,12 @@ use crate::high_level_api::traits::{
 use crate::high_level_api::{ClientKey, PublicKey};
 use crate::integer::U256;
 use crate::CompactPublicKey;
+
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+pub enum RadixCiphertextDyn {
+    Big(crate::integer::RadixCiphertextBig),
+    Small(crate::integer::RadixCiphertextSmall),
+}
 
 /// A Generic FHE unsigned integer
 ///
@@ -272,23 +269,33 @@ where
     }
 }
 
+macro_rules! dispatch_server_key_binary_ciphertext_op(
+    (
+        $key:expr => $method:ident($lhs:expr, $rhs:expr)
+    ) => {
+        match ($lhs, $rhs) {
+            (RadixCiphertextDyn::Big(lhs), RadixCiphertextDyn::Big(rhs)) => {
+                RadixCiphertextDyn::Big($key.$method(lhs, rhs))
+            }
+            (RadixCiphertextDyn::Small(lhs), RadixCiphertextDyn::Small(rhs)) => {
+                RadixCiphertextDyn::Small($key.$method(lhs, rhs))
+            }
+            (_, _) => unreachable!("internal error: mismatched big and small integer"),
+        }
+    }
+);
+
 impl<P> GenericInteger<P>
 where
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey: for<'a> ServerKeyDefaultMax<
-        &'a RadixCiphertextDyn,
-        &'a RadixCiphertextDyn,
-        Output = RadixCiphertextDyn,
-    >,
 {
     pub fn max(&self, rhs: &Self) -> Self {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            <crate::integer::ServerKey as ServerKeyDefaultMax<_, _>>::max(
-                integer_key.pbs_key(),
-                &self.ciphertext,
-                &rhs.ciphertext,
+            dispatch_server_key_binary_ciphertext_op!(
+                integer_key.pbs_key() =>
+                    max_parallelized(&self.ciphertext, &rhs.ciphertext)
             )
         });
         GenericInteger::new(inner_result, self.id)
@@ -300,18 +307,12 @@ where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
     GenericInteger<P>: Clone,
-    crate::integer::ServerKey: for<'a> ServerKeyDefaultMin<
-        &'a RadixCiphertextDyn,
-        &'a RadixCiphertextDyn,
-        Output = RadixCiphertextDyn,
-    >,
 {
     pub fn min(&self, rhs: &Self) -> Self {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            <crate::integer::ServerKey as ServerKeyDefaultMin<_, _>>::min(
-                integer_key.pbs_key(),
-                &self.ciphertext,
-                &rhs.ciphertext,
+            dispatch_server_key_binary_ciphertext_op!(
+                integer_key.pbs_key() =>
+                    min_parallelized(&self.ciphertext, &rhs.ciphertext)
             )
         });
         GenericInteger::new(inner_result, self.id)
@@ -324,21 +325,15 @@ where
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey: for<'a> ServerKeyDefaultEq<
-        &'a RadixCiphertextDyn,
-        &'a RadixCiphertextDyn,
-        Output = RadixCiphertextDyn,
-    >,
 {
     type Output = Self;
 
     fn eq(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            <crate::integer::ServerKey as ServerKeyDefaultEq<_, _>>::eq(
-                integer_key.pbs_key(),
-                &self.ciphertext,
-                &borrowed.ciphertext,
+            dispatch_server_key_binary_ciphertext_op!(
+                integer_key.pbs_key() =>
+                    eq_parallelized(&self.ciphertext, &borrowed.ciphertext)
             )
         });
         GenericInteger::new(inner_result, self.id)
@@ -351,33 +346,15 @@ where
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey: for<'a> ServerKeyDefaultGe<
-            &'a RadixCiphertextDyn,
-            &'a RadixCiphertextDyn,
-            Output = RadixCiphertextDyn,
-        > + for<'a> ServerKeyDefaultGt<
-            &'a RadixCiphertextDyn,
-            &'a RadixCiphertextDyn,
-            Output = RadixCiphertextDyn,
-        > + for<'a> ServerKeyDefaultLe<
-            &'a RadixCiphertextDyn,
-            &'a RadixCiphertextDyn,
-            Output = RadixCiphertextDyn,
-        > + for<'a> ServerKeyDefaultLt<
-            &'a RadixCiphertextDyn,
-            &'a RadixCiphertextDyn,
-            Output = RadixCiphertextDyn,
-        >,
 {
     type Output = Self;
 
     fn lt(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            <crate::integer::ServerKey as ServerKeyDefaultLt<_, _>>::lt(
-                integer_key.pbs_key(),
-                &self.ciphertext,
-                &borrowed.ciphertext,
+            dispatch_server_key_binary_ciphertext_op!(
+                integer_key.pbs_key() =>
+                    lt_parallelized(&self.ciphertext, &borrowed.ciphertext)
             )
         });
         GenericInteger::new(inner_result, self.id)
@@ -386,10 +363,9 @@ where
     fn le(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            <crate::integer::ServerKey as ServerKeyDefaultLe<_, _>>::le(
-                integer_key.pbs_key(),
-                &self.ciphertext,
-                &borrowed.ciphertext,
+            dispatch_server_key_binary_ciphertext_op!(
+                integer_key.pbs_key() =>
+                    le_parallelized(&self.ciphertext, &borrowed.ciphertext)
             )
         });
         GenericInteger::new(inner_result, self.id)
@@ -398,10 +374,9 @@ where
     fn gt(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            <crate::integer::ServerKey as ServerKeyDefaultGt<_, _>>::gt(
-                integer_key.pbs_key(),
-                &self.ciphertext,
-                &borrowed.ciphertext,
+            dispatch_server_key_binary_ciphertext_op!(
+                integer_key.pbs_key() =>
+                    gt_parallelized(&self.ciphertext, &borrowed.ciphertext)
             )
         });
         GenericInteger::new(inner_result, self.id)
@@ -410,10 +385,9 @@ where
     fn ge(&self, rhs: B) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let borrowed = rhs.borrow();
-            <crate::integer::ServerKey as ServerKeyDefaultGe<_, _>>::ge(
-                integer_key.pbs_key(),
-                &self.ciphertext,
-                &borrowed.ciphertext,
+            dispatch_server_key_binary_ciphertext_op!(
+                integer_key.pbs_key() =>
+                    ge_parallelized(&self.ciphertext, &borrowed.ciphertext)
             )
         });
         GenericInteger::new(inner_result, self.id)
@@ -477,7 +451,7 @@ where
 }
 
 macro_rules! generic_integer_impl_operation (
-    ($rust_trait_name:ident($rust_trait_method:ident,$op:tt) => $trait_name:ident($trait_method:ident)) => {
+    ($rust_trait_name:ident($rust_trait_method:ident,$op:tt) => $key_method:ident) => {
         #[doc = concat!(" Allows using the `", stringify!($op), "` operator between a")]
         #[doc = " `GenericInteger` and a `GenericInteger` or a `&GenericInteger`"]
         #[doc = " "]
@@ -537,15 +511,11 @@ macro_rules! generic_integer_impl_operation (
             B: Borrow<Self>,
             GenericInteger<P>: Clone,
             P::Id: WithGlobalKey<Key = IntegerServerKey>,
-            crate::integer::ServerKey: for<'a> $trait_name<
-                                            &'a RadixCiphertextDyn,
-                                            &'a RadixCiphertextDyn,
-                                            Output=RadixCiphertextDyn>,
         {
             type Output = Self;
 
             fn $rust_trait_method(self, rhs: B) -> Self::Output {
-                <&Self as $rust_trait_name<B>>::$trait_method(&self, rhs)
+                <&Self as $rust_trait_name<B>>::$rust_trait_method(&self, rhs)
             }
         }
 
@@ -555,21 +525,21 @@ macro_rules! generic_integer_impl_operation (
             P::Id: WithGlobalKey<Key = IntegerServerKey>,
             B: Borrow<GenericInteger<P>>,
             GenericInteger<P>: Clone,
-            crate::integer::ServerKey: for<'a> $trait_name<
-                                            &'a RadixCiphertextDyn,
-                                            &'a RadixCiphertextDyn,
-                                            Output=RadixCiphertextDyn>,
         {
             type Output = GenericInteger<P>;
 
             fn $rust_trait_method(self, rhs: B) -> Self::Output {
                 let ciphertext = self.id.with_unwrapped_global(|integer_key| {
                     let borrowed = rhs.borrow();
-                    <crate::integer::ServerKey as $trait_name<_, _>>::$trait_method(
-                        integer_key.pbs_key(),
-                        &self.ciphertext,
-                        &borrowed.ciphertext,
-                    )
+                    match (&self.ciphertext, &borrowed.ciphertext) {
+                        (RadixCiphertextDyn::Big(lhs), RadixCiphertextDyn::Big(rhs)) => {
+                            RadixCiphertextDyn::Big(integer_key.pbs_key().$key_method(lhs, rhs))
+                        }
+                        (RadixCiphertextDyn::Small(lhs), RadixCiphertextDyn::Small(rhs)) => {
+                            RadixCiphertextDyn::Small(integer_key.pbs_key().$key_method(lhs, rhs))
+                        }
+                        (_, _) => unreachable!("internal error: mismatched big and small integer"),
+                    }
                 });
                 GenericInteger::<P>::new(ciphertext, self.id)
             }
@@ -578,21 +548,24 @@ macro_rules! generic_integer_impl_operation (
 );
 
 macro_rules! generic_integer_impl_operation_assign (
-    ($rust_trait_name:ident($rust_trait_method:ident, $op:tt) => $assign_trait:ident($assign_trait_method:ident)) => {
+    ($rust_trait_name:ident($rust_trait_method:ident, $op:tt) => $key_method:ident) => {
         impl<P, I> $rust_trait_name<I> for GenericInteger<P>
         where
             P: IntegerParameter,
             P::Id: WithGlobalKey<Key = IntegerServerKey>,
-            crate::integer::ServerKey: for<'a> $assign_trait<RadixCiphertextDyn, &'a RadixCiphertextDyn>,
             I: Borrow<Self>,
         {
             fn $rust_trait_method(&mut self, rhs: I) {
                 self.id.with_unwrapped_global(|integer_key| {
-                    <crate::integer::ServerKey as $assign_trait<_, _>>::$assign_trait_method(
-                        integer_key.pbs_key(),
-                        &mut self.ciphertext,
-                        &rhs.borrow().ciphertext
-                    )
+                    match (&mut self.ciphertext, &rhs.borrow().ciphertext) {
+                        (RadixCiphertextDyn::Big(lhs), RadixCiphertextDyn::Big(rhs)) => {
+                            integer_key.pbs_key().$key_method(lhs, rhs)
+                        }
+                        (RadixCiphertextDyn::Small(lhs), RadixCiphertextDyn::Small(rhs)) => {
+                            integer_key.pbs_key().$key_method(lhs, rhs)
+                        }
+                        (_, _) => unreachable!("internal error: mismatched big and small integer"),
+                    }
                 })
             }
         }
@@ -600,7 +573,7 @@ macro_rules! generic_integer_impl_operation_assign (
 );
 
 macro_rules! generic_integer_impl_scalar_operation {
-    ($rust_trait_name:ident($rust_trait_method:ident) => $trait:ident($trait_method:ident($($scalar_type:ty),*))) => {
+    ($rust_trait_name:ident($rust_trait_method:ident) => $key_method:ident($($scalar_type:ty),*)) => {
         $(
             impl<P> $rust_trait_name<$scalar_type> for GenericInteger<P>
             where
@@ -610,7 +583,7 @@ macro_rules! generic_integer_impl_scalar_operation {
                 type Output = GenericInteger<P>;
 
                 fn $rust_trait_method(self, rhs: $scalar_type) -> Self::Output {
-                    <&Self as $rust_trait_name<$scalar_type>>::$trait_method(&self, rhs)
+                    <&Self as $rust_trait_name<$scalar_type>>::$rust_trait_method(&self, rhs)
                 }
             }
 
@@ -624,11 +597,15 @@ macro_rules! generic_integer_impl_scalar_operation {
                 fn $rust_trait_method(self, rhs: $scalar_type) -> Self::Output {
                     let ciphertext: RadixCiphertextDyn =
                         self.id.with_unwrapped_global(|integer_key| {
-                            <crate::integer::ServerKey as $trait<_, u64>>::$trait_method(
-                                integer_key.pbs_key(),
-                                &self.ciphertext,
-                                u64::from(rhs)
-                            )
+                            let value: u64 = rhs.try_into().unwrap();
+                            match &self.ciphertext {
+                                RadixCiphertextDyn::Big(lhs) => {
+                                    RadixCiphertextDyn::Big(integer_key.pbs_key().$key_method(lhs, value))
+                                }
+                                RadixCiphertextDyn::Small(lhs) => {
+                                    RadixCiphertextDyn::Small(integer_key.pbs_key().$key_method(lhs, value))
+                                }
+                            }
                         });
 
                     GenericInteger::<P>::new(ciphertext, self.id)
@@ -639,21 +616,20 @@ macro_rules! generic_integer_impl_scalar_operation {
 }
 
 macro_rules! generic_integer_impl_scalar_operation_assign {
-    ($rust_trait_name:ident($rust_trait_method:ident) => $assign_trait:ident($assign_trait_method:ident($($scalar_type:ty),*))) => {
+    ($rust_trait_name:ident($rust_trait_method:ident) => $key_method:ident($($scalar_type:ty),*)) => {
         $(
             impl<P> $rust_trait_name<$scalar_type> for GenericInteger<P>
                 where
                     P: IntegerParameter,
                     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-                    crate::integer::ServerKey: for<'a> $assign_trait<RadixCiphertextDyn, u64>,
             {
                 fn $rust_trait_method(&mut self, rhs: $scalar_type) {
                     self.id.with_unwrapped_global(|integer_key| {
-                        <crate::integer::ServerKey as $assign_trait<_, _>>::$assign_trait_method(
-                            integer_key.pbs_key(),
-                            &mut self.ciphertext,
-                            u64::from(rhs)
-                        )
+                        let value: u64 = rhs.try_into().unwrap();
+                        match &mut self.ciphertext {
+                            RadixCiphertextDyn::Big(lhs) => integer_key.pbs_key().$key_method(lhs, value),
+                            RadixCiphertextDyn::Small(lhs) => integer_key.pbs_key().$key_method(lhs, value),
+                        }
                     })
                 }
             }
@@ -661,38 +637,36 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
     }
 }
 
-generic_integer_impl_operation!(Add(add,+) => ServerKeyDefaultAdd(add));
-generic_integer_impl_operation!(Sub(sub,-) => ServerKeyDefaultSub(sub));
-generic_integer_impl_operation!(Mul(mul,*) => ServerKeyDefaultMul(mul));
-generic_integer_impl_operation!(BitAnd(bitand,&) => ServerKeyDefaultBitAnd(bitand));
-generic_integer_impl_operation!(BitOr(bitor,|) => ServerKeyDefaultBitOr(bitor));
-generic_integer_impl_operation!(BitXor(bitxor,^) => ServerKeyDefaultBitXor(bitxor));
+generic_integer_impl_operation!(Add(add,+) => add_parallelized);
+generic_integer_impl_operation!(Sub(sub,-) => sub_parallelized);
+generic_integer_impl_operation!(Mul(mul,*) => mul_parallelized);
+generic_integer_impl_operation!(BitAnd(bitand,&) => bitand_parallelized);
+generic_integer_impl_operation!(BitOr(bitor,|) => bitor_parallelized);
+generic_integer_impl_operation!(BitXor(bitxor,^) => bitxor_parallelized);
 
-generic_integer_impl_operation_assign!(AddAssign(add_assign,+=) => ServerKeyDefaultAddAssign(add_assign));
-generic_integer_impl_operation_assign!(SubAssign(sub_assign,-=) => ServerKeyDefaultSubAssign(sub_assign));
-generic_integer_impl_operation_assign!(MulAssign(mul_assign,*=) => ServerKeyDefaultMulAssign(mul_assign));
-generic_integer_impl_operation_assign!(BitAndAssign(bitand_assign,&=) => ServerKeyDefaultBitAndAssign(bitand_assign));
-generic_integer_impl_operation_assign!(BitOrAssign(bitor_assign,|=) => ServerKeyDefaultBitOrAssign(bitor_assign));
-generic_integer_impl_operation_assign!(BitXorAssign(bitxor_assign,^=) => ServerKeyDefaultBitXorAssign(bitxor_assign));
+generic_integer_impl_operation_assign!(AddAssign(add_assign,+=) => add_assign_parallelized);
+generic_integer_impl_operation_assign!(SubAssign(sub_assign,-=) => sub_assign_parallelized);
+generic_integer_impl_operation_assign!(MulAssign(mul_assign,*=) => mul_assign_parallelized);
+generic_integer_impl_operation_assign!(BitAndAssign(bitand_assign,&=) => bitand_assign_parallelized);
+generic_integer_impl_operation_assign!(BitOrAssign(bitor_assign,|=) => bitor_assign_parallelized);
+generic_integer_impl_operation_assign!(BitXorAssign(bitxor_assign,^=) => bitxor_assign_parallelized);
 
-generic_integer_impl_scalar_operation!(Add(add) => ServerKeyDefaultAdd(add(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation!(Sub(sub) => ServerKeyDefaultSub(sub(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation!(Mul(mul) => ServerKeyDefaultMul(mul(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation!(Shl(shl) => ServerKeyDefaultShl(shl(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation!(Shr(shr) => ServerKeyDefaultShr(shr(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation!(Add(add) => scalar_add_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(Sub(sub) => scalar_sub_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(Mul(mul) => scalar_mul_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(Shl(shl) => scalar_left_shift_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(Shr(shr) => scalar_right_shift_parallelized(u8, u16, u32, u64));
 
-generic_integer_impl_scalar_operation_assign!(AddAssign(add_assign) => ServerKeyDefaultAddAssign(add_assign(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation_assign!(SubAssign(sub_assign) => ServerKeyDefaultSubAssign(sub_assign(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation_assign!(MulAssign(mul_assign) => ServerKeyDefaultMulAssign(mul_assign(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation_assign!(ShlAssign(shl_assign) => ServerKeyDefaultShlAssign(shl_assign(u8, u16, u32, u64)));
-generic_integer_impl_scalar_operation_assign!(ShrAssign(shr_assign) => ServerKeyDefaultShrAssign(shr_assign(u8, u16, u32, u64)));
+generic_integer_impl_scalar_operation_assign!(AddAssign(add_assign) => scalar_add_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(SubAssign(sub_assign) => scalar_sub_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(MulAssign(mul_assign) => scalar_mul_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(ShlAssign(shl_assign) => scalar_left_shift_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(ShrAssign(shr_assign) => scalar_right_shift_assign_parallelized(u8, u16, u32, u64));
 
 impl<P> Neg for GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey:
-        for<'a> ServerKeyDefaultNeg<&'a RadixCiphertextDyn, Output = RadixCiphertextDyn>,
 {
     type Output = GenericInteger<P>;
 
@@ -705,18 +679,20 @@ impl<P> Neg for &GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    crate::integer::ServerKey:
-        for<'a> ServerKeyDefaultNeg<&'a RadixCiphertextDyn, Output = RadixCiphertextDyn>,
 {
     type Output = GenericInteger<P>;
 
     fn neg(self) -> Self::Output {
-        let ciphertext: RadixCiphertextDyn = self.id.with_unwrapped_global(|integer_key| {
-            <crate::integer::ServerKey as ServerKeyDefaultNeg<_>>::neg(
-                integer_key.pbs_key(),
-                &self.ciphertext,
-            )
-        });
+        let ciphertext: RadixCiphertextDyn =
+            self.id
+                .with_unwrapped_global(|integer_key| match &self.ciphertext {
+                    RadixCiphertextDyn::Big(lhs) => {
+                        RadixCiphertextDyn::Big(integer_key.pbs_key().neg_parallelized(lhs))
+                    }
+                    RadixCiphertextDyn::Small(lhs) => {
+                        RadixCiphertextDyn::Small(integer_key.pbs_key().neg_parallelized(lhs))
+                    }
+                });
         GenericInteger::<P>::new(ciphertext, self.id)
     }
 }

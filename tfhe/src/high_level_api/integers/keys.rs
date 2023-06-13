@@ -6,7 +6,7 @@ use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::integer::U256;
 use crate::shortint::EncryptionKeyChoice;
 
-use super::server_key::RadixCiphertextDyn;
+use super::types::base::RadixCiphertextDyn;
 use super::types::compact::CompactCiphertextListDyn;
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
