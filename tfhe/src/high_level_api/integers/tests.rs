@@ -420,7 +420,7 @@ fn test_decompressed_public_key_encrypt() {
 fn test_compact_public_key_big() {
     let config = ConfigBuilder::all_disabled()
         .enable_custom_integers(
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
+            crate::shortint::parameters::parameters_compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
             None,
         )
         .build();
@@ -437,7 +437,7 @@ fn test_compact_public_key_big() {
 fn test_compact_public_key_list_big() {
     let config = ConfigBuilder::all_disabled()
         .enable_custom_integers(
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
+            crate::shortint::parameters::parameters_compact_pk::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
             None,
         )
         .build();
@@ -448,7 +448,8 @@ fn test_compact_public_key_list_big() {
 fn test_compact_public_key_list_small() {
     let config = ConfigBuilder::all_disabled()
         .enable_custom_integers(
-            crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+            crate::shortint::parameters::parameters_compact_pk
+                ::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL,
             None,
         )
         .build();
@@ -495,7 +496,8 @@ fn test_compact_public_key_list(config: Config) {
 fn test_compact_public_key_small() {
     let config = ConfigBuilder::all_disabled()
         .enable_custom_integers(
-            crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+            crate::shortint::parameters::parameters_compact_pk
+                ::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL,
             None,
         )
         .build();

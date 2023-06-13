@@ -192,7 +192,7 @@ int main(void) {
 
     config_builder_all_disabled(&builder);
     config_builder_enable_custom_integers(&builder,
-                                          SHORTINT_PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
+                                          SHORTINT_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL);
     config_builder_build(builder, &config);
 
     ClientKey *client_key = NULL;

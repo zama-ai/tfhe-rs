@@ -22,7 +22,7 @@ create_parametrized_test!(big_radix_encrypt_decrypt_compact_128_bits_list {
 });
 
 create_parametrized_test!(small_radix_encrypt_decrypt_compact_128_bits_list {
-    PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL
 });
 
 /// Test that the public key can encrypt a 128 bit number
