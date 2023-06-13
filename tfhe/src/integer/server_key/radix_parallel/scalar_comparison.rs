@@ -1,6 +1,4 @@
 // use itertools::Itertools;
-use std::sync::RwLock;
-
 use super::ServerKey;
 
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
@@ -249,56 +247,18 @@ impl ServerKey {
         // One lut per scalar block
         // And only generate a lut for scalar block
         // actually present
-
-        // let mut scalar_comp_luts = vec![None; total_modulus];
-        // for scalar_block in scalar_blocks.iter().copied() {
-        //     if scalar_comp_luts[scalar_block as usize].is_some() {
-        //         // The LUT for this scalar has already been generated
-        //         continue;
-        //     }
-        //     let lut = self
-        //         .key
-        //         .generate_accumulator(|x| u64::from(comparison_fn(x as u8, scalar_block)));
-        //     scalar_comp_luts[scalar_block as usize] = Some(lut);
-        // }
-        // scalar_comp_luts
-
-        // let unique_scalar_blocks = scalar_blocks.iter().copied().unique();
-
-        let scalar_comp_luts = (0..total_modulus)
-            .map(|_| RwLock::new(None))
-            .collect::<Vec<_>>();
-
-        scalar_blocks.par_iter().copied().for_each(|scalar_block| {
-            let lock = &scalar_comp_luts[scalar_block as usize];
-
-            let readable = match lock.try_read() {
-                Ok(r) if r.is_some() => {
-                    return;
-                }
-                Ok(r) => r,
-                Err(std::sync::TryLockError::WouldBlock) => {
-                    // The lock is locked in write mode, so
-                    // another thread is generating the lut
-                    return;
-                }
-                Err(std::sync::TryLockError::Poisoned(e)) => {
-                    panic!("Poisoned lock: {:?}", e);
-                }
-            };
-
-            drop(readable);
-            let mut writeable = lock.write().unwrap();
+        let mut scalar_comp_luts = vec![None; total_modulus];
+        for scalar_block in scalar_blocks.iter().copied() {
+            if scalar_comp_luts[scalar_block as usize].is_some() {
+                // The LUT for this scalar has already been generated
+                continue;
+            }
             let lut = self
                 .key
                 .generate_accumulator(|x| u64::from(comparison_fn(x as u8, scalar_block)));
-            let _ = writeable.replace(lut);
-        });
+            scalar_comp_luts[scalar_block as usize] = Some(lut);
+        }
         scalar_comp_luts
-            .into_iter()
-            .map(RwLock::into_inner)
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap()
     }
 
     /// Compares for equality a ciphertexts and a clear value

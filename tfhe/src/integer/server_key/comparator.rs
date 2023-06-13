@@ -33,11 +33,11 @@ fn has_non_zero_carries<PBSOrder: PBSOrderMarker>(ct: &RadixCiphertext<PBSOrder>
 /// during the comparisons and min/max algorithms
 pub struct Comparator<'a> {
     server_key: &'a ServerKey,
-    sign_accumulator: LookupTableOwned,
-    selection_accumulator: LookupTableOwned,
-    mask_accumulator: LookupTableOwned,
-    x_accumulator: LookupTableOwned,
-    y_accumulator: LookupTableOwned,
+    sign_lut: LookupTableOwned,
+    sign_reduction_lsb_msb_lut: LookupTableOwned,
+    sign_to_offset_lut: LookupTableOwned,
+    lhs_lut: LookupTableOwned,
+    rhs_lut: LookupTableOwned,
 }
 
 impl<'a> Comparator<'a> {
@@ -57,7 +57,7 @@ impl<'a> Comparator<'a> {
         );
 
         let message_modulus = server_key.key.message_modulus.0 as u64;
-        let sign_accumulator = server_key.key.generate_accumulator(|x| u64::from(x != 0));
+        let sign_lut = server_key.key.generate_accumulator(|x| u64::from(x != 0));
         // Comparison encoding
         // -------------------
         // x > y -> 2 = 10
@@ -79,7 +79,7 @@ impl<'a> Comparator<'a> {
         //   10     00    10
         //   10     01    10
         //   10     10    10
-        let selection_accumulator = server_key.key.generate_accumulator(|x| {
+        let sign_reduction_lsb_msb_lut = server_key.key.generate_accumulator(|x| {
             [
                 Self::IS_INFERIOR,
                 Self::IS_INFERIOR,
@@ -100,7 +100,7 @@ impl<'a> Comparator<'a> {
             .unwrap_or(0)
         });
 
-        let mask_accumulator = server_key.key.generate_accumulator(|sign| {
+        let sign_to_offset_lut = server_key.key.generate_accumulator(|sign| {
             if sign == Self::IS_INFERIOR {
                 message_modulus
             } else {
@@ -108,12 +108,11 @@ impl<'a> Comparator<'a> {
             }
         });
 
-        let x_accumulator =
-            server_key
-                .key
-                .generate_accumulator(|x| if x < message_modulus { x } else { 0 });
+        let lhs_lut = server_key
+            .key
+            .generate_accumulator(|x| if x < message_modulus { x } else { 0 });
 
-        let y_accumulator = server_key.key.generate_accumulator(|x| {
+        let rhs_lut = server_key.key.generate_accumulator(|x| {
             if x >= message_modulus {
                 x - message_modulus
             } else {
@@ -123,11 +122,11 @@ impl<'a> Comparator<'a> {
 
         Self {
             server_key,
-            sign_accumulator,
-            selection_accumulator,
-            mask_accumulator,
-            x_accumulator,
-            y_accumulator,
+            sign_lut,
+            sign_reduction_lsb_msb_lut,
+            sign_to_offset_lut,
+            lhs_lut,
+            rhs_lut,
         }
     }
 
@@ -171,7 +170,7 @@ impl<'a> Comparator<'a> {
         crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(&mut lhs.ct, &rhs.ct);
         self.server_key
             .key
-            .apply_lookup_table_assign(lhs, &self.sign_accumulator);
+            .apply_lookup_table_assign(lhs, &self.sign_lut);
 
         // Here Lhs can have the following values: (-1) % (message modulus * carry modulus), 0, 1
         // So the output values after the addition will be: 0, 1, 2
@@ -195,7 +194,7 @@ impl<'a> Comparator<'a> {
         crate::core_crypto::algorithms::lwe_ciphertext_plaintext_sub_assign(&mut lhs.ct, plaintext);
         self.server_key
             .key
-            .apply_lookup_table_assign(lhs, &self.sign_accumulator);
+            .apply_lookup_table_assign(lhs, &self.sign_lut);
 
         self.server_key.key.unchecked_scalar_add_assign(lhs, 1);
     }
@@ -211,7 +210,7 @@ impl<'a> Comparator<'a> {
 
         self.server_key
             .key
-            .apply_lookup_table_assign(msb_sign, &self.selection_accumulator);
+            .apply_lookup_table_assign(msb_sign, &self.sign_reduction_lsb_msb_lut);
     }
 
     /// Reduces a vec containing shortint blocks that encrypts a sign
@@ -242,9 +241,7 @@ impl<'a> Comparator<'a> {
 
             std::mem::swap(&mut sign_blocks_2, &mut sign_blocks);
         }
-        let selection = sign_blocks.drain(..).next().unwrap();
-
-        selection
+        sign_blocks.into_iter().next().unwrap()
     }
 
     /// returns:
@@ -310,7 +307,7 @@ impl<'a> Comparator<'a> {
 
             self.server_key
                 .key
-                .apply_lookup_table_assign(&mut selection, &self.selection_accumulator);
+                .apply_lookup_table_assign(&mut selection, &self.sign_reduction_lsb_msb_lut);
         }
 
         selection
@@ -319,6 +316,13 @@ impl<'a> Comparator<'a> {
     /// Expects the carry buffers to be empty
     ///
     /// Requires that the RadixCiphertext block have 4 bits minimum (carry + message)
+    ///
+    /// This functions takes two ciphertext:
+    ///
+    /// It returns a Vec of block that will contain the sign of the comparison
+    /// (Self::IS_INFERIOR, Self::IS_EQUAL, Self::IS_SUPERIOR)
+    ///
+    /// The output len may be shorter as blocks may be packed
     fn unchecked_sign_parallelized<PBSOrder>(
         &self,
         lhs: &RadixCiphertext<PBSOrder>,
@@ -347,8 +351,8 @@ impl<'a> Comparator<'a> {
         } else {
             let mut comparisons = Vec::with_capacity((num_block / 2) + num_block_is_odd);
             lhs.blocks
-                .par_chunks_exact(2)
-                .zip(rhs.blocks.par_chunks_exact(2))
+                .par_chunks(2)
+                .zip(rhs.blocks.par_chunks(2))
                 .map(|(lhs_chunk, rhs_chunk)| {
                     let (mut packed_lhs, packed_rhs) = rayon::join(
                         || self.pack_block_chunk(lhs_chunk),
@@ -360,19 +364,21 @@ impl<'a> Comparator<'a> {
                 })
                 .collect_into_vec(&mut comparisons);
 
-            if num_block_is_odd == 1 {
-                let mut last_lhs_block = lhs.blocks[num_block - 1].clone();
-                let last_rhs_block = &rhs.blocks[num_block - 1];
-                self.compare_block_assign(&mut last_lhs_block, last_rhs_block);
-                comparisons.push(last_lhs_block);
-            }
-
             comparisons
         };
 
         self.reduce_signs_parallelized(comparisons)
     }
 
+    /// This functions takes two slices:
+    ///
+    /// - one of encrypted blocks
+    /// - the other of scalar to compare to each encrypted block
+    ///
+    /// It returns a Vec of block that will contain the sign of the comparison
+    /// (Self::IS_INFERIOR, Self::IS_EQUAL, Self::IS_SUPERIOR)
+    ///
+    /// The output len is shorter as blocks will be packed
     fn unchecked_scalar_block_slice_sign_parallelized<PBSOrder>(
         &self,
         lhs_blocks: &[CiphertextBase<PBSOrder>],
@@ -547,32 +553,26 @@ impl<'a> Comparator<'a> {
         rhs: &RadixCiphertext<PBSOrder>,
         selector: MinMaxSelector,
     ) -> RadixCiphertext<PBSOrder> {
-        let (x_accumulator, y_accumulator) = match selector {
-            MinMaxSelector::Max => (&self.x_accumulator, &self.y_accumulator),
-            MinMaxSelector::Min => (&self.y_accumulator, &self.x_accumulator),
+        let (lhs_lut, rhs_lut) = match selector {
+            MinMaxSelector::Max => (&self.lhs_lut, &self.rhs_lut),
+            MinMaxSelector::Min => (&self.rhs_lut, &self.lhs_lut),
         };
         let num_block = lhs.blocks.len();
 
-        let mut mask = self.unchecked_sign(lhs, rhs);
+        let mut offset = self.unchecked_sign(lhs, rhs);
         self.server_key
             .key
-            .apply_lookup_table_assign(&mut mask, &self.mask_accumulator);
+            .apply_lookup_table_assign(&mut offset, &self.sign_to_offset_lut);
 
         let mut result = Vec::with_capacity(num_block);
         for i in 0..num_block {
-            let lhs_masked = self.server_key.key.unchecked_add(&lhs.blocks[i], &mask);
-            let rhs_masked = self.server_key.key.unchecked_add(&rhs.blocks[i], &mask);
+            let lhs_block = self.server_key.key.unchecked_add(&lhs.blocks[i], &offset);
+            let rhs_block = self.server_key.key.unchecked_add(&rhs.blocks[i], &offset);
 
-            let maybe_x = self
-                .server_key
-                .key
-                .apply_lookup_table(&lhs_masked, x_accumulator);
-            let maybe_y = self
-                .server_key
-                .key
-                .apply_lookup_table(&rhs_masked, y_accumulator);
+            let maybe_lhs = self.server_key.key.apply_lookup_table(&lhs_block, lhs_lut);
+            let maybe_rhs = self.server_key.key.apply_lookup_table(&rhs_block, rhs_lut);
 
-            let r = self.server_key.key.unchecked_add(&maybe_x, &maybe_y);
+            let r = self.server_key.key.unchecked_add(&maybe_lhs, &maybe_rhs);
             result.push(r)
         }
 
@@ -586,39 +586,39 @@ impl<'a> Comparator<'a> {
         rhs: &RadixCiphertext<PBSOrder>,
         selector: MinMaxSelector,
     ) -> RadixCiphertext<PBSOrder> {
-        let (x_accumulator, y_accumulator) = match selector {
-            MinMaxSelector::Max => (&self.x_accumulator, &self.y_accumulator),
-            MinMaxSelector::Min => (&self.y_accumulator, &self.x_accumulator),
+        let (lhs_lut, rhs_lut) = match selector {
+            MinMaxSelector::Max => (&self.lhs_lut, &self.rhs_lut),
+            MinMaxSelector::Min => (&self.rhs_lut, &self.lhs_lut),
         };
 
-        let mut mask = self.unchecked_sign_parallelized(lhs, rhs);
+        let mut offset = self.unchecked_sign_parallelized(lhs, rhs);
         self.server_key
             .key
-            .apply_lookup_table_assign(&mut mask, &self.mask_accumulator);
+            .apply_lookup_table_assign(&mut offset, &self.sign_to_offset_lut);
 
         let blocks = lhs
             .blocks
             .par_iter()
             .zip(rhs.blocks.par_iter())
             .map(|(lhs_block, rhs_block)| {
-                let (maybe_x, maybe_y) = rayon::join(
+                let (maybe_lhs, maybe_rhs) = rayon::join(
                     || {
-                        let mut lhs_masked = self.server_key.key.unchecked_add(lhs_block, &mask);
+                        let mut lhs_block = self.server_key.key.unchecked_add(lhs_block, &offset);
                         self.server_key
                             .key
-                            .apply_lookup_table_assign(&mut lhs_masked, x_accumulator);
-                        lhs_masked
+                            .apply_lookup_table_assign(&mut lhs_block, lhs_lut);
+                        lhs_block
                     },
                     || {
-                        let mut rhs_masked = self.server_key.key.unchecked_add(rhs_block, &mask);
+                        let mut rhs_block = self.server_key.key.unchecked_add(rhs_block, &offset);
                         self.server_key
                             .key
-                            .apply_lookup_table_assign(&mut rhs_masked, y_accumulator);
-                        rhs_masked
+                            .apply_lookup_table_assign(&mut rhs_block, rhs_lut);
+                        rhs_block
                     },
                 );
 
-                self.server_key.key.unchecked_add(&maybe_x, &maybe_y)
+                self.server_key.key.unchecked_add(&maybe_lhs, &maybe_rhs)
             })
             .collect::<Vec<_>>();
 
@@ -635,15 +635,15 @@ impl<'a> Comparator<'a> {
         PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
-        let (x_accumulator, y_accumulator) = match selector {
-            MinMaxSelector::Max => (&self.x_accumulator, &self.y_accumulator),
-            MinMaxSelector::Min => (&self.y_accumulator, &self.x_accumulator),
+        let (lhs_lut, rhs_lut) = match selector {
+            MinMaxSelector::Max => (&self.lhs_lut, &self.rhs_lut),
+            MinMaxSelector::Min => (&self.rhs_lut, &self.lhs_lut),
         };
 
-        let mut mask = self.unchecked_scalar_sign_parallelized(lhs, rhs);
+        let mut offset = self.unchecked_scalar_sign_parallelized(lhs, rhs);
         self.server_key
             .key
-            .apply_lookup_table_assign(&mut mask, &self.mask_accumulator);
+            .apply_lookup_table_assign(&mut offset, &self.sign_to_offset_lut);
 
         let message_modulus = self.server_key.key.message_modulus.0 as u64;
         let bits_in_message = message_modulus.ilog2();
@@ -658,30 +658,30 @@ impl<'a> Comparator<'a> {
             .par_iter()
             .zip(scalar_blocks.into_par_iter())
             .map(|(lhs_block, scalar_block)| {
-                let (maybe_x, maybe_y) = rayon::join(
+                let (maybe_lhs, maybe_rhs) = rayon::join(
                     || {
-                        let mut lhs_masked = self.server_key.key.unchecked_add(lhs_block, &mask);
+                        let mut lhs_block = self.server_key.key.unchecked_add(lhs_block, &offset);
                         self.server_key
                             .key
-                            .apply_lookup_table_assign(&mut lhs_masked, x_accumulator);
-                        lhs_masked
+                            .apply_lookup_table_assign(&mut lhs_block, lhs_lut);
+                        lhs_block
                     },
                     || {
-                        let mut rhs_masked = if scalar_block != 0 {
+                        let mut rhs_block = if scalar_block != 0 {
                             self.server_key
                                 .key
-                                .unchecked_scalar_add(&mask, scalar_block)
+                                .unchecked_scalar_add(&offset, scalar_block)
                         } else {
-                            mask.clone()
+                            offset.clone()
                         };
                         self.server_key
                             .key
-                            .apply_lookup_table_assign(&mut rhs_masked, y_accumulator);
-                        rhs_masked
+                            .apply_lookup_table_assign(&mut rhs_block, rhs_lut);
+                        rhs_block
                     },
                 );
 
-                self.server_key.key.unchecked_add(&maybe_x, &maybe_y)
+                self.server_key.key.unchecked_add(&maybe_lhs, &maybe_rhs)
             })
             .collect::<Vec<_>>();
 
@@ -2640,7 +2640,7 @@ mod tests {
     }
 
     /// The goal of this function is to ensure that scalar comparisons
-    /// work when the scalar type used is either bigger or small (in bit size)
+    /// work when the scalar type used is either bigger or smaller (in bit size)
     /// compared to the ciphertext
     fn test_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
         let mut rng = rand::thread_rng();
@@ -2742,7 +2742,7 @@ mod tests {
             }
 
             // Here the goal is to test, the branching
-            // made in in the scalar sign function
+            // made in the scalar sign function
             //
             // We are forcing one of the two branches to work on empty slices
             {
