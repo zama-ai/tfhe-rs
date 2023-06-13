@@ -73,7 +73,7 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
         # mul_crt_4_4 is extremely flaky (~80% failure)
         # test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
         # test_integer_smart_mul_param_message_4_carry_4_ks_pbs is too slow
-        # so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4
+        # so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
@@ -115,7 +115,7 @@ else
         # mul_crt_4_4 is extremely flaky (~80% failure)
         # test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
         # test_integer_smart_mul_param_message_4_carry_4_ks_pbs is too slow
-        # so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4
+        # so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
