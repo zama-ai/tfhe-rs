@@ -3,6 +3,8 @@ pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
+pub use crate::shortint::parameters::parameters_compact_pk::*;
+pub use crate::shortint::parameters::*;
 use std::os::raw::c_int;
 
 use crate::shortint;
@@ -130,7 +132,7 @@ macro_rules! expose_as_shortint_pbs_parameters(
             $(
                 #[no_mangle]
                 pub static [<SHORTINT_ $param_name>]: ShortintPBSParameters =
-                    ShortintPBSParameters::convert(crate::shortint::parameters::$param_name);
+                    ShortintPBSParameters::convert($param_name);
 
             )*
         }
@@ -198,7 +200,7 @@ expose_as_shortint_pbs_parameters!(
     PARAM_SMALL_MESSAGE_2_CARRY_2,
     PARAM_SMALL_MESSAGE_3_CARRY_3,
     PARAM_SMALL_MESSAGE_4_CARRY_4,
-    PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL,
 );
 
 #[no_mangle]

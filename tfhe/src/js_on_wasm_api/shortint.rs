@@ -1,6 +1,8 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 pub use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
+pub use crate::shortint::parameters::parameters_compact_pk::*;
+pub use crate::shortint::parameters::*;
 use bincode;
 use wasm_bindgen::prelude::*;
 
@@ -71,7 +73,7 @@ macro_rules! expose_predefined_parameters {
                 match name {
                     $(
                         ShortintParametersName::$param_name => {
-                            Self(crate::shortint::parameters::$param_name)
+                            Self($param_name)
                         }
                     )*
                 }
@@ -124,7 +126,7 @@ expose_predefined_parameters! {
     PARAM_SMALL_MESSAGE_4_CARRY_4,
 
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
-    PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL,
 }
 
 #[wasm_bindgen]

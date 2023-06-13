@@ -1,3 +1,5 @@
+use crate::shortint::parameters::multi_bit::*;
+use crate::shortint::parameters::parameters_compact_pk::*;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_message_carry::*;
 use crate::shortint::parameters::parameters_wopbs_prime_moduli::*;
@@ -258,7 +260,7 @@ impl NamedParam for ShortintParameterSet {
                 PARAM_SMALL_MESSAGE_2_CARRY_2,
                 PARAM_SMALL_MESSAGE_3_CARRY_3,
                 PARAM_SMALL_MESSAGE_4_CARRY_4,
-                PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+                PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL,
                 // MultiBit Group 2
                 PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
                 PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,

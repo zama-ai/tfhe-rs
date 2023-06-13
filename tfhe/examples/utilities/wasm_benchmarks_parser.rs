@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::Path;
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK, PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL,
 };
 use tfhe::shortint::ClassicPBSParameters;
 
@@ -24,7 +24,7 @@ struct Args {
 fn params_from_name(name: &str) -> ClassicPBSParameters {
     match name.to_lowercase().as_str() {
         "param_message_2_carry_2_compact_pk" => PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
-        "param_small_message_2_carry_2_compact_pk" => PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK,
+        "param_message_2_carry_2_compact_pk_small" => PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL,
         _ => panic!("failed to get parameters for name '{name}'"),
     }
 }
