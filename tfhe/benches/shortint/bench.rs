@@ -11,31 +11,31 @@ use rand::Rng;
 use tfhe::shortint::keycache::KEY_CACHE;
 
 use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
-use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6;
+use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_4_NORM2_6_KS_PBS;
 
 const SERVER_KEY_BENCH_PARAMS: [ClassicPBSParameters; 4] = [
-    PARAM_MESSAGE_1_CARRY_1,
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 ];
 
 const SERVER_KEY_BENCH_PARAMS_EXTENDED: [ClassicPBSParameters; 15] = [
-    PARAM_MESSAGE_1_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_1,
-    PARAM_MESSAGE_2_CARRY_0,
-    PARAM_MESSAGE_2_CARRY_1,
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_0,
-    PARAM_MESSAGE_3_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_0,
-    PARAM_MESSAGE_4_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MESSAGE_5_CARRY_0,
-    PARAM_MESSAGE_6_CARRY_0,
-    PARAM_MESSAGE_7_CARRY_0,
-    PARAM_MESSAGE_8_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
 ];
 
 fn bench_server_key_unary_function<F>(
@@ -301,7 +301,7 @@ fn programmable_bootstrapping(c: &mut Criterion) {
 fn _bench_wopbs_param_message_8_norm2_5(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("programmable_bootstrap");
 
-    let param = WOPBS_PARAM_MESSAGE_4_NORM2_6;
+    let param = WOPBS_PARAM_MESSAGE_4_NORM2_6_KS_PBS;
     let param_set: ShortintParameterSet = param.try_into().unwrap();
     let pbs_params = param_set.pbs_parameters().unwrap();
 

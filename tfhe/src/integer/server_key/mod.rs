@@ -37,10 +37,10 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
     /// let sks = ServerKey::new(&cks);
@@ -69,12 +69,12 @@ impl ServerKey {
     ///
     /// ```rust
     /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// let size = 4;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
     /// let sks = ServerKey::new(&cks);

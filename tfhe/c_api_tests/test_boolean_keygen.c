@@ -75,16 +75,16 @@ void test_predefined_keygen_w_serde(void) {
   BooleanClientKey *cks = NULL;
   BooleanServerKey *sks = NULL;
 
-  int gen_keys_ok = boolean_gen_keys_with_parameters(
-      BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &cks, &sks);
+  int gen_keys_ok =
+      boolean_gen_keys_with_parameters(BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS, &cks, &sks);
 
   assert(gen_keys_ok == 0);
 
   boolean_destroy_client_key(cks);
   boolean_destroy_server_key(sks);
 
-  gen_keys_ok = boolean_gen_keys_with_parameters(
-      BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS, &cks, &sks);
+  gen_keys_ok =
+      boolean_gen_keys_with_parameters(BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS, &cks, &sks);
 
   assert(gen_keys_ok == 0);
 

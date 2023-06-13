@@ -42,7 +42,7 @@ int uint128_encrypt_trivial(const ClientKey *client_key) {
   U128 lhs_clear = {10, 20};
   U128 rhs_clear = {1, 2};
   U128 result_clear = {0};
-  
+
   ok = fhe_uint128_try_encrypt_trivial_u128(lhs_clear, &lhs);
   assert(ok == 0);
 

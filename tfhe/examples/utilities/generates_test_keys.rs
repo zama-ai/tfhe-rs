@@ -1,13 +1,13 @@
 use clap::{Arg, ArgAction, Command};
 use tfhe::shortint::keycache::{NamedParam, KEY_CACHE, KEY_CACHE_WOPBS};
 use tfhe::shortint::parameters::parameters_wopbs_message_carry::{
-    WOPBS_PARAM_MESSAGE_1_CARRY_1, WOPBS_PARAM_MESSAGE_2_CARRY_2, WOPBS_PARAM_MESSAGE_3_CARRY_3,
-    WOPBS_PARAM_MESSAGE_4_CARRY_4,
+    WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
 use tfhe::shortint::parameters::{
     ClassicPBSParameters, WopbsParameters, ALL_MULTI_BIT_PARAMETER_VEC, ALL_PARAMETER_VEC,
-    PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
 
 fn client_server_keys() {
@@ -68,10 +68,22 @@ fn client_server_keys() {
         }
 
         const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 4] = [
-            (PARAM_MESSAGE_1_CARRY_1, WOPBS_PARAM_MESSAGE_1_CARRY_1),
-            (PARAM_MESSAGE_2_CARRY_2, WOPBS_PARAM_MESSAGE_2_CARRY_2),
-            (PARAM_MESSAGE_3_CARRY_3, WOPBS_PARAM_MESSAGE_3_CARRY_3),
-            (PARAM_MESSAGE_4_CARRY_4, WOPBS_PARAM_MESSAGE_4_CARRY_4),
+            (
+                PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+                WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            ),
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            ),
+            (
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            ),
+            (
+                PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+                WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            ),
         ];
 
         println!("Generating woPBS keys");

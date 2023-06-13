@@ -110,7 +110,7 @@ use tfhe::shortint::prelude::*;
 fn main() {
     // We generate a set of client/server keys
     // using parameters with 2 bits of message and 2 bits of carry
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 1;
     let msg2 = 0;
@@ -138,12 +138,12 @@ Use the `--release` flag to run this example (eg: `cargo run --release`)
 
 ```rust
 use tfhe::integer::gen_keys_radix;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 fn main() {
     // We create keys for radix represention to create 16 bits integers
     // using 8 blocks of 2 bits
-    let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, 8);
+    let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 8);
 
     let clear_a = 2382u16;
     let clear_b = 29374u16;

@@ -12,10 +12,10 @@ macro_rules! create_parametrized_test{
      ($name:ident)=> {
         create_parametrized_test!($name
         {
-            PARAM_MESSAGE_1_CARRY_1,
-            PARAM_MESSAGE_2_CARRY_2,
-            PARAM_MESSAGE_3_CARRY_3,
-            PARAM_MESSAGE_4_CARRY_4
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS
         });
     };
 }

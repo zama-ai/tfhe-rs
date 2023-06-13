@@ -4,7 +4,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-
 int uint8_client_key(const ClientKey *client_key) {
   int ok;
   FheUint8 *lhs = NULL;

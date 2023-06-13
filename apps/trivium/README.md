@@ -130,7 +130,7 @@ Other sizes than 64 bit are expected to be available in the future.
 
 # FHE shortint Trivium implementation
 
-The same implementation is also available for generic Ciphertexts representing bits (meant to be used with parameters `PARAM_MESSAGE_1_CARRY_1`). It uses a lower level API 
+The same implementation is also available for generic Ciphertexts representing bits (meant to be used with parameters `PARAM_MESSAGE_1_CARRY_1_KS_PBS`). It uses a lower level API 
 of tfhe-rs, so the syntax is a little bit different. It also implements the `TransCiphering` trait. For optimization purposes, it does not internally run on the same 
 cryptographic parameters as the high level API of tfhe-rs. As such, it requires the usage of a casting key, to switch from one parameter space to another, which makes 
 its setup a little more intricate.
@@ -148,7 +148,7 @@ use tfhe_trivium::TriviumStreamShortint;
 fn test_shortint() {
 	let config = ConfigBuilder::all_disabled().enable_default_integers().build();
 	let (hl_client_key, hl_server_key) = generate_keys(config);
-	let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
+	let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 	let ksk = CastingKey::new((&client_key, &server_key), (&hl_client_key, &hl_server_key));
 
 	let key_string = "0053A6F94C9FF24598EB".to_string();

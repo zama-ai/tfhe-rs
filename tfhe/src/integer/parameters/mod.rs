@@ -9,11 +9,11 @@ pub use crate::shortint::parameters::{
 };
 
 pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [WopbsParameters; 2] = [
-    PARAM_MESSAGE_4_CARRY_4_16_BITS,
-    PARAM_MESSAGE_2_CARRY_2_16_BITS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS_16_BITS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_16_BITS,
 ];
 
-pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: WopbsParameters = WopbsParameters {
+pub const PARAM_MESSAGE_4_CARRY_4_KS_PBS_16_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -34,7 +34,7 @@ pub const PARAM_MESSAGE_4_CARRY_4_16_BITS: WopbsParameters = WopbsParameters {
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
-pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: WopbsParameters = WopbsParameters {
+pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_16_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -55,7 +55,7 @@ pub const PARAM_MESSAGE_2_CARRY_2_16_BITS: WopbsParameters = WopbsParameters {
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
-pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: WopbsParameters = WopbsParameters {
+pub const PARAM_MESSAGE_4_CARRY_4_KS_PBS_32_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -76,7 +76,7 @@ pub const PARAM_MESSAGE_4_CARRY_4_32_BITS: WopbsParameters = WopbsParameters {
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
-pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: WopbsParameters = WopbsParameters {
+pub const PARAM_MESSAGE_2_CARRY_2_KS_PBS_32_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -97,7 +97,7 @@ pub const PARAM_MESSAGE_2_CARRY_2_32_BITS: WopbsParameters = WopbsParameters {
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
-pub const PARAM_MESSAGE_1_CARRY_1_32_BITS: WopbsParameters = WopbsParameters {
+pub const PARAM_MESSAGE_1_CARRY_1_KS_PBS_32_BITS: WopbsParameters = WopbsParameters {
     lwe_dimension: LweDimension(493),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),

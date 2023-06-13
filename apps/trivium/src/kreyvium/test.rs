@@ -224,12 +224,12 @@ fn kreyvium_test_shortint_long() {
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
 
-    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
+    let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 
     let ksk = KeySwitchingKey::new(
         (&client_key, &server_key),
         (&underlying_ck, &underlying_sk),
-        PARAM_KEYSWITCH_1_1_TO_2_2,
+        PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
     );
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();

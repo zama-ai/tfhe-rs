@@ -21,44 +21,44 @@ macro_rules! create_parametrized_test{
      ($name:ident)=> {
         create_parametrized_test!($name
         {
-            PARAM_MESSAGE_1_CARRY_1,
-            PARAM_MESSAGE_1_CARRY_2,
-            PARAM_MESSAGE_1_CARRY_3,
-            PARAM_MESSAGE_1_CARRY_4,
-            PARAM_MESSAGE_1_CARRY_5,
-            PARAM_MESSAGE_1_CARRY_6,
-            PARAM_MESSAGE_1_CARRY_7,
-            PARAM_MESSAGE_2_CARRY_1,
-            PARAM_MESSAGE_2_CARRY_2,
-            PARAM_MESSAGE_2_CARRY_3,
-            PARAM_MESSAGE_2_CARRY_4,
-            PARAM_MESSAGE_2_CARRY_5,
-            PARAM_MESSAGE_2_CARRY_6,
-            PARAM_MESSAGE_3_CARRY_1,
-            PARAM_MESSAGE_3_CARRY_2,
-            PARAM_MESSAGE_3_CARRY_3,
-            PARAM_MESSAGE_3_CARRY_4,
-            PARAM_MESSAGE_3_CARRY_5,
-            PARAM_MESSAGE_4_CARRY_1,
-            PARAM_MESSAGE_4_CARRY_2,
-            PARAM_MESSAGE_4_CARRY_3,
-            PARAM_MESSAGE_4_CARRY_4,
-            PARAM_MESSAGE_5_CARRY_1,
-            PARAM_MESSAGE_5_CARRY_2,
-            PARAM_MESSAGE_5_CARRY_3,
-            PARAM_MESSAGE_6_CARRY_1,
-            PARAM_MESSAGE_6_CARRY_2,
-            PARAM_MESSAGE_7_CARRY_1,
-            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_4_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_5_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_6_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_7_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_4_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_5_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_6_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_4_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_5_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MESSAGE_5_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_5_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_5_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_6_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_6_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_7_CARRY_1_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
             // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
-            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
             // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS
         });
     };
 }
@@ -78,32 +78,32 @@ macro_rules! create_parametrized_test_bivariate_pbs_compliant{
      ($name:ident)=> {
         create_parametrized_test!($name
         {
-            PARAM_MESSAGE_1_CARRY_1,
-            PARAM_MESSAGE_1_CARRY_2,
-            PARAM_MESSAGE_1_CARRY_3,
-            PARAM_MESSAGE_1_CARRY_4,
-            PARAM_MESSAGE_1_CARRY_5,
-            PARAM_MESSAGE_1_CARRY_6,
-            PARAM_MESSAGE_1_CARRY_7,
-            PARAM_MESSAGE_2_CARRY_2,
-            PARAM_MESSAGE_2_CARRY_3,
-            PARAM_MESSAGE_2_CARRY_4,
-            PARAM_MESSAGE_2_CARRY_5,
-            PARAM_MESSAGE_2_CARRY_6,
-            PARAM_MESSAGE_3_CARRY_3,
-            PARAM_MESSAGE_3_CARRY_4,
-            PARAM_MESSAGE_3_CARRY_5,
-            PARAM_MESSAGE_4_CARRY_4,
-            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_4_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_5_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_6_KS_PBS,
+            PARAM_MESSAGE_1_CARRY_7_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_4_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_5_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_6_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_4_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_5_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
             // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
-            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
             // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS
         });
     };
 }
@@ -157,18 +157,18 @@ create_parametrized_test!(shortint_default_scalar_bitxor);
 // times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
 // 2_2 uncompressed keys take ~2 GB and 3_3 about ~34 GB, hence why we stop at 2_2.
 #[test]
-fn test_shortint_compressed_public_key_smart_add_param_message_1_carry_1() {
-    shortint_compressed_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1)
+fn test_shortint_compressed_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
+    shortint_compressed_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS)
 }
 
 #[test]
-fn test_shortint_public_key_smart_add_param_message_1_carry_1() {
-    shortint_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1)
+fn test_shortint_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
+    shortint_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS)
 }
 
 #[test]
-fn test_shortint_public_key_smart_add_param_message_2_carry_2() {
-    shortint_public_key_smart_add(PARAM_MESSAGE_2_CARRY_2)
+fn test_shortint_public_key_smart_add_param_message_2_carry_2_ks_pbs() {
+    shortint_public_key_smart_add(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
 }
 
 //These functions are compatible with some parameter sets where the carry modulus is larger than

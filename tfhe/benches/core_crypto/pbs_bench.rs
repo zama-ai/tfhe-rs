@@ -12,21 +12,21 @@ use tfhe::shortint::parameters::*;
 use tfhe::shortint::ClassicPBSParameters;
 
 const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 15] = [
-    PARAM_MESSAGE_1_CARRY_0,
-    PARAM_MESSAGE_1_CARRY_1,
-    PARAM_MESSAGE_2_CARRY_0,
-    PARAM_MESSAGE_2_CARRY_1,
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_0,
-    PARAM_MESSAGE_3_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_0,
-    PARAM_MESSAGE_4_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MESSAGE_5_CARRY_0,
-    PARAM_MESSAGE_6_CARRY_0,
-    PARAM_MESSAGE_7_CARRY_0,
-    PARAM_MESSAGE_8_CARRY_0,
+    PARAM_MESSAGE_1_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MESSAGE_5_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_6_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_7_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_8_CARRY_0_KS_PBS,
 ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
@@ -78,9 +78,9 @@ fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
 ) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
     if Scalar::BITS == 64 {
         vec![
-            PARAM_MESSAGE_1_CARRY_1,
-            PARAM_MESSAGE_2_CARRY_2,
-            PARAM_MESSAGE_3_CARRY_3,
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         ]
         .iter()
         .map(|params| (params.name(), params.to_owned().into()))

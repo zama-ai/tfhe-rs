@@ -1,106 +1,104 @@
 #include <tfhe.h>
 
-#include <stdio.h>
-#include <inttypes.h>
 #include <assert.h>
-
+#include <inttypes.h>
+#include <stdio.h>
 
 int client_key_test(const ClientKey *client_key) {
-    int ok;
-    FheBool *lhs = NULL;
-    FheBool *rhs = NULL;
-    FheBool *result = NULL;
+  int ok;
+  FheBool *lhs = NULL;
+  FheBool *rhs = NULL;
+  FheBool *result = NULL;
 
-    bool lhs_clear = 0;
-    bool rhs_clear = 1;
+  bool lhs_clear = 0;
+  bool rhs_clear = 1;
 
-    ok = fhe_bool_try_encrypt_with_client_key_bool(lhs_clear, client_key, &lhs);
-    assert(ok == 0);
+  ok = fhe_bool_try_encrypt_with_client_key_bool(lhs_clear, client_key, &lhs);
+  assert(ok == 0);
 
-    ok = fhe_bool_try_encrypt_with_client_key_bool(rhs_clear, client_key, &rhs);
-    assert(ok == 0);
+  ok = fhe_bool_try_encrypt_with_client_key_bool(rhs_clear, client_key, &rhs);
+  assert(ok == 0);
 
-    ok = fhe_bool_bitand(lhs, rhs, &result);
-    assert(ok == 0);
+  ok = fhe_bool_bitand(lhs, rhs, &result);
+  assert(ok == 0);
 
-    bool clear;
-    ok = fhe_bool_decrypt(result, client_key, &clear);
-    assert(ok == 0);
+  bool clear;
+  ok = fhe_bool_decrypt(result, client_key, &clear);
+  assert(ok == 0);
 
-    assert(clear == (lhs_clear & rhs_clear));
+  assert(clear == (lhs_clear & rhs_clear));
 
-    fhe_bool_destroy(lhs);
-    fhe_bool_destroy(rhs);
-    fhe_bool_destroy(result);
+  fhe_bool_destroy(lhs);
+  fhe_bool_destroy(rhs);
+  fhe_bool_destroy(result);
 
-    return ok;
+  return ok;
 }
 
 int public_key_test(const ClientKey *client_key, const PublicKey *public_key) {
-    int ok;
-    FheBool *lhs = NULL;
-    FheBool *rhs = NULL;
-    FheBool *result = NULL;
+  int ok;
+  FheBool *lhs = NULL;
+  FheBool *rhs = NULL;
+  FheBool *result = NULL;
 
-    bool lhs_clear = 0;
-    bool rhs_clear = 1;
+  bool lhs_clear = 0;
+  bool rhs_clear = 1;
 
-    ok = fhe_bool_try_encrypt_with_public_key_bool(lhs_clear, public_key, &lhs);
-    assert(ok == 0);
+  ok = fhe_bool_try_encrypt_with_public_key_bool(lhs_clear, public_key, &lhs);
+  assert(ok == 0);
 
-    ok = fhe_bool_try_encrypt_with_public_key_bool(rhs_clear, public_key, &rhs);
-    assert(ok == 0);
+  ok = fhe_bool_try_encrypt_with_public_key_bool(rhs_clear, public_key, &rhs);
+  assert(ok == 0);
 
-    ok = fhe_bool_bitand(lhs, rhs, &result);
-    assert(ok == 0);
+  ok = fhe_bool_bitand(lhs, rhs, &result);
+  assert(ok == 0);
 
-    bool clear;
-    ok = fhe_bool_decrypt(result, client_key, &clear);
-    assert(ok == 0);
+  bool clear;
+  ok = fhe_bool_decrypt(result, client_key, &clear);
+  assert(ok == 0);
 
-    assert(clear == (lhs_clear & rhs_clear));
+  assert(clear == (lhs_clear & rhs_clear));
 
-    fhe_bool_destroy(lhs);
-    fhe_bool_destroy(rhs);
-    fhe_bool_destroy(result);
+  fhe_bool_destroy(lhs);
+  fhe_bool_destroy(rhs);
+  fhe_bool_destroy(result);
 
-    return ok;
+  return ok;
 }
 
 int trivial_encrypt_test(const ClientKey *client_key) {
-    int ok;
-    FheBool *lhs = NULL;
-    FheBool *rhs = NULL;
-    FheBool *result = NULL;
+  int ok;
+  FheBool *lhs = NULL;
+  FheBool *rhs = NULL;
+  FheBool *result = NULL;
 
-    bool lhs_clear = 0;
-    bool rhs_clear = 1;
+  bool lhs_clear = 0;
+  bool rhs_clear = 1;
 
-    ok = fhe_bool_try_encrypt_trivial_bool(lhs_clear, &lhs);
-    assert(ok == 0);
+  ok = fhe_bool_try_encrypt_trivial_bool(lhs_clear, &lhs);
+  assert(ok == 0);
 
-    ok = fhe_bool_try_encrypt_trivial_bool(rhs_clear, &rhs);
-    assert(ok == 0);
+  ok = fhe_bool_try_encrypt_trivial_bool(rhs_clear, &rhs);
+  assert(ok == 0);
 
-    ok = fhe_bool_bitand(lhs, rhs, &result);
-    assert(ok == 0);
+  ok = fhe_bool_bitand(lhs, rhs, &result);
+  assert(ok == 0);
 
-    bool clear;
-    ok = fhe_bool_decrypt(result, client_key, &clear);
-    assert(ok == 0);
+  bool clear;
+  ok = fhe_bool_decrypt(result, client_key, &clear);
+  assert(ok == 0);
 
-    assert(clear == (lhs_clear & rhs_clear));
+  assert(clear == (lhs_clear & rhs_clear));
 
-    fhe_bool_destroy(lhs);
-    fhe_bool_destroy(rhs);
-    fhe_bool_destroy(result);
+  fhe_bool_destroy(lhs);
+  fhe_bool_destroy(rhs);
+  fhe_bool_destroy(result);
 
-    return ok;
+  return ok;
 }
 
-int main(void)
-{
-  
+int main(void) {
+
   ConfigBuilder *builder;
   Config *config;
 
@@ -120,7 +118,7 @@ int main(void)
   client_key_test(client_key);
   public_key_test(client_key, public_key);
   trivial_encrypt_test(client_key);
-  
+
   client_key_destroy(client_key);
   public_key_destroy(public_key);
   server_key_destroy(server_key);

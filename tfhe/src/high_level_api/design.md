@@ -43,15 +43,15 @@ specialize our generic wrapper struct with`type FheName = GenericWrapperStruct<P
 
 For example, depending on the values in a `shortint::Parameters` instance, the number of bits in the `shortint::Ciphertext`
 is not the same:
-* `PARAM_MESSAGE_2_CARRY_2` -> 2 bits of message, 2 bits of carry
-* `PARAM_MESSAGE_4_CARRY_4` -> 4 bits of message, 4 bits of carry
+* `PARAM_MESSAGE_2_CARRY_2_KS_PBS` -> 2 bits of message, 2 bits of carry
+* `PARAM_MESSAGE_4_CARRY_4_KS_PBS` -> 4 bits of message, 4 bits of carry
 (both are of type `shortint::Parameters`)
 And, generally, some ciphertext encrypted with some parameters values A,
 will not be compatible with another ciphertext encrypted with some parameters values B.
 
 So in the `high_level_api` we create 2 structs `struct FheUint2Parameters { ... }` and `struct FheUint4Parameters { ... }`
-which are made so that FheUint2Parameters only contains `PARAM_MESSAGE_2_CARRY_2`
-and FheUint4Parameters only contains `PARAM_MESSAGE_4_CARRY_4`. 
+which are made so that FheUint2Parameters only contains `PARAM_MESSAGE_2_CARRY_2_KS_PBS`
+and FheUint4Parameters only contains `PARAM_MESSAGE_4_CARRY_4_KS_PBS`. 
 
 This way, we can specialize our wrapper types:
 * `type FheUint2 = GenericWrapperStruct<FheUint2Parameters>`

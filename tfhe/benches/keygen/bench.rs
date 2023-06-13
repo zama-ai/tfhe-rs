@@ -10,7 +10,7 @@ use tfhe::core_crypto::seeders::new_seeder;
 use tfhe::shortint::prelude::*;
 
 fn criterion_bench(c: &mut Criterion) {
-    let parameters = PARAM_MESSAGE_2_CARRY_2;
+    let parameters = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     let mut seeder = new_seeder();
     let mut deterministic_seeder =
         DeterministicSeeder::<ActivatedRandomGenerator>::new(seeder.seed());

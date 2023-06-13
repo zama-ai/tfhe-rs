@@ -35,14 +35,14 @@ impl IntegerConfig {
 
     pub(in crate::high_level_api) fn default_big() -> Self {
         Self {
-            block_parameters: Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2),
+            block_parameters: Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS),
             wopbs_block_parameters: None,
         }
     }
 
     pub(in crate::high_level_api) fn default_small() -> Self {
         Self {
-            block_parameters: Some(crate::shortint::parameters::PARAM_SMALL_MESSAGE_2_CARRY_2),
+            block_parameters: Some(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS),
             wopbs_block_parameters: None,
         }
     }
@@ -50,11 +50,11 @@ impl IntegerConfig {
     pub fn enable_wopbs(&mut self) {
         let block_parameter = self
             .block_parameters
-            .get_or_insert(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2);
+            .get_or_insert(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
         let wopbs_block_parameters = match block_parameter.encryption_key_choice {
-            EncryptionKeyChoice::Big => crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
-            EncryptionKeyChoice::Small => crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2,
+            EncryptionKeyChoice::Big => crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            EncryptionKeyChoice::Small => crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         };
 
         self.wopbs_block_parameters = Some(wopbs_block_parameters);

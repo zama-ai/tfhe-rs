@@ -21,13 +21,13 @@ use bincode;
 
 use std::io::Cursor;
 use tfhe::integer::{gen_keys_radix, ServerKey, RadixCiphertext};
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // We generate a set of client/server keys, using the default parameters:
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
     let msg1 = 201;
     let msg2 = 12;

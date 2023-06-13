@@ -41,11 +41,11 @@ impl CompressedServerKey {
     ///
     /// ```rust
     /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::server_key::CompressedServerKey;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let sks = CompressedServerKey::new(&cks);
     /// ```

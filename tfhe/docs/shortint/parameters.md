@@ -8,18 +8,18 @@ All parameter sets provide at least 128-bits of security according to the [Latti
 
 The user is allowed to choose which set of parameters to use when creating the pair of keys.
 
-The difference between the parameter sets is the total amount of space dedicated to the plaintext and how it is split between the message buffer and the carry buffer. The syntax chosen for the name of a parameter is: `PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}`. For example, the set of parameters for a message buffer of 5 bits and a carry buffer of 2 bits is `PARAM_MESSAGE_5_CARRY_2`.
+The difference between the parameter sets is the total amount of space dedicated to the plaintext and how it is split between the message buffer and the carry buffer. The syntax chosen for the name of a parameter is: `PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}`. For example, the set of parameters for a message buffer of 5 bits and a carry buffer of 2 bits is `PARAM_MESSAGE_5_CARRY_2_KS_PBS`.
 
 This example contains keys that are generated to have messages encoded over 2 bits (i.e., computations are done modulus $$2^2 = 4$$) with 2 bits of carry.
 
-The `PARAM_MESSAGE_2_CARRY_2` parameter set is the default `shortint` parameter set that you can also use through the `tfhe::shortint::prelude::DEFAULT_PARAMETERS` constant.
+The `PARAM_MESSAGE_2_CARRY_2_KS_PBS` parameter set is the default `shortint` parameter set that you can also use through the `tfhe::shortint::prelude::DEFAULT_PARAMETERS` constant.
 
 ```rust
 use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
-   let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+   let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 3;
     let msg2 = 2;

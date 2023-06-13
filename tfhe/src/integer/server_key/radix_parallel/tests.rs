@@ -26,20 +26,20 @@ macro_rules! create_parametrized_test{
      ($name:ident)=> {
         create_parametrized_test!($name
         {
-            PARAM_MESSAGE_1_CARRY_1,
-            PARAM_MESSAGE_2_CARRY_2,
-            PARAM_MESSAGE_3_CARRY_3,
-            PARAM_MESSAGE_4_CARRY_4,
-            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
             // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
-            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3,
-            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
             // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3
+            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS
         });
     };
 }
@@ -50,21 +50,19 @@ create_parametrized_test!(integer_smart_add_sequence_single_thread);
 create_parametrized_test!(integer_default_add);
 create_parametrized_test!(integer_default_add_work_efficient {
     // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
 create_parametrized_test!(integer_default_add_sequence_multi_thread);
 // Other tests are pretty slow, and the code is the same as a smart add but slower
 #[test]
-fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2() {
-    integer_default_add_sequence_single_thread(PARAM_MESSAGE_2_CARRY_2)
+fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2_ks_pbs() {
+    integer_default_add_sequence_single_thread(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
 }
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
@@ -79,12 +77,12 @@ create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
 create_parametrized_test!(integer_default_small_scalar_mul);
 create_parametrized_test!(integer_smart_scalar_mul_u128_fix_non_reg_test {
-    PARAM_MESSAGE_1_CARRY_1,
-    PARAM_MESSAGE_2_CARRY_2
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS
 });
 create_parametrized_test!(integer_unchecked_mul_corner_cases);
 create_parametrized_test!(integer_default_scalar_mul_u128_fix_non_reg_test {
-    PARAM_MESSAGE_2_CARRY_2
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS
 });
 create_parametrized_test!(integer_smart_scalar_mul);
 create_parametrized_test!(integer_default_scalar_mul);
@@ -96,44 +94,44 @@ create_parametrized_test!(integer_default_scalar_right_shift);
 // left/right shifts
 create_parametrized_test!(integer_unchecked_left_shift {
     // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
 create_parametrized_test!(integer_unchecked_right_shift {
     // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
 // left/right rotations
 create_parametrized_test!(integer_unchecked_rotate_left {
     // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
 create_parametrized_test!(integer_unchecked_rotate_right {
     // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
 // left/right rotations
 create_parametrized_test!(integer_unchecked_scalar_rotate_right);
@@ -147,13 +145,13 @@ create_parametrized_test!(integer_smart_sub);
 create_parametrized_test!(integer_default_sub);
 create_parametrized_test!(integer_default_sub_work_efficient {
     // This algorithm requires 3 bits
-    PARAM_MESSAGE_2_CARRY_2,
-    PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);

@@ -21,12 +21,12 @@ The definition of an integer requires a basis and a number of blocks. This is do
 
 ```rust
 use tfhe::integer::gen_keys_radix;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 }
 ```
 
@@ -40,11 +40,11 @@ In the following example, the chosen basis is $$B = [2, 3, 5]$$. The integer is 
 
 ```rust
 use tfhe::integer::CrtClientKey;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 fn main() {
     let basis = vec![2, 3, 5];
-    let cks = CrtClientKey::new(PARAM_MESSAGE_2_CARRY_2, basis);
+    let cks = CrtClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis);
 }
 ```
 
@@ -101,11 +101,11 @@ As an example, let's do a scalar multiplication, a subtraction, and an addition.
 
 ```rust
 use tfhe::integer::gen_keys_radix;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 fn main() {
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
     let msg1 = 12u64;
     let msg2 = 11u64;
@@ -139,11 +139,11 @@ If the same circuit is done but using the `checked` flavor, a panic will occur:
 
 ```rust
 use tfhe::integer::gen_keys_radix;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 fn main() {
     let num_block = 2;
-    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
     let msg1 = 12u64;
     let msg2 = 11u64;
@@ -177,11 +177,11 @@ Using the `smart` flavor will output the correct result all the time. However, t
 
 ```rust
 use tfhe::integer::gen_keys_radix;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 fn main() {
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
     let msg1 = 12u64;
     let msg2 = 11u64;
@@ -216,11 +216,11 @@ Using `default` could **slow down** computations.
 
 ```rust
 use tfhe::integer::gen_keys_radix;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 fn main() {
     let num_block = 4;
-    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
     let msg1 = 12u64;
     let msg2 = 11u64;
