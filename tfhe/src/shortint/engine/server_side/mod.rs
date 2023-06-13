@@ -203,8 +203,8 @@ impl ShortintEngine {
         Ok(allocate_and_generate_new_lwe_keyswitch_key(
             &cks1.large_lwe_secret_key,
             &cks2.large_lwe_secret_key,
-            cks2.parameters.ks_base_log(),
-            cks2.parameters.ks_level(),
+            crate::core_crypto::commons::parameters::DecompositionBaseLog(1), // cks2.parameters.ks_base_log(),
+            crate::core_crypto::commons::parameters::DecompositionLevelCount(15), // cks2.parameters.ks_level(),
             cks2.parameters.lwe_modular_std_dev(),
             cks2.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
