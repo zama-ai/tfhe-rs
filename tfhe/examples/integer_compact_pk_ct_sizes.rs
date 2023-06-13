@@ -5,7 +5,7 @@ use tfhe::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use tfhe::integer::public_key::{CompactPublicKeyBig, CompactPublicKeySmall};
 use tfhe::integer::{gen_keys, U256};
 use tfhe::shortint::keycache::NamedParam;
-use tfhe::shortint::parameters::*;
+use tfhe::shortint::parameters::parameters_compact_pk::*;
 
 pub fn main() {
     fn size_func<Scalar: Numeric + DecomposableInto<u64> + RecomposableFrom<u64> + From<u32>>() {
@@ -49,7 +49,7 @@ pub fn main() {
             }
         }
 
-        let params = PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL;
         {
             println!("Sizes for: {} and {num_bits} bits", params.name());
             let (cks, _) = gen_keys(params);

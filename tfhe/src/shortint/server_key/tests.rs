@@ -1,4 +1,5 @@
 use crate::shortint::keycache::KEY_CACHE;
+use crate::shortint::parameters::parameters_compact_pk::*;
 use crate::shortint::parameters::*;
 use crate::shortint::CiphertextBig;
 use paste::paste;
@@ -2891,7 +2892,7 @@ fn test_shortint_compact_public_key_smart_add_big() {
 fn test_shortint_compact_public_key_smart_add_small() {
     test_shortint_compact_public_key_base_smart_add::<
         crate::shortint::ciphertext::BootstrapKeyswitch,
-    >(PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
+    >(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL);
 }
 
 fn test_shortint_compact_public_key_base_smart_add<OpOrder: crate::shortint::PBSOrderMarker>(
@@ -2948,7 +2949,7 @@ fn test_shortint_compact_public_key_list_smart_sub_big() {
 fn test_shortint_compact_public_key_list_smart_sub_small() {
     test_shortint_compact_public_key_base_list_smart_sub::<
         crate::shortint::ciphertext::BootstrapKeyswitch,
-    >(PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
+    >(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL);
 }
 
 fn test_shortint_compact_public_key_base_list_smart_sub<
