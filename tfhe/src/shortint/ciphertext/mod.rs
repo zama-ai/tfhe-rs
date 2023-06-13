@@ -212,11 +212,11 @@ impl CompactCiphertextList {
 #[cfg(test)]
 mod tests {
     use crate::shortint::gen_keys;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
     #[test]
     fn test_copy_from() {
-        let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+        let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
         let msg1 = 3;
         let msg2 = 2;

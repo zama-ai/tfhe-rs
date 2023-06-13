@@ -22,11 +22,11 @@ impl PublicKey {
     ///
     /// ```rust
     /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::public_key::PublicKey;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let pk = PublicKey::new(&cks);
     /// ```
@@ -41,28 +41,11 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::{ClientKey, PublicKey, ServerKey};
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
-    ///
-    /// let pk = PublicKey::new(&cks);
-    ///
-    /// // Encryption of one message that is within the encrypted message modulus:
-    /// let msg = 3;
-    /// let ct = pk.encrypt(msg);
-    ///
-    /// let dec = cks.decrypt(&ct);
-    /// assert_eq!(msg, dec);
-    ///
-    /// // Encryption of one message that is outside the encrypted message modulus:
-    /// let msg = 5;
-    /// let ct = pk.encrypt(msg);
-    ///
-    /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(msg % modulus, dec);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let pk = PublicKey::new(&cks);
     ///
@@ -92,22 +75,11 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::{MessageModulus, PARAM_MESSAGE_2_CARRY_2};
+    /// use tfhe::shortint::parameters::{MessageModulus, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
     /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
-    ///
-    /// let pk = PublicKey::new(&cks);
-    ///
-    /// let msg = 3;
-    ///
-    /// // Encryption of one message:
-    /// let ct = pk.encrypt_with_message_modulus(msg, MessageModulus(6));
-    ///
-    /// // Decryption:
-    /// let dec = cks.decrypt(&ct);
-    /// assert_eq!(msg, dec);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let pk = PublicKey::new(&cks);
     ///
@@ -137,23 +109,11 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
-    ///
-    /// let pk = PublicKey::new(&cks);
-    ///
-    /// let msg = 7;
-    /// let ct = pk.unchecked_encrypt(msg);
-    /// // |       ct        |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  0 1  |   1 1   |
-    ///
-    /// let dec = cks.decrypt_message_and_carry(&ct);
-    /// assert_eq!(msg, dec);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let pk = PublicKey::new(&cks);
     ///
@@ -182,21 +142,12 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// // DISCLAIMER: Note that this parameter is not guaranteed to be secure
-    /// let pk = PublicKey::new(&cks);
-    ///
-    /// // Encryption of one message that is within the encrypted message modulus:
-    /// let msg = 6;
-    /// let ct = pk.encrypt_without_padding(msg);
-    ///
-    /// let dec = cks.decrypt_message_and_carry_without_padding(&ct);
-    /// assert_eq!(msg, dec);
-    ///
     /// let pk = PublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
@@ -221,23 +172,11 @@ impl PublicKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
-    ///
-    /// let pk = PublicKey::new(&cks);
-    ///
-    /// let msg = 2;
-    /// let modulus = 3;
-    ///
-    /// // Encryption of one message:
-    /// let ct = pk.encrypt_native_crt(msg, modulus);
-    ///
-    /// // Decryption:
-    /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
-    /// assert_eq!(msg, dec % modulus as u64);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let pk = PublicKey::new(&cks);
     ///

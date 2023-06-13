@@ -10,9 +10,9 @@ int uint256_client_key(const ClientKey *client_key) {
   FheUint256 *rhs = NULL;
   FheUint256 *result = NULL;
   FheUint64 *cast_result = NULL;
-  U256 lhs_clear = {1 , 2, 3, 4};
+  U256 lhs_clear = {1, 2, 3, 4};
   U256 rhs_clear = {5, 6, 7, 8};
-  U256 result_clear = { 0 };
+  U256 result_clear = {0};
 
   ok = fhe_uint256_try_encrypt_with_client_key_u256(lhs_clear, client_key, &lhs);
   assert(ok == 0);
@@ -51,9 +51,9 @@ int uint256_encrypt_trivial(const ClientKey *client_key) {
   FheUint256 *lhs = NULL;
   FheUint256 *rhs = NULL;
   FheUint256 *result = NULL;
-  U256 lhs_clear = {1 , 2, 3, 4};
+  U256 lhs_clear = {1, 2, 3, 4};
   U256 rhs_clear = {5, 6, 7, 8};
-  U256 result_clear = { 0 };
+  U256 result_clear = {0};
 
   ok = fhe_uint256_try_encrypt_trivial_u256(lhs_clear, &lhs);
   assert(ok == 0);
@@ -84,8 +84,8 @@ int uint256_public_key(const ClientKey *client_key, const PublicKey *public_key)
   FheUint256 *rhs = NULL;
   FheUint256 *result = NULL;
   U256 lhs_clear = {5, 6, 7, 8};
-  U256 rhs_clear = {1 , 2, 3, 4};
-  U256 result_clear = { 0 };
+  U256 rhs_clear = {1, 2, 3, 4};
+  U256 result_clear = {0};
 
   ok = fhe_uint256_try_encrypt_with_public_key_u256(lhs_clear, public_key, &lhs);
   assert(ok == 0);

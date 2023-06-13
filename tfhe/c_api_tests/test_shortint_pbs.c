@@ -8,7 +8,7 @@
 uint64_t double_lookup_table_2_bits_message(uint64_t in) { return (in * 2) % 4; }
 
 uint64_t get_max_value_of_lookup_table_generator(uint64_t (*lookup_table_func)(uint64_t),
-                                                size_t message_bits) {
+                                                 size_t message_bits) {
   uint64_t max_value = 0;
   for (size_t idx = 0; idx < (1 << message_bits); ++idx) {
     uint64_t acc_value = lookup_table_func((uint64_t)idx);
@@ -23,9 +23,9 @@ uint64_t product_lookup_table_2_bits_encrypted_mul(uint64_t left, uint64_t right
 }
 
 uint64_t get_max_value_of_bivariate_lookup_table_generator(uint64_t (*lookup_table_func)(uint64_t,
-                                                                                       uint64_t),
-                                                          size_t message_bits_left,
-                                                          size_t message_bits_right) {
+                                                                                         uint64_t),
+                                                           size_t message_bits_left,
+                                                           size_t message_bits_right) {
   uint64_t max_value = 0;
   for (size_t idx_left = 0; idx_left < (1 << message_bits_left); ++idx_left) {
     for (size_t idx_right = 0; idx_right < (1 << message_bits_right); ++idx_right) {
@@ -41,7 +41,7 @@ void test_shortint_pbs_2_bits_message(void) {
   ShortintPBSLookupTable *lookup_table = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
-  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
@@ -86,7 +86,8 @@ void test_shortint_pbs_2_bits_message(void) {
 
     assert(result_non_assign == double_lookup_table_2_bits_message(in_val));
 
-    int pbs_assign_ok = shortint_server_key_programmable_bootstrap_assign(sks, lookup_table, ct_out);
+    int pbs_assign_ok =
+        shortint_server_key_programmable_bootstrap_assign(sks, lookup_table, ct_out);
     assert(pbs_assign_ok == 0);
 
     degree_to_set =
@@ -114,7 +115,7 @@ void test_shortint_bivariate_pbs_2_bits_message(void) {
   ShortintBivariatePBSLookupTable *lookup_table = NULL;
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
-  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
+  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);

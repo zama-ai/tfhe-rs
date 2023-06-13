@@ -10,7 +10,7 @@ use tfhe::integer::U256;
 use tfhe::prelude::*;
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
 };
 use tfhe::{
     generate_keys, CompactFheUint256List, CompactFheUint32List, CompactPublicKey, ConfigBuilder,
@@ -38,7 +38,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     let operator = OperatorType::Atomic;
 
     {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
         let config = ConfigBuilder::all_disabled()
             .enable_custom_integers(params, None)
             .build();
@@ -95,7 +95,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     }
 
     {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS;
         let config = ConfigBuilder::all_disabled()
             .enable_custom_integers(params, None)
             .build();
@@ -152,7 +152,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
     // 256 bits
     {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
         let config = ConfigBuilder::all_disabled()
             .enable_custom_integers(params, None)
             .build();
@@ -199,7 +199,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     }
 
     {
-        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL;
+        let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS;
         let config = ConfigBuilder::all_disabled()
             .enable_custom_integers(params, None)
             .build();

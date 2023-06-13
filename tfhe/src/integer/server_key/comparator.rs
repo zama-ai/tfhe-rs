@@ -1974,52 +1974,53 @@ mod tests {
 
                 create_parametrized_test!([<unchecked_ $comparison_name _256_bits>]
                 {
-                    PARAM_MESSAGE_2_CARRY_2,
-                    PARAM_MESSAGE_3_CARRY_3,
-                    PARAM_MESSAGE_4_CARRY_4
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                    PARAM_MESSAGE_4_CARRY_4_KS_PBS
                 });
                 create_parametrized_test!([<unchecked_ $comparison_name _parallelized_256_bits>]
                 {
-                    PARAM_MESSAGE_2_CARRY_2,
-                    PARAM_MESSAGE_3_CARRY_3,
-                    PARAM_MESSAGE_4_CARRY_4
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                    PARAM_MESSAGE_4_CARRY_4_KS_PBS
                 });
 
                 create_parametrized_test!([<smart_ $comparison_name _256_bits>]
                 {
-                    PARAM_MESSAGE_2_CARRY_2,
-                    // We don't use PARAM_MESSAGE_3_CARRY_3,
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                     // as smart test might overflow values
                     // and when using 3_3 to represent 256 we actually have more than 256 bits
                     // of message so the overflow behaviour is not the same, leading to false negatives
-                    PARAM_MESSAGE_4_CARRY_4
+                    PARAM_MESSAGE_4_CARRY_4_KS_PBS
                 });
 
                 create_parametrized_test!([<smart_ $comparison_name _parallelized_256_bits>]
                 {
-                    PARAM_MESSAGE_2_CARRY_2,
-                    // We don't use PARAM_MESSAGE_3_CARRY_3,
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                     // as smart test might overflow values
                     // and when using 3_3 to represent 256 we actually have more than 256 bits
                     // of message so the overflow behaviour is not the same, leading to false negatives
-                    PARAM_MESSAGE_4_CARRY_4
+                    PARAM_MESSAGE_4_CARRY_4_KS_PBS
                 });
 
                 create_parametrized_test!([<$comparison_name _parallelized_256_bits>]
                 {
-                    PARAM_MESSAGE_2_CARRY_2,
-                    // We don't use PARAM_MESSAGE_3_CARRY_3,
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                     // as default test might overflow values
                     // and when using 3_3 to represent 256 we actually have more than 256 bits
                     // of message so the overflow behaviour is not the same, leading to false negatives
-                    PARAM_MESSAGE_4_CARRY_4
+                    PARAM_MESSAGE_4_CARRY_4_KS_PBS
                 });
             }
         };
     }
 
     use crate::shortint::parameters::{
-        PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3, PARAM_MESSAGE_4_CARRY_4,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS,
     };
 
     define_comparison_test_functions!(eq);
@@ -2034,57 +2035,75 @@ mod tests {
     //================
 
     #[test]
-    fn test_unchecked_min_256_bits_param_message_2_carry_2() {
-        test_unchecked_min_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
-    }
-
-    #[test]
-    fn test_unchecked_min_256_bits_param_message_3_carry_3() {
-        test_unchecked_min_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    }
-
-    #[test]
-    fn test_unchecked_min_256_bits_param_message_4_carry_4() {
-        test_unchecked_min_256_bits(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4, 2)
-    }
-
-    #[test]
-    fn test_unchecked_min_parallelized_256_bits_param_message_2_carry_2() {
-        test_unchecked_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+    fn test_unchecked_min_256_bits_param_message_2_carry_2_ks_pbs() {
+        test_unchecked_min_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             4,
         )
     }
 
     #[test]
-    fn test_unchecked_min_parallelized_256_bits_param_message_3_carry_3() {
-        test_unchecked_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+    fn test_unchecked_min_256_bits_param_message_3_carry_3_ks_pbs() {
+        test_unchecked_min_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
             2,
         )
     }
 
     #[test]
-    fn test_unchecked_min_parallelized_256_bits_param_message_4_carry_4() {
-        test_unchecked_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+    fn test_unchecked_min_256_bits_param_message_4_carry_4_ks_pbs() {
+        test_unchecked_min_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
             2,
         )
     }
 
     #[test]
-    fn test_min_parallelized_256_bits_param_message_2_carry_2() {
-        test_min_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
+    fn test_unchecked_min_parallelized_256_bits_param_message_2_carry_2_ks_pbs() {
+        test_unchecked_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            4,
+        )
     }
 
-    // #[test]
-    // fn test_min_parallelized_256_bits_param_message_3_carry_3() {
-    //     test_min_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    // }
+    #[test]
+    fn test_unchecked_min_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
+        test_unchecked_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            2,
+        )
+    }
 
     #[test]
-    fn test_min_parallelized_256_bits_param_message_4_carry_4() {
-        test_min_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4, 2)
+    fn test_unchecked_min_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
+        test_unchecked_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            2,
+        )
+    }
+
+    #[test]
+    fn test_min_parallelized_256_bits_param_message_2_carry_2_ks_pbs() {
+        test_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            4,
+        )
+    }
+
+    #[test]
+    fn test_min_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
+        test_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            2,
+        )
+    }
+
+    #[test]
+    fn test_min_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
+        test_min_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            2,
+        )
     }
 
     //================
@@ -2092,57 +2111,75 @@ mod tests {
     //================
 
     #[test]
-    fn test_unchecked_max_256_bits_param_message_2_carry_2() {
-        test_unchecked_max_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
-    }
-
-    #[test]
-    fn test_unchecked_max_256_bits_param_message_3_carry_3() {
-        test_unchecked_max_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    }
-
-    #[test]
-    fn test_unchecked_max_256_bits_param_message_4_carry_4() {
-        test_unchecked_max_256_bits(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4, 2)
-    }
-
-    #[test]
-    fn test_unchecked_max_parallelized_256_bits_param_message_2_carry_2() {
-        test_unchecked_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+    fn test_unchecked_max_256_bits_param_message_2_carry_2_ks_pbs() {
+        test_unchecked_max_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             4,
         )
     }
 
     #[test]
-    fn test_unchecked_max_parallelized_256_bits_param_message_3_carry_3() {
-        test_unchecked_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+    fn test_unchecked_max_256_bits_param_message_3_carry_3_ks_pbs() {
+        test_unchecked_max_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
             2,
         )
     }
 
     #[test]
-    fn test_unchecked_max_parallelized_256_bits_param_message_4_carry_4() {
-        test_unchecked_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+    fn test_unchecked_max_256_bits_param_message_4_carry_4_ks_pbs() {
+        test_unchecked_max_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
             2,
         )
     }
 
     #[test]
-    fn test_max_parallelized_256_bits_param_message_2_carry_2() {
-        test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2, 4)
+    fn test_unchecked_max_parallelized_256_bits_param_message_2_carry_2_ks_pbs() {
+        test_unchecked_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            4,
+        )
     }
 
-    // #[test]
-    // fn test_max_parallelized_256_bits_param_message_3_carry_3() {
-    //     test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3, 2)
-    // }
+    #[test]
+    fn test_unchecked_max_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
+        test_unchecked_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            2,
+        )
+    }
 
     #[test]
-    fn test_max_parallelized_256_bits_param_message_4_carry_4() {
-        test_max_parallelized_256_bits(crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4, 2)
+    fn test_unchecked_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
+        test_unchecked_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            2,
+        )
+    }
+
+    #[test]
+    fn test_max_parallelized_256_bits_param_message_2_carry_2_ks_pbs() {
+        test_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            4,
+        )
+    }
+
+    #[test]
+    fn test_max_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
+        test_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            2,
+        )
+    }
+
+    #[test]
+    fn test_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
+        test_max_parallelized_256_bits(
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+            2,
+        )
     }
 
     //=============================================================
@@ -2344,29 +2381,29 @@ mod tests {
 
                 create_parametrized_test!([<unchecked_scalar_ $comparison_name _parallelized_256_bits>]
                 {
-                    PARAM_MESSAGE_2_CARRY_2,
-                    PARAM_MESSAGE_3_CARRY_3,
-                    PARAM_MESSAGE_4_CARRY_4
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+                    PARAM_MESSAGE_4_CARRY_4_KS_PBS
                 });
 
                 create_parametrized_test!([<smart_scalar_ $comparison_name _parallelized_256_bits>]
                 {
-                    PARAM_MESSAGE_2_CARRY_2,
-                    // We don't use PARAM_MESSAGE_3_CARRY_3,
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                     // as smart test might overflow values
                     // and when using 3_3 to represent 256 we actually have more than 256 bits
                     // of message so the overflow behaviour is not the same, leading to false negatives
-                    PARAM_MESSAGE_4_CARRY_4
+                    PARAM_MESSAGE_4_CARRY_4_KS_PBS
                 });
 
                 create_parametrized_test!([<scalar_ $comparison_name _parallelized_256_bits>]
                 {
-                    PARAM_MESSAGE_2_CARRY_2,
-                    // We don't use PARAM_MESSAGE_3_CARRY_3,
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
                     // as default test might overflow values
                     // and when using 3_3 to represent 256 we actually have more than 256 bits
                     // of message so the overflow behaviour is not the same, leading to false negatives
-                    PARAM_MESSAGE_4_CARRY_4
+                    PARAM_MESSAGE_4_CARRY_4_KS_PBS
                 });
             }
         };
@@ -2432,41 +2469,41 @@ mod tests {
     //================
 
     #[test]
-    fn test_unchecked_scalar_min_parallelized_256_bits_param_message_2_carry_2() {
+    fn test_unchecked_scalar_min_parallelized_256_bits_param_message_2_carry_2_ks_pbs() {
         test_unchecked_scalar_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             4,
         )
     }
 
     #[test]
-    fn test_unchecked_scalar_min_parallelized_256_bits_param_message_3_carry_3() {
+    fn test_unchecked_scalar_min_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
         test_unchecked_scalar_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
             2,
         )
     }
 
     #[test]
-    fn test_unchecked_scalar_min_parallelized_256_bits_param_message_4_carry_4() {
+    fn test_unchecked_scalar_min_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
         test_unchecked_scalar_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
             2,
         )
     }
 
     #[test]
-    fn test_scalar_min_parallelized_256_bits_param_message_2_carry_2() {
+    fn test_scalar_min_parallelized_256_bits_param_message_2_carry_2_ks_pbs() {
         test_scalar_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             4,
         )
     }
 
     #[test]
-    fn test_scalar_min_parallelized_256_bits_param_message_4_carry_4() {
+    fn test_scalar_min_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
         test_scalar_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
             2,
         )
     }
@@ -2476,41 +2513,41 @@ mod tests {
     //================
 
     #[test]
-    fn test_unchecked_scalar_max_parallelized_256_bits_param_message_2_carry_2() {
+    fn test_unchecked_scalar_max_parallelized_256_bits_param_message_2_carry_2_ks_pbs() {
         test_unchecked_scalar_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             4,
         )
     }
 
     #[test]
-    fn test_unchecked_scalar_max_parallelized_256_bits_param_message_3_carry_3() {
+    fn test_unchecked_scalar_max_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
         test_unchecked_scalar_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3,
+            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
             2,
         )
     }
 
     #[test]
-    fn test_unchecked_scalar_max_parallelized_256_bits_param_message_4_carry_4() {
+    fn test_unchecked_scalar_max_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
         test_unchecked_scalar_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
             2,
         )
     }
 
     #[test]
-    fn test_scalar_max_parallelized_256_bits_param_message_2_carry_2() {
+    fn test_scalar_max_parallelized_256_bits_param_message_2_carry_2_ks_pbs() {
         test_scalar_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2,
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             4,
         )
     }
 
     #[test]
-    fn test_scalar_max_parallelized_256_bits_param_message_4_carry_4() {
+    fn test_scalar_max_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
         test_scalar_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4,
+            crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS,
             2,
         )
     }
@@ -2644,8 +2681,8 @@ mod tests {
     }
 
     create_parametrized_test!(test_unchecked_scalar_comparisons_edge {
-        PARAM_MESSAGE_2_CARRY_2,
-        PARAM_MESSAGE_3_CARRY_3,
-        PARAM_MESSAGE_4_CARRY_4
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS
     });
 }

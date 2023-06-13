@@ -23,9 +23,9 @@ create_parametrized_test! {
     integer_smart_add_128_bits {
         // Skip the 1_1 params for the smart add 128 bits which proved to be the slowest test in our test
         // suite
-        PARAM_MESSAGE_2_CARRY_2,
-        PARAM_MESSAGE_3_CARRY_3,
-        PARAM_MESSAGE_4_CARRY_4
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS
     }
 }
 create_parametrized_test!(integer_unchecked_bitand);
@@ -1222,7 +1222,7 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
     // RNG
     let mut rng = rand::thread_rng();
 
-    let param = PARAM_MESSAGE_2_CARRY_2;
+    let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
     let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 

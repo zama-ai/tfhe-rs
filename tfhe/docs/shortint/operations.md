@@ -49,7 +49,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 3;
     let msg2 = 3;
@@ -82,7 +82,7 @@ use std::error::Error;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 3;
     let msg2 = 3;
@@ -125,7 +125,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 3;
     let msg2 = 3;
@@ -159,7 +159,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 3;
     let msg2 = 3;
@@ -215,7 +215,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // Generate the client key and the server key:
-    let (cks, _) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (cks, _) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     let pks = PublicKey::new(&cks);
 
     let msg = 2;
@@ -236,7 +236,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys to compute over Z/2^2Z, with 2 carry bits
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 2;
     let msg2 = 1;
@@ -267,7 +267,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys to compute over Z/2^2Z, with 2 carry bits
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 2;
     let msg2 = 1;
@@ -298,7 +298,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys to compute over Z/2^2Z, with 2 carry bits
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 2;
     let msg2 = 1;
@@ -327,7 +327,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys to compute over Z/2^2Z, with 2 carry bits
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 3;
 
@@ -359,7 +359,7 @@ use tfhe::shortint::prelude::*;
 
 fn main() {
     // We generate a set of client/server keys to compute over Z/2^2Z, with 2 carry bits
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     let msg1 = 3;
     let msg2 = 2;

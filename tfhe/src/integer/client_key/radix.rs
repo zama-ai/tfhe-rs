@@ -16,11 +16,11 @@ use serde::{Deserialize, Serialize};
 ///
 /// ```rust
 /// use tfhe::integer::RadixClientKey;
-/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 ///
 /// // 2 * 4 = 8 bits of message
 /// let num_block = 4;
-/// let cks = RadixClientKey::new(PARAM_MESSAGE_2_CARRY_2, num_block);
+/// let cks = RadixClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 ///
 /// let msg = 167_u64;
 ///

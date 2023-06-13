@@ -1,5 +1,5 @@
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
-use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2};
+use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
 
 use crate::integer::key_switching_key::KeySwitchingKey;
 
@@ -9,11 +9,11 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger() {
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_1, server_key_1) =
-        crate::integer::gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
+        crate::integer::gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_2, server_key_2) =
-        crate::integer::gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
+        crate::integer::gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
     // Get casting key
     let ksk_params = unsafe {
@@ -43,10 +43,11 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger() {
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_1, server_key_1) =
-        crate::integer::gen_keys_crt(PARAM_MESSAGE_2_CARRY_2, basis.clone());
+        crate::integer::gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis.clone());
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) = crate::integer::gen_keys_crt(PARAM_MESSAGE_2_CARRY_2, basis);
+    let (client_key_2, server_key_2) =
+        crate::integer::gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis);
 
     // Get casting key
     let ksk_params = unsafe {
@@ -77,10 +78,11 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail() {
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_1, server_key_1) =
-        crate::integer::gen_keys_crt(PARAM_MESSAGE_2_CARRY_2, basis.clone());
+        crate::integer::gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis.clone());
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) = crate::integer::gen_keys_crt(PARAM_MESSAGE_1_CARRY_1, basis);
+    let (client_key_2, server_key_2) =
+        crate::integer::gen_keys_crt(PARAM_MESSAGE_1_CARRY_1_KS_PBS, basis);
 
     // Get casting key
     let ksk_params = unsafe {
@@ -99,10 +101,10 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail() {
 #[test]
 fn gen_multi_keys_test_integer_to_integer() {
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_1, server_key_1) = crate::integer::gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key_1, server_key_1) = crate::integer::gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) = crate::integer::gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key_2, server_key_2) = crate::integer::gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
     // Get casting key
     let ksk_params = unsafe {

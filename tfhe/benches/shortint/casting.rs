@@ -10,11 +10,13 @@ pub fn pack_cast_64(c: &mut Criterion) {
     let bench_name = "pack_cast_64";
     let mut bench_group = c.benchmark_group(bench_name);
 
-    let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
-    let (client_key_2, server_key_2): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key_1, server_key_1): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key_2, server_key_2): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
-    let ks_param = PARAM_KEYSWITCH_1_1_TO_2_2;
-    let ks_param_name = "PARAM_KEYSWITCH_1_1_TO_2_2";
+    let ks_param = PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
+    let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
 
     let ksk = KeySwitchingKey::new(
         (&client_key_1, &server_key_1),
@@ -59,11 +61,13 @@ pub fn pack_cast(c: &mut Criterion) {
     let bench_name = "pack_cast";
     let mut bench_group = c.benchmark_group(bench_name);
 
-    let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
-    let (client_key_2, server_key_2): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key_1, server_key_1): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key_2, server_key_2): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
-    let ks_param = PARAM_KEYSWITCH_1_1_TO_2_2;
-    let ks_param_name = "PARAM_KEYSWITCH_1_1_TO_2_2";
+    let ks_param = PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
+    let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
 
     let ksk = KeySwitchingKey::new(
         (&client_key_1, &server_key_1),
@@ -98,11 +102,13 @@ pub fn cast(c: &mut Criterion) {
     let bench_name = "cast";
     let mut bench_group = c.benchmark_group(bench_name);
 
-    let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
-    let (client_key_2, server_key_2): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key_1, server_key_1): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (client_key_2, server_key_2): (ClientKey, ServerKey) =
+        gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
-    let ks_param = PARAM_KEYSWITCH_1_1_TO_2_2;
-    let ks_param_name = "PARAM_KEYSWITCH_1_1_TO_2_2";
+    let ks_param = PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS;
+    let ks_param_name = "PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS";
 
     let ksk = KeySwitchingKey::new(
         (&client_key_1, &server_key_1),

@@ -1,5 +1,5 @@
 use tfhe::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey, ServerKey};
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 pub type StringCiphertext = Vec<RadixCiphertext>;
 
@@ -18,5 +18,5 @@ pub fn encrypt_str(
 
 pub fn gen_keys() -> (RadixClientKey, ServerKey) {
     let num_block = 4;
-    gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block)
+    gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block)
 }

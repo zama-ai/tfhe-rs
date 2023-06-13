@@ -61,12 +61,12 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // Generate the client key, that can encrypt in
     /// // radix and crt decomposition, where each block of the decomposition
     /// // have over 2 bits of message modulus.
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// ```
     pub fn new<P>(parameter_set: P) -> Self
     where
@@ -88,9 +88,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// let num_block = 4;
     ///
     /// let msg = 167_u64;
@@ -115,9 +115,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// let num_block = 4;
     ///
     /// let msg = 167_u64;
@@ -193,9 +193,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// let num_block = 4;
     ///
     /// let msg = 2_u64;
@@ -224,9 +224,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// let num_block = 4;
     ///
     /// let msg = 191_u64;
@@ -251,9 +251,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// let num_block = 4;
     ///
     /// let msg = 191_u64;
@@ -306,9 +306,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let msg = 13_u64;
     ///
@@ -346,10 +346,10 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // Generate the client key and the server key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let msg = 27_u64;
     /// let basis: Vec<u64> = vec![2, 3, 5];
@@ -384,9 +384,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
     ///
     /// let msg = 13_u64;
     ///
@@ -421,9 +421,9 @@ impl ClientKey {
     ///
     /// ```rust
     /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3);
+    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
     ///
     /// let msg = 27_u64;
     /// let basis: Vec<u64> = vec![2, 3, 5];

@@ -208,8 +208,7 @@ void test_shortint_binary_op_assign(const ShortintClientKey *cks, const Shortint
           cks_in_use = cks_small;
           sks_in_use = sks_small;
 
-          int encrypt_left_ok =
-              shortint_client_key_encrypt(cks_in_use, left, &ct_left_and_result);
+          int encrypt_left_ok = shortint_client_key_encrypt(cks_in_use, left, &ct_left_and_result);
           assert(encrypt_left_ok == 0);
 
           int encrypt_right_ok = shortint_client_key_encrypt(cks_in_use, right, &ct_right);
@@ -346,8 +345,7 @@ void test_shortint_binary_scalar_op_assign(
           cks_in_use = cks_small;
           sks_in_use = sks_small;
 
-          int encrypt_left_ok =
-              shortint_client_key_encrypt(cks_in_use, left, &ct_left_and_result);
+          int encrypt_left_ok = shortint_client_key_encrypt(cks_in_use, left, &ct_left_and_result);
           assert(encrypt_left_ok == 0);
         }
 
@@ -421,8 +419,8 @@ void test_server_key(void) {
   ShortintServerKey *deser_sks = NULL;
   ShortintClientKey *cks_small = NULL;
   ShortintServerKey *sks_small = NULL;
-  ShortintPBSParameters params = { 0 };
-  ShortintPBSParameters params_small = { 0 };
+  ShortintPBSParameters params = {0};
+  ShortintPBSParameters params_small = {0};
 
   const uint32_t message_bits = 2;
   const uint32_t carry_bits = 2;

@@ -89,7 +89,7 @@ mod tests {
     use crate::shortint::ClassicPBSParameters;
 
     create_parametrized_test!(integer_public_key_decompression_small {
-        PARAM_SMALL_MESSAGE_2_CARRY_2,
+        PARAM_MESSAGE_2_CARRY_2_PBS_KS,
     });
 
     fn integer_public_key_decompression_small(param: ClassicPBSParameters) {

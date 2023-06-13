@@ -14,8 +14,8 @@ use tfhe::shortint::keycache::NamedParam;
 
 #[allow(unused_imports)]
 use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
 
 /// An iterator that yields a succession of combinations
@@ -30,9 +30,9 @@ impl Default for ParamsAndNumBlocksIter {
     fn default() -> Self {
         // FIXME One set of parameter is tested since we want to benchmark only quickest operations.
         const PARAMS: [tfhe::shortint::ClassicPBSParameters; 1] = [
-            PARAM_MESSAGE_2_CARRY_2,
-            // PARAM_MESSAGE_3_CARRY_3,
-            // PARAM_MESSAGE_4_CARRY_4,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            // PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            // PARAM_MESSAGE_4_CARRY_4_KS_PBS,
         ];
         const BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
         let params_and_bit_sizes = iproduct!(PARAMS, BIT_SIZES);

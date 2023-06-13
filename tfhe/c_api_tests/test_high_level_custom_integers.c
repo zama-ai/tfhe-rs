@@ -95,8 +95,8 @@ int uint256_public_key(const ClientKey *client_key,
 
   // Compact list example
   {
-    ok = compact_fhe_uint256_list_try_encrypt_with_compact_public_key_u256(
-        &clears[0], 2, public_key, &list);
+    ok = compact_fhe_uint256_list_try_encrypt_with_compact_public_key_u256(&clears[0], 2,
+                                                                           public_key, &list);
     assert(ok == 0);
 
     size_t len = 0;
@@ -111,7 +111,7 @@ int uint256_public_key(const ClientKey *client_key,
     // transfer ownership
     lhs = expand_output[0];
     rhs = expand_output[1];
-    // We can destroy the compact list 
+    // We can destroy the compact list
     // The expanded ciphertext are independant from it
     compact_fhe_uint256_list_destroy(list);
 
@@ -165,7 +165,8 @@ int main(void) {
     Config *config;
 
     config_builder_all_disabled(&builder);
-    config_builder_enable_custom_integers(&builder, SHORTINT_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK);
+    config_builder_enable_custom_integers(&builder,
+                                          SHORTINT_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
     config_builder_build(builder, &config);
 
     ClientKey *client_key = NULL;
@@ -192,7 +193,7 @@ int main(void) {
 
     config_builder_all_disabled(&builder);
     config_builder_enable_custom_integers(&builder,
-                                          SHORTINT_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL);
+                                          SHORTINT_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
     config_builder_build(builder, &config);
 
     ClientKey *client_key = NULL;

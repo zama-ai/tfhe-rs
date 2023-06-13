@@ -1,8 +1,8 @@
 use crate::shortint::keycache::KEY_CACHE_WOPBS;
 use crate::shortint::parameters::parameters_wopbs_message_carry::*;
 use crate::shortint::parameters::{
-    MessageModulus, PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
+    MessageModulus, PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS, PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{gen_keys, ClassicPBSParameters, WopbsParameters};
@@ -25,10 +25,10 @@ macro_rules! create_parametrized_test{
      ($name:ident)=> {
         create_parametrized_test!($name
         {
-            (PARAM_MESSAGE_1_CARRY_1, WOPBS_PARAM_MESSAGE_1_CARRY_1),
-            (PARAM_MESSAGE_2_CARRY_2, WOPBS_PARAM_MESSAGE_2_CARRY_2),
-            (PARAM_MESSAGE_3_CARRY_3, WOPBS_PARAM_MESSAGE_3_CARRY_3),
-            (PARAM_MESSAGE_4_CARRY_4, WOPBS_PARAM_MESSAGE_4_CARRY_4)
+            (PARAM_MESSAGE_1_CARRY_1_KS_PBS, WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS),
+            (PARAM_MESSAGE_2_CARRY_2_KS_PBS, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            (PARAM_MESSAGE_3_CARRY_3_KS_PBS, WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
+            (PARAM_MESSAGE_4_CARRY_4_KS_PBS, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
         });
     };
 }
@@ -87,8 +87,8 @@ fn generate_lut_modulus(params: (ClassicPBSParameters, WopbsParameters)) {
 fn generate_lut_modulus_not_power_of_two(params: (ClassicPBSParameters, WopbsParameters)) {
     let (cks, sks) = gen_keys(params);
     let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
-    // let keys = KEY_CACHE_WOPBS.get_from_param((WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2,
-    // WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2)); let (cks, _, wopbs_key) = (keys.client_key(),
+    // let keys = KEY_CACHE_WOPBS.get_from_param((WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2_KS_PBS,
+    // WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2_KS_PBS)); let (cks, _, wopbs_key) = (keys.client_key(),
     // keys.server_key(), keys.wopbs_key());
     let mut rng = rand::thread_rng();
 

@@ -32,16 +32,22 @@ impl KeySwitchingKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2};
+    /// use tfhe::shortint::parameters::{
+    ///     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    /// };
     /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
-    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
-    /// let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), PARAM_KEYSWITCH_1_1_TO_2_2);
+    /// let ksk = KeySwitchingKey::new(
+    ///     (&ck1, &sk1),
+    ///     (&ck2, &sk2),
+    ///     PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+    /// );
     /// ```
     pub fn new(
         key_pair_1: (&ClientKey, &ServerKey),
@@ -79,16 +85,22 @@ impl KeySwitchingKey {
     /// # Example (the following code won't actually run because this function is private)
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2};
+    /// use tfhe::shortint::parameters::{
+    ///     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    /// };
     /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
-    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
-    /// let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), PARAM_KEYSWITCH_1_1_TO_2_2);
+    /// let ksk = KeySwitchingKey::new(
+    ///     (&ck1, &sk1),
+    ///     (&ck2, &sk2),
+    ///     PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+    /// );
     ///
     /// let cipher = ck1.encrypt(1);
     /// let mut cipher_2 = sk2.create_trivial(0);
@@ -130,16 +142,22 @@ impl KeySwitchingKey {
     /// # Example (the following code won't actually run because this function is private)
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2};
+    /// use tfhe::shortint::parameters::{
+    ///     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    /// };
     /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
-    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
+    /// let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// // Generate the server key:
-    /// let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), PARAM_KEYSWITCH_1_1_TO_2_2);
+    /// let ksk = KeySwitchingKey::new(
+    ///     (&ck1, &sk1),
+    ///     (&ck2, &sk2),
+    ///     PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+    /// );
     ///
     /// let cipher = ck1.encrypt(1);
     /// let cipher_2 = ksk.cast(&cipher);

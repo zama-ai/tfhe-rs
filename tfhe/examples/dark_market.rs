@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use tfhe::integer::ciphertext::RadixCiphertext;
 use tfhe::integer::keycache::IntegerKeyCache;
 use tfhe::integer::ServerKey;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 /// The number of blocks to be used in the Radix.
 const NUMBER_OF_BLOCKS: usize = 8;
@@ -348,7 +348,7 @@ fn test_volume_match_fhe(
 
     println!("Generating keys...");
     let time = Instant::now();
-    let (client_key, server_key) = IntegerKeyCache.get_from_params(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) = IntegerKeyCache.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     println!("Keys generated in {:?}", time.elapsed());
 
     let tester = |input_sell_orders: &[u16],

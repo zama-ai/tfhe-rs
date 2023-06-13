@@ -7,8 +7,8 @@ use std::io::Write;
 use std::path::Path;
 use tfhe::shortint::keycache::{NamedParam, KEY_CACHE};
 use tfhe::shortint::parameters::{
-    PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2, PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
 
 fn write_result(file: &mut File, name: &str, value: usize) {
@@ -19,10 +19,10 @@ fn write_result(file: &mut File, name: &str, value: usize) {
 
 fn client_server_key_sizes(results_file: &Path) {
     let shortint_params_vec = vec![
-        PARAM_MESSAGE_1_CARRY_1,
-        PARAM_MESSAGE_2_CARRY_2,
-        PARAM_MESSAGE_3_CARRY_3,
-        PARAM_MESSAGE_4_CARRY_4,
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        PARAM_MESSAGE_4_CARRY_4_KS_PBS,
     ];
     File::create(results_file).expect("create results file failed");
     let mut file = OpenOptions::new()

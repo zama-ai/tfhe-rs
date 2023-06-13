@@ -10,65 +10,65 @@ use crate::shortint::parameters::{
 use crate::shortint::ClassicPBSParameters;
 
 pub const ALL_PARAMETER_VEC_COMPACT_PK: [ClassicPBSParameters; 56] = [
-    PARAM_MESSAGE_1_CARRY_1_COMPACT_PK,
-    PARAM_MESSAGE_1_CARRY_2_COMPACT_PK,
-    PARAM_MESSAGE_1_CARRY_3_COMPACT_PK,
-    PARAM_MESSAGE_1_CARRY_4_COMPACT_PK,
-    PARAM_MESSAGE_1_CARRY_5_COMPACT_PK,
-    PARAM_MESSAGE_1_CARRY_6_COMPACT_PK,
-    PARAM_MESSAGE_1_CARRY_7_COMPACT_PK,
-    PARAM_MESSAGE_2_CARRY_1_COMPACT_PK,
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
-    PARAM_MESSAGE_2_CARRY_3_COMPACT_PK,
-    PARAM_MESSAGE_2_CARRY_4_COMPACT_PK,
-    PARAM_MESSAGE_2_CARRY_5_COMPACT_PK,
-    PARAM_MESSAGE_2_CARRY_6_COMPACT_PK,
-    PARAM_MESSAGE_3_CARRY_1_COMPACT_PK,
-    PARAM_MESSAGE_3_CARRY_2_COMPACT_PK,
-    PARAM_MESSAGE_3_CARRY_3_COMPACT_PK,
-    PARAM_MESSAGE_3_CARRY_4_COMPACT_PK,
-    PARAM_MESSAGE_3_CARRY_5_COMPACT_PK,
-    PARAM_MESSAGE_4_CARRY_1_COMPACT_PK,
-    PARAM_MESSAGE_4_CARRY_2_COMPACT_PK,
-    PARAM_MESSAGE_4_CARRY_3_COMPACT_PK,
-    PARAM_MESSAGE_4_CARRY_4_COMPACT_PK,
-    PARAM_MESSAGE_5_CARRY_1_COMPACT_PK,
-    PARAM_MESSAGE_5_CARRY_2_COMPACT_PK,
-    PARAM_MESSAGE_5_CARRY_3_COMPACT_PK,
-    PARAM_MESSAGE_6_CARRY_1_COMPACT_PK,
-    PARAM_MESSAGE_6_CARRY_2_COMPACT_PK,
-    PARAM_MESSAGE_7_CARRY_1_COMPACT_PK,
-    PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_SMALL,
-    PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_SMALL,
+    PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_PBS_KS,
+    PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_PBS_KS,
 ];
 
-pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -83,7 +83,7 @@ pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -98,7 +98,7 @@ pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -113,7 +113,7 @@ pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -128,7 +128,7 @@ pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -143,7 +143,7 @@ pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -158,7 +158,7 @@ pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -173,7 +173,7 @@ pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -188,7 +188,7 @@ pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -203,7 +203,7 @@ pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -218,7 +218,7 @@ pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -233,7 +233,7 @@ pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -248,7 +248,7 @@ pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -263,7 +263,7 @@ pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -278,7 +278,7 @@ pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -293,7 +293,7 @@ pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -308,7 +308,7 @@ pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -323,7 +323,7 @@ pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -338,7 +338,7 @@ pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -353,7 +353,7 @@ pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -368,7 +368,7 @@ pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -383,7 +383,7 @@ pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -398,7 +398,7 @@ pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -413,7 +413,7 @@ pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -428,7 +428,7 @@ pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -443,7 +443,7 @@ pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -458,7 +458,7 @@ pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -473,7 +473,7 @@ pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
-pub const PARAM_MESSAGE_7_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -490,7 +490,7 @@ pub const PARAM_MESSAGE_7_CARRY_1_COMPACT_PK: ClassicPBSParameters = ClassicPBSP
 };
 
 // Parameter set for small
-pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(3),
     polynomial_size: PolynomialSize(512),
@@ -505,7 +505,7 @@ pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -520,7 +520,7 @@ pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -535,7 +535,7 @@ pub const PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -550,7 +550,7 @@ pub const PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -565,7 +565,7 @@ pub const PARAM_MESSAGE_1_CARRY_5_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -580,7 +580,7 @@ pub const PARAM_MESSAGE_1_CARRY_6_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -595,7 +595,7 @@ pub const PARAM_MESSAGE_1_CARRY_7_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
@@ -610,7 +610,7 @@ pub const PARAM_MESSAGE_2_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -625,7 +625,7 @@ pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -640,7 +640,7 @@ pub const PARAM_MESSAGE_2_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -655,7 +655,7 @@ pub const PARAM_MESSAGE_2_CARRY_4_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -670,7 +670,7 @@ pub const PARAM_MESSAGE_2_CARRY_5_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -685,7 +685,7 @@ pub const PARAM_MESSAGE_2_CARRY_6_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -700,7 +700,7 @@ pub const PARAM_MESSAGE_3_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -715,7 +715,7 @@ pub const PARAM_MESSAGE_3_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -730,7 +730,7 @@ pub const PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -745,7 +745,7 @@ pub const PARAM_MESSAGE_3_CARRY_4_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -760,7 +760,7 @@ pub const PARAM_MESSAGE_3_CARRY_5_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(4096),
@@ -775,7 +775,7 @@ pub const PARAM_MESSAGE_4_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(8192),
@@ -790,7 +790,7 @@ pub const PARAM_MESSAGE_4_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -805,7 +805,7 @@ pub const PARAM_MESSAGE_4_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -820,7 +820,7 @@ pub const PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(16384),
@@ -835,7 +835,7 @@ pub const PARAM_MESSAGE_5_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -850,7 +850,7 @@ pub const PARAM_MESSAGE_5_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -865,7 +865,7 @@ pub const PARAM_MESSAGE_5_CARRY_3_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(32768),
@@ -880,7 +880,7 @@ pub const PARAM_MESSAGE_6_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),
@@ -895,7 +895,7 @@ pub const PARAM_MESSAGE_6_CARRY_2_COMPACT_PK_SMALL: ClassicPBSParameters = Class
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
-pub const PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_SMALL: ClassicPBSParameters = ClassicPBSParameters {
+pub const PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(2048),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(65536),

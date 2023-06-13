@@ -228,27 +228,27 @@ static_shortint_type! {
 
 impl FheUint2Parameters {
     pub fn with_carry_1() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_1)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_1_KS_PBS)
     }
 
     pub fn with_carry_2() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS)
     }
 
     pub fn with_carry_3() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_3)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_3_KS_PBS)
     }
 
     pub fn with_carry_4() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_4)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_4_KS_PBS)
     }
 
     pub fn with_carry_5() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_5)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_5_KS_PBS)
     }
 
     pub fn with_carry_6() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_6)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_6_KS_PBS)
     }
 }
 
@@ -260,23 +260,23 @@ impl Default for FheUint2Parameters {
 
 impl FheUint3Parameters {
     pub fn with_carry_1() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_1)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_1_KS_PBS)
     }
 
     pub fn with_carry_2() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_2)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_2_KS_PBS)
     }
 
     pub fn with_carry_3() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS)
     }
 
     pub fn with_carry_4() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_4)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_4_KS_PBS)
     }
 
     pub fn with_carry_5() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_5)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_5_KS_PBS)
     }
 }
 
@@ -288,19 +288,19 @@ impl Default for FheUint3Parameters {
 
 impl FheUint4Parameters {
     pub fn with_carry_1() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_1)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_1_KS_PBS)
     }
 
     pub fn with_carry_2() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_2)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_2_KS_PBS)
     }
 
     pub fn with_carry_3() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_3)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_3_KS_PBS)
     }
 
     pub fn with_carry_4() -> Self {
-        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4)
+        Self::from_static(&crate::shortint::parameters::PARAM_MESSAGE_4_CARRY_4_KS_PBS)
     }
 }
 

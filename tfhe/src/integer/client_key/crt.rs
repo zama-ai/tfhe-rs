@@ -12,10 +12,10 @@ use serde::{Deserialize, Serialize};
 ///
 /// ```rust
 /// use tfhe::integer::CrtClientKey;
-/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 ///
 /// let basis = vec![2, 3, 5];
-/// let cks = CrtClientKey::new(PARAM_MESSAGE_2_CARRY_2, basis);
+/// let cks = CrtClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis);
 ///
 /// let msg = 13_u64;
 ///

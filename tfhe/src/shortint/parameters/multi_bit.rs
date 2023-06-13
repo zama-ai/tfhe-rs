@@ -49,18 +49,18 @@ impl MultiBitPBSParameters {
 
 /// Vector containing all [`MultiBitPBSParameters`] parameter sets
 pub const ALL_MULTI_BIT_PARAMETER_VEC: [MultiBitPBSParameters; 8] = [
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
-    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3,
-    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS,
 ];
 
 // Group 2
-pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2: MultiBitPBSParameters =
+pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
         lwe_dimension: LweDimension(764),
         glwe_dimension: GlweDimension(3),
@@ -79,7 +79,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2: MultiBitPBSParameters =
         deterministic_execution: false,
     };
 
-pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2: MultiBitPBSParameters =
+pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
         lwe_dimension: LweDimension(818),
         glwe_dimension: GlweDimension(1),
@@ -98,7 +98,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2: MultiBitPBSParameters =
         deterministic_execution: false,
     };
 
-pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2: MultiBitPBSParameters =
+pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
         lwe_dimension: LweDimension(922),
         glwe_dimension: GlweDimension(1),
@@ -117,7 +117,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2: MultiBitPBSParameters =
         deterministic_execution: false,
     };
 
-pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2: MultiBitPBSParameters =
+pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
         lwe_dimension: LweDimension(1052),
         glwe_dimension: GlweDimension(1),
@@ -137,7 +137,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2: MultiBitPBSParameters =
     };
 
 // Group 3
-pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3: MultiBitPBSParameters =
+pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
         lwe_dimension: LweDimension(765),
         glwe_dimension: GlweDimension(3),
@@ -156,7 +156,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3: MultiBitPBSParameters =
         deterministic_execution: false,
     };
 
-pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3: MultiBitPBSParameters =
+pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
         lwe_dimension: LweDimension(888),
         glwe_dimension: GlweDimension(1),
@@ -175,7 +175,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3: MultiBitPBSParameters =
         deterministic_execution: false,
     };
 
-pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3: MultiBitPBSParameters =
+pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
         lwe_dimension: LweDimension(972),
         glwe_dimension: GlweDimension(1),
@@ -194,7 +194,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3: MultiBitPBSParameters =
         deterministic_execution: false,
     };
 
-pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3: MultiBitPBSParameters =
+pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
         lwe_dimension: LweDimension(1098),
         glwe_dimension: GlweDimension(1),
