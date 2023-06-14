@@ -33,6 +33,7 @@ impl KeySwitchingKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2};
+    /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
@@ -40,7 +41,7 @@ impl KeySwitchingKey {
     /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// // Generate the server key:
-    /// let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2));
+    /// let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), PARAM_KEYSWITCH_1_1_TO_2_2);
     /// ```
     pub fn new(
         key_pair_1: (&ClientKey, &ServerKey),
@@ -79,6 +80,7 @@ impl KeySwitchingKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2};
+    /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
@@ -86,11 +88,11 @@ impl KeySwitchingKey {
     /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// // Generate the server key:
-    /// let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2));
+    /// let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), PARAM_KEYSWITCH_1_1_TO_2_2);
     ///
     /// let cipher = ck1.encrypt(1);
-    /// let cipher_2 = sk2.create_trivial(0);
-    /// ksk.cast_assign(&cipher, &mut cipher_2);
+    /// let mut cipher_2 = sk2.create_trivial(0);
+    /// ksk.cast_into(&cipher, &mut cipher_2);
     /// ```
     pub fn cast_into<OpOrder: PBSOrderMarker>(
         &self,
@@ -133,6 +135,7 @@ impl KeySwitchingKey {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{PARAM_MESSAGE_1_CARRY_1, PARAM_MESSAGE_2_CARRY_2};
+    /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
@@ -140,7 +143,7 @@ impl KeySwitchingKey {
     /// let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
     ///
     /// // Generate the server key:
-    /// let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2));
+    /// let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), PARAM_KEYSWITCH_1_1_TO_2_2);
     ///
     /// let cipher = ck1.encrypt(1);
     /// let cipher_2 = ksk.cast(&cipher);
