@@ -86,6 +86,6 @@ fn main() {
     new_work_dir.push("tfhe");
     std::env::set_current_dir(new_work_dir).unwrap();
 
-    let results_file = Path::new("tfhe/boolean_key_sizes.csv");
+    let results_file = Path::new("boolean_key_sizes.csv");
     client_server_key_sizes(results_file)
 }
