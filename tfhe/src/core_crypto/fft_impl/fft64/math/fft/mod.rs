@@ -15,6 +15,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem::{align_of, size_of};
 use std::sync::{Arc, RwLock};
+#[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
 use std::time::Duration;
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
