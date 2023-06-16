@@ -2,7 +2,7 @@
 
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Index, IndexMut};
 
 /// A [`polynomial`](`Polynomial`).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -19,6 +19,20 @@ impl<T, C: Container<Element = T>> AsRef<[T]> for Polynomial<C> {
 impl<T, C: ContainerMut<Element = T>> AsMut<[T]> for Polynomial<C> {
     fn as_mut(&mut self) -> &mut [T] {
         self.data.as_mut()
+    }
+}
+
+impl<C: Container, I: std::slice::SliceIndex<[C::Element]>> Index<I> for Polynomial<C> {
+    type Output = <[C::Element] as Index<I>>::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        self.as_ref().index(index)
+    }
+}
+
+impl<C: ContainerMut, I: std::slice::SliceIndex<[C::Element]>> IndexMut<I> for Polynomial<C> {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        self.as_mut().index_mut(index)
     }
 }
 
@@ -91,10 +105,22 @@ impl<Scalar, C: Container<Element = Scalar>> Polynomial<C> {
     }
 }
 
-impl<Scalar, C: ContainerMut<Element = Scalar>> Polynomial<C> {
+impl<'a, Scalar: 'a, C: Container<Element = Scalar>> Polynomial<C> {
+    /// Iterate on the elements of the [`Polynomial`].
+    pub fn iter(&'a self) -> impl Iterator<Item = &'a Scalar> {
+        self.as_ref().iter()
+    }
+}
+
+impl<'a, Scalar: 'a, C: ContainerMut<Element = Scalar>> Polynomial<C> {
     /// Mutable variant of [`Polynomial::as_view`].
     pub fn as_mut_view(&mut self) -> PolynomialMutView<'_, Scalar> {
         PolynomialMutView::from_container(self.as_mut())
+    }
+
+    /// Iterate on the elements of the [`Polynomial`] allowing to modify them.
+    pub fn iter_mut(&'a mut self) -> impl Iterator<Item = &'a mut Scalar> {
+        self.as_mut().iter_mut()
     }
 }
 
@@ -119,20 +145,6 @@ where
     /// See [`Polynomial::from_container`] for usage.
     pub fn new(fill_with: Scalar, polynomial_size: PolynomialSize) -> PolynomialOwned<Scalar> {
         PolynomialOwned::from_container(vec![fill_with; polynomial_size.0])
-    }
-}
-
-impl<C: Container> Deref for Polynomial<C> {
-    type Target = [C::Element];
-
-    fn deref(&self) -> &Self::Target {
-        self.as_ref()
-    }
-}
-
-impl<C: ContainerMut> DerefMut for Polynomial<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.as_mut()
     }
 }
 
