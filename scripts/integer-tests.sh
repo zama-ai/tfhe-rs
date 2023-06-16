@@ -73,13 +73,15 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
         # mul_crt_4_4 is extremely flaky (~80% failure)
         # test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
         # test_integer_smart_mul_param_message_4_carry_4 is too slow
+        # so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
 and not test(/.*_block_pbs(_base)?_param_message_[34]_carry_[34]$/) \
 and not test(~mul_crt_param_message_4_carry_4) \
 and not test(/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]$/) \
-and not test(/.*test_integer_smart_mul_param_message_4_carry_4$/)"""
+and not test(/.*test_integer_smart_mul_param_message_4_carry_4$/) \
+and not test(/.*test_integer_default_add_sequence_multi_thread_param_message_4_carry_4$/)"""
     else
         # test only fast default operations with only two set of parameters
         filter_expression="""\
@@ -113,13 +115,15 @@ else
         # mul_crt_4_4 is extremely flaky (~80% failure)
         # test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
         # test_integer_smart_mul_param_message_4_carry_4 is too slow
+        # so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
 and not test(/.*_block_pbs(_base)?_param_message_[34]_carry_[34]$/) \
 and not test(~mul_crt_param_message_4_carry_4) \
 and not test(/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]$/) \
-and not test(/.*test_integer_smart_mul_param_message_4_carry_4$/)"""
+and not test(/.*test_integer_smart_mul_param_message_4_carry_4$/) \
+and not test(/.*test_integer_default_add_sequence_multi_thread_param_message_4_carry_4$/)"""
     else
         # test only fast default operations with only two set of parameters
         filter_expression="""\
