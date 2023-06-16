@@ -294,22 +294,22 @@ pub fn polynomial_wrapping_monic_monomial_div<Scalar, OutputCont, InputCont>(
         input.polynomial_size(),
     );
 
-    let polynomial_len = output.container_len();
-    let remaining_degree = monomial_degree.0 % output.as_ref().container_len();
+    let polynomial_size = output.polynomial_size().0;
+    let remaining_degree = monomial_degree.0 % polynomial_size;
 
     let src_slice = &input[remaining_degree..];
     let src_slice_len = src_slice.len();
     let dst_slice = &mut output[..src_slice_len];
     dst_slice.copy_from_slice(src_slice);
 
-    for (dst, &src) in output[polynomial_len - remaining_degree..]
+    for (dst, &src) in output[polynomial_size - remaining_degree..]
         .iter_mut()
         .zip(input[..remaining_degree].iter())
     {
         *dst = src.wrapping_neg();
     }
 
-    let full_cycles_count = monomial_degree.0 / polynomial_len;
+    let full_cycles_count = monomial_degree.0 / polynomial_size;
     if full_cycles_count % 2 != 0 {
         output
             .as_mut()
@@ -353,12 +353,12 @@ pub fn polynomial_wrapping_monic_monomial_mul<Scalar, OutputCont, InputCont>(
         input.polynomial_size(),
     );
 
-    let polynomial_len = output.container_len();
-    let remaining_degree = monomial_degree.0 % output.as_ref().container_len();
+    let polynomial_size = output.polynomial_size().0;
+    let remaining_degree = monomial_degree.0 % polynomial_size;
 
     for (dst, &src) in output[..remaining_degree]
         .iter_mut()
-        .zip(input[polynomial_len - remaining_degree..].iter())
+        .zip(input[polynomial_size - remaining_degree..].iter())
     {
         *dst = src.wrapping_neg();
     }
@@ -368,7 +368,7 @@ pub fn polynomial_wrapping_monic_monomial_mul<Scalar, OutputCont, InputCont>(
     let src_slice = &input[..dst_slice_len];
     dst_slice.copy_from_slice(src_slice);
 
-    let full_cycles_count = monomial_degree.0 / polynomial_len;
+    let full_cycles_count = monomial_degree.0 / polynomial_size;
     if full_cycles_count % 2 != 0 {
         output
             .as_mut()
