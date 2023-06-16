@@ -167,6 +167,19 @@ libraries.
   <img src="https://user-images.githubusercontent.com/5758427/231115030-21195b55-2629-4c01-9809-be5059243999.png">
 </a>
 
+## Citing TFHE-rs
+
+To cite TFHE-rs in academic papers, please use the following entry:
+
+```text
+@Misc{TFHE-rs,
+  title={{TFHE-rs: A Pure Rust Implementation of the TFHE Scheme for Boolean and Integer Arithmetics Over Encrypted Data}},
+  author={Zama},
+  year={2022},
+  note={\url{https://github.com/zama-ai/tfhe-rs}},
+}
+```
+
 ## License
 
 This software is distributed under the BSD-3-Clause-Clear license. If you have any questions,
