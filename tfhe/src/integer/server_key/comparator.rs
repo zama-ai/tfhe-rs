@@ -57,7 +57,7 @@ impl<'a> Comparator<'a> {
         );
 
         let message_modulus = server_key.key.message_modulus.0 as u64;
-        let sign_lut = server_key.key.generate_accumulator(|x| u64::from(x != 0));
+        let sign_lut = server_key.key.generate_lookup_table(|x| u64::from(x != 0));
         // Comparison encoding
         // -------------------
         // x > y -> 2 = 10
@@ -79,7 +79,7 @@ impl<'a> Comparator<'a> {
         //   10     00    10
         //   10     01    10
         //   10     10    10
-        let sign_reduction_lsb_msb_lut = server_key.key.generate_accumulator(|x| {
+        let sign_reduction_lsb_msb_lut = server_key.key.generate_lookup_table(|x| {
             [
                 Self::IS_INFERIOR,
                 Self::IS_INFERIOR,
@@ -100,7 +100,7 @@ impl<'a> Comparator<'a> {
             .unwrap_or(0)
         });
 
-        let sign_to_offset_lut = server_key.key.generate_accumulator(|sign| {
+        let sign_to_offset_lut = server_key.key.generate_lookup_table(|sign| {
             if sign == Self::IS_INFERIOR {
                 message_modulus
             } else {
@@ -110,9 +110,9 @@ impl<'a> Comparator<'a> {
 
         let lhs_lut = server_key
             .key
-            .generate_accumulator(|x| if x < message_modulus { x } else { 0 });
+            .generate_lookup_table(|x| if x < message_modulus { x } else { 0 });
 
-        let rhs_lut = server_key.key.generate_accumulator(|x| {
+        let rhs_lut = server_key.key.generate_lookup_table(|x| {
             if x >= message_modulus {
                 x - message_modulus
             } else {
@@ -466,7 +466,7 @@ where {
                 );
                 let are_all_msb_equal_to_zero =
                     self.server_key.are_all_comparisons_block_true(msb_cmp_zero);
-                let lut = self.server_key.key.generate_accumulator(|x| {
+                let lut = self.server_key.key.generate_lookup_table(|x| {
                     if x == 1 {
                         Self::IS_EQUAL
                     } else {
@@ -718,7 +718,7 @@ where {
         let acc = self
             .server_key
             .key
-            .generate_accumulator(|x| u64::from(sign_result_handler_fn(x)));
+            .generate_lookup_table(|x| u64::from(sign_result_handler_fn(x)));
         let result_block = self.server_key.key.apply_lookup_table(&comparison, &acc);
 
         let mut blocks = Vec::with_capacity(num_blocks);

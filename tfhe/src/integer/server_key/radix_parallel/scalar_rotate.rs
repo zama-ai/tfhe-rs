@@ -285,22 +285,22 @@ impl ServerKey {
 
         let message_modulus = self.key.message_modulus.0 as u64;
         if shift_within_block != 0 {
-            let lut = self
-                .key
-                .generate_accumulator_bivariate(|receiver_block, mut giver_block| {
-                    // left shift so as not to lose
-                    // bits when shifting right afterwards
-                    giver_block <<= num_bits_in_message;
-                    giver_block >>= shift_within_block;
+            let lut =
+                self.key
+                    .generate_lookup_table_bivariate(|receiver_block, mut giver_block| {
+                        // left shift so as not to lose
+                        // bits when shifting right afterwards
+                        giver_block <<= num_bits_in_message;
+                        giver_block >>= shift_within_block;
 
-                    // The way of getting carry / message is reversed compared
-                    // to the usual way but its normal:
-                    // The message is in the upper bits, the carry in lower bits
-                    let message_of_current_block = receiver_block >> shift_within_block;
-                    let carry_of_previous_block = giver_block % message_modulus;
+                        // The way of getting carry / message is reversed compared
+                        // to the usual way but its normal:
+                        // The message is in the upper bits, the carry in lower bits
+                        let message_of_current_block = receiver_block >> shift_within_block;
+                        let carry_of_previous_block = giver_block % message_modulus;
 
-                    message_of_current_block + carry_of_previous_block
-                });
+                        message_of_current_block + carry_of_previous_block
+                    });
             let new_blocks = (0..num_blocks)
                 .into_par_iter()
                 .map(|index| {
@@ -609,7 +609,7 @@ impl ServerKey {
         if shift_within_block != 0 {
             let lut = self
                 .key
-                .generate_accumulator_bivariate(|receiver_block, giver_block| {
+                .generate_lookup_table_bivariate(|receiver_block, giver_block| {
                     let receiver_block = receiver_block << shift_within_block;
                     let giver_block = giver_block << shift_within_block;
 

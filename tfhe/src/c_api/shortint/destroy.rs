@@ -100,29 +100,29 @@ pub unsafe extern "C" fn shortint_destroy_compressed_ciphertext(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_destroy_pbs_accumulator(
-    pbs_accumulator: *mut ShortintPBSLookupTable,
+pub unsafe extern "C" fn shortint_destroy_pbs_lookup_table(
+    pbs_lookup_table: *mut ShortintPBSLookupTable,
 ) -> c_int {
-    if pbs_accumulator.is_null() {
+    if pbs_lookup_table.is_null() {
         return 0;
     }
     catch_panic(|| {
-        check_ptr_is_non_null_and_aligned(pbs_accumulator).unwrap();
+        check_ptr_is_non_null_and_aligned(pbs_lookup_table).unwrap();
 
-        drop(Box::from_raw(pbs_accumulator));
+        drop(Box::from_raw(pbs_lookup_table));
     })
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_destroy_bivariate_pbs_accumulator(
-    pbs_accumulator: *mut ShortintBivariatePBSLookupTable,
+pub unsafe extern "C" fn shortint_destroy_bivariate_pbs_lookup_table(
+    pbs_lookup_table: *mut ShortintBivariatePBSLookupTable,
 ) -> c_int {
-    if pbs_accumulator.is_null() {
+    if pbs_lookup_table.is_null() {
         return 0;
     }
     catch_panic(|| {
-        check_ptr_is_non_null_and_aligned(pbs_accumulator).unwrap();
+        check_ptr_is_non_null_and_aligned(pbs_lookup_table).unwrap();
 
-        drop(Box::from_raw(pbs_accumulator));
+        drop(Box::from_raw(pbs_lookup_table));
     })
 }

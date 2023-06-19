@@ -76,7 +76,7 @@ impl ServerKey {
 
         let is_max_value = self
             .key
-            .generate_accumulator(|x| u64::from(x == max_value as u64));
+            .generate_lookup_table(|x| u64::from(x == max_value as u64));
 
         while block_comparisons.len() > 1 {
             // Since all blocks encrypt either 0 or 1, we can sum max_value of them
@@ -94,7 +94,7 @@ impl ServerKey {
                     } else {
                         let is_equal_to_num_blocks = self
                             .key
-                            .generate_accumulator(|x| u64::from(x == blocks.len() as u64));
+                            .generate_lookup_table(|x| u64::from(x == blocks.len() as u64));
                         self.key.apply_lookup_table(&sum, &is_equal_to_num_blocks)
                     }
                 })
@@ -127,7 +127,7 @@ impl ServerKey {
         let total_modulus = message_modulus * carry_modulus;
         let max_value = total_modulus - 1;
 
-        let is_not_zero = self.key.generate_accumulator(|x| u64::from(x != 0));
+        let is_not_zero = self.key.generate_lookup_table(|x| u64::from(x != 0));
 
         while block_comparisons.len() > 1 {
             block_comparisons = block_comparisons
@@ -190,7 +190,7 @@ impl ServerKey {
         // If all blocks were 0, the sum will be zero
         // If at least one bock was not zero, the sum won't be zero
         let num_additions_to_fill_carry = (total_modulus - message_max) / message_max;
-        let is_equal_to_zero = self.key.generate_accumulator(|x| {
+        let is_equal_to_zero = self.key.generate_lookup_table(|x| {
             if matches!(comparison_type, ZeroComparisonType::Equality) {
                 u64::from((x % total_modulus as u64) == 0)
             } else {
@@ -246,7 +246,7 @@ impl ServerKey {
             }
             let lut = self
                 .key
-                .generate_accumulator(|x| u64::from(comparison_fn(x as u8, scalar_block)));
+                .generate_lookup_table(|x| u64::from(comparison_fn(x as u8, scalar_block)));
             scalar_comp_luts[scalar_block as usize] = Some(lut);
         }
         scalar_comp_luts

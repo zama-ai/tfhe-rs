@@ -79,15 +79,15 @@ impl ServerKey {
     {
         let basis = &ct1.moduli;
 
-        let accumulators = basis
+        let lookup_tables = basis
             .iter()
             .copied()
-            .map(|b| self.key.generate_accumulator(|x| f(x) % b))
+            .map(|b| self.key.generate_lookup_table(|x| f(x) % b))
             .collect::<Vec<_>>();
 
         ct1.blocks
             .par_iter_mut()
-            .zip(&accumulators)
+            .zip(&lookup_tables)
             .for_each(|(block, acc)| {
                 self.key.apply_lookup_table_assign(block, acc);
             });

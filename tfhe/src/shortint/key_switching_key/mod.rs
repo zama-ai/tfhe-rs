@@ -103,14 +103,14 @@ impl KeySwitchingKey {
             i if i > 0 => {
                 keyswitch_lwe_ciphertext(&self.key_switching_key, &ct.ct, &mut ct_dest.ct);
 
-                let acc = self.dest_server_key.generate_accumulator(|n| n >> i);
+                let acc = self.dest_server_key.generate_lookup_table(|n| n >> i);
                 self.dest_server_key
                     .apply_lookup_table_assign(ct_dest, &acc);
             }
 
             // Cast to smaller bit length: left shift, then keyswitch
             i if i < 0 => {
-                let acc = self.src_server_key.generate_accumulator(|n| n << -i);
+                let acc = self.src_server_key.generate_lookup_table(|n| n << -i);
                 let shifted_cipher = self.src_server_key.apply_lookup_table(ct, &acc);
 
                 keyswitch_lwe_ciphertext(

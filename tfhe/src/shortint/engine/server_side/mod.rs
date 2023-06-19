@@ -307,7 +307,7 @@ impl ShortintEngine {
         })
     }
 
-    pub(crate) fn generate_accumulator<F>(
+    pub(crate) fn generate_lookup_table<F>(
         &mut self,
         server_key: &ServerKey,
         f: F,
@@ -315,7 +315,7 @@ impl ShortintEngine {
     where
         F: Fn(u64) -> u64,
     {
-        Self::generate_accumulator_with_engine(server_key, f)
+        Self::generate_lookup_table_with_engine(server_key, f)
     }
 
     pub(crate) fn keyswitch_bootstrap_assign(
@@ -325,7 +325,7 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
         let (mut ciphertext_buffers, buffers) =
-            self.get_carry_clearing_accumulator_and_buffers(server_key);
+            self.get_carry_clearing_lookup_table_and_buffers(server_key);
 
         // Compute a keyswitch
         keyswitch_lwe_ciphertext(
@@ -353,7 +353,7 @@ impl ShortintEngine {
                 programmable_bootstrap_lwe_ciphertext_mem_optimized(
                     &ciphertext_buffers.buffer_lwe_after_ks,
                     &mut ct.ct,
-                    &ciphertext_buffers.accumulator.acc,
+                    &ciphertext_buffers.lookup_table.acc,
                     fourier_bsk,
                     fft,
                     stack,
@@ -363,14 +363,14 @@ impl ShortintEngine {
                 multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &ciphertext_buffers.buffer_lwe_after_ks,
                     &mut ct.ct,
-                    &ciphertext_buffers.accumulator.acc,
+                    &ciphertext_buffers.lookup_table.acc,
                     fourier_bsk,
                     *thread_count,
                 );
             }
         };
 
-        ct.degree = ciphertext_buffers.accumulator.degree;
+        ct.degree = ciphertext_buffers.lookup_table.degree;
 
         Ok(())
     }
@@ -409,7 +409,7 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
         let (mut ciphertext_buffers, buffers) =
-            self.get_carry_clearing_accumulator_and_buffers(server_key);
+            self.get_carry_clearing_lookup_table_and_buffers(server_key);
 
         // Compute a key switch
         keyswitch_lwe_ciphertext(
@@ -492,7 +492,7 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn generate_accumulator_bivariate_with_factor<F>(
+    pub(crate) fn generate_lookup_table_bivariate_with_factor<F>(
         &mut self,
         server_key: &ServerKey,
         f: F,
@@ -501,10 +501,10 @@ impl ShortintEngine {
     where
         F: Fn(u64, u64) -> u64,
     {
-        Self::generate_accumulator_bivariate_with_engine(server_key, f, left_message_scaling)
+        Self::generate_lookup_table_bivariate_with_engine(server_key, f, left_message_scaling)
     }
 
-    pub(crate) fn generate_accumulator_bivariate<F>(
+    pub(crate) fn generate_lookup_table_bivariate<F>(
         &mut self,
         server_key: &ServerKey,
         f: F,
@@ -515,7 +515,7 @@ impl ShortintEngine {
         // We use the message_modulus as the multiplying factor as its the most general one.
         // It makes it compatible with any pair of ciphertext which have empty carries,
         // and carries can be emptied with `message_extract`
-        self.generate_accumulator_bivariate_with_factor(server_key, f, server_key.message_modulus)
+        self.generate_lookup_table_bivariate_with_factor(server_key, f, server_key.message_modulus)
     }
 
     pub(crate) fn unchecked_evaluate_bivariate_function<F>(
@@ -543,11 +543,17 @@ impl ShortintEngine {
     where
         F: Fn(u64, u64) -> u64,
     {
-        // Generate the accumulator for the function
+        // Generate the lookup _table for the function
         let factor = MessageModulus(ct_right.degree.0 + 1);
-        let acc = self.generate_accumulator_bivariate_with_factor(server_key, f, factor)?;
+        let lookup_table =
+            self.generate_lookup_table_bivariate_with_factor(server_key, f, factor)?;
 
-        self.unchecked_apply_lookup_table_bivariate_assign(server_key, ct_left, ct_right, &acc)?;
+        self.unchecked_apply_lookup_table_bivariate_assign(
+            server_key,
+            ct_left,
+            ct_right,
+            &lookup_table,
+        )?;
         Ok(())
     }
 
@@ -577,11 +583,17 @@ impl ShortintEngine {
     where
         F: Fn(u64, u64) -> u64,
     {
-        // Generate the accumulator for the function
+        // Generate the lookup table for the function
         let factor = MessageModulus(ct_right.degree.0 + 1);
-        let acc = self.generate_accumulator_bivariate_with_factor(server_key, f, factor)?;
+        let lookup_table =
+            self.generate_lookup_table_bivariate_with_factor(server_key, f, factor)?;
 
-        self.smart_apply_lookup_table_bivariate_assign(server_key, ct_left, ct_right, &acc)?;
+        self.smart_apply_lookup_table_bivariate_assign(
+            server_key,
+            ct_left,
+            ct_right,
+            &lookup_table,
+        )?;
         Ok(())
     }
 
@@ -622,7 +634,7 @@ impl ShortintEngine {
         acc: &LookupTableOwned,
     ) -> EngineResult<()> {
         let (mut ciphertext_buffers, buffers) =
-            self.get_carry_clearing_accumulator_and_buffers(server_key);
+            self.get_carry_clearing_lookup_table_and_buffers(server_key);
 
         match &server_key.bootstrapping_key {
             ShortintBootstrappingKey::Classic(fourier_bsk) => {
@@ -680,7 +692,7 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
         let (mut ciphertext_buffers, buffers) =
-            self.get_carry_clearing_accumulator_and_buffers(server_key);
+            self.get_carry_clearing_lookup_table_and_buffers(server_key);
 
         match &server_key.bootstrapping_key {
             ShortintBootstrappingKey::Classic(fourier_bsk) => {
@@ -701,7 +713,7 @@ impl ShortintEngine {
                 programmable_bootstrap_lwe_ciphertext_mem_optimized(
                     &ct.ct,
                     &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                    &ciphertext_buffers.accumulator.acc,
+                    &ciphertext_buffers.lookup_table.acc,
                     fourier_bsk,
                     fft,
                     stack,
@@ -712,7 +724,7 @@ impl ShortintEngine {
                 multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &ct.ct,
                     &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                    &ciphertext_buffers.accumulator.acc,
+                    &ciphertext_buffers.lookup_table.acc,
                     fourier_bsk,
                     *thread_count,
                 );
@@ -726,7 +738,7 @@ impl ShortintEngine {
             &mut ct.ct,
         );
 
-        ct.degree = ciphertext_buffers.accumulator.degree;
+        ct.degree = ciphertext_buffers.lookup_table.degree;
 
         Ok(())
     }
@@ -790,9 +802,9 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         let modulus = ct.message_modulus.0 as u64;
 
-        let accumulator = self.generate_accumulator(server_key, |x| x / modulus)?;
+        let lookup_table = self.generate_lookup_table(server_key, |x| x / modulus)?;
 
-        self.apply_lookup_table_assign(server_key, ct, &accumulator)?;
+        self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
 
         Ok(())
     }
@@ -814,7 +826,7 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         let modulus = ct.message_modulus.0 as u64;
 
-        let acc = self.generate_accumulator(server_key, |x| x % modulus)?;
+        let acc = self.generate_lookup_table(server_key, |x| x % modulus)?;
 
         self.apply_lookup_table_assign(server_key, ct, &acc)?;
 

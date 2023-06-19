@@ -119,7 +119,7 @@ impl ServerKey {
     /// ```
     pub fn scalar_add_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         let modulus = self.message_modulus.0 as u64;
-        let acc = self.generate_accumulator(|x| (scalar as u64 + x) % modulus);
+        let acc = self.generate_lookup_table(|x| (scalar as u64 + x) % modulus);
         self.apply_lookup_table_assign(ct, &acc);
     }
 

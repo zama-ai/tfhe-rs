@@ -32,7 +32,7 @@ thread_local! {
 }
 
 pub struct BuffersRef<'a> {
-    pub(crate) accumulator: LookupTableMutView<'a>,
+    pub(crate) lookup_table: LookupTableMutView<'a>,
     // For the intermediate keyswitch result in the case of a big ciphertext
     pub(crate) buffer_lwe_after_ks: LweCiphertextMutView<'a, u64>,
     // For the intermediate PBS result in the case of a smallciphertext
@@ -74,7 +74,7 @@ impl Memory {
             server_key.ciphertext_modulus,
         );
 
-        let accumulator = LookupTableMutView {
+        let lookup_table = LookupTableMutView {
             acc,
             // As a safety, the degree should be updated once the accumulator is actually filled
             degree: Degree(server_key.max_degree.0),
@@ -89,7 +89,7 @@ impl Memory {
             LweCiphertextMutView::from_container(after_pbs_elements, server_key.ciphertext_modulus);
 
         BuffersRef {
-            accumulator,
+            lookup_table,
             buffer_lwe_after_ks,
             buffer_lwe_after_pbs,
         }
@@ -249,7 +249,7 @@ impl ShortintEngine {
         }
     }
 
-    fn generate_accumulator_with_engine<F>(
+    fn generate_lookup_table_with_engine<F>(
         server_key: &ServerKey,
         f: F,
     ) -> EngineResult<LookupTableOwned>
@@ -271,7 +271,7 @@ impl ShortintEngine {
     }
 
     /// Generates a bivariate accumulator
-    fn generate_accumulator_bivariate_with_engine<F>(
+    fn generate_lookup_table_bivariate_with_engine<F>(
         server_key: &ServerKey,
         f: F,
         left_message_scaling: MessageModulus,
@@ -290,7 +290,7 @@ impl ShortintEngine {
 
             f(lhs, rhs)
         };
-        let accumulator = ShortintEngine::generate_accumulator_with_engine(server_key, wrapped_f)?;
+        let accumulator = ShortintEngine::generate_lookup_table_with_engine(server_key, wrapped_f)?;
 
         Ok(BivariateLookupTable {
             acc: accumulator,
@@ -299,15 +299,15 @@ impl ShortintEngine {
     }
 
     /// Return the [`BuffersRef`] and [`ComputationBuffers`] for the given `ServerKey`
-    pub fn get_carry_clearing_accumulator_and_buffers(
+    pub fn get_carry_clearing_lookup_table_and_buffers(
         &mut self,
         server_key: &ServerKey,
     ) -> (BuffersRef<'_>, &mut ComputationBuffers) {
         let mut buffers = self.ciphertext_buffers.as_buffers(server_key);
-        let max_degree = fill_accumulator(&mut buffers.accumulator.acc, server_key, |n| {
+        let max_degree = fill_accumulator(&mut buffers.lookup_table.acc, server_key, |n| {
             n % server_key.message_modulus.0 as u64
         });
-        buffers.accumulator.degree = Degree(max_degree as usize);
+        buffers.lookup_table.degree = Degree(max_degree as usize);
 
         (buffers, &mut self.computation_buffers)
     }

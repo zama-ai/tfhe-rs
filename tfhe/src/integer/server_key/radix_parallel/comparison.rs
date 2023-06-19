@@ -17,7 +17,7 @@ impl ServerKey {
         // one for all the threads as opposed to one per thread
         let lut = self
             .key
-            .generate_accumulator_bivariate(|x, y| u64::from(x == y));
+            .generate_lookup_table_bivariate(|x, y| u64::from(x == y));
         let mut block_comparisons = lhs.blocks.clone();
         block_comparisons
             .par_iter_mut()
@@ -47,7 +47,7 @@ impl ServerKey {
         // one for all the threads as opposed to one per thread
         let lut = self
             .key
-            .generate_accumulator_bivariate(|x, y| u64::from(x != y));
+            .generate_lookup_table_bivariate(|x, y| u64::from(x != y));
         let mut block_comparisons = lhs.blocks.clone();
         block_comparisons
             .par_iter_mut()
@@ -63,7 +63,7 @@ impl ServerKey {
         let max_value = total_modulus - 1;
 
         let mut block_comparisons_2 = Vec::with_capacity(block_comparisons.len() / 2);
-        let is_non_zero = self.key.generate_accumulator(|x| u64::from(x != 0));
+        let is_non_zero = self.key.generate_lookup_table(|x| u64::from(x != 0));
 
         while block_comparisons.len() > 1 {
             block_comparisons

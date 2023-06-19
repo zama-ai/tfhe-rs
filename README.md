@@ -111,8 +111,8 @@ fn main() {
     // f: x -> sum of the bits of x
     let f = |x:u64| x.count_ones() as u64;
 
-    // Generate the accumulator for the function
-    let acc = server_key.generate_accumulator(f);
+    // Generate the lookup table for the function
+    let acc = server_key.generate_lookup_table(f);
 
     // Compute the function over the ciphertext using the PBS
     let ct_res = server_key.apply_lookup_table(&ct_add, &acc);

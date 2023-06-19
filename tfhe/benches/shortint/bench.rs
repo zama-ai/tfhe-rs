@@ -269,7 +269,7 @@ fn programmable_bootstrapping(c: &mut Criterion) {
 
         let modulus = cks.parameters.message_modulus().0 as u64;
 
-        let acc = sks.generate_accumulator(|x| x);
+        let acc = sks.generate_lookup_table(|x| x);
 
         let clear_0 = rng.gen::<u64>() % modulus;
 

@@ -421,7 +421,7 @@ impl ShortintEngine {
         ct_in: &Ciphertext,
     ) -> EngineResult<Ciphertext> {
         // First PBS to remove the noise
-        let acc = self.generate_accumulator(sks, |x| x)?;
+        let acc = self.generate_lookup_table(sks, |x| x)?;
         let ct_clean = self.apply_lookup_table(sks, ct_in, &acc)?;
 
         let mut buffer_lwe_after_ks = LweCiphertextOwned::new(
@@ -461,9 +461,9 @@ impl ShortintEngine {
         // 1. KS to go back to the original encryption key
         // 2. PBS to remove the noise added by the previous KS
         //
-        let acc = self.generate_accumulator(&wopbs_key.pbs_server_key, |x| x)?;
+        let acc = self.generate_lookup_table(&wopbs_key.pbs_server_key, |x| x)?;
         let (mut ciphertext_buffers, buffers) =
-            self.get_carry_clearing_accumulator_and_buffers(&wopbs_key.pbs_server_key);
+            self.get_carry_clearing_lookup_table_and_buffers(&wopbs_key.pbs_server_key);
         // Compute a key switch
         keyswitch_lwe_ciphertext(
             &wopbs_key.pbs_server_key.key_switching_key,
