@@ -3,11 +3,7 @@
 use super::ClientKey;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::RadixCiphertext;
-use crate::integer::{RadixCiphertextBig, RadixCiphertextSmall};
-use crate::shortint::{
-    CiphertextBase, CiphertextBig as ShortintCiphertext, PBSOrderMarker,
-    PBSParameters as ShortintParameters,
-};
+use crate::shortint::{Ciphertext as ShortintCiphertext, PBSParameters as ShortintParameters};
 
 use serde::{Deserialize, Serialize};
 
@@ -57,18 +53,13 @@ impl RadixClientKey {
         }
     }
 
-    pub fn encrypt<T: DecomposableInto<u64>>(&self, message: T) -> RadixCiphertextBig {
+    pub fn encrypt<T: DecomposableInto<u64>>(&self, message: T) -> RadixCiphertext {
         self.key.encrypt_radix(message, self.num_blocks)
     }
 
-    pub fn encrypt_small<T: DecomposableInto<u64>>(&self, message: T) -> RadixCiphertextSmall {
-        self.key.encrypt_radix_small(message, self.num_blocks)
-    }
-
-    pub fn decrypt<T, PBSOrder>(&self, ciphertext: &RadixCiphertext<PBSOrder>) -> T
+    pub fn decrypt<T>(&self, ciphertext: &RadixCiphertext) -> T
     where
         T: RecomposableFrom<u64>,
-        PBSOrder: PBSOrderMarker,
     {
         self.key.decrypt_radix(ciphertext)
     }
@@ -82,10 +73,7 @@ impl RadixClientKey {
         self.key.encrypt_one_block(message)
     }
 
-    pub fn decrypt_one_block<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct: &CiphertextBase<PBSOrder>,
-    ) -> u64 {
+    pub fn decrypt_one_block(&self, ct: &ShortintCiphertext) -> u64 {
         self.key.decrypt_one_block(ct)
     }
 

@@ -8,16 +8,12 @@ mod radix;
 pub(crate) mod utils;
 
 use crate::integer::block_decomposition::BlockRecomposer;
-use crate::integer::ciphertext::{
-    CompressedCrtCiphertext, CompressedRadixCiphertextBig, CrtCiphertext, RadixCiphertextBig,
-    RadixCiphertextSmall,
-};
+use crate::integer::ciphertext::{CompressedCrtCiphertext, CrtCiphertext};
 use crate::integer::client_key::utils::i_crt;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::{
-    CiphertextBase, CiphertextBig, CiphertextSmall, ClientKey as ShortintClientKey, PBSOrderMarker,
-    ShortintParameterSet as ShortintParameters,
+    Ciphertext, ClientKey as ShortintClientKey, ShortintParameterSet as ShortintParameters,
 };
 use serde::{Deserialize, Serialize};
 pub use utils::radix_decomposition;
@@ -26,8 +22,7 @@ pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 
 use super::block_decomposition::{DecomposableInto, RecomposableFrom};
-use super::ciphertext::RadixCiphertext;
-use super::CompressedRadixCiphertextSmall;
+use super::ciphertext::{CompressedRadixCiphertext, RadixCiphertext};
 
 /// A structure containing the client key, which must be kept secret.
 ///
@@ -107,7 +102,7 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertextBig
+    pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
     where
         T: DecomposableInto<u64>,
     {
@@ -138,7 +133,7 @@ impl ClientKey {
         &self,
         message: u64,
         num_blocks: usize,
-    ) -> RadixCiphertextBig {
+    ) -> RadixCiphertext {
         self.encrypt_words_radix(
             message,
             num_blocks,
@@ -150,7 +145,7 @@ impl ClientKey {
         &self,
         message: T,
         num_blocks: usize,
-    ) -> CompressedRadixCiphertextBig {
+    ) -> CompressedRadixCiphertext {
         self.encrypt_words_radix(
             message,
             num_blocks,
@@ -162,47 +157,11 @@ impl ClientKey {
         &self,
         message: T,
         num_blocks: usize,
-    ) -> CompressedRadixCiphertextBig {
+    ) -> CompressedRadixCiphertext {
         self.encrypt_words_radix(
             message,
             num_blocks,
             crate::shortint::ClientKey::encrypt_without_padding_compressed,
-        )
-    }
-
-    pub fn encrypt_radix_small<T: DecomposableInto<u64>>(
-        &self,
-        message: T,
-        num_blocks: usize,
-    ) -> RadixCiphertextSmall {
-        self.encrypt_words_radix(
-            message,
-            num_blocks,
-            crate::shortint::ClientKey::encrypt_small,
-        )
-    }
-
-    pub fn encrypt_radix_compressed_small<T: DecomposableInto<u64>>(
-        &self,
-        message: T,
-        num_blocks: usize,
-    ) -> CompressedRadixCiphertextSmall {
-        self.encrypt_words_radix(
-            message,
-            num_blocks,
-            crate::shortint::ClientKey::encrypt_compressed_small,
-        )
-    }
-
-    pub fn encrypt_radix_without_padding_small(
-        &self,
-        message: u64,
-        num_blocks: usize,
-    ) -> RadixCiphertextSmall {
-        self.encrypt_words_radix(
-            message,
-            num_blocks,
-            crate::shortint::ClientKey::encrypt_without_padding_small,
         )
     }
 
@@ -248,21 +207,14 @@ impl ClientKey {
     /// let dec = cks.decrypt_one_block(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_one_block(&self, message: u64) -> CiphertextBig {
+    pub fn encrypt_one_block(&self, message: u64) -> Ciphertext {
         self.key.encrypt(message)
-    }
-
-    pub fn encrypt_one_block_small(&self, message: u64) -> CiphertextSmall {
-        self.key.encrypt_small(message)
     }
 
     /// Decrypts one block.
     ///
     /// This takes a shortint ciphertext as input.
-    pub fn decrypt_one_block<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct: &CiphertextBase<PBSOrder>,
-    ) -> u64 {
+    pub fn decrypt_one_block(&self, ct: &Ciphertext) -> u64 {
         self.key.decrypt(ct)
     }
 
@@ -286,10 +238,9 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn decrypt_radix<T, PBSOrder>(&self, ctxt: &RadixCiphertext<PBSOrder>) -> T
+    pub fn decrypt_radix<T>(&self, ctxt: &RadixCiphertext) -> T
     where
         T: RecomposableFrom<u64>,
-        PBSOrder: PBSOrderMarker,
     {
         self.decrypt_radix_impl(ctxt, crate::shortint::ClientKey::decrypt_message_and_carry)
     }
@@ -314,10 +265,7 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix_without_padding(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn decrypt_radix_without_padding<PBSOrder: PBSOrderMarker>(
-        &self,
-        ctxt: &RadixCiphertext<PBSOrder>,
-    ) -> u64 {
+    pub fn decrypt_radix_without_padding(&self, ctxt: &RadixCiphertext) -> u64 {
         self.decrypt_radix_impl(
             ctxt,
             crate::shortint::ClientKey::decrypt_message_and_carry_without_padding,
@@ -327,15 +275,11 @@ impl ClientKey {
     /// Decrypts a ciphertext in radix decomposition into 64bits
     ///
     /// The words are assumed to be in little endian order.
-    pub fn decrypt_radix_impl<T, F, PBSOrder>(
-        &self,
-        ctxt: &RadixCiphertext<PBSOrder>,
-        decrypt_block: F,
-    ) -> T
+    pub fn decrypt_radix_impl<T, F>(&self, ctxt: &RadixCiphertext, decrypt_block: F) -> T
     where
         T: RecomposableFrom<u64>,
-        PBSOrder: PBSOrderMarker,
-        F: Fn(&crate::shortint::ClientKey, &crate::shortint::CiphertextBase<PBSOrder>) -> u64,
+
+        F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
     {
         if ctxt.blocks.is_empty() {
             return T::ZERO;

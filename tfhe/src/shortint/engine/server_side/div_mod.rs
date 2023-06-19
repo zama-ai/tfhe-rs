@@ -1,6 +1,6 @@
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::{CiphertextBase, PBSOrderMarker, ServerKey};
+use crate::shortint::{Ciphertext, ServerKey};
 
 // Specific division function returning 0 in case of a division by 0
 pub(crate) fn safe_division(x: u64, y: u64) -> u64 {
@@ -12,22 +12,22 @@ pub(crate) fn safe_division(x: u64, y: u64) -> u64 {
 }
 
 impl ShortintEngine {
-    pub(crate) fn unchecked_div<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_div(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
         self.unchecked_div_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn unchecked_div_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_div_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
     ) -> EngineResult<()> {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
@@ -38,22 +38,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_div<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_div(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
         self.smart_div_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn smart_div_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_div_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
     ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             if ct_left.message_modulus.0 + ct_right.degree.0 <= server_key.max_degree.0 {
@@ -73,12 +73,12 @@ impl ShortintEngine {
     /// # Panics
     ///
     /// This function will panic if `scalar == 0`
-    pub(crate) fn unchecked_scalar_div<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_div(
         &mut self,
         server_key: &ServerKey,
-        ct: &CiphertextBase<OpOrder>,
+        ct: &Ciphertext,
         scalar: u8,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct.clone();
         self.unchecked_scalar_div_assign(server_key, &mut result, scalar)?;
         Ok(result)
@@ -87,10 +87,10 @@ impl ShortintEngine {
     /// # Panics
     ///
     /// This function will panic if `scalar == 0`
-    pub(crate) fn unchecked_scalar_div_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_div_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
         assert_ne!(scalar, 0);
@@ -101,12 +101,12 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn unchecked_scalar_mod<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_mod(
         &mut self,
         server_key: &ServerKey,
-        ct: &CiphertextBase<OpOrder>,
+        ct: &Ciphertext,
         modulus: u8,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct.clone();
         self.unchecked_scalar_mod_assign(server_key, &mut result, modulus)?;
         Ok(result)
@@ -115,10 +115,10 @@ impl ShortintEngine {
     /// # Panics
     ///
     /// This function will panic if `modulus == 0`
-    pub(crate) fn unchecked_scalar_mod_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_mod_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         modulus: u8,
     ) -> EngineResult<()> {
         assert_ne!(modulus, 0);

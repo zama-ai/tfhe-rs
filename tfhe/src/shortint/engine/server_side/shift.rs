@@ -1,23 +1,23 @@
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::{CiphertextBase, PBSOrderMarker, ServerKey};
+use crate::shortint::{Ciphertext, ServerKey};
 
 impl ShortintEngine {
-    pub(crate) fn unchecked_scalar_right_shift<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_right_shift(
         &mut self,
         server_key: &ServerKey,
-        ct: &CiphertextBase<OpOrder>,
+        ct: &Ciphertext,
         shift: u8,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct.clone();
         self.unchecked_scalar_right_shift_assign(server_key, &mut result, shift)?;
         Ok(result)
     }
 
-    pub(crate) fn unchecked_scalar_right_shift_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_right_shift_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         shift: u8,
     ) -> EngineResult<()> {
         let acc = self.generate_accumulator(server_key, |x| x >> shift)?;
@@ -27,19 +27,19 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn unchecked_scalar_left_shift<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_left_shift(
         &mut self,
-        ct: &CiphertextBase<OpOrder>,
+        ct: &Ciphertext,
         shift: u8,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct.clone();
         self.unchecked_scalar_left_shift_assign(&mut result, shift)?;
         Ok(result)
     }
 
-    pub(crate) fn unchecked_scalar_left_shift_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_left_shift_assign(
         &mut self,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         shift: u8,
     ) -> EngineResult<()> {
         let scalar = 1_u8 << shift;
@@ -47,21 +47,21 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_scalar_left_shift<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_scalar_left_shift(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         shift: u8,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct.clone();
         self.smart_scalar_left_shift_assign(server_key, &mut result, shift)?;
         Ok(result)
     }
 
-    pub(crate) fn smart_scalar_left_shift_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_scalar_left_shift_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         shift: u8,
     ) -> EngineResult<()> {
         if server_key.is_scalar_left_shift_possible(ct, shift) {

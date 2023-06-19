@@ -2,16 +2,15 @@ use super::ServerKey;
 
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::comparator::Comparator;
-use crate::shortint::PBSOrderMarker;
 
 use rayon::prelude::*;
 
 impl ServerKey {
-    pub fn unchecked_eq_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_eq_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
@@ -37,11 +36,11 @@ impl ServerKey {
         RadixCiphertext { blocks }
     }
 
-    pub fn unchecked_ne_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_ne_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
@@ -87,59 +86,59 @@ impl ServerKey {
         }
     }
 
-    pub fn unchecked_gt_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_gt_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).unchecked_gt_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_ge_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_ge_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).unchecked_ge_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_lt_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_lt_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).unchecked_lt_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_le_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_le_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).unchecked_le_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_max_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_max_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).unchecked_max_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_min_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_min_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).unchecked_min_parallelized(lhs, rhs)
     }
 
-    pub fn smart_eq_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_eq_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         rayon::join(
             || {
                 if !lhs.block_carries_are_empty() {
@@ -155,11 +154,11 @@ impl ServerKey {
         self.unchecked_eq_parallelized(lhs, rhs)
     }
 
-    pub fn smart_ne_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_ne_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         rayon::join(
             || {
                 if !lhs.block_carries_are_empty() {
@@ -175,61 +174,57 @@ impl ServerKey {
         self.unchecked_ne_parallelized(lhs, rhs)
     }
 
-    pub fn smart_gt_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_gt_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_gt_parallelized(lhs, rhs)
     }
 
-    pub fn smart_ge_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_ge_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_ge_parallelized(lhs, rhs)
     }
 
-    pub fn smart_lt_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_lt_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_lt_parallelized(lhs, rhs)
     }
 
-    pub fn smart_le_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_le_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_le_parallelized(lhs, rhs)
     }
 
-    pub fn smart_max_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_max_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_max_parallelized(lhs, rhs)
     }
 
-    pub fn smart_min_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_min_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_min_parallelized(lhs, rhs)
     }
 
-    pub fn eq_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
-        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+    pub fn eq_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+        let mut tmp_lhs: RadixCiphertext;
+        let mut tmp_rhs: RadixCiphertext;
         let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
             (true, true) => (lhs, rhs),
             (true, false) => {
@@ -256,13 +251,9 @@ impl ServerKey {
         self.unchecked_eq_parallelized(lhs, rhs)
     }
 
-    pub fn ne_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
-        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+    pub fn ne_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+        let mut tmp_lhs: RadixCiphertext;
+        let mut tmp_rhs: RadixCiphertext;
         let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
             (true, true) => (lhs, rhs),
             (true, false) => {
@@ -289,51 +280,35 @@ impl ServerKey {
         self.unchecked_ne_parallelized(lhs, rhs)
     }
 
-    pub fn gt_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn gt_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).gt_parallelized(lhs, rhs)
     }
 
-    pub fn ge_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn ge_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).ge_parallelized(lhs, rhs)
     }
 
-    pub fn lt_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn lt_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).lt_parallelized(lhs, rhs)
     }
 
-    pub fn le_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn le_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).le_parallelized(lhs, rhs)
     }
 
-    pub fn max_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn max_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).max_parallelized(lhs, rhs)
     }
 
-    pub fn min_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn min_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).min_parallelized(lhs, rhs)
     }
 }

@@ -81,7 +81,7 @@ void test_server_key_trivial_encrypt(void) {
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
 
-  int encrypt_ok = shortint_server_key_create_trivial(sks, 3, ShortintCiphertextBig, &ct);
+  int encrypt_ok = shortint_server_key_create_trivial(sks, 3, &ct);
   assert(encrypt_ok == 0);
 
   uint64_t result = -1;
@@ -122,18 +122,17 @@ void test_custom_keygen(void) {
   shortint_destroy_server_key(sks);
 }
 
-void test_public_keygen(ShortintPublicKeyKind pk_kind) {
+void test_public_keygen(ShortintPBSParameters params) {
   ShortintClientKey *cks = NULL;
   ShortintPublicKey *pks = NULL;
   ShortintPublicKey *pks_deser = NULL;
   ShortintCiphertext *ct = NULL;
   Buffer pks_ser_buff = {.pointer = NULL, .length = 0};
-  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
 
   int gen_keys_ok = shortint_gen_client_key(params, &cks);
   assert(gen_keys_ok == 0);
 
-  int gen_pks = shortint_gen_public_key(cks, pk_kind, &pks);
+  int gen_pks = shortint_gen_public_key(cks, &pks);
   assert(gen_pks == 0);
 
   int pks_ser = shortint_serialize_public_key(pks, &pks_ser_buff);
@@ -161,17 +160,16 @@ void test_public_keygen(ShortintPublicKeyKind pk_kind) {
   shortint_destroy_ciphertext(ct);
 }
 
-void test_compressed_public_keygen(ShortintPublicKeyKind pk_kind) {
+void test_compressed_public_keygen(ShortintPBSParameters params) {
   ShortintClientKey *cks = NULL;
   ShortintCompressedPublicKey *cpks = NULL;
   ShortintPublicKey *pks = NULL;
   ShortintCiphertext *ct = NULL;
-  ShortintPBSParameters params = SHORTINT_PARAM_MESSAGE_2_CARRY_2;
 
   int gen_keys_ok = shortint_gen_client_key(params, &cks);
   assert(gen_keys_ok == 0);
 
-  int gen_cpks = shortint_gen_compressed_public_key(cks, pk_kind, &cpks);
+  int gen_cpks = shortint_gen_compressed_public_key(cks, &cpks);
   assert(gen_cpks == 0);
 
   uint64_t msg = 2;
@@ -206,10 +204,10 @@ void test_compressed_public_keygen(ShortintPublicKeyKind pk_kind) {
 int main(void) {
   test_predefined_keygen_w_serde();
   test_custom_keygen();
-  test_public_keygen(ShortintPublicKeyBig);
-  test_public_keygen(ShortintPublicKeySmall);
-  test_compressed_public_keygen(ShortintPublicKeyBig);
-  test_compressed_public_keygen(ShortintPublicKeySmall);
+  test_public_keygen(SHORTINT_PARAM_MESSAGE_2_CARRY_2);
+  test_public_keygen(SHORTINT_PARAM_SMALL_MESSAGE_2_CARRY_2);
+  test_compressed_public_keygen(SHORTINT_PARAM_MESSAGE_2_CARRY_2);
+  test_compressed_public_keygen(SHORTINT_PARAM_SMALL_MESSAGE_2_CARRY_2);
   test_server_key_trivial_encrypt();
   return EXIT_SUCCESS;
 }

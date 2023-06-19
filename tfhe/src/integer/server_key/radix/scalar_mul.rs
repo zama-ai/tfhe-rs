@@ -4,7 +4,6 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
 use std::collections::BTreeMap;
 
 impl ServerKey {
@@ -36,27 +35,18 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(scalar * msg, clear);
     /// ```
-    pub fn unchecked_small_scalar_mul<PBSOrder>(
+    pub fn unchecked_small_scalar_mul(
         &self,
-        ctxt: &RadixCiphertext<PBSOrder>,
+        ctxt: &RadixCiphertext,
         scalar: u64,
-    ) -> RadixCiphertext<PBSOrder>
-    where
-        PBSOrder: PBSOrderMarker,
-    {
+    ) -> RadixCiphertext {
         let mut ct_result = ctxt.clone();
         self.unchecked_small_scalar_mul_assign(&mut ct_result, scalar);
 
         ct_result
     }
 
-    pub fn unchecked_small_scalar_mul_assign<PBSOrder>(
-        &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) where
-        PBSOrder: PBSOrderMarker,
-    {
+    pub fn unchecked_small_scalar_mul_assign(&self, ctxt: &mut RadixCiphertext, scalar: u64) {
         for ct_i in ctxt.blocks.iter_mut() {
             self.key.unchecked_scalar_mul_assign(ct_i, scalar as u8);
         }
@@ -89,14 +79,7 @@ impl ServerKey {
     /// let res = sks.is_small_scalar_mul_possible(&ct, scalar2);
     /// assert_eq!(false, res);
     /// ```
-    pub fn is_small_scalar_mul_possible<PBSOrder>(
-        &self,
-        ctxt: &RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) -> bool
-    where
-        PBSOrder: PBSOrderMarker,
-    {
+    pub fn is_small_scalar_mul_possible(&self, ctxt: &RadixCiphertext, scalar: u64) -> bool {
         for ct_i in ctxt.blocks.iter() {
             if !self.key.is_scalar_mul_possible(ct_i, scalar as u8) {
                 return false;
@@ -136,14 +119,11 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_small_scalar_mul<PBSOrder>(
+    pub fn checked_small_scalar_mul(
         &self,
-        ct: &RadixCiphertext<PBSOrder>,
+        ct: &RadixCiphertext,
         scalar: u64,
-    ) -> Result<RadixCiphertext<PBSOrder>, CheckError>
-    where
-        PBSOrder: PBSOrderMarker,
-    {
+    ) -> Result<RadixCiphertext, CheckError> {
         let mut ct_result = ct.clone();
 
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
@@ -183,14 +163,11 @@ impl ServerKey {
     /// let clear_res: u64 = cks.decrypt(&ct);
     /// assert_eq!(clear_res, msg * scalar);
     /// ```
-    pub fn checked_small_scalar_mul_assign<PBSOrder>(
+    pub fn checked_small_scalar_mul_assign(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
         scalar: u64,
-    ) -> Result<(), CheckError>
-    where
-        PBSOrder: PBSOrderMarker,
-    {
+    ) -> Result<(), CheckError> {
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
         if self.is_small_scalar_mul_possible(ct, scalar) {
             self.unchecked_small_scalar_mul_assign(ct, scalar);
@@ -231,14 +208,11 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_small_scalar_mul<PBSOrder>(
+    pub fn smart_small_scalar_mul(
         &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
+        ctxt: &mut RadixCiphertext,
         scalar: u64,
-    ) -> RadixCiphertext<PBSOrder>
-    where
-        PBSOrder: PBSOrderMarker,
-    {
+    ) -> RadixCiphertext {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
             self.full_propagate(ctxt);
         }
@@ -276,13 +250,7 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_small_scalar_mul_assign<PBSOrder>(
-        &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
-        scalar: u64,
-    ) where
-        PBSOrder: PBSOrderMarker,
-    {
+    pub fn smart_small_scalar_mul_assign(&self, ctxt: &mut RadixCiphertext, scalar: u64) {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
             self.full_propagate(ctxt);
         }
@@ -311,11 +279,7 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(16, clear);
     /// ```
-    pub fn blockshift<PBSOrder: PBSOrderMarker>(
-        &self,
-        ctxt: &RadixCiphertext<PBSOrder>,
-        shift: usize,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn blockshift(&self, ctxt: &RadixCiphertext, shift: usize) -> RadixCiphertext {
         let ctxt_zero = self.key.create_trivial(0_u64);
         let mut result = ctxt.clone();
 
@@ -355,13 +319,8 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_scalar_mul<PBSOrder, T>(
-        &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
-        scalar: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn smart_scalar_mul<T>(&self, ctxt: &mut RadixCiphertext, scalar: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: UnsignedInteger + DecomposableInto<u8>,
     {
         if scalar == T::ZERO {
@@ -376,7 +335,7 @@ impl ServerKey {
         self.full_propagate(ctxt);
 
         //Store the computations
-        let mut map: BTreeMap<u64, RadixCiphertext<PBSOrder>> = BTreeMap::new();
+        let mut map: BTreeMap<u64, RadixCiphertext> = BTreeMap::new();
 
         let mut result = self.create_trivial_zero_radix(ctxt.blocks.len());
 
@@ -411,12 +370,8 @@ impl ServerKey {
         result
     }
 
-    pub fn smart_scalar_mul_assign<PBSOrder, T>(
-        &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
-        scalar: T,
-    ) where
-        PBSOrder: PBSOrderMarker,
+    pub fn smart_scalar_mul_assign<T>(&self, ctxt: &mut RadixCiphertext, scalar: T)
+    where
         T: UnsignedInteger + DecomposableInto<u8>,
     {
         *ctxt = self.smart_scalar_mul(ctxt, scalar);

@@ -2,7 +2,6 @@ use super::ServerKey;
 
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::comparator::Comparator;
-use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Compares for equality 2 ciphertexts
@@ -34,11 +33,7 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 == msg2));
     /// ```
-    pub fn unchecked_eq<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn unchecked_eq(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
@@ -91,11 +86,7 @@ impl ServerKey {
         }
     }
 
-    pub fn unchecked_ne<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn unchecked_ne(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
@@ -166,11 +157,7 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 > msg2));
     /// ```
-    pub fn unchecked_gt<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn unchecked_gt(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).unchecked_gt(lhs, rhs)
     }
 
@@ -203,11 +190,7 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 >= msg2));
     /// ```
-    pub fn unchecked_ge<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn unchecked_ge(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).unchecked_ge(lhs, rhs)
     }
 
@@ -240,11 +223,7 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 < msg2));
     /// ```
-    pub fn unchecked_lt<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn unchecked_lt(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).unchecked_lt(lhs, rhs)
     }
 
@@ -277,11 +256,7 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 < msg2));
     /// ```
-    pub fn unchecked_le<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn unchecked_le(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).unchecked_le(lhs, rhs)
     }
 
@@ -313,11 +288,7 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, std::cmp::max(msg1, msg2));
     /// ```
-    pub fn unchecked_max<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn unchecked_max(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).unchecked_max(lhs, rhs)
     }
 
@@ -349,11 +320,7 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, std::cmp::min(msg1, msg2));
     /// ```
-    pub fn unchecked_min<PBSOrder: PBSOrderMarker>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn unchecked_min(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
         Comparator::new(self).unchecked_min(lhs, rhs)
     }
 
@@ -384,11 +351,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 == msg2));
     /// ```
-    pub fn smart_eq<PBSOrder: PBSOrderMarker>(
+    pub fn smart_eq(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
         }
@@ -398,11 +365,11 @@ impl ServerKey {
         self.unchecked_eq(lhs, rhs)
     }
 
-    pub fn smart_ne<PBSOrder: PBSOrderMarker>(
+    pub fn smart_ne(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
         }
@@ -439,11 +406,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 > msg2));
     /// ```
-    pub fn smart_gt<PBSOrder: PBSOrderMarker>(
+    pub fn smart_gt(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_gt(lhs, rhs)
     }
 
@@ -474,11 +441,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 >= msg2));
     /// ```
-    pub fn smart_ge<PBSOrder: PBSOrderMarker>(
+    pub fn smart_ge(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_ge(lhs, rhs)
     }
 
@@ -509,11 +476,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 < msg2));
     /// ```
-    pub fn smart_lt<PBSOrder: PBSOrderMarker>(
+    pub fn smart_lt(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_lt(lhs, rhs)
     }
 
@@ -544,11 +511,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 <= msg2));
     /// ```
-    pub fn smart_le<PBSOrder: PBSOrderMarker>(
+    pub fn smart_le(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_le(lhs, rhs)
     }
 
@@ -579,11 +546,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, std::cmp::max(msg1, msg2));
     /// ```
-    pub fn smart_max<PBSOrder: PBSOrderMarker>(
+    pub fn smart_max(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_max(lhs, rhs)
     }
 
@@ -614,11 +581,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, std::cmp::min(msg1, msg2));
     /// ```
-    pub fn smart_min<PBSOrder: PBSOrderMarker>(
+    pub fn smart_min(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         Comparator::new(self).smart_min(lhs, rhs)
     }
 }

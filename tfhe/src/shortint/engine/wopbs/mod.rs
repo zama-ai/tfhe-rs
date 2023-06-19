@@ -9,7 +9,7 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::server_key::{MaxDegree, ShortintBootstrappingKey};
 use crate::shortint::wopbs::{WopbsKey, WopbsLUTBase};
-use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, ServerKey, WopbsParameters};
+use crate::shortint::{Ciphertext, ClientKey, ServerKey, WopbsParameters};
 
 #[derive(Debug)]
 pub enum WopbsKeyCreationError {
@@ -176,6 +176,7 @@ impl ShortintEngine {
             carry_modulus: parameters.carry_modulus,
             max_degree: MaxDegree(parameters.message_modulus.0 * parameters.carry_modulus.0 - 1),
             ciphertext_modulus: parameters.ciphertext_modulus,
+            pbs_order: cks.parameters.encryption_key_choice().into(),
         };
 
         let pbs_server_key = ServerKey {
@@ -187,6 +188,7 @@ impl ShortintEngine {
                 cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1,
             ),
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
+            pbs_order: cks.parameters.encryption_key_choice().into(),
         };
 
         let wopbs_key = WopbsKey {
@@ -348,14 +350,14 @@ impl ShortintEngine {
         Ok(output_cbs_vp_ct)
     }
 
-    pub(crate) fn extract_bits_circuit_bootstrapping<OpOrder: PBSOrderMarker>(
+    pub(crate) fn extract_bits_circuit_bootstrapping(
         &mut self,
         wopbs_key: &WopbsKey,
-        ct_in: &CiphertextBase<OpOrder>,
+        ct_in: &Ciphertext,
         lut: &WopbsLUTBase,
         delta_log: DeltaLog,
         nb_bit_to_extract: ExtractedBitsCount,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let extracted_bits =
             self.extract_bits(delta_log, &ct_in.ct, wopbs_key, nb_bit_to_extract)?;
 
@@ -374,23 +376,23 @@ impl ShortintEngine {
         );
 
         let sks = &wopbs_key.wopbs_server_key;
-        let ct_out = CiphertextBase {
+        let ct_out = Ciphertext {
             ct: ciphertext,
             degree: Degree(sks.message_modulus.0 - 1),
             message_modulus: sks.message_modulus,
             carry_modulus: sks.carry_modulus,
-            _order_marker: Default::default(),
+            pbs_order: ct_in.pbs_order,
         };
 
         Ok(ct_out)
     }
 
-    pub(crate) fn programmable_bootstrapping_without_padding<OpOrder: PBSOrderMarker>(
+    pub(crate) fn programmable_bootstrapping_without_padding(
         &mut self,
         wopbs_key: &WopbsKey,
-        ct_in: &CiphertextBase<OpOrder>,
+        ct_in: &Ciphertext,
         lut: &WopbsLUTBase,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let sks = &wopbs_key.wopbs_server_key;
         let message_modulus = sks.message_modulus.0 as u64;
         let carry_modulus = sks.carry_modulus.0 as u64;
@@ -412,12 +414,12 @@ impl ShortintEngine {
         Ok(ciphertext)
     }
 
-    pub(crate) fn keyswitch_to_wopbs_params<OpOrder: PBSOrderMarker>(
+    pub(crate) fn keyswitch_to_wopbs_params(
         &mut self,
         sks: &ServerKey,
         wopbs_key: &WopbsKey,
-        ct_in: &CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_in: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         // First PBS to remove the noise
         let acc = self.generate_accumulator(sks, |x| x)?;
         let ct_clean = self.apply_lookup_table(sks, ct_in, &acc)?;
@@ -440,20 +442,20 @@ impl ShortintEngine {
 
         // The identity lut wrongly sets the max degree in the ciphertext, when in reality the
         // degree of the ciphertext has no changed, we manage this case manually here
-        Ok(CiphertextBase {
+        Ok(Ciphertext {
             ct: buffer_lwe_after_ks,
             degree: ct_in.degree,
             message_modulus: ct_clean.message_modulus,
             carry_modulus: ct_clean.carry_modulus,
-            _order_marker: Default::default(),
+            pbs_order: ct_in.pbs_order,
         })
     }
 
-    pub(crate) fn keyswitch_to_pbs_params<OpOrder: PBSOrderMarker>(
+    pub(crate) fn keyswitch_to_pbs_params(
         &mut self,
         wopbs_key: &WopbsKey,
-        ct_in: &CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_in: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         // move to wopbs parameters to pbs parameters
         //Keyswitch-PBS:
         // 1. KS to go back to the original encryption key
@@ -505,21 +507,21 @@ impl ShortintEngine {
             }
         };
 
-        Ok(CiphertextBase {
+        Ok(Ciphertext {
             ct: ct_out,
             degree: ct_in.degree,
             message_modulus: ct_in.message_modulus,
             carry_modulus: ct_in.carry_modulus,
-            _order_marker: Default::default(),
+            pbs_order: ct_in.pbs_order,
         })
     }
 
-    pub(crate) fn wopbs<OpOrder: PBSOrderMarker>(
+    pub(crate) fn wopbs(
         &mut self,
         wopbs_key: &WopbsKey,
-        ct_in: &CiphertextBase<OpOrder>,
+        ct_in: &Ciphertext,
         lut: &WopbsLUTBase,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let tmp_sks = &wopbs_key.wopbs_server_key;
         let message_modulus = tmp_sks.message_modulus.0 as u64;
         let carry_modulus = tmp_sks.carry_modulus.0 as u64;
@@ -539,13 +541,13 @@ impl ShortintEngine {
         Ok(ct_out)
     }
 
-    pub(crate) fn programmable_bootstrapping<OpOrder: PBSOrderMarker>(
+    pub(crate) fn programmable_bootstrapping(
         &mut self,
         wopbs_key: &WopbsKey,
         sks: &ServerKey,
-        ct_in: &CiphertextBase<OpOrder>,
+        ct_in: &Ciphertext,
         lut: &WopbsLUTBase,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let ct_wopbs = self.keyswitch_to_wopbs_params(sks, wopbs_key, ct_in)?;
         let result_ct = self.wopbs(wopbs_key, &ct_wopbs, lut)?;
         let ct_out = self.keyswitch_to_pbs_params(wopbs_key, &result_ct)?;
@@ -553,12 +555,12 @@ impl ShortintEngine {
         Ok(ct_out)
     }
 
-    pub(crate) fn programmable_bootstrapping_native_crt<OpOrder: PBSOrderMarker>(
+    pub(crate) fn programmable_bootstrapping_native_crt(
         &mut self,
         wopbs_key: &WopbsKey,
-        ct_in: &mut CiphertextBase<OpOrder>,
+        ct_in: &mut Ciphertext,
         lut: &WopbsLUTBase,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let nb_bit_to_extract =
             f64::log2((ct_in.message_modulus.0 * ct_in.carry_modulus.0) as f64).ceil() as usize;
         let delta_log = DeltaLog(64 - nb_bit_to_extract);

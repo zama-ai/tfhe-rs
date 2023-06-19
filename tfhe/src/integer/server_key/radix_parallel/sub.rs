@@ -1,6 +1,5 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically the subtraction between ct_left and ct_right.
@@ -29,11 +28,11 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_sub_parallelized(
         &self,
-        ctxt_left: &mut RadixCiphertext<PBSOrder>,
-        ctxt_right: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ctxt_left: &mut RadixCiphertext,
+        ctxt_right: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {
             self.full_propagate_parallelized(ctxt_right);
@@ -79,10 +78,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_sub_assign_parallelized(
         &self,
-        ctxt_left: &mut RadixCiphertext<PBSOrder>,
-        ctxt_right: &mut RadixCiphertext<PBSOrder>,
+        ctxt_left: &mut RadixCiphertext,
+        ctxt_right: &mut RadixCiphertext,
     ) {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {
@@ -135,11 +134,11 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn sub_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn sub_parallelized(
         &self,
-        ctxt_left: &RadixCiphertext<PBSOrder>,
-        ctxt_right: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ctxt_left: &RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut ct_res = ctxt_left.clone();
         self.sub_assign_parallelized(&mut ct_res, ctxt_right);
         ct_res
@@ -180,12 +179,12 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn sub_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn sub_assign_parallelized(
         &self,
-        ctxt_left: &mut RadixCiphertext<PBSOrder>,
-        ctxt_right: &RadixCiphertext<PBSOrder>,
+        ctxt_left: &mut RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
     ) {
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext;
 
         let (lhs, rhs) = match (
             ctxt_left.block_carries_are_empty(),
@@ -220,22 +219,22 @@ impl ServerKey {
         }
     }
 
-    pub fn sub_parallelized_work_efficient<PBSOrder: PBSOrderMarker>(
+    pub fn sub_parallelized_work_efficient(
         &self,
-        ctxt_left: &RadixCiphertext<PBSOrder>,
-        ctxt_right: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ctxt_left: &RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut ct_res = ctxt_left.clone();
         self.sub_assign_parallelized_work_efficient(&mut ct_res, ctxt_right);
         ct_res
     }
 
-    pub fn sub_assign_parallelized_work_efficient<PBSOrder: PBSOrderMarker>(
+    pub fn sub_assign_parallelized_work_efficient(
         &self,
-        ctxt_left: &mut RadixCiphertext<PBSOrder>,
-        ctxt_right: &RadixCiphertext<PBSOrder>,
+        ctxt_left: &mut RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
     ) {
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext;
 
         let (lhs, rhs) = match (
             ctxt_left.block_carries_are_empty(),

@@ -1,7 +1,7 @@
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
-use super::{ShortintCiphertext, ShortintCiphertextInner, ShortintServerKey};
+use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_server_key_smart_scalar_mul(
@@ -16,12 +16,7 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_mul(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left = get_mut_checked(ct_left).unwrap();
 
-        let res = dispatch_binary_server_key_call!(
-            server_key,
-            smart_scalar_mul,
-            &mut ct_left,
-            scalar_right
-        );
+        let res = server_key.0.smart_scalar_mul(&mut ct_left.0, scalar_right);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -42,12 +37,7 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_mul(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left = get_ref_checked(ct_left).unwrap();
 
-        let res = dispatch_binary_server_key_call!(
-            server_key,
-            unchecked_scalar_mul,
-            &ct_left,
-            scalar_right
-        );
+        let res = server_key.0.unchecked_scalar_mul(&ct_left.0, scalar_right);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -65,12 +55,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_mul_assign(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left_and_result = get_mut_checked(ct_left_and_result).unwrap();
 
-        dispatch_binary_assign_server_key_call!(
-            server_key,
-            smart_scalar_mul_assign,
-            &mut ct_left_and_result,
-            scalar_right
-        );
+        server_key
+            .0
+            .smart_scalar_mul_assign(&mut ct_left_and_result.0, scalar_right);
     })
 }
 
@@ -84,11 +71,8 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_mul_assign(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct_left_and_result = get_mut_checked(ct_left_and_result).unwrap();
 
-        dispatch_binary_assign_server_key_call!(
-            server_key,
-            unchecked_scalar_mul_assign,
-            &mut ct_left_and_result,
-            scalar_right
-        );
+        server_key
+            .0
+            .unchecked_scalar_mul_assign(&mut ct_left_and_result.0, scalar_right);
     })
 }

@@ -1,6 +1,5 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -40,10 +39,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_left);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_block_mul_assign_parallelized(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &crate::shortint::Ciphertext,
         index: usize,
     ) {
         *ct_left = self.unchecked_block_mul_parallelized(ct_left, ct_right, index);
@@ -85,12 +84,12 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_block_mul_parallelized(
         &self,
-        ct1: &RadixCiphertext<PBSOrder>,
-        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct1: &RadixCiphertext,
+        ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         let shifted_ct = self.blockshift(ct1, index);
 
         let mut result_lsb = shifted_ct.clone();
@@ -134,12 +133,12 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn smart_block_mul_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_block_mul_parallelized(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct1: &mut RadixCiphertext,
+        ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         //Makes sure we can do the multiplications
         self.full_propagate_parallelized(ct1);
 
@@ -195,24 +194,24 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn block_mul_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn block_mul_parallelized(
         &self,
-        ct1: &RadixCiphertext<PBSOrder>,
-        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct1: &RadixCiphertext,
+        ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         let mut ct_res = ct1.clone();
         self.block_mul_assign_parallelized(&mut ct_res, ct2, index);
         ct_res
     }
 
-    pub fn block_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn block_mul_assign_parallelized(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct1: &mut RadixCiphertext,
+        ct2: &crate::shortint::Ciphertext,
         index: usize,
     ) {
-        let mut tmp_rhs: crate::shortint::CiphertextBase<PBSOrder>;
+        let mut tmp_rhs: crate::shortint::Ciphertext;
 
         let (lhs, rhs) = match (ct1.block_carries_are_empty(), ct2.carry_is_empty()) {
             (true, true) => (ct1, ct2),
@@ -238,11 +237,11 @@ impl ServerKey {
         self.full_propagate_parallelized(lhs);
     }
 
-    fn unchecked_block_mul_lsb_msb_parallelized<PBSOrder: PBSOrderMarker>(
+    fn unchecked_block_mul_lsb_msb_parallelized(
         &self,
-        result_lsb: &mut RadixCiphertext<PBSOrder>,
-        result_msb: &mut RadixCiphertext<PBSOrder>,
-        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        result_lsb: &mut RadixCiphertext,
+        result_msb: &mut RadixCiphertext,
+        ct2: &crate::shortint::Ciphertext,
         index: usize,
     ) {
         let len = result_msb.blocks.len() - 1;
@@ -264,10 +263,10 @@ impl ServerKey {
         );
     }
 
-    pub fn smart_block_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_block_mul_assign_parallelized(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct1: &mut RadixCiphertext,
+        ct2: &crate::shortint::Ciphertext,
         index: usize,
     ) {
         *ct1 = self.smart_block_mul_parallelized(ct1, ct2, index);
@@ -279,10 +278,10 @@ impl ServerKey {
     /// `lhs` with the result.
     ///
     /// Each of the input term is expected to have _at most_ one carry consumed
-    pub(crate) fn sum_multiplication_terms_into<PBSOrder: PBSOrderMarker>(
+    pub(crate) fn sum_multiplication_terms_into(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        mut terms: Vec<RadixCiphertext<PBSOrder>>,
+        lhs: &mut RadixCiphertext,
+        mut terms: Vec<RadixCiphertext>,
     ) {
         if terms.is_empty() {
             for block in &mut lhs.blocks {
@@ -474,10 +473,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_mul_assign_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
+        rhs: &RadixCiphertext,
     ) {
         let num_blocks = lhs.blocks.len();
         let mut terms = vec![self.create_trivial_zero_radix(num_blocks); num_blocks];
@@ -501,11 +500,11 @@ impl ServerKey {
     /// # Warning
     ///
     /// - Multithreaded
-    pub fn unchecked_mul_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_mul_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut result = lhs.clone();
         self.unchecked_mul_assign_parallelized(&mut result, rhs);
         result
@@ -542,10 +541,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn smart_mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_mul_assign_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
     ) {
         rayon::join(
             || {
@@ -570,11 +569,11 @@ impl ServerKey {
     /// # Warning
     ///
     /// - Multithreaded
-    pub fn smart_mul_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_mul_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &mut RadixCiphertext,
+        rhs: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         rayon::join(
             || {
                 if !lhs.block_carries_are_empty() {
@@ -631,22 +630,18 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn mul_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn mul_parallelized(
         &self,
-        ct1: &RadixCiphertext<PBSOrder>,
-        ct2: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct1: &RadixCiphertext,
+        ct2: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut ct_res = ct1.clone();
         self.mul_assign_parallelized(&mut ct_res, ct2);
         ct_res
     }
 
-    pub fn mul_assign_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &RadixCiphertext<PBSOrder>,
-    ) {
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+    pub fn mul_assign_parallelized(&self, ct1: &mut RadixCiphertext, ct2: &RadixCiphertext) {
+        let mut tmp_rhs: RadixCiphertext;
 
         let (lhs, rhs) = match (ct1.block_carries_are_empty(), ct2.block_carries_are_empty()) {
             (true, true) => (ct1, ct2),

@@ -18,7 +18,6 @@ mod tests;
 
 use super::ServerKey;
 use crate::integer::ciphertext::RadixCiphertext;
-use crate::shortint::PBSOrderMarker;
 
 // parallelized versions
 impl ServerKey {
@@ -47,11 +46,7 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt_one_block(&ct_res.blocks()[1]);
     /// assert_eq!(3, res);
     /// ```
-    pub fn propagate_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
-        index: usize,
-    ) {
+    pub fn propagate_parallelized(&self, ctxt: &mut RadixCiphertext, index: usize) {
         let (carry, message) = rayon::join(
             || self.key.carry_extract(&ctxt.blocks[index]),
             || self.key.message_extract(&ctxt.blocks[index]),
@@ -65,11 +60,7 @@ impl ServerKey {
         }
     }
 
-    pub fn partial_propagate_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
-        start_index: usize,
-    ) {
+    pub fn partial_propagate_parallelized(&self, ctxt: &mut RadixCiphertext, start_index: usize) {
         let len = ctxt.blocks.len();
         for i in start_index..len {
             self.propagate_parallelized(ctxt, i);
@@ -101,10 +92,7 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + msg, res);
     /// ```
-    pub fn full_propagate_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
-    ) {
+    pub fn full_propagate_parallelized(&self, ctxt: &mut RadixCiphertext) {
         self.partial_propagate_parallelized(ctxt, 0)
     }
 }

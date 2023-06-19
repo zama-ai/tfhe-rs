@@ -10,8 +10,7 @@ use std::os::raw::c_int;
 
 use crate::shortint;
 
-pub(in crate::c_api) use ciphertext::ShortintCiphertextInner;
-pub use ciphertext::{ShortintCiphertext, ShortintCiphertextKind, ShortintCompressedCiphertext};
+pub use ciphertext::{ShortintCiphertext, ShortintCompressedCiphertext};
 pub use client_key::ShortintClientKey;
 pub use public_key::{ShortintCompressedPublicKey, ShortintPublicKey};
 pub use server_key::pbs::{ShortintBivariatePBSLookupTable, ShortintPBSLookupTable};

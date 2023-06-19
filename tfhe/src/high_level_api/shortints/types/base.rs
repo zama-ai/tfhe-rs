@@ -7,7 +7,7 @@ use std::ops::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::shortint::ciphertext::CiphertextBig as ShortintCiphertext;
+use crate::shortint::ciphertext::Ciphertext as ShortintCiphertext;
 
 use crate::high_level_api::errors::OutOfRangeError;
 use crate::high_level_api::global_state::WithGlobalKey;

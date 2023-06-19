@@ -4,7 +4,6 @@ use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
 /// This tracks the number of operations that has been done.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -22,35 +21,6 @@ pub enum PBSOrder {
     /// The PBS is computed first and a keyswitch is applied to get back to the small LWE secret
     /// key realm.
     BootstrapKeyswitch = 1,
-}
-
-mod seal {
-    pub trait Sealed {}
-    impl Sealed for super::BootstrapKeyswitch {}
-    impl Sealed for super::KeyswitchBootstrap {}
-}
-
-/// Trait to mark Ciphertext with the order for the PBS operations
-pub trait PBSOrderMarker: seal::Sealed + Debug + Clone + Copy + Send + Sync {
-    fn pbs_order() -> PBSOrder;
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct KeyswitchBootstrap;
-
-impl PBSOrderMarker for KeyswitchBootstrap {
-    fn pbs_order() -> PBSOrder {
-        PBSOrder::KeyswitchBootstrap
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct BootstrapKeyswitch;
-
-impl PBSOrderMarker for BootstrapKeyswitch {
-    fn pbs_order() -> PBSOrder {
-        PBSOrder::BootstrapKeyswitch
-    }
 }
 
 impl Degree {
@@ -118,48 +88,17 @@ impl Degree {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[must_use]
-pub struct CiphertextBase<OpOrder: PBSOrderMarker> {
+pub struct Ciphertext {
     pub ct: LweCiphertextOwned<u64>,
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub _order_marker: PhantomData<OpOrder>,
+    pub pbs_order: PBSOrder,
 }
 
-pub type CiphertextBig = CiphertextBase<KeyswitchBootstrap>;
-pub type CiphertextSmall = CiphertextBase<BootstrapKeyswitch>;
-
-pub struct CiphertextTypeError<InputOpOrder, OutputOpOrder>
-where
-    InputOpOrder: PBSOrderMarker,
-    OutputOpOrder: PBSOrderMarker,
-{
-    input_type: PhantomData<InputOpOrder>,
-    output_type: PhantomData<OutputOpOrder>,
-}
-
-impl<InputOpOrder, OutputOpOrder> std::fmt::Debug
-    for CiphertextTypeError<InputOpOrder, OutputOpOrder>
-where
-    InputOpOrder: PBSOrderMarker,
-    OutputOpOrder: PBSOrderMarker,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Expected PBSOrder: {:?}, got {:?}, \
-            did you mix CiphertextBig or CompressedCiphertextBig ({:?}) with CiphertextSmall or CompressedCiphertextSmall ({:?})?",
-            InputOpOrder::pbs_order(),
-            OutputOpOrder::pbs_order(),
-            PBSOrder::KeyswitchBootstrap,
-            PBSOrder::BootstrapKeyswitch
-        )
-    }
-}
-
-impl<OpOrder: PBSOrderMarker> CiphertextBase<OpOrder> {
+impl Ciphertext {
     pub fn carry_is_empty(&self) -> bool {
         self.degree.0 < self.message_modulus.0
     }
@@ -168,208 +107,59 @@ impl<OpOrder: PBSOrderMarker> CiphertextBase<OpOrder> {
         self.ct.as_mut().copy_from_slice(other.ct.as_ref());
         self.message_modulus = other.message_modulus;
         self.carry_modulus = other.carry_modulus;
-        self._order_marker = other._order_marker;
-    }
-
-    pub fn to_concrete_type<OtherOpOrder: PBSOrderMarker>(&self) -> &CiphertextBase<OtherOpOrder> {
-        self.try_to_concrete_type().unwrap()
-    }
-
-    pub fn to_concrete_type_mut<OtherOpOrder: PBSOrderMarker>(
-        &mut self,
-    ) -> &mut CiphertextBase<OtherOpOrder> {
-        self.try_to_concrete_type_mut().unwrap()
-    }
-
-    pub fn try_to_concrete_type<OtherOpOrder: PBSOrderMarker>(
-        &self,
-    ) -> Result<&CiphertextBase<OtherOpOrder>, CiphertextTypeError<OpOrder, OtherOpOrder>> {
-        match (OpOrder::pbs_order(), OtherOpOrder::pbs_order()) {
-            (op_order, other_op_order) if op_order == other_op_order => {
-                Ok(unsafe { std::mem::transmute(self) })
-            }
-            _ => Err(CiphertextTypeError {
-                input_type: PhantomData,
-                output_type: PhantomData,
-            }),
-        }
-    }
-
-    pub fn try_to_concrete_type_mut<OtherOpOrder: PBSOrderMarker>(
-        &mut self,
-    ) -> Result<&mut CiphertextBase<OtherOpOrder>, CiphertextTypeError<OpOrder, OtherOpOrder>> {
-        match (OpOrder::pbs_order(), OtherOpOrder::pbs_order()) {
-            (op_order, other_op_order) if op_order == other_op_order => {
-                Ok(unsafe { std::mem::transmute(self) })
-            }
-            _ => Err(CiphertextTypeError {
-                input_type: PhantomData,
-                output_type: PhantomData,
-            }),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct SerialiazableCiphertextBase {
-    pub ct: LweCiphertextOwned<u64>,
-    pub degree: Degree,
-    pub message_modulus: MessageModulus,
-    pub carry_modulus: CarryModulus,
-    pub op_order: PBSOrder,
-}
-
-// Manual impl to be able to carry the OpOrder information
-impl<OpOrder: PBSOrderMarker> Serialize for CiphertextBase<OpOrder> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        SerialiazableCiphertextBase {
-            ct: self.ct.clone(),
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            op_order: OpOrder::pbs_order(),
-        }
-        .serialize(serializer)
-    }
-}
-
-// Manual impl to be able to check the OpOrder information
-impl<'de, OpOrder: PBSOrderMarker> Deserialize<'de> for CiphertextBase<OpOrder> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let intermediate = SerialiazableCiphertextBase::deserialize(deserializer)?;
-        if intermediate.op_order != OpOrder::pbs_order() {
-            return Err(serde::de::Error::custom(format!(
-                "Expected PBSOrder: {:?}, got {:?}, \
-                did you mix CiphertextBig ({:?}) and CiphertextSmall ({:?})?",
-                OpOrder::pbs_order(),
-                intermediate.op_order,
-                PBSOrder::KeyswitchBootstrap,
-                PBSOrder::BootstrapKeyswitch
-            )));
-        }
-
-        Ok(CiphertextBase {
-            ct: intermediate.ct,
-            degree: intermediate.degree,
-            message_modulus: intermediate.message_modulus,
-            carry_modulus: intermediate.carry_modulus,
-            _order_marker: Default::default(),
-        })
+        self.pbs_order = other.pbs_order;
     }
 }
 
 /// A structure representing a compressed shortint ciphertext.
 /// It is used to homomorphically evaluate a shortint circuits.
 /// Internally, it uses a LWE ciphertext.
-#[derive(Clone)]
-pub struct CompressedCiphertextBase<OpOrder: PBSOrderMarker> {
+#[derive(Clone, Serialize, Deserialize)]
+pub struct CompressedCiphertext {
     pub ct: SeededLweCiphertext<u64>,
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub _order_marker: PhantomData<OpOrder>,
+    pub pbs_order: PBSOrder,
 }
 
-pub type CompressedCiphertextBig = CompressedCiphertextBase<KeyswitchBootstrap>;
-pub type CompressedCiphertextSmall = CompressedCiphertextBase<BootstrapKeyswitch>;
-
-#[derive(Serialize, Deserialize)]
-struct SerialiazableCompressedCiphertextBase {
-    pub ct: SeededLweCiphertext<u64>,
-    pub degree: Degree,
-    pub message_modulus: MessageModulus,
-    pub carry_modulus: CarryModulus,
-    pub op_order: PBSOrder,
-}
-
-// Manual impl to be able to carry the OpOrder information
-impl<OpOrder: PBSOrderMarker> Serialize for CompressedCiphertextBase<OpOrder> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        SerialiazableCompressedCiphertextBase {
-            ct: self.ct.clone(),
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            op_order: OpOrder::pbs_order(),
-        }
-        .serialize(serializer)
-    }
-}
-
-// Manual impl to be able to check the OpOrder information
-impl<'de, OpOrder: PBSOrderMarker> Deserialize<'de> for CompressedCiphertextBase<OpOrder> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let intermediate = SerialiazableCompressedCiphertextBase::deserialize(deserializer)?;
-        if intermediate.op_order != OpOrder::pbs_order() {
-            return Err(serde::de::Error::custom(format!(
-                "Expected PBSOrder: {:?}, got {:?}, \
-                    did you mix CompressedCiphertextBig ({:?}) and CompressedCiphertextSmall ({:?})?",
-                OpOrder::pbs_order(),
-                intermediate.op_order,
-                PBSOrder::KeyswitchBootstrap,
-                PBSOrder::BootstrapKeyswitch
-            )));
-        }
-
-        Ok(CompressedCiphertextBase {
-            ct: intermediate.ct,
-            degree: intermediate.degree,
-            message_modulus: intermediate.message_modulus,
-            carry_modulus: intermediate.carry_modulus,
-            _order_marker: Default::default(),
-        })
-    }
-}
-
-impl<OpOrder: PBSOrderMarker> CompressedCiphertextBase<OpOrder> {
-    pub fn decompress(self) -> CiphertextBase<OpOrder> {
-        let CompressedCiphertextBase {
+impl CompressedCiphertext {
+    pub fn decompress(self) -> Ciphertext {
+        let CompressedCiphertext {
             ct,
             degree,
             message_modulus,
             carry_modulus,
-            _order_marker,
+            pbs_order,
         } = self;
 
-        CiphertextBase {
+        Ciphertext {
             ct: ct.decompress_into_lwe_ciphertext(),
             degree,
             message_modulus,
             carry_modulus,
-            _order_marker,
+            pbs_order,
         }
     }
 }
 
-impl<OpOrder: PBSOrderMarker> From<CompressedCiphertextBase<OpOrder>> for CiphertextBase<OpOrder> {
-    fn from(value: CompressedCiphertextBase<OpOrder>) -> Self {
+impl From<CompressedCiphertext> for Ciphertext {
+    fn from(value: CompressedCiphertext) -> Self {
         value.decompress()
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CompactCiphertextList<OpOrder: PBSOrderMarker> {
+pub struct CompactCiphertextList {
     pub ct_list: LweCompactCiphertextListOwned<u64>,
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub _order_marker: PhantomData<OpOrder>,
+    pub pbs_order: PBSOrder,
 }
 
-impl<OpOrder: PBSOrderMarker> CompactCiphertextList<OpOrder> {
-    pub fn expand(&self) -> Vec<CiphertextBase<OpOrder>> {
+impl CompactCiphertextList {
+    pub fn expand(&self) -> Vec<Ciphertext> {
         let mut output_lwe_ciphertext_list = LweCiphertextList::new(
             0u64,
             self.ct_list.lwe_size(),
@@ -399,12 +189,12 @@ impl<OpOrder: PBSOrderMarker> CompactCiphertextList<OpOrder> {
                     lwe_data.to_vec(),
                     self.ct_list.ciphertext_modulus(),
                 );
-                CiphertextBase {
+                Ciphertext {
                     ct,
                     degree: self.degree,
                     message_modulus: self.message_modulus,
                     carry_modulus: self.carry_modulus,
-                    _order_marker: self._order_marker,
+                    pbs_order: self.pbs_order,
                 }
             })
             .collect::<Vec<_>>()
@@ -421,7 +211,6 @@ impl<OpOrder: PBSOrderMarker> CompactCiphertextList<OpOrder> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BootstrapKeyswitch, KeyswitchBootstrap};
     use crate::shortint::gen_keys;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 
@@ -440,30 +229,5 @@ mod tests {
 
         ct_1.copy_from(&ct_2);
         assert_eq!(ct_1, ct_2);
-    }
-
-    #[test]
-    fn test_concrete_type_conversion() {
-        let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
-
-        let msg = 3;
-
-        // Encrypt two messages using the (private) client key:
-        let mut ct = client_key.encrypt(msg);
-
-        let _test = ct.try_to_concrete_type_mut::<KeyswitchBootstrap>().unwrap();
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_concrete_type_conversion_fail() {
-        let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
-
-        let msg = 3;
-
-        // Encrypt two messages using the (private) client key:
-        let mut ct = client_key.encrypt(msg);
-
-        let _test = ct.try_to_concrete_type_mut::<BootstrapKeyswitch>().unwrap();
     }
 }

@@ -1,6 +1,5 @@
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
-use crate::shortint::CiphertextBig;
 use paste::paste;
 use rand::Rng;
 
@@ -612,7 +611,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let pk = crate::shortint::CompressedPublicKeyBig::new(cks);
+    let pk = crate::shortint::CompressedPublicKey::new(cks);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -655,7 +654,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let pk = crate::shortint::PublicKeyBig::new(cks);
+    let pk = crate::shortint::PublicKey::new(cks);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -1415,7 +1414,7 @@ where
         let clear_1 = rng.gen::<u64>() % modulus;
 
         // encryption of an integer
-        let ctxt_0: CiphertextBig = sks.create_trivial(clear_0);
+        let ctxt_0 = sks.create_trivial(clear_0);
 
         // encryption of an integer
         let ctxt_1 = sks.create_trivial(clear_1);
@@ -2880,25 +2879,14 @@ where
     assert_eq!(clear_mux, dec_res);
 }
 
-#[test]
-fn test_shortint_compact_public_key_smart_add_big() {
-    test_shortint_compact_public_key_base_smart_add::<
-        crate::shortint::ciphertext::KeyswitchBootstrap,
-    >(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK);
-}
+create_parametrized_test!(test_shortint_compact_public_key_base_smart_add {
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
+    PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK
+});
 
-#[test]
-fn test_shortint_compact_public_key_smart_add_small() {
-    test_shortint_compact_public_key_base_smart_add::<
-        crate::shortint::ciphertext::BootstrapKeyswitch,
-    >(PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
-}
-
-fn test_shortint_compact_public_key_base_smart_add<OpOrder: crate::shortint::PBSOrderMarker>(
-    params: ClassicPBSParameters,
-) {
+fn test_shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
     let (cks, sks) = crate::shortint::gen_keys(params);
-    let pk = crate::shortint::CompactPublicKeyBase::<OpOrder>::new(&cks);
+    let pk = crate::shortint::CompactPublicKey::new(&cks);
 
     let mut rng = rand::thread_rng();
 
@@ -2937,27 +2925,14 @@ fn test_shortint_compact_public_key_base_smart_add<OpOrder: crate::shortint::PBS
     }
 }
 
-#[test]
-fn test_shortint_compact_public_key_list_smart_sub_big() {
-    test_shortint_compact_public_key_base_list_smart_sub::<
-        crate::shortint::ciphertext::KeyswitchBootstrap,
-    >(PARAM_MESSAGE_2_CARRY_2_COMPACT_PK);
-}
+create_parametrized_test!(test_shortint_compact_public_key_base_list_smart_sub {
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK,
+    PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK
+});
 
-#[test]
-fn test_shortint_compact_public_key_list_smart_sub_small() {
-    test_shortint_compact_public_key_base_list_smart_sub::<
-        crate::shortint::ciphertext::BootstrapKeyswitch,
-    >(PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
-}
-
-fn test_shortint_compact_public_key_base_list_smart_sub<
-    OpOrder: crate::shortint::PBSOrderMarker,
->(
-    params: ClassicPBSParameters,
-) {
+fn test_shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters) {
     let (cks, sks) = crate::shortint::gen_keys(params);
-    let pk = crate::shortint::CompactPublicKeyBase::<OpOrder>::new(&cks);
+    let pk = crate::shortint::CompactPublicKey::new(&cks);
 
     let mut rng = rand::thread_rng();
 

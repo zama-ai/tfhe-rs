@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::rc::Rc;
-use tfhe::integer::{RadixCiphertextBig, ServerKey};
+use tfhe::integer::{RadixCiphertext, ServerKey};
 
 use crate::parser::u8_to_char;
 
@@ -15,7 +15,7 @@ pub(crate) enum Executed {
     LessOrEqual { a: Box<Executed>, b: Box<Executed> },
     Not { a: Box<Executed> },
 }
-type ExecutedResult = (RadixCiphertextBig, Executed);
+type ExecutedResult = (RadixCiphertext, Executed);
 
 impl Executed {
     pub(crate) fn ct_pos(at: usize) -> Self {
@@ -35,7 +35,7 @@ const CT_TRUE: u8 = 1;
 
 pub(crate) struct Execution {
     sk: ServerKey,
-    cache: HashMap<Executed, RadixCiphertextBig>,
+    cache: HashMap<Executed, RadixCiphertext>,
 
     ct_ops: usize,
     cache_hits: usize,

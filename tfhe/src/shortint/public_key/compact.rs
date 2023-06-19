@@ -8,22 +8,17 @@ use crate::core_crypto::prelude::{
 
 use crate::core_crypto::prelude::encrypt_lwe_ciphertext_with_compact_public_key;
 
-use crate::shortint::ciphertext::{
-    BootstrapKeyswitch, CompactCiphertextList, Degree, KeyswitchBootstrap,
-};
-use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, ShortintParameterSet};
+use crate::shortint::ciphertext::{CompactCiphertextList, Degree};
+use crate::shortint::{Ciphertext, ClientKey, PBSOrder, ShortintParameterSet};
 
 use crate::shortint::engine::ShortintEngine;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CompactPublicKeyBase<OpOrder: PBSOrderMarker> {
+pub struct CompactPublicKey {
     pub(crate) key: LweCompactPublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
-    pub _order_marker: std::marker::PhantomData<OpOrder>,
+    pub pbs_order: PBSOrder,
 }
-
-pub type CompactPublicKeyBig = CompactPublicKeyBase<KeyswitchBootstrap>;
-pub type CompactPublicKeySmall = CompactPublicKeyBase<BootstrapKeyswitch>;
 
 fn to_plaintext_iterator(
     message_iter: impl Iterator<Item = u64>,
@@ -44,25 +39,26 @@ fn to_plaintext_iterator(
     })
 }
 
-impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
-    pub fn new(client_key: &ClientKey) -> CompactPublicKeyBase<OpOrder> {
+impl CompactPublicKey {
+    pub fn new(client_key: &ClientKey) -> CompactPublicKey {
         Self::try_new(client_key).expect(
             "Incompatible parameters, the lwe_dimension of the secret key must be a power of two",
         )
     }
 
-    pub fn try_new(client_key: &ClientKey) -> Option<CompactPublicKeyBase<OpOrder>> {
+    pub fn try_new(client_key: &ClientKey) -> Option<CompactPublicKey> {
         let parameters = client_key.parameters;
-        let (secret_encryption_key, encryption_noise) = match OpOrder::pbs_order() {
-            crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
-                parameters.glwe_modular_std_dev(),
-            ),
-            crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
-                parameters.lwe_modular_std_dev(),
-            ),
-        };
+        let (secret_encryption_key, encryption_noise) =
+            match client_key.parameters.encryption_key_choice().into() {
+                crate::shortint::PBSOrder::KeyswitchBootstrap => (
+                    &client_key.large_lwe_secret_key,
+                    parameters.glwe_modular_std_dev(),
+                ),
+                crate::shortint::PBSOrder::BootstrapKeyswitch => (
+                    &client_key.small_lwe_secret_key,
+                    parameters.lwe_modular_std_dev(),
+                ),
+            };
 
         if !secret_encryption_key.lwe_dimension().0.is_power_of_two() {
             return None;
@@ -85,11 +81,11 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
         Some(Self {
             key,
             parameters,
-            _order_marker: std::marker::PhantomData,
+            pbs_order: client_key.parameters.encryption_key_choice().into(),
         })
     }
 
-    pub fn encrypt(&self, message: u64) -> CiphertextBase<OpOrder> {
+    pub fn encrypt(&self, message: u64) -> Ciphertext {
         let plain = to_plaintext_iterator([message].iter().copied(), &self.parameters)
             .next()
             .unwrap();
@@ -101,7 +97,7 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
             self.parameters.ciphertext_modulus(),
         );
 
-        let encryption_noise = match OpOrder::pbs_order() {
+        let encryption_noise = match self.pbs_order {
             crate::shortint::PBSOrder::KeyswitchBootstrap => self.parameters.glwe_modular_std_dev(),
             crate::shortint::PBSOrder::BootstrapKeyswitch => self.parameters.lwe_modular_std_dev(),
         };
@@ -119,23 +115,20 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
         });
 
         let message_modulus = self.parameters.message_modulus();
-        CiphertextBase {
+        Ciphertext {
             ct: encrypted_ct,
             degree: Degree(message_modulus.0 - 1),
             message_modulus,
             carry_modulus: self.parameters.carry_modulus(),
-            _order_marker: Default::default(),
+            pbs_order: self.pbs_order,
         }
     }
 
-    pub fn encrypt_slice(&self, messages: &[u64]) -> CompactCiphertextList<OpOrder> {
+    pub fn encrypt_slice(&self, messages: &[u64]) -> CompactCiphertextList {
         self.encrypt_iter(messages.iter().copied())
     }
 
-    pub fn encrypt_iter(
-        &self,
-        messages: impl Iterator<Item = u64>,
-    ) -> CompactCiphertextList<OpOrder> {
+    pub fn encrypt_iter(&self, messages: impl Iterator<Item = u64>) -> CompactCiphertextList {
         let plaintext_container = to_plaintext_iterator(messages, &self.parameters)
             .map(|plaintext| plaintext.0)
             .collect::<Vec<_>>();
@@ -188,7 +181,7 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
             degree: Degree(message_modulus.0 - 1),
             message_modulus,
             carry_modulus: self.parameters.carry_modulus(),
-            _order_marker: Default::default(),
+            pbs_order: self.pbs_order,
         }
     }
 
@@ -202,28 +195,26 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CompressedCompactPublicKeyBase<OpOrder: PBSOrderMarker> {
+pub struct CompressedCompactPublicKey {
     pub(crate) key: SeededLweCompactPublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
-    pub _order_marker: std::marker::PhantomData<OpOrder>,
+    pub pbs_order: PBSOrder,
 }
 
-pub type CompressedCompactPublicKeyBig = CompressedCompactPublicKeyBase<KeyswitchBootstrap>;
-pub type CompressedCompactPublicKeySmall = CompressedCompactPublicKeyBase<BootstrapKeyswitch>;
-
-impl<OpOrder: PBSOrderMarker> CompressedCompactPublicKeyBase<OpOrder> {
+impl CompressedCompactPublicKey {
     pub fn new(client_key: &ClientKey) -> Self {
         let parameters = client_key.parameters;
-        let (secret_encryption_key, encryption_noise) = match OpOrder::pbs_order() {
-            crate::shortint::PBSOrder::KeyswitchBootstrap => (
-                &client_key.large_lwe_secret_key,
-                parameters.glwe_modular_std_dev(),
-            ),
-            crate::shortint::PBSOrder::BootstrapKeyswitch => (
-                &client_key.small_lwe_secret_key,
-                parameters.lwe_modular_std_dev(),
-            ),
-        };
+        let (secret_encryption_key, encryption_noise) =
+            match client_key.parameters.encryption_key_choice().into() {
+                crate::shortint::PBSOrder::KeyswitchBootstrap => (
+                    &client_key.large_lwe_secret_key,
+                    parameters.glwe_modular_std_dev(),
+                ),
+                crate::shortint::PBSOrder::BootstrapKeyswitch => (
+                    &client_key.small_lwe_secret_key,
+                    parameters.lwe_modular_std_dev(),
+                ),
+            };
 
         let key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_seeded_lwe_compact_public_key(
@@ -237,24 +228,22 @@ impl<OpOrder: PBSOrderMarker> CompressedCompactPublicKeyBase<OpOrder> {
         Self {
             key,
             parameters,
-            _order_marker: std::marker::PhantomData,
+            pbs_order: client_key.parameters.encryption_key_choice().into(),
         }
     }
 
-    pub fn decompress(self) -> CompactPublicKeyBase<OpOrder> {
+    pub fn decompress(self) -> CompactPublicKey {
         let decompressed_key = self.key.decompress_into_lwe_compact_public_key();
-        CompactPublicKeyBase {
+        CompactPublicKey {
             key: decompressed_key,
             parameters: self.parameters,
-            _order_marker: self._order_marker,
+            pbs_order: self.pbs_order,
         }
     }
 }
 
-impl<OpOrder: PBSOrderMarker> From<CompressedCompactPublicKeyBase<OpOrder>>
-    for CompactPublicKeyBase<OpOrder>
-{
-    fn from(value: CompressedCompactPublicKeyBase<OpOrder>) -> Self {
+impl From<CompressedCompactPublicKey> for CompactPublicKey {
+    fn from(value: CompressedCompactPublicKey) -> Self {
         value.decompress()
     }
 }

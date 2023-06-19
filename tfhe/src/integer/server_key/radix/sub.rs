@@ -2,7 +2,6 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
@@ -35,11 +34,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg_1 - msg_2);
     /// ```
-    pub fn unchecked_sub<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_sub(
         &self,
-        ctxt_left: &RadixCiphertext<PBSOrder>,
-        ctxt_right: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ctxt_left: &RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut result = ctxt_left.clone();
         self.unchecked_sub_assign(&mut result, ctxt_right);
         result
@@ -76,10 +75,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(dec_result, msg_1 - msg_2);
     /// ```
-    pub fn unchecked_sub_assign<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_sub_assign(
         &self,
-        ctxt_left: &mut RadixCiphertext<PBSOrder>,
-        ctxt_right: &RadixCiphertext<PBSOrder>,
+        ctxt_left: &mut RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
     ) {
         let neg = self.unchecked_neg(ctxt_right);
         self.unchecked_add_assign(ctxt_left, &neg);
@@ -109,10 +108,10 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_sub_possible<PBSOrder: PBSOrderMarker>(
+    pub fn is_sub_possible(
         &self,
-        ctxt_left: &RadixCiphertext<PBSOrder>,
-        ctxt_right: &RadixCiphertext<PBSOrder>,
+        ctxt_left: &RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
     ) -> bool {
         for (ct_left_i, ct_right_i) in ctxt_left.blocks.iter().zip(ctxt_right.blocks.iter()) {
             if !self.key.is_sub_possible(ct_left_i, ct_right_i) {
@@ -156,11 +155,11 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_sub<PBSOrder: PBSOrderMarker>(
+    pub fn checked_sub(
         &self,
-        ctxt_left: &RadixCiphertext<PBSOrder>,
-        ctxt_right: &RadixCiphertext<PBSOrder>,
-    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
+        ctxt_left: &RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
+    ) -> Result<RadixCiphertext, CheckError> {
         if self.is_sub_possible(ctxt_left, ctxt_right) {
             Ok(self.unchecked_sub(ctxt_left, ctxt_right))
         } else {
@@ -200,10 +199,10 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1.wrapping_sub(msg2) as u64, clear);
     /// ```
-    pub fn checked_sub_assign<PBSOrder: PBSOrderMarker>(
+    pub fn checked_sub_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) -> Result<(), CheckError> {
         if self.is_sub_possible(ct_left, ct_right) {
             self.unchecked_sub_assign(ct_left, ct_right);
@@ -239,11 +238,11 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub<PBSOrder: PBSOrderMarker>(
+    pub fn smart_sub(
         &self,
-        ctxt_left: &mut RadixCiphertext<PBSOrder>,
-        ctxt_right: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ctxt_left: &mut RadixCiphertext,
+        ctxt_right: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {
             self.full_propagate(ctxt_right);
@@ -287,10 +286,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub_assign<PBSOrder: PBSOrderMarker>(
+    pub fn smart_sub_assign(
         &self,
-        ctxt_left: &mut RadixCiphertext<PBSOrder>,
-        ctxt_right: &mut RadixCiphertext<PBSOrder>,
+        ctxt_left: &mut RadixCiphertext,
+        ctxt_right: &mut RadixCiphertext,
     ) {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {

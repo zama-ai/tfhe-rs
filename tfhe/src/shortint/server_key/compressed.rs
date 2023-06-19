@@ -4,7 +4,7 @@ use super::MaxDegree;
 use crate::core_crypto::prelude::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, CiphertextModulus, MessageModulus};
-use crate::shortint::ClientKey;
+use crate::shortint::{ClientKey, PBSOrder};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -28,6 +28,7 @@ pub struct CompressedServerKey {
     // Maximum number of operations that can be done before emptying the operation buffer
     pub max_degree: MaxDegree,
     pub ciphertext_modulus: CiphertextModulus,
+    pub pbs_order: PBSOrder,
 }
 
 impl CompressedServerKey {

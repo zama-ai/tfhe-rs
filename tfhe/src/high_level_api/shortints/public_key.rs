@@ -9,7 +9,7 @@ pub struct GenericShortIntPublicKey<P>
 where
     P: ShortIntegerParameter,
 {
-    pub(in crate::high_level_api::shortints) key: crate::shortint::public_key::PublicKeyBig,
+    pub(in crate::high_level_api::shortints) key: crate::shortint::public_key::PublicKey,
     _marker: std::marker::PhantomData<P>,
 }
 
@@ -18,7 +18,7 @@ where
     P: ShortIntegerParameter,
 {
     pub fn new(client_key: &GenericShortIntClientKey<P>) -> Self {
-        let key = crate::shortint::public_key::PublicKeyBig::new(&client_key.key);
+        let key = crate::shortint::public_key::PublicKey::new(&client_key.key);
         Self {
             key,
             _marker: Default::default(),
@@ -39,7 +39,7 @@ pub(in crate::high_level_api::shortints) mod compressed {
         P: ShortIntegerParameter,
     {
         pub(in crate::high_level_api::shortints) key:
-            crate::shortint::public_key::CompressedPublicKeyBig,
+            crate::shortint::public_key::CompressedPublicKey,
         _marker: std::marker::PhantomData<P>,
     }
 
@@ -48,7 +48,7 @@ pub(in crate::high_level_api::shortints) mod compressed {
         P: ShortIntegerParameter,
     {
         pub fn new(client_key: &GenericShortIntClientKey<P>) -> Self {
-            let key = crate::shortint::public_key::CompressedPublicKeyBig::new(&client_key.key);
+            let key = crate::shortint::public_key::CompressedPublicKey::new(&client_key.key);
             Self {
                 key,
                 _marker: Default::default(),

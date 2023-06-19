@@ -307,8 +307,8 @@ RegExpr variants.
 We'll start by defining the function that will recursively traverse into the RegExpr value:
 ```rust
 
-type StringCiphertext = Vec<RadixCiphertextBig>;
-type ResultCiphertext = RadixCiphertextBig;
+type StringCiphertext = Vec<RadixCiphertext>;
+type ResultCiphertext = RadixCiphertext;
 
 fn match(
     sk: &ServerKey,

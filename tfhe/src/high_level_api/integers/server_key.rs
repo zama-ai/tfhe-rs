@@ -1,16 +1,14 @@
+use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::wopbs::WopbsKey;
 
-use super::types::base::RadixCiphertextDyn;
-
-pub(crate) fn wopbs_radix<O>(
+pub(crate) fn wopbs_radix(
     wopbs_key: &WopbsKey,
     server_key: &crate::integer::ServerKey,
-    ct_in: &crate::integer::ciphertext::RadixCiphertext<O>,
+    ct_in: &crate::integer::ciphertext::RadixCiphertext,
     func: impl Fn(u64) -> u64,
-) -> crate::integer::ciphertext::RadixCiphertext<O>
+) -> crate::integer::ciphertext::RadixCiphertext
 where
-    O: crate::shortint::PBSOrderMarker,
-    crate::integer::ciphertext::RadixCiphertext<O>: crate::integer::IntegerCiphertext,
+    crate::integer::ciphertext::RadixCiphertext: crate::integer::IntegerCiphertext,
 {
     let switched_ct = wopbs_key.keyswitch_to_wopbs_params(server_key, ct_in);
     let luts = wopbs_key.generate_lut_radix(&switched_ct, func);
@@ -18,16 +16,15 @@ where
     wopbs_key.keyswitch_to_pbs_params(&res)
 }
 
-pub(crate) fn bivariate_wopbs_radix<O>(
+pub(crate) fn bivariate_wopbs_radix(
     wopbs_key: &WopbsKey,
     server_key: &crate::integer::ServerKey,
-    lhs: &crate::integer::ciphertext::RadixCiphertext<O>,
-    rhs: &crate::integer::ciphertext::RadixCiphertext<O>,
+    lhs: &crate::integer::ciphertext::RadixCiphertext,
+    rhs: &crate::integer::ciphertext::RadixCiphertext,
     func: impl Fn(u64, u64) -> u64,
-) -> crate::integer::ciphertext::RadixCiphertext<O>
+) -> crate::integer::ciphertext::RadixCiphertext
 where
-    O: crate::shortint::PBSOrderMarker,
-    crate::integer::ciphertext::RadixCiphertext<O>: crate::integer::IntegerCiphertext,
+    crate::integer::ciphertext::RadixCiphertext: crate::integer::IntegerCiphertext,
 {
     let switched_lhs = wopbs_key.keyswitch_to_wopbs_params(server_key, lhs);
     let switched_rhs = wopbs_key.keyswitch_to_wopbs_params(server_key, rhs);
@@ -74,121 +71,61 @@ pub trait WopbsEvaluationKey<ServerKey, Ciphertext> {
     ) -> Ciphertext;
 }
 
-impl WopbsEvaluationKey<crate::integer::ServerKey, RadixCiphertextDyn> for WopbsKey {
+impl WopbsEvaluationKey<crate::integer::ServerKey, RadixCiphertext> for WopbsKey {
     fn apply_wopbs(
         &self,
         sks: &crate::integer::ServerKey,
-        ct: &RadixCiphertextDyn,
+        ct: &RadixCiphertext,
         f: impl Fn(u64) -> u64,
-    ) -> RadixCiphertextDyn {
-        match ct {
-            RadixCiphertextDyn::Big(ct) => {
-                let mut tmp_ct: crate::integer::ciphertext::RadixCiphertextBig;
+    ) -> RadixCiphertext {
+        let mut tmp_ct: crate::integer::ciphertext::RadixCiphertext;
 
-                let ct = if ct.block_carries_are_empty() {
-                    ct
-                } else {
-                    tmp_ct = ct.clone();
-                    sks.full_propagate_parallelized(&mut tmp_ct);
-                    &tmp_ct
-                };
+        let ct = if ct.block_carries_are_empty() {
+            ct
+        } else {
+            tmp_ct = ct.clone();
+            sks.full_propagate_parallelized(&mut tmp_ct);
+            &tmp_ct
+        };
 
-                let res = wopbs_radix(self, sks, ct, f);
-                RadixCiphertextDyn::Big(res)
-            }
-            RadixCiphertextDyn::Small(ct) => {
-                let mut tmp_ct: crate::integer::ciphertext::RadixCiphertextSmall;
-
-                let ct = if ct.block_carries_are_empty() {
-                    ct
-                } else {
-                    tmp_ct = ct.clone();
-                    sks.full_propagate_parallelized(&mut tmp_ct);
-                    &tmp_ct
-                };
-
-                let res = wopbs_radix(self, sks, ct, f);
-                RadixCiphertextDyn::Small(res)
-            }
-        }
+        wopbs_radix(self, sks, ct, f)
     }
 
     fn apply_bivariate_wopbs(
         &self,
         sks: &crate::integer::ServerKey,
-        lhs: &RadixCiphertextDyn,
-        rhs: &RadixCiphertextDyn,
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
         f: impl Fn(u64, u64) -> u64,
-    ) -> RadixCiphertextDyn {
-        match (lhs, rhs) {
-            (RadixCiphertextDyn::Big(lhs), RadixCiphertextDyn::Big(rhs)) => {
-                let mut tmp_lhs: crate::integer::ciphertext::RadixCiphertextBig;
-                let mut tmp_rhs: crate::integer::ciphertext::RadixCiphertextBig;
+    ) -> RadixCiphertext {
+        let mut tmp_lhs: crate::integer::ciphertext::RadixCiphertext;
+        let mut tmp_rhs: crate::integer::ciphertext::RadixCiphertext;
 
-                // Clean carries to have a small wopbs to compute
-                let (lhs, rhs) =
-                    match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-                        (true, true) => (lhs, rhs),
-                        (true, false) => {
-                            tmp_rhs = rhs.clone();
-                            sks.full_propagate_parallelized(&mut tmp_rhs);
-                            (lhs, &tmp_rhs)
-                        }
-                        (false, true) => {
-                            tmp_lhs = lhs.clone();
-                            sks.full_propagate_parallelized(&mut tmp_lhs);
-                            (&tmp_lhs, rhs)
-                        }
-                        (false, false) => {
-                            tmp_lhs = lhs.clone();
-                            tmp_rhs = rhs.clone();
-                            rayon::join(
-                                || sks.full_propagate_parallelized(&mut tmp_lhs),
-                                || sks.full_propagate_parallelized(&mut tmp_rhs),
-                            );
-                            (&tmp_lhs, &tmp_rhs)
-                        }
-                    };
-
-                let res = bivariate_wopbs_radix(self, sks, lhs, rhs, f);
-                RadixCiphertextDyn::Big(res)
+        // Clean carries to have a small wopbs to compute
+        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
+            (true, true) => (lhs, rhs),
+            (true, false) => {
+                tmp_rhs = rhs.clone();
+                sks.full_propagate_parallelized(&mut tmp_rhs);
+                (lhs, &tmp_rhs)
             }
-            (RadixCiphertextDyn::Small(lhs), RadixCiphertextDyn::Small(rhs)) => {
-                let mut tmp_lhs: crate::integer::ciphertext::RadixCiphertextSmall;
-                let mut tmp_rhs: crate::integer::ciphertext::RadixCiphertextSmall;
-
-                // Clean carries to have a small wopbs to compute
-                let (lhs, rhs) =
-                    match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-                        (true, true) => (lhs, rhs),
-                        (true, false) => {
-                            tmp_rhs = rhs.clone();
-                            sks.full_propagate_parallelized(&mut tmp_rhs);
-                            (lhs, &tmp_rhs)
-                        }
-                        (false, true) => {
-                            tmp_lhs = lhs.clone();
-                            sks.full_propagate_parallelized(&mut tmp_lhs);
-                            (&tmp_lhs, rhs)
-                        }
-                        (false, false) => {
-                            tmp_lhs = lhs.clone();
-                            tmp_rhs = rhs.clone();
-                            rayon::join(
-                                || sks.full_propagate_parallelized(&mut tmp_lhs),
-                                || sks.full_propagate_parallelized(&mut tmp_rhs),
-                            );
-                            (&tmp_lhs, &tmp_rhs)
-                        }
-                    };
-
-                let res = bivariate_wopbs_radix(self, sks, lhs, rhs, f);
-                RadixCiphertextDyn::Small(res)
+            (false, true) => {
+                tmp_lhs = lhs.clone();
+                sks.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, rhs)
             }
-            (_, _) => {
-                unreachable!("internal error: cannot mix big and small ciphertext")
+            (false, false) => {
+                tmp_lhs = lhs.clone();
+                tmp_rhs = rhs.clone();
+                rayon::join(
+                    || sks.full_propagate_parallelized(&mut tmp_lhs),
+                    || sks.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
             }
-        }
+        };
+
+        bivariate_wopbs_radix(self, sks, lhs, rhs, f)
     }
 }
 

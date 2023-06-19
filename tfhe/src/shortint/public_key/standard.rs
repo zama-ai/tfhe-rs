@@ -1,26 +1,21 @@
 //! Module with the definition of the PublicKey.
 use crate::core_crypto::entities::*;
-use crate::shortint::ciphertext::{
-    BootstrapKeyswitch, CiphertextBase, KeyswitchBootstrap, PBSOrderMarker,
-};
+use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
-use crate::shortint::{ClientKey, CompressedPublicKeyBase};
+use crate::shortint::{ClientKey, CompressedPublicKey, PBSOrder};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// A structure containing a public key.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct PublicKeyBase<OpOrder: PBSOrderMarker> {
+pub struct PublicKey {
     pub(crate) lwe_public_key: LwePublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
-    pub _order_marker: std::marker::PhantomData<OpOrder>,
+    pub pbs_order: PBSOrder,
 }
 
-pub type PublicKeyBig = PublicKeyBase<KeyswitchBootstrap>;
-pub type PublicKeySmall = PublicKeyBase<BootstrapKeyswitch>;
-
-impl PublicKeyBig {
+impl PublicKey {
     /// Generate a public key.
     ///
     /// # Example
@@ -28,39 +23,17 @@ impl PublicKeyBig {
     /// ```rust
     /// use tfhe::shortint::client_key::ClientKey;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::public_key::PublicKeyBig;
+    /// use tfhe::shortint::public_key::PublicKey;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = PublicKeyBig::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     /// ```
-    pub fn new(client_key: &ClientKey) -> PublicKeyBig {
+    pub fn new(client_key: &ClientKey) -> PublicKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key).unwrap())
     }
-}
 
-impl PublicKeySmall {
-    /// Generate a public key.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::public_key::PublicKeySmall;
-    ///
-    /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
-    ///
-    /// let pk = PublicKeySmall::new(&cks);
-    /// ```
-    pub fn new(client_key: &ClientKey) -> PublicKeySmall {
-        ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key).unwrap())
-    }
-}
-
-impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// Encrypt a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus
@@ -69,12 +42,12 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, PublicKeyBig, PublicKeySmall, ServerKey};
+    /// use tfhe::shortint::{ClientKey, PublicKey, ServerKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = PublicKeyBig::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 3;
@@ -91,7 +64,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     ///
-    /// let pk = PublicKeySmall::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 3;
@@ -108,7 +81,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     /// ```
-    pub fn encrypt(&self, message: u64) -> CiphertextBase<OpOrder> {
+    pub fn encrypt(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.encrypt_with_public_key(self, message).unwrap()
         })
@@ -120,12 +93,12 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{MessageModulus, PARAM_MESSAGE_2_CARRY_2};
-    /// use tfhe::shortint::{ClientKey, PublicKeyBig, PublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = PublicKeyBig::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 3;
     ///
@@ -136,7 +109,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg, dec);
     ///
-    /// let pk = PublicKeySmall::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 3;
     ///
@@ -151,7 +124,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
         &self,
         message: u64,
         message_modulus: MessageModulus,
-    ) -> CiphertextBase<OpOrder> {
+    ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_with_message_modulus_and_public_key(self, message, message_modulus)
@@ -165,12 +138,12 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, PublicKeyBig, PublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = PublicKeyBig::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 7;
     /// let ct = pk.unchecked_encrypt(msg);
@@ -182,7 +155,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_and_carry(&ct);
     /// assert_eq!(msg, dec);
     ///
-    /// let pk = PublicKeySmall::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 7;
     /// let ct = pk.unchecked_encrypt(msg);
@@ -194,7 +167,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_and_carry(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn unchecked_encrypt(&self, message: u64) -> CiphertextBase<OpOrder> {
+    pub fn unchecked_encrypt(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_encrypt_with_public_key(self, message)
@@ -210,12 +183,12 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, PublicKeyBig, PublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     /// // DISCLAIMER: Note that this parameter is not guaranteed to be secure
-    /// let pk = PublicKeyBig::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 6;
@@ -224,7 +197,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_and_carry_without_padding(&ct);
     /// assert_eq!(msg, dec);
     ///
-    /// let pk = PublicKeySmall::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 6;
@@ -233,7 +206,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_and_carry_without_padding(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_without_padding(&self, message: u64) -> CiphertextBase<OpOrder> {
+    pub fn encrypt_without_padding(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_without_padding_with_public_key(self, message)
@@ -249,12 +222,12 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, PublicKeyBig, PublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, PublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = PublicKeyBig::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 2;
     /// let modulus = 3;
@@ -266,7 +239,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
     /// assert_eq!(msg, dec % modulus as u64);
     ///
-    /// let pk = PublicKeySmall::new(&cks);
+    /// let pk = PublicKey::new(&cks);
     ///
     /// let msg = 2;
     /// let modulus = 3;
@@ -278,7 +251,7 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
     /// assert_eq!(msg, dec % modulus as u64);
     /// ```
-    pub fn encrypt_native_crt(&self, message: u64, message_modulus: u8) -> CiphertextBase<OpOrder> {
+    pub fn encrypt_native_crt(&self, message: u64, message_modulus: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_native_crt_with_public_key(self, message, message_modulus)
@@ -287,8 +260,8 @@ impl<OpOrder: PBSOrderMarker> PublicKeyBase<OpOrder> {
     }
 }
 
-impl<OpOder: PBSOrderMarker> From<CompressedPublicKeyBase<OpOder>> for PublicKeyBase<OpOder> {
-    fn from(compressed_public_key: CompressedPublicKeyBase<OpOder>) -> Self {
+impl From<CompressedPublicKey> for PublicKey {
+    fn from(compressed_public_key: CompressedPublicKey) -> Self {
         let parameters = compressed_public_key.parameters;
 
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
@@ -304,7 +277,7 @@ impl<OpOder: PBSOrderMarker> From<CompressedPublicKeyBase<OpOder>> for PublicKey
         Self {
             lwe_public_key: decompressed_public_key,
             parameters,
-            _order_marker: Default::default(),
+            pbs_order: compressed_public_key.pbs_order,
         }
     }
 }

@@ -82,15 +82,20 @@ impl TfhePublicKey {
     #[wasm_bindgen]
     pub fn new(client_key: &TfheClientKey) -> Result<TfhePublicKey, JsError> {
         catch_panic_result(|| {
-            if matches!(
-                client_key.0.integer_key.encryption_type(),
-                crate::shortint::EncryptionKeyChoice::Big
-            ) {
+            let uses_big_params = client_key
+                .0
+                .integer_key
+                .block_parameters()
+                .map(|key| {
+                    key.encryption_key_choice()
+                        == crate::shortint::parameters::EncryptionKeyChoice::Big
+                })
+                .unwrap_or(false);
+            if uses_big_params {
                 return Err(JsError::new(
-                    "TfhePublicKey is only compatible with 'small' encryption type",
+                    "PublicKey using big parameters not compatible wasm",
                 ));
             }
-
             Ok(Self(hlapi::PublicKey::new(&client_key.0)))
         })
     }

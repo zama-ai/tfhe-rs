@@ -1,7 +1,7 @@
-use tfhe::integer::{gen_keys_radix, RadixCiphertextBig, RadixClientKey, ServerKey};
+use tfhe::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey, ServerKey};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 
-pub type StringCiphertext = Vec<RadixCiphertextBig>;
+pub type StringCiphertext = Vec<RadixCiphertext>;
 
 pub fn encrypt_str(
     client_key: &RadixClientKey,

@@ -15,10 +15,7 @@ use crate::shortint::server_key::{
     BivariateLookupTableOwned, LookupTableOwned, MaxDegree, ShortintBootstrappingKey,
     ShortintCompressedBootstrappingKey,
 };
-use crate::shortint::{
-    CiphertextBase, CiphertextBig, CiphertextSmall, ClientKey, CompressedServerKey, PBSOrder,
-    PBSOrderMarker, ServerKey,
-};
+use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, PBSOrder, ServerKey};
 
 mod add;
 mod bitwise_op;
@@ -191,6 +188,7 @@ impl ShortintEngine {
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
+            pbs_order: cks.parameters.encryption_key_choice().into(),
         })
     }
 
@@ -305,6 +303,7 @@ impl ShortintEngine {
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
+            pbs_order: cks.parameters.encryption_key_choice().into(),
         })
     }
 
@@ -322,7 +321,7 @@ impl ShortintEngine {
     pub(crate) fn keyswitch_bootstrap_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBig,
+        ct: &mut Ciphertext,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
         let (mut ciphertext_buffers, buffers) =
@@ -376,27 +375,27 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn clear_carry<OpOrder: PBSOrderMarker>(
+    pub(crate) fn clear_carry(
         &mut self,
         server_key: &ServerKey,
-        ct: &CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut ct_in = ct.clone();
         self.clear_carry_assign(server_key, &mut ct_in)?;
         Ok(ct_in)
     }
 
-    pub(crate) fn clear_carry_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn clear_carry_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
     ) -> EngineResult<()> {
-        match OpOrder::pbs_order() {
+        match server_key.pbs_order {
             PBSOrder::KeyswitchBootstrap => {
-                self.keyswitch_bootstrap_assign(server_key, ct.to_concrete_type_mut())?;
+                self.keyswitch_bootstrap_assign(server_key, ct)?;
             }
             PBSOrder::BootstrapKeyswitch => {
-                self.bootstrap_keyswitch_assign(server_key, ct.to_concrete_type_mut())?;
+                self.bootstrap_keyswitch_assign(server_key, ct)?;
             }
         }
         Ok(())
@@ -405,7 +404,7 @@ impl ShortintEngine {
     pub(crate) fn keyswitch_programmable_bootstrap_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBig,
+        ct: &mut Ciphertext,
         acc: &LookupTableOwned,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
@@ -460,23 +459,23 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn unchecked_apply_lookup_table_bivariate<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_apply_lookup_table_bivariate(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
         acc: &BivariateLookupTableOwned,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct_left.clone();
         self.unchecked_apply_lookup_table_bivariate_assign(server_key, &mut ct_res, ct_right, acc)?;
         Ok(ct_res)
     }
 
-    pub(crate) fn unchecked_apply_lookup_table_bivariate_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_apply_lookup_table_bivariate_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) -> EngineResult<()> {
         let modulus = (ct_right.degree.0 + 1) as u64;
@@ -519,13 +518,13 @@ impl ShortintEngine {
         self.generate_accumulator_bivariate_with_factor(server_key, f, server_key.message_modulus)
     }
 
-    pub(crate) fn unchecked_evaluate_bivariate_function<F, OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_evaluate_bivariate_function<F>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
         f: F,
-    ) -> EngineResult<CiphertextBase<OpOrder>>
+    ) -> EngineResult<Ciphertext>
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -534,11 +533,11 @@ impl ShortintEngine {
         Ok(ct_res)
     }
 
-    pub(crate) fn unchecked_evaluate_bivariate_function_assign<OpOrder: PBSOrderMarker, F>(
+    pub(crate) fn unchecked_evaluate_bivariate_function_assign<F>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
         f: F,
     ) -> EngineResult<()>
     where
@@ -552,13 +551,13 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_evaluate_bivariate_function<OpOrder: PBSOrderMarker, F>(
+    pub(crate) fn smart_evaluate_bivariate_function<F>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
         f: F,
-    ) -> EngineResult<CiphertextBase<OpOrder>>
+    ) -> EngineResult<Ciphertext>
     where
         F: Fn(u64, u64) -> u64,
     {
@@ -568,11 +567,11 @@ impl ShortintEngine {
         Ok(ct_res)
     }
 
-    pub(crate) fn smart_evaluate_bivariate_function_assign<OpOrder: PBSOrderMarker, F>(
+    pub(crate) fn smart_evaluate_bivariate_function_assign<F>(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
         f: F,
     ) -> EngineResult<()>
     where
@@ -586,23 +585,23 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_apply_lookup_table_bivariate<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_apply_lookup_table_bivariate(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
+        ct_left: &Ciphertext,
+        ct_right: &mut Ciphertext,
         acc: &BivariateLookupTableOwned,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct_left.clone();
         self.smart_apply_lookup_table_bivariate_assign(server_key, &mut ct_res, ct_right, acc)?;
         Ok(ct_res)
     }
 
-    pub(crate) fn smart_apply_lookup_table_bivariate_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_apply_lookup_table_bivariate_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
@@ -619,7 +618,7 @@ impl ShortintEngine {
     pub(crate) fn programmable_bootstrap_keyswitch_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextSmall,
+        ct: &mut Ciphertext,
         acc: &LookupTableOwned,
     ) -> EngineResult<()> {
         let (mut ciphertext_buffers, buffers) =
@@ -677,7 +676,7 @@ impl ShortintEngine {
     pub(crate) fn bootstrap_keyswitch_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextSmall,
+        ct: &mut Ciphertext,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
         let (mut ciphertext_buffers, buffers) =
@@ -732,42 +731,32 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn apply_lookup_table_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn apply_lookup_table_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         acc: &LookupTableOwned,
     ) -> EngineResult<()> {
-        // We know the OpOrder corresponds to the CiphertextBig or CiphertextSmall and the memory
-        // layout is the same as the type information is just encoded in a phantom data marker
-        match OpOrder::pbs_order() {
+        match server_key.pbs_order {
             PBSOrder::KeyswitchBootstrap => {
                 // This updates the ciphertext degree
-                self.keyswitch_programmable_bootstrap_assign(
-                    server_key,
-                    ct.to_concrete_type_mut(),
-                    acc,
-                )?;
+                self.keyswitch_programmable_bootstrap_assign(server_key, ct, acc)?;
             }
             PBSOrder::BootstrapKeyswitch => {
                 // This updates the ciphertext degree
-                self.programmable_bootstrap_keyswitch_assign(
-                    server_key,
-                    ct.to_concrete_type_mut(),
-                    acc,
-                )?;
+                self.programmable_bootstrap_keyswitch_assign(server_key, ct, acc)?;
             }
         };
 
         Ok(())
     }
 
-    pub(crate) fn apply_lookup_table<OpOrder: PBSOrderMarker>(
+    pub(crate) fn apply_lookup_table(
         &mut self,
         server_key: &ServerKey,
-        ct: &CiphertextBase<OpOrder>,
+        ct: &Ciphertext,
         acc: &LookupTableOwned,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut ct_res = ct.clone();
 
         self.apply_lookup_table_assign(server_key, &mut ct_res, acc)?;
@@ -775,31 +764,29 @@ impl ShortintEngine {
         Ok(ct_res)
     }
 
-    pub(crate) fn apply_msg_identity_lut_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn apply_msg_identity_lut_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
     ) -> EngineResult<()> {
-        // We know the OpOrder corresponds to the CiphertextBig or CiphertextSmall and the memory
-        // layout is the same as the type information is just encoded in a phantom data marker
-        match OpOrder::pbs_order() {
+        match server_key.pbs_order {
             PBSOrder::KeyswitchBootstrap => {
                 // This updates the ciphertext degree
-                self.keyswitch_bootstrap_assign(server_key, ct.to_concrete_type_mut())?;
+                self.keyswitch_bootstrap_assign(server_key, ct)?;
             }
             PBSOrder::BootstrapKeyswitch => {
                 // This updates the ciphertext degree
-                self.bootstrap_keyswitch_assign(server_key, ct.to_concrete_type_mut())?;
+                self.bootstrap_keyswitch_assign(server_key, ct)?;
             }
         };
 
         Ok(())
     }
 
-    pub(crate) fn carry_extract_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn carry_extract_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
     ) -> EngineResult<()> {
         let modulus = ct.message_modulus.0 as u64;
 
@@ -810,20 +797,20 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn carry_extract<OpOrder: PBSOrderMarker>(
+    pub(crate) fn carry_extract(
         &mut self,
         server_key: &ServerKey,
-        ct: &CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct.clone();
         self.carry_extract_assign(server_key, &mut result)?;
         Ok(result)
     }
 
-    pub(crate) fn message_extract_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn message_extract_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
     ) -> EngineResult<()> {
         let modulus = ct.message_modulus.0 as u64;
 
@@ -834,24 +821,24 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn message_extract<OpOrder: PBSOrderMarker>(
+    pub(crate) fn message_extract(
         &mut self,
         server_key: &ServerKey,
-        ct: &CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct.clone();
         self.message_extract_assign(server_key, &mut result)?;
         Ok(result)
     }
 
     // Impossible to call the assign function in this case
-    pub(crate) fn create_trivial<OpOrder: PBSOrderMarker>(
+    pub(crate) fn create_trivial(
         &mut self,
         server_key: &ServerKey,
         value: u64,
         ciphertext_modulus: CiphertextModulus<u64>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
-        let lwe_size = match OpOrder::pbs_order() {
+    ) -> EngineResult<Ciphertext> {
+        let lwe_size = match server_key.pbs_order {
             PBSOrder::KeyswitchBootstrap => server_key
                 .bootstrapping_key
                 .output_lwe_dimension()
@@ -879,19 +866,19 @@ impl ShortintEngine {
 
         let degree = Degree(modular_value);
 
-        Ok(CiphertextBase {
+        Ok(Ciphertext {
             ct,
             degree,
             message_modulus: server_key.message_modulus,
             carry_modulus: server_key.carry_modulus,
-            _order_marker: Default::default(),
+            pbs_order: server_key.pbs_order,
         })
     }
 
-    pub(crate) fn create_trivial_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn create_trivial_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         value: u64,
     ) -> EngineResult<()> {
         let modular_value = value as usize % server_key.message_modulus.0;

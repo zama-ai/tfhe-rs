@@ -6,44 +6,20 @@ use wasm_bindgen::prelude::*;
 
 use std::panic::set_hook;
 
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) enum ShortintCiphertextInner {
-    Big(crate::shortint::ciphertext::CiphertextBig),
-    Small(crate::shortint::ciphertext::CiphertextSmall),
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) enum ShortintCompressedCiphertextInner {
-    Big(crate::shortint::ciphertext::CompressedCiphertextBig),
-    Small(crate::shortint::ciphertext::CompressedCiphertextSmall),
-}
+#[wasm_bindgen]
+pub struct ShortintCiphertext(pub(crate) crate::shortint::Ciphertext);
 
 #[wasm_bindgen]
-pub struct ShortintCiphertext(pub(crate) ShortintCiphertextInner);
-
-#[wasm_bindgen]
-pub struct ShortintCompressedCiphertext(pub(crate) ShortintCompressedCiphertextInner);
+pub struct ShortintCompressedCiphertext(pub(crate) crate::shortint::CompressedCiphertext);
 
 #[wasm_bindgen]
 pub struct ShortintClientKey(pub(crate) crate::shortint::ClientKey);
 
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) enum ShortintPublicKeyInner {
-    Big(crate::shortint::PublicKeyBig),
-    Small(crate::shortint::PublicKeySmall),
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) enum ShortintCompressedPublicKeyInner {
-    Big(crate::shortint::CompressedPublicKeyBig),
-    Small(crate::shortint::CompressedPublicKeySmall),
-}
+#[wasm_bindgen]
+pub struct ShortintPublicKey(pub(crate) crate::shortint::PublicKey);
 
 #[wasm_bindgen]
-pub struct ShortintPublicKey(pub(crate) ShortintPublicKeyInner);
-
-#[wasm_bindgen]
-pub struct ShortintCompressedPublicKey(pub(crate) ShortintCompressedPublicKeyInner);
+pub struct ShortintCompressedPublicKey(pub(crate) crate::shortint::CompressedPublicKey);
 
 #[wasm_bindgen]
 pub struct ShortintCompressedServerKey(pub(crate) crate::shortint::CompressedServerKey);
@@ -297,18 +273,7 @@ impl Shortint {
     pub fn new_public_key(client_key: &ShortintClientKey) -> ShortintPublicKey {
         set_hook(Box::new(console_error_panic_hook::hook));
 
-        ShortintPublicKey(ShortintPublicKeyInner::Big(
-            crate::shortint::public_key::PublicKeyBig::new(&client_key.0),
-        ))
-    }
-
-    #[wasm_bindgen]
-    pub fn new_public_key_small(client_key: &ShortintClientKey) -> ShortintPublicKey {
-        set_hook(Box::new(console_error_panic_hook::hook));
-
-        ShortintPublicKey(ShortintPublicKeyInner::Small(
-            crate::shortint::public_key::PublicKeySmall::new(&client_key.0),
-        ))
+        ShortintPublicKey(crate::shortint::public_key::PublicKey::new(&client_key.0))
     }
 
     #[wasm_bindgen]
@@ -317,19 +282,8 @@ impl Shortint {
     ) -> ShortintCompressedPublicKey {
         set_hook(Box::new(console_error_panic_hook::hook));
 
-        ShortintCompressedPublicKey(ShortintCompressedPublicKeyInner::Big(
-            crate::shortint::public_key::CompressedPublicKeyBig::new(&client_key.0),
-        ))
-    }
-
-    #[wasm_bindgen]
-    pub fn new_compressed_public_key_small(
-        client_key: &ShortintClientKey,
-    ) -> ShortintCompressedPublicKey {
-        set_hook(Box::new(console_error_panic_hook::hook));
-
-        ShortintCompressedPublicKey(ShortintCompressedPublicKeyInner::Small(
-            crate::shortint::public_key::CompressedPublicKeySmall::new(&client_key.0),
+        ShortintCompressedPublicKey(crate::shortint::public_key::CompressedPublicKey::new(
+            &client_key.0,
         ))
     }
 
@@ -348,16 +302,7 @@ impl Shortint {
     pub fn encrypt(client_key: &ShortintClientKey, message: u64) -> ShortintCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
 
-        ShortintCiphertext(ShortintCiphertextInner::Big(client_key.0.encrypt(message)))
-    }
-
-    #[wasm_bindgen]
-    pub fn encrypt_small(client_key: &ShortintClientKey, message: u64) -> ShortintCiphertext {
-        set_hook(Box::new(console_error_panic_hook::hook));
-
-        ShortintCiphertext(ShortintCiphertextInner::Small(
-            client_key.0.encrypt_small(message),
-        ))
+        ShortintCiphertext(client_key.0.encrypt(message))
     }
 
     #[wasm_bindgen]
@@ -367,21 +312,7 @@ impl Shortint {
     ) -> ShortintCompressedCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
 
-        ShortintCompressedCiphertext(ShortintCompressedCiphertextInner::Big(
-            client_key.0.encrypt_compressed(message),
-        ))
-    }
-
-    #[wasm_bindgen]
-    pub fn encrypt_compressed_small(
-        client_key: &ShortintClientKey,
-        message: u64,
-    ) -> ShortintCompressedCiphertext {
-        set_hook(Box::new(console_error_panic_hook::hook));
-
-        ShortintCompressedCiphertext(ShortintCompressedCiphertextInner::Small(
-            client_key.0.encrypt_compressed_small(message),
-        ))
+        ShortintCompressedCiphertext(client_key.0.encrypt_compressed(message))
     }
 
     #[wasm_bindgen]
@@ -389,14 +320,7 @@ impl Shortint {
         compressed_ciphertext: &ShortintCompressedCiphertext,
     ) -> ShortintCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
-        match &compressed_ciphertext.0 {
-            ShortintCompressedCiphertextInner::Big(inner) => {
-                ShortintCiphertext(ShortintCiphertextInner::Big(inner.clone().into()))
-            }
-            ShortintCompressedCiphertextInner::Small(inner) => {
-                ShortintCiphertext(ShortintCiphertextInner::Small(inner.clone().into()))
-            }
-        }
+        ShortintCiphertext(compressed_ciphertext.0.clone().into())
     }
 
     #[wasm_bindgen]
@@ -406,14 +330,7 @@ impl Shortint {
     ) -> ShortintCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
 
-        match &public_key.0 {
-            ShortintPublicKeyInner::Big(inner) => {
-                ShortintCiphertext(ShortintCiphertextInner::Big(inner.encrypt(message)))
-            }
-            ShortintPublicKeyInner::Small(inner) => {
-                ShortintCiphertext(ShortintCiphertextInner::Small(inner.encrypt(message)))
-            }
-        }
+        ShortintCiphertext(public_key.0.encrypt(message))
     }
 
     #[wasm_bindgen]
@@ -423,23 +340,13 @@ impl Shortint {
     ) -> ShortintCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
 
-        match &public_key.0 {
-            ShortintCompressedPublicKeyInner::Big(inner) => {
-                ShortintCiphertext(ShortintCiphertextInner::Big(inner.encrypt(message)))
-            }
-            ShortintCompressedPublicKeyInner::Small(inner) => {
-                ShortintCiphertext(ShortintCiphertextInner::Small(inner.encrypt(message)))
-            }
-        }
+        ShortintCiphertext(public_key.0.encrypt(message))
     }
 
     #[wasm_bindgen]
     pub fn decrypt(client_key: &ShortintClientKey, ct: &ShortintCiphertext) -> u64 {
         set_hook(Box::new(console_error_panic_hook::hook));
-        match &ct.0 {
-            ShortintCiphertextInner::Big(inner) => client_key.0.decrypt(inner),
-            ShortintCiphertextInner::Small(inner) => client_key.0.decrypt(inner),
-        }
+        client_key.0.decrypt(&ct.0)
     }
 
     #[wasm_bindgen]

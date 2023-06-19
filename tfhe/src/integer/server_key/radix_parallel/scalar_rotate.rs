@@ -1,6 +1,5 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
 
 use rayon::prelude::*;
 
@@ -38,11 +37,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_right_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_rotate_right_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
         n: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -79,11 +78,7 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_right_assign_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        n: u64,
-    ) {
+    pub fn smart_scalar_rotate_right_assign_parallelized(&self, ct: &mut RadixCiphertext, n: u64) {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -128,11 +123,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_right_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn scalar_rotate_right_parallelized(
         &self,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_right: &RadixCiphertext,
         n: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         let mut result = ct_right.clone();
         self.scalar_rotate_right_assign_parallelized(&mut result, n);
         result
@@ -166,11 +161,7 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_right_assign_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        n: u64,
-    ) {
+    pub fn scalar_rotate_right_assign_parallelized(&self, ct: &mut RadixCiphertext, n: u64) {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -215,11 +206,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_right_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_scalar_rotate_right_parallelized(
         &self,
-        ct: &RadixCiphertext<PBSOrder>,
+        ct: &RadixCiphertext,
         n: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         let mut result = ct.clone();
         self.unchecked_scalar_rotate_right_assign_parallelized(&mut result, n);
         result
@@ -262,9 +253,9 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_right_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_scalar_rotate_right_assign_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
         n: u64,
     ) {
         // The general idea, is that we know by how much we want to
@@ -367,11 +358,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_left_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_scalar_rotate_left_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
         n: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -408,11 +399,7 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_left_assign_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        n: u64,
-    ) {
+    pub fn smart_scalar_rotate_left_assign_parallelized(&self, ct: &mut RadixCiphertext, n: u64) {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -457,11 +444,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_left_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn scalar_rotate_left_parallelized(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
+        ct_left: &RadixCiphertext,
         n: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         let mut result = ct_left.clone();
         self.scalar_rotate_left_assign_parallelized(&mut result, n);
         result
@@ -495,11 +482,7 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_left_assign_parallelized<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        n: u64,
-    ) {
+    pub fn scalar_rotate_left_assign_parallelized(&self, ct: &mut RadixCiphertext, n: u64) {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -544,11 +527,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_left_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_scalar_rotate_left_parallelized(
         &self,
-        ct: &RadixCiphertext<PBSOrder>,
+        ct: &RadixCiphertext,
         n: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         let mut result = ct.clone();
         self.unchecked_scalar_rotate_left_assign_parallelized(&mut result, n);
         result
@@ -591,9 +574,9 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_left_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_scalar_rotate_left_assign_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
         n: u64,
     ) {
         // The general idea, is that we know by how much we want to

@@ -1,7 +1,6 @@
 use crate::core_crypto::commons::utils::izip;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Shifts the blocks to the right.
@@ -32,11 +31,7 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(msg / div, clear);
     /// ```
-    pub fn blockshift_right<PBSOrder: PBSOrderMarker>(
-        &self,
-        ctxt: &RadixCiphertext<PBSOrder>,
-        shift: usize,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn blockshift_right(&self, ctxt: &RadixCiphertext, shift: usize) -> RadixCiphertext {
         let mut result = self.create_trivial_zero_radix(ctxt.blocks.len());
 
         let limit = result.blocks.len() - shift;
@@ -51,11 +46,7 @@ impl ServerKey {
         result
     }
 
-    pub fn blockshift_right_assign<PBSOrder: PBSOrderMarker>(
-        &self,
-        ctxt: &mut RadixCiphertext<PBSOrder>,
-        shift: usize,
-    ) {
+    pub fn blockshift_right_assign(&self, ctxt: &mut RadixCiphertext, shift: usize) {
         *ctxt = self.blockshift_right(ctxt, shift);
     }
 
@@ -85,11 +76,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn unchecked_scalar_right_shift<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_scalar_right_shift(
         &self,
-        ct: &RadixCiphertext<PBSOrder>,
+        ct: &RadixCiphertext,
         shift: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         let mut result = ct.clone();
         self.unchecked_scalar_right_shift_assign(&mut result, shift);
         result
@@ -121,11 +112,7 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn unchecked_scalar_right_shift_assign<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: u64,
-    ) {
+    pub fn unchecked_scalar_right_shift_assign(&self, ct: &mut RadixCiphertext, shift: u64) {
         // see parallel implementation for a bit more details
 
         debug_assert!(ct.block_carries_are_empty());
@@ -224,11 +211,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg << shift, dec);
     /// ```
-    pub fn unchecked_scalar_left_shift<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_scalar_left_shift(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
+        ct_left: &RadixCiphertext,
         shift: u64,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         let mut result = ct_left.clone();
         self.unchecked_scalar_left_shift_assign(&mut result, shift);
         result
@@ -269,11 +256,7 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg << shift, dec);
     /// ```
-    pub fn unchecked_scalar_left_shift_assign<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: u64,
-    ) {
+    pub fn unchecked_scalar_left_shift_assign(&self, ct: &mut RadixCiphertext, shift: u64) {
         // see parallel implementation for a bit more details
 
         debug_assert!(ct.block_carries_are_empty());

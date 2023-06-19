@@ -1,23 +1,23 @@
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::{CiphertextBase, PBSOrderMarker, ServerKey};
+use crate::shortint::{Ciphertext, ServerKey};
 
 impl ShortintEngine {
-    pub(crate) fn unchecked_bitand<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_bitand(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
         self.unchecked_bitand_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn unchecked_bitand_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_bitand_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
     ) -> EngineResult<()> {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
@@ -29,22 +29,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_bitand<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_bitand(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
         self.smart_bitand_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn smart_bitand_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_bitand_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
     ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
@@ -54,22 +54,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn unchecked_bitxor<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_bitxor(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
         self.unchecked_bitxor_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn unchecked_bitxor_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_bitxor_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
     ) -> EngineResult<()> {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
@@ -81,22 +81,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_bitxor<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_bitxor(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
         self.smart_bitxor_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn smart_bitxor_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_bitxor_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
     ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
@@ -106,22 +106,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn unchecked_bitor<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_bitor(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
         self.unchecked_bitor_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn unchecked_bitor_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_bitor_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
     ) -> EngineResult<()> {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
@@ -133,22 +133,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_bitor<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_bitor(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
         self.smart_bitor_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
-    pub(crate) fn smart_bitor_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_bitor_assign(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
     ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
