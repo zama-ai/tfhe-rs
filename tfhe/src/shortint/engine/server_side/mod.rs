@@ -166,7 +166,11 @@ impl ShortintEngine {
                     pbs_params.pbs_level,
                     pbs_params.grouping_factor,
                 );
-                ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count)
+                ShortintBootstrappingKey::MultiBit {
+                    fourier_bsk,
+                    thread_count,
+                    deterministic_execution: pbs_params.deterministic_execution,
+                }
             }
         };
 
@@ -281,7 +285,10 @@ impl ShortintEngine {
                         &mut self.seeder,
                     );
 
-                ShortintCompressedBootstrappingKey::MultiBit(bootstrapping_key)
+                ShortintCompressedBootstrappingKey::MultiBit {
+                    seeded_bsk: bootstrapping_key,
+                    deterministic_execution: pbs_params.deterministic_execution,
+                }
             }
         };
 
@@ -360,14 +367,28 @@ impl ShortintEngine {
                     stack,
                 );
             }
-            ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count) => {
-                multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &ciphertext_buffers.buffer_lwe_after_ks,
-                    &mut ct.ct,
-                    &ciphertext_buffers.lookup_table.acc,
-                    fourier_bsk,
-                    *thread_count,
-                );
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk,
+                thread_count,
+                deterministic_execution,
+            } => {
+                if *deterministic_execution {
+                    multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                        &ciphertext_buffers.buffer_lwe_after_ks,
+                        &mut ct.ct,
+                        &ciphertext_buffers.lookup_table.acc,
+                        fourier_bsk,
+                        *thread_count,
+                    );
+                } else {
+                    multi_bit_programmable_bootstrap_lwe_ciphertext(
+                        &ciphertext_buffers.buffer_lwe_after_ks,
+                        &mut ct.ct,
+                        &ciphertext_buffers.lookup_table.acc,
+                        fourier_bsk,
+                        *thread_count,
+                    );
+                }
             }
         };
 
@@ -444,14 +465,28 @@ impl ShortintEngine {
                     stack,
                 );
             }
-            ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count) => {
-                multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &ciphertext_buffers.buffer_lwe_after_ks,
-                    &mut ct.ct,
-                    &acc.acc,
-                    fourier_bsk,
-                    *thread_count,
-                );
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk,
+                thread_count,
+                deterministic_execution,
+            } => {
+                if *deterministic_execution {
+                    multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                        &ciphertext_buffers.buffer_lwe_after_ks,
+                        &mut ct.ct,
+                        &acc.acc,
+                        fourier_bsk,
+                        *thread_count,
+                    );
+                } else {
+                    multi_bit_programmable_bootstrap_lwe_ciphertext(
+                        &ciphertext_buffers.buffer_lwe_after_ks,
+                        &mut ct.ct,
+                        &acc.acc,
+                        fourier_bsk,
+                        *thread_count,
+                    );
+                }
             }
         };
 
@@ -662,15 +697,28 @@ impl ShortintEngine {
                     stack,
                 );
             }
-            ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count) => {
-                // Compute a bootstrap
-                multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &ct.ct,
-                    &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                    &acc.acc,
-                    fourier_bsk,
-                    *thread_count,
-                );
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk,
+                thread_count,
+                deterministic_execution,
+            } => {
+                if *deterministic_execution {
+                    multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                        &ct.ct,
+                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &acc.acc,
+                        fourier_bsk,
+                        *thread_count,
+                    );
+                } else {
+                    multi_bit_programmable_bootstrap_lwe_ciphertext(
+                        &ct.ct,
+                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &acc.acc,
+                        fourier_bsk,
+                        *thread_count,
+                    );
+                }
             }
         };
 
@@ -720,15 +768,28 @@ impl ShortintEngine {
                     stack,
                 );
             }
-            ShortintBootstrappingKey::MultiBit(fourier_bsk, thread_count) => {
-                // Compute a bootstrap
-                multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &ct.ct,
-                    &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                    &ciphertext_buffers.lookup_table.acc,
-                    fourier_bsk,
-                    *thread_count,
-                );
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk,
+                thread_count,
+                deterministic_execution,
+            } => {
+                if *deterministic_execution {
+                    multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                        &ct.ct,
+                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &ciphertext_buffers.lookup_table.acc,
+                        fourier_bsk,
+                        *thread_count,
+                    );
+                } else {
+                    multi_bit_programmable_bootstrap_lwe_ciphertext(
+                        &ct.ct,
+                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &ciphertext_buffers.lookup_table.acc,
+                        fourier_bsk,
+                        *thread_count,
+                    );
+                }
             }
         };
 

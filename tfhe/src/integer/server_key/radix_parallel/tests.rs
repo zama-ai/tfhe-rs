@@ -44,28 +44,23 @@ macro_rules! create_parametrized_test{
     };
 }
 
-macro_rules! create_parametrized_test_no_multi_bit {
-    ($name:ident) => {
-        create_parametrized_test!($name {
-            PARAM_MESSAGE_1_CARRY_1,
-            PARAM_MESSAGE_2_CARRY_2,
-            PARAM_MESSAGE_3_CARRY_3,
-            PARAM_MESSAGE_4_CARRY_4
-        });
-    };
-}
-
 create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_smart_add_sequence_multi_thread);
 create_parametrized_test!(integer_smart_add_sequence_single_thread);
-create_parametrized_test_no_multi_bit!(integer_default_add);
+create_parametrized_test!(integer_default_add);
 create_parametrized_test!(integer_default_add_work_efficient {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4
+    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3
 });
-create_parametrized_test_no_multi_bit!(integer_default_add_sequence_multi_thread);
+create_parametrized_test!(integer_default_add_sequence_multi_thread);
 // Other tests are pretty slow, and the code is the same as a smart add but slower
 #[test]
 fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2() {
@@ -74,15 +69,15 @@ fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2() {
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
 create_parametrized_test!(integer_smart_bitxor);
-create_parametrized_test_no_multi_bit!(integer_default_bitand);
-create_parametrized_test_no_multi_bit!(integer_default_bitor);
-create_parametrized_test_no_multi_bit!(integer_default_bitxor);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_bitand);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_bitor);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_bitxor);
+create_parametrized_test!(integer_default_bitand);
+create_parametrized_test!(integer_default_bitor);
+create_parametrized_test!(integer_default_bitxor);
+create_parametrized_test!(integer_default_scalar_bitand);
+create_parametrized_test!(integer_default_scalar_bitor);
+create_parametrized_test!(integer_default_scalar_bitxor);
 create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
-create_parametrized_test_no_multi_bit!(integer_default_small_scalar_mul);
+create_parametrized_test!(integer_default_small_scalar_mul);
 create_parametrized_test!(integer_smart_scalar_mul_u128_fix_non_reg_test {
     PARAM_MESSAGE_1_CARRY_1,
     PARAM_MESSAGE_2_CARRY_2
@@ -92,63 +87,83 @@ create_parametrized_test!(integer_default_scalar_mul_u128_fix_non_reg_test {
     PARAM_MESSAGE_2_CARRY_2
 });
 create_parametrized_test!(integer_smart_scalar_mul);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_mul);
+create_parametrized_test!(integer_default_scalar_mul);
 // scalar left/right shifts
 create_parametrized_test!(integer_unchecked_scalar_left_shift);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_left_shift);
+create_parametrized_test!(integer_default_scalar_left_shift);
 create_parametrized_test!(integer_unchecked_scalar_right_shift);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_right_shift);
+create_parametrized_test!(integer_default_scalar_right_shift);
 // left/right shifts
 create_parametrized_test!(integer_unchecked_left_shift {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4
+    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
 });
 create_parametrized_test!(integer_unchecked_right_shift {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4
+    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
 });
 // left/right rotations
 create_parametrized_test!(integer_unchecked_rotate_left {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4
+    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
 });
 create_parametrized_test!(integer_unchecked_rotate_right {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4
+    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
 });
 // left/right rotations
 create_parametrized_test!(integer_unchecked_scalar_rotate_right);
 create_parametrized_test!(integer_unchecked_scalar_rotate_left);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_rotate_right);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_rotate_left);
+create_parametrized_test!(integer_default_scalar_rotate_right);
+create_parametrized_test!(integer_default_scalar_rotate_left);
 // negations
 create_parametrized_test!(integer_smart_neg);
-create_parametrized_test_no_multi_bit!(integer_default_neg);
+create_parametrized_test!(integer_default_neg);
 create_parametrized_test!(integer_smart_sub);
-create_parametrized_test_no_multi_bit!(integer_default_sub);
+create_parametrized_test!(integer_default_sub);
 create_parametrized_test!(integer_default_sub_work_efficient {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_3_CARRY_3,
-    PARAM_MESSAGE_4_CARRY_4
+    PARAM_MESSAGE_4_CARRY_4,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3
 });
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
-create_parametrized_test_no_multi_bit!(integer_default_block_mul);
+create_parametrized_test!(integer_default_block_mul);
 create_parametrized_test!(integer_smart_mul);
-create_parametrized_test_no_multi_bit!(integer_default_mul);
+create_parametrized_test!(integer_default_mul);
 create_parametrized_test!(integer_smart_scalar_sub);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_sub);
+create_parametrized_test!(integer_default_scalar_sub);
 create_parametrized_test!(integer_smart_scalar_add);
-create_parametrized_test_no_multi_bit!(integer_default_scalar_add);
+create_parametrized_test!(integer_default_scalar_add);
 
 fn integer_smart_add<P>(param: P)
 where
@@ -280,8 +295,10 @@ fn integer_default_add<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -331,8 +348,10 @@ fn integer_default_add_work_efficient<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -364,8 +383,10 @@ fn integer_default_add_sequence_multi_thread<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -406,8 +427,10 @@ fn integer_default_add_sequence_single_thread<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -594,8 +617,10 @@ fn integer_default_bitand<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -646,8 +671,10 @@ fn integer_default_bitor<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -698,8 +725,10 @@ fn integer_default_bitxor<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -750,8 +779,10 @@ fn integer_default_scalar_bitand<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
@@ -797,8 +828,10 @@ fn integer_default_scalar_bitor<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -843,8 +876,10 @@ fn integer_default_scalar_bitxor<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
@@ -962,8 +997,10 @@ fn integer_default_small_scalar_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -1039,8 +1076,10 @@ fn integer_default_scalar_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -1173,10 +1212,12 @@ fn integer_default_scalar_mul_u128_fix_non_reg_test<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let nb_ct =
         (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
     let cks = RadixClientKey::from((cks, nb_ct));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -1444,8 +1485,10 @@ fn integer_default_scalar_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
@@ -1546,8 +1589,10 @@ fn integer_default_scalar_right_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
@@ -1767,8 +1812,10 @@ fn integer_default_scalar_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
@@ -1833,8 +1880,10 @@ fn integer_default_scalar_rotate_left<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
@@ -1932,8 +1981,10 @@ fn integer_default_neg<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -2006,8 +2057,10 @@ fn integer_default_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -2047,8 +2100,10 @@ fn integer_default_sub_work_efficient<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -2159,8 +2214,10 @@ fn integer_default_block_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -2246,8 +2303,10 @@ fn integer_default_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -2336,8 +2395,10 @@ where
     P: Into<PBSParameters>,
 {
     // generate the server-client key set
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
@@ -2428,8 +2489,10 @@ where
     P: Into<PBSParameters>,
 {
     // generate the server-client key set
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;

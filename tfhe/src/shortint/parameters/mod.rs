@@ -139,6 +139,23 @@ pub struct MultiBitPBSParameters {
     pub ciphertext_modulus: CiphertextModulus,
     pub encryption_key_choice: EncryptionKeyChoice,
     pub grouping_factor: LweBskGroupingFactor,
+    pub deterministic_execution: bool,
+}
+
+impl MultiBitPBSParameters {
+    pub const fn with_deterministic_execution(self) -> Self {
+        Self {
+            deterministic_execution: false,
+            ..self
+        }
+    }
+
+    pub const fn with_non_deterministic_execution(self) -> Self {
+        Self {
+            deterministic_execution: false,
+            ..self
+        }
+    }
 }
 
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
@@ -1170,6 +1187,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2: MultiBitPBSParameters =
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(2),
+        deterministic_execution: false,
     };
 
 pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2: MultiBitPBSParameters =
@@ -1188,6 +1206,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2: MultiBitPBSParameters =
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(2),
+        deterministic_execution: false,
     };
 
 pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2: MultiBitPBSParameters =
@@ -1206,6 +1225,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2: MultiBitPBSParameters =
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(2),
+        deterministic_execution: false,
     };
 
 pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2: MultiBitPBSParameters =
@@ -1224,6 +1244,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2: MultiBitPBSParameters =
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(2),
+        deterministic_execution: false,
     };
 
 // Group 3
@@ -1243,6 +1264,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3: MultiBitPBSParameters =
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(3),
+        deterministic_execution: false,
     };
 
 pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3: MultiBitPBSParameters =
@@ -1261,6 +1283,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3: MultiBitPBSParameters =
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(3),
+        deterministic_execution: false,
     };
 
 pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3: MultiBitPBSParameters =
@@ -1279,6 +1302,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3: MultiBitPBSParameters =
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(3),
+        deterministic_execution: false,
     };
 
 pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3: MultiBitPBSParameters =
@@ -1297,6 +1321,7 @@ pub const PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3: MultiBitPBSParameters =
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
         grouping_factor: LweBskGroupingFactor(3),
+        deterministic_execution: false,
     };
 
 pub const PARAM_MESSAGE_2_CARRY_2_COMPACT_PK: ClassicPBSParameters = ClassicPBSParameters {

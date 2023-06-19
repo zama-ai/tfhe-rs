@@ -90,6 +90,15 @@ impl ServerKey {
         key.max_degree = MaxDegree(max);
         ServerKey { key }
     }
+
+    pub fn deterministic_pbs_execution(&self) -> bool {
+        self.key.deterministic_pbs_execution()
+    }
+
+    pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
+        self.key
+            .set_deterministic_pbs_execution(new_deterministic_execution)
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]

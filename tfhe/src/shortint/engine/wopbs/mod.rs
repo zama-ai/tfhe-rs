@@ -37,7 +37,7 @@ impl ShortintEngine {
     ) -> EngineResult<WopbsKey> {
         if matches!(
             sks.bootstrapping_key,
-            ShortintBootstrappingKey::MultiBit(_, _)
+            ShortintBootstrappingKey::MultiBit { .. }
         ) {
             return Err(WopbsKeyCreationError::UsupportedMultiBit.into());
         }
@@ -278,7 +278,7 @@ impl ShortintEngine {
                     stack,
                 )
             }
-            ShortintBootstrappingKey::MultiBit(_, _) => {
+            ShortintBootstrappingKey::MultiBit { .. } => {
                 todo!("extract_bits_assign currently does not support multi-bit PBS")
             }
         }
@@ -342,7 +342,7 @@ impl ShortintEngine {
                     stack,
                 )
             }
-            ShortintBootstrappingKey::MultiBit(_, _) => {
+            ShortintBootstrappingKey::MultiBit { .. } => {
                 return Err(WopbsKeyCreationError::UsupportedMultiBit.into());
             }
         };
@@ -502,7 +502,7 @@ impl ShortintEngine {
 
                 ct_out
             }
-            ShortintBootstrappingKey::MultiBit(_, _) => {
+            ShortintBootstrappingKey::MultiBit { .. } => {
                 return Err(WopbsKeyCreationError::UsupportedMultiBit.into());
             }
         };
