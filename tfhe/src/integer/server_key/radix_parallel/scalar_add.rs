@@ -1,7 +1,6 @@
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically the addition of ciphertext with a scalar.
@@ -30,13 +29,12 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_parallelized<PBSOrder, T>(
+    pub fn smart_scalar_add_parallelized<T>(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
         scalar: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         if !self.is_scalar_add_possible(ct, scalar) {
@@ -71,12 +69,8 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_assign_parallelized<PBSOrder, T>(
-        &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: T,
-    ) where
-        PBSOrder: PBSOrderMarker,
+    pub fn smart_scalar_add_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, scalar: T)
+    where
         T: DecomposableInto<u8>,
     {
         if !self.is_scalar_add_possible(ct, scalar) {
@@ -120,13 +114,8 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn scalar_add_parallelized<PBSOrder, T>(
-        &self,
-        ct: &RadixCiphertext<PBSOrder>,
-        scalar: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn scalar_add_parallelized<T>(&self, ct: &RadixCiphertext, scalar: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         let mut ct_res = ct.clone();
@@ -169,12 +158,8 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn scalar_add_assign_parallelized<PBSOrder, T>(
-        &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        scalar: T,
-    ) where
-        PBSOrder: PBSOrderMarker,
+    pub fn scalar_add_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, scalar: T)
+    where
         T: DecomposableInto<u8>,
     {
         if !ct.block_carries_are_empty() {

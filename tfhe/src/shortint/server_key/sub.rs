@@ -2,7 +2,7 @@ use super::ServerKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::server_key::CheckError::CarryFull;
-use crate::shortint::{CiphertextBase, PBSOrderMarker};
+use crate::shortint::Ciphertext;
 
 impl ServerKey {
     /// Compute homomorphically a subtraction between two ciphertexts.
@@ -37,11 +37,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
-    pub fn sub<OpOrder: PBSOrderMarker>(
-        &self,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) -> CiphertextBase<OpOrder> {
+    pub fn sub(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let mut ct_res = ct_left.clone();
         self.sub_assign(&mut ct_res, ct_right);
         ct_res
@@ -77,12 +73,8 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
     /// ```
-    pub fn sub_assign<OpOrder: PBSOrderMarker>(
-        &self,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) {
-        let tmp_rhs: CiphertextBase<OpOrder>;
+    pub fn sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
+        let tmp_rhs: Ciphertext;
 
         if !ct_left.carry_is_empty() {
             self.clear_carry_assign(ct_left);
@@ -126,11 +118,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_res), 2 - 1);
     /// ```
-    pub fn unchecked_sub<OpOrder: PBSOrderMarker>(
-        &self,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) -> CiphertextBase<OpOrder> {
+    pub fn unchecked_sub(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.unchecked_sub(self, ct_left, ct_right).unwrap()
         })
@@ -163,11 +151,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_1) % modulus, 1);
     /// ```
-    pub fn unchecked_sub_assign<OpOrder: PBSOrderMarker>(
-        &self,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) {
+    pub fn unchecked_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_sub_assign(self, ct_left, ct_right)
@@ -197,11 +181,7 @@ impl ServerKey {
     ///
     /// assert_eq!(true, can_be_subtracted);
     /// ```
-    pub fn is_sub_possible<OpOrder: PBSOrderMarker>(
-        &self,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) -> bool {
+    pub fn is_sub_possible(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> bool {
         // z = ceil( degree / 2^p ) x 2^p
         let msg_mod = self.message_modulus.0;
         let mut z = (ct_right.degree.0 + msg_mod - 1) / msg_mod;
@@ -238,11 +218,11 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct_res.unwrap());
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
-    pub fn checked_sub<OpOrder: PBSOrderMarker>(
+    pub fn checked_sub(
         &self,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) -> Result<CiphertextBase<OpOrder>, CheckError> {
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+    ) -> Result<Ciphertext, CheckError> {
         // If the ciphertexts cannot be subtracted without exceeding the degree max
         if self.is_sub_possible(ct_left, ct_right) {
             let ct_result = self.unchecked_sub(ct_left, ct_right);
@@ -278,10 +258,10 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct_1);
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
-    pub fn checked_sub_assign<OpOrder: PBSOrderMarker>(
+    pub fn checked_sub_assign(
         &self,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
         // If the ciphertexts cannot be subtracted without exceeding the degree max
         if self.is_sub_possible(ct_left, ct_right) {
@@ -317,11 +297,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
-    pub fn smart_sub<OpOrder: PBSOrderMarker>(
-        &self,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
-    ) -> CiphertextBase<OpOrder> {
+    pub fn smart_sub(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_sub(self, ct_left, ct_right).unwrap()
         })
@@ -350,11 +326,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
     /// ```
-    pub fn smart_sub_assign<OpOrder: PBSOrderMarker>(
-        &self,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
-    ) {
+    pub fn smart_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_sub_assign(self, ct_left, ct_right).unwrap()
         })
@@ -369,11 +341,11 @@ impl ServerKey {
     /// # Warning
     ///
     /// This is an advanced functionality, needed for internal requirements.
-    pub fn unchecked_sub_with_correcting_term<OpOrder: PBSOrderMarker>(
+    pub fn unchecked_sub_with_correcting_term(
         &self,
-        ct_left: &CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
-    ) -> (CiphertextBase<OpOrder>, u64) {
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+    ) -> (Ciphertext, u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_sub_with_correcting_term(self, ct_left, ct_right)
@@ -387,10 +359,10 @@ impl ServerKey {
     /// # Warning
     ///
     /// This is an advanced functionality, needed for internal requirements.
-    pub fn unchecked_sub_with_correcting_term_assign<OpOrder: PBSOrderMarker>(
+    pub fn unchecked_sub_with_correcting_term_assign(
         &self,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &CiphertextBase<OpOrder>,
+        ct_left: &mut Ciphertext,
+        ct_right: &Ciphertext,
     ) -> u64 {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -405,11 +377,11 @@ impl ServerKey {
     /// # Warning
     ///
     /// This is an advanced functionality, needed for internal requirements.
-    pub fn smart_sub_with_correcting_term<OpOrder: PBSOrderMarker>(
+    pub fn smart_sub_with_correcting_term(
         &self,
-        ct_left: &mut CiphertextBase<OpOrder>,
-        ct_right: &mut CiphertextBase<OpOrder>,
-    ) -> (CiphertextBase<OpOrder>, u64) {
+        ct_left: &mut Ciphertext,
+        ct_right: &mut Ciphertext,
+    ) -> (Ciphertext, u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .smart_sub_with_correcting_term(self, ct_left, ct_right)

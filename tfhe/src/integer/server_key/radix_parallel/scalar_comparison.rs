@@ -5,7 +5,7 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::comparator::{Comparator, ZeroComparisonType};
 use crate::shortint::server_key::LookupTableOwned;
-use crate::shortint::{CiphertextBase, PBSOrderMarker};
+use crate::shortint::Ciphertext;
 
 use rayon::prelude::*;
 
@@ -18,10 +18,10 @@ impl ServerKey {
     /// so at least as many carry modulus as the message modulus
     ///
     /// Expects the carry buffer to be empty
-    pub(crate) fn pack_block_chunk<PBSOrder: PBSOrderMarker>(
+    pub(crate) fn pack_block_chunk(
         &self,
-        chunk: &[crate::shortint::CiphertextBase<PBSOrder>],
-    ) -> crate::shortint::CiphertextBase<PBSOrder> {
+        chunk: &[crate::shortint::Ciphertext],
+    ) -> crate::shortint::Ciphertext {
         debug_assert!(chunk.len() <= 2);
 
         if chunk.len() == 1 {
@@ -42,10 +42,10 @@ impl ServerKey {
     /// so at least as many carry modulus as the message modulus
     ///
     /// Expects the carry buffer to be empty
-    pub(crate) fn pack_block_assign<PBSOrder: PBSOrderMarker>(
+    pub(crate) fn pack_block_assign(
         &self,
-        low: &crate::shortint::CiphertextBase<PBSOrder>,
-        high: &mut crate::shortint::CiphertextBase<PBSOrder>,
+        low: &crate::shortint::Ciphertext,
+        high: &mut crate::shortint::Ciphertext,
     ) {
         debug_assert!(high.degree.0 < high.message_modulus.0);
 
@@ -61,13 +61,10 @@ impl ServerKey {
     /// otherwise the block encrypts 0
     ///
     /// if the vec is empty, a trivial 1 is returned
-    pub(crate) fn are_all_comparisons_block_true<PBSOrder>(
+    pub(crate) fn are_all_comparisons_block_true(
         &self,
-        mut block_comparisons: Vec<CiphertextBase<PBSOrder>>,
-    ) -> CiphertextBase<PBSOrder>
-    where
-        PBSOrder: PBSOrderMarker,
-    {
+        mut block_comparisons: Vec<Ciphertext>,
+    ) -> Ciphertext {
         if block_comparisons.is_empty() {
             return self.key.create_trivial(1);
         }
@@ -117,13 +114,10 @@ impl ServerKey {
     /// otherwise the block encrypts 0 (all blocks encrypts 0)
     ///
     /// if the vec is empty, a trivial 1 is returned
-    pub(crate) fn is_at_least_one_comparisons_block_true<PBSOrder>(
+    pub(crate) fn is_at_least_one_comparisons_block_true(
         &self,
-        mut block_comparisons: Vec<CiphertextBase<PBSOrder>>,
-    ) -> CiphertextBase<PBSOrder>
-    where
-        PBSOrder: PBSOrderMarker,
-    {
+        mut block_comparisons: Vec<Ciphertext>,
+    ) -> Ciphertext {
         if block_comparisons.is_empty() {
             return self.key.create_trivial(1);
         }
@@ -174,14 +168,11 @@ impl ServerKey {
     /// This function exists because sometimes it is faster to concatenate
     /// multiple vec of 'boolean' shortint block before reducing them with
     /// are_all_comparisons_block_true
-    pub(crate) fn compare_blocks_with_zero<PBSOrder>(
+    pub(crate) fn compare_blocks_with_zero(
         &self,
-        lhs: &[CiphertextBase<PBSOrder>],
+        lhs: &[Ciphertext],
         comparison_type: ZeroComparisonType,
-    ) -> Vec<CiphertextBase<PBSOrder>>
-    where
-        PBSOrder: PBSOrderMarker,
-    {
+    ) -> Vec<Ciphertext> {
         if lhs.is_empty() {
             return vec![];
         }
@@ -289,13 +280,12 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 == msg2));
     /// ```
-    pub fn unchecked_scalar_eq_parallelized<PBSOrder, T>(
+    pub fn unchecked_scalar_eq_parallelized<T>(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         debug_assert!(lhs.block_carries_are_empty());
@@ -372,13 +362,12 @@ impl ServerKey {
         RadixCiphertext { blocks }
     }
 
-    pub fn unchecked_scalar_ne_parallelized<PBSOrder, T>(
+    pub fn unchecked_scalar_ne_parallelized<T>(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         debug_assert!(lhs.block_carries_are_empty());
@@ -460,13 +449,12 @@ impl ServerKey {
         RadixCiphertext { blocks }
     }
 
-    pub fn smart_scalar_eq_parallelized<PBSOrder, T>(
+    pub fn smart_scalar_eq_parallelized<T>(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
@@ -475,16 +463,11 @@ impl ServerKey {
         self.unchecked_scalar_eq_parallelized(lhs, rhs)
     }
 
-    pub fn scalar_eq_parallelized<PBSOrder, T>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn scalar_eq_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
-        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_lhs: RadixCiphertext;
         let lhs = if !lhs.block_carries_are_empty() {
             tmp_lhs = lhs.clone();
             self.full_propagate_parallelized(&mut tmp_lhs);
@@ -495,13 +478,12 @@ impl ServerKey {
         self.unchecked_scalar_eq_parallelized(lhs, rhs)
     }
 
-    pub fn smart_scalar_ne_parallelized<PBSOrder, T>(
+    pub fn smart_scalar_ne_parallelized<T>(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
@@ -510,16 +492,11 @@ impl ServerKey {
         self.unchecked_scalar_ne_parallelized(lhs, rhs)
     }
 
-    pub fn scalar_ne_parallelized<PBSOrder, T>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn scalar_ne_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
-        let mut tmp_lhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_lhs: RadixCiphertext;
         let lhs = if !lhs.block_carries_are_empty() {
             tmp_lhs = lhs.clone();
             self.full_propagate_parallelized(&mut tmp_lhs);
@@ -534,73 +511,67 @@ impl ServerKey {
     // Unchecked <, >, <=, >=, min, max
     //===========================================================
 
-    pub fn unchecked_scalar_gt_parallelized<PBSOrder, T>(
+    pub fn unchecked_scalar_gt_parallelized<T>(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).unchecked_scalar_gt_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_scalar_ge_parallelized<PBSOrder, T>(
+    pub fn unchecked_scalar_ge_parallelized<T>(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).unchecked_scalar_ge_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_scalar_lt_parallelized<PBSOrder, T>(
+    pub fn unchecked_scalar_lt_parallelized<T>(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).unchecked_scalar_lt_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_scalar_le_parallelized<PBSOrder, T>(
+    pub fn unchecked_scalar_le_parallelized<T>(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).unchecked_scalar_le_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_scalar_max_parallelized<PBSOrder, T>(
+    pub fn unchecked_scalar_max_parallelized<T>(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).unchecked_scalar_max_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_scalar_min_parallelized<PBSOrder, T>(
+    pub fn unchecked_scalar_min_parallelized<T>(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
+        lhs: &RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).unchecked_scalar_min_parallelized(lhs, rhs)
@@ -610,73 +581,67 @@ impl ServerKey {
     // Smart <, >, <=, >=, min, max
     //===========================================================
 
-    pub fn smart_scalar_gt_parallelized<PBSOrder, T>(
+    pub fn smart_scalar_gt_parallelized<T>(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).smart_scalar_gt_parallelized(lhs, rhs)
     }
 
-    pub fn smart_scalar_ge_parallelized<PBSOrder, T>(
+    pub fn smart_scalar_ge_parallelized<T>(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).smart_scalar_ge_parallelized(lhs, rhs)
     }
 
-    pub fn smart_scalar_lt_parallelized<PBSOrder, T>(
+    pub fn smart_scalar_lt_parallelized<T>(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).smart_scalar_lt_parallelized(lhs, rhs)
     }
 
-    pub fn smart_scalar_le_parallelized<PBSOrder, T>(
+    pub fn smart_scalar_le_parallelized<T>(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).smart_scalar_le_parallelized(lhs, rhs)
     }
 
-    pub fn smart_scalar_max_parallelized<PBSOrder, T>(
+    pub fn smart_scalar_max_parallelized<T>(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).smart_scalar_max_parallelized(lhs, rhs)
     }
 
-    pub fn smart_scalar_min_parallelized<PBSOrder, T>(
+    pub fn smart_scalar_min_parallelized<T>(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
         rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    ) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).smart_scalar_min_parallelized(lhs, rhs)
@@ -686,73 +651,43 @@ impl ServerKey {
     // Default <, >, <=, >=, min, max
     //===========================================================
 
-    pub fn scalar_gt_parallelized<PBSOrder, T>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn scalar_gt_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).scalar_gt_parallelized(lhs, rhs)
     }
 
-    pub fn scalar_ge_parallelized<PBSOrder, T>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn scalar_ge_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).scalar_ge_parallelized(lhs, rhs)
     }
 
-    pub fn scalar_lt_parallelized<PBSOrder, T>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn scalar_lt_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).scalar_lt_parallelized(lhs, rhs)
     }
 
-    pub fn scalar_le_parallelized<PBSOrder, T>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn scalar_le_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).scalar_le_parallelized(lhs, rhs)
     }
 
-    pub fn scalar_max_parallelized<PBSOrder, T>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn scalar_max_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).scalar_max_parallelized(lhs, rhs)
     }
 
-    pub fn scalar_min_parallelized<PBSOrder, T>(
-        &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: T,
-    ) -> RadixCiphertext<PBSOrder>
+    pub fn scalar_min_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        PBSOrder: PBSOrderMarker,
         T: DecomposableInto<u8>,
     {
         Comparator::new(self).scalar_min_parallelized(lhs, rhs)

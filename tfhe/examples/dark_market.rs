@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use rayon::prelude::*;
 
-use tfhe::integer::ciphertext::RadixCiphertextBig;
+use tfhe::integer::ciphertext::RadixCiphertext;
 use tfhe::integer::keycache::IntegerKeyCache;
 use tfhe::integer::ServerKey;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
@@ -41,8 +41,8 @@ fn volume_match_plain(sell_orders: &mut [u16], buy_orders: &mut [u16]) {
 /// [server_key]. The amount of the orders that are successfully filled is written over the original
 /// order count.
 fn volume_match_fhe(
-    sell_orders: &mut [RadixCiphertextBig],
-    buy_orders: &mut [RadixCiphertextBig],
+    sell_orders: &mut [RadixCiphertext],
+    buy_orders: &mut [RadixCiphertext],
     server_key: &ServerKey,
 ) {
     println!("Calculating total sell and buy volumes...");
@@ -69,7 +69,7 @@ fn volume_match_fhe(
         time.elapsed()
     );
 
-    let fill_orders = |orders: &mut [RadixCiphertextBig]| {
+    let fill_orders = |orders: &mut [RadixCiphertext]| {
         let mut volume_left_to_transact = total_volume.clone();
         for order in orders.iter_mut() {
             let mut filled_amount = server_key.smart_min(&mut volume_left_to_transact, order);
@@ -93,15 +93,15 @@ fn volume_match_fhe(
 /// [server_key]. The amount of the orders that are successfully filled is written over the original
 /// order count.
 fn volume_match_fhe_parallelized(
-    sell_orders: &mut [RadixCiphertextBig],
-    buy_orders: &mut [RadixCiphertextBig],
+    sell_orders: &mut [RadixCiphertext],
+    buy_orders: &mut [RadixCiphertext],
     server_key: &ServerKey,
 ) {
     // Calculate the element sum of the given vector in parallel
-    let parallel_vector_sum = |vec: &mut [RadixCiphertextBig]| {
+    let parallel_vector_sum = |vec: &mut [RadixCiphertext]| {
         vec.to_vec().into_par_iter().reduce(
             || server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS),
-            |mut acc: RadixCiphertextBig, mut ele: RadixCiphertextBig| {
+            |mut acc: RadixCiphertext, mut ele: RadixCiphertext| {
                 server_key.smart_add_parallelized(&mut acc, &mut ele)
             },
         )
@@ -129,7 +129,7 @@ fn volume_match_fhe_parallelized(
         time.elapsed()
     );
 
-    let fill_orders = |orders: &mut [RadixCiphertextBig]| {
+    let fill_orders = |orders: &mut [RadixCiphertext]| {
         let mut volume_left_to_transact = total_volume.clone();
         for order in orders.iter_mut() {
             let mut filled_amount =
@@ -153,15 +153,15 @@ fn volume_match_fhe_parallelized(
 /// [server_key]. The amount of the orders that are successfully filled is written over the original
 /// order count.
 fn volume_match_fhe_modified(
-    sell_orders: &mut [RadixCiphertextBig],
-    buy_orders: &mut [RadixCiphertextBig],
+    sell_orders: &mut [RadixCiphertext],
+    buy_orders: &mut [RadixCiphertext],
     server_key: &ServerKey,
 ) {
-    let compute_prefix_sum = |arr: &[RadixCiphertextBig]| {
+    let compute_prefix_sum = |arr: &[RadixCiphertext]| {
         if arr.is_empty() {
             return arr.to_vec();
         }
-        let mut prefix_sum: Vec<RadixCiphertextBig> = (0..arr.len().next_power_of_two())
+        let mut prefix_sum: Vec<RadixCiphertext> = (0..arr.len().next_power_of_two())
             .into_par_iter()
             .map(|i| {
                 if i < arr.len() {
@@ -205,9 +205,9 @@ fn volume_match_fhe_modified(
     );
     println!("Created prefix sum arrays in {:?}", time.elapsed());
 
-    let fill_orders = |total_orders: &RadixCiphertextBig,
-                       orders: &mut [RadixCiphertextBig],
-                       prefix_sum_arr: &[RadixCiphertextBig]| {
+    let fill_orders = |total_orders: &RadixCiphertext,
+                       orders: &mut [RadixCiphertext],
+                       prefix_sum_arr: &[RadixCiphertext]| {
         orders
             .into_par_iter()
             .enumerate()
@@ -339,7 +339,7 @@ fn test_volume_match_plain() {
 ///
 /// [parallelized] indicates whether the fhe implementation should be run in parallel.
 fn test_volume_match_fhe(
-    fhe_function: fn(&mut [RadixCiphertextBig], &mut [RadixCiphertextBig], &ServerKey),
+    fhe_function: fn(&mut [RadixCiphertext], &mut [RadixCiphertext], &ServerKey),
 ) {
     let working_dir = std::env::current_dir().unwrap();
     if working_dir.file_name().unwrap() != std::path::Path::new("tfhe") {
@@ -359,12 +359,12 @@ fn test_volume_match_fhe(
             .iter()
             .cloned()
             .map(|pt| client_key.encrypt_radix(pt as u64, NUMBER_OF_BLOCKS))
-            .collect::<Vec<RadixCiphertextBig>>();
+            .collect::<Vec<RadixCiphertext>>();
         let mut encrypted_buy_orders = input_buy_orders
             .iter()
             .cloned()
             .map(|pt| client_key.encrypt_radix(pt as u64, NUMBER_OF_BLOCKS))
-            .collect::<Vec<RadixCiphertextBig>>();
+            .collect::<Vec<RadixCiphertext>>();
 
         println!("Running FHE implementation...");
         let time = Instant::now();
@@ -377,11 +377,11 @@ fn test_volume_match_fhe(
 
         let decrypted_filled_sells = encrypted_sell_orders
             .iter()
-            .map(|ct| client_key.decrypt_radix::<u64, _>(ct) as u16)
+            .map(|ct| client_key.decrypt_radix::<u64>(ct) as u16)
             .collect::<Vec<u16>>();
         let decrypted_filled_buys = encrypted_buy_orders
             .iter()
-            .map(|ct| client_key.decrypt_radix::<u64, _>(ct) as u16)
+            .map(|ct| client_key.decrypt_radix::<u64>(ct) as u16)
             .collect::<Vec<u16>>();
 
         assert_eq!(decrypted_filled_sells, expected_filled_sells);

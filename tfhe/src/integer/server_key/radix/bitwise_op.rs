@@ -1,7 +1,7 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::CheckError;
 use crate::shortint::CheckError::CarryFull;
-use crate::shortint::{CheckError, PBSOrderMarker};
 
 impl ServerKey {
     /// Computes homomorphically bitand between two ciphertexts encrypting integer values.
@@ -34,20 +34,20 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 & msg2);
     /// ```
-    pub fn unchecked_bitand<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_bitand(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut result = ct_left.clone();
         self.unchecked_bitand_assign(&mut result, ct_right);
         result
     }
 
-    pub fn unchecked_bitand_assign<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_bitand_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) {
         for (ct_left_i, ct_right_i) in ct_left.blocks.iter_mut().zip(ct_right.blocks.iter()) {
             self.key.unchecked_bitand_assign(ct_left_i, ct_right_i);
@@ -77,10 +77,10 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_functional_bivariate_pbs_possible<PBSOrder: PBSOrderMarker>(
+    pub fn is_functional_bivariate_pbs_possible(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) -> bool {
         for (ct_left_i, ct_right_i) in ct_left.blocks.iter().zip(ct_right.blocks.iter()) {
             if !self
@@ -125,11 +125,11 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_bitand<PBSOrder: PBSOrderMarker>(
+    pub fn checked_bitand(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
-    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> Result<RadixCiphertext, CheckError> {
         if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             Ok(self.unchecked_bitand(ct_left, ct_right))
         } else {
@@ -166,10 +166,10 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 & msg2, clear);
     /// ```
-    pub fn checked_bitand_assign<PBSOrder: PBSOrderMarker>(
+    pub fn checked_bitand_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) -> Result<(), CheckError> {
         if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.unchecked_bitand_assign(ct_left, ct_right);
@@ -204,11 +204,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 & msg2);
     /// ```
-    pub fn smart_bitand<PBSOrder: PBSOrderMarker>(
+    pub fn smart_bitand(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &mut RadixCiphertext,
+        ct_right: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
@@ -216,10 +216,10 @@ impl ServerKey {
         self.unchecked_bitand(ct_left, ct_right)
     }
 
-    pub fn smart_bitand_assign<PBSOrder: PBSOrderMarker>(
+    pub fn smart_bitand_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &mut RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &mut RadixCiphertext,
     ) {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.full_propagate(ct_left);
@@ -258,20 +258,20 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec, msg1 | msg2);
     /// ```
-    pub fn unchecked_bitor<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_bitor(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut result = ct_left.clone();
         self.unchecked_bitor_assign(&mut result, ct_right);
         result
     }
 
-    pub fn unchecked_bitor_assign<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_bitor_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) {
         for (ct_left_i, ct_right_i) in ct_left.blocks.iter_mut().zip(ct_right.blocks.iter()) {
             self.key.unchecked_bitor_assign(ct_left_i, ct_right_i);
@@ -311,11 +311,11 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_bitor<PBSOrder: PBSOrderMarker>(
+    pub fn checked_bitor(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
-    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> Result<RadixCiphertext, CheckError> {
         if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             Ok(self.unchecked_bitor(ct_left, ct_right))
         } else {
@@ -353,10 +353,10 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 | msg2, clear);
     /// ```
-    pub fn checked_bitor_assign<PBSOrder: PBSOrderMarker>(
+    pub fn checked_bitor_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) -> Result<(), CheckError> {
         if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.unchecked_bitor_assign(ct_left, ct_right);
@@ -391,11 +391,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 | msg2);
     /// ```
-    pub fn smart_bitor<PBSOrder: PBSOrderMarker>(
+    pub fn smart_bitor(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &mut RadixCiphertext,
+        ct_right: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
@@ -403,10 +403,10 @@ impl ServerKey {
         self.unchecked_bitor(ct_left, ct_right)
     }
 
-    pub fn smart_bitor_assign<PBSOrder: PBSOrderMarker>(
+    pub fn smart_bitor_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &mut RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &mut RadixCiphertext,
     ) {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.full_propagate(ct_left);
@@ -445,20 +445,20 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg1 ^ msg2, dec);
     /// ```
-    pub fn unchecked_bitxor<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_bitxor(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut result = ct_left.clone();
         self.unchecked_bitxor_assign(&mut result, ct_right);
         result
     }
 
-    pub fn unchecked_bitxor_assign<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_bitxor_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) {
         for (ct_left_i, ct_right_i) in ct_left.blocks.iter_mut().zip(ct_right.blocks.iter()) {
             self.key.unchecked_bitxor_assign(ct_left_i, ct_right_i);
@@ -498,11 +498,11 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_bitxor<PBSOrder: PBSOrderMarker>(
+    pub fn checked_bitxor(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
-    ) -> Result<RadixCiphertext<PBSOrder>, CheckError> {
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> Result<RadixCiphertext, CheckError> {
         if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             Ok(self.unchecked_bitxor(ct_left, ct_right))
         } else {
@@ -540,10 +540,10 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 ^ msg2, clear);
     /// ```
-    pub fn checked_bitxor_assign<PBSOrder: PBSOrderMarker>(
+    pub fn checked_bitxor_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) -> Result<(), CheckError> {
         if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.unchecked_bitxor_assign(ct_left, ct_right);
@@ -578,11 +578,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 ^ msg2);
     /// ```
-    pub fn smart_bitxor<PBSOrder: PBSOrderMarker>(
+    pub fn smart_bitxor(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &mut RadixCiphertext,
+        ct_right: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
@@ -590,10 +590,10 @@ impl ServerKey {
         self.unchecked_bitxor(ct_left, ct_right)
     }
 
-    pub fn smart_bitxor_assign<PBSOrder: PBSOrderMarker>(
+    pub fn smart_bitxor_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &mut RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &mut RadixCiphertext,
     ) {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.full_propagate(ct_left);

@@ -9,7 +9,7 @@ use itertools::iproduct;
 use rand::Rng;
 use std::array::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
-use tfhe::integer::{RadixCiphertextBig, ServerKey};
+use tfhe::integer::{RadixCiphertext, ServerKey};
 use tfhe::shortint::keycache::NamedParam;
 
 #[allow(unused_imports)]
@@ -61,7 +61,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
     display_name: &str,
     binary_op: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertextBig, &mut RadixCiphertextBig),
+    F: Fn(&ServerKey, &mut RadixCiphertext, &mut RadixCiphertext),
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -135,7 +135,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     display_name: &str,
     binary_op: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertextBig, &mut RadixCiphertextBig),
+    F: Fn(&ServerKey, &mut RadixCiphertext, &mut RadixCiphertext),
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -195,7 +195,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
     display_name: &str,
     unary_fn: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertextBig),
+    F: Fn(&ServerKey, &mut RadixCiphertext),
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -266,7 +266,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
     display_name: &str,
     unary_fn: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertextBig),
+    F: Fn(&ServerKey, &mut RadixCiphertext),
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -320,7 +320,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F>(
     display_name: &str,
     binary_op: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertextBig, u64),
+    F: Fn(&ServerKey, &mut RadixCiphertext, u64),
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -389,7 +389,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F>(
     display_name: &str,
     binary_op: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertextBig, u64),
+    F: Fn(&ServerKey, &mut RadixCiphertext, u64),
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group

@@ -2,22 +2,22 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::{CiphertextBase, PBSOrderMarker, ServerKey};
+use crate::shortint::{Ciphertext, ServerKey};
 
 impl ShortintEngine {
-    pub(crate) fn unchecked_scalar_add<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_add(
         &mut self,
-        ct: &CiphertextBase<OpOrder>,
+        ct: &Ciphertext,
         scalar: u8,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut ct_result = ct.clone();
         self.unchecked_scalar_add_assign(&mut ct_result, scalar)?;
         Ok(ct_result)
     }
 
-    pub(crate) fn unchecked_scalar_add_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_add_assign(
         &mut self,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
         let delta = (1_u64 << 63) / (ct.message_modulus.0 * ct.carry_modulus.0) as u64;
@@ -29,10 +29,10 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn unchecked_scalar_add_assign_crt<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_add_assign_crt(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
         let delta =
@@ -45,22 +45,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_scalar_add<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_scalar_add(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut ct_result = ct.clone();
         self.smart_scalar_add_assign(server_key, &mut ct_result, scalar)?;
 
         Ok(ct_result)
     }
 
-    pub(crate) fn smart_scalar_add_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_scalar_add_assign(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
         let modulus = server_key.message_modulus.0 as u64;

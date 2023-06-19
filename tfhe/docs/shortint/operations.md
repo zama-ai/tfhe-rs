@@ -216,7 +216,7 @@ use tfhe::shortint::prelude::*;
 fn main() {
     // Generate the client key and the server key:
     let (cks, _) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
-    let pks = PublicKeyBig::new(&cks);
+    let pks = PublicKey::new(&cks);
 
     let msg = 2;
     // Encryption of one message:

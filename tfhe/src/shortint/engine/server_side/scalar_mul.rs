@@ -2,23 +2,23 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::{CiphertextBase, PBSOrderMarker, ServerKey};
+use crate::shortint::{Ciphertext, ServerKey};
 
 impl ShortintEngine {
-    pub(crate) fn unchecked_scalar_mul<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_mul(
         &mut self,
-        ct: &CiphertextBase<OpOrder>,
+        ct: &Ciphertext,
         scalar: u8,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut ct_result = ct.clone();
         self.unchecked_scalar_mul_assign(&mut ct_result, scalar)?;
 
         Ok(ct_result)
     }
 
-    pub(crate) fn unchecked_scalar_mul_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_scalar_mul_assign(
         &mut self,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
         let scalar = u64::from(scalar);
@@ -29,22 +29,22 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn smart_scalar_mul<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_scalar_mul(
         &mut self,
         server_key: &ServerKey,
-        ctxt: &mut CiphertextBase<OpOrder>,
+        ctxt: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<CiphertextBase<OpOrder>> {
+    ) -> EngineResult<Ciphertext> {
         let mut ct_result = ctxt.clone();
         self.smart_scalar_mul_assign(server_key, &mut ct_result, scalar)?;
 
         Ok(ct_result)
     }
 
-    pub(crate) fn smart_scalar_mul_assign<OpOrder: PBSOrderMarker>(
+    pub(crate) fn smart_scalar_mul_assign(
         &mut self,
         server_key: &ServerKey,
-        ctxt: &mut CiphertextBase<OpOrder>,
+        ctxt: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
         let modulus = server_key.message_modulus.0 as u64;

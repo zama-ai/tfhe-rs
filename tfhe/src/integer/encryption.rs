@@ -11,25 +11,19 @@ impl KnowsMessageModulus for crate::shortint::ClientKey {
     }
 }
 
-impl<OpOrder: crate::shortint::PBSOrderMarker> KnowsMessageModulus
-    for crate::shortint::PublicKeyBase<OpOrder>
-{
+impl KnowsMessageModulus for crate::shortint::PublicKey {
     fn message_modulus(&self) -> MessageModulus {
         self.parameters.message_modulus()
     }
 }
 
-impl<OpOrder: crate::shortint::PBSOrderMarker> KnowsMessageModulus
-    for crate::shortint::CompressedPublicKeyBase<OpOrder>
-{
+impl KnowsMessageModulus for crate::shortint::CompressedPublicKey {
     fn message_modulus(&self) -> MessageModulus {
         self.parameters.message_modulus()
     }
 }
 
-impl<OpOrder: crate::shortint::PBSOrderMarker> KnowsMessageModulus
-    for crate::shortint::CompactPublicKeyBase<OpOrder>
-{
+impl KnowsMessageModulus for crate::shortint::CompactPublicKey {
     fn message_modulus(&self) -> MessageModulus {
         self.parameters.message_modulus()
     }

@@ -21,17 +21,17 @@ pub(crate) mod parameters_wopbs_prime_moduli;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use parameters_wopbs::WopbsParameters;
 
-/// The choice of encryption key for (`shortint ciphertext`)[`super::ciphertext::CiphertextBase`].
+/// The choice of encryption key for (`shortint ciphertext`)[`super::ciphertext::Ciphertext`].
 ///
 /// * The `Big` choice means the big LWE key derived from the GLWE key is used to encrypt the input
 ///   ciphertext. This offers better performance but the (`public
-///   key`)[`super::public_key::PublicKeyBase`] can be extremely large and in some cases may not fit
-///   in memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
+///   key`)[`super::public_key::PublicKey`] can be extremely large and in some cases may not fit in
+///   memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
 ///   first followed by a keyswitch.
 /// * The `Small` choice means the small LWE key is used to encrypt the input ciphertext.
 ///   Performance is not as good as in the `Big` case but (`public
-///   key`)[`super::public_key::PublicKeyBase`] sizes are much more manageable and shoud always fit
-///   in memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch is
+///   key`)[`super::public_key::PublicKey`] sizes are much more manageable and shoud always fit in
+///   memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch is
 ///   computed first followed by a PBS.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub enum EncryptionKeyChoice {

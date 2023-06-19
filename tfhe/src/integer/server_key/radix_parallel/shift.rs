@@ -1,6 +1,5 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
 
 use itertools::iproduct;
 use rayon::prelude::*;
@@ -17,28 +16,28 @@ impl ServerKey {
     //                Shift Right
     //======================================================================
 
-    pub fn unchecked_right_shift_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_right_shift_parallelized(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        shift: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &RadixCiphertext,
+        shift: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut result = ct_left.clone();
         self.unchecked_right_shift_assign_parallelized(&mut result, shift);
         result
     }
 
-    pub fn unchecked_right_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_right_shift_assign_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: &RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
+        shift: &RadixCiphertext,
     ) {
         self.barrel_shifter(ct, shift, BarrelShifterOperation::RightShift);
     }
 
-    pub fn smart_right_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_right_shift_assign_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: &mut RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
+        shift: &mut RadixCiphertext,
     ) {
         rayon::join(
             || {
@@ -55,11 +54,11 @@ impl ServerKey {
         self.unchecked_right_shift_assign_parallelized(ct, shift);
     }
 
-    pub fn smart_right_shift_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_right_shift_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct: &mut RadixCiphertext,
+        shift: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -75,12 +74,12 @@ impl ServerKey {
         self.unchecked_right_shift_parallelized(ct, shift)
     }
 
-    pub fn right_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn right_shift_assign_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: &RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
+        shift: &RadixCiphertext,
     ) {
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext;
 
         let (lhs, rhs) = match (
             ct.block_carries_are_empty(),
@@ -145,11 +144,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn right_shift_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn right_shift_parallelized(
         &self,
-        ct: &RadixCiphertext<PBSOrder>,
-        shift: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct: &RadixCiphertext,
+        shift: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut ct_res = ct.clone();
         self.right_shift_assign_parallelized(&mut ct_res, shift);
         ct_res
@@ -165,11 +164,11 @@ impl ServerKey {
     /// - ct to have clean carries
     /// - shift to have clean carries
     /// - the number of bits in the block to be >= 3
-    pub fn unchecked_left_shift_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_left_shift_parallelized(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        shift: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &RadixCiphertext,
+        shift: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut result = ct_left.clone();
         self.unchecked_left_shift_assign_parallelized(&mut result, shift);
         result
@@ -181,18 +180,18 @@ impl ServerKey {
     /// - ct to have clean carries
     /// - shift to have clean carries
     /// - the number of bits in the block to be >= 3
-    pub fn unchecked_left_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_left_shift_assign_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: &RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
+        shift: &RadixCiphertext,
     ) {
         self.barrel_shifter(ct, shift, BarrelShifterOperation::LeftShift);
     }
 
-    pub fn smart_left_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_left_shift_assign_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: &mut RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
+        shift: &mut RadixCiphertext,
     ) {
         rayon::join(
             || {
@@ -209,11 +208,11 @@ impl ServerKey {
         self.unchecked_left_shift_assign_parallelized(ct, shift);
     }
 
-    pub fn smart_left_shift_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_left_shift_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct: &mut RadixCiphertext,
+        shift: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -229,12 +228,12 @@ impl ServerKey {
         self.unchecked_left_shift_parallelized(ct, shift)
     }
 
-    pub fn left_shift_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn left_shift_assign_parallelized(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: &RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
+        shift: &RadixCiphertext,
     ) {
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext;
 
         let (lhs, rhs) = match (
             ct.block_carries_are_empty(),
@@ -299,11 +298,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg << shift, dec);
     /// ```
-    pub fn left_shift_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn left_shift_parallelized(
         &self,
-        ct: &RadixCiphertext<PBSOrder>,
-        shift: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct: &RadixCiphertext,
+        shift: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut ct_res = ct.clone();
         self.left_shift_assign_parallelized(&mut ct_res, shift);
         ct_res
@@ -330,10 +329,10 @@ impl ServerKey {
     /// thus, any bit that are higher than log2(16) will be removed
     ///
     /// `ct` will be assigned the result, and it will be in a fresh state
-    pub(super) fn barrel_shifter<PBSOrder: PBSOrderMarker>(
+    pub(super) fn barrel_shifter(
         &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-        shift: &RadixCiphertext<PBSOrder>,
+        ct: &mut RadixCiphertext,
+        shift: &RadixCiphertext,
         operation: BarrelShifterOperation,
     ) {
         let num_blocks = shift.blocks.len();

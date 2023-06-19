@@ -1,13 +1,13 @@
 use crate::execution::{Executed, Execution, LazyExecution};
 use crate::parser::{parse, RegExpr};
 use std::rc::Rc;
-use tfhe::integer::{RadixCiphertextBig, ServerKey};
+use tfhe::integer::{RadixCiphertext, ServerKey};
 
 pub fn has_match(
     sk: &ServerKey,
-    content: &[RadixCiphertextBig],
+    content: &[RadixCiphertext],
     pattern: &str,
-) -> Result<RadixCiphertextBig, Box<dyn std::error::Error>> {
+) -> Result<RadixCiphertext, Box<dyn std::error::Error>> {
     let re = parse(pattern)?;
 
     let branches: Vec<LazyExecution> = (0..content.len())
@@ -40,7 +40,7 @@ pub fn has_match(
 }
 
 fn build_branches(
-    content: &[RadixCiphertextBig],
+    content: &[RadixCiphertext],
     re: &RegExpr,
     c_pos: usize,
 ) -> Vec<(LazyExecution, usize)> {

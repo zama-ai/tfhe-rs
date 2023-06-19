@@ -66,7 +66,7 @@ Once the client key is generated, the public key can be derived and used to encr
 
 ```rust
 use tfhe::integer::gen_keys_radix;
-use tfhe::integer::PublicKeyBig;
+use tfhe::integer::PublicKey;
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 
 fn main() {
@@ -75,7 +75,7 @@ fn main() {
     let (client_key, _) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2, num_block);
 
     //We generate the public key from the secret client key:
-    let public_key = PublicKeyBig::new(&client_key);
+    let public_key = PublicKey::new(&client_key);
 
     //encryption
     let msg1 = 128u64;

@@ -1,7 +1,7 @@
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
-use super::{ShortintCiphertext, ShortintCiphertextInner, ShortintServerKey};
+use super::{ShortintCiphertext, ShortintServerKey};
 
 #[no_mangle]
 pub unsafe extern "C" fn shortint_server_key_smart_scalar_left_shift(
@@ -16,8 +16,7 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_left_shift(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct = get_mut_checked(ct).unwrap();
 
-        let res =
-            dispatch_binary_server_key_call!(server_key, smart_scalar_left_shift, &mut ct, shift);
+        let res = server_key.0.smart_scalar_left_shift(&mut ct.0, shift);
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
         *result = Box::into_raw(heap_allocated_ct_result);
@@ -37,8 +36,7 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_left_shift(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct = get_ref_checked(ct).unwrap();
 
-        let res =
-            dispatch_binary_server_key_call!(server_key, unchecked_scalar_left_shift, &ct, shift);
+        let res = server_key.0.unchecked_scalar_left_shift(&ct.0, shift);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -69,8 +67,7 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_right_shift(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct = get_ref_checked(ct).unwrap();
 
-        let res =
-            dispatch_binary_server_key_call!(server_key, unchecked_scalar_right_shift, &ct, shift);
+        let res = server_key.0.unchecked_scalar_right_shift(&ct.0, shift);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -88,12 +85,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_left_shift_assign(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct = get_mut_checked(ct).unwrap();
 
-        dispatch_binary_assign_server_key_call!(
-            server_key,
-            smart_scalar_left_shift_assign,
-            &mut ct,
-            shift
-        );
+        server_key
+            .0
+            .smart_scalar_left_shift_assign(&mut ct.0, shift);
     })
 }
 
@@ -107,12 +101,9 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_left_shift_assign(
         let server_key = get_ref_checked(server_key).unwrap();
         let ct = get_mut_checked(ct).unwrap();
 
-        dispatch_binary_assign_server_key_call!(
-            server_key,
-            unchecked_scalar_left_shift_assign,
-            &mut ct,
-            shift
-        );
+        server_key
+            .0
+            .unchecked_scalar_left_shift_assign(&mut ct.0, shift);
     })
 }
 
@@ -135,11 +126,8 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_scalar_right_shift_assign
         let server_key = get_ref_checked(server_key).unwrap();
         let ct = get_mut_checked(ct).unwrap();
 
-        dispatch_binary_assign_server_key_call!(
-            server_key,
-            unchecked_scalar_right_shift_assign,
-            &mut ct,
-            shift
-        );
+        server_key
+            .0
+            .unchecked_scalar_right_shift_assign(&mut ct.0, shift);
     })
 }

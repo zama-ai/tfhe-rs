@@ -4,28 +4,24 @@ use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CompactCiphertextList, RadixCiphertext};
 use crate::integer::encryption::{create_clear_radix_block_iterator, encrypt_words_radix_impl};
 use crate::integer::ClientKey;
-use crate::shortint::ciphertext::{BootstrapKeyswitch, KeyswitchBootstrap};
 use crate::shortint::{
-    CompactPublicKeyBase as ShortintCompactPublicKeyBase,
-    CompressedCompactPublicKeyBase as ShortintCompressedCompactPublicKeyBase, PBSOrderMarker,
+    CompactPublicKey as ShortintCompactPublicKey,
+    CompressedCompactPublicKey as ShortintCompressedCompactPublicKey,
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CompactPublicKeyBase<OpOrder: PBSOrderMarker> {
-    pub(crate) key: ShortintCompactPublicKeyBase<OpOrder>,
+pub struct CompactPublicKey {
+    pub(crate) key: ShortintCompactPublicKey,
 }
 
-pub type CompactPublicKeyBig = CompactPublicKeyBase<KeyswitchBootstrap>;
-pub type CompactPublicKeySmall = CompactPublicKeyBase<BootstrapKeyswitch>;
-
-impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
+impl CompactPublicKey {
     pub fn new(client_key: &ClientKey) -> Self {
-        let key = ShortintCompactPublicKeyBase::<OpOrder>::new(&client_key.key);
+        let key = ShortintCompactPublicKey::new(&client_key.key);
         Self { key }
     }
 
     pub fn try_new(client_key: &ClientKey) -> Option<Self> {
-        let key = ShortintCompactPublicKeyBase::<OpOrder>::try_new(&client_key.key)?;
+        let key = ShortintCompactPublicKey::try_new(&client_key.key)?;
         Some(Self { key })
     }
 
@@ -33,12 +29,12 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
         &self,
         message: T,
         num_blocks: usize,
-    ) -> RadixCiphertext<OpOrder> {
+    ) -> RadixCiphertext {
         encrypt_words_radix_impl(
             &self.key,
             message,
             num_blocks,
-            ShortintCompactPublicKeyBase::encrypt,
+            ShortintCompactPublicKey::encrypt,
         )
     }
 
@@ -46,7 +42,7 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
         &self,
         message: T,
         num_blocks: usize,
-    ) -> CompactCiphertextList<OpOrder> {
+    ) -> CompactCiphertextList {
         let clear_block_iter = create_clear_radix_block_iterator(
             message,
             self.key.parameters.message_modulus(),
@@ -64,7 +60,7 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
         &self,
         messages: &[T],
         num_blocks: usize,
-    ) -> CompactCiphertextList<OpOrder> {
+    ) -> CompactCiphertextList {
         self.encrypt_iter_radix_compact(messages.iter().copied(), num_blocks)
     }
 
@@ -72,7 +68,7 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
         &self,
         mut message_iter: impl Iterator<Item = T>,
         num_blocks: usize,
-    ) -> CompactCiphertextList<OpOrder> {
+    ) -> CompactCiphertextList {
         let mut iterator_chain;
         match (message_iter.next(), message_iter.next()) {
             (None, None) => panic!("At least one message is required"),
@@ -125,30 +121,25 @@ impl<OpOrder: PBSOrderMarker> CompactPublicKeyBase<OpOrder> {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CompressedCompactPublicKeyBase<OpOrder: PBSOrderMarker> {
-    pub(crate) key: ShortintCompressedCompactPublicKeyBase<OpOrder>,
+pub struct CompressedCompactPublicKey {
+    pub(crate) key: ShortintCompressedCompactPublicKey,
 }
 
-pub type CompressedCompactPublicKeyBig = CompressedCompactPublicKeyBase<KeyswitchBootstrap>;
-pub type CompressedCompactPublicKeySmall = CompressedCompactPublicKeyBase<BootstrapKeyswitch>;
-
-impl<OpOrder: PBSOrderMarker> CompressedCompactPublicKeyBase<OpOrder> {
+impl CompressedCompactPublicKey {
     pub fn new(client_key: &ClientKey) -> Self {
-        let key = ShortintCompressedCompactPublicKeyBase::<OpOrder>::new(&client_key.key);
+        let key = ShortintCompressedCompactPublicKey::new(&client_key.key);
         Self { key }
     }
 
-    pub fn decompress(self) -> CompactPublicKeyBase<OpOrder> {
-        CompactPublicKeyBase {
+    pub fn decompress(self) -> CompactPublicKey {
+        CompactPublicKey {
             key: self.key.decompress(),
         }
     }
 }
 
-impl<OpOrder: PBSOrderMarker> From<CompressedCompactPublicKeyBase<OpOrder>>
-    for CompactPublicKeyBase<OpOrder>
-{
-    fn from(value: CompressedCompactPublicKeyBase<OpOrder>) -> Self {
+impl From<CompressedCompactPublicKey> for CompactPublicKey {
+    fn from(value: CompressedCompactPublicKey) -> Self {
         value.decompress()
     }
 }

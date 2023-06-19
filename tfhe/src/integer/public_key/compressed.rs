@@ -2,27 +2,20 @@ use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
-use crate::shortint::ciphertext::{BootstrapKeyswitch, KeyswitchBootstrap};
 use crate::shortint::parameters::MessageModulus;
-use crate::shortint::PBSOrderMarker;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct CompressedPublicKeyBase<OpOrder: PBSOrderMarker> {
-    pub(crate) key: crate::shortint::CompressedPublicKeyBase<OpOrder>,
+pub struct CompressedPublicKey {
+    pub(crate) key: crate::shortint::CompressedPublicKey,
 }
 
-pub type CompressedPublicKeyBig = CompressedPublicKeyBase<KeyswitchBootstrap>;
-pub type CompressedPublicKeySmall = CompressedPublicKeyBase<BootstrapKeyswitch>;
-
-impl CompressedPublicKeyBig {
+impl CompressedPublicKey {
     pub fn new<C>(client_key: &C) -> Self
     where
         C: AsRef<ClientKey>,
     {
         Self {
-            key: crate::shortint::CompressedPublicKeyBase::<KeyswitchBootstrap>::new(
-                &client_key.as_ref().key,
-            ),
+            key: crate::shortint::CompressedPublicKey::new(&client_key.as_ref().key),
         }
     }
 
@@ -30,7 +23,7 @@ impl CompressedPublicKeyBig {
         self.encrypt_crt_impl(
             message,
             base_vec,
-            crate::shortint::CompressedPublicKeyBig::encrypt_with_message_modulus,
+            crate::shortint::CompressedPublicKey::encrypt_with_message_modulus,
         )
     }
 
@@ -47,27 +40,14 @@ impl CompressedPublicKeyBig {
         encrypt_block: F,
     ) -> CrtCiphertextType
     where
-        F: Fn(&crate::shortint::CompressedPublicKeyBig, u64, MessageModulus) -> Block,
+        F: Fn(&crate::shortint::CompressedPublicKey, u64, MessageModulus) -> Block,
         CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
     {
         encrypt_crt(&self.key, message, base_vec, encrypt_block)
     }
 }
 
-impl CompressedPublicKeySmall {
-    pub fn new<C>(client_key: &C) -> Self
-    where
-        C: AsRef<ClientKey>,
-    {
-        Self {
-            key: crate::shortint::CompressedPublicKeyBase::<BootstrapKeyswitch>::new(
-                &client_key.as_ref().key,
-            ),
-        }
-    }
-}
-
-impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
+impl CompressedPublicKey {
     pub fn parameters(&self) -> crate::shortint::PBSParameters {
         self.key.parameters.pbs_parameters().unwrap()
     }
@@ -76,11 +56,11 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
         &self,
         message: T,
         num_blocks: usize,
-    ) -> RadixCiphertext<OpOrder> {
+    ) -> RadixCiphertext {
         self.encrypt_words_radix(
             message,
             num_blocks,
-            crate::shortint::CompressedPublicKeyBase::encrypt,
+            crate::shortint::CompressedPublicKey::encrypt,
         )
     }
 
@@ -88,11 +68,11 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
         &self,
         message: u64,
         num_blocks: usize,
-    ) -> RadixCiphertext<OpOrder> {
+    ) -> RadixCiphertext {
         self.encrypt_words_radix(
             message,
             num_blocks,
-            crate::shortint::CompressedPublicKeyBase::encrypt_without_padding,
+            crate::shortint::CompressedPublicKey::encrypt_without_padding,
         )
     }
 
@@ -104,7 +84,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     ) -> RadixCiphertextType
     where
         T: DecomposableInto<u64>,
-        F: Fn(&crate::shortint::CompressedPublicKeyBase<OpOrder>, u64) -> Block,
+        F: Fn(&crate::shortint::CompressedPublicKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
         encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)

@@ -1,6 +1,6 @@
 use rand::Rng;
 
-use crate::integer::{gen_keys, CompressedPublicKeyBig, PublicKeyBig};
+use crate::integer::{gen_keys, CompressedPublicKey, PublicKey};
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
 
@@ -29,7 +29,7 @@ create_parametrized_test!(small_radix_encrypt_decrypt_compact_128_bits_list {
 /// in radix decomposition, and that the client key can decrypt it
 fn big_radix_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
-    let public_key = PublicKeyBig::new(&cks);
+    let public_key = PublicKey::new(&cks);
 
     // RNG
     let mut rng = rand::thread_rng();
@@ -49,7 +49,7 @@ fn big_radix_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
 
 fn radix_encrypt_decrypt_compressed_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
-    let public_key = CompressedPublicKeyBig::new(&cks);
+    let public_key = CompressedPublicKey::new(&cks);
 
     // RNG
     let mut rng = rand::thread_rng();
@@ -68,22 +68,16 @@ fn radix_encrypt_decrypt_compressed_128_bits(param: ClassicPBSParameters) {
 }
 
 fn big_radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
-    radix_encrypt_decrypt_compact_128_bits_list::<crate::shortint::ciphertext::KeyswitchBootstrap>(
-        params,
-    );
+    radix_encrypt_decrypt_compact_128_bits_list(params);
 }
 
 fn small_radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
-    radix_encrypt_decrypt_compact_128_bits_list::<crate::shortint::ciphertext::BootstrapKeyswitch>(
-        params,
-    );
+    radix_encrypt_decrypt_compact_128_bits_list(params);
 }
 
-fn radix_encrypt_decrypt_compact_128_bits_list<OpOrder: crate::shortint::PBSOrderMarker>(
-    params: ClassicPBSParameters,
-) {
+fn radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
     let (cks, _) = gen_keys(params);
-    let pk = crate::integer::public_key::CompactPublicKeyBase::<OpOrder>::new(&cks);
+    let pk = crate::integer::public_key::CompactPublicKey::new(&cks);
 
     let mut rng = rand::thread_rng();
     let num_block = (128f64 / (params.message_modulus.0 as f64).log(2.0)).ceil() as usize;

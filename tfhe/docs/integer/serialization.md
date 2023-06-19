@@ -20,7 +20,7 @@ bincode = "1.3.3"
 use bincode;
 
 use std::io::Cursor;
-use tfhe::integer::{gen_keys_radix, ServerKey, RadixCiphertextBig};
+use tfhe::integer::{gen_keys_radix, ServerKey, RadixCiphertext};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 
 
@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Simulate sending serialized data to a server and getting
     // back the serialized result
     let serialized_result = server_function(&serialized_data)?;
-    let result: RadixCiphertextBig = bincode::deserialize(&serialized_result)?;
+    let result: RadixCiphertext = bincode::deserialize(&serialized_result)?;
 
     let output: u64 = client_key.decrypt(&result);
     assert_eq!(output, (msg1 + msg2) % modulus);
@@ -57,8 +57,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn server_function(serialized_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut serialized_data = Cursor::new(serialized_data);
     let server_key: ServerKey = bincode::deserialize_from(&mut serialized_data)?;
-    let ct_1: RadixCiphertextBig = bincode::deserialize_from(&mut serialized_data)?;
-    let ct_2: RadixCiphertextBig = bincode::deserialize_from(&mut serialized_data)?;
+    let ct_1: RadixCiphertext = bincode::deserialize_from(&mut serialized_data)?;
+    let ct_2: RadixCiphertext = bincode::deserialize_from(&mut serialized_data)?;
 
     let result = server_key.unchecked_add(&ct_1, &ct_2);
 

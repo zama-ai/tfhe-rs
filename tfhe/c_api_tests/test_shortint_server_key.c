@@ -47,7 +47,7 @@ void test_shortint_unary_op(const ShortintClientKey *cks, const ShortintServerKe
         cks_in_use = cks_small;
         sks_in_use = sks_small;
 
-        int encrypt_left_ok = shortint_client_key_encrypt_small(cks_in_use, in, &ct_in);
+        int encrypt_left_ok = shortint_client_key_encrypt(cks_in_use, in, &ct_in);
         assert(encrypt_left_ok == 0);
       }
 
@@ -95,7 +95,7 @@ void test_shortint_unary_op_assign(const ShortintClientKey *cks, const ShortintS
         cks_in_use = cks_small;
         sks_in_use = sks_small;
 
-        int encrypt_left_ok = shortint_client_key_encrypt_small(cks_in_use, in, &ct_in_and_result);
+        int encrypt_left_ok = shortint_client_key_encrypt(cks_in_use, in, &ct_in_and_result);
         assert(encrypt_left_ok == 0);
       }
 
@@ -148,10 +148,10 @@ void test_shortint_binary_op(const ShortintClientKey *cks, const ShortintServerK
           cks_in_use = cks_small;
           sks_in_use = sks_small;
 
-          int encrypt_left_ok = shortint_client_key_encrypt_small(cks_in_use, left, &ct_left);
+          int encrypt_left_ok = shortint_client_key_encrypt(cks_in_use, left, &ct_left);
           assert(encrypt_left_ok == 0);
 
-          int encrypt_right_ok = shortint_client_key_encrypt_small(cks_in_use, right, &ct_right);
+          int encrypt_right_ok = shortint_client_key_encrypt(cks_in_use, right, &ct_right);
           assert(encrypt_right_ok == 0);
         }
 
@@ -209,10 +209,10 @@ void test_shortint_binary_op_assign(const ShortintClientKey *cks, const Shortint
           sks_in_use = sks_small;
 
           int encrypt_left_ok =
-              shortint_client_key_encrypt_small(cks_in_use, left, &ct_left_and_result);
+              shortint_client_key_encrypt(cks_in_use, left, &ct_left_and_result);
           assert(encrypt_left_ok == 0);
 
-          int encrypt_right_ok = shortint_client_key_encrypt_small(cks_in_use, right, &ct_right);
+          int encrypt_right_ok = shortint_client_key_encrypt(cks_in_use, right, &ct_right);
           assert(encrypt_right_ok == 0);
         }
 
@@ -280,7 +280,7 @@ void test_shortint_binary_scalar_op(
           cks_in_use = cks_small;
           sks_in_use = sks_small;
 
-          int encrypt_left_ok = shortint_client_key_encrypt_small(cks_in_use, left, &ct_left);
+          int encrypt_left_ok = shortint_client_key_encrypt(cks_in_use, left, &ct_left);
           assert(encrypt_left_ok == 0);
         }
 
@@ -347,7 +347,7 @@ void test_shortint_binary_scalar_op_assign(
           sks_in_use = sks_small;
 
           int encrypt_left_ok =
-              shortint_client_key_encrypt_small(cks_in_use, left, &ct_left_and_result);
+              shortint_client_key_encrypt(cks_in_use, left, &ct_left_and_result);
           assert(encrypt_left_ok == 0);
         }
 

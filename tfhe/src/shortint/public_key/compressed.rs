@@ -1,8 +1,6 @@
 //! Module with the definition of the compressed PublicKey.
 use crate::core_crypto::entities::*;
-use crate::shortint::ciphertext::{
-    BootstrapKeyswitch, CiphertextBase, KeyswitchBootstrap, PBSOrderMarker,
-};
+use crate::shortint::ciphertext::{Ciphertext, PBSOrder};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
 use crate::shortint::ClientKey;
@@ -11,16 +9,13 @@ use std::fmt::Debug;
 
 /// A structure containing a compressed public key.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CompressedPublicKeyBase<OpOrder: PBSOrderMarker> {
+pub struct CompressedPublicKey {
     pub(crate) lwe_public_key: SeededLwePublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
-    pub _order_marker: std::marker::PhantomData<OpOrder>,
+    pub pbs_order: PBSOrder,
 }
 
-pub type CompressedPublicKeyBig = CompressedPublicKeyBase<KeyswitchBootstrap>;
-pub type CompressedPublicKeySmall = CompressedPublicKeyBase<BootstrapKeyswitch>;
-
-impl CompressedPublicKeyBig {
+impl CompressedPublicKey {
     /// Generate a public key.
     ///
     /// # Example
@@ -28,43 +23,19 @@ impl CompressedPublicKeyBig {
     /// ```rust
     /// use tfhe::shortint::client_key::ClientKey;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::public_key::CompressedPublicKeyBig;
+    /// use tfhe::shortint::public_key::CompressedPublicKey;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = CompressedPublicKeyBig::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_compressed_public_key(client_key).unwrap()
         })
     }
-}
 
-impl CompressedPublicKeySmall {
-    /// Generate a public key.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::public_key::CompressedPublicKeySmall;
-    ///
-    /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
-    ///
-    /// let pk = CompressedPublicKeySmall::new(&cks);
-    /// ```
-    pub fn new(client_key: &ClientKey) -> Self {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_compressed_public_key(client_key).unwrap()
-        })
-    }
-}
-
-impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// Encrypts a small integer message using the client key.
     ///
     /// The input message is reduced to the encrypted message space modulus
@@ -73,12 +44,12 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, CompressedPublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = CompressedPublicKeyBig::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 3;
@@ -95,7 +66,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     ///
-    /// let pk = CompressedPublicKeySmall::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 3;
@@ -112,7 +83,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg % modulus, dec);
     /// ```
-    pub fn encrypt(&self, message: u64) -> CiphertextBase<OpOrder> {
+    pub fn encrypt(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_with_compressed_public_key(self, message)
@@ -126,12 +97,12 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::{MessageModulus, PARAM_MESSAGE_2_CARRY_2};
-    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, CompressedPublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = CompressedPublicKeyBig::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// let msg = 3;
     ///
@@ -142,7 +113,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg, dec);
     ///
-    /// let pk = CompressedPublicKeySmall::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// let msg = 3;
     ///
@@ -157,7 +128,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
         &self,
         message: u64,
         message_modulus: MessageModulus,
-    ) -> CiphertextBase<OpOrder> {
+    ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_with_message_modulus_and_compressed_public_key(
@@ -175,12 +146,12 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, CompressedPublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = CompressedPublicKeyBig::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// let msg = 7;
     /// let ct = pk.unchecked_encrypt(msg);
@@ -192,7 +163,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_and_carry(&ct);
     /// assert_eq!(msg, dec);
     ///
-    /// let pk = CompressedPublicKeySmall::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// let msg = 7;
     /// let ct = pk.unchecked_encrypt(msg);
@@ -204,7 +175,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_and_carry(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn unchecked_encrypt(&self, message: u64) -> CiphertextBase<OpOrder> {
+    pub fn unchecked_encrypt(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .unchecked_encrypt_with_compressed_public_key(self, message)
@@ -220,12 +191,12 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, CompressedPublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     /// // DISCLAIMER: Note that this parameter is not guaranteed to be secure
-    /// let pk = CompressedPublicKeyBig::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 6;
@@ -234,7 +205,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_and_carry_without_padding(&ct);
     /// assert_eq!(msg, dec);
     ///
-    /// let pk = CompressedPublicKeyBig::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// // Encryption of one message that is within the encrypted message modulus:
     /// let msg = 6;
@@ -243,7 +214,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_and_carry_without_padding(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_without_padding(&self, message: u64) -> CiphertextBase<OpOrder> {
+    pub fn encrypt_without_padding(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_without_padding_with_compressed_public_key(self, message)
@@ -258,12 +229,12 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     ///
     /// ```rust
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
-    /// use tfhe::shortint::{ClientKey, CompressedPublicKeyBig, CompressedPublicKeySmall};
+    /// use tfhe::shortint::{ClientKey, CompressedPublicKey};
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
     ///
-    /// let pk = CompressedPublicKeyBig::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// let msg = 2;
     /// let modulus = 3;
@@ -275,7 +246,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
     /// assert_eq!(msg, dec % modulus as u64);
     ///
-    /// let pk = CompressedPublicKeySmall::new(&cks);
+    /// let pk = CompressedPublicKey::new(&cks);
     ///
     /// let msg = 2;
     /// let modulus = 3;
@@ -287,7 +258,7 @@ impl<OpOrder: PBSOrderMarker> CompressedPublicKeyBase<OpOrder> {
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
     /// assert_eq!(msg, dec % modulus as u64);
     /// ```
-    pub fn encrypt_native_crt(&self, message: u64, message_modulus: u8) -> CiphertextBase<OpOrder> {
+    pub fn encrypt_native_crt(&self, message: u64, message_modulus: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_native_crt_with_compressed_public_key(self, message, message_modulus)

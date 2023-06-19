@@ -2,7 +2,7 @@ use super::ServerKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::server_key::CheckError::CarryFull;
-use crate::shortint::{CiphertextBase, PBSOrderMarker};
+use crate::shortint::Ciphertext;
 
 impl ServerKey {
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
@@ -41,7 +41,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt_small(msg);
+    /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let ct_res = sks.scalar_mul(&mut ct, scalar);
@@ -51,11 +51,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg * scalar as u64 % modulus, clear);
     /// ```
-    pub fn scalar_mul<OpOrder: PBSOrderMarker>(
-        &self,
-        ct: &CiphertextBase<OpOrder>,
-        scalar: u8,
-    ) -> CiphertextBase<OpOrder> {
+    pub fn scalar_mul(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
         let mut ct_res = ct.clone();
         self.scalar_mul_assign(&mut ct_res, scalar);
         ct_res
@@ -99,7 +95,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt_small(msg);
+    /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// sks.scalar_mul_assign(&mut ct, scalar);
@@ -111,11 +107,7 @@ impl ServerKey {
     ///     clear
     /// );
     /// ```
-    pub fn scalar_mul_assign<OpOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut CiphertextBase<OpOrder>,
-        scalar: u8,
-    ) {
+    pub fn scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         let modulus = self.message_modulus.0 as u64;
         let acc = self.generate_accumulator(|x| (scalar as u64 * x) % modulus);
         self.apply_lookup_table_assign(ct, &acc);
@@ -150,7 +142,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
-    /// let ct = cks.encrypt_small(1);
+    /// let ct = cks.encrypt(1);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let ct_res = sks.unchecked_scalar_mul(&ct, 3);
@@ -158,11 +150,7 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct_res);
     /// assert_eq!(3, clear);
     /// ```
-    pub fn unchecked_scalar_mul<OpOrder: PBSOrderMarker>(
-        &self,
-        ct: &CiphertextBase<OpOrder>,
-        scalar: u8,
-    ) -> CiphertextBase<OpOrder> {
+    pub fn unchecked_scalar_mul(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.unchecked_scalar_mul(ct, scalar).unwrap()
         })
@@ -197,7 +185,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt_small(1);
+    /// let mut ct = cks.encrypt(1);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// sks.unchecked_scalar_mul_assign(&mut ct, 3);
@@ -205,11 +193,7 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(3, clear);
     /// ```
-    pub fn unchecked_scalar_mul_assign<OpOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut CiphertextBase<OpOrder>,
-        scalar: u8,
-    ) {
+    pub fn unchecked_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.unchecked_scalar_mul_assign(ct, scalar).unwrap()
         })
@@ -237,18 +221,14 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
-    /// let ct = cks.encrypt_small(2);
+    /// let ct = cks.encrypt(2);
     ///
     /// // Verification if the scalar multiplication can be computed:
     /// let can_be_computed = sks.is_scalar_mul_possible(&ct, 3);
     ///
     /// assert_eq!(can_be_computed, true);
     /// ```
-    pub fn is_scalar_mul_possible<OpOrder: PBSOrderMarker>(
-        &self,
-        ct: &CiphertextBase<OpOrder>,
-        scalar: u8,
-    ) -> bool {
+    pub fn is_scalar_mul_possible(&self, ct: &Ciphertext, scalar: u8) -> bool {
         //scalar * ct.counter
         let final_degree = scalar as usize * ct.degree.0;
 
@@ -287,7 +267,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
-    /// let ct = cks.encrypt_small(1);
+    /// let ct = cks.encrypt(1);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let ct_res = sks.checked_scalar_mul(&ct, 3);
@@ -298,11 +278,11 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, 3);
     /// ```
-    pub fn checked_scalar_mul<OpOrder: PBSOrderMarker>(
+    pub fn checked_scalar_mul(
         &self,
-        ct: &CiphertextBase<OpOrder>,
+        ct: &Ciphertext,
         scalar: u8,
-    ) -> Result<CiphertextBase<OpOrder>, CheckError> {
+    ) -> Result<Ciphertext, CheckError> {
         //If the ciphertext cannot be multiplied without exceeding the degree max
         if self.is_scalar_mul_possible(ct, scalar) {
             let ct_result = self.unchecked_scalar_mul(ct, scalar);
@@ -342,7 +322,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt_small(1);
+    /// let mut ct = cks.encrypt(1);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let res = sks.checked_scalar_mul_assign(&mut ct, 3);
@@ -352,9 +332,9 @@ impl ServerKey {
     /// let clear_res = cks.decrypt(&ct);
     /// assert_eq!(clear_res, 3);
     /// ```
-    pub fn checked_scalar_mul_assign<OpOrder: PBSOrderMarker>(
+    pub fn checked_scalar_mul_assign(
         &self,
-        ct: &mut CiphertextBase<OpOrder>,
+        ct: &mut Ciphertext,
         scalar: u8,
     ) -> Result<(), CheckError> {
         if self.is_scalar_mul_possible(ct, scalar) {
@@ -399,7 +379,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt_small(msg);
+    /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// let ct_res = sks.smart_scalar_mul(&mut ct, scalar);
@@ -412,11 +392,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(3, clear % modulus);
     /// ```
-    pub fn smart_scalar_mul<OpOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut CiphertextBase<OpOrder>,
-        scalar: u8,
-    ) -> CiphertextBase<OpOrder> {
+    pub fn smart_scalar_mul(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_mul(self, ct, scalar).unwrap()
         })
@@ -452,7 +428,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_SMALL_MESSAGE_2_CARRY_2);
     ///
     /// // Encrypt a message
-    /// let mut ct = cks.encrypt_small(msg);
+    /// let mut ct = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a scalar multiplication:
     /// sks.smart_scalar_mul_assign(&mut ct, scalar);
@@ -461,11 +437,7 @@ impl ServerKey {
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(3, clear);
     /// ```
-    pub fn smart_scalar_mul_assign<OpOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut CiphertextBase<OpOrder>,
-        scalar: u8,
-    ) {
+    pub fn smart_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_mul_assign(self, ct, scalar).unwrap()
         })

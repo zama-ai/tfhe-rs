@@ -177,7 +177,7 @@ let total_volume = server_key.smart_min(&mut total_sell_volume, &mut total_buy_v
 reduce code duplication since the code for filling buy orders and sell orders are the same.
 
 ```rust
-let fill_orders = |orders: &mut [RadixCiphertextBig]| {
+let fill_orders = |orders: &mut [RadixCiphertext]| {
     let mut volume_left_to_transact = total_volume.clone();
     for mut order in orders.iter_mut() {
         let mut filled_amount = server_key.smart_min(&mut volume_left_to_transact, &mut order);
@@ -196,8 +196,8 @@ fill_orders(buy_orders);
 const NUMBER_OF_BLOCKS: usize = 8;
 
 fn volume_match_fhe(
-    sell_orders: &mut [RadixCiphertextBig],
-    buy_orders: &mut [RadixCiphertextBig],
+    sell_orders: &mut [RadixCiphertext],
+    buy_orders: &mut [RadixCiphertext],
     server_key: &ServerKey,
 ) {
     let mut total_sell_volume = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
@@ -212,7 +212,7 @@ fn volume_match_fhe(
 
     let total_volume = server_key.smart_min(&mut total_sell_volume, &mut total_buy_volume);
 
-    let fill_orders = |orders: &mut [RadixCiphertextBig]| {
+    let fill_orders = |orders: &mut [RadixCiphertext]| {
         let mut volume_left_to_transact = total_volume.clone();
         for mut order in orders.iter_mut() {
             let mut filled_amount = server_key.smart_min(&mut volume_left_to_transact, &mut order);
@@ -235,10 +235,10 @@ fn volume_match_fhe(
 
 * We can parallelize vector sum with Rayon and `reduce` operation.
 ```rust
-let parallel_vector_sum = |vec: &mut [RadixCiphertextBig]| {
+let parallel_vector_sum = |vec: &mut [RadixCiphertext]| {
     vec.to_vec().into_par_iter().reduce(
         || server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS),
-        |mut acc: RadixCiphertextBig, mut ele: RadixCiphertextBig| { 
+        |mut acc: RadixCiphertext, mut ele: RadixCiphertext| { 
             server_key.smart_add_parallelized(&mut acc, &mut ele)
         },
     )
@@ -259,14 +259,14 @@ rayon::join(|| fill_orders(sell_orders), || fill_orders(buy_orders));
 #### Optimized algorithm
 ```rust
 fn volume_match_fhe_parallelized(
-    sell_orders: &mut [RadixCiphertextBig],
-    buy_orders: &mut [RadixCiphertextBig],
+    sell_orders: &mut [RadixCiphertext],
+    buy_orders: &mut [RadixCiphertext],
     server_key: &ServerKey,
 ) {
-    let parallel_vector_sum = |vec: &mut [RadixCiphertextBig]| {
+    let parallel_vector_sum = |vec: &mut [RadixCiphertext]| {
         vec.to_vec().into_par_iter().reduce(
             || server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS),
-            |mut acc: RadixCiphertextBig, mut ele: RadixCiphertextBig| {
+            |mut acc: RadixCiphertext, mut ele: RadixCiphertext| {
                 server_key.smart_add_parallelized(&mut acc, &mut ele)
             },
         )
@@ -280,7 +280,7 @@ fn volume_match_fhe_parallelized(
     let total_volume =
         server_key.smart_min_parallelized(&mut total_sell_volume, &mut total_buy_volume);
 
-    let fill_orders = |orders: &mut [RadixCiphertextBig]| {
+    let fill_orders = |orders: &mut [RadixCiphertext]| {
         let mut volume_left_to_transact = total_volume.clone();
         for mut order in orders.iter_mut() {
             let mut filled_amount =
@@ -346,15 +346,15 @@ So we modify how the algorithm is implemented, but we don't change the algorithm
 Here is the modified version of the algorithm in TFHE-rs:
 ```rust
 fn volume_match_fhe_modified(
-    sell_orders: &mut [RadixCiphertextBig],
-    buy_orders: &mut [RadixCiphertextBig],
+    sell_orders: &mut [RadixCiphertext],
+    buy_orders: &mut [RadixCiphertext],
     server_key: &ServerKey,
 ) {
-    let compute_prefix_sum = |arr: &[RadixCiphertextBig]| {
+    let compute_prefix_sum = |arr: &[RadixCiphertext]| {
         if arr.is_empty() {
             return arr.to_vec();
         }
-        let mut prefix_sum: Vec<RadixCiphertextBig> = (0..arr.len().next_power_of_two())
+        let mut prefix_sum: Vec<RadixCiphertext> = (0..arr.len().next_power_of_two())
             .into_par_iter()
             .map(|i| {
                 if i < arr.len() {
@@ -400,9 +400,9 @@ fn volume_match_fhe_modified(
     );
     println!("Created prefix sum arrays in {:?}", time.elapsed());
 
-    let fill_orders = |total_orders: &RadixCiphertextBig,
-                        orders: &mut [RadixCiphertextBig],
-                        prefix_sum_arr: &[RadixCiphertextBig]| {
+    let fill_orders = |total_orders: &RadixCiphertext,
+                        orders: &mut [RadixCiphertext],
+                        prefix_sum_arr: &[RadixCiphertext]| {
         orders
             .into_par_iter()
             .enumerate()

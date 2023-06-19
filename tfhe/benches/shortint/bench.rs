@@ -5,7 +5,7 @@ use crate::utilities::{write_to_json, OperatorType};
 use criterion::{criterion_group, criterion_main, Criterion};
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::{CiphertextBig, ClassicPBSParameters, ServerKey, ShortintParameterSet};
+use tfhe::shortint::{Ciphertext, ClassicPBSParameters, ServerKey, ShortintParameterSet};
 
 use rand::Rng;
 use tfhe::shortint::keycache::KEY_CACHE;
@@ -45,7 +45,7 @@ fn bench_server_key_unary_function<F>(
     unary_op: F,
     params: &[ClassicPBSParameters],
 ) where
-    F: Fn(&ServerKey, &mut CiphertextBig),
+    F: Fn(&ServerKey, &mut Ciphertext),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -89,7 +89,7 @@ fn bench_server_key_binary_function<F>(
     binary_op: F,
     params: &[ClassicPBSParameters],
 ) where
-    F: Fn(&ServerKey, &mut CiphertextBig, &mut CiphertextBig),
+    F: Fn(&ServerKey, &mut Ciphertext, &mut Ciphertext),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -135,7 +135,7 @@ fn bench_server_key_binary_scalar_function<F>(
     binary_op: F,
     params: &[ClassicPBSParameters],
 ) where
-    F: Fn(&ServerKey, &mut CiphertextBig, u8),
+    F: Fn(&ServerKey, &mut Ciphertext, u8),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -180,7 +180,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
     binary_op: F,
     params: &[ClassicPBSParameters],
 ) where
-    F: Fn(&ServerKey, &mut CiphertextBig, u8),
+    F: Fn(&ServerKey, &mut Ciphertext, u8),
 {
     let mut bench_group = c.benchmark_group(bench_name);
 

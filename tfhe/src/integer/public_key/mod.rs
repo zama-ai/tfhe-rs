@@ -4,12 +4,9 @@ pub mod compact;
 pub mod compressed;
 pub mod standard;
 
-pub use compact::{
-    CompactPublicKeyBase, CompactPublicKeyBig, CompactPublicKeySmall,
-    CompressedCompactPublicKeyBase, CompressedCompactPublicKeyBig, CompressedCompactPublicKeySmall,
-};
-pub use compressed::{CompressedPublicKeyBase, CompressedPublicKeyBig, CompressedPublicKeySmall};
-pub use standard::{PublicKey, PublicKeyBig, PublicKeySmall};
+pub use compact::{CompactPublicKey, CompressedCompactPublicKey};
+pub use compressed::CompressedPublicKey;
+pub use standard::PublicKey;
 
 #[cfg(test)]
 mod tests;

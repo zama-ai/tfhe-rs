@@ -4,7 +4,7 @@
 
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
-use crate::shortint::{CiphertextBase, ClientKey, PBSOrderMarker, ServerKey};
+use crate::shortint::{Ciphertext, ClientKey, ServerKey};
 
 use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweKeyswitchKeyOwned};
 
@@ -94,11 +94,7 @@ impl KeySwitchingKey {
     /// let mut cipher_2 = sk2.create_trivial(0);
     /// ksk.cast_into(&cipher, &mut cipher_2);
     /// ```
-    pub fn cast_into<OpOrder: PBSOrderMarker>(
-        &self,
-        ct: &CiphertextBase<OpOrder>,
-        ct_dest: &mut CiphertextBase<OpOrder>,
-    ) {
+    pub fn cast_into(&self, ct: &Ciphertext, ct_dest: &mut Ciphertext) {
         match self.cast_rshift {
             // Same bit size: only key switch
             0 => keyswitch_lwe_ciphertext(&self.key_switching_key, &ct.ct, &mut ct_dest.ct),
@@ -148,10 +144,7 @@ impl KeySwitchingKey {
     /// let cipher = ck1.encrypt(1);
     /// let cipher_2 = ksk.cast(&cipher);
     /// ```
-    pub fn cast<OpOrder: PBSOrderMarker>(
-        &self,
-        ct: &CiphertextBase<OpOrder>,
-    ) -> CiphertextBase<OpOrder> {
+    pub fn cast(&self, ct: &Ciphertext) -> Ciphertext {
         let mut ret = self.dest_server_key.create_trivial(0);
         self.cast_into(ct, &mut ret);
         ret

@@ -4,7 +4,7 @@ use std::os::raw::c_int;
 
 use crate::shortint;
 
-use super::{ShortintCiphertext, ShortintCiphertextInner, ShortintCiphertextKind};
+use super::ShortintCiphertext;
 
 pub mod add;
 pub mod bitwise_op;
@@ -50,7 +50,6 @@ pub unsafe extern "C" fn shortint_gen_server_key(
 pub unsafe extern "C" fn shortint_server_key_create_trivial(
     server_key: *const ShortintServerKey,
     value_to_trivially_encrypt: u64,
-    ciphertext_kind: ShortintCiphertextKind,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
@@ -58,14 +57,7 @@ pub unsafe extern "C" fn shortint_server_key_create_trivial(
 
         let server_key = get_ref_checked(server_key).unwrap();
 
-        let res = match ciphertext_kind {
-            ShortintCiphertextKind::ShortintCiphertextBig => ShortintCiphertextInner::Big(
-                server_key.0.create_trivial(value_to_trivially_encrypt),
-            ),
-            ShortintCiphertextKind::ShortintCiphertextSmall => ShortintCiphertextInner::Small(
-                server_key.0.create_trivial(value_to_trivially_encrypt),
-            ),
-        };
+        let res = server_key.0.create_trivial(value_to_trivially_encrypt);
 
         let heap_allocated_ciphertext = Box::new(ShortintCiphertext(res));
 

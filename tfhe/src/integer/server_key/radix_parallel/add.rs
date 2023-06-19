@@ -1,6 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::{CiphertextBase, PBSOrderMarker};
+use crate::shortint::Ciphertext;
 
 use rayon::prelude::*;
 
@@ -38,20 +38,20 @@ fn prefix_sum_carry_propagation(msb: u64, lsb: u64) -> u64 {
 }
 
 impl ServerKey {
-    pub fn unchecked_add_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_add_parallelized(
         &self,
-        lhs: &RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut result = lhs.clone();
         self.unchecked_add_assign_parallelized(&mut result, rhs);
         result
     }
 
-    pub fn unchecked_add_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_add_assign_parallelized(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
+        rhs: &RadixCiphertext,
     ) {
         lhs.blocks
             .par_iter_mut()
@@ -90,11 +90,11 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
-    pub fn smart_add_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_add_parallelized(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &mut RadixCiphertext,
+        ct_right: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         if !self.is_add_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -104,10 +104,10 @@ impl ServerKey {
         self.unchecked_add(ct_left, ct_right)
     }
 
-    pub fn smart_add_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn smart_add_assign_parallelized(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &mut RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &mut RadixCiphertext,
     ) {
         if !self.is_add_possible(ct_left, ct_right) {
             rayon::join(
@@ -156,22 +156,22 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
-    pub fn add_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn add_parallelized(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut ct_res = ct_left.clone();
         self.add_assign_parallelized(&mut ct_res, ct_right);
         ct_res
     }
 
-    pub fn add_assign_parallelized<PBSOrder: PBSOrderMarker>(
+    pub fn add_assign_parallelized(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) {
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext;
 
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
@@ -205,22 +205,22 @@ impl ServerKey {
         }
     }
 
-    pub fn add_parallelized_work_efficient<PBSOrder: PBSOrderMarker>(
+    pub fn add_parallelized_work_efficient(
         &self,
-        ct_left: &RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> RadixCiphertext {
         let mut ct_res = ct_left.clone();
         self.add_assign_parallelized_work_efficient(&mut ct_res, ct_right);
         ct_res
     }
 
-    pub fn add_assign_parallelized_work_efficient<PBSOrder: PBSOrderMarker>(
+    pub fn add_assign_parallelized_work_efficient(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &RadixCiphertext<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
     ) {
-        let mut tmp_rhs: RadixCiphertext<PBSOrder>;
+        let mut tmp_rhs: RadixCiphertext;
 
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
@@ -277,10 +277,10 @@ impl ServerKey {
     /// # Output
     ///
     /// - lhs will have its carries empty
-    pub(crate) fn unchecked_add_assign_parallelized_low_latency<PBSOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_add_assign_parallelized_low_latency(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
+        rhs: &RadixCiphertext,
     ) {
         debug_assert!(lhs.block_carries_are_empty());
         debug_assert!(rhs.block_carries_are_empty());
@@ -296,10 +296,7 @@ impl ServerKey {
     /// - first unchecked_add
     /// - at this point at most on bit of carry is taken
     /// - use this function to propagate them in parallel
-    pub(crate) fn propagate_single_carry_parallelized_low_latency<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct: &mut RadixCiphertext<PBSOrder>,
-    ) {
+    pub(crate) fn propagate_single_carry_parallelized_low_latency(&self, ct: &mut RadixCiphertext) {
         let generates_or_propagates = self.generate_init_carry_array(ct);
         let input_carries =
             self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
@@ -317,10 +314,10 @@ impl ServerKey {
     /// Uses the Hillis and Steele prefix scan
     ///
     /// Requires the blocks to have at least 4 bits
-    pub(crate) fn compute_carry_propagation_parallelized_low_latency<PBSOrder: PBSOrderMarker>(
+    pub(crate) fn compute_carry_propagation_parallelized_low_latency(
         &self,
-        mut generates_or_propagates: Vec<CiphertextBase<PBSOrder>>,
-    ) -> Vec<CiphertextBase<PBSOrder>> {
+        mut generates_or_propagates: Vec<Ciphertext>,
+    ) -> Vec<Ciphertext> {
         debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 4));
 
         let num_blocks = generates_or_propagates.len();
@@ -380,10 +377,10 @@ impl ServerKey {
     /// # Output
     ///
     /// - lhs will have its carries empty
-    pub(crate) fn unchecked_add_assign_parallelized_work_efficient<PBSOrder: PBSOrderMarker>(
+    pub(crate) fn unchecked_add_assign_parallelized_work_efficient(
         &self,
-        lhs: &mut RadixCiphertext<PBSOrder>,
-        rhs: &RadixCiphertext<PBSOrder>,
+        lhs: &mut RadixCiphertext,
+        rhs: &RadixCiphertext,
     ) {
         debug_assert!(lhs.block_carries_are_empty());
         debug_assert!(rhs.block_carries_are_empty());
@@ -403,12 +400,10 @@ impl ServerKey {
             });
     }
 
-    pub(crate) fn compute_carry_propagation_parallelized_work_efficient<
-        PBSOrder: PBSOrderMarker,
-    >(
+    pub(crate) fn compute_carry_propagation_parallelized_work_efficient(
         &self,
-        mut carry_out: Vec<CiphertextBase<PBSOrder>>,
-    ) -> Vec<CiphertextBase<PBSOrder>> {
+        mut carry_out: Vec<Ciphertext>,
+    ) -> Vec<Ciphertext> {
         debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 3));
 
         let num_blocks = carry_out.len();
@@ -506,10 +501,10 @@ impl ServerKey {
         carry_out
     }
 
-    pub(super) fn generate_init_carry_array<PBSOrder: PBSOrderMarker>(
+    pub(super) fn generate_init_carry_array(
         &self,
-        sum_ct: &RadixCiphertext<PBSOrder>,
-    ) -> Vec<crate::shortint::CiphertextBase<PBSOrder>> {
+        sum_ct: &RadixCiphertext,
+    ) -> Vec<crate::shortint::Ciphertext> {
         let modulus = self.key.message_modulus.0 as u64;
 
         // This used for the first pair of blocks
@@ -553,22 +548,22 @@ impl ServerKey {
     }
 
     /// op must be associative and commutative
-    pub fn smart_binary_op_seq_parallelized<'this, 'item, PBSOrder: PBSOrderMarker + 'item>(
+    pub fn smart_binary_op_seq_parallelized<'this, 'item>(
         &'this self,
-        ct_seq: impl IntoIterator<Item = &'item mut RadixCiphertext<PBSOrder>>,
+        ct_seq: impl IntoIterator<Item = &'item mut RadixCiphertext>,
         op: impl for<'a> Fn(
                 &'a ServerKey,
-                &'a mut RadixCiphertext<PBSOrder>,
-                &'a mut RadixCiphertext<PBSOrder>,
-            ) -> RadixCiphertext<PBSOrder>
+                &'a mut RadixCiphertext,
+                &'a mut RadixCiphertext,
+            ) -> RadixCiphertext
             + Sync,
-    ) -> Option<RadixCiphertext<PBSOrder>> {
-        enum CiphertextCow<'a, O: PBSOrderMarker> {
-            Borrowed(&'a mut RadixCiphertext<O>),
-            Owned(RadixCiphertext<O>),
+    ) -> Option<RadixCiphertext> {
+        enum CiphertextCow<'a> {
+            Borrowed(&'a mut RadixCiphertext),
+            Owned(RadixCiphertext),
         }
-        impl<O: PBSOrderMarker> CiphertextCow<'_, O> {
-            fn as_mut(&mut self) -> &mut RadixCiphertext<O> {
+        impl CiphertextCow<'_> {
+            fn as_mut(&mut self) -> &mut RadixCiphertext {
                 match self {
                     CiphertextCow::Borrowed(b) => b,
                     CiphertextCow::Owned(o) => o,
@@ -586,16 +581,16 @@ impl ServerKey {
         // we defer all calls to a single implementation to avoid code bloat and long compile
         // times
         #[allow(clippy::type_complexity)]
-        fn reduce_impl<PBSOrder: PBSOrderMarker>(
+        fn reduce_impl(
             sks: &ServerKey,
-            mut ct_seq: Vec<CiphertextCow<PBSOrder>>,
+            mut ct_seq: Vec<CiphertextCow>,
             op: &(dyn for<'a> Fn(
                 &'a ServerKey,
-                &'a mut RadixCiphertext<PBSOrder>,
-                &'a mut RadixCiphertext<PBSOrder>,
-            ) -> RadixCiphertext<PBSOrder>
+                &'a mut RadixCiphertext,
+                &'a mut RadixCiphertext,
+            ) -> RadixCiphertext
                   + Sync),
-        ) -> Option<RadixCiphertext<PBSOrder>> {
+        ) -> Option<RadixCiphertext> {
             use rayon::prelude::*;
 
             if ct_seq.is_empty() {
@@ -639,22 +634,18 @@ impl ServerKey {
     }
 
     /// op must be associative and commutative
-    pub fn default_binary_op_seq_parallelized<'this, 'item, PBSOrder: PBSOrderMarker + 'item>(
+    pub fn default_binary_op_seq_parallelized<'this, 'item>(
         &'this self,
-        ct_seq: impl IntoIterator<Item = &'item RadixCiphertext<PBSOrder>>,
-        op: impl for<'a> Fn(
-                &'a ServerKey,
-                &'a RadixCiphertext<PBSOrder>,
-                &'a RadixCiphertext<PBSOrder>,
-            ) -> RadixCiphertext<PBSOrder>
+        ct_seq: impl IntoIterator<Item = &'item RadixCiphertext>,
+        op: impl for<'a> Fn(&'a ServerKey, &'a RadixCiphertext, &'a RadixCiphertext) -> RadixCiphertext
             + Sync,
-    ) -> Option<RadixCiphertext<PBSOrder>> {
-        enum CiphertextCow<'a, O: PBSOrderMarker> {
-            Borrowed(&'a RadixCiphertext<O>),
-            Owned(RadixCiphertext<O>),
+    ) -> Option<RadixCiphertext> {
+        enum CiphertextCow<'a> {
+            Borrowed(&'a RadixCiphertext),
+            Owned(RadixCiphertext),
         }
-        impl<O: PBSOrderMarker> CiphertextCow<'_, O> {
-            fn as_ref(&self) -> &RadixCiphertext<O> {
+        impl CiphertextCow<'_> {
+            fn as_ref(&self) -> &RadixCiphertext {
                 match self {
                     CiphertextCow::Borrowed(b) => b,
                     CiphertextCow::Owned(o) => o,
@@ -672,16 +663,16 @@ impl ServerKey {
         // we defer all calls to a single implementation to avoid code bloat and long compile
         // times
         #[allow(clippy::type_complexity)]
-        fn reduce_impl<PBSOrder: PBSOrderMarker>(
+        fn reduce_impl(
             sks: &ServerKey,
-            mut ct_seq: Vec<CiphertextCow<PBSOrder>>,
+            mut ct_seq: Vec<CiphertextCow>,
             op: &(dyn for<'a> Fn(
                 &'a ServerKey,
-                &'a RadixCiphertext<PBSOrder>,
-                &'a RadixCiphertext<PBSOrder>,
-            ) -> RadixCiphertext<PBSOrder>
+                &'a RadixCiphertext,
+                &'a RadixCiphertext,
+            ) -> RadixCiphertext
                   + Sync),
-        ) -> Option<RadixCiphertext<PBSOrder>> {
+        ) -> Option<RadixCiphertext> {
             use rayon::prelude::*;
 
             if ct_seq.is_empty() {

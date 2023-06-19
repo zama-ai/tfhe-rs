@@ -58,10 +58,7 @@ pub mod public_key;
 pub mod server_key;
 pub mod wopbs;
 
-pub use ciphertext::{
-    CiphertextBase, CiphertextBig, CiphertextSmall, CompressedCiphertextBase,
-    CompressedCiphertextBig, CompressedCiphertextSmall, PBSOrder, PBSOrderMarker,
-};
+pub use ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use client_key::ClientKey;
 pub use key_switching_key::KeySwitchingKey;
 pub use parameters::{
@@ -69,10 +66,7 @@ pub use parameters::{
     MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
 };
 pub use public_key::{
-    CompactPublicKeyBase, CompactPublicKeyBig, CompactPublicKeySmall,
-    CompressedCompactPublicKeyBase, CompressedCompactPublicKeyBig, CompressedCompactPublicKeySmall,
-    CompressedPublicKeyBase, CompressedPublicKeyBig, CompressedPublicKeySmall, PublicKeyBase,
-    PublicKeyBig, PublicKeySmall,
+    CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
 };
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 

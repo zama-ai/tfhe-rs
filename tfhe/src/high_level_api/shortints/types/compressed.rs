@@ -4,7 +4,7 @@ use crate::high_level_api::shortints::parameters::ShortIntegerParameter;
 use crate::high_level_api::shortints::GenericShortInt;
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::high_level_api::ClientKey;
-use crate::shortint::CompressedCiphertextBig as ShortintCompressedCiphertext;
+use crate::shortint::CompressedCiphertext as ShortintCompressedCiphertext;
 
 pub struct CompressedGenericShortint<P>
 where

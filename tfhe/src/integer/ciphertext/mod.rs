@@ -1,9 +1,5 @@
 //! This module implements the ciphertext structures.
-use crate::shortint::ciphertext::{BootstrapKeyswitch, KeyswitchBootstrap};
-use crate::shortint::{
-    CiphertextBase, CiphertextBig, CiphertextSmall, CompressedCiphertextBig,
-    CompressedCiphertextSmall, PBSOrderMarker,
-};
+use crate::shortint::{Ciphertext, CompressedCiphertext};
 use serde::{Deserialize, Serialize};
 
 /// Structure containing a ciphertext in radix decomposition.
@@ -20,30 +16,22 @@ impl<Block> From<Vec<Block>> for BaseRadixCiphertext<Block> {
 }
 
 // Type alias to save some typing in implementation parts
-pub type RadixCiphertext<PBSOder> = BaseRadixCiphertext<CiphertextBase<PBSOder>>;
-
-/// Structure containing a ciphertext in radix decomposition.
-pub type RadixCiphertextBig = BaseRadixCiphertext<CiphertextBig>;
-pub type RadixCiphertextSmall = BaseRadixCiphertext<CiphertextSmall>;
+pub type RadixCiphertext = BaseRadixCiphertext<Ciphertext>;
 
 /// Structure containing a **compressed** ciphertext in radix decomposition.
-pub type CompressedRadixCiphertextBig = BaseRadixCiphertext<CompressedCiphertextBig>;
-pub type CompressedRadixCiphertextSmall = BaseRadixCiphertext<CompressedCiphertextSmall>;
-
-pub type CompactCiphertextListBig = CompactCiphertextList<KeyswitchBootstrap>;
-pub type CompactCiphertextListSmall = CompactCiphertextList<BootstrapKeyswitch>;
+pub type CompressedRadixCiphertext = BaseRadixCiphertext<CompressedCiphertext>;
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct CompactCiphertextList<PBSOrder: PBSOrderMarker> {
-    pub(crate) ct_list: crate::shortint::ciphertext::CompactCiphertextList<PBSOrder>,
+pub struct CompactCiphertextList {
+    pub(crate) ct_list: crate::shortint::ciphertext::CompactCiphertextList,
     // Keep track of the num_blocks, as we allow
     // storing many integer that have the same num_blocks
     // into ct_list
     pub(crate) num_blocks: usize,
 }
 
-impl<PBSOrder: PBSOrderMarker> CompactCiphertextList<PBSOrder> {
-    pub fn expand_one(&self) -> RadixCiphertext<PBSOrder> {
+impl CompactCiphertextList {
+    pub fn expand_one(&self) -> RadixCiphertext {
         let mut blocks = self.ct_list.expand();
         blocks.truncate(self.num_blocks);
         RadixCiphertext::from(blocks)
@@ -53,7 +41,7 @@ impl<PBSOrder: PBSOrderMarker> CompactCiphertextList<PBSOrder> {
         self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks
     }
 
-    pub fn expand(&self) -> Vec<RadixCiphertext<PBSOrder>> {
+    pub fn expand(&self) -> Vec<RadixCiphertext> {
         let mut all_block_iter = self.ct_list.expand().into_iter();
         let num_ct = self.ciphertext_count();
         let mut ciphertexts = Vec::with_capacity(num_ct);
@@ -82,26 +70,14 @@ impl<PBSOrder: PBSOrderMarker> CompactCiphertextList<PBSOrder> {
     }
 }
 
-impl<PBSOrder: PBSOrderMarker> RadixCiphertext<PBSOrder> {
+impl RadixCiphertext {
     pub fn block_carries_are_empty(&self) -> bool {
         self.blocks.iter().all(|block| block.carry_is_empty())
     }
 }
 
-impl From<CompressedRadixCiphertextBig> for RadixCiphertextBig {
-    fn from(compressed: CompressedRadixCiphertextBig) -> Self {
-        Self::from(
-            compressed
-                .blocks
-                .into_iter()
-                .map(From::from)
-                .collect::<Vec<_>>(),
-        )
-    }
-}
-
-impl From<CompressedRadixCiphertextSmall> for RadixCiphertextSmall {
-    fn from(compressed: CompressedRadixCiphertextSmall) -> Self {
+impl From<CompressedRadixCiphertext> for RadixCiphertext {
+    fn from(compressed: CompressedRadixCiphertext) -> Self {
         Self::from(
             compressed
                 .blocks
@@ -113,11 +89,9 @@ impl From<CompressedRadixCiphertextSmall> for RadixCiphertextSmall {
 }
 
 pub trait IntegerCiphertext: Clone {
-    type PBSOrder: PBSOrderMarker;
-
-    fn from_blocks(blocks: Vec<CiphertextBase<Self::PBSOrder>>) -> Self;
-    fn blocks(&self) -> &[CiphertextBase<Self::PBSOrder>];
-    fn blocks_mut(&mut self) -> &mut [CiphertextBase<Self::PBSOrder>];
+    fn from_blocks(blocks: Vec<Ciphertext>) -> Self;
+    fn blocks(&self) -> &[Ciphertext];
+    fn blocks_mut(&mut self) -> &mut [Ciphertext];
     fn moduli(&self) -> Vec<u64> {
         self.blocks()
             .iter()
@@ -126,45 +100,27 @@ pub trait IntegerCiphertext: Clone {
     }
 }
 
-impl IntegerCiphertext for RadixCiphertextBig {
-    type PBSOrder = KeyswitchBootstrap;
-
-    fn from_blocks(blocks: Vec<CiphertextBase<Self::PBSOrder>>) -> Self {
+impl IntegerCiphertext for RadixCiphertext {
+    fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
         Self::from(blocks)
     }
-    fn blocks(&self) -> &[CiphertextBase<Self::PBSOrder>] {
+    fn blocks(&self) -> &[Ciphertext] {
         &self.blocks
     }
-    fn blocks_mut(&mut self) -> &mut [CiphertextBase<Self::PBSOrder>] {
-        &mut self.blocks
-    }
-}
-
-impl IntegerCiphertext for RadixCiphertextSmall {
-    type PBSOrder = BootstrapKeyswitch;
-
-    fn from_blocks(blocks: Vec<CiphertextBase<Self::PBSOrder>>) -> Self {
-        Self::from(blocks)
-    }
-    fn blocks(&self) -> &[CiphertextBase<Self::PBSOrder>] {
-        &self.blocks
-    }
-    fn blocks_mut(&mut self) -> &mut [CiphertextBase<Self::PBSOrder>] {
+    fn blocks_mut(&mut self) -> &mut [Ciphertext] {
         &mut self.blocks
     }
 }
 
 impl IntegerCiphertext for CrtCiphertext {
-    type PBSOrder = KeyswitchBootstrap;
-
-    fn from_blocks(blocks: Vec<CiphertextBase<Self::PBSOrder>>) -> Self {
+    fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
         let moduli = blocks.iter().map(|x| x.message_modulus.0 as u64).collect();
         Self { blocks, moduli }
     }
-    fn blocks(&self) -> &[CiphertextBase<Self::PBSOrder>] {
+    fn blocks(&self) -> &[Ciphertext] {
         &self.blocks
     }
-    fn blocks_mut(&mut self) -> &mut [CiphertextBase<Self::PBSOrder>] {
+    fn blocks_mut(&mut self) -> &mut [Ciphertext] {
         &mut self.blocks
     }
 
@@ -184,10 +140,10 @@ pub struct BaseCrtCiphertext<Block> {
 }
 
 /// Structure containing a ciphertext in CRT decomposition.
-pub type CrtCiphertext = BaseCrtCiphertext<CiphertextBig>;
+pub type CrtCiphertext = BaseCrtCiphertext<Ciphertext>;
 
 /// Structure containing a **compressed** ciphertext in CRT decomposition.
-pub type CompressedCrtCiphertext = BaseCrtCiphertext<CompressedCiphertextBig>;
+pub type CompressedCrtCiphertext = BaseCrtCiphertext<CompressedCiphertext>;
 
 impl<Block> From<(Vec<Block>, Vec<u64>)> for BaseCrtCiphertext<Block> {
     fn from((blocks, moduli): (Vec<Block>, Vec<u64>)) -> Self {

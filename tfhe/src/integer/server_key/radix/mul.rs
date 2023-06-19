@@ -1,6 +1,5 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::PBSOrderMarker;
 
 impl ServerKey {
     /// Computes homomorphically a multiplication between a ciphertext encrypting an integer value
@@ -35,10 +34,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_left);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul_assign<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_block_mul_assign(
         &self,
-        ct_left: &mut RadixCiphertext<PBSOrder>,
-        ct_right: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &crate::shortint::Ciphertext,
         index: usize,
     ) {
         *ct_left = self.unchecked_block_mul(ct_left, ct_right, index);
@@ -76,12 +75,12 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul<PBSOrder: PBSOrderMarker>(
+    pub fn unchecked_block_mul(
         &self,
-        ct1: &RadixCiphertext<PBSOrder>,
-        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct1: &RadixCiphertext,
+        ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         let shifted_ct = self.blockshift(ct1, index);
 
         let mut result_lsb = shifted_ct.clone();
@@ -130,12 +129,12 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn smart_block_mul<PBSOrder: PBSOrderMarker>(
+    pub fn smart_block_mul(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct1: &mut RadixCiphertext,
+        ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext<PBSOrder> {
+    ) -> RadixCiphertext {
         //Makes sure we can do the multiplications
         self.full_propagate(ct1);
 
@@ -158,10 +157,10 @@ impl ServerKey {
         self.smart_add(&mut result_lsb, &mut result_msb)
     }
 
-    pub fn smart_block_mul_assign<PBSOrder: PBSOrderMarker>(
+    pub fn smart_block_mul_assign(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &crate::shortint::CiphertextBase<PBSOrder>,
+        ct1: &mut RadixCiphertext,
+        ct2: &crate::shortint::Ciphertext,
         index: usize,
     ) {
         *ct1 = self.smart_block_mul(ct1, ct2, index);
@@ -197,11 +196,7 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_mul_assign<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &RadixCiphertext<PBSOrder>,
-    ) {
+    pub fn unchecked_mul_assign(&self, ct1: &mut RadixCiphertext, ct2: &RadixCiphertext) {
         *ct1 = self.unchecked_mul(ct1, ct2);
     }
 
@@ -211,11 +206,7 @@ impl ServerKey {
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    pub fn unchecked_mul<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct1: &RadixCiphertext<PBSOrder>,
-        ct2: &RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+    pub fn unchecked_mul(&self, ct1: &RadixCiphertext, ct2: &RadixCiphertext) -> RadixCiphertext {
         let mut result = self.create_trivial_zero_radix(ct1.blocks.len());
 
         for (i, ct2_i) in ct2.blocks.iter().enumerate() {
@@ -254,22 +245,18 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn smart_mul_assign<PBSOrder: PBSOrderMarker>(
-        &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &mut RadixCiphertext<PBSOrder>,
-    ) {
+    pub fn smart_mul_assign(&self, ct1: &mut RadixCiphertext, ct2: &mut RadixCiphertext) {
         *ct1 = self.smart_mul(ct1, ct2);
     }
 
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
     ///
     /// The result is returned as a new ciphertext.
-    pub fn smart_mul<PBSOrder: PBSOrderMarker>(
+    pub fn smart_mul(
         &self,
-        ct1: &mut RadixCiphertext<PBSOrder>,
-        ct2: &mut RadixCiphertext<PBSOrder>,
-    ) -> RadixCiphertext<PBSOrder> {
+        ct1: &mut RadixCiphertext,
+        ct2: &mut RadixCiphertext,
+    ) -> RadixCiphertext {
         self.full_propagate(ct1);
         self.full_propagate(ct2);
 
