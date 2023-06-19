@@ -28,10 +28,8 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > install-rustup.s
     chmod +x install-rustup.sh && \
     ./install-rustup.sh -y --default-toolchain "${RUST_TOOLCHAIN}" \
     -c rust-src -t wasm32-unknown-unknown && \
-    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf > install-wasm-pack.sh && \
-    chmod +x install-wasm-pack.sh && \
     . "$HOME/.cargo/env" && \
-    ./install-wasm-pack.sh -y && \
+    cargo install wasm-pack && \
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh > install-node.sh && \
     chmod +x install-node.sh && \
     ./install-node.sh && \
