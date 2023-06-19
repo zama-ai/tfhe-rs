@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ShortintCompressedBootstrappingKey {
     Classic(SeededLweBootstrapKeyOwned<u64>),
-    MultiBit(SeededLweMultiBitBootstrapKeyOwned<u64>),
+    MultiBit {
+        seeded_bsk: SeededLweMultiBitBootstrapKeyOwned<u64>,
+        deterministic_execution: bool,
+    },
 }
 
 /// A structure containing a compressed server public key.
