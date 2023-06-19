@@ -350,7 +350,7 @@ impl ServerKey {
             .into_par_iter()
             .map(|i| {
                 self.key
-                    .generate_accumulator(|x| ((x % message_modulus) >> i) & 1)
+                    .generate_lookup_table(|x| ((x % message_modulus) >> i) & 1)
             })
             .collect::<Vec<_>>();
 
@@ -393,7 +393,7 @@ impl ServerKey {
             },
         );
 
-        let mux_lut = self.key.generate_accumulator(|x| {
+        let mux_lut = self.key.generate_lookup_table(|x| {
             // x is expected to be x = 0bcba
             // where
             // - c is the control bit

@@ -498,7 +498,7 @@ impl ServerKey {
         }
 
         let modulus = self.key.message_modulus.0 as u64;
-        let lut = self.key.generate_accumulator(|x| (!x) % modulus);
+        let lut = self.key.generate_lookup_table(|x| (!x) % modulus);
         ct.blocks
             .par_iter_mut()
             .for_each(|block| self.key.apply_lookup_table_assign(block, &lut))

@@ -137,7 +137,7 @@ impl ServerKey {
         let create_blocks_using_bivariate_pbs = || {
             let lut = self
                 .key
-                .generate_accumulator_bivariate(|current_block, mut next_block| {
+                .generate_lookup_table_bivariate(|current_block, mut next_block| {
                     // left shift so as not to lose
                     // bits when shifting right afterwards
                     next_block <<= num_bits_in_block;
@@ -402,7 +402,7 @@ impl ServerKey {
         let create_blocks_using_bivariate_pbs = || {
             let lut = self
                 .key
-                .generate_accumulator_bivariate(|previous_block, current_block| {
+                .generate_lookup_table_bivariate(|previous_block, current_block| {
                     let current_block = current_block << shift_within_block;
                     let previous_block = previous_block << shift_within_block;
 

@@ -143,7 +143,7 @@ impl ServerKey {
         let message_modulus = self.key.message_modulus.0 as u64;
         let lut = self
             .key
-            .generate_accumulator_bivariate(|current_block, mut previous_block| {
+            .generate_lookup_table_bivariate(|current_block, mut previous_block| {
                 // left shift not to lose
                 // bits when shifting right afterwards
                 previous_block <<= num_bits_in_block;
@@ -285,7 +285,7 @@ impl ServerKey {
 
         let lut = self
             .key
-            .generate_accumulator_bivariate(|current_block, previous_block| {
+            .generate_lookup_table_bivariate(|current_block, previous_block| {
                 let current_block = current_block << shift_within_block;
                 let previous_block = previous_block << shift_within_block;
 

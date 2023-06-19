@@ -215,7 +215,7 @@ pub type LookupTableView<'a> = LookupTable<&'a [u64]>;
 
 #[must_use]
 pub struct BivariateLookupTable<C: Container<Element = u64>> {
-    // A bivariate accumulator is an univariate accumulator
+    // A bivariate lookup table is an univariate loolookup table
     // where the message space is shared to encode
     // 2 values
     pub acc: LookupTable<C>,
@@ -261,7 +261,7 @@ impl ServerKey {
         })
     }
 
-    /// Constructs the accumulator given a function as input.
+    /// Constructs the lookup table given a function as input.
     ///
     /// # Example
     ///
@@ -276,26 +276,26 @@ impl ServerKey {
     ///
     /// let ct = cks.encrypt(msg);
     ///
-    /// // Generate the accumulator for the function f: x -> x^2 mod 2^2
+    /// // Generate the lookup table for the function f: x -> x^2 mod 2^2
     /// let f = |x| x ^ 2 % 4;
     ///
-    /// let acc = sks.generate_accumulator(f);
+    /// let acc = sks.generate_lookup_table(f);
     /// let ct_res = sks.apply_lookup_table(&ct, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // 3^2 mod 4 = 1
     /// assert_eq!(dec, f(msg));
     /// ```
-    pub fn generate_accumulator<F>(&self, f: F) -> LookupTableOwned
+    pub fn generate_lookup_table<F>(&self, f: F) -> LookupTableOwned
     where
         F: Fn(u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.generate_accumulator(self, f).unwrap()
+            engine.generate_lookup_table(self, f).unwrap()
         })
     }
 
-    pub fn generate_accumulator_bivariate_with_factor<F>(
+    pub fn generate_lookup_table_bivariate_with_factor<F>(
         &self,
         f: F,
         left_message_scaling: MessageModulus,
@@ -305,12 +305,12 @@ impl ServerKey {
     {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
-                .generate_accumulator_bivariate_with_factor(self, f, left_message_scaling)
+                .generate_lookup_table_bivariate_with_factor(self, f, left_message_scaling)
                 .unwrap()
         })
     }
 
-    /// Constructs the accumulator for a given bivariate function as input.
+    /// Constructs the lookup table for a given bivariate function as input.
     ///
     /// # Example
     ///
@@ -329,19 +329,19 @@ impl ServerKey {
     ///
     /// let f = |x, y| (x + y) % 4;
     ///
-    /// let acc = sks.generate_accumulator_bivariate(f);
+    /// let acc = sks.generate_lookup_table_bivariate(f);
     /// assert!(acc.is_bivariate_pbs_possible(&ct1, &ct2));
     /// let ct_res = sks.smart_apply_lookup_table_bivariate(&ct1, &mut ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(dec, f(msg_1, msg_2));
     /// ```
-    pub fn generate_accumulator_bivariate<F>(&self, f: F) -> BivariateLookupTableOwned
+    pub fn generate_lookup_table_bivariate<F>(&self, f: F) -> BivariateLookupTableOwned
     where
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.generate_accumulator_bivariate(self, f).unwrap()
+            engine.generate_lookup_table_bivariate(self, f).unwrap()
         })
     }
 
@@ -449,8 +449,8 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
-    /// let acc = sks.generate_accumulator_bivariate(|x, y| x * y * x % modulus);
+    /// // Generate the lookup table for the function f: x -> x^3 mod 2^2
+    /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
     /// let ct_res = sks.unchecked_apply_lookup_table_bivariate(&ct1, &ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
@@ -499,8 +499,8 @@ impl ServerKey {
     /// let mut ct2 = cks.encrypt(msg);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
-    /// let acc = sks.generate_accumulator_bivariate(|x, y| x * y * x % modulus);
+    /// // Generate the lookup table for the function f: x -> x^3 mod 2^2
+    /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
     /// let ct_res = sks.smart_apply_lookup_table_bivariate(&ct1, &mut ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
@@ -548,8 +548,8 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// // Generate the accumulator for the function f: x -> x^3 mod 2^2
-    /// let acc = sks.generate_accumulator(|x| x * x * x % modulus);
+    /// // Generate the lookup table for the function f: x -> x^3 mod 2^2
+    /// let acc = sks.generate_lookup_table(|x| x * x * x % modulus);
     /// let ct_res = sks.apply_lookup_table(&ct, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);

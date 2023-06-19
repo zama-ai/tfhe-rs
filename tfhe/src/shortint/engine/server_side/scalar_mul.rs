@@ -55,7 +55,7 @@ impl ShortintEngine {
         }
         // If the ciphertext cannot be multiplied without exceeding the degree max
         else {
-            let acc = self.generate_accumulator(server_key, |x| (scalar as u64 * x) % modulus)?;
+            let acc = self.generate_lookup_table(server_key, |x| (scalar as u64 * x) % modulus)?;
             self.apply_lookup_table_assign(server_key, ctxt, &acc)?;
             ctxt.degree = Degree(server_key.message_modulus.0 - 1);
         }

@@ -94,9 +94,8 @@ impl ShortintEngine {
         scalar: u8,
     ) -> EngineResult<()> {
         assert_ne!(scalar, 0);
-        //generate the accumulator for the multiplication
-        let acc = self.generate_accumulator(server_key, |x| x / (scalar as u64))?;
-        self.apply_lookup_table_assign(server_key, ct, &acc)?;
+        let lookup_table = self.generate_lookup_table(server_key, |x| x / (scalar as u64))?;
+        self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
         ct.degree = Degree(ct.degree.0 / scalar as usize);
         Ok(())
     }
@@ -122,7 +121,7 @@ impl ShortintEngine {
         modulus: u8,
     ) -> EngineResult<()> {
         assert_ne!(modulus, 0);
-        let acc = self.generate_accumulator(server_key, |x| x % modulus as u64)?;
+        let acc = self.generate_lookup_table(server_key, |x| x % modulus as u64)?;
         self.apply_lookup_table_assign(server_key, ct, &acc)?;
         ct.degree = Degree(modulus as usize - 1);
         Ok(())

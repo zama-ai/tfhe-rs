@@ -395,10 +395,10 @@ where
     where
         F: Fn(u64) -> u64,
     {
-        let accumulator = self.key.generate_accumulator(func);
+        let lookup_table = self.key.generate_lookup_table(func);
         let new_ciphertext = self
             .key
-            .apply_lookup_table(&ciphertext.ciphertext.borrow(), &accumulator);
+            .apply_lookup_table(&ciphertext.ciphertext.borrow(), &lookup_table);
         GenericShortInt {
             ciphertext: RefCell::new(new_ciphertext),
             id: ciphertext.id,
@@ -409,9 +409,9 @@ where
     where
         F: Fn(u64) -> u64,
     {
-        let accumulator = self.key.generate_accumulator(func);
+        let lookup_table = self.key.generate_lookup_table(func);
         self.key
-            .apply_lookup_table_assign(&mut ciphertext.ciphertext.borrow_mut(), &accumulator)
+            .apply_lookup_table_assign(&mut ciphertext.ciphertext.borrow_mut(), &lookup_table)
     }
 
     pub(super) fn bivariate_pbs<F>(

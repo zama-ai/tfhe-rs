@@ -325,7 +325,7 @@ impl ServerKey {
 
         let lut_carry_propagation_sum = self
             .key
-            .generate_accumulator_bivariate(prefix_sum_carry_propagation);
+            .generate_lookup_table_bivariate(prefix_sum_carry_propagation);
 
         let mut space = 1;
         let mut step_output = generates_or_propagates.clone();
@@ -411,7 +411,7 @@ impl ServerKey {
 
         let lut_carry_propagation_sum = self
             .key
-            .generate_accumulator_bivariate(prefix_sum_carry_propagation);
+            .generate_lookup_table_bivariate(prefix_sum_carry_propagation);
 
         use std::cell::UnsafeCell;
 
@@ -509,7 +509,7 @@ impl ServerKey {
 
         // This used for the first pair of blocks
         // as this pair can either generate or not, but never propagate
-        let lut_does_block_generate_carry = self.key.generate_accumulator(|x| {
+        let lut_does_block_generate_carry = self.key.generate_lookup_table(|x| {
             if x >= modulus {
                 OutputCarry::Generated as u64
             } else {
@@ -517,7 +517,7 @@ impl ServerKey {
             }
         });
 
-        let lut_does_block_generate_or_propagate = self.key.generate_accumulator(|x| {
+        let lut_does_block_generate_or_propagate = self.key.generate_lookup_table(|x| {
             if x >= modulus {
                 OutputCarry::Generated as u64
             } else if x == (modulus - 1) {

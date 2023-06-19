@@ -116,7 +116,7 @@ create_parametrized_test!(shortint_keyswitch_bootstrap);
 create_parametrized_test!(shortint_keyswitch_programmable_bootstrap);
 create_parametrized_test!(shortint_carry_extract);
 create_parametrized_test!(shortint_message_extract);
-create_parametrized_test!(shortint_generate_accumulator);
+create_parametrized_test!(shortint_generate_lookup_table);
 create_parametrized_test!(shortint_unchecked_add);
 create_parametrized_test!(shortint_smart_add);
 create_parametrized_test!(shortint_default_add);
@@ -339,8 +339,8 @@ where
         // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
 
-        //define the accumulator as identity
-        let acc = sks.generate_accumulator(|n| n % modulus);
+        //define the lookup_table as identity
+        let acc = sks.generate_lookup_table(|n| n % modulus);
         // add the two ciphertexts
         let ct_res = sks.apply_lookup_table(&ctxt_0, &acc);
 
@@ -370,8 +370,8 @@ where
         // encryption of an integer
         let ctxt_0 = cks.encrypt(clear_0);
         let ctxt_1 = cks.encrypt(clear_1);
-        //define the accumulator as identity
-        let acc = sks.generate_accumulator_bivariate(|x, y| x * 2 * y);
+        //define the lookup_table as identity
+        let acc = sks.generate_lookup_table_bivariate(|x, y| x * 2 * y);
         // add the two ciphertexts
         let ct_res = sks.unchecked_apply_lookup_table_bivariate(&ctxt_0, &ctxt_1, &acc);
 
@@ -452,14 +452,14 @@ where
 }
 
 /// test multiplication with the LWE server key
-fn shortint_generate_accumulator<P>(param: P)
+fn shortint_generate_lookup_table<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let double = |x| 2 * x;
-    let acc = sks.generate_accumulator(double);
+    let acc = sks.generate_lookup_table(double);
 
     //RNG
     let mut rng = rand::thread_rng();

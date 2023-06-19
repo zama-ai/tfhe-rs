@@ -31,12 +31,11 @@ impl ShortintEngine {
         //Modulus of the msg in the msg bits
         let res_modulus = ct_left.message_modulus.0 as u64;
 
-        //generate the accumulator for the multiplication
-        let acc = self.generate_accumulator(server_key, |x| {
+        let lookup_table = self.generate_lookup_table(server_key, |x| {
             ((x / modulus) * (x % modulus)) % res_modulus
         })?;
 
-        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &lookup_table)?;
         ct_left.degree = Degree(ct_left.message_modulus.0 - 1);
         Ok(())
     }
@@ -71,12 +70,11 @@ impl ShortintEngine {
         // Modulus of the msg in the msg bits
         let res_modulus = server_key.message_modulus.0 as u64;
 
-        // Generate the accumulator for the multiplication
-        let acc = self.generate_accumulator(server_key, |x| {
+        let lookup_table = self.generate_lookup_table(server_key, |x| {
             ((x / modulus) * (x % modulus)) / res_modulus
         })?;
 
-        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &lookup_table)?;
 
         ct_left.degree = Degree(deg);
         Ok(())
@@ -99,8 +97,8 @@ impl ShortintEngine {
         let modulus = ct1.message_modulus.0 as u64;
 
         let acc_add =
-            self.generate_accumulator(server_key, |x| ((x.wrapping_mul(x)) / 4) % modulus)?;
-        let acc_sub = self.generate_accumulator(server_key, |x| {
+            self.generate_lookup_table(server_key, |x| ((x.wrapping_mul(x)) / 4) % modulus)?;
+        let acc_sub = self.generate_lookup_table(server_key, |x| {
             (((x.wrapping_sub(z)).wrapping_mul(x.wrapping_sub(z))) / 4) % modulus
         })?;
 
