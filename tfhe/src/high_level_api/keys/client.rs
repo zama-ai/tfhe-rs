@@ -73,6 +73,13 @@ impl ClientKey {
     }
 }
 
+#[cfg(feature = "integer")]
+impl AsRef<crate::integer::ClientKey> for ClientKey {
+    fn as_ref(&self) -> &crate::integer::ClientKey {
+        self.integer_key.key.as_ref().unwrap()
+    }
+}
+
 /// Trait to be implemented on the client key types that have a corresponding member
 /// in the `ClientKeyChain`.
 ///
