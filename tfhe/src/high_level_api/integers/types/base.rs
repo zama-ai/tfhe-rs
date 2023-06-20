@@ -51,6 +51,45 @@ use crate::CompactPublicKey;
 /// [FheUint8]: crate::high_level_api::FheUint8
 /// [FheUint12]: crate::high_level_api::FheUint12
 /// [FheUint16]: crate::high_level_api::FheUint16
+
+#[derive(Debug)]
+pub enum GenericIntegerBlockError {
+    NumberOfBlocks(usize, usize),
+    CarryModulus(crate::shortint::CarryModulus, crate::shortint::CarryModulus),
+    MessageModulus(
+        crate::shortint::MessageModulus,
+        crate::shortint::MessageModulus,
+    ),
+}
+
+impl std::fmt::Display for GenericIntegerBlockError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            GenericIntegerBlockError::NumberOfBlocks(correct, incorrect) => write!(
+                f,
+                "Wrong number of blocks for creating 
+                    a GenericInteger: should have been {}, but 
+                    was {} instead",
+                correct, incorrect
+            ),
+            GenericIntegerBlockError::CarryModulus(correct, incorrect) => write!(
+                f,
+                "Wrong carry modulus for creating 
+                    a GenericInteger: should have been {:?}, but 
+                    was {:?} instead",
+                correct, incorrect
+            ),
+            GenericIntegerBlockError::MessageModulus(correct, incorrect) => write!(
+                f,
+                "Wrong message modulus for creating 
+                    a GenericInteger: should have been {:?}, but 
+                    was {:?} instead",
+                correct, incorrect
+            ),
+        }
+    }
+}
+
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct GenericInteger<P: IntegerParameter> {
@@ -97,6 +136,63 @@ where
             }
             GenericInteger::<P2>::new(self.ciphertext, P2::Id::default())
         })
+    }
+}
+
+impl<P> TryFrom<RadixCiphertext> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: Default + WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Error = GenericIntegerBlockError;
+    fn try_from(other: RadixCiphertext) -> Result<GenericInteger<P>, GenericIntegerBlockError> {
+        // Check number of blocks
+        if other.blocks.len() != P::num_blocks() {
+            return Err(GenericIntegerBlockError::NumberOfBlocks(
+                P::num_blocks(),
+                other.blocks.len(),
+            ));
+        }
+
+        // Get correct carry modulus and message modulus from ServerKey
+        let id = P::Id::default();
+        let (correct_carry_mod, correct_message_mod) = id.with_unwrapped_global(|integer_key| {
+            (
+                integer_key.pbs_key().key.carry_modulus,
+                integer_key.pbs_key().key.message_modulus,
+            )
+        });
+
+        // For each block, check that carry modulus and message modulus are valid
+        for block in &other.blocks {
+            let (input_carry_mod, input_message_mod) = (block.carry_modulus, block.message_modulus);
+
+            if input_carry_mod != correct_carry_mod {
+                return Err(GenericIntegerBlockError::CarryModulus(
+                    correct_carry_mod,
+                    input_carry_mod,
+                ));
+            } else if input_message_mod != correct_message_mod {
+                return Err(GenericIntegerBlockError::MessageModulus(
+                    correct_message_mod,
+                    input_message_mod,
+                ));
+            }
+        }
+
+        Ok(GenericInteger::new(other, P::Id::default()))
+    }
+}
+
+impl<P, T> TryFrom<Vec<T>> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: Default + WithGlobalKey<Key = IntegerServerKey>,
+    RadixCiphertext: From<Vec<T>>,
+{
+    type Error = GenericIntegerBlockError;
+    fn try_from(blocks: Vec<T>) -> Result<GenericInteger<P>, GenericIntegerBlockError> {
+        GenericInteger::try_from(RadixCiphertext::from(blocks))
     }
 }
 
