@@ -94,13 +94,6 @@ impl FheBool {
     pub fn nand(&self, rhs: &Self) -> Self {
         self.id.with_unwrapped_global(|key| key.nand(self, rhs))
     }
-
-    pub fn neq(&self, other: &Self) -> Self {
-        self.id.with_unwrapped_global(|key| {
-            let eq = key.xnor(self, other);
-            key.not(&eq)
-        })
-    }
 }
 
 impl<B> FheEq<B> for FheBool
@@ -112,6 +105,11 @@ where
     fn eq(&self, other: B) -> Self {
         self.id
             .with_unwrapped_global(|key| key.xnor(self, other.borrow()))
+    }
+
+    fn ne(&self, other: B) -> Self {
+        self.id
+            .with_unwrapped_global(|key| key.xor(self, other.borrow()))
     }
 }
 

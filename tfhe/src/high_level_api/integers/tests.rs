@@ -55,6 +55,21 @@ fn test_uint8_compare() {
     let clear_result = u8::from(clear_a == clear_b);
     assert_eq!(decrypted_result, clear_result);
 
+    let result = &a.eq(&a);
+    let decrypted_result: u8 = result.decrypt(&client_key);
+    let clear_result = u8::from(clear_a == clear_a);
+    assert_eq!(decrypted_result, clear_result);
+
+    let result = &a.ne(&b);
+    let decrypted_result: u8 = result.decrypt(&client_key);
+    let clear_result = u8::from(clear_a != clear_b);
+    assert_eq!(decrypted_result, clear_result);
+
+    let result = &a.ne(&a);
+    let decrypted_result: u8 = result.decrypt(&client_key);
+    let clear_result = u8::from(clear_a != clear_a);
+    assert_eq!(decrypted_result, clear_result);
+
     let result = &a.le(&b);
     let decrypted_result: u8 = result.decrypt(&client_key);
     let clear_result = u8::from(clear_a <= clear_b);

@@ -283,8 +283,34 @@ where
         }
     }
 
+    pub(crate) fn not_equal(
+        &self,
+        lhs: &GenericShortInt<P>,
+        rhs: &GenericShortInt<P>,
+    ) -> GenericShortInt<P> {
+        let ciphertext = self
+            .key
+            .not_equal(&lhs.ciphertext.borrow(), &rhs.ciphertext.borrow());
+        GenericShortInt {
+            ciphertext: RefCell::new(ciphertext),
+            id: lhs.id,
+        }
+    }
+
     pub(crate) fn scalar_equal(&self, lhs: &GenericShortInt<P>, scalar: u8) -> GenericShortInt<P> {
         let ciphertext = self.key.scalar_equal(&lhs.ciphertext.borrow(), scalar);
+        GenericShortInt {
+            ciphertext: RefCell::new(ciphertext),
+            id: lhs.id,
+        }
+    }
+
+    pub(crate) fn scalar_not_equal(
+        &self,
+        lhs: &GenericShortInt<P>,
+        scalar: u8,
+    ) -> GenericShortInt<P> {
+        let ciphertext = self.key.scalar_not_equal(&lhs.ciphertext.borrow(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,

@@ -90,6 +90,8 @@ pub trait FheEq<Rhs = Self> {
     type Output;
 
     fn eq(&self, other: Rhs) -> Self::Output;
+
+    fn ne(&self, other: Rhs) -> Self::Output;
 }
 
 /// Trait for fully homomorphic comparisons.
