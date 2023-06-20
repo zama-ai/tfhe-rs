@@ -135,7 +135,7 @@ macro_rules! impl_with_global_key {
 /// access to the internal keys of its type.
 ///
 /// Typically, the implementation of the trait will be on the 'internal' key type
-/// and will call [with_internal_keys_mut] and select the right member of the [ServerKey] type.
+/// and will call [with_internal_keys] and select the right member of the [ServerKey] type.
 pub trait WithGlobalKey: Sized {
     type Key;
 
