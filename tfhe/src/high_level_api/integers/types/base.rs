@@ -14,7 +14,8 @@ use crate::high_level_api::integers::IntegerServerKey;
 use crate::high_level_api::internal_traits::{DecryptionKey, TypeIdentifier};
 use crate::high_level_api::keys::{CompressedPublicKey, RefKeyFromKeyChain};
 use crate::high_level_api::traits::{
-    FheBootstrap, FheDecrypt, FheEq, FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
+    FheBootstrap, FheDecrypt, FheEq, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
+    FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign,
 };
 use crate::high_level_api::{ClientKey, PublicKey};
 use crate::integer::ciphertext::RadixCiphertext;
@@ -382,7 +383,7 @@ where
 }
 
 macro_rules! generic_integer_impl_operation (
-    ($rust_trait_name:ident($rust_trait_method:ident,$op:tt) => $key_method:ident) => {
+    ($rust_trait_name:ident($rust_trait_method:ident) => $key_method:ident) => {
 
         impl<P, B> $rust_trait_name<B> for GenericInteger<P>
         where
@@ -422,7 +423,7 @@ macro_rules! generic_integer_impl_operation (
 );
 
 macro_rules! generic_integer_impl_operation_assign (
-    ($rust_trait_name:ident($rust_trait_method:ident, $op:tt) => $key_method:ident) => {
+    ($rust_trait_name:ident($rust_trait_method:ident) => $key_method:ident) => {
         impl<P, I> $rust_trait_name<I> for GenericInteger<P>
         where
             P: IntegerParameter,
@@ -495,35 +496,43 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
     }
 }
 
-generic_integer_impl_operation!(Add(add,+) => add_parallelized);
-generic_integer_impl_operation!(Sub(sub,-) => sub_parallelized);
-generic_integer_impl_operation!(Mul(mul,*) => mul_parallelized);
-generic_integer_impl_operation!(BitAnd(bitand,&) => bitand_parallelized);
-generic_integer_impl_operation!(BitOr(bitor,|) => bitor_parallelized);
-generic_integer_impl_operation!(BitXor(bitxor,^) => bitxor_parallelized);
-generic_integer_impl_operation!(Shl(shl,<<) => left_shift_parallelized);
-generic_integer_impl_operation!(Shr(shr,>>) => right_shift_parallelized);
+generic_integer_impl_operation!(Add(add) => add_parallelized);
+generic_integer_impl_operation!(Sub(sub) => sub_parallelized);
+generic_integer_impl_operation!(Mul(mul) => mul_parallelized);
+generic_integer_impl_operation!(BitAnd(bitand) => bitand_parallelized);
+generic_integer_impl_operation!(BitOr(bitor) => bitor_parallelized);
+generic_integer_impl_operation!(BitXor(bitxor) => bitxor_parallelized);
+generic_integer_impl_operation!(Shl(shl) => left_shift_parallelized);
+generic_integer_impl_operation!(Shr(shr) => right_shift_parallelized);
+generic_integer_impl_operation!(RotateLeft(rotate_left) => rotate_left_parallelized);
+generic_integer_impl_operation!(RotateRight(rotate_right) => rotate_right_parallelized);
 
-generic_integer_impl_operation_assign!(AddAssign(add_assign,+=) => add_assign_parallelized);
-generic_integer_impl_operation_assign!(SubAssign(sub_assign,-=) => sub_assign_parallelized);
-generic_integer_impl_operation_assign!(MulAssign(mul_assign,*=) => mul_assign_parallelized);
-generic_integer_impl_operation_assign!(BitAndAssign(bitand_assign,&=) => bitand_assign_parallelized);
-generic_integer_impl_operation_assign!(BitOrAssign(bitor_assign,|=) => bitor_assign_parallelized);
-generic_integer_impl_operation_assign!(BitXorAssign(bitxor_assign,^=) => bitxor_assign_parallelized);
-generic_integer_impl_operation_assign!(ShlAssign(shl_assign,<<=) => left_shift_assign_parallelized);
-generic_integer_impl_operation_assign!(ShrAssign(shr_assign,>>=) => right_shift_assign_parallelized);
+generic_integer_impl_operation_assign!(AddAssign(add_assign) => add_assign_parallelized);
+generic_integer_impl_operation_assign!(SubAssign(sub_assign) => sub_assign_parallelized);
+generic_integer_impl_operation_assign!(MulAssign(mul_assign) => mul_assign_parallelized);
+generic_integer_impl_operation_assign!(BitAndAssign(bitand_assign) => bitand_assign_parallelized);
+generic_integer_impl_operation_assign!(BitOrAssign(bitor_assign) => bitor_assign_parallelized);
+generic_integer_impl_operation_assign!(BitXorAssign(bitxor_assign) => bitxor_assign_parallelized);
+generic_integer_impl_operation_assign!(ShlAssign(shl_assign) => left_shift_assign_parallelized);
+generic_integer_impl_operation_assign!(ShrAssign(shr_assign) => right_shift_assign_parallelized);
+generic_integer_impl_operation_assign!(RotateLeftAssign(rotate_left_assign) => rotate_left_assign_parallelized);
+generic_integer_impl_operation_assign!(RotateRightAssign(rotate_right_assign) => rotate_right_assign_parallelized);
 
 generic_integer_impl_scalar_operation!(Add(add) => scalar_add_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(Sub(sub) => scalar_sub_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(Mul(mul) => scalar_mul_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(Shl(shl) => scalar_left_shift_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(Shr(shr) => scalar_right_shift_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(RotateLeft(rotate_left) => scalar_rotate_left_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(RotateRight(rotate_right) => scalar_rotate_right_parallelized(u8, u16, u32, u64));
 
 generic_integer_impl_scalar_operation_assign!(AddAssign(add_assign) => scalar_add_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(SubAssign(sub_assign) => scalar_sub_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(MulAssign(mul_assign) => scalar_mul_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(ShlAssign(shl_assign) => scalar_left_shift_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(ShrAssign(shr_assign) => scalar_right_shift_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(RotateLeftAssign(rotate_left_assign) => scalar_rotate_left_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(RotateRightAssign(rotate_right_assign) => scalar_rotate_right_assign_parallelized(u8, u16, u32, u64));
 
 impl<P> Neg for GenericInteger<P>
 where
