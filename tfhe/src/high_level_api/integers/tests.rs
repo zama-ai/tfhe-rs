@@ -50,45 +50,91 @@ fn test_uint8_compare() {
     let a = FheUint8::encrypt(clear_a, &client_key);
     let b = FheUint8::encrypt(clear_b, &client_key);
 
-    let result = &a.eq(&b);
-    let decrypted_result: u8 = result.decrypt(&client_key);
-    let clear_result = u8::from(clear_a == clear_b);
-    assert_eq!(decrypted_result, clear_result);
+    // Test comparing encrypted with encrypted
+    {
+        let result = &a.eq(&b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a == clear_b);
+        assert_eq!(decrypted_result, clear_result);
 
-    let result = &a.eq(&a);
-    let decrypted_result: u8 = result.decrypt(&client_key);
-    let clear_result = u8::from(clear_a == clear_a);
-    assert_eq!(decrypted_result, clear_result);
+        let result = &a.eq(&a);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a == clear_a);
+        assert_eq!(decrypted_result, clear_result);
 
-    let result = &a.ne(&b);
-    let decrypted_result: u8 = result.decrypt(&client_key);
-    let clear_result = u8::from(clear_a != clear_b);
-    assert_eq!(decrypted_result, clear_result);
+        let result = &a.ne(&b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a != clear_b);
+        assert_eq!(decrypted_result, clear_result);
 
-    let result = &a.ne(&a);
-    let decrypted_result: u8 = result.decrypt(&client_key);
-    let clear_result = u8::from(clear_a != clear_a);
-    assert_eq!(decrypted_result, clear_result);
+        let result = &a.ne(&a);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a != clear_a);
+        assert_eq!(decrypted_result, clear_result);
 
-    let result = &a.le(&b);
-    let decrypted_result: u8 = result.decrypt(&client_key);
-    let clear_result = u8::from(clear_a <= clear_b);
-    assert_eq!(decrypted_result, clear_result);
+        let result = &a.le(&b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a <= clear_b);
+        assert_eq!(decrypted_result, clear_result);
 
-    let result = &a.lt(&b);
-    let decrypted_result: u8 = result.decrypt(&client_key);
-    let clear_result = u8::from(clear_a < clear_b);
-    assert_eq!(decrypted_result, clear_result);
+        let result = &a.lt(&b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a < clear_b);
+        assert_eq!(decrypted_result, clear_result);
 
-    let result = &a.ge(&b);
-    let decrypted_result: u8 = result.decrypt(&client_key);
-    let clear_result = u8::from(clear_a >= clear_b);
-    assert_eq!(decrypted_result, clear_result);
+        let result = &a.ge(&b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a >= clear_b);
+        assert_eq!(decrypted_result, clear_result);
 
-    let result = &a.gt(&b);
-    let decrypted_result: u8 = result.decrypt(&client_key);
-    let clear_result = u8::from(clear_a >= clear_b);
-    assert_eq!(decrypted_result, clear_result);
+        let result = &a.gt(&b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a >= clear_b);
+        assert_eq!(decrypted_result, clear_result);
+    }
+
+    // Test comparing encrypted with clear
+    {
+        let result = &a.eq(clear_b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a == clear_b);
+        assert_eq!(decrypted_result, clear_result);
+
+        let result = &a.eq(clear_a);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a == clear_a);
+        assert_eq!(decrypted_result, clear_result);
+
+        let result = &a.ne(clear_b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a != clear_b);
+        assert_eq!(decrypted_result, clear_result);
+
+        let result = &a.ne(clear_a);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a != clear_a);
+        assert_eq!(decrypted_result, clear_result);
+
+        let result = &a.le(clear_b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a <= clear_b);
+        assert_eq!(decrypted_result, clear_result);
+
+        let result = &a.lt(clear_b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a < clear_b);
+        assert_eq!(decrypted_result, clear_result);
+
+        let result = &a.ge(clear_b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a >= clear_b);
+        assert_eq!(decrypted_result, clear_result);
+
+        let result = &a.gt(clear_b);
+        let decrypted_result: u8 = result.decrypt(&client_key);
+        let clear_result = u8::from(clear_a >= clear_b);
+        assert_eq!(decrypted_result, clear_result);
+    }
 }
 
 #[test]

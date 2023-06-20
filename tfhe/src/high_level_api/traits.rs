@@ -111,6 +111,18 @@ pub trait FheOrd<Rhs = Self> {
     fn ge(&self, other: Rhs) -> Self::Output;
 }
 
+pub trait FheMin<Rhs = Self> {
+    type Output;
+
+    fn min(&self, other: Rhs) -> Self::Output;
+}
+
+pub trait FheMax<Rhs = Self> {
+    type Output;
+
+    fn max(&self, other: Rhs) -> Self::Output;
+}
+
 /// Trait required to apply univariate function over homomorphic types.
 ///
 /// A `univariate function` is a function with one variable, e.g., of the form f(x).
