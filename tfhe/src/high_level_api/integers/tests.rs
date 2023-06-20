@@ -89,7 +89,7 @@ fn test_uint8_compare() {
 
         let result = &a.gt(&b);
         let decrypted_result: u8 = result.decrypt(&client_key);
-        let clear_result = u8::from(clear_a >= clear_b);
+        let clear_result = u8::from(clear_a > clear_b);
         assert_eq!(decrypted_result, clear_result);
     }
 
@@ -132,7 +132,7 @@ fn test_uint8_compare() {
 
         let result = &a.gt(clear_b);
         let decrypted_result: u8 = result.decrypt(&client_key);
-        let clear_result = u8::from(clear_a >= clear_b);
+        let clear_result = u8::from(clear_a > clear_b);
         assert_eq!(decrypted_result, clear_result);
     }
 }
@@ -206,6 +206,11 @@ fn test_uint32() {
 
     let decrypted: u32 = c.decrypt(&cks);
     assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+
+    let clear_c = clear_a.wrapping_add(clear_b);
+    let d = !c;
+    let decrypted: u32 = d.decrypt(&cks);
+    assert_eq!(decrypted, !clear_c);
 }
 
 #[test]

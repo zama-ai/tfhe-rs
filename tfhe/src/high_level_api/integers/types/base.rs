@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
-    Neg, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::errors::{
@@ -747,6 +747,33 @@ where
     fn neg(self) -> Self::Output {
         let ciphertext = self.id.with_unwrapped_global(|integer_key| {
             integer_key.pbs_key().neg_parallelized(&self.ciphertext)
+        });
+        GenericInteger::<P>::new(ciphertext, self.id)
+    }
+}
+
+impl<P> Not for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = GenericInteger<P>;
+
+    fn not(self) -> Self::Output {
+        <&Self as Not>::not(&self)
+    }
+}
+
+impl<P> Not for &GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = GenericInteger<P>;
+
+    fn not(self) -> Self::Output {
+        let ciphertext = self.id.with_unwrapped_global(|integer_key| {
+            integer_key.pbs_key().bitnot_parallelized(&self.ciphertext)
         });
         GenericInteger::<P>::new(ciphertext, self.id)
     }
