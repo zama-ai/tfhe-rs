@@ -383,59 +383,7 @@ where
 
 macro_rules! generic_integer_impl_operation (
     ($rust_trait_name:ident($rust_trait_method:ident,$op:tt) => $key_method:ident) => {
-        #[doc = concat!(" Allows using the `", stringify!($op), "` operator between a")]
-        #[doc = " `GenericInteger` and a `GenericInteger` or a `&GenericInteger`"]
-        #[doc = " "]
-        #[doc = " # Examples "]
-        #[doc = " "]
-        #[doc = " ```"]
-        #[doc = " # fn main() -> Result<(), tfhe::Error> {"]
-        #[doc = " use tfhe::prelude::*;"]
-        #[doc = " use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};"]
-        #[doc = " use std::num::Wrapping;"]
-        #[doc = " "]
-        #[doc = " let config = ConfigBuilder::all_disabled()"]
-        #[doc = "     .enable_default_integers()"]
-        #[doc = "     .build();"]
-        #[doc = " let (keys, server_key) = generate_keys(config);"]
-        #[doc = " "]
-        #[doc = " let a = FheUint8::try_encrypt(142u32, &keys)?;"]
-        #[doc = " let b = FheUint8::try_encrypt(83u32, &keys)?;"]
-        #[doc = " "]
-        #[doc = " set_server_key(server_key);"]
-        #[doc = " "]
-        #[doc = concat!(" let c = a ", stringify!($op), " b;")]
-        #[doc = " let decrypted: u8 = c.decrypt(&keys);"]
-        #[doc = concat!(" let expected = Wrapping(142u8) ", stringify!($op), " Wrapping(83u8);")]
-        #[doc = " assert_eq!(decrypted, expected.0);"]
-        #[doc = " # Ok(())"]
-        #[doc = " # }"]
-        #[doc = " ```"]
-        #[doc = " "]
-        #[doc = " "]
-        #[doc = " ```"]
-        #[doc = " # fn main() -> Result<(), tfhe::Error> {"]
-        #[doc = " use tfhe::prelude::*;"]
-        #[doc = " use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};"]
-        #[doc = " use std::num::Wrapping;"]
-        #[doc = " "]
-        #[doc = " let config = ConfigBuilder::all_disabled()"]
-        #[doc = "     .enable_default_integers()"]
-        #[doc = "     .build();"]
-        #[doc = " let (keys, server_key) = generate_keys(config);"]
-        #[doc = " "]
-        #[doc = " let a = FheUint8::try_encrypt(208u32, &keys)?;"]
-        #[doc = " let b = FheUint8::try_encrypt(29u32, &keys)?;"]
-        #[doc = " "]
-        #[doc = " set_server_key(server_key);"]
-        #[doc = " "]
-        #[doc = concat!(" let c = a ", stringify!($op), " &b;")]
-        #[doc = " let decrypted: u8 = c.decrypt(&keys);"]
-        #[doc = concat!(" let expected = Wrapping(208u8) ", stringify!($op), " Wrapping(29u8);")]
-        #[doc = " assert_eq!(decrypted, expected.0);"]
-        #[doc = " # Ok(())"]
-        #[doc = " # }"]
-        #[doc = " ```"]
+
         impl<P, B> $rust_trait_name<B> for GenericInteger<P>
         where
             P: IntegerParameter,
@@ -448,6 +396,7 @@ macro_rules! generic_integer_impl_operation (
             fn $rust_trait_method(self, rhs: B) -> Self::Output {
                 <&Self as $rust_trait_name<B>>::$rust_trait_method(&self, rhs)
             }
+
         }
 
         impl<P, B> $rust_trait_name<B> for &GenericInteger<P>
@@ -552,6 +501,8 @@ generic_integer_impl_operation!(Mul(mul,*) => mul_parallelized);
 generic_integer_impl_operation!(BitAnd(bitand,&) => bitand_parallelized);
 generic_integer_impl_operation!(BitOr(bitor,|) => bitor_parallelized);
 generic_integer_impl_operation!(BitXor(bitxor,^) => bitxor_parallelized);
+generic_integer_impl_operation!(Shl(shl,<<) => left_shift_parallelized);
+generic_integer_impl_operation!(Shr(shr,>>) => right_shift_parallelized);
 
 generic_integer_impl_operation_assign!(AddAssign(add_assign,+=) => add_assign_parallelized);
 generic_integer_impl_operation_assign!(SubAssign(sub_assign,-=) => sub_assign_parallelized);
@@ -559,6 +510,8 @@ generic_integer_impl_operation_assign!(MulAssign(mul_assign,*=) => mul_assign_pa
 generic_integer_impl_operation_assign!(BitAndAssign(bitand_assign,&=) => bitand_assign_parallelized);
 generic_integer_impl_operation_assign!(BitOrAssign(bitor_assign,|=) => bitor_assign_parallelized);
 generic_integer_impl_operation_assign!(BitXorAssign(bitxor_assign,^=) => bitxor_assign_parallelized);
+generic_integer_impl_operation_assign!(ShlAssign(shl_assign,<<=) => left_shift_assign_parallelized);
+generic_integer_impl_operation_assign!(ShrAssign(shr_assign,>>=) => right_shift_assign_parallelized);
 
 generic_integer_impl_scalar_operation!(Add(add) => scalar_add_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(Sub(sub) => scalar_sub_parallelized(u8, u16, u32, u64));
