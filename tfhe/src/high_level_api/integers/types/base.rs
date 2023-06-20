@@ -274,6 +274,16 @@ where
         });
         GenericInteger::new(inner_result, self.id)
     }
+
+    fn ne(&self, rhs: B) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            let borrowed = rhs.borrow();
+            integer_key
+                .pbs_key()
+                .ne_parallelized(&self.ciphertext, &borrowed.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
 }
 
 impl<P, B> FheOrd<B> for GenericInteger<P>

@@ -377,6 +377,11 @@ where
         self.id
             .with_unwrapped_global(|server_key| server_key.scalar_equal(self, rhs))
     }
+
+    fn ne(&self, rhs: u8) -> Self::Output {
+        self.id
+            .with_unwrapped_global(|server_key| server_key.scalar_not_equal(self, rhs))
+    }
 }
 
 impl<P, B> FheOrd<B> for GenericShortInt<P>
@@ -419,6 +424,11 @@ where
     fn eq(&self, other: B) -> Self {
         self.id
             .with_unwrapped_global(|server_key| server_key.equal(self, other.borrow()))
+    }
+
+    fn ne(&self, rhs: B) -> Self::Output {
+        self.id
+            .with_unwrapped_global(|server_key| server_key.not_equal(self, rhs.borrow()))
     }
 }
 
