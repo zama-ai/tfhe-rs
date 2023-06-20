@@ -14,10 +14,11 @@ use crate::high_level_api::integers::IntegerServerKey;
 use crate::high_level_api::internal_traits::{DecryptionKey, TypeIdentifier};
 use crate::high_level_api::keys::{CompressedPublicKey, RefKeyFromKeyChain};
 use crate::high_level_api::traits::{
-    FheBootstrap, FheDecrypt, FheEq, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
+    FheBootstrap, FheDecrypt, FheEq, FheMax, FheMin, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
     FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign,
 };
 use crate::high_level_api::{ClientKey, PublicKey};
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::U256;
 use crate::CompactPublicKey;
@@ -224,13 +225,15 @@ where
     }
 }
 
-impl<P> GenericInteger<P>
+impl<P> FheMax<&Self> for GenericInteger<P>
 where
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
-    pub fn max(&self, rhs: &Self) -> Self {
+    type Output = Self;
+
+    fn max(&self, rhs: &Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             integer_key
                 .pbs_key()
@@ -240,13 +243,34 @@ where
     }
 }
 
-impl<P> GenericInteger<P>
+impl<P, Clear> FheMax<Clear> for GenericInteger<P>
+where
+    Clear: DecomposableInto<u8>,
+    P: IntegerParameter,
+    GenericInteger<P>: Clone,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = Self;
+
+    fn max(&self, rhs: Clear) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .scalar_max_parallelized(&self.ciphertext, rhs)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+}
+
+impl<P> FheMin<&Self> for GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
     GenericInteger<P>: Clone,
 {
-    pub fn min(&self, rhs: &Self) -> Self {
+    type Output = Self;
+
+    fn min(&self, rhs: &Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             integer_key
                 .pbs_key()
@@ -256,81 +280,238 @@ where
     }
 }
 
-impl<P, B> FheEq<B> for GenericInteger<P>
+impl<P, Clear> FheMin<Clear> for GenericInteger<P>
 where
-    B: Borrow<GenericInteger<P>>,
+    Clear: DecomposableInto<u8>,
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
 
-    fn eq(&self, rhs: B) -> Self::Output {
+    fn min(&self, rhs: Clear) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            let borrowed = rhs.borrow();
             integer_key
                 .pbs_key()
-                .eq_parallelized(&self.ciphertext, &borrowed.ciphertext)
-        });
-        GenericInteger::new(inner_result, self.id)
-    }
-
-    fn ne(&self, rhs: B) -> Self::Output {
-        let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            let borrowed = rhs.borrow();
-            integer_key
-                .pbs_key()
-                .ne_parallelized(&self.ciphertext, &borrowed.ciphertext)
+                .scalar_min_parallelized(&self.ciphertext, rhs)
         });
         GenericInteger::new(inner_result, self.id)
     }
 }
 
-impl<P, B> FheOrd<B> for GenericInteger<P>
+impl<P> FheEq<Self> for GenericInteger<P>
 where
-    B: Borrow<GenericInteger<P>>,
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
 
-    fn lt(&self, rhs: B) -> Self::Output {
+    fn eq(&self, rhs: Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            let borrowed = rhs.borrow();
             integer_key
                 .pbs_key()
-                .lt_parallelized(&self.ciphertext, &borrowed.ciphertext)
+                .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
         GenericInteger::new(inner_result, self.id)
     }
 
-    fn le(&self, rhs: B) -> Self::Output {
+    fn ne(&self, rhs: Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            let borrowed = rhs.borrow();
             integer_key
                 .pbs_key()
-                .le_parallelized(&self.ciphertext, &borrowed.ciphertext)
+                .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+}
+
+impl<P> FheEq<&Self> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    GenericInteger<P>: Clone,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = Self;
+
+    fn eq(&self, rhs: &Self) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
         GenericInteger::new(inner_result, self.id)
     }
 
-    fn gt(&self, rhs: B) -> Self::Output {
+    fn ne(&self, rhs: &Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            let borrowed = rhs.borrow();
             integer_key
                 .pbs_key()
-                .gt_parallelized(&self.ciphertext, &borrowed.ciphertext)
+                .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+}
+
+impl<P, Clear> FheEq<Clear> for GenericInteger<P>
+where
+    Clear: DecomposableInto<u8>,
+    P: IntegerParameter,
+    GenericInteger<P>: Clone,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = Self;
+
+    fn eq(&self, rhs: Clear) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .scalar_eq_parallelized(&self.ciphertext, rhs)
         });
         GenericInteger::new(inner_result, self.id)
     }
 
-    fn ge(&self, rhs: B) -> Self::Output {
+    fn ne(&self, rhs: Clear) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            let borrowed = rhs.borrow();
             integer_key
                 .pbs_key()
-                .ge_parallelized(&self.ciphertext, &borrowed.ciphertext)
+                .scalar_ne_parallelized(&self.ciphertext, rhs)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+}
+
+impl<P> FheOrd<Self> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    GenericInteger<P>: Clone,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = Self;
+
+    fn lt(&self, rhs: Self) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+
+    fn le(&self, rhs: Self) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .le_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+
+    fn gt(&self, rhs: Self) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+
+    fn ge(&self, rhs: Self) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+}
+
+impl<P> FheOrd<&Self> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    GenericInteger<P>: Clone,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = Self;
+
+    fn lt(&self, rhs: &Self) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+
+    fn le(&self, rhs: &Self) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .le_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+
+    fn gt(&self, rhs: &Self) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+
+    fn ge(&self, rhs: &Self) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+}
+
+impl<P, Clear> FheOrd<Clear> for GenericInteger<P>
+where
+    Clear: DecomposableInto<u8>,
+    P: IntegerParameter,
+    GenericInteger<P>: Clone,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = Self;
+
+    fn lt(&self, rhs: Clear) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .scalar_lt_parallelized(&self.ciphertext, rhs)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+
+    fn le(&self, rhs: Clear) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .scalar_le_parallelized(&self.ciphertext, rhs)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+
+    fn gt(&self, rhs: Clear) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .scalar_gt_parallelized(&self.ciphertext, rhs)
+        });
+        GenericInteger::new(inner_result, self.id)
+    }
+
+    fn ge(&self, rhs: Clear) -> Self::Output {
+        let inner_result = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .scalar_ge_parallelized(&self.ciphertext, rhs)
         });
         GenericInteger::new(inner_result, self.id)
     }
