@@ -43,6 +43,13 @@ impl ServerKey {
     }
 }
 
+#[cfg(feature = "integer")]
+impl AsRef<crate::integer::ServerKey> for ServerKey {
+    fn as_ref(&self) -> &crate::integer::ServerKey {
+        self.integer_key.key.as_ref().unwrap()
+    }
+}
+
 // By default, serde does not derives Serialize/Deserialize for `Rc` and `Arc` types
 // as they can result in mutiple copies, since serializing has to serialize the actual data
 // not the pointer.
