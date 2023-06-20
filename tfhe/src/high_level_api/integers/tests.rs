@@ -148,7 +148,7 @@ fn test_uint32() {
 }
 
 #[test]
-fn test_uint32_shift_and_rotate() {
+fn test_uint32_shift() {
     let config = ConfigBuilder::all_disabled()
         .enable_default_integers()
         .build();
@@ -206,6 +206,68 @@ fn test_uint32_shift_and_rotate() {
         c <<= clear_b;
         let decrypted: u32 = c.decrypt(&cks);
         assert_eq!(decrypted, clear_a << clear_b);
+    }
+}
+
+#[test]
+fn test_uint32_rotate() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+
+    let (cks, sks) = generate_keys(config);
+
+    use rand::prelude::*;
+
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen_range(0u32..32u32);
+
+    let a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+    let b = FheUint32::try_encrypt(clear_b, &cks).unwrap();
+
+    set_server_key(sks);
+
+    // encrypted rotate
+    {
+        let c = (&a).rotate_left(&b);
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a.rotate_left(clear_b));
+
+        let c = (&a).rotate_right(&b);
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a.rotate_right(clear_b));
+
+        let mut c = a.clone();
+        c.rotate_right_assign(&b);
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a.rotate_right(clear_b));
+
+        let mut c = a.clone();
+        c.rotate_left_assign(&b);
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a.rotate_left(clear_b));
+    }
+
+    // clear rotate
+    {
+        let c = (&a).rotate_left(clear_b);
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a.rotate_left(clear_b));
+
+        let c = (&a).rotate_right(clear_b);
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a.rotate_right(clear_b));
+
+        let mut c = a.clone();
+        c.rotate_right_assign(clear_b);
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a.rotate_right(clear_b));
+
+        let mut c = a;
+        c.rotate_left_assign(clear_b);
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a.rotate_left(clear_b));
     }
 }
 

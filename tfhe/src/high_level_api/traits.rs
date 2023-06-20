@@ -130,3 +130,23 @@ pub trait FheNumberConstant {
     const MAX: u64;
     const MODULUS: u64;
 }
+
+pub trait RotateLeft<Rhs = Self> {
+    type Output;
+
+    fn rotate_left(self, amount: Rhs) -> Self::Output;
+}
+
+pub trait RotateRight<Rhs = Self> {
+    type Output;
+
+    fn rotate_right(self, amount: Rhs) -> Self::Output;
+}
+
+pub trait RotateLeftAssign<Rhs = Self> {
+    fn rotate_left_assign(&mut self, amount: Rhs);
+}
+
+pub trait RotateRightAssign<Rhs = Self> {
+    fn rotate_right_assign(&mut self, amount: Rhs);
+}

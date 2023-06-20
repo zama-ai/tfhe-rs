@@ -8,5 +8,5 @@
 pub use crate::high_level_api::traits::{
     DynamicFheEncryptor, DynamicFheTrivialEncryptor, DynamicFheTryEncryptor, FheBootstrap,
     FheDecrypt, FheEncrypt, FheEq, FheNumberConstant, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
-    FheTryTrivialEncrypt,
+    FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign,
 };
