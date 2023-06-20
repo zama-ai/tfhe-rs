@@ -24,13 +24,15 @@ use crate::core_crypto::entities::*;
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
 /// // Define parameters for LweKeyswitchKey creation
-/// let input_glwe_dimension = GlweDimension(2);
-/// let poly_size = PolynomialSize(512);
-/// let glwe_modular_std_dev = StandardDev(0.000007069849454709433);
+/// let input_glwe_dimension = GlweDimension(1);
+/// let poly_size = PolynomialSize(2048);
+/// let glwe_modular_std_dev = StandardDev(0.00000000000000000000000000000000000000000007069849454709433);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let decomp_base_log = DecompositionBaseLog(3);
-/// let decomp_level_count = DecompositionLevelCount(5);
-/// let ciphertext_modulus = CiphertextModulus::new_native();
+/// let decomp_level_count = DecompositionLevelCount(12);
+/// //let ciphertext_modulus = CiphertextModulus::new_native();
+/// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
+/// let delta = (1 << 59) - (1 << 27);
 ///
 /// // Create the PRNG
 /// let mut seeder = new_seeder();
@@ -64,7 +66,7 @@ use crate::core_crypto::entities::*;
 ///
 /// // Create the plaintext
 /// let msg = 3u64;
-/// let plaintext_list = PlaintextList::new(msg << 60, PlaintextCount(poly_size.0));
+/// let plaintext_list = PlaintextList::new(msg * delta, PlaintextCount(poly_size.0));
 ///
 /// // Create a new GlweCiphertext
 /// let mut input_glwe = GlweCiphertext::new(
@@ -91,31 +93,70 @@ use crate::core_crypto::entities::*;
 ///
 /// keyswitch_glwe_ciphertext(&ksk, &mut input_glwe, &mut output_glwe);
 ///
-/// let mut output_plaintext_list = PlaintextList::new(0u64, plaintext_list.plaintext_count());
+/// // Round and remove encoding
+/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
+/// let decomposer = SignedDecomposerNonNative::new(
+///     DecompositionBaseLog(5),
+///     DecompositionLevelCount(1),
+///     ciphertext_modulus,
+/// );
 ///
-/// let decrypted_plaintext = decrypt_glwe_ciphertext(
+/// let mut output_plaintext = PlaintextList::new(0u64, PlaintextCount(poly_size.0));
+/// let mut output_cleartext = PlaintextList::new(0u64, PlaintextCount(poly_size.0));
+/// let mut output_error = vec![0i64; poly_size.0];
+///
+/// decrypt_glwe_ciphertext(&output_glwe_secret_key, &output_glwe, &mut output_plaintext);
+/// output_plaintext
+///     .iter()
+///     .zip(output_cleartext.iter_mut())
+///     .zip(output_error.iter_mut())
+///     .for_each(|((src, dst), err)| {
+///         *dst.0 = decomposer.closest_representable(*src.0);
+///         let err_unsigned = src.0.wrapping_sub_custom_mod(*dst.0, ciphertext_modulus
+/// .get_custom_modulus().cast_into());
+///         if err_unsigned > (ciphertext_modulus.get_custom_modulus() as u64)/ 2_u64 {
+///                 let neg_err = (ciphertext_modulus.get_custom_modulus() as u64).wrapping_sub
+/// (err_unsigned);
+///                 *err = - (neg_err as i64)
+///         } else {
+///             *err = err_unsigned as i64
+///         }
+///     });
+///
+/// //println!("error: {:?}", output_error);
+/// let mut sum_sqrs= 0;
+/// for err in output_error.iter() {
+///     let err_i128 = *err as i128;
+///     let sq_err = err_i128.pow(2) as u128;
+///     sum_sqrs += sq_err;
+/// }
+/// let sample_variance = (sum_sqrs as f64) / ((poly_size.0 - 1) as f64);
+/// println!("sample variance: {:?}", sample_variance);
+///
+/// let mut output_plaintext_list = PlaintextList::new(0u64, plaintext_list.plaintext_count());
+/// /*
+/// decrypt_glwe_ciphertext(
 ///     &output_glwe_secret_key,
 ///     &output_glwe,
 ///     &mut output_plaintext_list,
 /// );
 ///
-/// // Round and remove encoding
-/// // First create a decomposer working on the high 4 bits corresponding to our encoding.
-/// let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
 ///
 /// output_plaintext_list
 ///     .iter_mut()
 ///     .for_each(|elt| *elt.0 = decomposer.closest_representable(*elt.0));
-///
+/// */
 /// // Get the raw vector
-/// let mut cleartext_list = output_plaintext_list.into_container();
+/// //let mut cleartext_list = output_plaintext_list.into_container();
+/// let mut cleartext_list = output_cleartext.into_container();
 /// // Remove the encoding
-/// cleartext_list.iter_mut().for_each(|elt| *elt = *elt >> 60);
+/// cleartext_list.iter_mut().for_each(|elt| *elt = (*elt + (delta/2))/delta);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
 /// // Check we recovered the original message for each plaintext we encrypted
 /// cleartext_list.iter().for_each(|&elt| assert_eq!(elt, msg));
+/// assert!(false);
 /// ```
 pub fn keyswitch_glwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
     glwe_keyswitch_key: &GlweKeyswitchKey<KSKCont>,
