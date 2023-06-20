@@ -2,7 +2,7 @@ use crate::c_api::high_level_api::keys::{ClientKey, CompactPublicKey, PublicKey}
 use crate::high_level_api::prelude::*;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
-    Neg, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::c_api::high_level_api::u128::U128;
@@ -22,7 +22,7 @@ macro_rules! impl_operations_for_integer_type {
         impl_scalar_binary_fn_on_type!($name, $clear_scalar_type => add, sub, mul, shl, shr, eq, ne, ge, gt, le, lt, min, max);
         impl_scalar_binary_assign_fn_on_type!($name, $clear_scalar_type => add_assign, sub_assign, mul_assign, shl_assign, shr_assign);
 
-        impl_unary_fn_on_type!($name => neg);
+        impl_unary_fn_on_type!($name => neg, not);
     };
 }
 
