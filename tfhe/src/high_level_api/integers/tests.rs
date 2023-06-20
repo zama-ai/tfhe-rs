@@ -148,6 +148,68 @@ fn test_uint32() {
 }
 
 #[test]
+fn test_uint32_shift_and_rotate() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+
+    let (cks, sks) = generate_keys(config);
+
+    use rand::prelude::*;
+
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen_range(0u32..32u32);
+
+    let a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+    let b = FheUint32::try_encrypt(clear_b, &cks).unwrap();
+
+    set_server_key(sks);
+
+    // encrypted shifts
+    {
+        let c = &a << &b;
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a << clear_b);
+
+        let c = &a >> &b;
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a >> clear_b);
+
+        let mut c = a.clone();
+        c >>= &b;
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a >> clear_b);
+
+        let mut c = a.clone();
+        c <<= &b;
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a << clear_b);
+    }
+
+    // clear shifts
+    {
+        let c = &a << clear_b;
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a << clear_b);
+
+        let c = &a >> clear_b;
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a >> clear_b);
+
+        let mut c = a.clone();
+        c >>= clear_b;
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a >> clear_b);
+
+        let mut c = a;
+        c <<= clear_b;
+        let decrypted: u32 = c.decrypt(&cks);
+        assert_eq!(decrypted, clear_a << clear_b);
+    }
+}
+
+#[test]
 fn test_uint64() {
     let config = ConfigBuilder::all_disabled()
         .enable_default_integers()
