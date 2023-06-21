@@ -310,6 +310,9 @@ test_sha256_bool: install_rs_build_toolchain
 		--example sha256_bool \
 		--features=$(TARGET_ARCH_FEATURE),boolean
 
+.PHONY: test_examples # Run tests for examples
+test_examples: test_sha256_bool test_regex_engine
+
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
