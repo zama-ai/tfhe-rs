@@ -24,6 +24,7 @@ env:
   CARGO_TERM_COLOR: always
   RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
   PARSE_INTEGER_BENCH_CSV_FILE: tfhe_rs_integer_benches_${{ github.sha }}.csv
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 jobs:
   run-integer-benchmarks:
