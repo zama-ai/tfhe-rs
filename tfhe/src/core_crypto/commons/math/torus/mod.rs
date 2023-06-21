@@ -27,6 +27,8 @@ where
 {
     /// Consume `self` and returns its closest floating point representation.
     fn into_torus(self) -> F;
+    /// Consume `self` and returns its closest floating point representation for a given modulus.
+    fn into_torus_custom_mod(self, custom_modulus: Self) -> F;
 }
 
 /// A trait that converts a torus element in floating point representation into the closest torus
@@ -54,6 +56,12 @@ macro_rules! implement {
                 let self_f: F = self.cast_into();
                 return self_f * (F::TWO.powi(-(<Self as Numeric>::BITS as i32)));
             }
+            #[inline]
+            fn into_torus_custom_mod(self, custom_modulus: Self) -> F {
+                let self_f: F = self.cast_into();
+                let custom_modulus_f: F = custom_modulus.cast_into();
+                return self_f / custom_modulus_f;
+            }
         }
         impl<F> FromTorus<F> for $Type
         where
@@ -70,11 +78,16 @@ macro_rules! implement {
             }
             #[inline]
             fn from_torus_custom_modulus(input: F, custom_modulus: F) -> Self {
+                // This is in [-0.5, 0.5[
                 let mut fract = input - F::round(input);
+                // Map negative values on the upper part of the torus [0; 1[
+                if fract < F::ZERO {
+                    fract += F::ONE;
+                }
+                // Scale to the modulus
                 fract *= custom_modulus;
                 fract = F::round(fract);
-                let signed: Self::Signed = fract.cast_into();
-                return signed.cast_into();
+                return fract.cast_into();
             }
         }
     };

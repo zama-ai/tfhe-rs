@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
+use crate::core_crypto::commons::math::torus::{CastInto, UnsignedTorus};
 use crate::core_crypto::commons::test_tools::*;
 
 fn test_normal_random_three_sigma<T: UnsignedTorus>() {
@@ -159,7 +159,11 @@ fn test_normal_random_custom_mod<Scalar: UnsignedTorus>(
                 .iter()
                 .copied()
                 .map(|x| {
-                    let torus = x.into_torus();
+                    let torus = if ciphertext_modulus.is_native_modulus() {
+                        x.into_torus()
+                    } else {
+                        x.into_torus_custom_mod(ciphertext_modulus.get_custom_modulus().cast_into())
+                    };
                     // The upper half of the torus corresponds to the negative domain when mapping
                     // unsigned integer back to float (MSB or sign bit is set)
                     if torus > 0.5 {
@@ -212,6 +216,13 @@ fn test_normal_random_native_custom_mod_u64() {
 #[test]
 fn test_normal_random_native_custom_mod_u128() {
     test_normal_random_custom_mod::<u128>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn test_normal_random_solinas_custom_mod_u64() {
+    test_normal_random_custom_mod::<u64>(
+        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    );
 }
 
 fn test_normal_random_add_assign_native<Scalar: UnsignedTorus>() {
@@ -293,7 +304,11 @@ fn test_normal_random_add_assign_custom_mod<Scalar: UnsignedTorus>(
                 .iter()
                 .copied()
                 .map(|x| {
-                    let torus = x.into_torus();
+                    let torus = if ciphertext_modulus.is_native_modulus() {
+                        x.into_torus()
+                    } else {
+                        x.into_torus_custom_mod(ciphertext_modulus.get_custom_modulus().cast_into())
+                    };
                     // The upper half of the torus corresponds to the negative domain when mapping
                     // unsigned integer back to float (MSB or sign bit is set)
                     if torus > 0.5 {
@@ -352,4 +367,11 @@ fn test_normal_random_add_assign_native_custom_mod_u64() {
 #[test]
 fn test_normal_random_add_assign_native_custom_mod_u128() {
     test_normal_random_add_assign_custom_mod::<u128>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn test_normal_random_add_assign_solinas_custom_mod_u64() {
+    test_normal_random_add_assign_custom_mod::<u64>(
+        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    );
 }
