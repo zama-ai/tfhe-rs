@@ -31,7 +31,11 @@ use crate::core_crypto::entities::*;
 ///
 /// let mut glwe_secret_key = GlweSecretKey::new_empty_key(0u64, glwe_dimension, polynomial_size);
 ///
-/// generate_tpksk_output_glwe_secret_key(&lwe_secret_key, &mut glwe_secret_key, ciphertext_modulus);
+/// generate_tpksk_output_glwe_secret_key(
+///     &lwe_secret_key,
+///     &mut glwe_secret_key,
+///     ciphertext_modulus,
+/// );
 ///
 /// let decomp_base_log = DecompositionBaseLog(12);
 /// let decomp_level_count = DecompositionLevelCount(4);
@@ -120,7 +124,7 @@ use crate::core_crypto::entities::*;
 /// // Remove the encoding
 /// cleartext_list
 ///     .iter_mut()
-///     .for_each(|elt| *elt = (*elt + (delta/2)) / delta);
+///     .for_each(|elt| *elt = (*elt + (delta / 2)) / delta);
 /// // Get the list immutably
 /// let cleartext_list = cleartext_list;
 ///
@@ -181,9 +185,14 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<
         lwe_tpksk.ciphertext_modulus()
     );
     // Check the ciphertext modulus is odd
-    assert_eq!(Scalar::cast_from(input_lwe_ciphertext_list.ciphertext_modulus().get_custom_modulus
-    ()) %
-                   Scalar::TWO, Scalar::ONE);
+    assert_eq!(
+        Scalar::cast_from(
+            input_lwe_ciphertext_list
+                .ciphertext_modulus()
+                .get_custom_modulus()
+        ) % Scalar::TWO,
+        Scalar::ONE
+    );
 
     // We reset the output
     output_glwe_ciphertext.as_mut().fill(Scalar::ZERO);
@@ -215,14 +224,18 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<
                 {
                     for (index4, coef) in ring_element.iter_mut().enumerate() {
                         if index3 * poly_size.0 + index4 < lwe_mask.lwe_dimension().0 {
-                            *coef =
-                                coef.wrapping_add_custom_mod(lwe_mask.as_ref()[index3 * poly_size
-                                    .0 + index4], ciphertext_modulus.get_custom_modulus().cast_into());
+                            *coef = coef.wrapping_add_custom_mod(
+                                lwe_mask.as_ref()[index3 * poly_size.0 + index4],
+                                ciphertext_modulus.get_custom_modulus().cast_into(),
+                            );
                         }
                     }
                 }
                 let mut poly_to_add = Polynomial::new(Scalar::ZERO, poly_size);
-                poly_to_add[0] = poly_to_add[0].wrapping_add_custom_mod(*lwe_body, ciphertext_modulus.get_custom_modulus().cast_into());
+                poly_to_add[0] = poly_to_add[0].wrapping_add_custom_mod(
+                    *lwe_body,
+                    ciphertext_modulus.get_custom_modulus().cast_into(),
+                );
                 polynomial_wrapping_add_assign_custom_mod(
                     &mut glwe_ct.get_mut_body().as_mut_polynomial(),
                     &poly_to_add,
@@ -263,7 +276,11 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<
                 {
                     // Dont need custom mod in first case
                     polynomial_wrapping_add_assign(&mut pol_plus, &pol_0);
-                    polynomial_wrapping_add_assign_custom_mod(&mut pol_plus, &pol_1, ciphertext_modulus.get_custom_modulus().cast_into());
+                    polynomial_wrapping_add_assign_custom_mod(
+                        &mut pol_plus,
+                        &pol_1,
+                        ciphertext_modulus.get_custom_modulus().cast_into(),
+                    );
                 }
 
                 for ((mut pol_minus, pol_0), pol_1) in ct_minus
@@ -274,27 +291,40 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<
                 {
                     // Dont need custom mod in first case
                     polynomial_wrapping_add_assign(&mut pol_minus, &pol_0);
-                    polynomial_wrapping_sub_assign_custom_mod(&mut pol_minus, &pol_1,
-                                                         ciphertext_modulus.get_custom_modulus().cast_into());
+                    polynomial_wrapping_sub_assign_custom_mod(
+                        &mut pol_minus,
+                        &pol_1,
+                        ciphertext_modulus.get_custom_modulus().cast_into(),
+                    );
                 }
 
                 // Scale both ct_plus and ct_minus by 2^-1 mod q = (q+1) / 2 for odd q
 
-                let scalar = (Scalar::cast_from(ciphertext_modulus.get_custom_modulus()) +
-                    Scalar::ONE) /
-                    Scalar::TWO;
+                let scalar = (Scalar::cast_from(ciphertext_modulus.get_custom_modulus())
+                    + Scalar::ONE)
+                    / Scalar::TWO;
                 for mut pol in ct_plus.as_mut_polynomial_list().iter_mut() {
-                    polynomial_wrapping_scalar_mul_assign_custom_mod(&mut pol, scalar,
-                                                                     ciphertext_modulus.get_custom_modulus().cast_into());
+                    polynomial_wrapping_scalar_mul_assign_custom_mod(
+                        &mut pol,
+                        scalar,
+                        ciphertext_modulus.get_custom_modulus().cast_into(),
+                    );
                 }
                 for mut pol in ct_minus.as_mut_polynomial_list().iter_mut() {
-                    polynomial_wrapping_scalar_mul_assign_custom_mod(&mut pol, scalar, ciphertext_modulus.get_custom_modulus().cast_into());
+                    polynomial_wrapping_scalar_mul_assign_custom_mod(
+                        &mut pol,
+                        scalar,
+                        ciphertext_modulus.get_custom_modulus().cast_into(),
+                    );
                 }
 
                 // Apply the automorphism sending X to X^(2^(l+1) + 1) to ct_minus
                 for mut pol in ct_minus.as_mut_polynomial_list().iter_mut() {
-                    apply_automorphism_assign_custom_mod(&mut pol, 2_usize.pow(l as u32 + 1) + 1,
-                                                         ciphertext_modulus.get_custom_modulus().cast_into())
+                    apply_automorphism_assign_custom_mod(
+                        &mut pol,
+                        2_usize.pow(l as u32 + 1) + 1,
+                        ciphertext_modulus.get_custom_modulus().cast_into(),
+                    )
                 }
 
                 let mut ks_out = GlweCiphertext::new(
@@ -326,7 +356,11 @@ pub fn trace_packing_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext<
                     .zip(ks_out.as_polynomial_list().iter())
                     .zip(glwe_list.get_mut(i).as_mut_polynomial_list().iter_mut())
                 {
-                    polynomial_wrapping_add_assign_custom_mod(&mut pol_plus, &pol_ks, ciphertext_modulus.get_custom_modulus().cast_into());
+                    polynomial_wrapping_add_assign_custom_mod(
+                        &mut pol_plus,
+                        &pol_ks,
+                        ciphertext_modulus.get_custom_modulus().cast_into(),
+                    );
                     // Dont need custom mod
                     polynomial_wrapping_add_assign(&mut pol_0, &pol_plus);
                 }

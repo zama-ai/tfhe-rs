@@ -9,7 +9,9 @@
 
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 //use crate::core_crypto::algorithms::slice_algorithms::*;
-use crate::core_crypto::commons::math::decomposition::{SignedDecomposer, SignedDecomposerNonNative};
+use crate::core_crypto::commons::math::decomposition::{
+    SignedDecomposer, SignedDecomposerNonNative,
+};
 //use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -94,7 +96,9 @@ use crate::core_crypto::entities::*;
 ///         //temp.resize(polynomial_size.0, 0u64);
 ///         //x.iter().for_each(|y| sum = sum.wrapping_add(*y));
 ///         let mut temp = vec![0u64; polynomial_size.0];
-///         x.iter().enumerate().for_each(|(index, val)| temp[index] = *val);
+///         x.iter()
+///             .enumerate()
+///             .for_each(|(index, val)| temp[index] = *val);
 ///         Polynomial::from_container(temp)
 ///     },
 /// );
@@ -120,7 +124,9 @@ use crate::core_crypto::entities::*;
 /// // Get the raw vecor
 /// let mut cleartext = output_plaintext_list.into_container();
 /// // Remove the encoding
-/// cleartext.iter_mut().for_each(|x| *x = (*x + (delta/2)) / delta);
+/// cleartext
+///     .iter_mut()
+///     .for_each(|x| *x = (*x + (delta / 2)) / delta);
 /// // Get the list immutably
 /// let cleartext = cleartext;
 ///
@@ -326,7 +332,7 @@ pub fn public_functional_keyswitch_lwe_ciphertexts_into_glwe_ciphertext_non_nati
         ciphertext_modulus,
     );
     for (keyswitch_key_block, output_function) in
-    lwe_pubfpksk.iter().zip(list_output_function.iter_mut())
+        lwe_pubfpksk.iter().zip(list_output_function.iter_mut())
     {
         let mut decomposition_iter = decomposer.decompose_slice(output_function.as_ref());
         // loop over the number of levels in reverse (from highest to lowest)

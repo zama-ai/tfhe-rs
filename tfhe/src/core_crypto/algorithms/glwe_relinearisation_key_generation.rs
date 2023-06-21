@@ -81,7 +81,12 @@ pub fn generate_glwe_relinearisation_key<Scalar, GlweKeyCont, RelinKeyCont, Gen>
     }
 }
 
-pub fn generate_glwe_relinearisation_key_native_mod_compatible<Scalar, GlweKeyCont, RelinKeyCont, Gen>(
+pub fn generate_glwe_relinearisation_key_native_mod_compatible<
+    Scalar,
+    GlweKeyCont,
+    RelinKeyCont,
+    Gen,
+>(
     glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
     glwe_relinearisation_key: &mut GlweRelinearisationKey<RelinKeyCont>,
     noise_parameters: impl DispersionParameter,
@@ -148,8 +153,7 @@ pub fn generate_glwe_relinearisation_key_native_mod_compatible<Scalar, GlweKeyCo
     );
 }
 
-pub fn generate_glwe_relinearisation_key_non_native_mod<Scalar, GlweKeyCont,
-    RelinKeyCont, Gen>(
+pub fn generate_glwe_relinearisation_key_non_native_mod<Scalar, GlweKeyCont, RelinKeyCont, Gen>(
     glwe_secret_key: &GlweSecretKey<GlweKeyCont>,
     glwe_relinearisation_key: &mut GlweRelinearisationKey<RelinKeyCont>,
     noise_parameters: impl DispersionParameter,

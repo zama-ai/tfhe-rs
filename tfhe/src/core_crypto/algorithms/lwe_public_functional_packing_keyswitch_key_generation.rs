@@ -4,8 +4,9 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm,
-                                                       DecompositionTermNonNative};
+use crate::core_crypto::commons::math::decomposition::{
+    DecompositionLevel, DecompositionTerm, DecompositionTermNonNative,
+};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -255,8 +256,8 @@ pub fn generate_lwe_public_functional_packing_keyswitch_key_non_native_mod<
     let decomp_base_log = lwe_pubfpksk.decomposition_base_log();
     let polynomial_size = lwe_pubfpksk.output_polynomial_size();
 
-    let last_key_iter_bit = [Scalar::cast_from(ciphertext_modulus.get_custom_modulus()) -
-        Scalar::ONE];
+    let last_key_iter_bit =
+        [Scalar::cast_from(ciphertext_modulus.get_custom_modulus()) - Scalar::ONE];
     // add minus one for the function which will be applied to the decomposed body
     let input_key_bit_iter = input_lwe_secret_key
         .as_ref()
@@ -493,8 +494,8 @@ pub fn par_generate_lwe_public_functional_packing_keyswitch_key_non_native_mod<
     let decomp_base_log = lwe_pubfpksk.decomposition_base_log();
     let polynomial_size = lwe_pubfpksk.output_polynomial_size();
 
-    let last_key_iter_bit = [Scalar::cast_from(ciphertext_modulus.get_custom_modulus()) -
-        Scalar::ONE];
+    let last_key_iter_bit =
+        [Scalar::cast_from(ciphertext_modulus.get_custom_modulus()) - Scalar::ONE];
     // add minus one for the function which will be applied to the decomposed body
     let input_key_bit_iter = input_lwe_secret_key
         .as_ref()

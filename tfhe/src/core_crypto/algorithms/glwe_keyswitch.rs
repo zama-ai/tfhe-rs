@@ -2,7 +2,9 @@
 //! keyswitch`](`GlweKeyswitchKey#glwe-keyswitch`).
 
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
-use crate::core_crypto::commons::math::decomposition::{SignedDecomposer, SignedDecomposerNonNative};
+use crate::core_crypto::commons::math::decomposition::{
+    SignedDecomposer, SignedDecomposerNonNative,
+};
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -125,7 +127,10 @@ pub fn keyswitch_glwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
     InputCont: ContainerMut<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
-    if glwe_keyswitch_key.ciphertext_modulus().is_compatible_with_native_modulus() {
+    if glwe_keyswitch_key
+        .ciphertext_modulus()
+        .is_compatible_with_native_modulus()
+    {
         keyswitch_glwe_ciphertext_native_mod_compatible(
             glwe_keyswitch_key,
             input_glwe_ciphertext,

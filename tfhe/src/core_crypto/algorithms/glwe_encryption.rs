@@ -452,7 +452,8 @@ pub fn fill_glwe_mask_and_body_for_encryption_non_native_mod<
     );
     // TODO - remove when noise generation is fixed
     let cutoff = Scalar::ONE << (Scalar::BITS - 1);
-    let negative_fix_factor_u128 = (1u128 << Scalar::BITS) - ciphertext_modulus.get_custom_modulus();
+    let negative_fix_factor_u128 =
+        (1u128 << Scalar::BITS) - ciphertext_modulus.get_custom_modulus();
     let negative_fix_factor = negative_fix_factor_u128.cast_into();
     output_body.as_mut().iter_mut().for_each(|x| {
         if *x > cutoff {
@@ -462,7 +463,7 @@ pub fn fill_glwe_mask_and_body_for_encryption_non_native_mod<
 
     let ciphertext_modulus = ciphertext_modulus.get_custom_modulus().cast_into();
 
-        polynomial_wrapping_add_assign_custom_mod(
+    polynomial_wrapping_add_assign_custom_mod(
         &mut output_body.as_mut_polynomial(),
         &encoded.as_polynomial(),
         ciphertext_modulus,

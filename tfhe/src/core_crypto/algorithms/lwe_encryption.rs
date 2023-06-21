@@ -138,7 +138,8 @@ pub fn fill_lwe_mask_and_body_for_encryption_non_native_mod<Scalar, KeyCont, Out
     *output_body.data = generator.random_noise_custom_mod(noise_parameters, ciphertext_modulus);
     // TODO - remove when noise generation is fixed
     let cutoff = Scalar::ONE << (Scalar::BITS - 1);
-    let negative_fix_factor_u128 = (1u128 << Scalar::BITS) - ciphertext_modulus.get_custom_modulus();
+    let negative_fix_factor_u128 =
+        (1u128 << Scalar::BITS) - ciphertext_modulus.get_custom_modulus();
     let negative_fix_factor = negative_fix_factor_u128.cast_into();
     if *output_body.data > cutoff {
         *output_body.data = output_body.data.wrapping_sub(negative_fix_factor);

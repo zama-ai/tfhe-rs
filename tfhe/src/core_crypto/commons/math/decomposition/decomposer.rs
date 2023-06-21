@@ -1,7 +1,7 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
     SignedDecompositionIter, SignedDecompositionIterNonNative, SliceSignedDecompositionIter,
-    SliceSignedDecompositionIterNonNative
+    SliceSignedDecompositionIterNonNative,
 };
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
@@ -463,7 +463,9 @@ where
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
-    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount};
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
     /// let decomposer = SignedDecomposerNonNative::<u32>::new(
     ///     DecompositionBaseLog(4),
     ///     DecompositionLevelCount(3),
@@ -546,8 +548,9 @@ where
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
     /// use tfhe::core_crypto::commons::numeric::UnsignedInteger;
-    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog,
-    /// DecompositionLevelCount};
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
     /// let decomposer = SignedDecomposerNonNative::<u32>::new(
     ///     DecompositionBaseLog(4),
     ///     DecompositionLevelCount(3),
@@ -573,8 +576,10 @@ where
     /// }
     /// assert_eq!(count, 3);
     /// ```
-    pub fn decompose_slice(&self, input: &[Scalar]) ->
-                                                    SliceSignedDecompositionIterNonNative<Scalar> {
+    pub fn decompose_slice(
+        &self,
+        input: &[Scalar],
+    ) -> SliceSignedDecompositionIterNonNative<Scalar> {
         // Note that there would be no sense of making the decomposition on an input which was
         // not rounded to the closest representable first. We then perform it before decomposing.
         let mut rounded = vec![Scalar::ZERO; input.len()];

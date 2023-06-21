@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
-use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
+use crate::core_crypto::commons::numeric::{CastInto, Numeric, UnsignedInteger};
 use crate::core_crypto::commons::parameters::DecompositionBaseLog;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -328,8 +328,8 @@ where
 /// set of $(\tilde{\theta}^{(a)}\_i)\_{a\in\mathbb{N}}$.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DecompositionTermSliceNonNative<'a, Scalar>
-    where
-        Scalar: UnsignedInteger,
+where
+    Scalar: UnsignedInteger,
 {
     level: usize,
     base_log: usize,
@@ -338,8 +338,8 @@ pub struct DecompositionTermSliceNonNative<'a, Scalar>
 }
 
 impl<'a, Scalar> DecompositionTermSliceNonNative<'a, Scalar>
-    where
-        Scalar: UnsignedInteger,
+where
+    Scalar: UnsignedInteger,
 {
     // Creates a new tensor decomposition term.
     pub(crate) fn new(
@@ -366,8 +366,9 @@ impl<'a, Scalar> DecompositionTermSliceNonNative<'a, Scalar>
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
-    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog,
-    /// DecompositionLevelCount};
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
     /// let decomposer = SignedDecomposerNonNative::<u32>::new(
     ///     DecompositionBaseLog(4),
     ///     DecompositionLevelCount(3),
@@ -412,12 +413,10 @@ impl<'a, Scalar> DecompositionTermSliceNonNative<'a, Scalar>
             .iter_mut()
             .zip(self.slice.iter())
             .for_each(|(out, &value)| {
-                *out = (*out).wrapping_add(
-                    value.wrapping_mul_custom_mod(
-                        digit_radix,
-                        self.ciphertext_modulus.get_custom_modulus().cast_into(),
-                    )
-                );
+                *out = (*out).wrapping_add(value.wrapping_mul_custom_mod(
+                    digit_radix,
+                    self.ciphertext_modulus.get_custom_modulus().cast_into(),
+                ));
             });
     }
 
@@ -427,7 +426,9 @@ impl<'a, Scalar> DecompositionTermSliceNonNative<'a, Scalar>
     ///
     /// ```rust
     /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
-    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount};
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
     /// let decomposer = SignedDecomposerNonNative::<u32>::new(
     ///     DecompositionBaseLog(4),
     ///     DecompositionLevelCount(3),
@@ -447,9 +448,12 @@ impl<'a, Scalar> DecompositionTermSliceNonNative<'a, Scalar>
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::commons::math::decomposition::{DecompositionLevel,
-    /// SignedDecomposerNonNative};
-    /// use tfhe::core_crypto::prelude::{CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount};
+    /// use tfhe::core_crypto::commons::math::decomposition::{
+    ///     DecompositionLevel, SignedDecomposerNonNative,
+    /// };
+    /// use tfhe::core_crypto::prelude::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
     /// let decomposer = SignedDecomposerNonNative::<u32>::new(
     ///     DecompositionBaseLog(4),
     ///     DecompositionLevelCount(3),

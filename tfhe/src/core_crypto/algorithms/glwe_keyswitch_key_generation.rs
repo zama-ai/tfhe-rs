@@ -3,8 +3,9 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
-use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, DecompositionTerm,
-                                                       DecompositionTermNonNative};
+use crate::core_crypto::commons::math::decomposition::{
+    DecompositionLevel, DecompositionTerm, DecompositionTermNonNative,
+};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
@@ -100,7 +101,13 @@ pub fn generate_glwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCon
     }
 }
 
-pub fn generate_glwe_keyswitch_key_native_mod_compatible<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont, Gen>(
+pub fn generate_glwe_keyswitch_key_native_mod_compatible<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    KSKeyCont,
+    Gen,
+>(
     input_glwe_sk: &GlweSecretKey<InputKeyCont>,
     output_glwe_sk: &GlweSecretKey<OutputKeyCont>,
     glwe_keyswitch_key: &mut GlweKeyswitchKey<KSKeyCont>,
@@ -142,8 +149,8 @@ pub fn generate_glwe_keyswitch_key_native_mod_compatible<Scalar, InputKeyCont, O
         output_glwe_sk.polynomial_size(),
     );
     assert!(glwe_keyswitch_key
-    .ciphertext_modulus()
-    .is_compatible_with_native_modulus());
+        .ciphertext_modulus()
+        .is_compatible_with_native_modulus());
 
     let decomp_base_log = glwe_keyswitch_key.decomposition_base_log();
     let decomp_level_count = glwe_keyswitch_key.decomposition_level_count();
@@ -203,8 +210,13 @@ pub fn generate_glwe_keyswitch_key_native_mod_compatible<Scalar, InputKeyCont, O
     }
 }
 
-pub fn generate_glwe_keyswitch_key_non_native_mod<Scalar, InputKeyCont, OutputKeyCont,
-    KSKeyCont, Gen>(
+pub fn generate_glwe_keyswitch_key_non_native_mod<
+    Scalar,
+    InputKeyCont,
+    OutputKeyCont,
+    KSKeyCont,
+    Gen,
+>(
     input_glwe_sk: &GlweSecretKey<InputKeyCont>,
     output_glwe_sk: &GlweSecretKey<OutputKeyCont>,
     glwe_keyswitch_key: &mut GlweKeyswitchKey<KSKeyCont>,

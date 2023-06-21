@@ -322,6 +322,65 @@ pub fn polynomial_wrapping_monic_monomial_div_assign<Scalar, OutputCont>(
         .for_each(|a| *a = a.wrapping_neg());
 }
 
+/// Multiply (mod $(X^{N}+1)$), the input polynomial with a monic monomial of a given degree i.e.
+/// $X^{degree}$.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Examples
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::polynomial_algorithms::*;
+/// use tfhe::core_crypto::commons::parameters::*;
+/// use tfhe::core_crypto::entities::*;
+/// let input = Polynomial::from_container(vec![1u8, 2, 3]);
+/// let mut output = Polynomial::from_container(vec![0, 0, 0]);
+/// polynomial_wrapping_monic_monomial_mul(&mut output, &input, MonomialDegree(2));
+/// assert_eq!(output.as_ref(), &[254, 253, 1]);
+/// ```
+pub fn polynomial_wrapping_monic_monomial_mul<Scalar, OutputCont, InputCont>(
+    output: &mut Polynomial<OutputCont>,
+    input: &Polynomial<InputCont>,
+    monomial_degree: MonomialDegree,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert!(
+        output.polynomial_size() == input.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input polynomial size {:?}.",
+        output.polynomial_size(),
+        input.polynomial_size(),
+    );
+
+    let polynomial_size = output.polynomial_size().0;
+    let remaining_degree = monomial_degree.0 % polynomial_size;
+
+    for (dst, &src) in output[..remaining_degree]
+        .iter_mut()
+        .zip(input[polynomial_size - remaining_degree..].iter())
+    {
+        *dst = src.wrapping_neg();
+    }
+
+    let dst_slice = &mut output[remaining_degree..];
+    let dst_slice_len = dst_slice.len();
+    let src_slice = &input[..dst_slice_len];
+    dst_slice.copy_from_slice(src_slice);
+
+    let full_cycles_count = monomial_degree.0 / polynomial_size;
+    if full_cycles_count % 2 != 0 {
+        output
+            .as_mut()
+            .iter_mut()
+            .for_each(|a| *a = a.wrapping_neg());
+    }
+}
+
 /// Multiply (mod $(X^{N}+1)$), the output polynomial with a monic monomial of a given degree i.e.
 /// $X^{degree}$.
 ///
@@ -361,6 +420,30 @@ pub fn polynomial_wrapping_monic_monomial_mul_assign<Scalar, OutputCont>(
         .iter_mut()
         .take(remaining_degree)
         .for_each(|a| *a = a.wrapping_neg());
+}
+
+pub fn polynomial_wrapping_monic_monomial_mul_assign_custom_mod<Scalar, OutputCont>(
+    output: &mut Polynomial<OutputCont>,
+    monomial_degree: MonomialDegree,
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+{
+    let full_cycles_count = monomial_degree.0 / output.as_ref().container_len();
+    if full_cycles_count % 2 != 0 {
+        output
+            .as_mut()
+            .iter_mut()
+            .for_each(|a| *a = (*a).wrapping_neg_custom_mod(custom_modulus));
+    }
+    let remaining_degree = monomial_degree.0 % output.as_ref().container_len();
+    output.as_mut().rotate_right(remaining_degree);
+    output
+        .as_mut()
+        .iter_mut()
+        .take(remaining_degree)
+        .for_each(|a| *a = (*a).wrapping_neg_custom_mod(custom_modulus));
 }
 
 /// Subtract the sum of the element-wise product between two lists of polynomials, to the output
@@ -623,18 +706,7 @@ pub fn polynomial_wrapping_scalar_mul_assign_custom_mod<Scalar, PolyCont>(
     Scalar: UnsignedInteger,
     PolyCont: ContainerMut<Element = Scalar>,
 {
-    slice_wrapping_scalar_mul_assign_custom_mod(output, scalar, custom_modulus)
-}
-
-pub fn polynomial_wrapping_scalar_mul_assign_custom_mod<Scalar, PolyCont>(
-    output: &mut Polynomial<PolyCont>,
-    scalar: Scalar,
-    custom_modulus: Scalar,
-) where
-    Scalar: UnsignedInteger,
-    PolyCont: ContainerMut<Element = Scalar>,
-{
-    slice_wrapping_scalar_mul_assign_custom_mod(output, scalar, custom_modulus)
+    slice_wrapping_scalar_mul_assign_custom_mod(output.as_mut(), scalar, custom_modulus)
 }
 
 /// Fill the output polynomial, with the result of the product of two polynomials, reduced modulo
@@ -1012,9 +1084,13 @@ pub fn apply_automorphism_assign_custom_mod<Scalar, PolyCont>(
     PolyCont: ContainerMut<Element = Scalar>,
 {
     let mut temp = Polynomial::new(Scalar::ZERO, input.polynomial_size());
-    apply_automorphism_wrapping_add_assign_custom_mod(&mut temp, input, automorphism_exponent,
-                                                      custom_modulus);
-    input.fill(Scalar::ZERO);
+    apply_automorphism_wrapping_add_assign_custom_mod(
+        &mut temp,
+        input,
+        automorphism_exponent,
+        custom_modulus,
+    );
+    input.as_mut().fill(Scalar::ZERO);
     polynomial_wrapping_add_assign_custom_mod(input, &temp, custom_modulus);
 }
 pub fn polynomial_list_wrapping_sub_scalar_mul_assign<Scalar, InputCont, OutputCont, PolyCont>(
@@ -1040,8 +1116,12 @@ pub fn polynomial_list_wrapping_sub_scalar_mul_assign<Scalar, InputCont, OutputC
     }
 }
 
-pub fn polynomial_list_wrapping_sub_scalar_mul_assign_custom_mod<Scalar, InputCont, OutputCont,
-    PolyCont>(
+pub fn polynomial_list_wrapping_sub_scalar_mul_assign_custom_mod<
+    Scalar,
+    InputCont,
+    OutputCont,
+    PolyCont,
+>(
     output_poly_list: &mut PolynomialList<OutputCont>,
     input_poly_list: &PolynomialList<InputCont>,
     scalar_poly: &Polynomial<PolyCont>,
@@ -1061,8 +1141,12 @@ pub fn polynomial_list_wrapping_sub_scalar_mul_assign_custom_mod<Scalar, InputCo
         input_poly_list.polynomial_count()
     );
     for (mut output_poly, input_poly) in output_poly_list.iter_mut().zip(input_poly_list.iter()) {
-        polynomial_wrapping_sub_mul_assign_custom_mod(&mut output_poly, &input_poly, scalar_poly,
-                                                      custom_modulus)
+        polynomial_wrapping_sub_mul_assign_custom_mod(
+            &mut output_poly,
+            &input_poly,
+            scalar_poly,
+            custom_modulus,
+        )
     }
 }
 

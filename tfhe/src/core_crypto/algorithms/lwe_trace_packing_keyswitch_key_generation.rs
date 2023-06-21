@@ -6,8 +6,8 @@ use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::CiphertextModulus;
 use crate::core_crypto::prelude::polynomial_algorithms::apply_automorphism_wrapping_add_assign_custom_mod;
+use crate::core_crypto::prelude::CiphertextModulus;
 
 /// Fill a [`GLWE secret key`](`GlweSecretKey`) with an actual key derived from an
 /// [`LWE secret key`](`LweSecretKey`) for use in the [`LWE trace packing keyswitch key`]
@@ -34,7 +34,11 @@ use crate::core_crypto::prelude::polynomial_algorithms::apply_automorphism_wrapp
 /// let mut glwe_secret_key =
 ///     GlweSecretKey::new_empty_key(0u64, glwe_size.to_glwe_dimension(), polynomial_size);
 ///
-/// generate_tpksk_output_glwe_secret_key(&lwe_secret_key, &mut glwe_secret_key, ciphertext_modulus);
+/// generate_tpksk_output_glwe_secret_key(
+///     &lwe_secret_key,
+///     &mut glwe_secret_key,
+///     ciphertext_modulus,
+/// );
 ///
 /// let decomp_base_log = DecompositionBaseLog(2);
 /// let decomp_level_count = DecompositionLevelCount(8);
@@ -91,8 +95,10 @@ pub fn generate_tpksk_output_glwe_secret_key<Scalar, InputKeyCont, OutputKeyCont
             let rem = index % glwe_poly_size.0;
             let quo = index / glwe_poly_size.0;
             let new_index = (quo + 1) * glwe_poly_size.0 - rem;
-            glwe_key_container[new_index] = Scalar::ZERO.wrapping_sub_custom_mod(*lwe_key_bit,
-                                                                                 ciphertext_modulus.get_custom_modulus().cast_into());
+            glwe_key_container[new_index] = Scalar::ZERO.wrapping_sub_custom_mod(
+                *lwe_key_bit,
+                ciphertext_modulus.get_custom_modulus().cast_into(),
+            );
         }
     }
 }
