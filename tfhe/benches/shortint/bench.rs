@@ -703,9 +703,18 @@ criterion_group!(
     scalar_not_equal
 );
 
+mod casting;
+criterion_group!(
+    casting,
+    casting::pack_cast_64,
+    casting::pack_cast,
+    casting::cast
+);
+
 criterion_main!(
     // arithmetic_operation,
     // arithmetic_scalar_operation,
+    casting,
     default_ops,
     default_scalar_ops,
 );

@@ -1,6 +1,6 @@
 use tfhe::prelude::*;
 use tfhe::shortint::prelude::*;
-use tfhe::shortint::CastingKey;
+use tfhe::shortint::KeySwitchingKey;
 use tfhe::{generate_keys, ConfigBuilder, FheUint64};
 
 use tfhe_trivium::{KreyviumStreamShortint, TransCiphering};
@@ -12,8 +12,16 @@ pub fn kreyvium_shortint_warmup(c: &mut Criterion) {
         .enable_default_integers()
         .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
+    let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
+    let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
+
     let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
-    let ksk = CastingKey::new((&client_key, &server_key), (&hl_client_key, &hl_server_key));
+
+    let ksk = KeySwitchingKey::new(
+        (&client_key, &server_key),
+        (&underlying_ck, &underlying_sk),
+        PARAM_KEYSWITCH_1_1_TO_2_2,
+    );
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
     let mut key = [0; 128];
@@ -40,8 +48,13 @@ pub fn kreyvium_shortint_warmup(c: &mut Criterion) {
     c.bench_function("kreyvium 1_1 warmup", |b| {
         b.iter(|| {
             let cipher_key = key.map(|x| client_key.encrypt(x));
-            let _kreyvium =
-                KreyviumStreamShortint::new(cipher_key, iv, &server_key, &ksk, &hl_server_key);
+            let _kreyvium = KreyviumStreamShortint::new(
+                cipher_key,
+                iv,
+                server_key.clone(),
+                ksk.clone(),
+                hl_server_key.clone(),
+            );
         })
     });
 }
@@ -51,8 +64,16 @@ pub fn kreyvium_shortint_gen(c: &mut Criterion) {
         .enable_default_integers()
         .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
+    let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
+    let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
+
     let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
-    let ksk = CastingKey::new((&client_key, &server_key), (&hl_client_key, &hl_server_key));
+
+    let ksk = KeySwitchingKey::new(
+        (&client_key, &server_key),
+        (&underlying_ck, &underlying_sk),
+        PARAM_KEYSWITCH_1_1_TO_2_2,
+    );
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
     let mut key = [0; 128];
@@ -78,8 +99,7 @@ pub fn kreyvium_shortint_gen(c: &mut Criterion) {
 
     let cipher_key = key.map(|x| client_key.encrypt(x));
 
-    let mut kreyvium =
-        KreyviumStreamShortint::new(cipher_key, iv, &server_key, &ksk, &hl_server_key);
+    let mut kreyvium = KreyviumStreamShortint::new(cipher_key, iv, server_key, ksk, hl_server_key);
 
     c.bench_function("kreyvium 1_1 generate 64 bits", |b| {
         b.iter(|| kreyvium.next_64())
@@ -91,8 +111,16 @@ pub fn kreyvium_shortint_trans(c: &mut Criterion) {
         .enable_default_integers()
         .build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
+    let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
+    let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
+
     let (client_key, server_key): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
-    let ksk = CastingKey::new((&client_key, &server_key), (&hl_client_key, &hl_server_key));
+
+    let ksk = KeySwitchingKey::new(
+        (&client_key, &server_key),
+        (&underlying_ck, &underlying_sk),
+        PARAM_KEYSWITCH_1_1_TO_2_2,
+    );
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
     let mut key = [0; 128];
@@ -119,8 +147,7 @@ pub fn kreyvium_shortint_trans(c: &mut Criterion) {
     let cipher_key = key.map(|x| client_key.encrypt(x));
 
     let ciphered_message = FheUint64::try_encrypt(0u64, &hl_client_key).unwrap();
-    let mut kreyvium =
-        KreyviumStreamShortint::new(cipher_key, iv, &server_key, &ksk, &hl_server_key);
+    let mut kreyvium = KreyviumStreamShortint::new(cipher_key, iv, server_key, ksk, hl_server_key);
 
     c.bench_function("kreyvium 1_1 transencrypt 64 bits", |b| {
         b.iter(|| kreyvium.trans_encrypt_64(ciphered_message.clone()))
