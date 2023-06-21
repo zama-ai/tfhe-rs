@@ -4,6 +4,7 @@ use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
+use pulp::Scalar;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -511,10 +512,15 @@ impl ClientKey {
     /// assert_eq!(msg, dec % modulus as u64);
     /// ```
     pub fn decrypt_message_native_crt(&self, ct: &Ciphertext, message_modulus: u8) -> u64 {
-        ShortintEngine::with_thread_local_mut(|engine| {
+        ShortintEngine::with_thread_local_mut(|engine: &mut ShortintEngine| {
             engine
                 .decrypt_message_native_crt(self, ct, message_modulus as u64)
                 .unwrap()
         })
+    }
+
+    pub fn get_small_secret_vec(&self) -> Vec<u64> {
+        let container = LweSecretKeyOwned::into_container(self);
+        container
     }
 }
