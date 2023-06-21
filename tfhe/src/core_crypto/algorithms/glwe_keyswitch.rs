@@ -29,7 +29,7 @@ use crate::core_crypto::entities::*;
 /// let glwe_modular_std_dev = StandardDev(0.00000000000000000000000000000000000000000007069849454709433);
 /// let output_glwe_dimension = GlweDimension(1);
 /// let decomp_base_log = DecompositionBaseLog(3);
-/// let decomp_level_count = DecompositionLevelCount(12);
+/// let decomp_level_count = DecompositionLevelCount(10);
 /// //let ciphertext_modulus = CiphertextModulus::new_native();
 /// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
 /// let delta = (1 << 59) - (1 << 27);
@@ -124,6 +124,7 @@ use crate::core_crypto::entities::*;
 ///     });
 ///
 /// //println!("error: {:?}", output_error);
+///
 /// let mut sum_sqrs= 0;
 /// for err in output_error.iter() {
 ///     let err_i128 = *err as i128;

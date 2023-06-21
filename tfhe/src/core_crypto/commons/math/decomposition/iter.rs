@@ -481,9 +481,13 @@ where
         level: DecompositionLevelCount,
         ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> SliceSignedDecompositionIterNonNative<Scalar> {
-        let base_to_the_level = 1 << (base_log.0 * level.0);
-        let smallest_representable = ciphertext_modulus.get_custom_modulus() / base_to_the_level;
+        let ciphertext_modulus_as_scalar = Scalar::cast_from(ciphertext_modulus
+            .get_custom_modulus());
+        // Compute the number of zeros for q - 1
+        let zero_left_pad = (ciphertext_modulus_as_scalar - Scalar::ONE).leading_zeros() as usize;
+
         let len = input.len();
+
         SliceSignedDecompositionIterNonNative {
             base_log: base_log.0,
             level_count: level.0,
@@ -495,8 +499,7 @@ where
             states: input
                 .iter()
                 .map(|i| {
-                    let input_128: u128 = Scalar::cast_into(*i);
-                    Scalar::cast_from(input_128 / smallest_representable)
+                    *i >> (Scalar::BITS - zero_left_pad - base_log.0 * level.0)
                 })
                 .collect(),
             fresh: true,
