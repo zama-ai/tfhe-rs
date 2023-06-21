@@ -7,6 +7,7 @@ mod crt;
 mod radix;
 pub(crate) mod utils;
 
+use crate::core_crypto::prelude::LweSecretKeyOwned;
 use crate::integer::block_decomposition::BlockRecomposer;
 use crate::integer::ciphertext::{CompressedCrtCiphertext, CrtCiphertext};
 use crate::integer::client_key::utils::i_crt;
@@ -462,5 +463,10 @@ impl ClientKey {
         CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
     {
         encrypt_crt(&self.key, message, base_vec, encrypt_block)
+    }
+
+    pub fn get_small_secret_vec(&self) -> Vec<u64> {
+        let container = LweSecretKeyOwned::into_container(self.key.small_lwe_secret_key.clone());
+        container
     }
 }

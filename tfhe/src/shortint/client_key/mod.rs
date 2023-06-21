@@ -518,9 +518,4 @@ impl ClientKey {
                 .unwrap()
         })
     }
-
-    pub fn get_small_secret_vec(&self) -> Vec<u64> {
-        let container = LweSecretKeyOwned::into_container(self.small_lwe_secret_key.clone());
-        container
-    }
 }
