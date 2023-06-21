@@ -37,10 +37,10 @@ itertools = "0.10.5"
 num_cpus = "1.15"
 # For erf and normality test
 libm = "0.2.6"
-test-case = "*"
-combine = "*"
-env_logger = "*"
-log = "*"
+test-case = "3.1.0"
+combine = "4.6.6"
+env_logger = "0.10.0"
+log = "0.4.19"
 
 [build-dependencies]
 cbindgen = { version = "0.24.3", optional = true }
