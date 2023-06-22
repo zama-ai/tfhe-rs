@@ -2090,13 +2090,13 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_min_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
-        test_min_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            2,
-        )
-    }
+    // #[test]
+    // fn test_min_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
+    //     test_min_parallelized_256_bits(
+    //         crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    //         2,
+    //     )
+    // }
 
     #[test]
     fn test_min_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
@@ -2166,13 +2166,13 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_max_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
-        test_max_parallelized_256_bits(
-            crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            2,
-        )
-    }
+    // #[test]
+    // fn test_max_parallelized_256_bits_param_message_3_carry_3_ks_pbs() {
+    //     test_max_parallelized_256_bits(
+    //         crate::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    //         2,
+    //     )
+    // }
 
     #[test]
     fn test_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {

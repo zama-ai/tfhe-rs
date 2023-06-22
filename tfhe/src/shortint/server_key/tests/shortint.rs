@@ -52,13 +52,9 @@ macro_rules! create_parametrized_test{
             PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-            // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS
         });
     };
 }
@@ -97,13 +93,9 @@ macro_rules! create_parametrized_test_bivariate_pbs_compliant{
             PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
-            // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_2_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
-            // // These parameters seem to introduce too much noise during computation
-            // PARAM_MULTI_BIT_MESSAGE_4_CARRY_4_GROUP_3_KS_PBS
         });
     };
 }

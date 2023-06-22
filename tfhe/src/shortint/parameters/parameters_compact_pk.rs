@@ -9,8 +9,7 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::ClassicPBSParameters;
 
-pub const ALL_PARAMETER_VEC_COMPACT_PK: [ClassicPBSParameters; 56] = [
-    PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS,
+pub const ALL_PARAMETER_VEC_COMPACT_PK: [ClassicPBSParameters; 55] = [
     PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS,
     PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS,
     PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS,
@@ -68,21 +67,6 @@ pub const ALL_PARAMETER_VEC_COMPACT_PK: [ClassicPBSParameters; 56] = [
     PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_PBS_KS,
 ];
 
-pub const PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
-    lwe_dimension: LweDimension(1024),
-    glwe_dimension: GlweDimension(3),
-    polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(4.99029381172945e-8),
-    glwe_modular_std_dev: StandardDev(3.96669408172410e-12),
-    pbs_base_log: DecompositionBaseLog(18),
-    pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(1),
-    ks_base_log: DecompositionBaseLog(12),
-    message_modulus: MessageModulus(2),
-    carry_modulus: CarryModulus(2),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-    encryption_key_choice: EncryptionKeyChoice::Big,
-};
 pub const PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(1024),
     glwe_dimension: GlweDimension(2),

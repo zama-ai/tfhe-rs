@@ -22,7 +22,6 @@ macro_rules! create_parametrized_test{
      ($name:ident)=> {
         create_parametrized_test!($name
         {
-            PARAM_MESSAGE_1_CARRY_1_COMPACT_PK_KS_PBS,
             PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS,
             PARAM_MESSAGE_1_CARRY_3_COMPACT_PK_KS_PBS,
             PARAM_MESSAGE_1_CARRY_4_COMPACT_PK_KS_PBS,
