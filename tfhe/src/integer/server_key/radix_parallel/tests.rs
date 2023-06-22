@@ -77,6 +77,9 @@ create_parametrized_test!(integer_smart_bitxor);
 create_parametrized_test_no_multi_bit!(integer_default_bitand);
 create_parametrized_test_no_multi_bit!(integer_default_bitor);
 create_parametrized_test_no_multi_bit!(integer_default_bitxor);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_bitand);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_bitor);
+create_parametrized_test_no_multi_bit!(integer_default_scalar_bitxor);
 create_parametrized_test!(integer_unchecked_small_scalar_mul);
 create_parametrized_test!(integer_smart_small_scalar_mul);
 create_parametrized_test_no_multi_bit!(integer_default_small_scalar_mul);
@@ -680,7 +683,7 @@ where
             ct_res = sks.bitor_parallelized(&ct_res, &ctxt_2);
             assert!(ct_res.block_carries_are_empty());
             assert_eq!(ct_res, tmp);
-            clear = (clear | clear_2) % modulus;
+            clear |= clear_2;
 
             // decryption of ct_res
             let dec_res: u64 = cks.decrypt(&ct_res);
@@ -720,7 +723,7 @@ where
         let mut ct_res = sks.bitxor_parallelized(&ctxt_0, &ctxt_1);
         assert!(ct_res.block_carries_are_empty());
 
-        clear = (clear_0 ^ clear_1) % modulus;
+        clear = clear_0 ^ clear_1;
 
         for _ in 0..NB_TEST_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
@@ -738,6 +741,144 @@ where
             let dec_res: u64 = cks.decrypt(&ct_res);
 
             // assert
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+fn integer_default_scalar_bitand<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // Do with a small clear to check the way we avoid
+        // unecesseray work is correct
+        let ct_res = sks.scalar_bitand_parallelized(&ctxt_0, 1);
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_0 & 1, dec_res);
+
+        let mut ct_res = sks.scalar_bitand_parallelized(&ctxt_0, clear_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = clear_0 & clear_1;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let tmp = sks.scalar_bitand_parallelized(&ct_res, clear_2);
+            ct_res = sks.scalar_bitand_parallelized(&ct_res, clear_2);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear &= clear_2;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+fn integer_default_scalar_bitor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // Do with a small clear to check the way we avoid
+        // unecesseray work is correct
+        let ct_res = sks.scalar_bitor_parallelized(&ctxt_0, 1);
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_0 | 1, dec_res);
+
+        let mut ct_res = sks.scalar_bitor_parallelized(&ctxt_0, clear_1);
+        assert!(ct_res.block_carries_are_empty());
+        clear = (clear_0 | clear_1) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let tmp = sks.scalar_bitor_parallelized(&ct_res, clear_2);
+            ct_res = sks.scalar_bitor_parallelized(&ct_res, clear_2);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear = (clear | clear_2) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+fn integer_default_scalar_bitxor<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // Do with a small clear to check the way we avoid
+        // unecesseray work is correct
+        let ct_res = sks.scalar_bitxor_parallelized(&ctxt_0, 1);
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_0 ^ 1, dec_res);
+
+        let mut ct_res = sks.scalar_bitxor_parallelized(&ctxt_0, clear_1);
+        assert!(ct_res.block_carries_are_empty());
+        clear = (clear_0 ^ clear_1) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let tmp = sks.scalar_bitxor_parallelized(&ct_res, clear_2);
+            ct_res = sks.scalar_bitxor_parallelized(&ct_res, clear_2);
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear = (clear ^ clear_2) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
             assert_eq!(clear, dec_res);
         }
     }

@@ -149,8 +149,10 @@ where
 {
     pub fn iter_as<V>(self) -> impl Iterator<Item = V>
     where
+        V: Numeric,
         T: CastInto<V>,
     {
+        assert!(self.num_bits_in_mask <= V::BITS as u32);
         self.map(|masked| masked.cast_into())
     }
 
