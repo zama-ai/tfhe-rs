@@ -1,14 +1,14 @@
 # Cryptographic Parameters
 
-All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-40}$$ when computing using programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../getting\_started/security\_and\_cryptography.md) for more details about the encryption process).
+All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-40}$$ when using programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../../getting_started/security_and_cryptography.md) for more details about the encryption process).
 
 ## Parameters and message precision
 
-`shortint` comes with sets of parameters that permit the use of the library functionalities securely and efficiently. Each parameter set is associated to the message and carry precisions. Thus, each key pair is entangled to precision.
+`shortint` comes with sets of parameters that permit the use of the library functionalities securely and efficiently. Each parameter set is associated to the message and carry precisions. Therefore, each key pair is entangled to precision.
 
 The user is allowed to choose which set of parameters to use when creating the pair of keys.
 
-The difference between the parameter sets is the total amount of space dedicated to the plaintext, how it is split between the message buffer and the carry buffer and the order in which the keyswitch (KS) and bootstrap (PBS) are computed. The syntax chosen for the name of a parameter is: `PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}_{KS_PBS | PBS_KS}`. For example, the set of parameters for a message buffer of 5 bits, a carry buffer of 2 bits and where the keyswitch is computed before the bootstrap is `PARAM_MESSAGE_5_CARRY_2_KS_PBS`.
+The difference between the parameter sets is the total amount of space dedicated to the plaintext, how it is split between the message buffer and the carry buffer, and the order in which the keyswitch (KS) and bootstrap (PBS) are computed. The syntax chosen for the name of a parameter is: `PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}_{KS_PBS | PBS_KS}`. For example, the set of parameters for a message buffer of 5 bits, a carry buffer of 2 bits and where the keyswitch is computed before the bootstrap is `PARAM_MESSAGE_5_CARRY_2_KS_PBS`.
 
 Note that the `KS_PBS` order should have better performance at the expense of ciphertext size, `PBS_KS` is the opposite.
 
@@ -34,11 +34,11 @@ fn main() {
 
 ## Impact of parameters on the operations
 
-As shown [here](../getting\_started/benchmarks.md), the choice of the parameter set impacts the operations available and their efficiency.
+As shown [here](../../getting_started/benchmarks.md), the choice of the parameter set impacts the operations available and their efficiency.
 
 ### Generic bi-variate functions.
 
-The computations of bi-variate functions is based on a trick: _concatenating_ two ciphertexts into one. Where the carry buffer is not at least as large as the message one, this trick no longer works. Many bi-variate operations, such as comparisons, then cannot be correctly computed. The only exception concerns multiplication.
+The computations of bi-variate functions is based on a trick: _concatenating_ two ciphertexts into one. Where the carry buffer is not at least as large as the message buffer, this trick no longer works. In this case, many bi-variate operations, such as comparisons, cannot be correctly computed. The only exception concerns multiplication.
 
 ### Multiplication.
 

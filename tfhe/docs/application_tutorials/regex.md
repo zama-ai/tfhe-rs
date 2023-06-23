@@ -229,7 +229,7 @@ execute our RegExpr onto the encrypted content.
 ### Encoding and encrypting the content.
 
 It is not possible to encrypt the entire content into a single encrypted value.
-We can only encrypt numbers and preform operations on those encrypted numbers with
+We can only encrypt numbers and perform operations on those encrypted numbers with
 FHE. Therefore, we have to find a scheme where we encode the content into a
 sequence of numbers that are then encrypted individually to form a sequence of
 encrypted numbers.

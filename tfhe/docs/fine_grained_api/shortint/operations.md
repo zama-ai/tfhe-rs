@@ -1,6 +1,6 @@
 # Operations
 
-The structure and the operations related to the short integers are described in this section.
+The structure and operations related to short integers are described in this section.
 
 ## How a shortint is represented
 
@@ -8,11 +8,11 @@ In `shortint`, the encrypted data is stored in an LWE ciphertext.
 
 Conceptually, the message stored in an LWE ciphertext is divided into a **carry buffer** and a **message buffer**.
 
-![](../\_static/ciphertext-representation.png)
+![](../../_static/ciphertext-representation.png)
 
-The message buffer is the space where the actual message is stored. This represents the modulus of the input messages (denoted by `MessageModulus` in the code). When doing computations on a ciphertext, the encrypted message can overflow the message modulus. The exceeding information is stored in the carry buffer. The size of the carry buffer is defined by another modulus, called `CarryModulus`.
+The message buffer is the space where the actual message is stored. This represents the modulus of the input messages (denoted by `MessageModulus` in the code). When doing computations on a ciphertext, the encrypted message can overflow the message modulus. The part of the message which exceeds the message modulus is stored in the carry buffer. The size of the carry buffer is defined by another modulus, called `CarryModulus`.
 
-Together, the message modulus and the carry modulus form the plaintext space that is available in a ciphertext. This space cannot be overflowed, otherwise the computation may result in incorrect outputs.
+Together, the message modulus and the carry modulus form the plaintext space that is available in a ciphertext. This space cannot be overflowed, otherwise the computation may result in an incorrect output.
 
 In order to ensure the correctness of the computation, we track the maximum value encrypted in a ciphertext via an associated attribute called the **degree**. When the degree reaches a defined threshold, the carry buffer may be emptied to safely resume the computations. In `shortint` the carry modulus is considered useful as a means to do more computations.
 
@@ -23,23 +23,23 @@ The operations available via a `ServerKey` may come in different variants:
 * operations that take their inputs as encrypted values
 * scalar operations that take at least one non-encrypted value as input
 
-For example, the addition has both variants:
+For example, the addition has two variants:
 
 * `ServerKey::unchecked_add`, which takes two encrypted values and adds them.
-* `ServerKey::unchecked_scalar_add`, which takes an encrypted value and a clear value (the so-called scalar) and adds them.
+* `ServerKey::unchecked_scalar_add`, which takes an encrypted value and a clear value (a so-called scalar) and adds them.
 
 Each operation may come in different 'flavors':
 
-* `unchecked`: Always does the operation, without checking if the result may exceed the capacity of the plaintext space. Using this operation might have an impact on the correctness of the following operations;
-* `checked`: Checks are done before computing the operation, returning an error if operation cannot be done safely;
-* `smart`: Always does the operation. If the operation cannot be computed safely, the smart operation will clear the carry modulus to make the operation possible;
-* `default`: Always does the operation and always clears the carry. Could be **slower** than smart, but it ensures that the timings are consistent from one call to another.
+* `unchecked`: always does the operation, without checking if the result may exceed the capacity of the plaintext space. Using this operation might have an impact on the correctness of the following operations;
+* `checked`: checks are done before computing the operation, returning an error if operation cannot be done safely;
+* `smart`: always does the operation. If the operation cannot be computed safely, the smart operation will clear the carry modulus to make the operation possible;
+* `default`: always does the operation and always clears the carry. Could be **slower** than smart, but it ensures that the timings are consistent from one call to another.
 
 Not all operations have these 4 flavors, as some of them are implemented in a way that the operation is always possible without ever exceeding the plaintext space capacity.
 
 ## How to use operation types
 
-Let's try to do a circuit evaluation using the different flavors of operations we already introduced. For a very small circuit, the `unchecked` flavour may be enough to do the computation correctly. Otherwise,`checked` and `smart` are the best options.
+Let's try to do a circuit evaluation using the different flavors of operations that we have already introduced. For a very small circuit, the `unchecked` flavour may be enough to do the computation correctly. Otherwise,`checked` and `smart` are the best options.
 
 Let's do a scalar multiplication, a subtraction, and a multiplication.
 
@@ -147,7 +147,7 @@ fn main() {
 }
 ```
 
-The  main advantage of the default flavor is to ensure predictable timings as long as only this kind of operation is used.
+The  main advantage of the default flavor is to ensure predictable timings as long as this is the only kind of operation which is used.
 
 {% hint style="warning" %}
 Using `default` could **slow-down** computations.

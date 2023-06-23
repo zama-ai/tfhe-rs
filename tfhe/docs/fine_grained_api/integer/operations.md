@@ -1,12 +1,12 @@
 # Operations
 
-The structure and operations related to the integers are described in this section.
+The structure and operations related to integers are described in this section.
 
 ## How an integer is represented
 
 In `integer`, the encrypted data is split amongst many ciphertexts encrypted with the `shortint` library. Below is a scheme representing an integer composed by k shortint ciphertexts.
 
-![](../\_static/integer-ciphertext.png)
+![](../../_static/integer-ciphertext.png)
 
 This crate implements two ways to represent an integer:
 
@@ -30,11 +30,11 @@ fn main() {
 }
 ```
 
-In this representation, the correctness of operations requires to propagate the carries between the ciphertext. This operation is costly since it relies on the computation of many programmable bootstrapping operations over shortints.
+In this representation, the correctness of operations requires the carries to be propagated throughout the ciphertext. This operation is costly, since it relies on the computation of many programmable bootstrapping operations over shortints.
 
 ### CRT-based integers.
 
-The second approach to represent large integers is based on the Chinese Remainder Theorem. In this case, the basis $$B$$ is composed of several integers $$b_i$$, such that there are pairwise coprime, and each $$b\_i$$ has a size smaller than 4 bits. The CRT-based integer are defined modulus $$\prod b_i$$. For an integer $$m$$, its CRT decomposition is simply defined as $$m % b_0, m % b_1, ...$$. Each part is then encrypted as a shortint ciphertext. In the end, an Integer ciphertext is defined as a set of shortint ciphertexts.
+The second approach to represent large integers is based on the Chinese Remainder Theorem. In this case, the basis $$B$$ is composed of several integers $$b_i$$, such that there are pairwise coprime, and each $$b\_i$$ has a size smaller than 4 bits. The CRT-based integer are defined modulus $$\prod b_i$$. For an integer $$m$$, its CRT decomposition is simply defined as $$m \bmod{b_0}, m \bmod{b_1}, ...$$. Each part is then encrypted as a shortint ciphertext. In the end, an Integer ciphertext is defined as a set of shortint ciphertexts.
 
 In the following example, the chosen basis is $$B = [2, 3, 5]$$. The integer is defined modulus $$2*3*5 = 30$$. There is no need to pre-size the number of blocks since it is determined from the number of values composing the basis. Here, the integer is split over three blocks.
 
@@ -51,7 +51,7 @@ fn main() {
 This representation has many advantages: no carry propagation is required, cleaning the carry buffer of each ciphertext block is enough. This implies that operations can easily be 
 parallelized. It also allows the efficient computation of PBS in the case where the function is CRT-compliant.
 
-A variant of the CRT is proposed, where each block might be associated to a different key couple. In the end, a keychain to the computations is required, but performance might be improved.
+A variant of the CRT is proposed where each block might be associated to a different key couple. Here, a keychain to the computations is required, but this may result in a performance improvement.
 
 ## List of available operations
 
@@ -86,10 +86,10 @@ For example, the addition has both variants:
 
 Each operation may come in different 'flavors':
 
-* `unchecked`: Always does the operation, without checking if the result may exceed the capacity of the plaintext space.
-* `checked`: Checks are done before computing the operation, returning an error if operation cannot be done safely.
-* `smart`: Always does the operation, if the operation cannot be computed safely, the smart operation will propagate the carry buffer to make the operation possible.
-* `default`: Always compute the operation and always clear the carry. Could be **slower** than smart, but ensure that the timings are consistent from one call to another.
+* `unchecked`: always does the operation, without checking if the result may exceed the capacity of the plaintext space.
+* `checked`: checks are done before computing the operation, returning an error if operation cannot be done safely.
+* `smart`: always does the operation, if the operation cannot be computed safely, the smart operation will propagate the carry buffer to make the operation possible.
+* `default`: always compute the operation and always clear the carry. Could be **slower** than smart, but ensure that the timings are consistent from one call to another.
 
 Not all operations have these 4 flavors, as some of them are implemented in a way that the operation is always possible without ever exceeding the plaintext space capacity.
 

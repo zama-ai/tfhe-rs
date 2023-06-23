@@ -1,6 +1,6 @@
 # Tutorial
 
-The steps to homomorphically evaluate a circuit are described below.
+`tfhe::shortint` is dedicated to small unsigned integers smaller than 8 bits. The steps to homomorphically evaluate a circuit are described below.
 
 ## Key generation
 
@@ -12,7 +12,7 @@ The steps to homomorphically evaluate a circuit are described below.
 
 The `ClientKey` is the key that encrypts and decrypts messages (integer values up to 8 bits here). It is meant to be kept private and should never be shared. This key is created from parameter values that will dictate both the security and efficiency of computations. The parameters also set the maximum number of bits of message encrypted in a ciphertext.
 
-The `ServerKey` is the key that is used to actually do the FHE computations. Most importantly, it contains a bootstrapping key and a keyswitching key. This key is created from a `ClientKey` that needs to be shared to the server, therefore it is not meant to be kept private. A user with a `ServerKey` can compute on the encrypted data sent by the owner of the associated `ClientKey`.
+The `ServerKey` is the key that is used to evaluate the FHE computations. Most importantly, it contains a bootstrapping key and a keyswitching key. This key is created from a `ClientKey` that needs to be shared to the server (it is not meant to be kept private). A user with a `ServerKey` can compute on the encrypted data sent by the owner of the associated `ClientKey`.
 
 Computation/operation methods are tied to the `ServerKey` type.
 
@@ -70,7 +70,7 @@ fn main() {
 
 ## Computing and decrypting
 
-With the `server_key`, addition is now possible over encrypted values. The resulting plaintext is recovered after the decryption with the secret client key.
+Using the `server_key`, addition is possible over encrypted values. The resulting plaintext is recovered after the decryption via the secret client key.
 
 ```rust
 use tfhe::shortint::prelude::*;

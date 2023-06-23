@@ -1,53 +1,97 @@
 use doc_comment::doctest;
 
-// readme
+// README
 doctest!("../../README.md", readme);
 
-// Getting started
-doctest!("../docs/getting_started/quick_start.md", quick_start);
-doctest!("../docs/getting_started/operations.md", operations);
+// GETTING STARTED
+doctest!(
+    "../docs/getting_started/operations.md",
+    getting_started_operations
+);
+doctest!(
+    "../docs/getting_started/quick_start.md",
+    getting_started_quick_start
+);
 
-// Booleans
-doctest!("../docs/Boolean/parameters.md", booleans_parameters);
-doctest!("../docs/Boolean/operations.md", booleans_operations);
-doctest!("../docs/Boolean/serialization.md", booleans_serialization);
-doctest!("../docs/Boolean/tutorial.md", booleans_tutorial);
+// HOW TO
+doctest!("../docs/how_to/compress.md", how_to_compress);
+doctest!(
+    "../docs/how_to/parallelized_pbs.md",
+    how_to_parallelized_pbs
+);
+doctest!("../docs/how_to/public_key.md", how_to_public_key);
+doctest!("../docs/how_to/serialization.md", how_to_serialize);
+doctest!(
+    "../docs/how_to/trivial_ciphertext.md",
+    how_to_trivial_ciphertext
+);
 
-// Shortint
-doctest!("../docs/shortint/parameters.md", shortint_parameters);
-doctest!("../docs/shortint/serialization.md", shortint_serialization);
-doctest!("../docs/shortint/tutorial.md", shortint_tutorial);
-doctest!("../docs/shortint/operations.md", shortint_operations);
+//FINE GRAINED API
+doctest!(
+    "../docs/fine_grained_api/quick_start.md",
+    fine_grained_api_quick_start
+);
+// fine_grained_api/Boolean
+doctest!(
+    "../docs/fine_grained_api/Boolean/operations.md",
+    booleans_operations
+);
+doctest!(
+    "../docs/fine_grained_api/Boolean/parameters.md",
+    booleans_parameters
+);
+doctest!(
+    "../docs/fine_grained_api/Boolean/serialization.md",
+    booleans_serialization
+);
+doctest!(
+    "../docs/fine_grained_api/Boolean/tutorial.md",
+    booleans_tutorial
+);
+
+// fine_grained_api/shortint
+doctest!(
+    "../docs/fine_grained_api/shortint/operations.md",
+    shortint_operations
+);
+
+doctest!(
+    "../docs/fine_grained_api/shortint/parameters.md",
+    shortint_parameters
+);
+doctest!(
+    "../docs/fine_grained_api/shortint/serialization.md",
+    shortint_serialization
+);
+doctest!(
+    "../docs/fine_grained_api/shortint/tutorial.md",
+    shortint_tutorial
+);
+
+// fine_grained_api/integer
+doctest!(
+    "../docs/fine_grained_api/integer/operations.md",
+    integer_operations
+);
+doctest!(
+    "../docs/fine_grained_api/integer/serialization.md",
+    integer_serialization_tuto
+);
+doctest!(
+    "../docs/fine_grained_api/integer/tutorial.md",
+    integer_first_circuit
+);
 
 // core_crypto
 doctest!(
     "../docs/core_crypto/presentation.md",
     core_crypto_presentation
 );
-doctest!("../docs/core_crypto/tutorial.md", core_crypto_turorial);
+doctest!("../docs/core_crypto/tutorial.md", core_crypto_tutorial);
 
-// Integer
-doctest!("../docs/integer/tutorial.md", integer_first_circuit);
-doctest!("../docs/integer/operations.md", integer_operations);
+// Tutorials
 doctest!(
-    "../docs/integer/serialization.md",
-    integer_serialization_tuto
+    "../docs/tutorials/latin_fhe_string.md",
+    latin_fhe_string_tutorial
 );
-
-// high_level_api
-doctest!(
-    "../docs/high_level_api/tutorial.md",
-    high_level_api_first_circuit
-);
-doctest!(
-    "../docs/high_level_api/operations.md",
-    high_level_api_operations
-);
-doctest!(
-    "../docs/high_level_api/serialization.md",
-    high_level_api_serialization_tuto
-);
-doctest!(
-    "../docs/high_level_api/tutorial.md",
-    high_level_api_tutorial
-);
+doctest!("../docs/tutorials/parity_bit.md", parity_bit_tutorial);

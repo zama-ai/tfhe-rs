@@ -3,49 +3,50 @@
 * [What is TFHE-rs?](README.md)
 
 ## Getting Started
-* [Installation](getting\_started/installation.md)
-* [Quick Start](getting\_started/quick\_start.md)
-* [Supported Operations](getting\_started/operations.md)
-* [Benchmarks](getting\_started/benchmarks.md)
-* [Security and Cryptography](getting\_started/security\_and\_cryptography.md)
+* [Installation](getting_started/installation.md)
+* [Quick Start](getting_started/quick_start.md)
+* [Operations](getting_started/operations.md)
+* [Benchmarks](getting_started/benchmarks.md)
+* [Security and Cryptography](getting_started/security_and_cryptography.md)
 
-## High Level API
-* [Tutorial](high_level_api/tutorial.md)
-* [Operations](high_level_api/operations.md)
-* [Serialization/Deserialization](high_level_api/serialization.md)
+## Tutorials 
+* [Homomorphic Parity Bit](tutorials/parity_bit.md)
+* [Homomorphic Case Changing on Latin String](tutorials/latin_fhe_string.md)
 
-## Boolean
-* [Tutorial](Boolean/tutorial.md)
-* [Operations](Boolean/operations.md)
-* [Cryptographic Parameters](Boolean/parameters.md)
-* [Serialization/Deserialization](Boolean/serialization.md)
+## How To
+* [Configure Rust](how_to/rust_configuration.md)
+* [Serialize/Deserialize](how_to/serialization.md)
+* [Compress Ciphertexts/Keys](how_to/compress.md)
+* [Use Public Key Encryption](how_to/public_key.md)
+* [Use Trivial Ciphertext](how_to/trivial_ciphertext.md)
+* [Use Parallelized PBS](how_to/parallelized_pbs.md)
+* [Use the C API](how_to/c_api.md)
+* [Use the JS on WASM API](how_to/js_on_wasm_api.md)
 
-## Shortint
-* [Tutorial](shortint/tutorial.md)
-* [Operations](shortint/operations.md)
-* [Cryptographic Parameters](shortint/parameters.md)
-* [Serialization/Deserialization](shortint/serialization.md)
+## Fine-grained APIs
+* [Quick Start](fine_grained_api/quick_start.md)
+* [Boolean](fine_grained_api/Boolean/tutorial.md)
+    * [Operations](fine_grained_api/Boolean/operations.md)
+    * [Cryptographic Parameters](fine_grained_api/Boolean/parameters.md)
+    * [Serialization/Deserialization](fine_grained_api/Boolean/serialization.md)
 
-## Integer
-* [Tutorial](integer/tutorial.md)
-* [Operations](integer/operations.md)
-* [Cryptographic Parameters](integer/parameters.md)
-* [Serialization/Deserialization](integer/serialization.md)
+* [Shortint](fine_grained_api/shortint/tutorial.md)
+    * [Operations](fine_grained_api/shortint/operations.md)
+    * [Cryptographic Parameters](fine_grained_api/shortint/parameters.md)
+    * [Serialization/Deserialization](fine_grained_api/shortint/serialization.md)
 
-## Tutorials for real-life applications
-* [Dark Market](tutorial/dark_market.md)
-* [SHA256](tutorial/sha256_bool.md)
-* [Homomorphic Regular Expressions](tutorial/regex/tutorial.md)
+* [Integer](fine_grained_api/integer/tutorial.md)
+    * [Operations](fine_grained_api/integer/operations.md)
+    * [Cryptographic Parameters](fine_grained_api/integer/parameters.md)
+    * [Serialization/Deserialization](fine_grained_api/integer/serialization.md)
+
+## Application Tutorials
+* [SHA256 with *Boolean API*](application_tutorials/sha256_bool.md)
+* [Dark Market with *Integer API*](application_tutorials/dark_market.md)
+* [Homomorphic Regular Expressions *Integer API*](application_tutorials/regex.md)
 
 
-## C API
-* [High-Level API](c_api/high-level-api.md)
-* [Shortint API](c_api/shortint-api.md)
-
-## JS on WASM API
-* [Tutorial](js_on_wasm_api/tutorial.md)
-
-## Low-Level Core Cryptography
+## Crypto Core API [Advanced users]
 * [Quick Start](core_crypto/presentation.md)
 * [Tutorial](core_crypto/tutorial.md)
 

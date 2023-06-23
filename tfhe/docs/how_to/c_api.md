@@ -1,12 +1,8 @@
-# High-Level API
-
-\#Using the High-level C API
+# High-Level API in C 
 
 This library exposes a C binding to the high-level TFHE-rs primitives to implement _Fully Homomorphic Encryption_ (FHE) programs.
 
-## First steps using TFHE-rs C API
-
-### Setting-up TFHE-rs C API for use in a C program.
+## Setting-up TFHE-rs C API for use in a C program.
 
 TFHE-rs C API can be built on a Unix x86\_64 machine using the following command:
 
@@ -54,7 +50,7 @@ endif()
 target_compile_options(${EXECUTABLE_NAME} PRIVATE -Werror)
 ```
 
-### Commented code of a uint128 subtraction using `TFHE-rs C API`.
+## Commented code of a uint128 subtraction using `TFHE-rs C API`.
 
 {% hint style="warning" %}
 WARNING: The following example does not have proper memory management in the error case to make it easier to fit the code on this page.
