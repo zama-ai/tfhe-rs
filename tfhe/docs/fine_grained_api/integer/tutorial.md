@@ -1,6 +1,6 @@
 # Tutorial
 
-The steps to homomorphically evaluate an integer circuit are described here.
+`tfhe::integer` is dedicated to unsigned integers smaller than 256 bits. The steps to homomorphically evaluate an integer circuit are described here.
 
 ## Key Types
 
@@ -14,7 +14,7 @@ The `ClientKey` is the key that encrypts and decrypts messages, thus this key is
 
 The `ServerKey` is the key that is used to actually do the FHE computations. It contains a bootstrapping key and a keyswitching key. This key is created from a `ClientKey` that needs to be shared to the server, so it is not meant to be kept private. A user with a `ServerKey` can compute on the encrypted data sent by the owner of the associated `ClientKey`.
 
-To reflect that, computation/operation methods are tied to the `ServerKey` type.
+To reflect this, computation/operation methods are tied to the `ServerKey` type.
 
 The `PublicKey` is a key used to encrypt messages. It can be publicly shared to allow users to encrypt data such that only the `ClientKey` holder will be able to decrypt. Encrypting with the `PublicKey` does not alter the homomorphic capabilities associated to the `ServerKey`.
 

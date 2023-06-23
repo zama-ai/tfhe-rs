@@ -1,8 +1,108 @@
 # Tutorial
 
-## Using the JS on WASM API
 
-Welcome to this TFHE-rs JS on WASM API tutorial.
+TFHE-rs supports WASM for the client api, that is, it supports key generation, encryption, decryption but not doing actual computations.
+
+TFHE-rs supports 3 WASM 'targets':
+- nodejs: to be used in a nodejs app/package
+- web: to be used in a web browser
+- web-parallel: to be used in a web browser with multi-threading support
+
+In all cases, the core of the API is same, only few initialization function
+changes.
+
+
+## Example
+
+### nodejs
+
+```javascript
+
+const {
+    init_panic_hook,
+    ShortintParametersName,
+    ShortintParameters,
+    TfheClientKey,
+    TfheCompactPublicKey,
+    TfheCompressedServerKey,
+    TfheConfigBuilder,
+    CompactFheUint32List
+} = require("./pkg/tfhe.js");
+
+function fhe_uint32_example() {
+    // Makes it so that if a rust thread panics,
+    // the error message will be displayed in the console
+    init_panic_hook();
+
+    const block_params = new ShortintParameters(ShortintParametersName.PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
+    let config = TfheConfigBuilder.all_disabled()
+        .enable_default_integers()
+        .build();
+
+    let clientKey = TfheClientKey.generate(config);
+    let compressedServerKey = TfheCompressedServerKey.new(clientKey);
+    let publicKey = TfheCompactPublicKey.new(clientKey);
+
+    let values = [0, 1, 2394, U32_MAX];
+    let compact_list = CompactFheUint32List.encrypt_with_compact_public_key(values, publicKey);
+
+    let serialized_list = compact_list.serialize();
+    let deserialized_list = CompactFheUint32List.deserialize(serialized_list);
+    let encrypted_list = deserialized_list.expand();
+    assert.deepStrictEqual(encrypted_list.length, values.length);
+
+    for (let i = 0; i < values.length; i++)
+    {
+        let decrypted = encrypted_list[i].decrypt(clientKey);
+        assert.deepStrictEqual(decrypted, values[i]);
+    }
+}
+```
+
+### Web
+
+- When using the Web WASM target, there is an additional `init` function to call.
+- When using the Web WASM target with parallelism enabled, there is also one more initialization function to call `initThreadPool`
+
+#### Example
+
+```js
+import init, {
+    initThreadPool, // only available with parallelism
+    init_panic_hook,
+    ShortintParametersName,
+    ShortintParameters,
+    TfheClientKey,
+    TfhePublicKey,
+} from "./pkg/tfhe.js";
+
+async function example() {
+    await init()
+    await initThreadPool(navigator.hardwareConcurrency);
+    await init_panic_hook();
+
+    const block_params = new ShortintParameters(ShortintParametersName.PARAM_SMALL_MESSAGE_2_CARRY_2_COMPACT_PK);
+    // ....
+}
+```
+
+## Compiling the WASM API
+
+The TFHE-rs repo has a Makefile that contains targets for each of the 3 possible variants of the API:
+
+- `make build_node_js_api` to build the nodejs API
+- `make build_web_js_api` to build the browser API
+- `make build_web_js_api_parallel` to build the browser API with parallelism
+
+The compiled WASM package will be in tfhe/pkg.
+
+{% hint style="info" %}
+The sequential browser API and the nodejs API are published as npm packages.
+You can add the browser API to your project using the command `npm i tfhe`.
+You can add the nodejs API to your project using the command `npm i node-tfhe`.
+{% endhint %}
+
+## Using the JS on WASM API
 
 TFHE-rs uses WASM to expose a JS binding to the client-side primitives, like key generation and encryption, of the Boolean and shortint modules.
 

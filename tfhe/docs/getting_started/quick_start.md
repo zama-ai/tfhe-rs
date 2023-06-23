@@ -1,39 +1,17 @@
-# Quick Start
+# Tutorial
 
-This library makes it possible to execute **homomorphic operations over encrypted data**, where the data are either Booleans, short integers (named shortint in the rest of this documentation), or integers up to 256 bits. It allows you to execute a circuit on an **untrusted server** because both circuit inputs and outputs are kept **private**. Data are indeed encrypted on the client side, before being sent to the server. On the server side, every computation is performed on ciphertexts.
+## Quick Start
 
-The server, however, has to know the circuit to be evaluated. At the end of the computation, the server returns the encryption of the result to the user. Then the user can decrypt it with the `secret key`.
+The basic steps for using the high-level API of TFHE-rs are:
 
-## General method to write an homomorphic circuit program
+1. Importing the TFHE-rs prelude;
+2. Client-side: Configuring and creating keys;
+3. Client-side: Encrypting data;
+4. Server-side: Setting the server key;
+5. Server-side: Computing over encrypted data;
+6. Client-side: Decrypting data.
 
-The overall process to write an homomorphic program is the same for all types. The basic steps for using the TFHE-rs library are the following:
-
-1. Choose a data type (Boolean, shortint, integer)
-2. Import the library
-3. Create client and server keys
-4. Encrypt data with the client key
-5. Compute over encrypted data using the server key
-6. Decrypt data with the client key
-
-### API levels.
-
-This library has different modules, with different levels of abstraction.
-
-There is the **core\_crypto** module, which is the lowest level API with the primitive functions and types of the TFHE scheme.
-
-Above the core\_crypto module, there are the B**oolean**, **shortint**, and **integer** modules, which simply allow evaluation of Boolean, short integer, and integer circuits.
-
-Finally, there is the high-level module built on top of the Boolean, shortint, integer modules. This module is meant to abstract cryptographic complexities: no cryptographical knowledge is required to start developing an FHE application. Another benefit of the high-level module is the drastically simplified development process compared to lower level modules.
-
-#### high-level API
-
-TFHE-rs exposes a high-level API by default that includes datatypes that try to match Rust's native types by having overloaded operators (+, -, ...).
-
-Here is an example of how the high-level API is used:
-
-{% hint style="warning" %}
-Use the `--release` flag to run this example (eg: `cargo run --release`)
-{% endhint %}
+Here is a full example (combining the client and server parts):
 
 ```rust
 use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8};
@@ -44,9 +22,8 @@ fn main() {
         .enable_default_integers()
         .build();
 
+    // Client-side
     let (client_key, server_key) = generate_keys(config);
-
-    set_server_key(server_key);
 
     let clear_a = 27u8;
     let clear_b = 128u8;
@@ -54,8 +31,11 @@ fn main() {
     let a = FheUint8::encrypt(clear_a, &client_key);
     let b = FheUint8::encrypt(clear_b, &client_key);
 
+    //Server-side
+    set_server_key(server_key);
     let result = a + b;
 
+    //Client-side
     let decrypted_result: u8 = result.decrypt(&client_key);
 
     let clear_result = clear_a + clear_b;
@@ -64,98 +44,101 @@ fn main() {
 }
 ```
 
-#### Boolean example
+The default configuration for x86 Unix machines:
+```toml
+tfhe = { version = "0.3.0", features = ["integer", "x86_64-unix"]}
+```
 
-Here is an example of how the library can be used to evaluate a Boolean circuit:
+Configuration options for different platforms can be found [here](../getting_started/installation.md). Other rust and homomorphic types features can be found [here](../how_to/rust_configuration.md).
 
-{% hint style="warning" %}
-Use the `--release` flag to run this example (eg: `cargo run --release`)
-{% endhint %}
+### Imports.
+
+`tfhe` uses `traits` to have a consistent API for creating FHE types and enable users to write generic functions. To be able to use associated functions and methods of a trait, the trait has to be in scope.
+
+To make it easier, the `prelude` 'pattern' is used. All of the important `tfhe` traits are in a `prelude` module that you can **glob import**. With this, there is no need to remember or know the traits that you want to import.
 
 ```rust
-use tfhe::boolean::prelude::*;
+use tfhe::prelude::*;
+```
+
+### 1. Configuring and creating keys.
+
+The first step is the creation of the configuration. The configuration is used to declare which type you will (or will not) use, as well as enabling you to use custom crypto-parameters for these types. Custom parameters should only be used for more advanced usage and/or testing.
+
+A configuration can be created by using the ConfigBuilder type.
+
+In this example, 8-bit unsigned integers with default parameters are used. The `integers` 
+feature must also be enabled, as per the table on [this page](../how_to/rust_configuration.md#choosing-your-features).
+
+The config is generated by first creating a builder with all types deactivated. Then, the integer types with default parameters are activated, since we are going to use FheUint8 values.
+
+```rust
+use tfhe::{ConfigBuilder, generate_keys};
 
 fn main() {
-    // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys();
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
 
-    // We use the client secret key to encrypt two messages:
-    let ct_1 = client_key.encrypt(true);
-    let ct_2 = client_key.encrypt(false);
-
-    // We use the server public key to execute a boolean circuit:
-    // if ((NOT ct_2) NAND (ct_1 AND ct_2)) then (NOT ct_2) else (ct_1 AND ct_2)
-    let ct_3 = server_key.not(&ct_2);
-    let ct_4 = server_key.and(&ct_1, &ct_2);
-    let ct_5 = server_key.nand(&ct_3, &ct_4);
-    let ct_6 = server_key.mux(&ct_5, &ct_3, &ct_4);
-
-    // We use the client key to decrypt the output of the circuit:
-    let output = client_key.decrypt(&ct_6);
-    assert_eq!(output, true);
+    let (client_key, server_key) = generate_keys(config);
 }
 ```
 
-#### shortint example
+The `generate_keys` command returns a client key and a server key.
 
-Here is a full example using shortint:
+The `client_key` is meant to stay private and not leave the client, whereas the `server_key` can be made public and sent to a server for it to enable FHE computations.
 
-{% hint style="warning" %}
-Use the `--release` flag to run this example (eg: `cargo run --release`)
-{% endhint %}
+### 2. Setting the server key.
+
+The next step is to call `set_server_key`
+
+This function will **move** the server key to an internal state of the crate and manage the details to give a simpler interface.
 
 ```rust
-use tfhe::shortint::prelude::*;
+use tfhe::{ConfigBuilder, generate_keys, set_server_key};
 
 fn main() {
-    // We generate a set of client/server keys
-    // using parameters with 2 bits of message and 2 bits of carry
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
 
-    let msg1 = 1;
-    let msg2 = 0;
+    let (client_key, server_key) = generate_keys(config);
 
-    let modulus = client_key.parameters.message_modulus().0;
-
-    // We use the client key to encrypt two messages:
-    let ct_1 = client_key.encrypt(msg1);
-    let ct_2 = client_key.encrypt(msg2);
-
-    // We use the server public key to execute an integer circuit:
-    let ct_3 = server_key.unchecked_add(&ct_1, &ct_2);
-
-    // We use the client key to decrypt the output of the circuit:
-    let output = client_key.decrypt(&ct_3);
-    assert_eq!(output, (msg1 + msg2) % modulus as u64);
+    set_server_key(server_key);
 }
 ```
 
-#### integer example
+### 3. Encrypting data.
 
-{% hint style="warning" %}
-Use the `--release` flag to run this example (eg: `cargo run --release`)
-{% endhint %}
+Encrypting data is achieved via the `encrypt` associated function of the FheEncrypt trait.
 
-```rust
-use tfhe::integer::gen_keys_radix;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+Types exposed by this crate implement at least one of FheEncrypt or FheTryEncrypt to allow encryption.
 
-fn main() {
-    // We create keys for radix represention to create 16 bits integers
-    // using 8 blocks of 2 bits
-    let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 8);
+```Rust
+let clear_a = 27u8;
+let clear_b = 128u8;
 
-    let clear_a = 2382u16;
-    let clear_b = 29374u16;
-
-    let mut a = cks.encrypt(clear_a as u64);
-    let mut b = cks.encrypt(clear_b as u64);
-
-    let encrypted_max = sks.smart_max_parallelized(&mut a, &mut b);
-    let decrypted_max: u64 = cks.decrypt(&encrypted_max);
-
-    assert_eq!(decrypted_max as u16, clear_a.max(clear_b))
-}
+let a = FheUint8::encrypt(clear_a, &client_key);
+let b = FheUint8::encrypt(clear_b, &client_key);
 ```
 
-The library is simple to use and can evaluate **homomorphic circuits of arbitrary length**. The description of the algorithms can be found in the [TFHE](https://doi.org/10.1007/s00145-019-09319-x) paper (also available as [ePrint 2018/421](https://ia.cr/2018/421)).
+### 4. Computation and decryption.
+
+Computations should be as easy as normal Rust to write, thanks to the usage of operator overloading.
+
+```Rust
+let result = a + b;
+```
+
+The decryption is achieved by using the `decrypt` method, which comes from the FheDecrypt trait.
+
+```Rust
+let decrypted_result: u8 = result.decrypt(&client_key);
+
+let clear_result = clear_a + clear_b;
+
+assert_eq!(decrypted_result, clear_result);
+```
+
+
+

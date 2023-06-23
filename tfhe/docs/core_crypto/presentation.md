@@ -1,12 +1,12 @@
 # Quick Start
 
-The `core_crypto` module from TFHE-rs is dedicated to the implementation of the cryptographic tools related to TFHE. To construct an FHE application, the [shortint](../shortint/tutorial.md) and/or [Boolean](../Boolean/tutorial.md) modules (based on this one) are recommended.
+The `core_crypto` module from `TFHE-rs` is dedicated to the implementation of the cryptographic tools related to TFHE. To construct an FHE application, the [shortint](../fine_grained_api/shortint/tutorial.md) and/or [Boolean](../fine_grained_api/Boolean/tutorial.md) modules (based on `core_crypto`) are recommended.
 
-The `core_crypto` module offers an API to low-level cryptographic primitives and objects, like `lwe_encryption` or `rlwe_ciphertext`. Its goal is to propose an easy-to-use API for cryptographers.
+The `core_crypto` module offers an API to low-level cryptographic primitives and objects, like `lwe_encryption` or `rlwe_ciphertext`. The goal is to propose an easy-to-use API for cryptographers.
 
 The overall code architecture is split in two parts: one for entity definitions and another focused on algorithms. The entities contain the definition of useful types, like LWE ciphertext or bootstrapping keys. The algorithms are then naturally defined to work using these entities.
 
-The API is convenient to easily add or modify existing algorithms or to have direct access to the raw data. Even if the LWE ciphertext object is defined along with functions giving access to the body, this is also possible to bypass these to get directly the $$i^{th}$$ element of LWE mask.
+The API is convenient to add or modify existing algorithms, or to have direct access to the raw data. Even if the LWE ciphertext object is defined, along with functions giving access to the body, it is also possible to bypass these to get directly the $$i^{th}$$ element of LWE mask.
 
 For instance, the code to encrypt and then decrypt a message looks like:
 
