@@ -4,6 +4,7 @@ use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
+use crate::shortint::CarryModulus;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -145,6 +146,50 @@ impl ClientKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .encrypt_with_message_modulus(self, message, message_modulus)
+                .unwrap()
+        })
+    }
+
+    /// Encrypt a small integer message using the client key with a specific message and carry
+    /// moduli.
+    ///
+    /// # Warning
+    /// Defining specific message AND carry moduli might lead to incorrect homomorphic
+    /// computations.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::parameters::{MessageModulus, PARAM_MESSAGE_2_CARRY_2};
+    /// use tfhe::shortint::{CarryModulus, ClientKey};
+    ///
+    /// // Generate the client key
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2);
+    ///
+    /// let msg = 3;
+    ///
+    /// // Encryption of one message with MessageModulus = 2 and CarryModulus = 2
+    /// // so that 6*2 < 2^(2 + 2) from the parameter set
+    /// let ct = cks.encrypt_with_message_and_carry_modulus(msg, MessageModulus(6), CarryModulus(2));
+    ///
+    /// // Decryption:
+    /// let dec = cks.decrypt(&ct);
+    /// assert_eq!(msg, dec);
+    /// ```
+    pub fn encrypt_with_message_and_carry_modulus(
+        &self,
+        message: u64,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> Ciphertext {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .encrypt_with_message_and_carry_modulus(
+                    self,
+                    message,
+                    message_modulus,
+                    carry_modulus,
+                )
                 .unwrap()
         })
     }
