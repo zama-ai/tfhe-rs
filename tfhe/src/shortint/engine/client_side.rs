@@ -126,6 +126,51 @@ impl ShortintEngine {
         })
     }
 
+    pub(crate) fn encrypt_with_message_and_carry_modulus(
+        &mut self,
+        client_key: &ClientKey,
+        message: u64,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> EngineResult<Ciphertext> {
+        assert!(
+            message_modulus.0 * carry_modulus.0
+                <= client_key.parameters.message_modulus().0
+                    * client_key.parameters.carry_modulus().0,
+            "MessageModulus * CarryModulus should be \
+            smaller or equal to the max given by the parameter set."
+        );
+
+        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
+
+        let (encryption_lwe_sk, encryption_noise) = match params_op_order {
+            PBSOrder::KeyswitchBootstrap => (
+                &client_key.large_lwe_secret_key,
+                client_key.parameters.glwe_modular_std_dev(),
+            ),
+            PBSOrder::BootstrapKeyswitch => (
+                &client_key.small_lwe_secret_key,
+                client_key.parameters.lwe_modular_std_dev(),
+            ),
+        };
+
+        let ct = self.encrypt_inner_ct(
+            &client_key.parameters,
+            encryption_lwe_sk,
+            encryption_noise,
+            message,
+            message_modulus,
+        );
+
+        Ok(Ciphertext {
+            ct,
+            degree: Degree(message_modulus.0 - 1),
+            message_modulus,
+            carry_modulus,
+            pbs_order: params_op_order,
+        })
+    }
+
     pub(crate) fn encrypt_with_message_modulus_compressed(
         &mut self,
         client_key: &ClientKey,

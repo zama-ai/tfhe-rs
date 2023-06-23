@@ -207,6 +207,9 @@ create_parametrized_test_bivariate_pbs_compliant!(
 create_parametrized_test_bivariate_pbs_compliant!(
     shortint_encrypt_with_message_modulus_smart_add_and_mul
 );
+create_parametrized_test_bivariate_pbs_compliant!(
+    shortint_encrypt_with_message_and_carry_modulus_smart_add_and_mul
+);
 create_parametrized_test_bivariate_pbs_compliant!(shortint_unchecked_less_or_equal_trivial);
 
 /// test encryption and decryption with the LWE client key
@@ -3117,6 +3120,55 @@ where
         println!("ADD:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
         let ct_res = sks.unchecked_add(&ct1, &ct2);
         assert_eq!((clear1 + clear2), cks.decrypt_message_and_carry(&ct_res));
+    }
+}
+
+/// test encryption and decryption with the LWE client key
+fn shortint_encrypt_with_message_and_carry_modulus_smart_add_and_mul<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let mut rng = rand::thread_rng();
+
+    let param_msg_mod = cks.parameters.message_modulus().0;
+    let param_carry_mod = cks.parameters.carry_modulus().0;
+
+    for _ in 0..NB_TEST {
+        let msg_modulus = rng.gen_range(2u64..param_msg_mod as u64);
+        let carry_modulus = rng.gen_range(2u64..param_carry_mod as u64);
+
+        let modulus = msg_modulus * carry_modulus;
+
+        let clear1 = rng.gen::<u64>() % msg_modulus;
+        let clear2 = rng.gen::<u64>() % msg_modulus;
+
+        let mut ct1 = cks.encrypt_with_message_and_carry_modulus(
+            clear1,
+            MessageModulus(msg_modulus as usize),
+            CarryModulus(carry_modulus as usize),
+        );
+        let mut ct2 = cks.encrypt_with_message_and_carry_modulus(
+            clear2,
+            MessageModulus(msg_modulus as usize),
+            CarryModulus(carry_modulus as usize),
+        );
+
+        println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, msg_mod = {msg_modulus}, carry_mod = {carry_modulus}");
+        let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct1, &mut ct2);
+        assert_eq!(
+            (clear1 * clear2) % msg_modulus,
+            cks.decrypt_message_and_carry(&ct_res) % msg_modulus
+        );
+
+        println!("ADD:: clear1 = {clear1}, clear2 = {clear2}, msg_mod = {msg_modulus}, carry_mod = {carry_modulus}");
+        let ct_res = sks.unchecked_add(&ct1, &ct2);
+        assert_eq!(
+            (clear1 + clear2) % modulus,
+            cks.decrypt_message_and_carry(&ct_res) % modulus
+        );
     }
 }
 
