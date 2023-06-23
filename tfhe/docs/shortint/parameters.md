@@ -8,7 +8,9 @@ All parameter sets provide at least 128-bits of security according to the [Latti
 
 The user is allowed to choose which set of parameters to use when creating the pair of keys.
 
-The difference between the parameter sets is the total amount of space dedicated to the plaintext and how it is split between the message buffer and the carry buffer. The syntax chosen for the name of a parameter is: `PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}`. For example, the set of parameters for a message buffer of 5 bits and a carry buffer of 2 bits is `PARAM_MESSAGE_5_CARRY_2_KS_PBS`.
+The difference between the parameter sets is the total amount of space dedicated to the plaintext, how it is split between the message buffer and the carry buffer and the order in which the keyswitch (KS) and bootstrap (PBS) are computed. The syntax chosen for the name of a parameter is: `PARAM_MESSAGE_{number of message bits}_CARRY_{number of carry bits}_{KS_PBS | PBS_KS}`. For example, the set of parameters for a message buffer of 5 bits, a carry buffer of 2 bits and where the keyswitch is computed before the bootstrap is `PARAM_MESSAGE_5_CARRY_2_KS_PBS`.
+
+Note that the `KS_PBS` order should have better performance at the expense of ciphertext size, `PBS_KS` is the opposite.
 
 This example contains keys that are generated to have messages encoded over 2 bits (i.e., computations are done modulus $$2^2 = 4$$) with 2 bits of carry.
 
