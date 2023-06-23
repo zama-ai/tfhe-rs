@@ -83,7 +83,7 @@ impl Display for UninitializedClientKey {
         write!(
             f,
             "The client key for the type '{:?}' was not properly initialized\n\
-             Dis you forget to enable the type in the config ?
+             Did you forget to enable the type in the config ?
             ",
             self.0
         )
@@ -101,7 +101,7 @@ impl Display for UninitializedPublicKey {
         write!(
             f,
             "The public key for the type '{:?}' was not properly initialized\n\
-             Dis you forget do enable the type in the config  ?
+             Did you forget do enable the type in the config  ?
             ",
             self.0
         )
@@ -119,7 +119,7 @@ impl Display for UninitializedCompressedPublicKey {
         write!(
             f,
             "The compressed public key for the type '{:?}' was not properly initialized\n\
-             Dis you forget do enable the type in the config  ?
+             Did you forget do enable the type in the config  ?
             ",
             self.0
         )
