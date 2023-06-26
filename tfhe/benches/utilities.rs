@@ -4,6 +4,7 @@ use std::path::PathBuf;
 #[cfg(feature = "boolean")]
 use tfhe::boolean::parameters::BooleanParameters;
 use tfhe::core_crypto::prelude::*;
+use tfhe::shortint::parameters::ShortintKeySwitchingParameters;
 #[cfg(feature = "shortint")]
 use tfhe::shortint::ClassicPBSParameters;
 
@@ -71,6 +72,30 @@ impl From<ClassicPBSParameters> for CryptoParametersRecord {
             cbs_base_log: None,
             message_modulus: Some(params.message_modulus.0),
             carry_modulus: Some(params.carry_modulus.0),
+        }
+    }
+}
+
+#[cfg(feature = "shortint")]
+impl From<ShortintKeySwitchingParameters> for CryptoParametersRecord {
+    fn from(params: ShortintKeySwitchingParameters) -> Self {
+        CryptoParametersRecord {
+            lwe_dimension: None,
+            glwe_dimension: None,
+            polynomial_size: None,
+            lwe_modular_std_dev: None,
+            glwe_modular_std_dev: None,
+            pbs_base_log: None,
+            pbs_level: None,
+            ks_base_log: Some(params.ks_base_log),
+            ks_level: Some(params.ks_level),
+            pfks_level: None,
+            pfks_base_log: None,
+            pfks_modular_std_dev: None,
+            cbs_level: None,
+            cbs_base_log: None,
+            message_modulus: None,
+            carry_modulus: None,
         }
     }
 }

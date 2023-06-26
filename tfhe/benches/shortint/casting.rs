@@ -1,3 +1,5 @@
+use crate::utilities::{write_to_json, OperatorType};
+
 use tfhe::shortint::prelude::*;
 
 use rayon::prelude::*;
@@ -8,15 +10,19 @@ pub fn pack_cast_64(c: &mut Criterion) {
     let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
+    let ks_param = PARAM_KEYSWITCH_1_1_TO_2_2;
+    let ks_param_name = "PARAM_KEYSWITCH_1_1_TO_2_2";
+
     let ksk = KeySwitchingKey::new(
         (&client_key_1, &server_key_1),
         (&client_key_2, &server_key_2),
-        PARAM_KEYSWITCH_1_1_TO_2_2,
+        ks_param,
     );
 
     let vec_ct = vec![client_key_1.encrypt(1); 64];
 
-    c.bench_function("pack_cast_64", |b| {
+    let bench_id = format!("Casting::pack_cast_64_{}", ks_param_name);
+    c.bench_function(&bench_id, |b| {
         b.iter(|| {
             let _ = (0..32)
                 .into_par_iter()
@@ -34,45 +40,83 @@ pub fn pack_cast_64(c: &mut Criterion) {
                 .collect::<Vec<_>>();
         });
     });
+
+    write_to_json(
+        &bench_id,
+        ks_param,
+        ks_param_name,
+        "pack_cast_64",
+        &OperatorType::Atomic,
+        0,
+        vec![],
+    );
 }
 
 pub fn pack_cast(c: &mut Criterion) {
     let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
+    let ks_param = PARAM_KEYSWITCH_1_1_TO_2_2;
+    let ks_param_name = "PARAM_KEYSWITCH_1_1_TO_2_2";
+
     let ksk = KeySwitchingKey::new(
         (&client_key_1, &server_key_1),
         (&client_key_2, &server_key_2),
-        PARAM_KEYSWITCH_1_1_TO_2_2,
+        ks_param,
     );
 
     let ct_1 = client_key_1.encrypt(1);
     let ct_2 = client_key_1.encrypt(1);
 
-    c.bench_function("pack_cast", |b| {
+    let bench_id = format!("Casting::pack_cast_{}", ks_param_name);
+    c.bench_function(&bench_id, |b| {
         b.iter(|| {
             let _ = ksk.cast(
                 &server_key_1.unchecked_add(&ct_1, &server_key_1.unchecked_scalar_mul(&ct_2, 2)),
             );
         });
     });
+
+    write_to_json(
+        &bench_id,
+        ks_param,
+        ks_param_name,
+        "pack_cast",
+        &OperatorType::Atomic,
+        0,
+        vec![],
+    );
 }
 
 pub fn cast(c: &mut Criterion) {
     let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
+    let ks_param = PARAM_KEYSWITCH_1_1_TO_2_2;
+    let ks_param_name = "PARAM_KEYSWITCH_1_1_TO_2_2";
+
     let ksk = KeySwitchingKey::new(
         (&client_key_1, &server_key_1),
         (&client_key_2, &server_key_2),
-        PARAM_KEYSWITCH_1_1_TO_2_2,
+        ks_param,
     );
 
     let ct = client_key_1.encrypt(1);
 
-    c.bench_function("cast", |b| {
+    let bench_id = format!("Casting::cast_{}", ks_param_name);
+    c.bench_function(&bench_id, |b| {
         b.iter(|| {
             let _ = ksk.cast(&ct);
         });
     });
+
+    write_to_json(
+        &bench_id,
+        ks_param,
+        ks_param_name,
+        "cast",
+        &OperatorType::Atomic,
+        0,
+        vec![],
+    );
 }
