@@ -636,6 +636,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertext<C> {
     pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
         self.ciphertext_modulus
     }
+
+    pub fn data(&self) -> &C {
+        &self.data
+    }
 }
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweCiphertext<C> {
