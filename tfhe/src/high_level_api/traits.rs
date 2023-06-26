@@ -164,3 +164,9 @@ pub trait RotateLeftAssign<Rhs = Self> {
 pub trait RotateRightAssign<Rhs = Self> {
     fn rotate_right_assign(&mut self, amount: Rhs);
 }
+
+pub trait DivRem<Rhs = Self> {
+    type Output;
+
+    fn div_rem(self, amount: Rhs) -> Self::Output;
+}

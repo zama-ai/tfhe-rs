@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
-    Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::errors::{
@@ -14,8 +14,9 @@ use crate::high_level_api::integers::IntegerServerKey;
 use crate::high_level_api::internal_traits::{DecryptionKey, TypeIdentifier};
 use crate::high_level_api::keys::{CompressedPublicKey, RefKeyFromKeyChain};
 use crate::high_level_api::traits::{
-    FheBootstrap, FheDecrypt, FheEq, FheMax, FheMin, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
-    FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign,
+    DivRem, FheBootstrap, FheDecrypt, FheEq, FheMax, FheMin, FheOrd, FheTrivialEncrypt,
+    FheTryEncrypt, FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight,
+    RotateRightAssign,
 };
 use crate::high_level_api::{ClientKey, PublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
@@ -669,6 +670,96 @@ where
     }
 }
 
+impl<P, Clear> DivRem<Clear> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    Clear: Into<u64>,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = (Self, Self);
+
+    fn div_rem(self, rhs: Clear) -> Self::Output {
+        <&Self as DivRem<Clear>>::div_rem(&self, rhs)
+    }
+}
+
+impl<P, Clear> DivRem<Clear> for &GenericInteger<P>
+where
+    P: IntegerParameter,
+    Clear: Into<u64>,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = (GenericInteger<P>, GenericInteger<P>);
+
+    fn div_rem(self, rhs: Clear) -> Self::Output {
+        let (q, r) = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .scalar_div_rem_parallelized(&self.ciphertext, rhs.into())
+        });
+        (
+            GenericInteger::<P>::new(q, self.id),
+            GenericInteger::<P>::new(r, self.id),
+        )
+    }
+}
+
+impl<P> DivRem<GenericInteger<P>> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = (GenericInteger<P>, GenericInteger<P>);
+
+    fn div_rem(self, rhs: GenericInteger<P>) -> Self::Output {
+        <Self as DivRem<&GenericInteger<P>>>::div_rem(self, &rhs)
+    }
+}
+
+impl<P> DivRem<&GenericInteger<P>> for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = (GenericInteger<P>, GenericInteger<P>);
+
+    fn div_rem(self, rhs: &GenericInteger<P>) -> Self::Output {
+        <&Self as DivRem<&GenericInteger<P>>>::div_rem(&self, rhs)
+    }
+}
+
+impl<P> DivRem<GenericInteger<P>> for &GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = (GenericInteger<P>, GenericInteger<P>);
+
+    fn div_rem(self, rhs: GenericInteger<P>) -> Self::Output {
+        <Self as DivRem<&GenericInteger<P>>>::div_rem(self, &rhs)
+    }
+}
+
+impl<P> DivRem<&GenericInteger<P>> for &GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    type Output = (GenericInteger<P>, GenericInteger<P>);
+
+    fn div_rem(self, rhs: &GenericInteger<P>) -> Self::Output {
+        let (q, r) = self.id.with_unwrapped_global(|integer_key| {
+            integer_key
+                .pbs_key()
+                .div_rem_parallelized(&self.ciphertext, &rhs.ciphertext)
+        });
+        (
+            GenericInteger::<P>::new(q, self.id),
+            GenericInteger::<P>::new(r, self.id),
+        )
+    }
+}
+
 macro_rules! generic_integer_impl_operation (
     ($rust_trait_name:ident($rust_trait_method:ident) => $key_method:ident) => {
 
@@ -793,6 +884,8 @@ generic_integer_impl_operation!(Shl(shl) => left_shift_parallelized);
 generic_integer_impl_operation!(Shr(shr) => right_shift_parallelized);
 generic_integer_impl_operation!(RotateLeft(rotate_left) => rotate_left_parallelized);
 generic_integer_impl_operation!(RotateRight(rotate_right) => rotate_right_parallelized);
+generic_integer_impl_operation!(Div(div) => div_parallelized);
+generic_integer_impl_operation!(Rem(rem) => rem_parallelized);
 
 generic_integer_impl_operation_assign!(AddAssign(add_assign) => add_assign_parallelized);
 generic_integer_impl_operation_assign!(SubAssign(sub_assign) => sub_assign_parallelized);
@@ -804,22 +897,34 @@ generic_integer_impl_operation_assign!(ShlAssign(shl_assign) => left_shift_assig
 generic_integer_impl_operation_assign!(ShrAssign(shr_assign) => right_shift_assign_parallelized);
 generic_integer_impl_operation_assign!(RotateLeftAssign(rotate_left_assign) => rotate_left_assign_parallelized);
 generic_integer_impl_operation_assign!(RotateRightAssign(rotate_right_assign) => rotate_right_assign_parallelized);
+generic_integer_impl_operation_assign!(DivAssign(div_assign) => div_assign_parallelized);
+generic_integer_impl_operation_assign!(RemAssign(rem_assign) => rem_assign_parallelized);
 
 generic_integer_impl_scalar_operation!(Add(add) => scalar_add_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(Sub(sub) => scalar_sub_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(Mul(mul) => scalar_mul_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(BitAnd(bitand) => scalar_bitand_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(BitOr(bitor) => scalar_bitor_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(BitXor(bitxor) => scalar_bitxor_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(Shl(shl) => scalar_left_shift_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(Shr(shr) => scalar_right_shift_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(RotateLeft(rotate_left) => scalar_rotate_left_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation!(RotateRight(rotate_right) => scalar_rotate_right_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(Div(div) => scalar_div_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(Rem(rem) => scalar_rem_parallelized(u8, u16, u32, u64));
 
 generic_integer_impl_scalar_operation_assign!(AddAssign(add_assign) => scalar_add_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(SubAssign(sub_assign) => scalar_sub_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(MulAssign(mul_assign) => scalar_mul_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(BitAndAssign(bitand_assign) => scalar_bitand_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(BitOrAssign(bitor_assign) => scalar_bitor_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(BitXorAssign(bitxor_assign) => scalar_bitxor_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(ShlAssign(shl_assign) => scalar_left_shift_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(ShrAssign(shr_assign) => scalar_right_shift_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(RotateLeftAssign(rotate_left_assign) => scalar_rotate_left_assign_parallelized(u8, u16, u32, u64));
 generic_integer_impl_scalar_operation_assign!(RotateRightAssign(rotate_right_assign) => scalar_rotate_right_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(DivAssign(div_assign) => scalar_div_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(RemAssign(rem_assign) => scalar_rem_assign_parallelized(u8, u16, u32, u64));
 
 impl<P> Neg for GenericInteger<P>
 where
