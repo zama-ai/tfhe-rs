@@ -8,7 +8,7 @@ use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::ClassicPBSParameters;
 
 #[derive(Clone, Copy, Default, Serialize)]
-pub struct CryptoParametersRecord {
+pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub lwe_dimension: Option<LweDimension>,
     pub glwe_dimension: Option<GlweDimension>,
     pub polynomial_size: Option<PolynomialSize>,
@@ -25,10 +25,11 @@ pub struct CryptoParametersRecord {
     pub cbs_base_log: Option<DecompositionBaseLog>,
     pub message_modulus: Option<usize>,
     pub carry_modulus: Option<usize>,
+    pub ciphertext_modulus: Option<CiphertextModulus<Scalar>>,
 }
 
 #[cfg(feature = "boolean")]
-impl From<BooleanParameters> for CryptoParametersRecord {
+impl<Scalar: UnsignedInteger> From<BooleanParameters> for CryptoParametersRecord<Scalar> {
     fn from(params: BooleanParameters) -> Self {
         CryptoParametersRecord {
             lwe_dimension: Some(params.lwe_dimension),
@@ -47,12 +48,16 @@ impl From<BooleanParameters> for CryptoParametersRecord {
             cbs_base_log: None,
             message_modulus: None,
             carry_modulus: None,
+            ciphertext_modulus: None,
         }
     }
 }
 
 #[cfg(feature = "shortint")]
-impl From<ClassicPBSParameters> for CryptoParametersRecord {
+impl<Scalar> From<ClassicPBSParameters> for CryptoParametersRecord<Scalar>
+where
+    Scalar: UnsignedInteger + CastInto<u128>,
+{
     fn from(params: ClassicPBSParameters) -> Self {
         CryptoParametersRecord {
             lwe_dimension: Some(params.lwe_dimension),
@@ -71,6 +76,12 @@ impl From<ClassicPBSParameters> for CryptoParametersRecord {
             cbs_base_log: None,
             message_modulus: Some(params.message_modulus.0),
             carry_modulus: Some(params.carry_modulus.0),
+            ciphertext_modulus: Some(
+                params
+                    .ciphertext_modulus
+                    .try_to()
+                    .expect("failed to convert ciphertext modulus"),
+            ),
         }
     }
 }
@@ -113,10 +124,10 @@ pub enum OperatorType {
 }
 
 #[derive(Serialize)]
-struct BenchmarkParametersRecord {
+struct BenchmarkParametersRecord<Scalar: UnsignedInteger> {
     display_name: String,
     crypto_parameters_alias: String,
-    crypto_parameters: CryptoParametersRecord,
+    crypto_parameters: CryptoParametersRecord<Scalar>,
     message_modulus: Option<usize>,
     carry_modulus: Option<usize>,
     ciphertext_modulus: usize,
@@ -134,7 +145,10 @@ struct BenchmarkParametersRecord {
 }
 
 /// Writes benchmarks parameters to disk in JSON format.
-pub fn write_to_json<T: Into<CryptoParametersRecord>>(
+pub fn write_to_json<
+    Scalar: UnsignedInteger + Serialize,
+    T: Into<CryptoParametersRecord<Scalar>>,
+>(
     bench_id: &str,
     params: T,
     params_alias: impl Into<String>,

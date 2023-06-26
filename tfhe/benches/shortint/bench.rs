@@ -68,7 +68,7 @@ fn bench_server_key_unary_function<F>(
             })
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -114,7 +114,7 @@ fn bench_server_key_binary_function<F>(
             })
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -159,7 +159,7 @@ fn bench_server_key_binary_scalar_function<F>(
             })
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -208,7 +208,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
             })
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             *param,
             param.name(),
@@ -244,7 +244,7 @@ fn carry_extract(c: &mut Criterion) {
             })
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -283,7 +283,7 @@ fn programmable_bootstrapping(c: &mut Criterion) {
             })
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             param,
             param.name(),

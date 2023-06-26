@@ -95,6 +95,7 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
 
             for stat_name, value in parse_estimate_file(subdir).items():
                 test_name_parts = list(filter(None, [test_name, stat_name, name_suffix]))
+
                 result_values.append(
                     _create_point(
                         value,

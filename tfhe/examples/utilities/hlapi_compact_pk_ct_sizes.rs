@@ -53,7 +53,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         println!("PK size: {cpk_size} bytes");
         write_result(&mut file, &test_name, cpk_size);
-        write_to_json(
+        write_to_json::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -73,7 +73,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
 
         write_result(&mut file, &test_name, cctl_size);
-        write_to_json(
+        write_to_json::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -109,7 +109,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
         println!("PK size: {cpk_size} bytes");
         write_result(&mut file, &test_name, cpk_size);
-        write_to_json(
+        write_to_json::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -129,7 +129,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
 
         write_result(&mut file, &test_name, cctl_size);
-        write_to_json(
+        write_to_json::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -177,7 +177,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
 
         write_result(&mut file, &test_name, cctl_size);
-        write_to_json(
+        write_to_json::<u64, _>(
             &test_name,
             params,
             params.name(),
@@ -224,7 +224,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
 
         write_result(&mut file, &test_name, cctl_size);
-        write_to_json(
+        write_to_json::<u64, _>(
             &test_name,
             params,
             params.name(),
