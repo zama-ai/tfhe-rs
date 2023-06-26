@@ -113,7 +113,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
             )
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -173,7 +173,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
             )
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -244,7 +244,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
             )
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -300,7 +300,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             )
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -369,7 +369,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F>(
             )
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             param,
             param.name(),
@@ -425,7 +425,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F>(
             )
         });
 
-        write_to_json(
+        write_to_json::<u64, _>(
             &bench_id,
             param,
             param.name(),

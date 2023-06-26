@@ -17,7 +17,7 @@ criterion_group!(
 criterion_main!(gates_benches);
 
 /// Helper function to write boolean benchmarks parameters to disk in JSON format.
-pub fn write_to_json_boolean<T: Into<CryptoParametersRecord>>(
+pub fn write_to_json_boolean<T: Into<CryptoParametersRecord<u32>>>(
     bench_id: &str,
     params: T,
     params_alias: impl Into<String>,

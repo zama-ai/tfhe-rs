@@ -1,8 +1,10 @@
 #[path = "../utilities.rs"]
 mod utilities;
 use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
+use rayon::prelude::*;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use serde::Serialize;
 use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS};
 use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::keycache::NamedParam;
@@ -47,9 +49,16 @@ criterion_group!(
                 multi_bit_deterministic_pbs::<u32>,
 );
 
-criterion_main!(pbs_group, multi_bit_pbs_group);
+criterion_group!(
+    name = pbs_throughput_groug;
+    config = Criterion::default().sample_size(100);
+    targets = pbs_throughput::<u64>, pbs_throughput::<u32>
+);
 
-fn benchmark_parameters<Scalar: Numeric>() -> Vec<(String, CryptoParametersRecord)> {
+criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_groug);
+
+fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParametersRecord<Scalar>)>
+{
     if Scalar::BITS == 64 {
         SHORTINT_BENCH_PARAMS
             .iter()
@@ -65,8 +74,31 @@ fn benchmark_parameters<Scalar: Numeric>() -> Vec<(String, CryptoParametersRecor
     }
 }
 
-fn multi_bit_benchmark_parameters<Scalar: Numeric>(
-) -> Vec<(String, (CryptoParametersRecord, LweBskGroupingFactor))> {
+fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
+) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
+    if Scalar::BITS == 64 {
+        vec![
+            PARAM_MESSAGE_1_CARRY_1,
+            PARAM_MESSAGE_2_CARRY_2,
+            PARAM_MESSAGE_3_CARRY_3,
+        ]
+        .iter()
+        .map(|params| (params.name(), params.to_owned().into()))
+        .collect()
+    } else if Scalar::BITS == 32 {
+        BOOLEAN_BENCH_PARAMS
+            .iter()
+            .map(|(name, params)| (name.to_string(), params.to_owned().into()))
+            .collect()
+    } else {
+        vec![]
+    }
+}
+
+fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>() -> Vec<(
+    String,
+    (CryptoParametersRecord<Scalar>, LweBskGroupingFactor),
+)> {
     if Scalar::BITS == 64 {
         vec![
             (
@@ -228,7 +260,7 @@ fn multi_bit_benchmark_parameters<Scalar: Numeric>(
     }
 }
 
-fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion) {
+fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mut Criterion) {
     let bench_name = "PBS_mem-optimized";
     let mut bench_group = c.benchmark_group(bench_name);
 
@@ -331,7 +363,9 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize>>(c: &mut Criterion)
     }
 }
 
-fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync>(
+fn multi_bit_pbs<
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default + Sync + Serialize,
+>(
     c: &mut Criterion,
 ) {
     let bench_name = "multi_bits_PBS";
@@ -418,7 +452,9 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
     }
 }
 
-fn multi_bit_deterministic_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync>(
+fn multi_bit_deterministic_pbs<
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default + Serialize + Sync,
+>(
     c: &mut Criterion,
 ) {
     let bench_name = "multi_bits_deterministic_PBS";
@@ -502,5 +538,128 @@ fn multi_bit_deterministic_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFro
             bit_size,
             vec![bit_size],
         );
+    }
+}
+
+fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serialize>(
+    c: &mut Criterion,
+) {
+    let bench_name = "PBS_throughput";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for (name, params) in throughput_benchmark_parameters::<Scalar>().iter() {
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension.unwrap(),
+            &mut secret_generator,
+        );
+
+        let glwe_secret_key = GlweSecretKey::new_empty_key(
+            Scalar::ZERO,
+            params.glwe_dimension.unwrap(),
+            params.polynomial_size.unwrap(),
+        );
+        let big_lwe_sk = glwe_secret_key.into_lwe_secret_key();
+        let big_lwe_dimension = big_lwe_sk.lwe_dimension();
+
+        const NUM_CTS: usize = 512;
+        let lwe_vec: Vec<_> = (0..NUM_CTS)
+            .map(|_| {
+                allocate_and_encrypt_new_lwe_ciphertext(
+                    &input_lwe_secret_key,
+                    Plaintext(Scalar::ZERO),
+                    params.lwe_modular_std_dev.unwrap(),
+                    tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+                    &mut encryption_generator,
+                )
+            })
+            .collect();
+
+        let mut output_lwe_list = LweCiphertextList::new(
+            Scalar::ZERO,
+            big_lwe_dimension.to_lwe_size(),
+            LweCiphertextCount(NUM_CTS),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        let lwe_vec = lwe_vec;
+
+        let fft = Fft::new(params.polynomial_size.unwrap());
+        let fft = fft.as_view();
+
+        let mut vec_buffers: Vec<_> = (0..NUM_CTS)
+            .map(|_| {
+                let mut buffers = ComputationBuffers::new();
+                buffers.resize(
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                        params.glwe_dimension.unwrap().to_glwe_size(),
+                        params.polynomial_size.unwrap(),
+                        fft,
+                    )
+                    .unwrap()
+                    .unaligned_bytes_required(),
+                );
+                buffers
+            })
+            .collect();
+
+        let glwe = GlweCiphertext::new(
+            Scalar::ONE << 60,
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.ciphertext_modulus.unwrap(),
+        );
+
+        let fbsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension.unwrap(),
+            params.glwe_dimension.unwrap().to_glwe_size(),
+            params.polynomial_size.unwrap(),
+            params.pbs_base_log.unwrap(),
+            params.pbs_level.unwrap(),
+        );
+
+        for chunk_size in [1, 16, 32, 64, 128, 256, 512] {
+            let id = format!("{bench_name}_{name}_{chunk_size}chunk");
+            {
+                bench_group.bench_function(&id, |b| {
+                    b.iter(|| {
+                        lwe_vec
+                            .par_iter()
+                            .zip(output_lwe_list.par_iter_mut())
+                            .zip(vec_buffers.par_iter_mut())
+                            .take(chunk_size)
+                            .for_each(|((input_lwe, mut out_lwe), buffer)| {
+                                programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                                    input_lwe,
+                                    &mut out_lwe,
+                                    &glwe,
+                                    &fbsk,
+                                    fft,
+                                    buffer.stack(),
+                                );
+                            });
+                        black_box(&mut output_lwe_list);
+                    })
+                });
+            }
+
+            let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+            write_to_json(
+                &id,
+                *params,
+                name,
+                "pbs",
+                &OperatorType::Atomic,
+                bit_size,
+                vec![bit_size],
+            );
+        }
     }
 }

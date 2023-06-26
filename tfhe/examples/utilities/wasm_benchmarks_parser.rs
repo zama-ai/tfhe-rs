@@ -59,7 +59,7 @@ pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_dir: &Path) {
             let value_in_ns = (val * 1_000_000_f32) as usize;
 
             write_result(&mut file, full_name, value_in_ns);
-            write_to_json(
+            write_to_json::<u64, _>(
                 full_name,
                 params,
                 params.name(),
