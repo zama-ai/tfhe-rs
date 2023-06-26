@@ -272,7 +272,7 @@ impl ServerKey {
     /// # Requirements
     ///
     /// - The parameters have 4 bits in total
-    /// - The input carries of both lhs and rhs must be empty
+    /// - Adding rhs to lhs must not consume more than one carry
     ///
     /// # Output
     ///
@@ -282,8 +282,12 @@ impl ServerKey {
         lhs: &mut RadixCiphertext,
         rhs: &RadixCiphertext,
     ) {
-        debug_assert!(lhs.block_carries_are_empty());
-        debug_assert!(rhs.block_carries_are_empty());
+        let degree_after_add_does_not_go_beyond_first_carry =
+            lhs.blocks.iter().zip(rhs.blocks.iter()).all(|(bl, br)| {
+                let degree_after_add = bl.degree.0 + br.degree.0;
+                degree_after_add < (self.key.message_modulus.0 * 2)
+            });
+        assert!(degree_after_add_does_not_go_beyond_first_carry);
 
         self.unchecked_add_assign_parallelized(lhs, rhs);
         self.propagate_single_carry_parallelized_low_latency(lhs)
@@ -372,7 +376,7 @@ impl ServerKey {
     /// # Requirements
     ///
     /// - The parameters have 4 bits in total
-    /// - The input carries of both lhs and rhs must be empty
+    /// - Adding rhs to lhs must not consume more than one carry
     ///
     /// # Output
     ///
@@ -382,8 +386,12 @@ impl ServerKey {
         lhs: &mut RadixCiphertext,
         rhs: &RadixCiphertext,
     ) {
-        debug_assert!(lhs.block_carries_are_empty());
-        debug_assert!(rhs.block_carries_are_empty());
+        let degree_after_add_does_not_go_beyond_first_carry =
+            lhs.blocks.iter().zip(rhs.blocks.iter()).all(|(bl, br)| {
+                let degree_after_add = bl.degree.0 + br.degree.0;
+                degree_after_add < (self.key.message_modulus.0 * 2)
+            });
+        assert!(degree_after_add_does_not_go_beyond_first_carry);
         debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 3));
 
         self.unchecked_add_assign_parallelized(lhs, rhs);
