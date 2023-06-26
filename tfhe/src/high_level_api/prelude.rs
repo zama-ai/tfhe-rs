@@ -6,7 +6,7 @@
 //! use tfhe::prelude::*;
 //! ```
 pub use crate::high_level_api::traits::{
-    DynamicFheEncryptor, DynamicFheTrivialEncryptor, DynamicFheTryEncryptor, FheBootstrap,
+    DivRem, DynamicFheEncryptor, DynamicFheTrivialEncryptor, DynamicFheTryEncryptor, FheBootstrap,
     FheDecrypt, FheEncrypt, FheEq, FheMax, FheMin, FheNumberConstant, FheOrd, FheTrivialEncrypt,
     FheTryEncrypt, FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,

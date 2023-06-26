@@ -1,8 +1,8 @@
 use crate::c_api::high_level_api::keys::{ClientKey, CompactPublicKey, PublicKey};
 use crate::high_level_api::prelude::*;
 use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, MulAssign,
-    Neg, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::c_api::high_level_api::u128::U128;
@@ -17,12 +17,121 @@ macro_rules! impl_operations_for_integer_type {
         name: $name:ident,
         clear_scalar_type: $clear_scalar_type:ty
     ) => {
-        impl_binary_fn_on_type!($name => add, sub, mul, bitand, bitor, bitxor, shl, shr, eq, ne, ge, gt, le, lt, min, max);
-        impl_binary_assign_fn_on_type!($name => add_assign, sub_assign, mul_assign, bitand_assign, bitor_assign, bitxor_assign, shl_assign, shr_assign);
-        impl_scalar_binary_fn_on_type!($name, $clear_scalar_type => add, sub, mul, shl, shr, eq, ne, ge, gt, le, lt, min, max);
-        impl_scalar_binary_assign_fn_on_type!($name, $clear_scalar_type => add_assign, sub_assign, mul_assign, shl_assign, shr_assign);
+        impl_binary_fn_on_type!($name =>
+            add,
+            sub,
+            mul,
+            bitand,
+            bitor,
+            bitxor,
+            shl,
+            shr,
+            eq,
+            ne,
+            ge,
+            gt,
+            le,
+            lt,
+            min,
+            max,
+            div,
+            rem,
+        );
+        impl_binary_assign_fn_on_type!($name =>
+            add_assign,
+            sub_assign,
+            mul_assign,
+            bitand_assign,
+            bitor_assign,
+            bitxor_assign,
+            shl_assign,
+            shr_assign,
+            div_assign,
+            rem_assign,
+        );
+        impl_scalar_binary_fn_on_type!($name, $clear_scalar_type =>
+            add,
+            sub,
+            mul,
+            bitand,
+            bitor,
+            bitxor,
+            shl,
+            shr,
+            eq,
+            ne,
+            ge,
+            gt,
+            le,
+            lt,
+            min,
+            max,
+            rotate_right,
+            rotate_left,
+            div,
+            rem,
+        );
+        impl_scalar_binary_assign_fn_on_type!($name, $clear_scalar_type =>
+            add_assign,
+            sub_assign,
+            mul_assign,
+            bitand_assign,
+            bitor_assign,
+            bitxor_assign,
+            shl_assign,
+            shr_assign,
+            rotate_right_assign,
+            rotate_left_assign,
+            div_assign,
+            rem_assign,
+        );
 
         impl_unary_fn_on_type!($name => neg, not);
+
+        // Implement div_rem.
+        // We can't use the macro above as div_rem returns a tuple.
+        //
+        // (Having div_rem is important for the cases where you need both
+        // the quotient and remainder as you may save time by using the div_rem
+        // instead of div and rem separately
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$name:snake _scalar_div_rem>](
+                lhs: *const $name,
+                rhs: $clear_scalar_type,
+                q_result: *mut *mut $name,
+                r_result: *mut *mut $name,
+            ) -> c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
+
+                    let (q, r) = (&lhs.0).div_rem(rhs);
+
+                    *q_result = Box::into_raw(Box::new($name(q)));
+                    *r_result = Box::into_raw(Box::new($name(r)));
+                })
+            }
+        }
+
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$name:snake _div_rem>](
+                lhs: *const $name,
+                rhs: *const $name,
+                q_result: *mut *mut $name,
+                r_result: *mut *mut $name,
+            ) -> c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
+                    let rhs = $crate::c_api::utils::get_ref_checked(rhs).unwrap();
+
+                    let (q, r) = (&lhs.0).div_rem(&rhs.0);
+
+                    *q_result = Box::into_raw(Box::new($name(q)));
+                    *r_result = Box::into_raw(Box::new($name(r)));
+                })
+            }
+        }
     };
 }
 
