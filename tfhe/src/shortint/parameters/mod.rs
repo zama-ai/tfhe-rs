@@ -145,7 +145,7 @@ pub struct MultiBitPBSParameters {
 impl MultiBitPBSParameters {
     pub const fn with_deterministic_execution(self) -> Self {
         Self {
-            deterministic_execution: false,
+            deterministic_execution: true,
             ..self
         }
     }
