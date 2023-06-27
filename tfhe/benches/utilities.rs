@@ -4,6 +4,7 @@ use std::path::PathBuf;
 #[cfg(feature = "boolean")]
 use tfhe::boolean::parameters::BooleanParameters;
 use tfhe::core_crypto::prelude::*;
+#[cfg(feature = "shortint")]
 use tfhe::shortint::parameters::ShortintKeySwitchingParameters;
 #[cfg(feature = "shortint")]
 use tfhe::shortint::ClassicPBSParameters;
