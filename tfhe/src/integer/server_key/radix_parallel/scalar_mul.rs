@@ -393,7 +393,11 @@ impl ServerKey {
                 if scalar != 1 {
                     tmp.blocks[0..num_blocks - min_index]
                         .par_iter_mut()
-                        .for_each(|ct_i| self.key.unchecked_scalar_mul_assign(ct_i, scalar as u8));
+                        .for_each(|ct_i| {
+                            if ct_i.degree.0 != 0 {
+                                self.key.unchecked_scalar_mul_assign(ct_i, scalar as u8)
+                            }
+                        });
                     let (mut message_blocks, carry_blocks) = rayon::join(
                         || {
                             tmp.blocks[0..num_blocks - min_index]
@@ -457,11 +461,14 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_scalar_mul_parallelized(
+    pub fn smart_scalar_mul_parallelized<T>(
         &self,
         lhs: &mut RadixCiphertext,
-        scalar: u64,
-    ) -> RadixCiphertext {
+        scalar: T,
+    ) -> RadixCiphertext
+    where
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
         }
@@ -469,7 +476,10 @@ impl ServerKey {
         self.unchecked_scalar_mul_parallelized(lhs, scalar)
     }
 
-    pub fn smart_scalar_mul_assign_parallelized(&self, lhs: &mut RadixCiphertext, scalar: u64) {
+    pub fn smart_scalar_mul_assign_parallelized<T>(&self, lhs: &mut RadixCiphertext, scalar: T)
+    where
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
         }
@@ -511,13 +521,19 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn scalar_mul_parallelized(&self, ct: &RadixCiphertext, scalar: u64) -> RadixCiphertext {
+    pub fn scalar_mul_parallelized<T>(&self, ct: &RadixCiphertext, scalar: T) -> RadixCiphertext
+    where
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         let mut ct_res = ct.clone();
         self.scalar_mul_assign_parallelized(&mut ct_res, scalar);
         ct_res
     }
 
-    pub fn scalar_mul_assign_parallelized(&self, lhs: &mut RadixCiphertext, scalar: u64) {
+    pub fn scalar_mul_assign_parallelized<T>(&self, lhs: &mut RadixCiphertext, scalar: T)
+    where
+        T: UnsignedInteger + DecomposableInto<u8>,
+    {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
         }

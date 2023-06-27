@@ -149,6 +149,7 @@ create_parametrized_test!(integer_default_sub_work_efficient {
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
+create_parametrized_test!(integer_default_scalar_div_rem);
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
 create_parametrized_test!(integer_default_block_mul);
@@ -1934,6 +1935,88 @@ where
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_right_helper(clear, scalar, nb_bits);
             assert_eq!(expected, dec_res);
+        }
+    }
+}
+
+fn integer_default_scalar_div_rem<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    sks.set_deterministic_pbs_execution(true);
+
+    let num_block =
+        (32f64 / (cks.parameters().message_modulus().0 as f64).log(2.0)).ceil() as usize;
+
+    let cks = RadixClientKey::from((cks, num_block));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(num_block as u32) as u64;
+
+    // the scalar is a u32, so the numerator must encrypt at least 32 bits
+    // to take the normal path of execution
+    assert!(modulus >= (1 << u32::BITS));
+
+    let result = std::panic::catch_unwind(|| {
+        let numerator = sks.create_trivial_radix(1, num_block);
+        sks.scalar_div_rem_parallelized(&numerator, 0u8);
+    });
+    assert!(result.is_err(), "division by zero should panic");
+
+    // hard-coded tests
+    // 10, 7, 14 are from the paper and should trigger different branches
+    // 16 is a power of two and should trigger the corresponding branch
+    let hard_coded_divisors: [u32; 4] = [10, 7, 14, 16];
+    for divisor in hard_coded_divisors {
+        let clear = rng.gen::<u64>() % modulus;
+        let ct = cks.encrypt(clear);
+
+        let (q, r) = sks.scalar_div_rem_parallelized(&ct, divisor);
+
+        let q_res: u64 = cks.decrypt(&q);
+        let r_res: u64 = cks.decrypt(&r);
+        assert_eq!(q_res, clear / divisor as u64);
+        assert_eq!(r_res, clear % divisor as u64);
+    }
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen_range(1u32..=u32::MAX);
+
+        let ct = cks.encrypt(clear);
+
+        {
+            let (q, r) = sks.scalar_div_rem_parallelized(&ct, scalar);
+            let (q2, r2) = sks.scalar_div_rem_parallelized(&ct, scalar);
+            assert!(q.block_carries_are_empty());
+            assert!(r.block_carries_are_empty());
+            assert_eq!(q, q2);
+            assert_eq!(r, r2);
+
+            let q_res: u64 = cks.decrypt(&q);
+            let r_res: u64 = cks.decrypt(&r);
+            assert_eq!(q_res, clear / scalar as u64);
+            assert_eq!(r_res, clear % scalar as u64);
+        }
+
+        {
+            // Test when scalar is trivially bigger than the ct
+            let scalar = rng.gen_range(u32::MAX as u64 + 1..=u64::MAX);
+
+            let (q, r) = sks.scalar_div_rem_parallelized(&ct, scalar);
+            let (q2, r2) = sks.scalar_div_rem_parallelized(&ct, scalar);
+            assert!(q.block_carries_are_empty());
+            assert!(r.block_carries_are_empty());
+            assert_eq!(q, q2);
+            assert_eq!(r, r2);
+
+            let q_res: u64 = cks.decrypt(&q);
+            let r_res: u64 = cks.decrypt(&r);
+            assert_eq!(q_res, clear / scalar);
+            assert_eq!(r_res, clear % scalar);
         }
     }
 }

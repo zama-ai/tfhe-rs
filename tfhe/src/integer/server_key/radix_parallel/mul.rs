@@ -335,30 +335,44 @@ impl ServerKey {
             terms.par_chunks_exact_mut(chunk_size).for_each(|chunk| {
                 let (s, rest) = chunk.split_first_mut().unwrap();
                 let mut first_block_where_addition_happenned = num_blocks - 1;
+                let mut last_block_where_addition_happenned = num_blocks - 1;
                 for a in rest.iter() {
-                    let pos = a
+                    let first_block_to_add = a
                         .blocks
                         .iter()
                         .position(|block| block.degree.0 != 0)
                         .unwrap_or(num_blocks);
                     first_block_where_addition_happenned =
-                        first_block_where_addition_happenned.min(pos);
-                    for (ct_left_i, ct_right_i) in
-                        s.blocks[pos..].iter_mut().zip(a.blocks[pos..].iter())
+                        first_block_where_addition_happenned.min(first_block_to_add);
+                    let last_block_to_add = a
+                        .blocks
+                        .iter()
+                        .rev()
+                        .position(|block| block.degree.0 != 0)
+                        .map(|pos| num_blocks - pos - 1)
+                        .unwrap_or(num_blocks - 1);
+                    last_block_where_addition_happenned =
+                        last_block_where_addition_happenned.max(last_block_to_add);
+                    for (ct_left_i, ct_right_i) in s.blocks
+                        [first_block_to_add..last_block_to_add + 1]
+                        .iter_mut()
+                        .zip(a.blocks[first_block_to_add..last_block_to_add + 1].iter())
                     {
                         self.key.unchecked_add_assign(ct_left_i, ct_right_i);
                     }
                 }
 
                 // last carry is not interesting
-                let mut carry_blocks =
-                    s.blocks[first_block_where_addition_happenned..num_blocks - 1].to_vec();
+                let mut carry_blocks = s.blocks
+                    [first_block_where_addition_happenned..last_block_where_addition_happenned + 1]
+                    .to_vec();
 
                 let message_blocks = &mut s.blocks;
 
                 rayon::join(
                     || {
-                        message_blocks[first_block_where_addition_happenned..]
+                        message_blocks[first_block_where_addition_happenned
+                            ..last_block_where_addition_happenned + 1]
                             .par_iter_mut()
                             .for_each(|block| {
                                 self.key.message_extract_assign(block);
