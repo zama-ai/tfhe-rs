@@ -36,7 +36,7 @@ fn client_server_keys() {
 
             let start = std::time::Instant::now();
 
-            let _ = KEY_CACHE.get_from_param(params.with_deterministic_execution());
+            let _ = KEY_CACHE.get_from_param(params.with_non_deterministic_execution());
 
             let stop = start.elapsed().as_secs();
 
