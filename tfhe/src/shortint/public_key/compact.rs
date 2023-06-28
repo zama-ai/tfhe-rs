@@ -15,7 +15,7 @@ use crate::shortint::engine::ShortintEngine;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompactPublicKey {
-    pub(crate) key: LweCompactPublicKeyOwned<u64>,
+    pub key: LweCompactPublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
     pub pbs_order: PBSOrder,
 }
