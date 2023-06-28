@@ -50,12 +50,12 @@ criterion_group!(
 );
 
 criterion_group!(
-    name = pbs_throughput_groug;
+    name = pbs_throughput_group;
     config = Criterion::default().sample_size(100);
     targets = pbs_throughput::<u64>, pbs_throughput::<u32>
 );
 
-criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_groug);
+criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
 
 fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParametersRecord<Scalar>)>
 {

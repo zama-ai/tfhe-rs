@@ -50,7 +50,7 @@ impl<Scalar: UnsignedInteger> From<BooleanParameters> for CryptoParametersRecord
             cbs_base_log: None,
             message_modulus: None,
             carry_modulus: None,
-            ciphertext_modulus: None,
+            ciphertext_modulus: Some(CiphertextModulus::<Scalar>::new_native()),
         }
     }
 }
