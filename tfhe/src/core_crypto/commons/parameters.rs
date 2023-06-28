@@ -68,7 +68,7 @@ impl LweSize {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct LweDimension(pub usize);
 
-impl LweDimension {
+impl     {
     /// Return the associated [`LweSize`].
     pub fn to_lwe_size(&self) -> LweSize {
         LweSize(self.0 + 1)
