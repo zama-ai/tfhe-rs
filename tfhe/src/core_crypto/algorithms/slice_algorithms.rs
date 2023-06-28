@@ -38,6 +38,31 @@ where
         })
 }
 
+/// This primitive is meant to manage the dot product avoiding overflow on multiplication by casting
+/// to u128, for example for u64, avoiding overflow on each multiplication (as u64::MAX * u64::MAX <
+/// u128::MAX)
+pub fn slice_wrapping_dot_product_custom_mod<Scalar>(
+    lhs: &[Scalar],
+    rhs: &[Scalar],
+    modulus: Scalar,
+) -> Scalar
+where
+    Scalar: UnsignedInteger,
+{
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+
+    lhs.iter()
+        .zip(rhs.iter())
+        .fold(Scalar::ZERO, |acc, (&left, &right)| {
+            acc.wrapping_add_custom_mod(left.wrapping_mul_custom_mod(right, modulus), modulus)
+        })
+}
+
 /// Add a slice containing unsigned integers to another one element-wise.
 ///
 /// # Note
@@ -108,6 +133,25 @@ where
     lhs.iter_mut()
         .zip(rhs.iter())
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add(rhs));
+}
+
+pub fn slice_wrapping_add_assign_custom_mod<Scalar>(
+    lhs: &mut [Scalar],
+    rhs: &[Scalar],
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+{
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+
+    lhs.iter_mut()
+        .zip(rhs.iter())
+        .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add_custom_mod(rhs, custom_modulus));
 }
 
 /// Add a slice containing unsigned integers to another one mutiplied by a scalar.
@@ -254,6 +298,28 @@ pub fn slice_wrapping_sub_scalar_mul_assign<Scalar>(
     lhs.iter_mut()
         .zip(rhs.iter())
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub(rhs.wrapping_mul(scalar)));
+}
+
+/// This primitive is meant to manage the sub_scalar_mul operation for values that were cast to a
+/// bigger type, for example u64 to u128, avoiding overflow on each multiplication (as u64::MAX *
+/// u64::MAX < u128::MAX )
+pub fn slice_wrapping_sub_scalar_mul_assign_custom_modulus<Scalar>(
+    lhs: &mut [Scalar],
+    rhs: &[Scalar],
+    scalar: Scalar,
+    modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+{
+    assert!(
+        lhs.len() == rhs.len(),
+        "lhs (len: {}) and rhs (len: {}) must have the same length",
+        lhs.len(),
+        rhs.len()
+    );
+    lhs.iter_mut().zip(rhs.iter()).for_each(|(lhs, &rhs)| {
+        *lhs = (*lhs).wrapping_sub_custom_mod(rhs.wrapping_mul_custom_mod(scalar, modulus), modulus)
+    });
 }
 
 /// Compute the opposite of a slice containing unsigned integers, element-wise and in place.

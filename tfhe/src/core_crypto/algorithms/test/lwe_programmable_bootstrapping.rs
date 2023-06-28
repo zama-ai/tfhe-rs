@@ -126,7 +126,10 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
     }
 }
 
-create_parametrized_test!(lwe_encrypt_pbs_decrypt_custom_mod);
+create_parametrized_test!(lwe_encrypt_pbs_decrypt_custom_mod {
+    TEST_PARAMS_4_BITS_NATIVE_U64,
+    TEST_PARAMS_3_BITS_63_U64
+});
 
 // DISCLAIMER: all parameters here are not guaranteed to be secure or yield correct computations
 pub const TEST_PARAMS_4_BITS_NATIVE_U128: TestParams<u128> = TestParams {
