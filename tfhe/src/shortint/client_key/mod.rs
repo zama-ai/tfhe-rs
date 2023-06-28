@@ -22,7 +22,7 @@ pub struct ClientKey {
     pub(crate) large_lwe_secret_key: LweSecretKeyOwned<u64>,
     pub(crate) glwe_secret_key: GlweSecretKeyOwned<u64>,
     /// Key used as the output of the keyswitch operation
-    pub(crate) small_lwe_secret_key: LweSecretKeyOwned<u64>,
+    pub small_lwe_secret_key: LweSecretKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
 }
 
