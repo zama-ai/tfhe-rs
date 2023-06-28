@@ -20,7 +20,7 @@ use std::fmt::{Debug, Formatter};
 /// * `parameters` - the cryptographic parameter set.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ClientKey {
-    pub(crate) lwe_secret_key: LweSecretKeyOwned<u32>,
+    pub lwe_secret_key: LweSecretKeyOwned<u32>,
     pub(crate) glwe_secret_key: GlweSecretKeyOwned<u32>,
     pub(crate) parameters: BooleanParameters,
 }
