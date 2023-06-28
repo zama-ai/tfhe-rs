@@ -11,7 +11,7 @@ use crate::shortint::{
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompactPublicKey {
-    pub(crate) key: ShortintCompactPublicKey,
+    pub key: ShortintCompactPublicKey,
 }
 
 impl CompactPublicKey {
