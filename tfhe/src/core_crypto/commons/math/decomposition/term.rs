@@ -1,3 +1,4 @@
+use crate::core_crypto::algorithms::divide_round;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::{Numeric, UnsignedInteger};
@@ -140,22 +141,34 @@ where
     ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     /// };
     /// let decomposer = SignedDecomposerNonNative::new(
-    ///     DecompositionBaseLog(4),
-    ///     DecompositionLevelCount(3),
-    ///     CiphertextModulus::try_new(1 << 32).unwrap(),
+    ///     DecompositionBaseLog(16),
+    ///     DecompositionLevelCount(1),
+    ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     /// );
-    /// let output = decomposer.decompose(2u64.pow(19)).next().unwrap();
-    /// assert_eq!(output.to_recomposition_summand(), 1048576);
+    /// let decomp_iter = decomposer.decompose(2u64.pow(60));
+    /// for (decomp, expected) in decomp_iter.zip([1152921504338411520]) {
+    ///     assert_eq!(decomp.to_recomposition_summand(), expected);
+    /// }
     /// ```
     pub fn to_recomposition_summand(&self) -> T {
-        // Floored approach
-        // * floor(q / B^j)
-        let base_to_the_level = 1 << (self.base_log * self.level);
-        let digit_radix = self.ciphertext_modulus.get_custom_modulus() / base_to_the_level;
+        // // Formulation with T, slower than u128 when measuring
+        // let base_to_the_level = T::ONE << (self.base_log * self.level);
+        // let ciphertext_modulus_as_t = T::cast_from(self.ciphertext_modulus.get_custom_modulus());
+        // let modulus_over_base_to_level = divide_round(ciphertext_modulus_as_t,
+        // base_to_the_level);
+        // self.value
+        //     .wrapping_mul_custom_mod(modulus_over_base_to_level, ciphertext_modulus_as_t)
 
-        let value_u128: u128 = self.value.cast_into();
-        let summand_u128 = value_u128 * digit_radix;
-        T::cast_from(summand_u128)
+        // This u128 formulation looks to be faster than the with T, so we keep this one for now
+        let base_to_the_level = 1u128 << (self.base_log * self.level);
+        let modulus_over_base_to_level = T::cast_from(divide_round(
+            self.ciphertext_modulus.get_custom_modulus(),
+            base_to_the_level,
+        ));
+        self.value.wrapping_mul_custom_mod(
+            modulus_over_base_to_level,
+            T::cast_from(self.ciphertext_modulus.get_custom_modulus()),
+        )
     }
 
     /// Return the value of the term.
@@ -170,12 +183,14 @@ where
     ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     /// };
     /// let decomposer = SignedDecomposerNonNative::new(
-    ///     DecompositionBaseLog(4),
-    ///     DecompositionLevelCount(3),
+    ///     DecompositionBaseLog(16),
+    ///     DecompositionLevelCount(1),
     ///     CiphertextModulus::try_new(1 << 32).unwrap(),
     /// );
-    /// let output = decomposer.decompose(2u64.pow(19)).next().unwrap();
-    /// assert_eq!(output.value(), 1);
+    /// let decomp_iter = decomposer.decompose(2u64.pow(19));
+    /// for (decomp, expected) in decomp_iter.zip([8]) {
+    ///     assert_eq!(decomp.value(), expected);
+    /// }
     /// ```
     pub fn value(&self) -> T {
         self.value

@@ -31,6 +31,13 @@ pub struct CiphertextModulus<Scalar: UnsignedInteger> {
     _scalar: PhantomData<Scalar>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum CiphertextModulusKind {
+    Native,
+    NonNativePowerOfTwo,
+    NonNative,
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SerialiazableLweCiphertextModulus {
     pub modulus: u128,
@@ -147,7 +154,11 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
                     }
                 }
             };
-            Ok(res.canonicalize())
+            let canonicalized_result = res.canonicalize();
+            if Scalar::BITS > 64 && !canonicalized_result.is_compatible_with_native_modulus() {
+                return Err("Non power of 2 moduli are not supported for types wider than u64");
+            }
+            Ok(canonicalized_result)
         }
     }
 
@@ -181,6 +192,7 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         res.canonicalize()
     }
 
+    #[track_caller]
     pub fn get_power_of_two_scaling_to_native_torus(&self) -> Scalar {
         match self.inner {
             CiphertextModulusInner::Native => Scalar::ONE,
@@ -214,6 +226,13 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
 
     pub const fn is_compatible_with_native_modulus(&self) -> bool {
         self.is_native_modulus() || self.is_power_of_two()
+    }
+
+    pub const fn is_non_native_power_of_two(&self) -> bool {
+        match self.inner {
+            CiphertextModulusInner::Native => false,
+            CiphertextModulusInner::Custom(modulus) => modulus.is_power_of_two(),
+        }
     }
 
     pub const fn is_power_of_two(&self) -> bool {
@@ -255,6 +274,19 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             _scalar: Default::default(),
         }
         .canonicalize())
+    }
+
+    pub const fn kind(&self) -> CiphertextModulusKind {
+        match self.inner {
+            CiphertextModulusInner::Native => CiphertextModulusKind::Native,
+            CiphertextModulusInner::Custom(modulus) => {
+                if modulus.is_power_of_two() {
+                    CiphertextModulusKind::NonNativePowerOfTwo
+                } else {
+                    CiphertextModulusKind::NonNative
+                }
+            }
+        }
     }
 }
 

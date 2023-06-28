@@ -1,3 +1,4 @@
+use crate::core_crypto::algorithms::{divide_round, modular_distance_custom_mod};
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
     SignedDecomposer, SignedDecomposerNonNative,
@@ -7,7 +8,6 @@ use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{Numeric, SignedInteger, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
 use crate::core_crypto::commons::test_tools::{any_uint, any_usize, random_usize_between};
-use crate::core_crypto::commons::traits::CastInto;
 use std::fmt::Debug;
 
 // Return a random decomposition valid for the size of the T type.
@@ -145,121 +145,142 @@ fn random_decomp_non_native<T: UnsignedInteger>(
 fn test_round_to_closest_representable_non_native<T: UnsignedTorus>(
     ciphertext_modulus: CiphertextModulus<T>,
 ) {
-    // Manage limit cases
     {
         let log_b = any_usize();
         let level_max = any_usize();
         let bits = T::BITS;
-        let log_b = (log_b % ((bits / 4) - 1)) + 1;
+        let base_log = (log_b % ((bits / 4) - 1)) + 1;
         let level_count = (level_max % 4) + 1;
-        let rep_bits: usize = log_b * level_count;
 
-        let base_to_the_level_u128 = 1u128 << rep_bits;
-        let smallest_representable_u128 =
-            ciphertext_modulus.get_custom_modulus() / base_to_the_level_u128;
-        let sub_smallest_representable_u128 = smallest_representable_u128 / 2;
-        // Compute an epsilon that should not change the result of a closest representable
-        let epsilon_u128 = any_uint::<u128>() % sub_smallest_representable_u128;
-
-        // Around 0
         let val = T::ZERO;
+        let smallest_representable = divide_round(
+            ciphertext_modulus.get_custom_modulus(),
+            1u128 << (base_log * level_count),
+        );
+        let sub_smallest_representable = T::cast_from(smallest_representable / 2);
+        let epsilon = any_uint::<T>() % sub_smallest_representable;
+        let ciphertext_modulus_as_t = T::cast_from(ciphertext_modulus.get_custom_modulus());
 
         let decomposer = SignedDecomposerNonNative::new(
-            DecompositionBaseLog(log_b),
+            DecompositionBaseLog(base_log),
             DecompositionLevelCount(level_count),
             ciphertext_modulus,
         );
 
-        let val_u128: u128 = val.cast_into();
-        let val_plus_epsilon: T = val_u128
-            .wrapping_add(epsilon_u128)
-            .wrapping_rem(ciphertext_modulus.get_custom_modulus())
-            .cast_into();
+        let val_plus_epsilon = val.wrapping_add_custom_mod(epsilon, ciphertext_modulus_as_t);
+        for term in decomposer.decompose(val_plus_epsilon) {
+            assert!(1 <= term.level().0);
+            assert!(term.level().0 <= decomposer.level_count);
+            let term = term.value();
+            let half_basis = (T::ONE << decomposer.base_log) / T::TWO;
 
-        let closest = decomposer.closest_representable(val_plus_epsilon);
-        assert_eq!(
-            val, closest,
-            "\n val_plus_epsilon:          {val_plus_epsilon:064b}, \n \
-        expected_closest:           {val:064b}, \n \
-        closest:                    {closest:064b}\n \
-        decomp_base_log: {}, decomp_level_count: {}",
-            decomposer.base_log, decomposer.level_count
-        );
+            let abs_term = if term > ciphertext_modulus_as_t / T::TWO {
+                ciphertext_modulus_as_t - term
+            } else {
+                term
+            };
 
-        let val_minus_epsilon: T = val_u128
-            .wrapping_add(ciphertext_modulus.get_custom_modulus())
-            .wrapping_sub(epsilon_u128)
-            .wrapping_rem(ciphertext_modulus.get_custom_modulus())
-            .cast_into();
+            assert!(abs_term <= half_basis);
+        }
+        assert_eq!(val, decomposer.closest_representable(val_plus_epsilon));
 
-        let closest = decomposer.closest_representable(val_minus_epsilon);
-        assert_eq!(
-            val, closest,
-            "\n val_minus_epsilon:          {val_minus_epsilon:064b}, \n \
-        expected_closest:           {val:064b}, \n \
-        closest:                    {closest:064b}\n \
-        decomp_base_log: {}, decomp_level_count: {}",
-            decomposer.base_log, decomposer.level_count
-        );
+        let val_minus_epsilon = val.wrapping_sub_custom_mod(epsilon, ciphertext_modulus_as_t);
+        for term in decomposer.decompose(val_minus_epsilon) {
+            assert!(1 <= term.level().0);
+            assert!(term.level().0 <= decomposer.level_count);
+            let term = term.value();
+            let half_basis = (T::ONE << decomposer.base_log) / T::TWO;
+
+            let abs_term = if term > ciphertext_modulus_as_t / T::TWO {
+                ciphertext_modulus_as_t - term
+            } else {
+                term
+            };
+
+            assert!(abs_term <= half_basis);
+        }
+        assert_eq!(val, decomposer.closest_representable(val_minus_epsilon));
     }
 
     for _ in 0..1000 {
         let log_b = any_usize();
         let level_max = any_usize();
+        let val = any_uint::<T>();
         let bits = T::BITS;
-        let log_b = (log_b % ((bits / 4) - 1)) + 1;
+        let base_log = (log_b % ((bits / 4) - 1)) + 1;
         let level_count = (level_max % 4) + 1;
-        let rep_bits: usize = log_b * level_count;
+        let rep_bits: usize = base_log * level_count;
 
-        let base_to_the_level_u128 = 1u128 << rep_bits;
-        let base_to_the_level = T::ONE << rep_bits;
-        let smallest_representable_u128 =
-            ciphertext_modulus.get_custom_modulus() / base_to_the_level_u128;
-        let smallest_representable: T = smallest_representable_u128.cast_into();
-        let sub_smallest_representable_u128 = smallest_representable_u128 / 2;
-        // Compute an epsilon that should not change the result of a closest representable
-        let epsilon_u128 = any_uint::<u128>() % sub_smallest_representable_u128;
-
-        let multiple_of_smallest_representable = any_uint::<T>() % base_to_the_level;
-        let val = multiple_of_smallest_representable * smallest_representable;
+        let val = val << (bits - rep_bits);
+        let smallest_representable = divide_round(
+            ciphertext_modulus.get_custom_modulus(),
+            1u128 << (base_log * level_count),
+        );
+        let sub_smallest_representable = T::cast_from(smallest_representable / 2);
+        let epsilon = any_uint::<T>() % sub_smallest_representable;
+        let ciphertext_modulus_as_t = T::cast_from(ciphertext_modulus.get_custom_modulus());
 
         let decomposer = SignedDecomposerNonNative::new(
-            DecompositionBaseLog(log_b),
+            DecompositionBaseLog(base_log),
             DecompositionLevelCount(level_count),
             ciphertext_modulus,
         );
 
-        let val_u128: u128 = val.cast_into();
-        let val_plus_epsilon: T = val_u128
-            .wrapping_add(epsilon_u128)
-            .wrapping_rem(ciphertext_modulus.get_custom_modulus())
-            .cast_into();
+        {
+            let val_plus_epsilon = val.wrapping_add_custom_mod(epsilon, ciphertext_modulus_as_t);
+            for term in decomposer.decompose(val_plus_epsilon) {
+                assert!(1 <= term.level().0);
+                assert!(term.level().0 <= decomposer.level_count);
+                let term = term.value();
+                let half_basis = (T::ONE << decomposer.base_log) / T::TWO;
 
-        let closest = decomposer.closest_representable(val_plus_epsilon);
-        assert_eq!(
-            val, closest,
-            "\n val_plus_epsilon:          {val_plus_epsilon:064b}, \n \
-            expected_closest:           {val:064b}, \n \
-            closest:                    {closest:064b}\n \
-            decomp_base_log: {}, decomp_level_count: {}",
-            decomposer.base_log, decomposer.level_count
+                let abs_term = if term > ciphertext_modulus_as_t / T::TWO {
+                    ciphertext_modulus_as_t - term
+                } else {
+                    term
+                };
+
+                assert!(abs_term <= half_basis);
+            }
+            let closest = decomposer.closest_representable(val_plus_epsilon);
+            let distance = modular_distance_custom_mod(val, closest, ciphertext_modulus_as_t);
+            let distance_f64: f64 = distance.cast_into();
+            // -1 as we don't divide exactly for prime Q
+            let max_correct_bits: usize = base_log * level_count - 1;
+            let max_err_bits: usize = T::BITS - max_correct_bits;
+            assert!(
+            distance_f64.log2() <= max_err_bits as f64,
+            "base_log={base_log}, level_count={level_count}, val={val:064b}, closest={closest:064b}"
         );
+        }
 
-        let val_minus_epsilon: T = val_u128
-            .wrapping_add(ciphertext_modulus.get_custom_modulus())
-            .wrapping_sub(epsilon_u128)
-            .wrapping_rem(ciphertext_modulus.get_custom_modulus())
-            .cast_into();
+        {
+            let val_minus_epsilon = val.wrapping_sub_custom_mod(epsilon, ciphertext_modulus_as_t);
+            for term in decomposer.decompose(val_minus_epsilon) {
+                assert!(1 <= term.level().0);
+                assert!(term.level().0 <= decomposer.level_count);
+                let term = term.value();
+                let half_basis = (T::ONE << decomposer.base_log) / T::TWO;
 
-        let closest = decomposer.closest_representable(val_minus_epsilon);
-        assert_eq!(
-            val, closest,
-            "\n val_minus_epsilon:          {val_minus_epsilon:064b}, \n \
-            expected_closest:           {val:064b}, \n \
-            closest:                    {closest:064b}\n \
-            decomp_base_log: {}, decomp_level_count: {}",
-            decomposer.base_log, decomposer.level_count
+                let abs_term = if term > ciphertext_modulus_as_t / T::TWO {
+                    ciphertext_modulus_as_t - term
+                } else {
+                    term
+                };
+
+                assert!(abs_term <= half_basis);
+            }
+            let closest = decomposer.closest_representable(val_minus_epsilon);
+            let distance = modular_distance_custom_mod(val, closest, ciphertext_modulus_as_t);
+            let distance_f64: f64 = distance.cast_into();
+            // -1 as we don't divide exactly for prime Q
+            let max_correct_bits: usize = base_log * level_count - 1;
+            let max_err_bits: usize = T::BITS - max_correct_bits;
+            assert!(
+            distance_f64.log2() <= max_err_bits as f64,
+            "base_log={base_log}, level_count={level_count}, val={val:064b}, closest={closest:064b}"
         );
+        }
     }
 }
 
@@ -288,4 +309,83 @@ fn test_round_to_closest_twice_non_native_u64() {
     test_round_to_closest_twice_non_native::<u64>(
         CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     );
+}
+
+#[test]
+fn test_decomposer_mod_smaller_2_to_63() {
+    let ciphertext_modulus = CiphertextModulus::<u64>::try_new(1 << 62).unwrap();
+    // 0010_0111_10...0
+    let value_to_decompose_non_native =
+        (1u64 << 61) + (1 << 58) + (1 << 57) + (1 << 56) + (1 << 55);
+    let base_log = DecompositionBaseLog(3);
+    let level_count = DecompositionLevelCount(2);
+
+    let non_native_decomposer =
+        SignedDecomposerNonNative::new(base_log, level_count, ciphertext_modulus);
+    let non_native_closest =
+        non_native_decomposer.closest_representable(value_to_decompose_non_native);
+    // 0010_1000_00...0
+    assert_eq!(non_native_closest, (1u64 << 61) + (1 << 59));
+    let non_native_decomp_iter = non_native_decomposer.decompose(value_to_decompose_non_native);
+
+    // Check we get the same results shifted when computing on the shifted value to fill the MSBs
+    let value_to_decompose_native = value_to_decompose_non_native << 2;
+    let native_decomposer = SignedDecomposer::new(base_log, level_count);
+    let native_closest = native_decomposer.closest_representable(value_to_decompose_native);
+    assert_eq!(non_native_closest << 2, native_closest);
+
+    let native_decomp_iter = native_decomposer.decompose(value_to_decompose_native);
+
+    for (non_native_term, native_term) in non_native_decomp_iter.zip(native_decomp_iter) {
+        assert_eq!(
+            non_native_term.to_recomposition_summand() << 2,
+            native_term.to_recomposition_summand()
+        );
+    }
+}
+
+fn test_decompose_recompose_non_native<T: UnsignedInteger + Debug + RandomGenerable<Uniform>>(
+    ciphertext_modulus: CiphertextModulus<T>,
+) where
+    <T as UnsignedInteger>::Signed: Debug + SignedInteger,
+{
+    let ciphertext_modulus_as_t = T::cast_from(ciphertext_modulus.get_custom_modulus());
+    // Checks that the decomposing and recomposing a value brings the closest representable
+    for _ in 0..100_000 {
+        let decomposer = random_decomp_non_native::<T>(ciphertext_modulus);
+        let input = any_uint::<T>() % ciphertext_modulus_as_t;
+        for term in decomposer.decompose(input) {
+            assert!(1 <= term.level().0);
+            assert!(term.level().0 <= decomposer.level_count);
+            let term = term.value();
+            let half_basis = (T::ONE << decomposer.base_log) / T::TWO;
+
+            let abs_term = if term > ciphertext_modulus_as_t / T::TWO {
+                ciphertext_modulus_as_t - term
+            } else {
+                term
+            };
+
+            assert!(abs_term <= half_basis);
+        }
+        let closest = decomposer.closest_representable(input);
+        let distance = modular_distance_custom_mod(input, closest, ciphertext_modulus_as_t);
+        let distance_f64: f64 = distance.cast_into();
+        let base_log = decomposer.base_log().0;
+        let level_count = decomposer.level_count().0;
+        // -1 as we don't divide exactly for prime Q
+        let max_correct_bits: usize = base_log * level_count - 1;
+        let max_err_bits: usize = T::BITS - max_correct_bits;
+        assert!(
+        distance_f64.log2() <= max_err_bits as f64,
+        "base_log={base_log}, level_count={level_count}, input={input:064b}, closest={closest:064b}"
+    );
+    }
+}
+
+#[test]
+pub fn test_decompose_recompose_non_native_u64() {
+    test_decompose_recompose_non_native::<u64>(
+        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    )
 }
