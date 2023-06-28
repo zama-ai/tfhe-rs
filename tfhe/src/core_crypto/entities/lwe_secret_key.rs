@@ -94,6 +94,20 @@ impl<Scalar, C: Container<Element = Scalar>> LweSecretKey<C> {
     pub fn into_container(self) -> C {
         self.data
     }
+
+    pub fn as_view(&self) -> LweSecretKeyView<'_, Scalar> {
+        LweSecretKey {
+            data: self.as_ref(),
+        }
+    }
+}
+
+impl<Scalar, C: ContainerMut<Element = Scalar>> LweSecretKey<C> {
+    pub fn as_mut_view(&mut self) -> LweSecretKeyMutView<'_, Scalar> {
+        LweSecretKey {
+            data: self.as_mut(),
+        }
+    }
 }
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweSecretKey<C> {

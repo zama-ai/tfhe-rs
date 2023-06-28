@@ -125,3 +125,10 @@ fn test_seeded_lwe_ksk_gen_equivalence_u32_custom_mod() {
 fn test_seeded_lwe_ksk_gen_equivalence_u64_custom_mod() {
     test_seeded_lwe_ksk_gen_equivalence::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap());
 }
+
+#[test]
+fn test_seeded_lwe_ksk_gen_equivalence_u64_solinas_mod() {
+    test_seeded_lwe_ksk_gen_equivalence::<u64>(
+        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    )
+}

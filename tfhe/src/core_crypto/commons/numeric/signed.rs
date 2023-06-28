@@ -31,6 +31,7 @@ pub trait SignedInteger:
     + ShrAssign<usize>
     + CastFrom<f64>
     + CastInto<f64>
+    + From<bool>
 {
     /// The unsigned type of the same precision
     type Unsigned: UnsignedInteger<Signed = Self> + CastFrom<Self>;

@@ -1,10 +1,10 @@
+use crate::core_crypto::algorithms::divide_round;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
     SignedDecompositionIter, SignedDecompositionIterNonNative,
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-use crate::core_crypto::prelude::misc::divide_round_to_u128_custom_mod;
 use std::marker::PhantomData;
 
 /// A structure which allows to decompose unsigned integers into a set of smaller terms.
@@ -319,24 +319,45 @@ where
     ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     /// );
     /// let closest = decomposer.closest_representable(16982820785129133100u64);
-    /// assert_eq!(closest, 16983074190859960320u64);
+    /// assert_eq!(closest, 16983074190859960321u64);
     /// ```
     #[inline]
     pub fn closest_representable(&self, input: Scalar) -> Scalar {
+        let (interval_count, shift) = self.init_decomposition_state(input);
         let ciphertext_modulus = self.ciphertext_modulus.get_custom_modulus();
-        // Floored approach
-        // B^l
-        let base_to_level_count = 1 << (self.base_log * self.level_count);
-        // sr = floor(q/(B^l))
-        let smallest_representable = ciphertext_modulus / base_to_level_count;
+        let base = Scalar::ONE << self.base_log;
+        let interval_count: u128 = interval_count.cast_into();
+        let base_to_the_level = 1u128 << (self.base_log * self.level_count);
+        if base == shift {
+            Scalar::cast_from(
+                divide_round(interval_count * ciphertext_modulus, base_to_the_level)
+                    % ciphertext_modulus,
+            )
+        } else {
+            let mod_over_bl = divide_round(ciphertext_modulus, base_to_the_level);
+            Scalar::cast_from(interval_count * mod_over_bl)
+        }
+    }
 
-        let input_128: u128 = input.cast_into();
-        // rounded = round(input/sr)
-        let rounded =
-            divide_round_to_u128_custom_mod(input_128, smallest_representable, ciphertext_modulus);
-        // rounded * sr
-        let closest_representable = rounded * smallest_representable;
-        Scalar::cast_from(closest_representable)
+    #[inline]
+    pub fn init_decomposition_state(&self, input: Scalar) -> (Scalar, Scalar) {
+        // TODO: Some of these can be precomputed to chose one state init over the other
+        let ciphertext_modulus = self.ciphertext_modulus.get_custom_modulus();
+        let base = 1u128 << self.base_log;
+        let base_to_the_level = 1u128 << (self.base_log * self.level_count);
+        let mod_over_base = divide_round(ciphertext_modulus, base);
+        let shift = divide_round(ciphertext_modulus, mod_over_base);
+        let input_u128: u128 = input.cast_into();
+
+        if shift == base {
+            let mul_u128 = input_u128 * base_to_the_level;
+            let rounded_u128 = divide_round(mul_u128, ciphertext_modulus);
+            (Scalar::cast_from(rounded_u128), Scalar::cast_from(shift))
+        } else {
+            let mod_over_bl = divide_round(ciphertext_modulus, base_to_the_level);
+            let rounded_u128 = divide_round(input_u128, mod_over_bl);
+            (Scalar::cast_from(rounded_u128), Scalar::cast_from(shift))
+        }
     }
 
     /// Generate an iterator over the terms of the decomposition of the input.
@@ -383,10 +404,50 @@ where
         // Note that there would be no sense of making the decomposition on an input which was
         // not rounded to the closest representable first. We then perform it before decomposing.
         SignedDecompositionIterNonNative::new(
-            self.closest_representable(input),
+            self.init_decomposition_state(input),
             DecompositionBaseLog(self.base_log),
             DecompositionLevelCount(self.level_count),
             self.ciphertext_modulus,
         )
+    }
+
+    /// Recomposes a decomposed value by summing all the terms.
+    ///
+    /// If the input iterator yields $\tilde{\theta}\_i$, this returns
+    /// $\sum\_{i=1}^l\tilde{\theta}\_i\frac{q}{B^i}$.
+    ///
+    /// # Warning
+    /// Note: all recompositions may not be exact if $B^i$ for all $i <= l$ does not divide $q$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
+    /// use tfhe::core_crypto::commons::parameters::{
+    ///     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    /// };
+    /// let decomposer = SignedDecomposerNonNative::new(
+    ///     DecompositionBaseLog(4),
+    ///     DecompositionLevelCount(3),
+    ///     CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    /// );
+    /// let val = 1u64 << 60;
+    /// let dec = decomposer.decompose(val);
+    /// let rec = decomposer.recompose(dec);
+    /// assert_eq!(decomposer.closest_representable(val), rec.unwrap());
+    /// ```
+    pub fn recompose(&self, decomp: SignedDecompositionIterNonNative<Scalar>) -> Option<Scalar> {
+        if decomp.is_fresh() {
+            let ciphertext_modulus_as_scalar =
+                Scalar::cast_from(self.ciphertext_modulus.get_custom_modulus());
+            Some(decomp.fold(Scalar::ZERO, |acc, term| {
+                acc.wrapping_add_custom_mod(
+                    term.to_recomposition_summand(),
+                    ciphertext_modulus_as_scalar,
+                )
+            }))
+        } else {
+            None
+        }
     }
 }

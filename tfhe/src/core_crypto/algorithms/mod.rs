@@ -73,6 +73,7 @@ pub use lwe_programmable_bootstrapping::*;
 pub use lwe_public_key_generation::*;
 pub use lwe_secret_key_generation::*;
 pub use lwe_wopbs::*;
+pub use misc::*;
 pub use seeded_ggsw_ciphertext_decompression::*;
 pub use seeded_ggsw_ciphertext_list_decompression::*;
 pub use seeded_glwe_ciphertext_decompression::*;

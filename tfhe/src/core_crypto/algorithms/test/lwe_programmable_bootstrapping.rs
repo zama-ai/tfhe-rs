@@ -163,7 +163,10 @@ where
     }
 }
 
-create_parametrized_test!(lwe_encrypt_pbs_decrypt_custom_mod);
+create_parametrized_test!(lwe_encrypt_pbs_decrypt_custom_mod {
+    TEST_PARAMS_4_BITS_NATIVE_U64,
+    TEST_PARAMS_3_BITS_63_U64
+});
 
 // Here we will define a helper function to generate a many lut accumulator for a PBS
 fn generate_accumulator_many_lut<Scalar: UnsignedTorus + CastFrom<usize>>(

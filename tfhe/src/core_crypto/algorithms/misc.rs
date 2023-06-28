@@ -27,43 +27,6 @@ pub fn divide_round<Scalar: UnsignedInteger>(numerator: Scalar, denominator: Sca
     div + Scalar::from(rem >= (denominator >> 1))
 }
 
-#[inline]
-pub fn divide_round_to_u128_custom_mod<Scalar>(
-    numerator: Scalar,
-    denominator: Scalar,
-    modulus: u128,
-) -> u128
-where
-    Scalar: UnsignedInteger,
-{
-    let numerator_128: u128 = numerator.cast_into();
-    let half_denominator: u128 = (denominator / Scalar::TWO).cast_into();
-    let denominator_128: u128 = denominator.cast_into();
-    // That's the rounding
-    ((numerator_128 + half_denominator) % modulus) / denominator_128
-}
-
-pub fn odd_modular_inverse_pow_2<Scalar>(odd_value_to_invert: Scalar, log2_modulo: usize) -> Scalar
-where
-    Scalar: UnsignedInteger,
-{
-    let t = log2_modulo.ilog2() + if log2_modulo.is_power_of_two() { 0 } else { 1 };
-    let mut y = Scalar::ONE;
-    let e = odd_value_to_invert;
-
-    for i in 1..=t {
-        // 1 << (1 << i) == 2 ^ {2 ^ i}
-        let curr_mod = Scalar::ONE.shl(1 << i);
-        // y = y * (2 - y * e) mod 2 ^ {2 ^ i}
-        // Here using wrapping ops is ok as the modulus used is a power of 2, as long as 2 ^ {2 ^ i}
-        // is smaller than Scalar::BITS, we are good to go, the discarded values would not have been
-        // Used anyways, and 2 ^ {2 ^ i} is compatible with a native modulus
-        y = (y.wrapping_mul(Scalar::TWO.wrapping_sub(y.wrapping_mul(e)))).wrapping_rem(curr_mod);
-    }
-
-    y.wrapping_rem(Scalar::ONE.shl(log2_modulo))
-}
-
 /// Compute the smallest signed difference between two torus elements
 pub fn torus_modular_diff<T: UnsignedInteger>(
     first: T,

@@ -10,6 +10,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 ) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
+    let glwe_moduluar_std_dev = params.glwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
@@ -27,6 +28,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
         for _ in 0..NB_TESTS {
+            println!("{msg}");
             let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
                 lwe_dimension,
                 &mut rsc.secret_random_generator,
@@ -60,7 +62,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
             let ct = allocate_and_encrypt_new_lwe_ciphertext(
                 &big_lwe_sk,
                 plaintext,
-                lwe_modular_std_dev,
+                glwe_moduluar_std_dev,
                 ciphertext_modulus,
                 &mut rsc.encryption_random_generator,
             );

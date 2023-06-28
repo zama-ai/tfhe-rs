@@ -160,6 +160,51 @@ pub fn fill_lwe_mask_and_body_for_encryption_other_mod<Scalar, KeyCont, OutputCo
         .wrapping_add_custom_mod(noise, ciphertext_modulus_as_scalar);
 }
 
+pub fn fill_lwe_mask_and_body_for_encryption_non_native_mod<Scalar, KeyCont, OutputCont, Gen>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output_mask: &mut LweMask<OutputCont>,
+    output_body: &mut LweBodyRefMut<Scalar>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert_eq!(
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus(),
+        "Mismatched moduli between mask ({:?}) and body ({:?})",
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus()
+    );
+
+    let ciphertext_modulus = output_mask.ciphertext_modulus();
+
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+
+    // generate an error from the normal distribution described by std_dev
+    *output_body.data = generator.random_noise_custom_mod(noise_parameters, ciphertext_modulus);
+    *output_body.data = (*output_body.data).wrapping_add_custom_mod(
+        encoded.0,
+        ciphertext_modulus.get_custom_modulus().cast_into(),
+    );
+
+    // compute the multisum between the secret key and the mask
+    *output_body.data = (*output_body.data).wrapping_add_custom_mod(
+        slice_wrapping_dot_product_custom_mod(
+            output_mask.as_ref(),
+            lwe_secret_key.as_ref(),
+            ciphertext_modulus.get_custom_modulus().cast_into(),
+        ),
+        ciphertext_modulus.get_custom_modulus().cast_into(),
+    );
+}
+
 /// Encrypt an input plaintext in an output [`LWE ciphertext`](`LweCiphertext`).
 ///
 /// See the [`LWE ciphertext formal definition`](`LweCiphertext#lwe-encryption`) for the definition
@@ -586,6 +631,39 @@ where
             ciphertext_modulus_as_scalar,
         ),
         ciphertext_modulus_as_scalar,
+    ))
+}
+
+pub fn decrypt_lwe_ciphertext_non_native_mod<Scalar, KeyCont, InputCont>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    lwe_ciphertext: &LweCiphertext<InputCont>,
+) -> Plaintext<Scalar>
+where
+    Scalar: UnsignedInteger,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert!(
+        lwe_ciphertext.lwe_size().to_lwe_dimension() == lwe_secret_key.lwe_dimension(),
+        "Mismatch between LweDimension of output ciphertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        lwe_ciphertext.lwe_size().to_lwe_dimension(),
+        lwe_secret_key.lwe_dimension()
+    );
+
+    let ciphertext_modulus = lwe_ciphertext.ciphertext_modulus();
+
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    let (mask, body) = lwe_ciphertext.get_mask_and_body();
+
+    Plaintext((*body.data).wrapping_sub_custom_mod(
+        slice_wrapping_dot_product_custom_mod(
+            mask.as_ref(),
+            lwe_secret_key.as_ref(),
+            ciphertext_modulus.get_custom_modulus().cast_into(),
+        ),
+        ciphertext_modulus.get_custom_modulus().cast_into(),
     ))
 }
 

@@ -325,6 +325,20 @@ pub fn lwe_ciphertext_plaintext_add_assign_other_mod<Scalar, InCont>(
         .wrapping_add_custom_mod(rhs.0, ciphertext_modulus.get_custom_modulus().cast_into());
 }
 
+pub fn lwe_ciphertext_plaintext_add_assign_non_native_mod<Scalar, InCont>(
+    lhs: &mut LweCiphertext<InCont>,
+    rhs: Plaintext<Scalar>,
+) where
+    Scalar: UnsignedInteger,
+    InCont: ContainerMut<Element = Scalar>,
+{
+    let body = lhs.get_mut_body();
+    let ciphertext_modulus = body.ciphertext_modulus();
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+    *body.data = (*body.data)
+        .wrapping_add_custom_mod(rhs.0, ciphertext_modulus.get_custom_modulus().cast_into());
+}
+
 /// Add the right-hand side encoded [`Plaintext`] to the left-hand side [`LWE
 /// ciphertext`](`LweCiphertext`) updating it in-place.
 ///
@@ -420,6 +434,20 @@ pub fn lwe_ciphertext_plaintext_sub_assign_native_mod_compatible<Scalar, InCont>
 }
 
 pub fn lwe_ciphertext_plaintext_sub_assign_other_mod<Scalar, InCont>(
+    lhs: &mut LweCiphertext<InCont>,
+    rhs: Plaintext<Scalar>,
+) where
+    Scalar: UnsignedInteger,
+    InCont: ContainerMut<Element = Scalar>,
+{
+    let body = lhs.get_mut_body();
+    let ciphertext_modulus = body.ciphertext_modulus();
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+    *body.data = (*body.data)
+        .wrapping_sub_custom_mod(rhs.0, ciphertext_modulus.get_custom_modulus().cast_into());
+}
+
+pub fn lwe_ciphertext_plaintext_sub_assign_non_native_mod<Scalar, InCont>(
     lhs: &mut LweCiphertext<InCont>,
     rhs: Plaintext<Scalar>,
 ) where
