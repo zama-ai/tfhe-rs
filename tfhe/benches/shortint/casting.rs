@@ -7,6 +7,9 @@ use rayon::prelude::*;
 use criterion::Criterion;
 
 pub fn pack_cast_64(c: &mut Criterion) {
+    let bench_name = "pack_cast_64";
+    let mut bench_group = c.benchmark_group(bench_name);
+
     let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
@@ -21,8 +24,8 @@ pub fn pack_cast_64(c: &mut Criterion) {
 
     let vec_ct = vec![client_key_1.encrypt(1); 64];
 
-    let bench_id = format!("Casting::pack_cast_64_{}", ks_param_name);
-    c.bench_function(&bench_id, |b| {
+    let bench_id = format!("{bench_name}_{ks_param_name}");
+    bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let _ = (0..32)
                 .into_par_iter()
@@ -41,7 +44,7 @@ pub fn pack_cast_64(c: &mut Criterion) {
         });
     });
 
-    write_to_json(
+    write_to_json::<u64, _>(
         &bench_id,
         ks_param,
         ks_param_name,
@@ -53,6 +56,9 @@ pub fn pack_cast_64(c: &mut Criterion) {
 }
 
 pub fn pack_cast(c: &mut Criterion) {
+    let bench_name = "pack_cast";
+    let mut bench_group = c.benchmark_group(bench_name);
+
     let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
@@ -68,8 +74,8 @@ pub fn pack_cast(c: &mut Criterion) {
     let ct_1 = client_key_1.encrypt(1);
     let ct_2 = client_key_1.encrypt(1);
 
-    let bench_id = format!("Casting::pack_cast_{}", ks_param_name);
-    c.bench_function(&bench_id, |b| {
+    let bench_id = format!("{bench_name}_{ks_param_name}");
+    bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let _ = ksk.cast(
                 &server_key_1.unchecked_add(&ct_1, &server_key_1.unchecked_scalar_mul(&ct_2, 2)),
@@ -77,7 +83,7 @@ pub fn pack_cast(c: &mut Criterion) {
         });
     });
 
-    write_to_json(
+    write_to_json::<u64, _>(
         &bench_id,
         ks_param,
         ks_param_name,
@@ -89,6 +95,9 @@ pub fn pack_cast(c: &mut Criterion) {
 }
 
 pub fn cast(c: &mut Criterion) {
+    let bench_name = "cast";
+    let mut bench_group = c.benchmark_group(bench_name);
+
     let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_1_CARRY_1);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) = gen_keys(PARAM_MESSAGE_2_CARRY_2);
 
@@ -103,14 +112,14 @@ pub fn cast(c: &mut Criterion) {
 
     let ct = client_key_1.encrypt(1);
 
-    let bench_id = format!("Casting::cast_{}", ks_param_name);
-    c.bench_function(&bench_id, |b| {
+    let bench_id = format!("{bench_name}_{ks_param_name}");
+    bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let _ = ksk.cast(&ct);
         });
     });
 
-    write_to_json(
+    write_to_json::<u64, _>(
         &bench_id,
         ks_param,
         ks_param_name,

@@ -89,7 +89,9 @@ where
 }
 
 #[cfg(feature = "shortint")]
-impl From<ShortintKeySwitchingParameters> for CryptoParametersRecord {
+impl<Scalar: UnsignedInteger> From<ShortintKeySwitchingParameters>
+    for CryptoParametersRecord<Scalar>
+{
     fn from(params: ShortintKeySwitchingParameters) -> Self {
         CryptoParametersRecord {
             lwe_dimension: None,
@@ -108,6 +110,7 @@ impl From<ShortintKeySwitchingParameters> for CryptoParametersRecord {
             cbs_base_log: None,
             message_modulus: None,
             carry_modulus: None,
+            ciphertext_modulus: None,
         }
     }
 }
