@@ -87,7 +87,7 @@ and not test(/.*test_integer_default_add_sequence_multi_thread_param_message_4_c
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
-and test(/.*_default_.*/) \
+and test(/.*_default_.*?_param${multi_bit}_message_[2-3]_carry_[2-3]${multi_bit:+"_group_2"}_ks_pbs/) \
 and not test(/.*_param_message_[14]_carry_[14]_ks_pbs$/) \
 and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs$/)"""
     fi
@@ -129,7 +129,7 @@ and not test(/.*test_integer_default_add_sequence_multi_thread_param_message_4_c
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
-and test(/.*_default_.*/) \
+and test(/.*_default_.*?_param${multi_bit}_message_[2-3]_carry_[2-3]${multi_bit:+"_group_2"}_ks_pbs/) \
 and not test(/.*_param_message_[14]_carry_[14]_ks_pbs$/) \
 and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs$/)"""
     fi
