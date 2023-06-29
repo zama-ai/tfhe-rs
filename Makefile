@@ -243,15 +243,19 @@ test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
 
-.PHONY: test_c_api # Run the tests for the C API
-test_c_api: install_rs_check_toolchain 
+.PHONY: test_c_api_rs # Run the rust tests for the C API
+test_c_api_rs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api \
 		-p tfhe \
 		c_api
-	
-	"$(MAKE)" build_c_api
+
+.PHONY: test_c_api_c # Run the C tests for the C API
+test_c_api_c: build_c_api
 	./scripts/c_api_tests.sh
+
+.PHONY: test_c_api # Run all the tests for the C API
+test_c_api: test_c_api_rs test_c_api_c
 
 .PHONY: test_shortint_ci # Run the tests for shortint ci
 test_shortint_ci: install_rs_build_toolchain install_cargo_nextest

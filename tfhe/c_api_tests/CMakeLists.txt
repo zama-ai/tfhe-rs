@@ -2,7 +2,10 @@ project(tfhe-c-api-tests)
 
 cmake_minimum_required(VERSION 3.16)
 
-set(TFHE_C_API_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release/")
+if(NOT CARGO_PROFILE)
+    set(CARGO_PROFILE release)
+endif()
+set(TFHE_C_API_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/../../target/${CARGO_PROFILE}")
 
 include_directories(${TFHE_C_API_RELEASE})
 add_library(Tfhe STATIC IMPORTED)
