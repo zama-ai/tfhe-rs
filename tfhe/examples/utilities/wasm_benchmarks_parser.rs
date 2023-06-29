@@ -23,8 +23,10 @@ struct Args {
 
 fn params_from_name(name: &str) -> ClassicPBSParameters {
     match name.to_lowercase().as_str() {
-        "param_message_2_carry_2_ks_pbs_compact_pk" => PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
-        "param_message_2_carry_2_ks_pbs_compact_pk_small" => {
+        "param_message_2_carry_2_ks_pbs_compact_pk_ks_pbs" => {
+            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS
+        }
+        "param_message_2_carry_2_ks_pbs_compact_pk_pbs_ks" => {
             PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS
         }
         _ => panic!("failed to get parameters for name '{name}'"),
