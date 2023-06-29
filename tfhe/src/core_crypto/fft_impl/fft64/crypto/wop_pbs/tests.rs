@@ -774,3 +774,202 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         println!("{decoded_message:?}");
     }
 }
+
+fn test_wop_add_one(polynomial_size: PolynomialSize) {
+    // DISCLAIMER: these are toy parameters and are not guaranteed to be secure
+    let glwe_dim = GlweDimension(1);
+    let small_dim = LweDimension(4);
+    let level_bsk = DecompositionLevelCount(4);
+    let base_log_bsk = DecompositionBaseLog(9);
+    let level_pksk = DecompositionLevelCount(2);
+    let base_log_pksk = DecompositionBaseLog(15);
+    let level_cbs = DecompositionLevelCount(4);
+    let base_log_cbs = DecompositionBaseLog(6);
+    let ciphertext_modulus = CiphertextModulus::new_native();
+    let variance = crate::core_crypto::commons::dispersion::Variance(0.0);
+
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+
+    let mut secret_generator = SecretRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed());
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<SoftwareRandomGenerator>::new(seeder.seed(), seeder);
+
+    let small_sk =
+        allocate_and_generate_new_binary_lwe_secret_key::<u64, _>(small_dim, &mut secret_generator);
+
+    let big_sk = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_dim,
+        polynomial_size,
+        &mut secret_generator,
+    );
+
+    let big_lwe_sk = big_sk.clone().into_lwe_secret_key();
+
+    // allocation and generation of the key in coef domain:
+    let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
+        &small_sk,
+        &big_sk,
+        base_log_bsk,
+        level_bsk,
+        variance,
+        ciphertext_modulus,
+        &mut encryption_generator,
+    );
+
+    // allocation for the bootstrapping key
+    let mut fourier_bsk = FourierLweBootstrapKey::new(
+        small_dim,
+        glwe_dim.to_glwe_size(),
+        polynomial_size,
+        base_log_bsk,
+        level_bsk,
+    );
+
+    let fft = Fft::new(polynomial_size);
+    let fft = fft.as_view();
+
+    let mut mem = GlobalPodBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
+    fourier_bsk.as_mut_view().fill_with_forward_fourier(
+        std_bsk.as_view(),
+        fft,
+        PodStack::new(&mut mem),
+    );
+
+    // Creation of all the pfksk for the circuit bootstrapping
+    let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
+        &big_lwe_sk,
+        &big_sk,
+        base_log_pksk,
+        level_pksk,
+        variance,
+        ciphertext_modulus,
+        &mut encryption_generator,
+    );
+
+    // We are going to encrypt 10 bits
+    let number_of_input_bits: usize = 10;
+
+    // Test on 610, binary representation 10011 00010
+    let mut vals = [0u64; 10];
+    vals[0] = 610;
+    // Use our generator to have more random values
+    encryption_generator.fill_slice_with_random_mask(&mut vals[1..]);
+    // Apply our modulus to be sure we can represent the test values
+    vals.iter_mut()
+        .for_each(|x| *x %= 1 << number_of_input_bits);
+
+    for val in vals {
+        let mut extracted_bits = LweCiphertextList::new(
+            0u64,
+            small_dim.to_lwe_size(),
+            LweCiphertextCount(number_of_input_bits),
+            ciphertext_modulus,
+        );
+
+        // Encrypt bits as if
+        for i in 0..number_of_input_bits {
+            encrypt_lwe_ciphertext(
+                &small_sk,
+                &mut extracted_bits.get_mut(number_of_input_bits - i - 1),
+                Plaintext(((val >> i) & 1) << 63),
+                variance,
+                &mut encryption_generator,
+            )
+        }
+
+        // We'll apply a single table look-up computing x + 1 to our 10 bits input integer
+        let number_of_luts_and_output_cts: usize = 1;
+
+        let mut output_cbs_vp = LweCiphertextList::new(
+            0u64,
+            big_lwe_sk.lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(number_of_luts_and_output_cts),
+            ciphertext_modulus,
+        );
+
+        // Here we will create a single lut which will result in a single Output ciphertext
+        // We take the max between polynomial_size and the number of input bits because:
+        // If polynomial_size > 2^number_of_inputs_bits some values will go unused by the vertical
+        // packing, we just fill the whole lut anyways as it's easier to write
+        // If both are equal then no cmux tree and only blind rotations will be performed on the lut
+        // containing a single polynomial
+        // If the polynomial_size < 2^number_of_inputs_bits then we first create a lut  with
+        // 2^number_of_inputs_bits values that is then adapted to the right polynomial size via a
+        // polynomial list
+        let luts_size = (1 << number_of_input_bits).max(polynomial_size.0);
+        let luts_length = number_of_luts_and_output_cts * luts_size;
+        let mut lut: Vec<u64> = Vec::with_capacity(luts_length);
+
+        let delta_log_lut = 64 - number_of_input_bits;
+
+        for i in 0..luts_length {
+            lut.push(((i + 1) as u64 % (1 << number_of_input_bits)) << delta_log_lut);
+        }
+
+        let lut_as_polynomial_list = PolynomialList::from_container(lut, polynomial_size);
+
+        // Perform circuit bootstrap + vertical packing
+        let mut mem = GlobalPodBuffer::new(
+            circuit_bootstrap_boolean_vertical_packing_scratch::<u64>(
+                extracted_bits.lwe_ciphertext_count(),
+                output_cbs_vp.lwe_ciphertext_count(),
+                extracted_bits.lwe_size(),
+                lut_as_polynomial_list.polynomial_count(),
+                fourier_bsk.output_lwe_dimension().to_lwe_size(),
+                fourier_bsk.glwe_size(),
+                cbs_pfpksk.output_polynomial_size(),
+                level_cbs,
+                fft,
+            )
+            .unwrap(),
+        );
+        circuit_bootstrap_boolean_vertical_packing(
+            lut_as_polynomial_list.as_view(),
+            fourier_bsk.as_view(),
+            output_cbs_vp.as_mut_view(),
+            extracted_bits.as_view(),
+            cbs_pfpksk.as_view(),
+            level_cbs,
+            base_log_cbs,
+            fft,
+            PodStack::new(&mut mem),
+        );
+
+        let expected = (val + 1) % (1 << number_of_input_bits);
+
+        // We have a single output ct
+        let result_ct = output_cbs_vp.iter().next().unwrap();
+
+        // Decomposer helper to round the result and decode
+        let decomposer = SignedDecomposer::new(
+            DecompositionBaseLog(number_of_input_bits),
+            DecompositionLevelCount(1),
+        );
+
+        // decrypt result
+        let decrypted_message = decrypt_lwe_ciphertext(&big_lwe_sk, &result_ct);
+        let decoded_message =
+            decomposer.closest_representable(decrypted_message.0) >> delta_log_lut;
+
+        assert_eq!(expected, decoded_message);
+    }
+}
+
+//CMUX tree
+#[test]
+fn test_wop_add_one_cmux_tree() {
+    test_wop_add_one(PolynomialSize(512))
+}
+
+//No CMUX tree
+#[test]
+fn test_wop_add_one_no_cmux_tree() {
+    test_wop_add_one(PolynomialSize(1024))
+}
+
+//Expanded lut
+#[test]
+fn test_wop_add_one_expanded_lut() {
+    test_wop_add_one(PolynomialSize(2048))
+}
