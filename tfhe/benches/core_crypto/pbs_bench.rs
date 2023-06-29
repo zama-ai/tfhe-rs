@@ -57,8 +57,8 @@ criterion_group!(
 
 criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
 
-fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParametersRecord<Scalar>)>
-{
+fn benchmark_parameters<Scalar: UnsignedInteger>(
+) -> Vec<(&'static str, CryptoParametersRecord<Scalar>)> {
     if Scalar::BITS == 64 {
         SHORTINT_BENCH_PARAMS
             .iter()
@@ -74,7 +74,7 @@ fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParamet
     } else if Scalar::BITS == 32 {
         BOOLEAN_BENCH_PARAMS
             .iter()
-            .map(|(name, params)| (name.to_string(), params.to_owned().into()))
+            .map(|(name, params)| (*name, params.to_owned().into()))
             .collect()
     } else {
         vec![]
@@ -82,7 +82,7 @@ fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParamet
 }
 
 fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
-) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
+) -> Vec<(&'static str, CryptoParametersRecord<Scalar>)> {
     if Scalar::BITS == 64 {
         vec![
             PARAM_MESSAGE_1_CARRY_1_KS_PBS,
@@ -102,7 +102,7 @@ fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
     } else if Scalar::BITS == 32 {
         BOOLEAN_BENCH_PARAMS
             .iter()
-            .map(|(name, params)| (name.to_string(), params.to_owned().into()))
+            .map(|(name, params)| (*name, params.to_owned().into()))
             .collect()
     } else {
         vec![]
@@ -368,7 +368,7 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
         write_to_json(
             &id,
             *params,
-            name,
+            *name,
             "pbs",
             &OperatorType::Atomic,
             bit_size,
@@ -668,7 +668,7 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
             write_to_json(
                 &id,
                 *params,
-                name,
+                *name,
                 "pbs",
                 &OperatorType::Atomic,
                 bit_size,
