@@ -50,7 +50,8 @@ fn bench_server_key_unary_function<F>(
     let mut bench_group = c.benchmark_group(bench_name);
 
     for param in params.iter() {
-        let keys = KEY_CACHE.get_from_param(*param);
+        let param: PBSParameters = (*param).into();
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -70,12 +71,12 @@ fn bench_server_key_unary_function<F>(
 
         write_to_json::<u64, _>(
             &bench_id,
-            *param,
+            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
-            param.message_modulus.0.ilog2(),
-            vec![param.message_modulus.0.ilog2()],
+            param.message_modulus().0.ilog2(),
+            vec![param.message_modulus().0.ilog2()],
         );
     }
 
@@ -94,7 +95,8 @@ fn bench_server_key_binary_function<F>(
     let mut bench_group = c.benchmark_group(bench_name);
 
     for param in params.iter() {
-        let keys = KEY_CACHE.get_from_param(*param);
+        let param: PBSParameters = (*param).into();
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -116,12 +118,12 @@ fn bench_server_key_binary_function<F>(
 
         write_to_json::<u64, _>(
             &bench_id,
-            *param,
+            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
-            param.message_modulus.0.ilog2(),
-            vec![param.message_modulus.0.ilog2()],
+            param.message_modulus().0.ilog2(),
+            vec![param.message_modulus().0.ilog2()],
         );
     }
 
@@ -140,7 +142,8 @@ fn bench_server_key_binary_scalar_function<F>(
     let mut bench_group = c.benchmark_group(bench_name);
 
     for param in params {
-        let keys = KEY_CACHE.get_from_param(*param);
+        let param: PBSParameters = (*param).into();
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -161,12 +164,12 @@ fn bench_server_key_binary_scalar_function<F>(
 
         write_to_json::<u64, _>(
             &bench_id,
-            *param,
+            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
-            param.message_modulus.0.ilog2(),
-            vec![param.message_modulus.0.ilog2()],
+            param.message_modulus().0.ilog2(),
+            vec![param.message_modulus().0.ilog2()],
         );
     }
 
@@ -185,7 +188,8 @@ fn bench_server_key_binary_scalar_division_function<F>(
     let mut bench_group = c.benchmark_group(bench_name);
 
     for param in params {
-        let keys = KEY_CACHE.get_from_param(*param);
+        let param: PBSParameters = (*param).into();
+        let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
         let mut rng = rand::thread_rng();
@@ -210,12 +214,12 @@ fn bench_server_key_binary_scalar_division_function<F>(
 
         write_to_json::<u64, _>(
             &bench_id,
-            *param,
+            param,
             param.name(),
             display_name,
             &OperatorType::Atomic,
-            param.message_modulus.0.ilog2(),
-            vec![param.message_modulus.0.ilog2()],
+            param.message_modulus().0.ilog2(),
+            vec![param.message_modulus().0.ilog2()],
         );
     }
 
@@ -226,6 +230,7 @@ fn carry_extract(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("carry_extract");
 
     for param in SERVER_KEY_BENCH_PARAMS {
+        let param: PBSParameters = param.into();
         let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -250,8 +255,8 @@ fn carry_extract(c: &mut Criterion) {
             param.name(),
             "carry_extract",
             &OperatorType::Atomic,
-            param.message_modulus.0.ilog2(),
-            vec![param.message_modulus.0.ilog2()],
+            param.message_modulus().0.ilog2(),
+            vec![param.message_modulus().0.ilog2()],
         );
     }
 
@@ -262,6 +267,7 @@ fn programmable_bootstrapping(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group("programmable_bootstrap");
 
     for param in SERVER_KEY_BENCH_PARAMS {
+        let param: PBSParameters = param.into();
         let keys = KEY_CACHE.get_from_param(param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
@@ -289,8 +295,8 @@ fn programmable_bootstrapping(c: &mut Criterion) {
             param.name(),
             "pbs",
             &OperatorType::Atomic,
-            param.message_modulus.0.ilog2(),
-            vec![param.message_modulus.0.ilog2()],
+            param.message_modulus().0.ilog2(),
+            vec![param.message_modulus().0.ilog2()],
         );
     }
 

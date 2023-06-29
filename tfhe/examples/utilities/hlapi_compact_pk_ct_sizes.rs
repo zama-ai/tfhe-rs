@@ -12,6 +12,7 @@ use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::{
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
 };
+use tfhe::shortint::PBSParameters;
 use tfhe::{
     generate_keys, CompactFheUint256List, CompactFheUint32List, CompactPublicKey, ConfigBuilder,
 };
@@ -44,6 +45,8 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             .build();
         let (client_key, _) = generate_keys(config);
         let test_name = format!("hlapi_sizes_{}_cpk", params.name());
+
+        let params: PBSParameters = params.into();
 
         println!("Sizes for: {} and 32 bits", params.name());
 
@@ -102,7 +105,10 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
         let (client_key, _) = generate_keys(config);
         let test_name = format!("hlapi_sizes_{}_cpk", params.name());
 
+        let params: PBSParameters = params.into();
+
         println!("Sizes for: {} and 32 bits", params.name());
+
         let public_key = CompactPublicKey::new(&client_key);
 
         let cpk_size = bincode::serialize(&public_key).unwrap().len();
@@ -158,6 +164,8 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             .build();
         let (client_key, _) = generate_keys(config);
 
+        let params: PBSParameters = params.into();
+
         println!("Sizes for: {} and 256 bits", params.name());
 
         let public_key = CompactPublicKey::new(&client_key);
@@ -204,6 +212,8 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             .enable_custom_integers(params, None)
             .build();
         let (client_key, _) = generate_keys(config);
+
+        let params: PBSParameters = params.into();
 
         println!("Sizes for: {} and 256 bits", params.name());
 

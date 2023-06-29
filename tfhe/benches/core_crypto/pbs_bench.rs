@@ -62,7 +62,14 @@ fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParamet
     if Scalar::BITS == 64 {
         SHORTINT_BENCH_PARAMS
             .iter()
-            .map(|params| (params.name(), params.to_owned().into()))
+            .map(|params| {
+                (
+                    params.name(),
+                    <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                        .to_owned()
+                        .into(),
+                )
+            })
             .collect()
     } else if Scalar::BITS == 32 {
         BOOLEAN_BENCH_PARAMS
@@ -83,7 +90,14 @@ fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
             PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         ]
         .iter()
-        .map(|params| (params.name(), params.to_owned().into()))
+        .map(|params| {
+            (
+                params.name(),
+                <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                    .to_owned()
+                    .into(),
+            )
+        })
         .collect()
     } else if Scalar::BITS == 32 {
         BOOLEAN_BENCH_PARAMS
