@@ -7,6 +7,18 @@ fn gen_c_api() {
         return;
     }
 
+    fn get_build_profile_name() -> String {
+        // The profile name is always the 3rd last part of the path (with 1 based indexing).
+        // e.g. /code/core/target/cli/build/my-build-info-9f91ba6f99d7a061/out
+        let out_dir = std::env::var("OUT_DIR")
+            .expect("OUT_DIR is not set, cannot determine build profile, aborting");
+        out_dir
+            .split(std::path::MAIN_SEPARATOR)
+            .nth_back(3)
+            .expect("Cannot determine build profile, aborting")
+            .to_string()
+    }
+
     /// Find the location of the `target/` directory. Note that this may be
     /// overridden by `cmake`, so we also need to check the `CARGO_TARGET_DIR`
     /// variable.
@@ -14,7 +26,8 @@ fn gen_c_api() {
         if let Ok(target) = env::var("CARGO_TARGET_DIR") {
             PathBuf::from(target)
         } else {
-            PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("../target/release")
+            PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+                .join(format!("../target/{}", get_build_profile_name()))
         }
     }
 
