@@ -15,6 +15,7 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-C target-cpu=native"
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  CARGO_PROFILE: release_lto_off
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
