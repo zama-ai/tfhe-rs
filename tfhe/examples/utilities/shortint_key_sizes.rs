@@ -10,6 +10,7 @@ use tfhe::shortint::parameters::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
     PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
+use tfhe::shortint::PBSParameters;
 
 fn write_result(file: &mut File, name: &str, value: usize) {
     let line = format!("{name},{value}\n");
@@ -34,6 +35,7 @@ fn client_server_key_sizes(results_file: &Path) {
 
     println!("Generating shortint (ClientKey, ServerKey)");
     for (i, params) in shortint_params_vec.iter().enumerate() {
+        let params: PBSParameters = (*params).into();
         println!(
             "Generating [{} / {}] : {}",
             i + 1,
@@ -41,7 +43,7 @@ fn client_server_key_sizes(results_file: &Path) {
             params.name().to_lowercase()
         );
 
-        let keys = KEY_CACHE.get_from_param(*params);
+        let keys = KEY_CACHE.get_from_param(params);
 
         // Client keys don't have public access to members, but the keys in there are small anyways
         // let cks = keys.client_key();
@@ -52,7 +54,7 @@ fn client_server_key_sizes(results_file: &Path) {
         write_result(&mut file, &test_name, ksk_size);
         write_to_json::<u64, _>(
             &test_name,
-            *params,
+            params,
             params.name(),
             "KSK",
             &operator,
@@ -72,7 +74,7 @@ fn client_server_key_sizes(results_file: &Path) {
         write_result(&mut file, &test_name, bsk_size);
         write_to_json::<u64, _>(
             &test_name,
-            *params,
+            params,
             params.name(),
             "BSK",
             &operator,

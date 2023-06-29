@@ -7,7 +7,7 @@ use tfhe::core_crypto::prelude::*;
 #[cfg(feature = "shortint")]
 use tfhe::shortint::parameters::ShortintKeySwitchingParameters;
 #[cfg(feature = "shortint")]
-use tfhe::shortint::ClassicPBSParameters;
+use tfhe::shortint::PBSParameters;
 
 #[derive(Clone, Copy, Default, Serialize)]
 pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
@@ -56,31 +56,31 @@ impl<Scalar: UnsignedInteger> From<BooleanParameters> for CryptoParametersRecord
 }
 
 #[cfg(feature = "shortint")]
-impl<Scalar> From<ClassicPBSParameters> for CryptoParametersRecord<Scalar>
+impl<Scalar> From<PBSParameters> for CryptoParametersRecord<Scalar>
 where
     Scalar: UnsignedInteger + CastInto<u128>,
 {
-    fn from(params: ClassicPBSParameters) -> Self {
+    fn from(params: PBSParameters) -> Self {
         CryptoParametersRecord {
-            lwe_dimension: Some(params.lwe_dimension),
-            glwe_dimension: Some(params.glwe_dimension),
-            polynomial_size: Some(params.polynomial_size),
-            lwe_modular_std_dev: Some(params.lwe_modular_std_dev),
-            glwe_modular_std_dev: Some(params.glwe_modular_std_dev),
-            pbs_base_log: Some(params.pbs_base_log),
-            pbs_level: Some(params.pbs_level),
-            ks_base_log: Some(params.ks_base_log),
-            ks_level: Some(params.ks_level),
+            lwe_dimension: Some(params.lwe_dimension()),
+            glwe_dimension: Some(params.glwe_dimension()),
+            polynomial_size: Some(params.polynomial_size()),
+            lwe_modular_std_dev: Some(params.lwe_modular_std_dev()),
+            glwe_modular_std_dev: Some(params.glwe_modular_std_dev()),
+            pbs_base_log: Some(params.pbs_base_log()),
+            pbs_level: Some(params.pbs_level()),
+            ks_base_log: Some(params.ks_base_log()),
+            ks_level: Some(params.ks_level()),
             pfks_level: None,
             pfks_base_log: None,
             pfks_modular_std_dev: None,
             cbs_level: None,
             cbs_base_log: None,
-            message_modulus: Some(params.message_modulus.0),
-            carry_modulus: Some(params.carry_modulus.0),
+            message_modulus: Some(params.message_modulus().0),
+            carry_modulus: Some(params.carry_modulus().0),
             ciphertext_modulus: Some(
                 params
-                    .ciphertext_modulus
+                    .ciphertext_modulus()
                     .try_to()
                     .expect("failed to convert ciphertext modulus"),
             ),

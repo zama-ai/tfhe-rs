@@ -2,12 +2,14 @@
 
 #[path = "../utilities.rs"]
 mod utilities;
+
 use crate::utilities::{write_to_json, OperatorType};
+use std::env;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use itertools::iproduct;
 use rand::Rng;
-use std::array::IntoIter;
+use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{RadixCiphertext, ServerKey};
 use tfhe::shortint::keycache::NamedParam;
@@ -15,7 +17,7 @@ use tfhe::shortint::keycache::NamedParam;
 #[allow(unused_imports)]
 use tfhe::shortint::parameters::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS, PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
 };
 
 /// An iterator that yields a succession of combinations
@@ -23,31 +25,47 @@ use tfhe::shortint::parameters::{
 /// in radix decomposition
 struct ParamsAndNumBlocksIter {
     params_and_bit_sizes:
-        itertools::Product<IntoIter<tfhe::shortint::ClassicPBSParameters, 1>, IntoIter<usize, 7>>,
+        itertools::Product<IntoIter<tfhe::shortint::PBSParameters>, IntoIter<usize>>,
 }
 
 impl Default for ParamsAndNumBlocksIter {
     fn default() -> Self {
-        // FIXME One set of parameter is tested since we want to benchmark only quickest operations.
-        const PARAMS: [tfhe::shortint::ClassicPBSParameters; 1] = [
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            // PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-            // PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-        ];
-        const BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
-        let params_and_bit_sizes = iproduct!(PARAMS, BIT_SIZES);
-        Self {
-            params_and_bit_sizes,
+        let is_multi_bit = match env::var("__TFHE_RS_BENCH_TYPE") {
+            Ok(val) => val.to_lowercase() == "multi_bit",
+            Err(_) => false,
+        };
+
+        if is_multi_bit {
+            let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
+            let bit_sizes = vec![8, 16, 32, 40, 64];
+            let params_and_bit_sizes = iproduct!(params, bit_sizes);
+            Self {
+                params_and_bit_sizes,
+            }
+        } else {
+            // FIXME One set of parameter is tested since we want to benchmark only quickest
+            // operations.
+            let params = vec![
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
+                // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
+            ];
+            let bit_sizes = vec![8, 16, 32, 40, 64, 128, 256];
+            let params_and_bit_sizes = iproduct!(params, bit_sizes);
+            Self {
+                params_and_bit_sizes,
+            }
         }
     }
 }
+
 impl Iterator for ParamsAndNumBlocksIter {
-    type Item = (tfhe::shortint::ClassicPBSParameters, usize, usize);
+    type Item = (tfhe::shortint::PBSParameters, usize, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
         let (param, bit_size) = self.params_and_bit_sizes.next()?;
         let num_block =
-            (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+            (bit_size as f64 / (param.message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
         Some((param, num_block, bit_size))
     }
@@ -88,7 +106,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
                 let mut ct_1 = cks.encrypt_radix(clear_1, num_block);
 
                 // Raise the degree, so as to ensure worst case path in operations
-                let mut carry_mod = param.carry_modulus.0;
+                let mut carry_mod = param.carry_modulus().0;
                 while carry_mod > 0 {
                     // Raise the degree, so as to ensure worst case path in operations
                     let clearlow = rng.gen::<u128>();
@@ -120,7 +138,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
-            vec![param.message_modulus.0.ilog2(); num_block],
+            vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
 
@@ -180,7 +198,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
-            vec![param.message_modulus.0.ilog2(); num_block],
+            vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
 
@@ -220,7 +238,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
                 let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
 
                 // Raise the degree, so as to ensure worst case path in operations
-                let mut carry_mod = param.carry_modulus.0;
+                let mut carry_mod = param.carry_modulus().0;
                 while carry_mod > 0 {
                     // Raise the degree, so as to ensure worst case path in operations
                     let clearlow = rng.gen::<u128>();
@@ -251,7 +269,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
-            vec![param.message_modulus.0.ilog2(); num_block],
+            vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
 
@@ -307,7 +325,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
-            vec![param.message_modulus.0.ilog2(); num_block],
+            vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
 
@@ -343,7 +361,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F>(
                 let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
 
                 // Raise the degree, so as to ensure worst case path in operations
-                let mut carry_mod = param.carry_modulus.0;
+                let mut carry_mod = param.carry_modulus().0;
                 while carry_mod > 0 {
                     // Raise the degree, so as to ensure worst case path in operations
                     let clearlow = rng.gen::<u128>();
@@ -376,7 +394,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F>(
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
-            vec![param.message_modulus.0.ilog2(); num_block],
+            vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
 
@@ -432,7 +450,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F>(
             display_name,
             &OperatorType::Atomic,
             bit_size as u32,
-            vec![param.message_modulus.0.ilog2(); num_block],
+            vec![param.message_modulus().0.ilog2(); num_block],
         );
     }
 

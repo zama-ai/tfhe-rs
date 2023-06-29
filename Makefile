@@ -404,7 +404,13 @@ no_tfhe_typo:
 bench_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p tfhe
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p tfhe --
+
+.PHONY: bench_integer_multi_bit # Run benchmarks for integer using multi-bit parameters
+bench_integer_multi_bit: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-bench \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p tfhe --
 
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
