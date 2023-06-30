@@ -193,15 +193,20 @@ impl ShortintBootstrappingKey {
 
     pub fn bootstrapping_key_size_elements(&self) -> usize {
         match self {
-            ShortintBootstrappingKey::Classic(bsk) => bsk.as_view().data().as_ref().len(),
+            ShortintBootstrappingKey::Classic(bsk) => bsk.as_view().data().len(),
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk: bsk, ..
-            } => bsk.as_view().data().as_ref().len(),
+            } => bsk.as_view().data().len(),
         }
     }
 
     pub fn bootstrapping_key_size_bytes(&self) -> usize {
-        self.bootstrapping_key_size_elements() * std::mem::size_of::<concrete_fft::c64>()
+        match self {
+            ShortintBootstrappingKey::Classic(bsk) => std::mem::size_of_val(bsk.as_view().data()),
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk: bsk, ..
+            } => std::mem::size_of_val(bsk.as_view().data()),
+        }
     }
 
     /// Indicate whether the PBS algorithm is deterministic, i.e. will produce the same bit-exact
