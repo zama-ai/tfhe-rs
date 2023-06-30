@@ -19,7 +19,7 @@ impl<G: ByteRandomGenerator> SecretRandomGenerator<G> {
         self.0.remaining_bytes()
     }
 
-    pub(crate) fn fill_slice_with_random_uniform_binary<Scalar>(&mut self, slice: &mut [Scalar])
+    pub fn fill_slice_with_random_uniform_binary<Scalar>(&mut self, slice: &mut [Scalar])
     where
         Scalar: RandomGenerable<UniformBinary>,
     {
