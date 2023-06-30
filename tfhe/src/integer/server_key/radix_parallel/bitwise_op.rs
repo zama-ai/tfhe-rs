@@ -486,6 +486,41 @@ impl ServerKey {
         self.unchecked_bitxor_assign_parallelized(lhs, rhs);
     }
 
+    /// Computes homomorphically a bitnot on a ciphertext encrypting integer values.
+    ///
+    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// check that the input ciphertext block carries are empty and clears them if it's not the
+    /// case and the operation requires it. It outputs a ciphertext whose block carries are always
+    /// empty.
+    ///
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    ///
+    /// # Warning
+    ///
+    /// - Multithreaded
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    ///
+    /// let msg = 14;
+    ///
+    /// let ct = cks.encrypt(msg);
+    ///
+    /// let ct_res = sks.bitnot_parallelized(&ct);
+    ///
+    /// // Decrypt:
+    /// let dec_result: u64 = cks.decrypt(&ct_res);
+    /// assert_eq!(dec_result, (!msg) % (1 << 8));
+    /// ```
     pub fn bitnot_parallelized(&self, ct: &RadixCiphertext) -> RadixCiphertext {
         let mut ct_res = ct.clone();
         self.bitnot_assign_parallelized(&mut ct_res);
