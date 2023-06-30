@@ -1,7 +1,7 @@
 use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::server_key::radix_parallel::bit_extractor::BitExtractor;
 use crate::integer::ServerKey;
 
-use itertools::iproduct;
 use rayon::prelude::*;
 
 pub(super) enum BarrelShifterOperation {
@@ -336,7 +336,6 @@ impl ServerKey {
         operation: BarrelShifterOperation,
     ) {
         let num_blocks = shift.blocks.len();
-        let message_modulus = self.key.message_modulus.0 as u64;
         let message_bits_per_block = self.key.message_modulus.0.ilog2() as u64;
         let carry_bits_per_block = self.key.carry_modulus.0.ilog2() as u64;
         let total_nb_bits = message_bits_per_block * num_blocks as u64;
@@ -346,28 +345,9 @@ impl ServerKey {
             "Blocks must have at least 3 bits"
         );
 
-        let bit_extract_luts = (0..message_bits_per_block)
-            .into_par_iter()
-            .map(|i| {
-                self.key
-                    .generate_lookup_table(|x| ((x % message_modulus) >> i) & 1)
-            })
-            .collect::<Vec<_>>();
-
+        let bit_extractor = BitExtractor::new(self, message_bits_per_block as usize);
         let (bits, shift_bits) = rayon::join(
-            || {
-                let mut bits = Vec::with_capacity(total_nb_bits as usize);
-                let jobs = iproduct!(0..num_blocks, 0..message_bits_per_block as usize)
-                    .collect::<Vec<_>>();
-                jobs.into_par_iter()
-                    .map(|(block_index, bit_index)| {
-                        let block = &ct.blocks[block_index];
-                        let lut = &bit_extract_luts[bit_index];
-                        self.key.apply_lookup_table(block, lut)
-                    })
-                    .collect_into_vec(&mut bits);
-                bits
-            },
+            || bit_extractor.extract_all_bits(&ct.blocks),
             || {
                 let mut max_num_bits_that_tell_shift = total_nb_bits.ilog2() as u64;
                 // This effectively means, that if the block parameters
@@ -378,18 +358,7 @@ impl ServerKey {
                 if !total_nb_bits.is_power_of_two() {
                     max_num_bits_that_tell_shift += 1;
                 }
-                let mut shift_bits = Vec::with_capacity(max_num_bits_that_tell_shift as usize);
-                let jobs = iproduct!(0..num_blocks, 0..message_bits_per_block as usize)
-                    .take(max_num_bits_that_tell_shift as usize)
-                    .collect::<Vec<_>>();
-                jobs.into_par_iter()
-                    .map(|(block_index, bit_index)| {
-                        let block = &shift.blocks[block_index];
-                        let lut = &bit_extract_luts[bit_index];
-                        self.key.apply_lookup_table(block, lut)
-                    })
-                    .collect_into_vec(&mut shift_bits);
-                shift_bits
+                bit_extractor.extract_n_bits(&shift.blocks, max_num_bits_that_tell_shift as usize)
             },
         );
 

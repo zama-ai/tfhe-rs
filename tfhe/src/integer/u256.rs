@@ -1,3 +1,5 @@
+use std::ops::{BitAnd, BitOrAssign, Shl, ShlAssign, Shr, SubAssign};
+
 use crate::core_crypto::prelude::{CastFrom, Numeric, UnsignedInteger};
 
 #[inline(always)]
@@ -52,6 +54,35 @@ pub(crate) fn schoolbook_mul_assign(lhs: &mut [u64], rhs: &[u64]) {
     for (lhs_block, result_block) in lhs.iter_mut().zip(result) {
         *lhs_block = result_block;
     }
+}
+
+pub(crate) fn slow_div<T>(numerator: T, divisor: T) -> (T, T)
+where
+    T: Numeric
+        + ShlAssign<u32>
+        + Shl<u32, Output = T>
+        + Shr<u32, Output = T>
+        + BitOrAssign<T>
+        + SubAssign<T>
+        + BitAnd<T, Output = T>
+        + Ord,
+{
+    assert!(divisor != T::ZERO);
+
+    let mut quotient = T::ZERO;
+    let mut remainder = T::ZERO;
+
+    for i in (0..T::BITS).rev() {
+        remainder <<= 1;
+        remainder |= (numerator >> i as u32) & T::ONE;
+
+        if remainder >= divisor {
+            remainder -= divisor;
+            quotient |= T::ONE << (i as u32);
+        }
+    }
+
+    (quotient, remainder)
 }
 
 // Little endian order
@@ -262,7 +293,6 @@ impl std::ops::Shr<u32> for U256 {
 impl std::ops::MulAssign<Self> for U256 {
     fn mul_assign(&mut self, rhs: Self) {
         if rhs.is_power_of_two() {
-            use std::ops::ShlAssign;
             self.shl_assign(rhs.ilog2());
             return;
         }
@@ -278,6 +308,37 @@ impl std::ops::Mul<Self> for U256 {
         self
     }
 }
+
+impl std::ops::DivAssign<Self> for U256 {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
+    }
+}
+
+impl std::ops::Div<Self> for U256 {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let (q, _) = slow_div(self, rhs);
+        q
+    }
+}
+
+impl std::ops::RemAssign<Self> for U256 {
+    fn rem_assign(&mut self, rhs: Self) {
+        *self = *self % rhs;
+    }
+}
+
+impl std::ops::Rem<Self> for U256 {
+    type Output = Self;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        let (_, r) = slow_div(self, rhs);
+        r
+    }
+}
+
 impl std::ops::ShrAssign<u32> for U256 {
     // move bits from MSB to LSB
     fn shr_assign(&mut self, shift: u32) {
@@ -670,6 +731,62 @@ mod tests {
         let u128_max = U256::from(u128::MAX);
         let res = u128_max * U256::ONE;
         assert_eq!(res, u128_max);
+    }
+
+    #[test]
+    fn test_div_rem() {
+        let u64_max = U256::from(u64::MAX);
+        let (expected_q, expected_r) = (u64::MAX / u64::MAX, u64::MAX % u64::MAX);
+        assert_eq!(u64_max / u64_max, U256::from(expected_q));
+        assert_eq!(u64_max % u64_max, U256::from(expected_r));
+
+        let mut rng = rand::thread_rng();
+        for _ in 0..5 {
+            let a = rng.gen::<u128>();
+            let b = rng.gen::<u128>();
+
+            let res_q = U256::from(a) / U256::from(b);
+            let res_r = U256::from(a) % U256::from(b);
+            let expected_q = a / b;
+            let expected_r = a % b;
+            assert_eq!(res_q, U256::from(expected_q));
+            assert_eq!(res_r, U256::from(expected_r));
+        }
+
+        let u128_max = U256::from(u128::MAX);
+        let res_q = u128_max / U256::from(3284723894u64);
+        let res_r = u128_max % U256::from(3284723894u64);
+        let expected_q = U256::from(103595424730374145554705368314u128);
+        let expected_r = U256::from(701916739u128);
+        assert_eq!(res_q, expected_q);
+        assert_eq!(res_r, expected_r);
+
+        let u256_max = U256::MAX;
+        let res_q = u256_max / U256::ONE;
+        let res_r = u256_max % U256::ONE;
+        assert_eq!(res_q, u256_max);
+        assert_eq!(res_r, U256::ZERO);
+
+        let a = U256::from((
+            98789923123891239238309u128,
+            166153499473114484112975882535043072u128,
+        ));
+        let b = U256::from((12937934723948230984120983u128, 2u128));
+        let expected_q = U256::from(83076749736555662718753084335755618u128);
+        let expected_r = U256::from((169753858020977627805335755091673007575u128, 1u128));
+        assert_eq!(a / b, expected_q);
+        assert_eq!(a % b, expected_r);
+        assert_eq!(b / a, U256::ZERO);
+        assert_eq!(b % a, b);
+
+        let a = U256::from((283984787393485348590806231, 18446744073709551616));
+        let b = U256::from((53249231281381239239045, 134217728));
+        let expected_q = U256::from(137438953471u128);
+        let expected_r = U256::from((340275048402601999976919705355157542492, 134217727));
+        assert_eq!(a / b, expected_q);
+        assert_eq!(a % b, expected_r);
+        assert_eq!(b / a, U256::ZERO);
+        assert_eq!(b % a, b);
     }
 
     #[test]

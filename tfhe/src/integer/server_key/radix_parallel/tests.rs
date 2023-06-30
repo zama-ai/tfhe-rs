@@ -40,6 +40,28 @@ macro_rules! create_parametrized_test{
     };
 }
 
+create_parametrized_test!(integer_smart_div_rem {
+    // Due to the use of comparison,
+    // this algorithm requires 3 bits
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+});
+create_parametrized_test!(integer_default_div_rem {
+    // Due to the use of comparison,
+    // this algorithm requires 3 bits
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+});
 create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_smart_add_sequence_multi_thread);
 create_parametrized_test!(integer_smart_add_sequence_single_thread);
@@ -911,6 +933,104 @@ where
             let dec_res: u64 = cks.decrypt(&ct_res);
             assert_eq!(clear, dec_res);
         }
+    }
+}
+
+fn integer_smart_div_rem<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    for i in 0..NB_TEST_SMALLER {
+        println!("i: {i}");
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
+        let clear_2 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        // add to change degree
+        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
+        clear_0 += clear_2;
+        clear_0 %= modulus;
+
+        let (q_res, r_res) = sks.smart_div_rem_parallelized(&mut ctxt_0, &mut ctxt_1);
+        let q: u64 = cks.decrypt(&q_res);
+        let r: u64 = cks.decrypt(&r_res);
+
+        assert_eq!(clear_0 / clear_1, q);
+        assert_eq!(clear_0 % clear_1, r);
+
+        // Test individual div/rem to check they are correctly bound
+        let q_res = sks.smart_div_parallelized(&mut ctxt_0, &mut ctxt_1);
+        let q: u64 = cks.decrypt(&q_res);
+        assert_eq!(clear_0 / clear_1, q);
+
+        let r_res = sks.smart_rem_parallelized(&mut ctxt_0, &mut ctxt_1);
+        let r: u64 = cks.decrypt(&r_res);
+        assert_eq!(clear_0 % clear_1, r);
+    }
+}
+
+fn integer_default_div_rem<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    sks.set_deterministic_pbs_execution(true);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
+        let clear_2 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        // add to change degree
+        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
+        clear_0 += clear_2;
+        clear_0 %= modulus;
+
+        let (q_res, r_res) = sks.div_rem_parallelized(&ctxt_0, &ctxt_1);
+        let q: u64 = cks.decrypt(&q_res);
+        let r: u64 = cks.decrypt(&r_res);
+
+        assert!(q_res.block_carries_are_empty());
+        assert!(r_res.block_carries_are_empty());
+        assert_eq!(clear_0 / clear_1, q);
+        assert_eq!(clear_0 % clear_1, r);
+
+        // Test individual div/rem to check they are correctly bound
+        let q2_res = sks.div_parallelized(&ctxt_0, &ctxt_1);
+        let q2: u64 = cks.decrypt(&q_res);
+        assert!(q2_res.block_carries_are_empty());
+        assert_eq!(clear_0 / clear_1, q2);
+
+        let r2_res = sks.rem_parallelized(&ctxt_0, &ctxt_1);
+        let r2: u64 = cks.decrypt(&r2_res);
+        assert!(r_res.block_carries_are_empty());
+        assert_eq!(clear_0 % clear_1, r2);
+
+        // Determinism checks
+        assert_eq!(q2, q, "Operation was not deterministic");
+        assert_eq!(r2, r, "Operation was not deterministic");
     }
 }
 
