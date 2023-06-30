@@ -4,7 +4,7 @@ use std::ops::{
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
-/// A trait shared by all the unsigned integer types.
+/// A trait shared by all the signed integer types.
 pub trait SignedInteger:
     Numeric
     + Neg<Output = Self>
