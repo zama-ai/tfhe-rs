@@ -109,8 +109,11 @@ fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
     }
 }
 
-fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>(
-) -> Vec<(String, CryptoParametersRecord<Scalar>, LweBskGroupingFactor)> {
+fn multi_bit_benchmark_parameters<Scalar: UnsignedInteger + Default>() -> Vec<(
+    &'static str,
+    CryptoParametersRecord<Scalar>,
+    LweBskGroupingFactor,
+)> {
     if Scalar::BITS == 64 {
         vec![
             PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,
@@ -320,7 +323,7 @@ fn multi_bit_pbs<
         write_to_json(
             &id,
             *params,
-            name,
+            *name,
             "pbs",
             &OperatorType::Atomic,
             bit_size,
@@ -409,7 +412,7 @@ fn multi_bit_deterministic_pbs<
         write_to_json(
             &id,
             *params,
-            name,
+            *name,
             "pbs",
             &OperatorType::Atomic,
             bit_size,
