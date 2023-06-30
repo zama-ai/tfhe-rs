@@ -87,6 +87,7 @@ create_parametrized_test!(integer_smart_bitor);
 create_parametrized_test!(integer_smart_bitxor);
 create_parametrized_test!(integer_default_bitand);
 create_parametrized_test!(integer_default_bitor);
+create_parametrized_test!(integer_default_bitnot);
 create_parametrized_test!(integer_default_bitxor);
 create_parametrized_test!(integer_default_scalar_bitand);
 create_parametrized_test!(integer_default_scalar_bitor);
@@ -735,6 +736,42 @@ where
             // assert
             assert_eq!(clear, dec_res);
         }
+    }
+}
+
+fn integer_default_bitnot<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST {
+        // Define the cleartexts
+        let clear = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt = cks.encrypt(clear);
+
+        let tmp = sks.bitnot_parallelized(&ctxt);
+        let ct_res = sks.bitnot_parallelized(&ctxt);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
+
+        // decryption of ct_res
+        let dec: u64 = cks.decrypt(&ct_res);
+
+        // Check the correctness
+        let clear_result = !clear % modulus;
+        assert_eq!(clear_result, dec);
     }
 }
 
