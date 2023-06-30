@@ -85,7 +85,7 @@ fn generate_lut_modulus(params: (ClassicPBSParameters, WopbsParameters)) {
 }
 
 fn generate_lut_modulus_not_power_of_two(params: (ClassicPBSParameters, WopbsParameters)) {
-    let (cks, sks) = gen_keys(params);
+    let (cks, sks) = gen_keys(params.1);
     let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     // let keys = KEY_CACHE_WOPBS.get_from_param((WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2_KS_PBS,
     // WOPBS_PRIME_PARAM_MESSAGE_2_NORM2_2_KS_PBS)); let (cks, _, wopbs_key) = (keys.client_key(),
