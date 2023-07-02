@@ -18,9 +18,9 @@ use rayon::prelude::*;
 /// A random number generator which can be used to encrypt messages.
 pub struct EncryptionRandomGenerator<G: ByteRandomGenerator> {
     // A separate mask generator, only used to generate the mask elements.
-    mask: RandomGenerator<G>,
+    pub mask: RandomGenerator<G>,
     // A separate noise generator, only used to generate the noise elements.
-    noise: RandomGenerator<G>,
+    pub noise: RandomGenerator<G>,
 }
 
 impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
