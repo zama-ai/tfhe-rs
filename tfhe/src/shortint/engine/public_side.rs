@@ -21,7 +21,7 @@ pub fn shortint_public_key_zero_encryption_count(
 
 impl ShortintEngine {
     pub(crate) fn new_public_key(&mut self, client_key: &ClientKey) -> EngineResult<PublicKey> {
-        let client_parameters = client_key.parameters;
+        let client_parameters: crate::shortint::ShortintParameterSet = client_key.parameters;
 
         let (secret_encryption_key, encryption_noise) =
             match client_parameters.encryption_key_choice().into() {
