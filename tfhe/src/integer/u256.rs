@@ -85,6 +85,8 @@ where
     (quotient, remainder)
 }
 
+const BYTES_PER_U64: usize = std::mem::size_of::<u64>() / std::mem::size_of::<u8>();
+
 // Little endian order
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(transparent)]
@@ -100,89 +102,45 @@ impl U256 {
 
     /// Replaces the current value by interpreting the bytes in big endian order
     pub fn copy_from_be_byte_slice(&mut self, bytes: &[u8]) {
-        assert_eq!(bytes.len(), 32);
-        // We internally have
-        //
-        // [ index 0    |  index 1   |  index 2 | index 3     ]
-        // [WB0,.., WB7 | WB0,..,WB7 | WB0,..,WB7 | WB0,..,WB7]
-        // [B0,.., B7   | B8 ,..,B15 | B16,..,B23 | B24,..,B31]
-        //   Least                                     Most
-        //
-        // Where each [WB0,...WB7] are in target_endian order,
-        // so, if target_endian == big it means, the full range
-        // B0..B31 is not a true little endian order,
-        // thus requiring an additional step
+        assert_eq!(bytes.len(), BYTES_PER_U64 * 4);
 
-        let inner_slice = self.0.as_mut_slice();
-        inner_slice.fill(0);
-        unsafe {
-            // SAFETY SLICES are contiguous
-            // (4 * 64) bits / 8 bits = 32
-            let inner_byte_slice =
-                std::slice::from_raw_parts_mut(inner_slice.as_mut_ptr() as *mut u8, 32);
-            let shortest_len = inner_byte_slice.len().min(bytes.len());
-            inner_byte_slice[..shortest_len].copy_from_slice(&bytes[..shortest_len]);
-            inner_byte_slice.reverse();
-        }
-        #[cfg(target_endian = "big")]
-        for word in self.0.iter_mut() {
-            *word = word.swap_bytes();
+        let mut array = [0u8; BYTES_PER_U64];
+        for (sub_bytes, word) in bytes
+            .chunks_exact(BYTES_PER_U64)
+            .zip(self.0.iter_mut().rev())
+        {
+            array.copy_from_slice(sub_bytes);
+            *word = u64::from_be_bytes(array);
         }
     }
 
     /// Replaces the current value by interpreting the bytes in little endian order
     pub fn copy_from_le_byte_slice(&mut self, bytes: &[u8]) {
-        assert_eq!(bytes.len(), 32);
-        // Same principle as in copy_from_be_byte_slice applies here
+        assert_eq!(bytes.len(), BYTES_PER_U64 * 4);
 
-        let inner_slice = self.0.as_mut_slice();
-        inner_slice.fill(0);
-        unsafe {
-            // SAFETY SLICES are contiguous
-            // (4 * 64) bits / 8 bits = 32
-            let inner_byte_slice =
-                std::slice::from_raw_parts_mut(inner_slice.as_mut_ptr() as *mut u8, 32);
-            let shortest_len = inner_byte_slice.len().min(bytes.len());
-            inner_byte_slice[..shortest_len].copy_from_slice(&bytes[..shortest_len]);
-        }
-        #[cfg(target_endian = "big")]
-        for word in self.0.iter_mut() {
-            *word = word.swap_bytes();
+        let mut array = [0u8; BYTES_PER_U64];
+        for (sub_bytes, word) in bytes.chunks_exact(BYTES_PER_U64).zip(self.0.iter_mut()) {
+            array.copy_from_slice(sub_bytes);
+            *word = u64::from_le_bytes(array);
         }
     }
 
     pub fn copy_to_le_byte_slice(&self, bytes: &mut [u8]) {
-        assert_eq!(bytes.len(), 32);
-        let inner_slice = self.0.as_slice();
-        unsafe {
-            // SAFETY SLICES are contiguous
-            // (4 * 64) bits / 8 bits = 32
-            let inner_byte_slice =
-                std::slice::from_raw_parts(inner_slice.as_ptr() as *const u8, 32);
-            let shortest_len = inner_byte_slice.len().min(bytes.len());
-            bytes[..shortest_len].copy_from_slice(&inner_byte_slice[..shortest_len]);
-        }
-        #[cfg(target_endian = "big")]
-        for sub_slice in bytes.chunks_mut(8) {
-            sub_slice.reverse();
+        assert_eq!(bytes.len(), BYTES_PER_U64 * 4);
+
+        for (sub_bytes, word) in bytes.chunks_exact_mut(BYTES_PER_U64).zip(self.0.iter()) {
+            sub_bytes.copy_from_slice(word.to_le_bytes().as_slice());
         }
     }
 
     pub fn copy_to_be_byte_slice(&self, bytes: &mut [u8]) {
-        assert_eq!(bytes.len(), 32);
-        let inner_slice = self.0.as_slice();
+        assert_eq!(bytes.len(), BYTES_PER_U64 * 4);
 
-        unsafe {
-            // SAFETY SLICES are contiguous
-            // (4 * 64) bits / 8 bits = 32
-            let inner_byte_slice =
-                std::slice::from_raw_parts(inner_slice.as_ptr() as *const u8, 32);
-            let shortest_len = inner_byte_slice.len().min(bytes.len());
-            bytes[..shortest_len].copy_from_slice(&inner_byte_slice[..shortest_len]);
-        }
-        #[cfg(target_endian = "big")]
-        for sub_slice in bytes.chunks_mut(8) {
-            sub_slice.reverse();
+        for (sub_bytes, word) in bytes
+            .chunks_exact_mut(BYTES_PER_U64)
+            .zip(self.0.iter().rev())
+        {
+            sub_bytes.copy_from_slice(word.to_be_bytes().as_slice());
         }
     }
 
@@ -852,8 +810,10 @@ mod tests {
 
     #[test]
     fn test_le_byte_slice() {
-        let low = u64::MAX as u128;
-        let high = (u64::MAX as u128) << 64;
+        // Create a u128 where each bytes stores its index:
+        // u128 as &[u8] = [0u8, 1 , 2, 3, .., 15]
+        let low = u128::from_le_bytes(core::array::from_fn::<u8, 16, _>(|i| i as u8));
+        let high = u128::from_le_bytes(core::array::from_fn::<u8, 16, _>(|i| 16 + i as u8));
 
         let mut le_bytes = vec![0u8; 32];
         le_bytes[..16].copy_from_slice(low.to_le_bytes().as_slice());
@@ -872,8 +832,8 @@ mod tests {
 
     #[test]
     fn test_be_byte_slice() {
-        let low = u64::MAX as u128;
-        let high = (u64::MAX as u128) << 64;
+        let low = u128::from_le_bytes(core::array::from_fn::<u8, 16, _>(|i| i as u8));
+        let high = u128::from_le_bytes(core::array::from_fn::<u8, 16, _>(|i| 16 + i as u8));
 
         let mut be_bytes = vec![0u8; 32];
         be_bytes[16..].copy_from_slice(low.to_be_bytes().as_slice());
