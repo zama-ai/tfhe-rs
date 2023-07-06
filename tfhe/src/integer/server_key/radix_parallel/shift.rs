@@ -417,8 +417,8 @@ impl ServerKey {
 
         for (d, shift_bit) in shift_bits.iter().enumerate() {
             for i in 0..total_nb_bits as usize {
-                input_bits_b[i].copy_from(&input_bits_a[i]);
-                mux_inputs[i].copy_from(shift_bit);
+                input_bits_b[i].clone_from(&input_bits_a[i]);
+                mux_inputs[i].clone_from(shift_bit);
             }
 
             match operation {
@@ -476,7 +476,7 @@ impl ServerKey {
                     //
                     // control_bit|b|a
                     self.key.apply_lookup_table_assign(mux_gate_input, &mux_lut);
-                    (*a_ptr).copy_from(mux_gate_input);
+                    (*a_ptr).clone_from(mux_gate_input);
                 }
             });
         }

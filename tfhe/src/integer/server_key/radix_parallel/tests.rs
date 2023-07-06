@@ -2767,3 +2767,33 @@ where
         }
     }
 }
+
+#[test]
+fn test_non_regression_clone_from() {
+    // Issue: https://github.com/zama-ai/tfhe-rs/issues/410
+    let (client_key, server_key) = KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2);
+    const NUM_BLOCK: usize = 4;
+    let a: u8 = 248;
+    let b: u8 = 249;
+    let c: u8 = 250;
+    let d: u8 = 251;
+
+    let enc_a = client_key.encrypt_radix(a, NUM_BLOCK);
+    let enc_b = client_key.encrypt_radix(b, NUM_BLOCK);
+    let enc_c = client_key.encrypt_radix(c, NUM_BLOCK);
+    let enc_d = client_key.encrypt_radix(d, NUM_BLOCK);
+
+    let (mut q1, mut r1) = server_key.div_rem_parallelized(&enc_b, &enc_a);
+    let (mut q2, mut r2) = server_key.div_rem_parallelized(&enc_d, &enc_c);
+
+    assert_eq!(client_key.decrypt_radix::<u8>(&r1), 1);
+    assert_eq!(client_key.decrypt_radix::<u8>(&r2), 1);
+    assert_eq!(client_key.decrypt_radix::<u8>(&q1), 1);
+    assert_eq!(client_key.decrypt_radix::<u8>(&q2), 1);
+
+    // The consequence of the bug was that r1r2 would be 0 instead of one
+    let r1r2 = server_key.smart_mul_parallelized(&mut r1, &mut r2);
+    assert_eq!(client_key.decrypt_radix::<u8>(&r1r2), 1);
+    let q1q2 = server_key.smart_mul_parallelized(&mut q1, &mut q2);
+    assert_eq!(client_key.decrypt_radix::<u8>(&q1q2), 1);
+}

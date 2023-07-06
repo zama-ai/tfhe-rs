@@ -88,7 +88,7 @@ impl Degree {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[must_use]
 pub struct Ciphertext {
     pub ct: LweCiphertextOwned<u64>,
@@ -98,16 +98,64 @@ pub struct Ciphertext {
     pub pbs_order: PBSOrder,
 }
 
+// Use destructuring to also have a compile error
+// if ever a new member is added to Ciphertext
+// and is not handled here.
+//
+// And a warning if a member is destructured but not used.
+impl Clone for Ciphertext {
+    fn clone(&self) -> Self {
+        let Ciphertext {
+            ct: src_ct,
+            degree: src_degree,
+            message_modulus: src_message_modulus,
+            carry_modulus: src_carry_modulus,
+            pbs_order: src_pbs_order,
+        } = self;
+
+        Self {
+            ct: src_ct.clone(),
+            degree: *src_degree,
+            message_modulus: *src_message_modulus,
+            carry_modulus: *src_carry_modulus,
+            pbs_order: *src_pbs_order,
+        }
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        let Ciphertext {
+            ct: dst_ct,
+            degree: dst_degree,
+            message_modulus: dst_message_modulus,
+            carry_modulus: dst_carry_modulus,
+            pbs_order: dst_pbs_order,
+        } = self;
+
+        let Ciphertext {
+            ct: src_ct,
+            degree: src_degree,
+            message_modulus: src_message_modulus,
+            carry_modulus: src_carry_modulus,
+            pbs_order: src_pbs_order,
+        } = source;
+
+        if dst_ct.ciphertext_modulus() != src_ct.ciphertext_modulus()
+            || dst_ct.lwe_size() != src_ct.lwe_size()
+        {
+            *dst_ct = src_ct.clone();
+        } else {
+            dst_ct.as_mut().copy_from_slice(src_ct.as_ref());
+        }
+        *dst_degree = *src_degree;
+        *dst_message_modulus = *src_message_modulus;
+        *dst_carry_modulus = *src_carry_modulus;
+        *dst_pbs_order = *src_pbs_order;
+    }
+}
+
 impl Ciphertext {
     pub fn carry_is_empty(&self) -> bool {
         self.degree.0 < self.message_modulus.0
-    }
-
-    pub fn copy_from(&mut self, other: &Self) {
-        self.ct.as_mut().copy_from_slice(other.ct.as_ref());
-        self.message_modulus = other.message_modulus;
-        self.carry_modulus = other.carry_modulus;
-        self.pbs_order = other.pbs_order;
     }
 }
 
@@ -211,23 +259,96 @@ impl CompactCiphertextList {
 
 #[cfg(test)]
 mod tests {
-    use crate::shortint::gen_keys;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use super::*;
+    use crate::shortint::CiphertextModulus;
 
     #[test]
-    fn test_copy_from() {
-        let (client_key, _server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    fn test_clone_from_same_lwe_size_and_modulus() {
+        let mut c1 = Ciphertext {
+            ct: LweCiphertextOwned::from_container(
+                vec![1u64; 256],
+                CiphertextModulus::new_native(),
+            ),
+            degree: Degree(1),
+            message_modulus: MessageModulus(1),
+            carry_modulus: CarryModulus(1),
+            pbs_order: PBSOrder::KeyswitchBootstrap,
+        };
 
-        let msg1 = 3;
-        let msg2 = 2;
+        let c2 = Ciphertext {
+            ct: LweCiphertextOwned::from_container(
+                vec![2323858949u64; 256],
+                CiphertextModulus::new_native(),
+            ),
+            degree: Degree(42),
+            message_modulus: MessageModulus(2),
+            carry_modulus: CarryModulus(2),
+            pbs_order: PBSOrder::BootstrapKeyswitch,
+        };
 
-        // Encrypt two messages using the (private) client key:
-        let mut ct_1 = client_key.encrypt(msg1);
-        let ct_2 = client_key.encrypt(msg2);
+        assert_ne!(c1, c2);
 
-        assert_ne!(ct_1, ct_2);
+        c1.clone_from(&c2);
+        assert_eq!(c1, c2);
+    }
 
-        ct_1.copy_from(&ct_2);
-        assert_eq!(ct_1, ct_2);
+    #[test]
+    fn test_clone_from_same_lwe_size_different_modulus() {
+        let mut c1 = Ciphertext {
+            ct: LweCiphertextOwned::from_container(
+                vec![1u64; 256],
+                CiphertextModulus::try_new_power_of_2(32).unwrap(),
+            ),
+            degree: Degree(1),
+            message_modulus: MessageModulus(1),
+            carry_modulus: CarryModulus(1),
+            pbs_order: PBSOrder::KeyswitchBootstrap,
+        };
+
+        let c2 = Ciphertext {
+            ct: LweCiphertextOwned::from_container(
+                vec![2323858949u64; 256],
+                CiphertextModulus::new_native(),
+            ),
+            degree: Degree(42),
+            message_modulus: MessageModulus(2),
+            carry_modulus: CarryModulus(2),
+            pbs_order: PBSOrder::BootstrapKeyswitch,
+        };
+
+        assert_ne!(c1, c2);
+
+        c1.clone_from(&c2);
+        assert_eq!(c1, c2);
+    }
+
+    #[test]
+    fn test_clone_from_different_lwe_size_same_modulus() {
+        let mut c1 = Ciphertext {
+            ct: LweCiphertextOwned::from_container(
+                vec![1u64; 512],
+                CiphertextModulus::new_native(),
+            ),
+            degree: Degree(1),
+            message_modulus: MessageModulus(1),
+            carry_modulus: CarryModulus(1),
+            pbs_order: PBSOrder::KeyswitchBootstrap,
+        };
+
+        let c2 = Ciphertext {
+            ct: LweCiphertextOwned::from_container(
+                vec![2323858949u64; 256],
+                CiphertextModulus::new_native(),
+            ),
+            degree: Degree(42),
+            message_modulus: MessageModulus(2),
+            carry_modulus: CarryModulus(2),
+            pbs_order: PBSOrder::BootstrapKeyswitch,
+        };
+
+        assert_ne!(c1, c2);
+
+        c1.clone_from(&c2);
+        assert_eq!(c1, c2);
     }
 }
