@@ -346,7 +346,7 @@ impl ServerKey {
                     )
                 });
             for i in space..num_blocks {
-                generates_or_propagates[i].copy_from(&step_output[i]);
+                generates_or_propagates[i].clone_from(&step_output[i]);
             }
 
             space *= 2;

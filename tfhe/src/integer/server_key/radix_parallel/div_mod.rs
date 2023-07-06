@@ -156,7 +156,7 @@ impl ServerKey {
                         .iter_mut()
                         .zip(interesting_remainder.blocks.iter())
                         .for_each(|(remainder_block, new_value)| {
-                            remainder_block.copy_from(new_value);
+                            remainder_block.clone_from(new_value);
                         });
                 },
                 || {
