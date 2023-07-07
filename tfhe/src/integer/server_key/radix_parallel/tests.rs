@@ -76,7 +76,10 @@ create_parametrized_test!(integer_default_add_work_efficient {
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
-create_parametrized_test!(integer_default_add_sequence_multi_thread);
+// These tests are slow and not very interesting nor efficient, keep small sizes
+create_parametrized_test!(integer_default_add_sequence_multi_thread {
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS
+});
 // Other tests are pretty slow, and the code is the same as a smart add but slower
 #[test]
 fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2_ks_pbs() {
