@@ -5,12 +5,10 @@ fn test_cast_boolean() {
     let (client_key_1, _server_key_1): (ClientKey, ServerKey) = gen_keys();
     let (client_key_2, _server_key_2): (ClientKey, ServerKey) = gen_keys();
 
-    let ksk_params = unsafe {
-        BooleanKeySwitchingParameters::new(
-            client_key_2.parameters.ks_base_log,
-            client_key_2.parameters.ks_level,
-        )
-    };
+    let ksk_params = BooleanKeySwitchingParameters::new(
+        client_key_2.parameters.ks_base_log,
+        client_key_2.parameters.ks_level,
+    );
     let ksk = KeySwitchingKey::new(&client_key_1, &client_key_2, ksk_params);
 
     let mut ct_true = client_key_1.encrypt(true);
@@ -29,12 +27,10 @@ fn test_cast_into_boolean() {
     let (client_key_1, server_key_1): (ClientKey, ServerKey) = gen_keys();
     let (client_key_2, _server_key_2): (ClientKey, ServerKey) = gen_keys();
 
-    let ksk_params = unsafe {
-        BooleanKeySwitchingParameters::new(
-            client_key_2.parameters.ks_base_log,
-            client_key_2.parameters.ks_level,
-        )
-    };
+    let ksk_params = BooleanKeySwitchingParameters::new(
+        client_key_2.parameters.ks_base_log,
+        client_key_2.parameters.ks_level,
+    );
     let ksk = KeySwitchingKey::new(&client_key_1, &client_key_2, ksk_params);
 
     let ct_true = client_key_1.encrypt(true);

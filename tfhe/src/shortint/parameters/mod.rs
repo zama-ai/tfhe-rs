@@ -85,13 +85,13 @@ pub struct ClassicPBSParameters {
 impl ClassicPBSParameters {
     /// Constructs a new set of parameters for integer circuit evaluation.
     ///
-    /// # Safety
+    /// # Warning
     ///
-    /// This function is unsafe, as failing to fix the parameters properly would yield incorrect
-    /// and unsecure computation. Unless you are a cryptographer who really knows the impact of each
-    /// of those parameters, you __must__ stick with the provided parameters.
+    /// Failing to fix the parameters properly would yield incorrect and unsecure computation.
+    /// Unless you are a cryptographer who really knows the impact of each of those parameters, you
+    /// __must__ stick with the provided parameters.
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn new(
+    pub fn new(
         lwe_dimension: LweDimension,
         glwe_dimension: GlweDimension,
         polynomial_size: PolynomialSize,
