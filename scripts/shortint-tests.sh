@@ -8,11 +8,13 @@ function usage() {
     echo "--help                    Print this message"
     echo "--rust-toolchain          The toolchain to run the tests with default: stable"
     echo "--multi-bit               Run multi-bit tests only: default off"
+    echo "--cargo-profile           The cargo profile used to build tests"
     echo
 }
 
 RUST_TOOLCHAIN="+stable"
 multi_bit=""
+cargo_profile="release"
 
 while [ -n "$1" ]
 do
@@ -29,6 +31,11 @@ do
 
         "--multi-bit" )
             multi_bit="_multi_bit"
+            ;;
+
+        "--cargo-profile" )
+            shift
+            cargo_profile="$1"
             ;;
 
         *)
@@ -102,7 +109,7 @@ and not test(~smart_add_and_mul)""" # This test is too slow
     # Run tests only no examples or benches with small params and more threads
     cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
-        --release \
+        --cargo-profile "${cargo_profile}" \
         --package tfhe \
         --profile ci \
         --features="${ARCH_FEATURE}",shortint,internal-keycache \
@@ -119,7 +126,7 @@ and not test(~smart_add_and_mul)"""
     # Run tests only no examples or benches with big params and less threads
     cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
-        --release \
+        --cargo-profile "${cargo_profile}" \
         --package tfhe \
         --profile ci \
         --features="${ARCH_FEATURE}",shortint,internal-keycache \
@@ -128,11 +135,11 @@ and not test(~smart_add_and_mul)"""
 
         if [[ "${multi_bit}" == "" ]]; then
             cargo "${RUST_TOOLCHAIN}" test \
-                --release \
+                --profile "${cargo_profile}" \
                 --package tfhe \
                 --features="${ARCH_FEATURE}",shortint,internal-keycache \
                 --doc \
-                shortint::
+                -- shortint::
         fi
     fi
 else
@@ -167,7 +174,7 @@ and not test(~smart_add_and_mul)""" # This test is too slow
     # Run tests only no examples or benches with small params and more threads
     cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
-        --release \
+        --cargo-profile "${cargo_profile}" \
         --package tfhe \
         --profile ci \
         --features="${ARCH_FEATURE}",shortint,internal-keycache \
@@ -176,11 +183,11 @@ and not test(~smart_add_and_mul)""" # This test is too slow
 
     if [[ "${multi_bit}" == "" ]]; then
         cargo "${RUST_TOOLCHAIN}" test \
-            --release \
+            --profile "${cargo_profile}" \
             --package tfhe \
             --features="${ARCH_FEATURE}",shortint,internal-keycache \
             --doc \
-            shortint:: -- --test-threads="$(${nproc_bin})"
+            -- --test-threads="$(${nproc_bin})" shortint::
     fi
 fi
 

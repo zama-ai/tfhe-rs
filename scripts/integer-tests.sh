@@ -8,12 +8,14 @@ function usage() {
     echo "--help                    Print this message"
     echo "--rust-toolchain          The toolchain to run the tests with default: stable"
     echo "--multi-bit               Run multi-bit tests only: default off"
+    echo "--cargo-profile           The cargo profile used to build tests"
     echo
 }
 
 RUST_TOOLCHAIN="+stable"
 multi_bit=""
 not_multi_bit="_multi_bit"
+cargo_profile="release"
 
 while [ -n "$1" ]
 do
@@ -31,6 +33,11 @@ do
         "--multi-bit" )
             multi_bit="_multi_bit"
             not_multi_bit=""
+            ;;
+
+        "--cargo-profile" )
+            shift
+            cargo_profile="$1"
             ;;
 
         *)
@@ -94,7 +101,7 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
 
     cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
-        --release \
+        --cargo-profile "${cargo_profile}" \
         --package tfhe \
         --profile ci \
         --features="${ARCH_FEATURE}",integer,internal-keycache \
@@ -103,11 +110,11 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
 
     if [[ "${multi_bit}" == "" ]]; then
         cargo "${RUST_TOOLCHAIN}" test \
-            --release \
+            --profile "${cargo_profile}" \
             --package tfhe \
             --features="${ARCH_FEATURE}",integer,internal-keycache \
             --doc \
-            integer::
+            -- integer::
     fi
 else
     if [[ "${FAST_TESTS}" != TRUE ]]; then
@@ -138,7 +145,7 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
     num_threads=$((num_cpu_threads * 2 / 3))
     cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
-        --release \
+        --cargo-profile "${cargo_profile}" \
         --package tfhe \
         --profile ci \
         --features="${ARCH_FEATURE}",integer,internal-keycache \
@@ -147,11 +154,11 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
 
     if [[ "${multi_bit}" == "" ]]; then
         cargo "${RUST_TOOLCHAIN}" test \
-            --release \
+            --profile "${cargo_profile}" \
             --package tfhe \
             --features="${ARCH_FEATURE}",integer,internal-keycache \
             --doc \
-            integer:: -- --test-threads="$(${nproc_bin})"
+            -- --test-threads="$(${nproc_bin})" integer::
     fi
 fi
 

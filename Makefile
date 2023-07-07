@@ -261,13 +261,15 @@ test_c_api: test_c_api_rs test_c_api_c
 test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN)
+		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)"
 
 .PHONY: test_shortint_multi_bit_ci # Run the tests for shortint ci running only multibit tests
 test_shortint_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) --multi-bit
+		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit
 
 .PHONY: test_shortint # Run all the tests for shortint
 test_shortint: install_rs_build_toolchain
@@ -278,13 +280,15 @@ test_shortint: install_rs_build_toolchain
 test_integer_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN)
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)"
 
 .PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
 test_integer_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) --multi-bit
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit
 
 .PHONY: test_integer # Run all the tests for integer
 test_integer: install_rs_build_toolchain
@@ -294,7 +298,8 @@ test_integer: install_rs_build_toolchain
 .PHONY: test_high_level_api # Run all the tests for high_level_api
 test_high_level_api: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p tfhe -- high_level_api::
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p tfhe \
+		-- high_level_api::
 
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
