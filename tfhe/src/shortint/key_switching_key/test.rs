@@ -56,9 +56,10 @@ fn gen_multi_keys_test_fresh_2() {
     let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     let (ck2, sk2) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
 
-    let ksk_params = unsafe {
-        ShortintKeySwitchingParameters::new(ck2.parameters.ks_base_log(), ck2.parameters.ks_level())
-    };
+    let ksk_params = ShortintKeySwitchingParameters::new(
+        ck2.parameters.ks_base_log(),
+        ck2.parameters.ks_level(),
+    );
     let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), ksk_params);
 
     assert_eq!(ksk.cast_rshift, 4);
@@ -131,9 +132,10 @@ fn gen_multi_keys_test_no_shift() {
     let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     let (ck2, sk2) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 
-    let ksk_params = unsafe {
-        ShortintKeySwitchingParameters::new(ck2.parameters.ks_base_log(), ck2.parameters.ks_level())
-    };
+    let ksk_params = ShortintKeySwitchingParameters::new(
+        ck2.parameters.ks_base_log(),
+        ck2.parameters.ks_level(),
+    );
     let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), ksk_params);
     assert_eq!(ksk.cast_rshift, 0);
 }
@@ -143,9 +145,10 @@ fn gen_multi_keys_test_truncate() {
     let (ck1, sk1) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     let (ck2, sk2) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 
-    let ksk_params = unsafe {
-        ShortintKeySwitchingParameters::new(ck2.parameters.ks_base_log(), ck2.parameters.ks_level())
-    };
+    let ksk_params = ShortintKeySwitchingParameters::new(
+        ck2.parameters.ks_base_log(),
+        ck2.parameters.ks_level(),
+    );
     let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), ksk_params);
     assert_eq!(ksk.cast_rshift, -2);
 
