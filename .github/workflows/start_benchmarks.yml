@@ -6,6 +6,32 @@ on:
     branches:
       - "main"
   workflow_dispatch:
+    inputs:
+      # The input name must be the name of the slab command to launch
+      boolean_bench:
+        description: "Run Boolean benches"
+        type: boolean
+        default: true
+      shortint_bench:
+        description: "Run shortint benches"
+        type: boolean
+        default: true
+      integer_bench:
+        description: "Run integer benches"
+        type: boolean
+        default: true
+      integer_multi_bit_bench:
+        description: "Run integer multi bit benches"
+        type: boolean
+        default: true
+      pbs_bench:
+        description: "Run PBS benches"
+        type: boolean
+        default: true
+      wasm_client_bench:
+        description: "Run WASM client benches"
+        type: boolean
+        default: true
 
 jobs:
   start-benchmarks:
@@ -45,7 +71,9 @@ jobs:
           token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
 
       - name: Start AWS job in Slab
-        if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.benches_any_changed == 'true'
+        # If manually triggered check that the current bench has been requested
+        # Otherwise if it's on push check that files relevant to benchmarks have changed
+        if: (github.event_name == 'workflow_dispatch' && github.event.inputs[matrix.command] == 'true') || (github.event_name == 'push' && steps.changed-files.outputs.any_changed == 'true')
         shell: bash
         run: |
           echo -n '{"command": "${{ matrix.command }}", "git_ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}' > command.json
