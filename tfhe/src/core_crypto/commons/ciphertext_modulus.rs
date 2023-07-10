@@ -101,6 +101,7 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         }
     }
 
+    #[track_caller]
     pub const fn try_new_power_of_2(exponent: usize) -> Result<Self, &'static str> {
         if exponent > Scalar::BITS {
             Err("Modulus is bigger than the maximum value of the associated Scalar type")
@@ -131,6 +132,7 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         }
     }
 
+    #[track_caller]
     pub const fn try_new(modulus: u128) -> Result<Self, &'static str> {
         if Scalar::BITS < 128 && modulus > (1 << Scalar::BITS) {
             Err("Modulus is bigger than the maximum value of the associated Scalar type")
@@ -203,6 +205,7 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
     }
 
     /// Panics if the modulus is not a custom modulus
+    #[track_caller]
     pub const fn get_custom_modulus(&self) -> u128 {
         match self.inner {
             CiphertextModulusInner::Native => {
