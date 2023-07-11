@@ -86,7 +86,7 @@ macro_rules! implement {
                 }
                 // Scale to the modulus
                 fract *= custom_modulus;
-                fract = F::round(fract);
+                fract = F::round(fract) % custom_modulus;
                 return fract.cast_into();
             }
         }

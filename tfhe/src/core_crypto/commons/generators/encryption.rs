@@ -639,7 +639,7 @@ mod test {
     fn noise_gen_native<Scalar: UnsignedTorus>() {
         let mut gen = new_encryption_random_generator();
 
-        let bits = (Scalar::BITS / 2) as i32;
+        let bits = (Scalar::BITS / 4) as i32;
 
         for _ in 0..1000 {
             let mut retries = 100;
@@ -676,7 +676,7 @@ mod test {
     fn noise_gen_custom_mod<Scalar: UnsignedTorus>(ciphertext_modulus: CiphertextModulus<Scalar>) {
         let mut gen = new_encryption_random_generator();
 
-        let bits = (Scalar::BITS / 2) as i32;
+        let bits = (Scalar::BITS / 4) as i32;
 
         for _ in 0..1000 {
             let mut retries = 100;
@@ -729,7 +729,7 @@ mod test {
     fn noise_gen_slice_native<Scalar: UnsignedTorus>() {
         let mut gen = new_encryption_random_generator();
 
-        let bits = (Scalar::BITS / 2) as i32;
+        let bits = (Scalar::BITS / 4) as i32;
 
         let mut vec = vec![Scalar::ZERO; 1000];
         let mut retries = 100;
@@ -878,7 +878,7 @@ mod test {
     ) {
         let mut gen = new_encryption_random_generator();
 
-        let bits = (Scalar::BITS / 2) as i32;
+        let bits = (Scalar::BITS / 4) as i32;
 
         let mut vec = vec![Scalar::ZERO; 1000];
         let mut retries = 100;

@@ -1,5 +1,5 @@
 use super::*;
-use crate::core_crypto::commons::test_tools::{torus_modular_distance, variance};
+use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
 
 // This is 1 / 16 which is exactly representable in an f64 (even an f32)
 // 1 / 32 is too strict and fails the tests
@@ -57,21 +57,27 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
 
             assert_eq!(msg, decoded);
 
-            let torus_distance =
-                torus_modular_distance(plaintext.0, decrypted.0, ciphertext_modulus);
-            noise_samples.push(torus_distance);
+            let torus_diff = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
+            noise_samples.push(torus_diff);
         }
     }
 
     let measured_variance = variance(&noise_samples);
+    let var_abs_diff = (expected_variance.0 - measured_variance.0).abs();
+    let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance.0;
     assert!(
-        (expected_variance.0 - measured_variance.0).abs()
-            < RELATIVE_TOLERANCE * expected_variance.0
+        var_abs_diff < tolerance_threshold,
+        "Absolute difference for variance: {var_abs_diff}, \
+        tolerance threshold: {tolerance_threshold}, \
+        got variance: {measured_variance:?}, \
+        expected variance: {expected_variance:?}"
     );
 }
 
 create_parametrized_test!(lwe_encrypt_decrypt_noise_distribution_custom_mod {
-    TEST_PARAMS_4_BITS_NATIVE_U64
+    TEST_PARAMS_4_BITS_NATIVE_U64,
+    TEST_PARAMS_3_BITS_SOLINAS_U64,
+    TEST_PARAMS_3_BITS_63_U64
 });
 
 fn lwe_compact_public_key_encryption_expected_variance(
@@ -158,16 +164,20 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
 
             assert_eq!(msg, decoded);
 
-            let torus_distance =
-                torus_modular_distance(plaintext.0, decrypted.0, ciphertext_modulus);
-            noise_samples.push(torus_distance);
+            let torus_diff = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
+            noise_samples.push(torus_diff);
         }
     }
 
     let measured_variance = variance(&noise_samples);
+    let var_abs_diff = (expected_variance.0 - measured_variance.0).abs();
+    let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance.0;
     assert!(
-        (expected_variance.0 - measured_variance.0).abs()
-            < RELATIVE_TOLERANCE * expected_variance.0
+        var_abs_diff < tolerance_threshold,
+        "Absolute difference for variance: {var_abs_diff}, \
+        tolerance threshold: {tolerance_threshold}, \
+        got variance: {measured_variance:?}, \
+        expected variance: {expected_variance:?}"
     );
 }
 
