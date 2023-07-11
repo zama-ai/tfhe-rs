@@ -116,6 +116,7 @@ jobs:
     if: ${{ always() }}
     steps:
       - uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
+        if: ${{ github.event_name == 'pull_request' }}
         with:
           labels: m1_test
           github_token: ${{ secrets.GITHUB_TOKEN }}
