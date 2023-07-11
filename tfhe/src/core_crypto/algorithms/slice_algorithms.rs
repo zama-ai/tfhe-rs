@@ -419,6 +419,17 @@ where
         .for_each(|elt| *elt = (*elt).wrapping_neg());
 }
 
+pub fn slice_wrapping_opposite_assign_custom_mod<Scalar>(
+    slice: &mut [Scalar],
+    custom_modulus: Scalar,
+) where
+    Scalar: UnsignedInteger,
+{
+    slice
+        .iter_mut()
+        .for_each(|elt| *elt = (*elt).wrapping_neg_custom_mod(custom_modulus));
+}
+
 /// Multiply a slice containing unsigned integers by a scalar, element-wise and in place.
 ///
 /// # Note
