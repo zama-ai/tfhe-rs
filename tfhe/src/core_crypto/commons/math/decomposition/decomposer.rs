@@ -191,6 +191,7 @@ where
     pub(crate) base_log: usize,
     pub(crate) level_count: usize,
     pub(crate) ciphertext_modulus: CiphertextModulus<Scalar>,
+    pub(crate) shift: Scalar,
 }
 
 impl<Scalar> SignedDecomposerNonNative<Scalar>
@@ -223,10 +224,15 @@ where
             Scalar::BITS > base_log.0 * level_count.0,
             "Decomposed bits exceeds the size of the integer to be decomposed"
         );
+        let modulus = ciphertext_modulus.get_custom_modulus();
+        let base = 1u128 << base_log.0;
+        let mod_over_base = divide_round(modulus, base);
+        let shift = Scalar::cast_from(divide_round(modulus, mod_over_base));
         Self {
             base_log: base_log.0,
             level_count: level_count.0,
             ciphertext_modulus,
+            shift,
         }
     }
 
@@ -341,22 +347,19 @@ where
 
     #[inline]
     pub fn init_decomposition_state(&self, input: Scalar) -> (Scalar, Scalar) {
-        // TODO: Some of these can be precomputed to chose one state init over the other
         let ciphertext_modulus = self.ciphertext_modulus.get_custom_modulus();
-        let base = 1u128 << self.base_log;
+        let base = Scalar::ONE << self.base_log;
         let base_to_the_level = 1u128 << (self.base_log * self.level_count);
-        let mod_over_base = divide_round(ciphertext_modulus, base);
-        let shift = divide_round(ciphertext_modulus, mod_over_base);
         let input_u128: u128 = input.cast_into();
 
-        if shift == base {
+        if self.shift == base {
             let mul_u128 = input_u128 * base_to_the_level;
             let rounded_u128 = divide_round(mul_u128, ciphertext_modulus);
-            (Scalar::cast_from(rounded_u128), Scalar::cast_from(shift))
+            (Scalar::cast_from(rounded_u128), self.shift)
         } else {
             let mod_over_bl = divide_round(ciphertext_modulus, base_to_the_level);
             let rounded_u128 = divide_round(input_u128, mod_over_bl);
-            (Scalar::cast_from(rounded_u128), Scalar::cast_from(shift))
+            (Scalar::cast_from(rounded_u128), self.shift)
         }
     }
 
