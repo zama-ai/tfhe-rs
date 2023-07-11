@@ -1,13 +1,14 @@
 use super::super::math::ntt::{Ntt, NttView};
 use super::ggsw::*;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
+use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LutCountLog, LweDimension,
     ModulusSwitchOffset, MonomialDegree, PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{
-    Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
+    Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split, UnsignedInteger,
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
@@ -189,6 +190,19 @@ pub fn bootstrap_scratch(
     blind_rotate_scratch(glwe_size, polynomial_size, ntt)?.try_and(
         StackReq::try_new_aligned::<u64>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
     )
+}
+
+#[allow(dead_code)]
+fn pbs_modulus_switch_ntt<Scalar: UnsignedInteger>(
+    input: Scalar,
+    polynomial_size: PolynomialSize,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) -> usize {
+    let input_u128: u128 = input.cast_into();
+    divide_round(
+        input_u128 * polynomial_size.0 as u128 * 2,
+        ciphertext_modulus.get_custom_modulus(),
+    ) as usize
 }
 
 impl<'a> NttLweBootstrapKeyView<'a> {
