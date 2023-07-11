@@ -27,6 +27,21 @@ pub fn divide_round<Scalar: UnsignedInteger>(numerator: Scalar, denominator: Sca
     div + Scalar::from(rem >= (denominator >> 1))
 }
 
+#[track_caller]
+pub fn torus_abs_diff_custom_mod<Scalar: UnsignedInteger>(
+    x: Scalar,
+    y: Scalar,
+    modulus: Scalar,
+) -> Scalar {
+    let (x, y) = if y >= x { (x, y) } else { (y, x) };
+    let diff = y - x;
+    let x_u128: u128 = x.cast_into();
+    let y_u128: u128 = y.cast_into();
+    let modulus_u128: u128 = modulus.cast_into();
+    let wrap_diff = Scalar::cast_from(modulus_u128 + x_u128 - y_u128);
+    diff.min(wrap_diff)
+}
+
 /// Compute the smallest signed difference between two torus elements
 pub fn torus_modular_diff<T: UnsignedInteger>(
     first: T,
