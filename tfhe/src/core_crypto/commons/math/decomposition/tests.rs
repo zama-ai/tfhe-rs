@@ -1,4 +1,4 @@
-use crate::core_crypto::algorithms::{divide_round, modular_distance_custom_mod};
+use crate::core_crypto::algorithms::{divide_round, torus_abs_diff_custom_mod};
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::decomposition::{
     SignedDecomposer, SignedDecomposerNonNative,
@@ -243,7 +243,7 @@ fn test_round_to_closest_representable_non_native<T: UnsignedTorus>(
                 assert!(abs_term <= half_basis);
             }
             let closest = decomposer.closest_representable(val_plus_epsilon);
-            let distance = modular_distance_custom_mod(val, closest, ciphertext_modulus_as_t);
+            let distance = torus_abs_diff_custom_mod(val, closest, ciphertext_modulus_as_t);
             let distance_f64: f64 = distance.cast_into();
             // -1 as we don't divide exactly for prime Q
             let max_correct_bits: usize = base_log * level_count - 1;
@@ -271,7 +271,7 @@ fn test_round_to_closest_representable_non_native<T: UnsignedTorus>(
                 assert!(abs_term <= half_basis);
             }
             let closest = decomposer.closest_representable(val_minus_epsilon);
-            let distance = modular_distance_custom_mod(val, closest, ciphertext_modulus_as_t);
+            let distance = torus_abs_diff_custom_mod(val, closest, ciphertext_modulus_as_t);
             let distance_f64: f64 = distance.cast_into();
             // -1 as we don't divide exactly for prime Q
             let max_correct_bits: usize = base_log * level_count - 1;
@@ -369,7 +369,7 @@ fn test_decompose_recompose_non_native<T: UnsignedInteger + Debug + RandomGenera
             assert!(abs_term <= half_basis);
         }
         let closest = decomposer.closest_representable(input);
-        let distance = modular_distance_custom_mod(input, closest, ciphertext_modulus_as_t);
+        let distance = torus_abs_diff_custom_mod(input, closest, ciphertext_modulus_as_t);
         let distance_f64: f64 = distance.cast_into();
         let base_log = decomposer.base_log().0;
         let level_count = decomposer.level_count().0;

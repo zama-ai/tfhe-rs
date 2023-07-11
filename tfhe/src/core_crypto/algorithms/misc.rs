@@ -5,26 +5,29 @@ pub fn divide_round<Scalar: UnsignedInteger>(numerator: Scalar, denominator: Sca
     // // Does the following without overflowing (which can happen with the addition of denom / 2)
     // (numerator + denominator / Scalar::TWO) / denominator
 
+    // Add the half interval mapping
+    // [denominator * (numerator - 1/2); denominator * (numerator + 1/2)[ to
+    // [denominator * numerator; denominator * (numerator + 1)[
+    // Dividing by denominator gives numerator which is what we want
+
     // div and rem should be computed in a single instruction on most CPUs for native types < u128
     let (div, rem) = (numerator / denominator, numerator % denominator);
     div + Scalar::from(rem >= (denominator >> 1))
 }
 
-pub fn modular_distance_custom_mod<Scalar: UnsignedInteger>(
+#[track_caller]
+pub fn torus_abs_diff_custom_mod<Scalar: UnsignedInteger>(
     x: Scalar,
     y: Scalar,
     modulus: Scalar,
 ) -> Scalar {
-    if y >= x {
-        let diff = y - x;
-        let x_u128: u128 = x.cast_into();
-        let y_u128: u128 = y.cast_into();
-        let modulus_u128: u128 = modulus.cast_into();
-        let wrap_diff = Scalar::cast_from(modulus_u128 + x_u128 - y_u128);
-        diff.min(wrap_diff)
-    } else {
-        modular_distance_custom_mod(y, x, modulus)
-    }
+    let (x, y) = if y >= x { (x, y) } else { (y, x) };
+    let diff = y - x;
+    let x_u128: u128 = x.cast_into();
+    let y_u128: u128 = y.cast_into();
+    let modulus_u128: u128 = modulus.cast_into();
+    let wrap_diff = Scalar::cast_from(modulus_u128 + x_u128 - y_u128);
+    diff.min(wrap_diff)
 }
 
 #[cfg(test)]

@@ -209,13 +209,7 @@ pub fn get_encoding_with_padding<Scalar: UnsignedInteger>(
 }
 
 pub fn round_decode<Scalar: UnsignedInteger>(decrypted: Scalar, delta: Scalar) -> Scalar {
-    // Get half interval on the discretized torus
-    let rounding_margin = delta.wrapping_div(Scalar::TWO);
-
-    // Add the half interval mapping
-    // [delta * (m - 1/2); delta * (m + 1/2)[ to [delta * m; delta * (m + 1)[
-    // Dividing by delta gives m which is what we want
-    (decrypted.wrapping_add(rounding_margin)).wrapping_div(delta)
+    divide_round(decrypted, delta)
 }
 
 // Here we will define a helper function to generate an accumulator for a PBS
