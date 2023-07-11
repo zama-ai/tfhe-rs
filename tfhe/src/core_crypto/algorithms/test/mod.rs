@@ -242,9 +242,16 @@ where
 
     let half_box_size = box_size / 2;
 
-    // Negate the first half_box_size coefficients to manage negacyclicity and rotate
-    for a_i in accumulator_scalar[0..half_box_size].iter_mut() {
-        *a_i = (*a_i).wrapping_neg();
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        // Negate the first half_box_size coefficients to manage negacyclicity and rotate
+        for a_i in accumulator_scalar[0..half_box_size].iter_mut() {
+            *a_i = (*a_i).wrapping_neg();
+        }
+    } else {
+        let modulus: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+        for a_i in accumulator_scalar[0..half_box_size].iter_mut() {
+            *a_i = (*a_i).wrapping_neg_custom_mod(modulus);
+        }
     }
 
     // Rotate the accumulator
