@@ -894,3 +894,6 @@ pub const PARAM_MESSAGE_7_CARRY_1_COMPACT_PK_PBS_KS: ClassicPBSParameters = Clas
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
+
+// Convenience aliases
+pub const DEFAULT_COMPACT_PK: ClassicPBSParameters = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;

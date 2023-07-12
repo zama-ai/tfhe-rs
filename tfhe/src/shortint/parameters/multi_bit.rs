@@ -172,3 +172,9 @@ pub const PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS: MultiBitPBSParameter
         grouping_factor: LweBskGroupingFactor(3),
         deterministic_execution: false,
     };
+
+// Convenience aliases
+pub const DEFAULT_MULTI_BIT_GROUP_2: MultiBitPBSParameters =
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS;
+pub const DEFAULT_MULTI_BIT_GROUP_3: MultiBitPBSParameters =
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
