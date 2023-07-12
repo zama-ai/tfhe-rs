@@ -9,7 +9,8 @@ impl ServerKey {
     ///
     /// # Warning
     ///
-    /// /!\ A division by zero returns 0!
+    /// /!\ A division by zero returns the input ciphertext maximum message value! For 2 bits of
+    /// message it will therefore return 3.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
@@ -69,7 +70,8 @@ impl ServerKey {
     ///
     /// # Warning
     ///
-    /// /!\ A division by zero returns 0!
+    /// /!\ A division by zero returns the input ciphertext maximum message value! For 2 bits of
+    /// message it will therefore return 3.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
@@ -140,7 +142,8 @@ impl ServerKey {
     ///
     /// # Warning
     ///
-    /// /!\ A division by zero returns 0!
+    /// /!\ A division by zero returns the input ciphertext maximum message value! For 2 bits of
+    /// message it will therefore return 3.
     ///
     /// # Example
     ///
@@ -192,7 +195,8 @@ impl ServerKey {
     ///
     /// # Warning
     ///
-    /// /!\ A division by zero returns 0!
+    /// /!\ A division by zero returns the input ciphertext maximum message value! For 2 bits of
+    /// message it will therefore return 3.
     ///
     /// # Example
     ///
@@ -246,7 +250,8 @@ impl ServerKey {
     ///
     /// # Warning
     ///
-    /// /!\ A division by zero returns 0!
+    /// /!\ A division by zero returns the input ciphertext maximum message value! For 2 bits of
+    /// message it will therefore return 3.
     ///
     /// # Example
     ///
@@ -298,7 +303,8 @@ impl ServerKey {
     ///
     /// # Warning
     ///
-    /// /!\ A division by zero returns 0!
+    /// /!\ A division by zero returns the input ciphertext maximum message value! For 2 bits of
+    /// message it will therefore return 3.
     ///
     /// # Example
     ///
