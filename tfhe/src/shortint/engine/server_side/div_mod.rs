@@ -2,10 +2,10 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
 
-// Specific division function returning 0 in case of a division by 0
-pub(crate) fn safe_division(x: u64, y: u64) -> u64 {
+// Specific division function returning value_on_div_by_zero in case of a division by 0
+pub(crate) fn safe_division(x: u64, y: u64, value_on_div_by_zero: u64) -> u64 {
     if y == 0 {
-        0
+        value_on_div_by_zero
     } else {
         x / y
     }
@@ -29,11 +29,12 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
+        let value_on_div_by_zero = (ct_left.message_modulus.0 - 1) as u64;
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
             ct_left,
             ct_right,
-            safe_division,
+            |x, y| safe_division(x, y, value_on_div_by_zero),
         )?;
         Ok(())
     }
@@ -93,7 +94,7 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
-        assert_ne!(scalar, 0);
+        assert_ne!(scalar, 0, "attempt to divide by zero");
         let lookup_table = self.generate_lookup_table(server_key, |x| x / (scalar as u64))?;
         self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
         ct.degree = Degree(ct.degree.0 / scalar as usize);

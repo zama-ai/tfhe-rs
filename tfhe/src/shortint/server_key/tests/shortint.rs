@@ -2072,6 +2072,19 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
+    // check div by 0 result
+    {
+        let numerator = 1u64;
+        let denominator = 0u64;
+
+        let ct_num = cks.encrypt(numerator);
+        let ct_denom = cks.encrypt(denominator);
+        let ct_res = sks.unchecked_div(&ct_num, &ct_denom);
+
+        let res = cks.decrypt(&ct_res);
+        assert_eq!(res, (ct_num.message_modulus.0 - 1) as u64)
+    }
+
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = (rng.gen::<u64>() % (modulus - 1)) + 1;
