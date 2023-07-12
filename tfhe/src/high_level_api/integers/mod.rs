@@ -13,7 +13,6 @@ pub(in crate::high_level_api) use keys::{
 mod client_key;
 mod keys;
 mod parameters;
-mod public_key;
 mod server_key;
 #[cfg(test)]
 mod tests;
