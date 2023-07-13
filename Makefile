@@ -389,17 +389,9 @@ test_web_js_api_parallel: build_web_js_api_parallel
 
 .PHONY: ci_test_web_js_api_parallel # Run tests for the web wasm api
 ci_test_web_js_api_parallel: build_web_js_api_parallel
-	# Auto-retry since WASM tests can be flaky
-	@for i in 1 2 3 ; do \
-		source ~/.nvm/nvm.sh && \
-		nvm use node && \
-		$(MAKE) -C tfhe/web_wasm_parallel_tests test-ci | tee web_js_tests_output; \
-		if grep -q -i "timeout" web_js_tests_output; then \
-			echo "Timeout occurred starting attempt #${i}"; \
-		else \
-			break; \
-		fi; \
-	done
+	source ~/.nvm/nvm.sh && \
+	nvm use node && \
+	$(MAKE) -C tfhe/web_wasm_parallel_tests test-ci
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
 no_tfhe_typo:
