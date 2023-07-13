@@ -601,8 +601,6 @@ impl ServerKey {
         let shift_within_block = n % num_bits_in_message;
         let num_blocks = ct.blocks.len();
 
-        dbg!(rotations);
-
         // rotate right as the blocks are from LSB to MSB
         ct.blocks.rotate_right(rotations);
 

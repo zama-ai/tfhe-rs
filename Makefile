@@ -405,6 +405,10 @@ ci_test_web_js_api_parallel: build_web_js_api_parallel
 no_tfhe_typo:
 	@./scripts/no_tfhe_typo.sh
 
+.PHONY: no_dbg_log # Check we did not leave dbg macro calls in the rust code
+no_dbg_log:
+	@./scripts/no_dbg_calls.sh
+
 #
 # Benchmarks
 #
@@ -509,10 +513,10 @@ sha256_bool: install_rs_check_toolchain
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
 .PHONY: pcc # pcc stands for pre commit checks
-pcc: no_tfhe_typo check_fmt doc clippy_all check_compile_tests
+pcc: no_tfhe_typo no_dbg_log check_fmt doc clippy_all check_compile_tests
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
-fpcc: no_tfhe_typo check_fmt doc clippy_fast check_compile_tests
+fpcc: no_tfhe_typo no_dbg_log check_fmt doc clippy_fast check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fmt

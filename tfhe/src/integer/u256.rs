@@ -160,7 +160,7 @@ impl U256 {
     pub fn leading_zeros(self) -> u32 {
         // iter from msb to lsb
         for (i, word) in self.0.iter().copied().rev().enumerate() {
-            let leading_zeros = dbg!(word.leading_zeros());
+            let leading_zeros = word.leading_zeros();
             if leading_zeros != u64::BITS {
                 return (i as u32 * u64::BITS) + leading_zeros;
             }
