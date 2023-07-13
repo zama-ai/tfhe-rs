@@ -26,10 +26,15 @@ jobs:
         with:
           files_yaml: |
             benches:
+              - toolchain.txt
+              - Makefile
+              - ci/slab.toml
+              - tfhe/Cargo.toml
               - tfhe/src/**
               - tfhe/benches/**
               - tfhe/web_wasm_parallel_tests/**
               - .github/workflows/*_benchmark.yml
+              - .github/workflows/start_benchmarks.yml
 
       - name: Checkout Slab repo
         if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.benches_any_changed == 'true'
