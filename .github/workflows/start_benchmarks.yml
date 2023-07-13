@@ -9,7 +9,7 @@ on:
 
 jobs:
   start-benchmarks:
-    if: ${{ (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||  github.event_name == 'workflow_dispatch' }}
+    if: ${{ (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         command: [boolean_bench, shortint_bench, integer_bench, integer_multi_bit_bench, pbs_bench, wasm_client_bench]
@@ -32,7 +32,7 @@ jobs:
               - .github/workflows/*_benchmark.yml
 
       - name: Checkout Slab repo
-        if: steps.changed-files.outputs.benches_any_changed == 'true'
+        if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.benches_any_changed == 'true'
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
           repository: zama-ai/slab
@@ -40,7 +40,7 @@ jobs:
           token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
 
       - name: Start AWS job in Slab
-        if: steps.changed-files.outputs.benches_any_changed == 'true'
+        if: github.event_name == 'workflow_dispatch' || steps.changed-files.outputs.benches_any_changed == 'true'
         shell: bash
         run: |
           echo -n '{"command": "${{ matrix.command }}", "git_ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}' > command.json
