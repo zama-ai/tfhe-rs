@@ -446,8 +446,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 break;
             }
 
-            let bench_id =
-                format!("{param_name}::{bit_size}_bits_scalar_{clear_size}");
+            let bench_id = format!("{param_name}::{bit_size}_bits_scalar_{clear_size}");
             bench_group.bench_function(&bench_id, |b| {
                 let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -458,7 +457,9 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                     let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
                     let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
-                    let clear_1 = rng_func(&mut rng, clear_size) % (1 << clear_size);
+                    // Avoid overflow issues for u64 where we would take values mod 1
+                    let clear_1 =
+                        (rng_func(&mut rng, clear_size) as u128 % (1u128 << clear_size)) as u64;
 
                     (ct_0, clear_1)
                 };
@@ -510,7 +511,8 @@ fn mul_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> u64 {
 fn div_scalar(rng: &mut ThreadRng, clear_bit_size: usize) -> u64 {
     loop {
         let scalar = rng.gen_range(1..=u64::MAX);
-        if (scalar % (1 << clear_bit_size)) != 0 {
+        // Avoid overflow issues for u64 where we would take values mod 1
+        if (scalar as u128 % (1u128 << clear_bit_size)) != 0 {
             return scalar;
         }
     }
