@@ -22,7 +22,7 @@ jobs:
 
       - name: Check for file changes
         id: changed-files
-        uses: tj-actions/changed-files@54849deb963ca9f24185fb5de2965e002d066e6b
+        uses: tj-actions/changed-files@2a968ff601949c81b47d9c1fdb789b0d25ddeea2
         with:
           files_yaml: |
             benches:
