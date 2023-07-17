@@ -72,7 +72,7 @@ impl ShortintEngine {
         cks: &ClientKey,
         sks: &ServerKey,
         parameters: &WopbsParameters,
-    ) -> EngineResult<WopbsKey> {
+    ) -> EngineResult<(WopbsKey, (LweSecretKeyOwned<u64>, GlweSecretKeyOwned<u64>))> {
         //Independent client key generation dedicated to the WoPBS
         let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             parameters.lwe_dimension,
@@ -198,7 +198,7 @@ impl ShortintEngine {
             ksk_pbs_to_wopbs: ksk_pbs_large_to_wopbs_large,
             param: *parameters,
         };
-        Ok(wopbs_key)
+        Ok((wopbs_key, (small_lwe_secret_key, glwe_secret_key)))
     }
 
     pub(crate) fn extract_bits(

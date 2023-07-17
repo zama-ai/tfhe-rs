@@ -191,6 +191,16 @@ impl WopbsKey {
         parameters: &WopbsParameters,
     ) -> WopbsKey {
         ShortintEngine::with_thread_local_mut(|engine| {
+            engine.new_wopbs_key(cks, sks, parameters).unwrap().0
+        })
+    }
+
+    pub fn new_wopbs_key_return_secret_keys(
+        cks: &ClientKey,
+        sks: &ServerKey,
+        parameters: &WopbsParameters,
+    ) -> (WopbsKey, (LweSecretKeyOwned<u64>, GlweSecretKeyOwned<u64>)) {
+        ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_wopbs_key(cks, sks, parameters).unwrap()
         })
     }
