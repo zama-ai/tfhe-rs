@@ -1,10 +1,39 @@
-use crate::core_crypto::prelude::UnsignedInteger;
+use crate::core_crypto::prelude::{Numeric, UnsignedInteger};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
-use crate::integer::ServerKey;
+use crate::integer::{ServerKey, U256};
 use std::collections::BTreeMap;
+
+pub trait ScalarMultiplier: Numeric {
+    fn is_power_of_two(self) -> bool;
+
+    fn ilog2(self) -> u32;
+}
+
+impl<T> ScalarMultiplier for T
+where
+    T: UnsignedInteger,
+{
+    fn is_power_of_two(self) -> bool {
+        self.is_power_of_two()
+    }
+
+    fn ilog2(self) -> u32 {
+        self.ilog2()
+    }
+}
+
+impl ScalarMultiplier for U256 {
+    fn is_power_of_two(self) -> bool {
+        self.is_power_of_two()
+    }
+
+    fn ilog2(self) -> u32 {
+        self.ilog2()
+    }
+}
 
 impl ServerKey {
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
@@ -321,7 +350,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_mul<T>(&self, ctxt: &mut RadixCiphertext, scalar: T) -> RadixCiphertext
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: ScalarMultiplier + DecomposableInto<u8>,
     {
         if scalar == T::ZERO {
             return self.create_trivial_zero_radix(ctxt.blocks.len());
@@ -372,7 +401,7 @@ impl ServerKey {
 
     pub fn smart_scalar_mul_assign<T>(&self, ctxt: &mut RadixCiphertext, scalar: T)
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: ScalarMultiplier + DecomposableInto<u8>,
     {
         *ctxt = self.smart_scalar_mul(ctxt, scalar);
     }
