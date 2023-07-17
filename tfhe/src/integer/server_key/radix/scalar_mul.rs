@@ -3,7 +3,7 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
-use crate::integer::{ServerKey, U256};
+use crate::integer::{ServerKey, U256, U512};
 use std::collections::BTreeMap;
 
 pub trait ScalarMultiplier: Numeric {
@@ -26,6 +26,16 @@ where
 }
 
 impl ScalarMultiplier for U256 {
+    fn is_power_of_two(self) -> bool {
+        self.is_power_of_two()
+    }
+
+    fn ilog2(self) -> u32 {
+        self.ilog2()
+    }
+}
+
+impl ScalarMultiplier for U512 {
     fn is_power_of_two(self) -> bool {
         self.is_power_of_two()
     }

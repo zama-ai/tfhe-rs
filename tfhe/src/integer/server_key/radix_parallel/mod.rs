@@ -22,6 +22,7 @@ mod tests;
 
 use super::ServerKey;
 use crate::integer::ciphertext::RadixCiphertext;
+pub use scalar_div_mod::{MiniUnsignedInteger, Reciprocable};
 
 // parallelized versions
 impl ServerKey {

@@ -2,7 +2,7 @@ use core::ops::{AddAssign, BitAnd, ShlAssign, ShrAssign};
 use std::ops::{BitOrAssign, Shl, Sub};
 
 use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric};
-use crate::integer::U256;
+use crate::integer::{U256, U512};
 
 // These work for signed number as rust uses 2-Complements
 // And Arithmetic shift for signed number (logical for unsigned)
@@ -48,7 +48,7 @@ macro_rules! impl_recomposable_decomposable {
     };
 }
 
-impl_recomposable_decomposable!(u8, u16, u32, u64, u128, U256, i8, i16, i32, i64, i128);
+impl_recomposable_decomposable!(u8, u16, u32, u64, u128, U256, U512, i8, i16, i32, i64, i128);
 
 #[derive(Copy, Clone)]
 pub struct BlockDecomposer<T> {
