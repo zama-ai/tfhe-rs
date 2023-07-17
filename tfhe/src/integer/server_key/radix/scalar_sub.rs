@@ -3,7 +3,28 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
-use crate::integer::ServerKey;
+use crate::integer::{ServerKey, U256};
+
+pub trait TwosComplementNegation {
+    fn twos_complement_negation(self) -> Self;
+}
+
+impl<T> TwosComplementNegation for T
+where
+    T: UnsignedInteger,
+{
+    fn twos_complement_negation(self) -> Self {
+        let flipped = !self;
+        flipped.wrapping_add(T::ONE)
+    }
+}
+
+impl TwosComplementNegation for U256 {
+    fn twos_complement_negation(self) -> Self {
+        let flipped = !self;
+        flipped + Self::ONE
+    }
+}
 
 impl ServerKey {
     /// Computes homomorphically a subtraction between a ciphertext and a scalar.
@@ -37,7 +58,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_sub<T>(&self, ct: &RadixCiphertext, scalar: T) -> RadixCiphertext
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: TwosComplementNegation + DecomposableInto<u8>,
     {
         let mut result = ct.clone();
         self.unchecked_scalar_sub_assign(&mut result, scalar);
@@ -53,7 +74,7 @@ impl ServerKey {
     //
     fn create_negated_block_decomposer<T>(&self, scalar: T) -> Option<impl Iterator<Item = u8>>
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: TwosComplementNegation + DecomposableInto<u8>,
     {
         if scalar == T::ZERO {
             return None;
@@ -68,10 +89,7 @@ impl ServerKey {
         // - Support subtraction in the case the T::BITS is lower than the target ciphertext bits.
         //   In clear rust this would require an upcast, to support that we have to do a few things
 
-        //  The negation of a numeric value of type T, in two complemement
-        //  is neg(v) = bitwise_not(v) + 1
-        let flipped = !scalar;
-        let neg_scalar = flipped.wrapping_add(T::ONE);
+        let neg_scalar = scalar.twos_complement_negation();
 
         // If we had upcasted the scalar, its msb would be zeros (0)
         // then they would become ones (1) after the bitwise_not (!).
@@ -94,7 +112,7 @@ impl ServerKey {
 
     pub fn unchecked_scalar_sub_assign<T>(&self, ct: &mut RadixCiphertext, scalar: T)
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: TwosComplementNegation + DecomposableInto<u8>,
     {
         let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
             // subtraction by zero
@@ -130,7 +148,7 @@ impl ServerKey {
     /// ```
     pub fn is_scalar_sub_possible<T>(&self, ct: &RadixCiphertext, scalar: T) -> bool
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: TwosComplementNegation + DecomposableInto<u8>,
     {
         let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
             // subtraction by zero
@@ -183,7 +201,7 @@ impl ServerKey {
         scalar: T,
     ) -> Result<RadixCiphertext, CheckError>
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: TwosComplementNegation + DecomposableInto<u8>,
     {
         if self.is_scalar_sub_possible(ct, scalar) {
             Ok(self.unchecked_scalar_sub(ct, scalar))
@@ -228,7 +246,7 @@ impl ServerKey {
         scalar: T,
     ) -> Result<(), CheckError>
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: TwosComplementNegation + DecomposableInto<u8>,
     {
         if self.is_scalar_sub_possible(ct, scalar) {
             self.unchecked_scalar_sub_assign(ct, scalar);
@@ -264,7 +282,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_sub<T>(&self, ct: &mut RadixCiphertext, scalar: T) -> RadixCiphertext
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: TwosComplementNegation + DecomposableInto<u8>,
     {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate(ct);
@@ -275,7 +293,7 @@ impl ServerKey {
 
     pub fn smart_scalar_sub_assign<T>(&self, ct: &mut RadixCiphertext, scalar: T)
     where
-        T: UnsignedInteger + DecomposableInto<u8>,
+        T: TwosComplementNegation + DecomposableInto<u8>,
     {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate(ct);

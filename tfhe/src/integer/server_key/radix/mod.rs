@@ -5,7 +5,7 @@ mod mul;
 mod neg;
 mod scalar_add;
 mod scalar_mul;
-mod scalar_sub;
+pub(super) mod scalar_sub;
 mod shift;
 mod sub;
 
