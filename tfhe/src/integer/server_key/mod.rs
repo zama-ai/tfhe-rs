@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 
 /// Error returned when the carry buffer is full.
 pub use crate::shortint::CheckError;
+pub use radix::scalar_mul::ScalarMultiplier;
+pub use radix::scalar_sub::TwosComplementNegation;
 pub use radix_parallel::{MiniUnsignedInteger, Reciprocable};
 
 /// A structure containing the server public key.
