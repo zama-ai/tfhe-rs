@@ -53,6 +53,7 @@ mod tests;
 pub mod block_decomposition;
 pub(crate) mod encryption;
 
+pub mod bigint;
 pub mod ciphertext;
 pub mod client_key;
 pub mod key_switching_key;
@@ -61,14 +62,14 @@ pub mod keycache;
 pub mod parameters;
 pub mod public_key;
 pub mod server_key;
-pub mod u256;
 pub mod wopbs;
 
+pub use bigint::u256::U256;
+pub use bigint::u512::U512;
 pub use ciphertext::{CrtCiphertext, IntegerCiphertext, RadixCiphertext};
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
 pub use public_key::{CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
-pub use u256::U256;
 
 /// Generate a couple of client and server keys with given parameters
 ///

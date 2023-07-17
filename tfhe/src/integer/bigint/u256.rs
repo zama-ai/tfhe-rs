@@ -1,91 +1,6 @@
-use std::ops::{BitAnd, BitOrAssign, Shl, ShlAssign, Shr, SubAssign};
+use std::ops::ShlAssign;
 
-use crate::core_crypto::prelude::{CastFrom, Numeric, UnsignedInteger};
-
-#[inline(always)]
-pub fn add_with_carry<T: UnsignedInteger>(l: T, r: T, c: bool) -> (T, bool) {
-    let (lr, o0) = l.overflowing_add(r);
-    let (lrc, o1) = lr.overflowing_add(T::cast_from(c));
-    (lrc, o0 | o1)
-}
-
-pub fn add_assign_words<T: UnsignedInteger>(lhs: &mut [T], rhs: &[T]) {
-    let iter = lhs
-        .iter_mut()
-        .zip(rhs.iter().copied().chain(std::iter::repeat(T::ZERO)));
-
-    let mut carry = false;
-    for (lhs_block, rhs_block) in iter {
-        let (result, out_carry) = add_with_carry(*lhs_block, rhs_block, carry);
-        *lhs_block = result;
-        carry = out_carry;
-    }
-}
-
-/// lhs and rhs are slice of words.
-///
-/// They must be in lsb -> msb order
-pub(crate) fn schoolbook_mul_assign(lhs: &mut [u64], rhs: &[u64]) {
-    assert!(lhs.len() >= rhs.len());
-    let mut terms = Vec::with_capacity(rhs.len());
-
-    for (i, rhs_block) in rhs.iter().copied().enumerate() {
-        let mut blocks = Vec::with_capacity(lhs.len() + i);
-        blocks.resize(i, 0u64); // pad with 0
-
-        let mut carry = 0;
-        for lhs_block in lhs.iter().copied() {
-            let mut res = lhs_block as u128 * rhs_block as u128;
-            res += carry;
-            let carry_out = res >> u64::BITS;
-            blocks.push((res & u64::MAX as u128) as u64);
-            carry = carry_out;
-        }
-        blocks.push(carry as u64);
-
-        terms.push(blocks)
-    }
-
-    let mut result = terms.pop().unwrap();
-    for term in terms {
-        add_assign_words(&mut result, &term);
-    }
-
-    for (lhs_block, result_block) in lhs.iter_mut().zip(result) {
-        *lhs_block = result_block;
-    }
-}
-
-pub(crate) fn slow_div<T>(numerator: T, divisor: T) -> (T, T)
-where
-    T: Numeric
-        + ShlAssign<u32>
-        + Shl<u32, Output = T>
-        + Shr<u32, Output = T>
-        + BitOrAssign<T>
-        + SubAssign<T>
-        + BitAnd<T, Output = T>
-        + Ord,
-{
-    assert!(divisor != T::ZERO);
-
-    let mut quotient = T::ZERO;
-    let mut remainder = T::ZERO;
-
-    for i in (0..T::BITS).rev() {
-        remainder <<= 1;
-        remainder |= (numerator >> i as u32) & T::ONE;
-
-        if remainder >= divisor {
-            remainder -= divisor;
-            quotient |= T::ONE << (i as u32);
-        }
-    }
-
-    (quotient, remainder)
-}
-
-const BYTES_PER_U64: usize = std::mem::size_of::<u64>() / std::mem::size_of::<u8>();
+use crate::core_crypto::prelude::{CastFrom, Numeric};
 
 // Little endian order
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
@@ -102,46 +17,20 @@ impl U256 {
 
     /// Replaces the current value by interpreting the bytes in big endian order
     pub fn copy_from_be_byte_slice(&mut self, bytes: &[u8]) {
-        assert_eq!(bytes.len(), BYTES_PER_U64 * 4);
-
-        let mut array = [0u8; BYTES_PER_U64];
-        for (sub_bytes, word) in bytes
-            .chunks_exact(BYTES_PER_U64)
-            .zip(self.0.iter_mut().rev())
-        {
-            array.copy_from_slice(sub_bytes);
-            *word = u64::from_be_bytes(array);
-        }
+        super::algorithms::copy_from_be_byte_slice(self.0.as_mut_slice(), bytes);
     }
 
     /// Replaces the current value by interpreting the bytes in little endian order
     pub fn copy_from_le_byte_slice(&mut self, bytes: &[u8]) {
-        assert_eq!(bytes.len(), BYTES_PER_U64 * 4);
-
-        let mut array = [0u8; BYTES_PER_U64];
-        for (sub_bytes, word) in bytes.chunks_exact(BYTES_PER_U64).zip(self.0.iter_mut()) {
-            array.copy_from_slice(sub_bytes);
-            *word = u64::from_le_bytes(array);
-        }
+        super::algorithms::copy_from_le_byte_slice(self.0.as_mut_slice(), bytes);
     }
 
     pub fn copy_to_le_byte_slice(&self, bytes: &mut [u8]) {
-        assert_eq!(bytes.len(), BYTES_PER_U64 * 4);
-
-        for (sub_bytes, word) in bytes.chunks_exact_mut(BYTES_PER_U64).zip(self.0.iter()) {
-            sub_bytes.copy_from_slice(word.to_le_bytes().as_slice());
-        }
+        super::algorithms::copy_to_le_byte_slice(self.0.as_slice(), bytes);
     }
 
     pub fn copy_to_be_byte_slice(&self, bytes: &mut [u8]) {
-        assert_eq!(bytes.len(), BYTES_PER_U64 * 4);
-
-        for (sub_bytes, word) in bytes
-            .chunks_exact_mut(BYTES_PER_U64)
-            .zip(self.0.iter().rev())
-        {
-            sub_bytes.copy_from_slice(word.to_be_bytes().as_slice());
-        }
+        super::algorithms::copy_to_be_byte_slice(self.0.as_slice(), bytes);
     }
 
     pub fn to_low_high_u128(self) -> (u128, u128) {
@@ -158,16 +47,7 @@ impl U256 {
     }
 
     pub fn leading_zeros(self) -> u32 {
-        // iter from msb to lsb
-        for (i, word) in self.0.iter().copied().rev().enumerate() {
-            let leading_zeros = word.leading_zeros();
-            if leading_zeros != u64::BITS {
-                return (i as u32 * u64::BITS) + leading_zeros;
-            }
-        }
-
-        // Everyting is zero
-        self.0.len() as u32 * u64::BITS
+        super::algorithms::leading_zeros(self.0.as_slice())
     }
 
     pub fn ilog2(self) -> u32 {
@@ -178,28 +58,24 @@ impl U256 {
         );
         (self.0.len() as u32 * u64::BITS) - self.leading_zeros() - 1
     }
+
+    pub fn ceil_ilog2(self) -> u32 {
+        self.ilog2() + u32::from(!self.is_power_of_two())
+    }
 }
 
 #[cfg(test)]
 impl rand::distributions::Distribution<U256> for rand::distributions::Standard {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> U256 {
-        U256([rng.gen(), rng.gen(), rng.gen(), rng.gen()])
+        let mut s = U256::ZERO;
+        rng.fill(s.0.as_mut_slice());
+        s
     }
 }
 
-// Since we store as [low, high], deriving ord
-// would produces bad ordering
 impl std::cmp::Ord for U256 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let mut current_ord = std::cmp::Ordering::Equal;
-        for (w_self, w_other) in self.0.iter().rev().zip(other.0.iter().rev()) {
-            current_ord = w_self.cmp(w_other);
-            if current_ord != std::cmp::Ordering::Equal {
-                break;
-            }
-        }
-
-        current_ord
+        super::algorithms::compare(&self.0, &other.0)
     }
 }
 
@@ -220,7 +96,7 @@ impl std::ops::Add<Self> for U256 {
 
 impl std::ops::AddAssign<Self> for U256 {
     fn add_assign(&mut self, rhs: Self) {
-        add_assign_words(self.0.as_mut_slice(), rhs.0.as_slice())
+        super::algorithms::add_assign_words(self.0.as_mut_slice(), rhs.0.as_slice())
     }
 }
 
@@ -239,22 +115,13 @@ impl std::ops::SubAssign<Self> for U256 {
     }
 }
 
-impl std::ops::Shr<u32> for U256 {
-    type Output = Self;
-
-    fn shr(mut self, rhs: u32) -> Self::Output {
-        self >>= rhs;
-        self
-    }
-}
-
 impl std::ops::MulAssign<Self> for U256 {
     fn mul_assign(&mut self, rhs: Self) {
         if rhs.is_power_of_two() {
             self.shl_assign(rhs.ilog2());
             return;
         }
-        schoolbook_mul_assign(self.0.as_mut_slice(), rhs.0.as_slice());
+        super::algorithms::schoolbook_mul_assign(self.0.as_mut_slice(), rhs.0.as_slice());
     }
 }
 
@@ -277,7 +144,7 @@ impl std::ops::Div<Self> for U256 {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        let (q, _) = slow_div(self, rhs);
+        let (q, _) = super::algorithms::slow_div(self, rhs);
         q
     }
 }
@@ -292,37 +159,14 @@ impl std::ops::Rem<Self> for U256 {
     type Output = Self;
 
     fn rem(self, rhs: Self) -> Self::Output {
-        let (_, r) = slow_div(self, rhs);
+        let (_, r) = super::algorithms::slow_div(self, rhs);
         r
     }
 }
 
 impl std::ops::ShrAssign<u32> for U256 {
-    // move bits from MSB to LSB
     fn shr_assign(&mut self, shift: u32) {
-        let shift = shift % Self::BITS;
-
-        let num_rotations = (shift / u64::BITS) as usize;
-        self.0.rotate_left(num_rotations);
-
-        let len = self.0.len();
-        let (head, tail) = self.0.as_mut_slice().split_at_mut(len - num_rotations);
-        tail.fill(0);
-
-        let shift_in_words = shift % u64::BITS;
-
-        let value_mask = u64::MAX >> shift_in_words;
-        let carry_mask = ((1u64 << shift_in_words) - 1u64).rotate_right(shift_in_words);
-
-        let mut carry = 0u64;
-        for word in &mut head.iter_mut().rev() {
-            let rotated = word.rotate_right(shift_in_words);
-            let value = (rotated & value_mask) | carry;
-            let carry_for_next = rotated & carry_mask;
-
-            *word = value;
-            carry = carry_for_next;
-        }
+        super::algorithms::shr_assign(self.0.as_mut_slice(), shift);
     }
 }
 
@@ -334,32 +178,48 @@ impl std::ops::Shl<u32> for U256 {
         self
     }
 }
+impl std::ops::Shr<u32> for U256 {
+    type Output = Self;
+
+    fn shr(mut self, rhs: u32) -> Self::Output {
+        self >>= rhs;
+        self
+    }
+}
 
 impl std::ops::ShlAssign<u32> for U256 {
-    // move bits from LSB to MSB
     fn shl_assign(&mut self, shift: u32) {
-        let shift = shift % Self::BITS;
+        super::algorithms::shl_assign(self.0.as_mut_slice(), shift);
+    }
+}
 
-        let num_rotations = (shift / u64::BITS) as usize;
-        self.0.rotate_right(num_rotations);
+impl std::ops::Shl<usize> for U256 {
+    type Output = Self;
 
-        let (head, tail) = self.0.as_mut_slice().split_at_mut(num_rotations);
-        head.fill(0);
+    fn shl(mut self, rhs: usize) -> Self::Output {
+        self <<= rhs;
+        self
+    }
+}
 
-        let shift_in_words = shift % u64::BITS;
+impl std::ops::ShrAssign<usize> for U256 {
+    fn shr_assign(&mut self, shift: usize) {
+        super::algorithms::shr_assign(self.0.as_mut_slice(), shift as u32);
+    }
+}
 
-        let carry_mask = (1u64 << shift_in_words) - 1u64;
-        let value_mask = u64::MAX << (shift_in_words);
+impl std::ops::Shr<usize> for U256 {
+    type Output = Self;
 
-        let mut carry = 0u64;
-        for word in &mut tail.iter_mut() {
-            let rotated = word.rotate_left(shift_in_words);
-            let value = (rotated & value_mask) | carry;
-            let carry_for_next = rotated & carry_mask;
+    fn shr(mut self, rhs: usize) -> Self::Output {
+        self >>= rhs;
+        self
+    }
+}
 
-            *word = value;
-            carry = carry_for_next;
-        }
+impl std::ops::ShlAssign<usize> for U256 {
+    fn shl_assign(&mut self, shift: usize) {
+        super::algorithms::shl_assign(self.0.as_mut_slice(), shift as u32);
     }
 }
 
@@ -367,9 +227,7 @@ impl std::ops::Not for U256 {
     type Output = Self;
 
     fn not(mut self) -> Self::Output {
-        for self_word in self.0.iter_mut() {
-            *self_word = !*self_word;
-        }
+        super::algorithms::bitnot_assign(self.0.as_mut_slice());
         self
     }
 }
@@ -385,17 +243,13 @@ impl std::ops::BitAnd<Self> for U256 {
 
 impl std::ops::BitAndAssign<Self> for U256 {
     fn bitand_assign(&mut self, rhs: Self) {
-        for (self_word, rhs_word) in self.0.iter_mut().zip(rhs.0) {
-            *self_word &= rhs_word;
-        }
+        super::algorithms::bitand_assign(self.0.as_mut_slice(), rhs.0.as_slice())
     }
 }
 
 impl std::ops::BitOrAssign<Self> for U256 {
     fn bitor_assign(&mut self, rhs: Self) {
-        for (self_word, rhs_word) in self.0.iter_mut().zip(rhs.0) {
-            *self_word |= rhs_word;
-        }
+        super::algorithms::bitor_assign(self.0.as_mut_slice(), rhs.0.as_slice())
     }
 }
 
@@ -408,17 +262,9 @@ impl std::ops::BitOr<Self> for U256 {
     }
 }
 
-impl From<(u64, u64, u64, u64)> for U256 {
-    fn from(value: (u64, u64, u64, u64)) -> Self {
-        Self([value.0, value.1, value.2, value.3])
-    }
-}
-
 impl std::ops::BitXorAssign<Self> for U256 {
     fn bitxor_assign(&mut self, rhs: Self) {
-        for (self_word, rhs_word) in self.0.iter_mut().zip(rhs.0) {
-            *self_word ^= rhs_word;
-        }
+        super::algorithms::bitxor_assign(self.0.as_mut_slice(), rhs.0.as_slice())
     }
 }
 
@@ -430,6 +276,13 @@ impl std::ops::BitXor<Self> for U256 {
         self
     }
 }
+
+impl From<(u64, u64, u64, u64)> for U256 {
+    fn from(value: (u64, u64, u64, u64)) -> Self {
+        Self([value.0, value.1, value.2, value.3])
+    }
+}
+
 impl From<(u128, u128)> for U256 {
     fn from(v: (u128, u128)) -> Self {
         Self([
@@ -485,6 +338,24 @@ impl CastFrom<U256> for u64 {
 impl CastFrom<U256> for u8 {
     fn cast_from(input: U256) -> Self {
         input.0[0] as u8
+    }
+}
+
+impl CastFrom<u128> for U256 {
+    fn cast_from(input: u128) -> Self {
+        Self::from(input)
+    }
+}
+
+impl CastFrom<U256> for u128 {
+    fn cast_from(input: U256) -> Self {
+        input.to_low_high_u128().0
+    }
+}
+
+impl CastFrom<crate::integer::U512> for U256 {
+    fn cast_from(input: crate::integer::U512) -> Self {
+        Self([input.0[0], input.0[1], input.0[2], input.0[3]])
     }
 }
 
@@ -769,8 +640,8 @@ mod tests {
 
     #[test]
     fn test_shl_limits() {
-        assert_eq!(U256::ONE << 256, U256::ONE << (256 % U256::BITS));
-        assert_eq!(U256::ONE << 257, U256::ONE << (257 % U256::BITS));
+        assert_eq!(U256::ONE << 256u32, U256::ONE << (256 % U256::BITS));
+        assert_eq!(U256::ONE << 257u32, U256::ONE << (257 % U256::BITS));
 
         // We aim to have same behaviour as rust native types
         assert_eq!(1u128.wrapping_shl(128), 1u128 << (128 % u128::BITS));
@@ -779,8 +650,8 @@ mod tests {
 
     #[test]
     fn test_shr_limits() {
-        assert_eq!(U256::MAX >> 256, U256::MAX >> (256 % U256::BITS));
-        assert_eq!(U256::MAX >> 257, U256::MAX >> (257 % U256::BITS));
+        assert_eq!(U256::MAX >> 256u32, U256::MAX >> (256 % U256::BITS));
+        assert_eq!(U256::MAX >> 257u32, U256::MAX >> (257 % U256::BITS));
 
         // We aim to have same behaviour as rust native types
         assert_eq!(u128::MAX.wrapping_shr(128), u128::MAX >> (128 % u128::BITS));
@@ -789,12 +660,12 @@ mod tests {
 
     #[test]
     fn test_shr() {
-        assert_eq!(U256::MAX >> 128, U256::from(u128::MAX));
+        assert_eq!(U256::MAX >> 128u32, U256::from(u128::MAX));
 
         let input = (u64::MAX as u128) << 64;
         let a = U256::from(input);
 
-        assert_eq!(a >> 1, U256::from(input >> 1));
+        assert_eq!(a >> 1u32, U256::from(input >> 1));
     }
 
     #[test]
@@ -805,7 +676,7 @@ mod tests {
         // input a u128 with its 64 MSB set to one
         // so left shifting it by one will move one bit
         // to the next inner u64 block
-        assert_eq!(a << 1, U256::from((input << 1, 1u128)));
+        assert_eq!(a << 1u32, U256::from((input << 1, 1u128)));
     }
 
     #[test]
