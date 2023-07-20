@@ -1,3 +1,6 @@
+use std::ops::Rem;
+
+use crate::core_crypto::prelude::CastFrom;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 
@@ -37,11 +40,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_right_parallelized(
+    pub fn smart_scalar_rotate_right_parallelized<T>(
         &self,
         ct: &mut RadixCiphertext,
-        n: u64,
-    ) -> RadixCiphertext {
+        n: T,
+    ) -> RadixCiphertext
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -78,7 +85,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_right_assign_parallelized(&self, ct: &mut RadixCiphertext, n: u64) {
+    pub fn smart_scalar_rotate_right_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, n: T)
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -123,11 +134,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_right_parallelized(
+    pub fn scalar_rotate_right_parallelized<T>(
         &self,
         ct_right: &RadixCiphertext,
-        n: u64,
-    ) -> RadixCiphertext {
+        n: T,
+    ) -> RadixCiphertext
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         let mut result = ct_right.clone();
         self.scalar_rotate_right_assign_parallelized(&mut result, n);
         result
@@ -161,7 +176,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_right_assign_parallelized(&self, ct: &mut RadixCiphertext, n: u64) {
+    pub fn scalar_rotate_right_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, n: T)
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -206,11 +225,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_right_parallelized(
+    pub fn unchecked_scalar_rotate_right_parallelized<T>(
         &self,
         ct: &RadixCiphertext,
-        n: u64,
-    ) -> RadixCiphertext {
+        n: T,
+    ) -> RadixCiphertext
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         let mut result = ct.clone();
         self.unchecked_scalar_rotate_right_assign_parallelized(&mut result, n);
         result
@@ -253,11 +276,14 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_right_assign_parallelized(
+    pub fn unchecked_scalar_rotate_right_assign_parallelized<T>(
         &self,
         ct: &mut RadixCiphertext,
-        n: u64,
-    ) {
+        n: T,
+    ) where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         // The general idea, is that we know by how much we want to
         // rotate since `n` is a clear value.
         //
@@ -270,7 +296,8 @@ impl ServerKey {
         let num_bits_in_message = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_message * ct.blocks.len() as u64;
 
-        let n = n % total_num_bits;
+        let n = n % T::cast_from(total_num_bits);
+        let n = u64::cast_from(n);
 
         if n == 0 {
             return;
@@ -358,11 +385,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_left_parallelized(
+    pub fn smart_scalar_rotate_left_parallelized<T>(
         &self,
         ct: &mut RadixCiphertext,
-        n: u64,
-    ) -> RadixCiphertext {
+        n: T,
+    ) -> RadixCiphertext
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -399,7 +430,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_left_assign_parallelized(&self, ct: &mut RadixCiphertext, n: u64) {
+    pub fn smart_scalar_rotate_left_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, n: T)
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -444,11 +479,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_left_parallelized(
+    pub fn scalar_rotate_left_parallelized<T>(
         &self,
         ct_left: &RadixCiphertext,
-        n: u64,
-    ) -> RadixCiphertext {
+        n: T,
+    ) -> RadixCiphertext
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         let mut result = ct_left.clone();
         self.scalar_rotate_left_assign_parallelized(&mut result, n);
         result
@@ -482,7 +521,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_left_assign_parallelized(&self, ct: &mut RadixCiphertext, n: u64) {
+    pub fn scalar_rotate_left_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, n: T)
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
@@ -527,11 +570,15 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_left_parallelized(
+    pub fn unchecked_scalar_rotate_left_parallelized<T>(
         &self,
         ct: &RadixCiphertext,
-        n: u64,
-    ) -> RadixCiphertext {
+        n: T,
+    ) -> RadixCiphertext
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         let mut result = ct.clone();
         self.unchecked_scalar_rotate_left_assign_parallelized(&mut result, n);
         result
@@ -574,11 +621,14 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_left_assign_parallelized(
+    pub fn unchecked_scalar_rotate_left_assign_parallelized<T>(
         &self,
         ct: &mut RadixCiphertext,
-        n: u64,
-    ) {
+        n: T,
+    ) where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         // The general idea, is that we know by how much we want to
         // rotate since `n` is a clear value.
         //
@@ -591,6 +641,7 @@ impl ServerKey {
         let num_bits_in_message = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_message * ct.blocks.len() as u64;
 
+        let n = u64::cast_from(n);
         let n = n % total_num_bits;
 
         if n == 0 {
