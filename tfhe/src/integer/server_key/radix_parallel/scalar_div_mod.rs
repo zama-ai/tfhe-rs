@@ -289,7 +289,6 @@ impl ServerKey {
         divisor: T,
     ) -> (RadixCiphertext, RadixCiphertext)
     where
-        u64: From<T>,
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         let quotient = self.unchecked_scalar_div_parallelized(numerator, divisor);
@@ -311,7 +310,6 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        u64: From<T>,
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if MiniUnsignedInteger::is_power_of_two(divisor) {
@@ -328,7 +326,6 @@ impl ServerKey {
         numerator: &mut RadixCiphertext,
         divisor: T,
     ) where
-        u64: From<T>,
         T: Reciprocable + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
@@ -343,7 +340,6 @@ impl ServerKey {
         numerator: &mut RadixCiphertext,
         divisor: T,
     ) where
-        u64: From<T>,
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
@@ -359,7 +355,6 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        u64: From<T>,
         T: Reciprocable + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
@@ -375,7 +370,6 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        u64: From<T>,
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
@@ -391,7 +385,6 @@ impl ServerKey {
         divisor: T,
     ) -> (RadixCiphertext, RadixCiphertext)
     where
-        u64: From<T>,
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
@@ -403,7 +396,6 @@ impl ServerKey {
 
     pub fn scalar_div_assign_parallelized<T>(&self, numerator: &mut RadixCiphertext, divisor: T)
     where
-        u64: From<T>,
         T: Reciprocable + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
@@ -415,7 +407,6 @@ impl ServerKey {
 
     pub fn scalar_rem_assign_parallelized<T>(&self, numerator: &mut RadixCiphertext, divisor: T)
     where
-        u64: From<T>,
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
@@ -463,7 +454,6 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        u64: From<T>,
         T: Reciprocable + DecomposableInto<u8>,
     {
         let mut result = numerator.clone();
@@ -509,7 +499,6 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        u64: From<T>,
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         let mut result = numerator.clone();
@@ -552,7 +541,6 @@ impl ServerKey {
         divisor: T,
     ) -> (RadixCiphertext, RadixCiphertext)
     where
-        u64: From<T>,
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
