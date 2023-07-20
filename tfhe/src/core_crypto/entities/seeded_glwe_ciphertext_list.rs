@@ -33,7 +33,7 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for SeededGlwe
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCiphertextList<C> {
-    /// Create an [`SeededGlweCiphertextList`] from an existing container.
+    /// Create a [`SeededGlweCiphertextList`] from an existing container.
     ///
     /// # Note
     ///
@@ -216,11 +216,11 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededGlweCiphe
     }
 }
 
-/// An [`SeededGlweCiphertextList`] owning the memory for its own storage.
+/// A [`SeededGlweCiphertextList`] owning the memory for its own storage.
 pub type SeededGlweCiphertextListOwned<Scalar> = SeededGlweCiphertextList<Vec<Scalar>>;
-/// An [`SeededGlweCiphertextList`] immutably borrowing memory for its own storage.
+/// A [`SeededGlweCiphertextList`] immutably borrowing memory for its own storage.
 pub type SeededGlweCiphertextListView<'data, Scalar> = SeededGlweCiphertextList<&'data [Scalar]>;
-/// An [`SeededGlweCiphertextList`] mutably borrowing memory for its own storage.
+/// A [`SeededGlweCiphertextList`] mutably borrowing memory for its own storage.
 pub type SeededGlweCiphertextListMutView<'data, Scalar> =
     SeededGlweCiphertextList<&'data mut [Scalar]>;
 
@@ -249,6 +249,39 @@ impl<Scalar: UnsignedInteger> SeededGlweCiphertextListOwned<Scalar> {
             polynomial_size,
             compression_seed,
             ciphertext_modulus,
+        )
+    }
+}
+
+/// Metadata used in the [`CreateFrom`] implementation to create [`SeededGlweCiphertextList`]
+/// entities.
+#[derive(Clone, Copy)]
+pub struct SeededGlweCiphertextListCreationMetadata<Scalar: UnsignedInteger>(
+    pub GlweSize,
+    pub PolynomialSize,
+    pub CompressionSeed,
+    pub CiphertextModulus<Scalar>,
+);
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
+    for SeededGlweCiphertextList<C>
+{
+    type Metadata = SeededGlweCiphertextListCreationMetadata<C::Element>;
+
+    #[inline]
+    fn create_from(from: C, meta: Self::Metadata) -> SeededGlweCiphertextList<C> {
+        let SeededGlweCiphertextListCreationMetadata(
+            glwe_size,
+            polynomial_size,
+            compression_seed,
+            modulus,
+        ) = meta;
+        SeededGlweCiphertextList::from_container(
+            from,
+            glwe_size,
+            polynomial_size,
+            compression_seed,
+            modulus,
         )
     }
 }

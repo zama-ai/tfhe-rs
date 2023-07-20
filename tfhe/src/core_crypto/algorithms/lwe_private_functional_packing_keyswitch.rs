@@ -32,11 +32,11 @@ pub fn private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext<
     OutputCont: ContainerMut<Element = Scalar>,
 {
     assert_eq!(
-        lwe_pfpksk.input_lwe_key_dimension().0,
+        lwe_pfpksk.input_key_lwe_dimension().0,
         input_lwe_ciphertext.lwe_size().to_lwe_dimension().0
     );
     assert_eq!(
-        lwe_pfpksk.output_glwe_key_dimension().0,
+        lwe_pfpksk.output_key_glwe_dimension().0,
         output_glwe_ciphertext.glwe_size().to_glwe_dimension().0
     );
 

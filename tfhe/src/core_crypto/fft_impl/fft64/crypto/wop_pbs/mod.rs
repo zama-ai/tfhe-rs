@@ -263,7 +263,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
         base_log_cbs.0
     );
 
-    let fpksk_input_lwe_key_dimension = pfpksk_list.input_lwe_key_dimension();
+    let fpksk_input_lwe_key_dimension = pfpksk_list.input_key_lwe_dimension();
     let fourier_bsk_output_lwe_dimension = fourier_bsk.output_lwe_dimension();
 
     debug_assert!(
@@ -275,7 +275,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     );
 
     let fpksk_output_polynomial_size = pfpksk_list.output_polynomial_size();
-    let fpksk_output_glwe_key_dimension = pfpksk_list.output_glwe_key_dimension();
+    let fpksk_output_glwe_key_dimension = pfpksk_list.output_key_glwe_dimension();
 
     debug_assert!(
         ggsw_out.polynomial_size() == fpksk_output_polynomial_size,
@@ -680,7 +680,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing<Scalar: UnsignedTorus + CastIn
         "This operation currently only supports native moduli"
     );
 
-    let glwe_size = pfpksk_list.output_glwe_key_dimension().to_glwe_size();
+    let glwe_size = pfpksk_list.output_key_glwe_dimension().to_glwe_size();
     let (mut ggsw_list_data, stack) = stack.make_aligned_with(
         lwe_list_in.lwe_ciphertext_count().0 * pfpksk_list.output_polynomial_size().0 / 2
             * glwe_size.0

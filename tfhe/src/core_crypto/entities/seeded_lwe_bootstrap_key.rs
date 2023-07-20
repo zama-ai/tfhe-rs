@@ -42,7 +42,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> std::ops::Deref
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweBootstrapKey<C> {
-    /// Create an [`SeededLweBootstrapKey`] from an existing container.
+    /// Create a [`SeededLweBootstrapKey`] from an existing container.
     ///
     /// # Note
     ///
@@ -241,7 +241,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweBootst
     }
 }
 
-/// An [`SeededLweBootstrapKey`] owning the memory for its own storage.
+/// A [`SeededLweBootstrapKey`] owning the memory for its own storage.
 pub type SeededLweBootstrapKeyOwned<Scalar> = SeededLweBootstrapKey<Vec<Scalar>>;
 
 impl<Scalar: UnsignedInteger> SeededLweBootstrapKeyOwned<Scalar> {
