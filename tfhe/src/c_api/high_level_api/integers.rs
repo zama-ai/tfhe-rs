@@ -104,6 +104,8 @@ macro_rules! impl_operations_for_integer_type {
             ) -> c_int {
                 $crate::c_api::utils::catch_panic(|| {
                     let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
+                    let rhs = <$clear_scalar_type as $crate::c_api::high_level_api::utils::ToRustScalarType
+                        >::to_rust_scalar_type(rhs);
 
                     let (q, r) = (&lhs.0).div_rem(rhs);
 
@@ -230,8 +232,8 @@ create_integer_wrapper_type!(name: FheUint14, clear_scalar_type: u16);
 create_integer_wrapper_type!(name: FheUint16, clear_scalar_type: u16);
 create_integer_wrapper_type!(name: FheUint32, clear_scalar_type: u32);
 create_integer_wrapper_type!(name: FheUint64, clear_scalar_type: u64);
-create_integer_wrapper_type!(name: FheUint128, clear_scalar_type: u64);
-create_integer_wrapper_type!(name: FheUint256, clear_scalar_type: u64);
+create_integer_wrapper_type!(name: FheUint128, clear_scalar_type: U128);
+create_integer_wrapper_type!(name: FheUint256, clear_scalar_type: U256);
 
 impl_decrypt_on_type!(FheUint8, u8);
 impl_try_encrypt_trivial_on_type!(FheUint8{crate::high_level_api::FheUint8}, u8);
