@@ -274,6 +274,53 @@ macro_rules! impl_binary_assign_fn_on_type {
     };
 }
 
+/// The C Standard only define integers from u8 to u64.
+/// So to support u128 and u256 we had to create our own C friendly
+/// data types.
+///
+/// This trait exists to be able to easily write wrapper function
+/// by allowing to generically go from a C API scalar type to a rust one
+pub(in crate::c_api::high_level_api) trait ToRustScalarType {
+    type RustScalarType;
+
+    fn to_rust_scalar_type(self) -> Self::RustScalarType;
+}
+
+/// Implements the trait for when the C API type is the same
+/// as the Rust API type (eg u64)
+macro_rules! impl_to_rust_scalar_type(
+    ($type:ty) => {
+        impl ToRustScalarType for $type {
+            type RustScalarType = $type;
+
+            fn to_rust_scalar_type(self) -> Self::RustScalarType {
+                self
+            }
+        }
+    }
+);
+
+impl_to_rust_scalar_type!(u8);
+impl_to_rust_scalar_type!(u16);
+impl_to_rust_scalar_type!(u32);
+impl_to_rust_scalar_type!(u64);
+
+impl ToRustScalarType for crate::c_api::high_level_api::u128::U128 {
+    type RustScalarType = u128;
+
+    fn to_rust_scalar_type(self) -> Self::RustScalarType {
+        u128::from(self)
+    }
+}
+
+impl ToRustScalarType for crate::c_api::high_level_api::u256::U256 {
+    type RustScalarType = crate::integer::U256;
+
+    fn to_rust_scalar_type(self) -> Self::RustScalarType {
+        crate::integer::U256::from(self)
+    }
+}
+
 #[cfg(feature = "integer")]
 macro_rules! impl_scalar_binary_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_fn_name:ident),* $(,)?) => {
@@ -287,6 +334,7 @@ macro_rules! impl_scalar_binary_fn_on_type {
                 ) -> c_int {
                     $crate::c_api::utils::catch_panic(|| {
                         let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
+                        let rhs = <$scalar_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(rhs);
 
                         let inner = (&lhs.0).$binary_fn_name(rhs);
 
@@ -310,6 +358,8 @@ macro_rules! impl_scalar_binary_assign_fn_on_type {
                 ) -> c_int {
                     $crate::c_api::utils::catch_panic(|| {
                         let lhs = $crate::c_api::utils::get_mut_checked(lhs).unwrap();
+                        let rhs = <$scalar_type as $crate::c_api::high_level_api::utils::ToRustScalarType
+                            >::to_rust_scalar_type(rhs);
 
                         lhs.0.$binary_assign_fn_name(rhs);
                     })

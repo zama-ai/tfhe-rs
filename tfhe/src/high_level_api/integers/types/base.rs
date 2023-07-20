@@ -21,6 +21,7 @@ use crate::high_level_api::traits::{
 use crate::high_level_api::{ClientKey, PublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::server_key::{Reciprocable, ScalarMultiplier};
 use crate::integer::U256;
 use crate::CompactPublicKey;
 
@@ -673,7 +674,7 @@ where
 impl<P, Clear> DivRem<Clear> for GenericInteger<P>
 where
     P: IntegerParameter,
-    Clear: Into<u64>,
+    Clear: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = (Self, Self);
@@ -686,7 +687,7 @@ where
 impl<P, Clear> DivRem<Clear> for &GenericInteger<P>
 where
     P: IntegerParameter,
-    Clear: Into<u64>,
+    Clear: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = (GenericInteger<P>, GenericInteger<P>);
@@ -695,7 +696,7 @@ where
         let (q, r) = self.id.with_unwrapped_global(|integer_key| {
             integer_key
                 .pbs_key()
-                .scalar_div_rem_parallelized(&self.ciphertext, rhs.into())
+                .scalar_div_rem_parallelized(&self.ciphertext, rhs)
         });
         (
             GenericInteger::<P>::new(q, self.id),
@@ -844,8 +845,7 @@ macro_rules! generic_integer_impl_scalar_operation {
                 fn $rust_trait_method(self, rhs: $scalar_type) -> Self::Output {
                     let ciphertext: RadixCiphertext =
                         self.id.with_unwrapped_global(|integer_key| {
-                            let value: u64 = rhs.try_into().unwrap();
-                            integer_key.pbs_key().$key_method(&self.ciphertext, value)
+                            integer_key.pbs_key().$key_method(&self.ciphertext, rhs)
                         });
 
                     GenericInteger::<P>::new(ciphertext, self.id)
@@ -865,8 +865,7 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
             {
                 fn $rust_trait_method(&mut self, rhs: $scalar_type) {
                     self.id.with_unwrapped_global(|integer_key| {
-                        let value: u64 = rhs.try_into().unwrap();
-                        integer_key.pbs_key().$key_method(&mut self.ciphertext, value);
+                        integer_key.pbs_key().$key_method(&mut self.ciphertext, rhs);
                     })
                 }
             }
@@ -900,31 +899,31 @@ generic_integer_impl_operation_assign!(RotateRightAssign(rotate_right_assign) =>
 generic_integer_impl_operation_assign!(DivAssign(div_assign) => div_assign_parallelized);
 generic_integer_impl_operation_assign!(RemAssign(rem_assign) => rem_assign_parallelized);
 
-generic_integer_impl_scalar_operation!(Add(add) => scalar_add_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(Sub(sub) => scalar_sub_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(Mul(mul) => scalar_mul_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(BitAnd(bitand) => scalar_bitand_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(BitOr(bitor) => scalar_bitor_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(BitXor(bitxor) => scalar_bitxor_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(Shl(shl) => scalar_left_shift_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(Shr(shr) => scalar_right_shift_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(RotateLeft(rotate_left) => scalar_rotate_left_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(RotateRight(rotate_right) => scalar_rotate_right_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(Div(div) => scalar_div_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation!(Rem(rem) => scalar_rem_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation!(Add(add) => scalar_add_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(Sub(sub) => scalar_sub_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(Mul(mul) => scalar_mul_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(BitAnd(bitand) => scalar_bitand_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(BitOr(bitor) => scalar_bitor_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(BitXor(bitxor) => scalar_bitxor_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(Shl(shl) => scalar_left_shift_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(Shr(shr) => scalar_right_shift_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(RotateLeft(rotate_left) => scalar_rotate_left_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(RotateRight(rotate_right) => scalar_rotate_right_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(Div(div) => scalar_div_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation!(Rem(rem) => scalar_rem_parallelized(u8, u16, u32, u64, u128, U256));
 
-generic_integer_impl_scalar_operation_assign!(AddAssign(add_assign) => scalar_add_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(SubAssign(sub_assign) => scalar_sub_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(MulAssign(mul_assign) => scalar_mul_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(BitAndAssign(bitand_assign) => scalar_bitand_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(BitOrAssign(bitor_assign) => scalar_bitor_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(BitXorAssign(bitxor_assign) => scalar_bitxor_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(ShlAssign(shl_assign) => scalar_left_shift_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(ShrAssign(shr_assign) => scalar_right_shift_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(RotateLeftAssign(rotate_left_assign) => scalar_rotate_left_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(RotateRightAssign(rotate_right_assign) => scalar_rotate_right_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(DivAssign(div_assign) => scalar_div_assign_parallelized(u8, u16, u32, u64));
-generic_integer_impl_scalar_operation_assign!(RemAssign(rem_assign) => scalar_rem_assign_parallelized(u8, u16, u32, u64));
+generic_integer_impl_scalar_operation_assign!(AddAssign(add_assign) => scalar_add_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(SubAssign(sub_assign) => scalar_sub_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(MulAssign(mul_assign) => scalar_mul_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(BitAndAssign(bitand_assign) => scalar_bitand_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(BitOrAssign(bitor_assign) => scalar_bitor_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(BitXorAssign(bitxor_assign) => scalar_bitxor_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(ShlAssign(shl_assign) => scalar_left_shift_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(ShrAssign(shr_assign) => scalar_right_shift_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(RotateLeftAssign(rotate_left_assign) => scalar_rotate_left_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(RotateRightAssign(rotate_right_assign) => scalar_rotate_right_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(DivAssign(div_assign) => scalar_div_assign_parallelized(u8, u16, u32, u64, u128, U256));
+generic_integer_impl_scalar_operation_assign!(RemAssign(rem_assign) => scalar_rem_assign_parallelized(u8, u16, u32, u64, u128, U256));
 
 impl<P> Neg for GenericInteger<P>
 where
