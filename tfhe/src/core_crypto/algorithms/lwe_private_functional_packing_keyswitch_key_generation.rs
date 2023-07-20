@@ -42,18 +42,18 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
     PolyCont: Container<Element = Scalar>,
 {
     assert!(
-        input_lwe_secret_key.lwe_dimension() == lwe_pfpksk.input_lwe_key_dimension(),
+        input_lwe_secret_key.lwe_dimension() == lwe_pfpksk.input_key_lwe_dimension(),
         "Mismatched LweDimension between input_lwe_secret_key {:?} and lwe_pfpksk input dimension \
         {:?}.",
         input_lwe_secret_key.lwe_dimension(),
-        lwe_pfpksk.input_lwe_key_dimension()
+        lwe_pfpksk.input_key_lwe_dimension()
     );
     assert!(
-        output_glwe_secret_key.glwe_dimension() == lwe_pfpksk.output_glwe_key_dimension(),
+        output_glwe_secret_key.glwe_dimension() == lwe_pfpksk.output_key_glwe_dimension(),
         "Mismatched GlweDimension between output_glwe_secret_key {:?} and lwe_pfpksk output \
         dimension {:?}.",
         output_glwe_secret_key.glwe_dimension(),
-        lwe_pfpksk.output_glwe_key_dimension()
+        lwe_pfpksk.output_key_glwe_dimension()
     );
     assert!(
         output_glwe_secret_key.polynomial_size() == lwe_pfpksk.output_polynomial_size(),
@@ -161,18 +161,18 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
     PolyCont: Container<Element = Scalar> + Sync,
 {
     assert!(
-        input_lwe_secret_key.lwe_dimension() == lwe_pfpksk.input_lwe_key_dimension(),
+        input_lwe_secret_key.lwe_dimension() == lwe_pfpksk.input_key_lwe_dimension(),
         "Mismatched LweDimension between input_lwe_secret_key {:?} and lwe_pfpksk input dimension \
         {:?}.",
         input_lwe_secret_key.lwe_dimension(),
-        lwe_pfpksk.input_lwe_key_dimension()
+        lwe_pfpksk.input_key_lwe_dimension()
     );
     assert!(
-        output_glwe_secret_key.glwe_dimension() == lwe_pfpksk.output_glwe_key_dimension(),
+        output_glwe_secret_key.glwe_dimension() == lwe_pfpksk.output_key_glwe_dimension(),
         "Mismatched GlweDimension between output_glwe_secret_key {:?} and lwe_pfpksk output \
         dimension {:?}.",
         output_glwe_secret_key.glwe_dimension(),
-        lwe_pfpksk.output_glwe_key_dimension()
+        lwe_pfpksk.output_key_glwe_dimension()
     );
     assert!(
         output_glwe_secret_key.polynomial_size() == lwe_pfpksk.output_polynomial_size(),

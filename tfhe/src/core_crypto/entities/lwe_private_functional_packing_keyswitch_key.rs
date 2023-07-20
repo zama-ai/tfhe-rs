@@ -184,7 +184,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// Return the output key [`GlweDimension`] of the [`LwePrivateFunctionalPackingKeyswitchKey`].
     ///
     /// See [`LwePrivateFunctionalPackingKeyswitchKey::from_container`] for usage.
-    pub fn output_glwe_key_dimension(&self) -> GlweDimension {
+    pub fn output_key_glwe_dimension(&self) -> GlweDimension {
         self.output_glwe_size.to_glwe_dimension()
     }
 
@@ -205,7 +205,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// Return the input key [`LweDimension`] of the [`LwePrivateFunctionalPackingKeyswitchKey`].
     ///
     /// See [`LwePrivateFunctionalPackingKeyswitchKey::from_container`] for usage.
-    pub fn input_lwe_key_dimension(&self) -> LweDimension {
+    pub fn input_key_lwe_dimension(&self) -> LweDimension {
         LweDimension(self.data.container_len() / self.input_key_element_encrypted_size() - 1)
     }
 

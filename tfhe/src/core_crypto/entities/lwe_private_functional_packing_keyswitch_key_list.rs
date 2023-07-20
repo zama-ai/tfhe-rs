@@ -175,7 +175,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// stored in the list.
     ///
     /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
-    pub fn output_glwe_key_dimension(&self) -> GlweDimension {
+    pub fn output_key_glwe_dimension(&self) -> GlweDimension {
         self.output_glwe_size.to_glwe_dimension()
     }
 
@@ -199,7 +199,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// stored in the list.
     ///
     /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
-    pub fn input_lwe_key_dimension(&self) -> LweDimension {
+    pub fn input_key_lwe_dimension(&self) -> LweDimension {
         self.input_lwe_size.to_lwe_dimension()
     }
 
