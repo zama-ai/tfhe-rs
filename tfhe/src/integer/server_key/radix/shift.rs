@@ -1,4 +1,7 @@
+use std::ops::Rem;
+
 use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::prelude::CastFrom;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
 
@@ -76,11 +79,11 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn unchecked_scalar_right_shift(
-        &self,
-        ct: &RadixCiphertext,
-        shift: u64,
-    ) -> RadixCiphertext {
+    pub fn unchecked_scalar_right_shift<T>(&self, ct: &RadixCiphertext, shift: T) -> RadixCiphertext
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         let mut result = ct.clone();
         self.unchecked_scalar_right_shift_assign(&mut result, shift);
         result
@@ -112,19 +115,24 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn unchecked_scalar_right_shift_assign(&self, ct: &mut RadixCiphertext, shift: u64) {
+    pub fn unchecked_scalar_right_shift_assign<T>(&self, ct: &mut RadixCiphertext, shift: T)
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         // see parallel implementation for a bit more details
 
         debug_assert!(ct.block_carries_are_empty());
         debug_assert!(self.key.carry_modulus.0 >= self.key.message_modulus.0 / 2);
 
+        let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
+        let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
+
+        let shift = shift % T::cast_from(total_num_bits);
+        let shift = u64::cast_from(shift);
         if shift == 0 {
             return;
         }
-
-        let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
-        let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
-        let shift = shift % total_num_bits;
 
         let rotations = ((shift / num_bits_in_block) as usize).min(ct.blocks.len());
         let shift_within_block = shift % num_bits_in_block;
@@ -211,11 +219,15 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(msg << shift, dec);
     /// ```
-    pub fn unchecked_scalar_left_shift(
+    pub fn unchecked_scalar_left_shift<T>(
         &self,
         ct_left: &RadixCiphertext,
-        shift: u64,
-    ) -> RadixCiphertext {
+        shift: T,
+    ) -> RadixCiphertext
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         let mut result = ct_left.clone();
         self.unchecked_scalar_left_shift_assign(&mut result, shift);
         result
@@ -256,12 +268,17 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct);
     /// assert_eq!(msg << shift, dec);
     /// ```
-    pub fn unchecked_scalar_left_shift_assign(&self, ct: &mut RadixCiphertext, shift: u64) {
+    pub fn unchecked_scalar_left_shift_assign<T>(&self, ct: &mut RadixCiphertext, shift: T)
+    where
+        T: Rem<T, Output = T> + CastFrom<u64>,
+        u64: CastFrom<T>,
+    {
         // see parallel implementation for a bit more details
 
         debug_assert!(ct.block_carries_are_empty());
         debug_assert!(self.key.carry_modulus.0 >= self.key.message_modulus.0 / 2);
 
+        let shift = u64::cast_from(shift);
         if shift == 0 {
             return;
         }
