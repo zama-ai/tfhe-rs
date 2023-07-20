@@ -51,7 +51,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> std::ops::Deref
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePublicKey<C> {
-    /// Create an [`SeededLwePublicKey`] from an existing container.
+    /// Create a [`SeededLwePublicKey`] from an existing container.
     ///
     /// # Note
     ///
@@ -232,7 +232,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLwePublic
     }
 }
 
-/// An [`SeededLwePublicKey`] owning the memory for its own storage.
+/// A [`SeededLwePublicKey`] owning the memory for its own storage.
 pub type SeededLwePublicKeyOwned<Scalar> = SeededLwePublicKey<Vec<Scalar>>;
 
 impl<Scalar: UnsignedInteger> SeededLwePublicKeyOwned<Scalar> {
@@ -241,7 +241,7 @@ impl<Scalar: UnsignedInteger> SeededLwePublicKeyOwned<Scalar> {
     /// # Note
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
-    /// type. If you want to generate an [`SeededLwePublicKey`] you need to call
+    /// type. If you want to generate a [`SeededLwePublicKey`] you need to call
     /// [`crate::core_crypto::algorithms::generate_lwe_public_key`] using this key as output.
     ///
     /// See [`SeededLwePublicKey::from_container`] for usage.

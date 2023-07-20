@@ -31,7 +31,7 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for SeededLweC
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPublicKey<C> {
-    /// Create an [`SeededLweCompactPublicKey`] from an existing container.
+    /// Create a [`SeededLweCompactPublicKey`] from an existing container.
     ///
     /// # Note
     ///

@@ -116,6 +116,26 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
         lwe_keyswitch_key.output_key_lwe_dimension(),
         output_lwe_ciphertext.lwe_size().to_lwe_dimension(),
     );
+    assert!(
+        lwe_keyswitch_key.ciphertext_modulus() == input_lwe_ciphertext.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LweKeyswitchKey CiphertextModulus: {:?}, input LweCiphertext CiphertextModulus {:?}.",
+        lwe_keyswitch_key.ciphertext_modulus(),
+        input_lwe_ciphertext.ciphertext_modulus()
+    );
+    assert!(
+        lwe_keyswitch_key.ciphertext_modulus() == output_lwe_ciphertext.ciphertext_modulus(),
+        "Mismatched CiphertextModulus. \
+        LweKeyswitchKey CiphertextModulus: {:?}, output LweCiphertext CiphertextModulus {:?}.",
+        lwe_keyswitch_key.ciphertext_modulus(),
+        output_lwe_ciphertext.ciphertext_modulus()
+    );
+    assert!(
+        lwe_keyswitch_key
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "This operation currently only supports power of 2 moduli"
+    );
 
     // Clear the output ciphertext, as it will get updated gradually
     output_lwe_ciphertext.as_mut().fill(Scalar::ZERO);

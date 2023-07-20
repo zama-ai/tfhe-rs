@@ -32,7 +32,7 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for SeededLweC
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertextList<C> {
-    /// Create an [`SeededLweCiphertextList`] from an existing container.
+    /// Create a [`SeededLweCiphertextList`] from an existing container.
     ///
     /// # Note
     ///
@@ -188,11 +188,11 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweCipher
     }
 }
 
-/// An [`SeededLweCiphertextList`] owning the memory for its own storage.
+/// A [`SeededLweCiphertextList`] owning the memory for its own storage.
 pub type SeededLweCiphertextListOwned<Scalar> = SeededLweCiphertextList<Vec<Scalar>>;
-/// An [`SeededLweCiphertextList`] immutably borrowing memory for its own storage.
+/// A [`SeededLweCiphertextList`] immutably borrowing memory for its own storage.
 pub type SeededLweCiphertextListView<'data, Scalar> = SeededLweCiphertextList<&'data [Scalar]>;
-/// An [`SeededLweCiphertextList`] mutably borrowing memory for its own storage.
+/// A [`SeededLweCiphertextList`] mutably borrowing memory for its own storage.
 pub type SeededLweCiphertextListMutView<'data, Scalar> =
     SeededLweCiphertextList<&'data mut [Scalar]>;
 

@@ -83,7 +83,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// );
     ///
     /// assert_eq!(
-    ///     pfpksk_list.output_glwe_key_dimension(),
+    ///     pfpksk_list.output_key_glwe_dimension(),
     ///     glwe_size.to_glwe_dimension()
     /// );
     /// assert_eq!(pfpksk_list.output_glwe_size(), glwe_size);
@@ -94,7 +94,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     ///     pfpksk_list.input_lwe_size(),
     ///     input_lwe_dimension.to_lwe_size()
     /// );
-    /// assert_eq!(pfpksk_list.input_lwe_key_dimension(), input_lwe_dimension);
+    /// assert_eq!(pfpksk_list.input_key_lwe_dimension(), input_lwe_dimension);
     /// assert_eq!(pfpksk_list.lwe_pfpksk_count(), lwe_pfpksk_count);
     /// assert_eq!(pfpksk_list.ciphertext_modulus(), ciphertext_modulus);
     ///
@@ -113,7 +113,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// );
     ///
     /// assert_eq!(
-    ///     pfpksk_list.output_glwe_key_dimension(),
+    ///     pfpksk_list.output_key_glwe_dimension(),
     ///     glwe_size.to_glwe_dimension()
     /// );
     /// assert_eq!(pfpksk_list.output_glwe_size(), glwe_size);
@@ -124,7 +124,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     ///     pfpksk_list.input_lwe_size(),
     ///     input_lwe_dimension.to_lwe_size()
     /// );
-    /// assert_eq!(pfpksk_list.input_lwe_key_dimension(), input_lwe_dimension);
+    /// assert_eq!(pfpksk_list.input_key_lwe_dimension(), input_lwe_dimension);
     /// assert_eq!(pfpksk_list.lwe_pfpksk_count(), lwe_pfpksk_count);
     /// assert_eq!(pfpksk_list.ciphertext_modulus(), ciphertext_modulus);
     /// ```
@@ -175,7 +175,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// stored in the list.
     ///
     /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
-    pub fn output_glwe_key_dimension(&self) -> GlweDimension {
+    pub fn output_key_glwe_dimension(&self) -> GlweDimension {
         self.output_glwe_size.to_glwe_dimension()
     }
 
@@ -199,7 +199,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// stored in the list.
     ///
     /// See [`LwePrivateFunctionalPackingKeyswitchKeyList::from_container`] for usage.
-    pub fn input_lwe_key_dimension(&self) -> LweDimension {
+    pub fn input_key_lwe_dimension(&self) -> LweDimension {
         self.input_lwe_size.to_lwe_dimension()
     }
 

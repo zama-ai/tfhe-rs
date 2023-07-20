@@ -296,7 +296,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweMultiB
     }
 }
 
-/// An [`SeededLweMultiBitBootstrapKey`] owning the memory for its own storage.
+/// A [`SeededLweMultiBitBootstrapKey`] owning the memory for its own storage.
 pub type SeededLweMultiBitBootstrapKeyOwned<Scalar> = SeededLweMultiBitBootstrapKey<Vec<Scalar>>;
 
 impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {

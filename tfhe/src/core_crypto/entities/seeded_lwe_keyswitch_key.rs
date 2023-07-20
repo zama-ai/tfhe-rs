@@ -42,7 +42,7 @@ pub fn seeded_lwe_keyswitch_key_input_key_element_encrypted_size(
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitchKey<C> {
-    /// Create an [`SeededLweKeyswitchKey`] from an existing container.
+    /// Create a [`SeededLweKeyswitchKey`] from an existing container.
     ///
     /// # Note
     ///
@@ -296,7 +296,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweKeyswi
     }
 }
 
-/// An [`SeededLweKeyswitchKey`] owning the memory for its own storage.
+/// A [`SeededLweKeyswitchKey`] owning the memory for its own storage.
 pub type SeededLweKeyswitchKeyOwned<Scalar> = SeededLweKeyswitchKey<Vec<Scalar>>;
 
 impl<Scalar: UnsignedInteger> SeededLweKeyswitchKeyOwned<Scalar> {
@@ -305,7 +305,7 @@ impl<Scalar: UnsignedInteger> SeededLweKeyswitchKeyOwned<Scalar> {
     /// # Note
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
-    /// type. If you want to generate an [`SeededLweKeyswitchKey`] you need to call
+    /// type. If you want to generate a [`SeededLweKeyswitchKey`] you need to call
     /// [`crate::core_crypto::algorithms::generate_seeded_lwe_keyswitch_key`] using this key as
     /// output.
     ///

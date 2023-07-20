@@ -87,7 +87,7 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
         "The destination LweKeyswitchKey output LweDimension is not equal \
     to the output LweSecretKey LweDimension. Destination: {:?}, output: {:?}",
         lwe_keyswitch_key.output_key_lwe_dimension(),
-        input_lwe_sk.lwe_dimension()
+        output_lwe_sk.lwe_dimension()
     );
 
     let decomp_base_log = lwe_keyswitch_key.decomposition_base_log();
@@ -105,7 +105,7 @@ pub fn generate_lwe_keyswitch_key<Scalar, InputKeyCont, OutputKeyCont, KSKeyCont
         .iter()
         .zip(lwe_keyswitch_key.iter_mut())
     {
-        // We fill the buffer with the powers of the key elmements
+        // We fill the buffer with the powers of the key elements
         for (level, message) in (1..=decomp_level_count.0)
             .rev()
             .map(DecompositionLevel)
