@@ -32,7 +32,7 @@ Each operation may come in different 'flavors':
 
 * `unchecked`: always does the operation, without checking if the result may exceed the capacity of the plaintext space. Using this operation might have an impact on the correctness of the following operations;
 * `checked`: checks are done before computing the operation, returning an error if operation cannot be done safely;
-* `smart`: always does the operation. If the operation cannot be computed safely, the smart operation will clear the carry modulus to make the operation possible;
+* `smart`: always does the operation. If the operation cannot be computed safely, the smart operation will clear the carry to make the operation possible. Some of those will require a mutable reference as input: this is to allow the modification of the carry, but this will not change the underlying encrypted value;
 * `default`: always does the operation and always clears the carry. Could be **slower** than smart, but it ensures that the timings are consistent from one call to another.
 
 Not all operations have these 4 flavors, as some of them are implemented in a way that the operation is always possible without ever exceeding the plaintext space capacity.
