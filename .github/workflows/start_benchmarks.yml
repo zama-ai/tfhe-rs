@@ -51,16 +51,38 @@ jobs:
         uses: tj-actions/changed-files@de0eba32790fb9bf87471b32855a30fc8f9d5fc6
         with:
           files_yaml: |
-            benches:
+            common_benches:
               - toolchain.txt
               - Makefile
               - ci/slab.toml
               - tfhe/Cargo.toml
-              - tfhe/src/**
-              - tfhe/benches/**
-              - tfhe/web_wasm_parallel_tests/**
-              - .github/workflows/*_benchmark.yml
+              - tfhe/src/core_crypto/**
               - .github/workflows/start_benchmarks.yml
+            boolean_bench:
+              - tfhe/src/boolean/**
+              - tfhe/benches/boolean/**
+              - .github/workflows/boolean_benchmark.yml
+            shortint_bench:
+              - tfhe/src/shortint/**
+              - tfhe/benches/shortint/**
+              - .github/workflows/shortint_benchmark.yml
+            integer_bench:
+              - tfhe/src/shortint/**
+              - tfhe/src/integer/**
+              - tfhe/benches/integer/**
+              - .github/workflows/integer_benchmark.yml
+            integer_multi_bit_bench:
+              - tfhe/src/shortint/**
+              - tfhe/src/integer/**
+              - tfhe/benches/integer/**
+              - .github/workflows/integer_benchmark.yml
+            pbs_bench:
+              - tfhe/src/core_crypto/**
+              - tfhe/benches/core_crypto/**
+              - .github/workflows/pbs_benchmark.yml
+            wasm_client_bench:
+              - tfhe/web_wasm_parallel_tests/**
+              - .github/workflows/wasm_client_benchmark.yml
 
       - name: Checkout Slab repo
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
@@ -72,7 +94,7 @@ jobs:
       - name: Start AWS job in Slab
         # If manually triggered check that the current bench has been requested
         # Otherwise if it's on push check that files relevant to benchmarks have changed
-        if: (github.event_name == 'workflow_dispatch' && github.event.inputs[matrix.command] == 'true') || (github.event_name == 'push' && steps.changed-files.outputs.benches_any_changed == 'true')
+        if: (github.event_name == 'workflow_dispatch' && github.event.inputs[matrix.command] == 'true') || (github.event_name == 'push' && (steps.changed-files.outputs.common_benches_any_changed == 'true' || steps.changed-files.outputs[format('{0}_any_changed', matrix.command)] == 'true'))
         shell: bash
         run: |
           echo -n '{"command": "${{ matrix.command }}", "git_ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}' > command.json
