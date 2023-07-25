@@ -44,4 +44,13 @@ impl CompressedServerKey {
             engine.new_compressed_server_key(client_key).unwrap()
         })
     }
+
+    /// Generate a compressed server key with a chosen maximum degree
+    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> CompressedServerKey {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .new_compressed_server_key_with_max_degree(cks, max_degree)
+                .unwrap()
+        })
+    }
 }
