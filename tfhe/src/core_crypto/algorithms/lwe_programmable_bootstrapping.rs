@@ -210,7 +210,7 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// );
 ///
 /// // Decrypt the PBS multiplication result
-/// let pbs_multipliation_plaintext: Plaintext<u64> =
+/// let pbs_multiplication_plaintext: Plaintext<u64> =
 ///     decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_multiplication_ct);
 ///
 /// /// // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
@@ -221,7 +221,7 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 ///
 /// // Round and remove our encoding
 /// let pbs_multiplication_result: u64 =
-///     signed_decomposer.closest_representable(pbs_multipliation_plaintext.0) / delta;
+///     signed_decomposer.closest_representable(pbs_multiplication_plaintext.0) / delta;
 ///
 /// println!("Checking result...");
 /// assert_eq!(6, pbs_multiplication_result);
@@ -995,7 +995,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 /// );
 ///
 /// // Decrypt the PBS multiplication result
-/// let pbs_multipliation_plaintext: Plaintext<u64> =
+/// let pbs_multiplication_plaintext: Plaintext<u64> =
 ///     decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_multiplication_ct);
 ///
 /// // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
@@ -1006,7 +1006,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 ///
 /// // Round and remove our encoding
 /// let pbs_multiplication_result: u64 =
-///     signed_decomposer.closest_representable(pbs_multipliation_plaintext.0) / delta;
+///     signed_decomposer.closest_representable(pbs_multiplication_plaintext.0) / delta;
 ///
 /// println!("Checking result...");
 /// assert_eq!(6, pbs_multiplication_result);
@@ -1305,7 +1305,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// );
 ///
 /// // Decrypt the PBS multiplication result
-/// let pbs_multipliation_plaintext: Plaintext<u128> =
+/// let pbs_multiplication_plaintext: Plaintext<u128> =
 ///     decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_multiplication_ct);
 ///
 /// // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
@@ -1316,7 +1316,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ///
 /// // Round and remove our encoding
 /// let pbs_multiplication_result: u128 =
-///     signed_decomposer.closest_representable(pbs_multipliation_plaintext.0) / delta;
+///     signed_decomposer.closest_representable(pbs_multiplication_plaintext.0) / delta;
 ///
 /// println!("Checking result...");
 /// assert_eq!(6, pbs_multiplication_result);

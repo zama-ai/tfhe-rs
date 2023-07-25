@@ -239,12 +239,12 @@ pub fn main() {
     );
 
     // Decrypt the PBS multiplication result
-    let pbs_multipliation_plaintext: Plaintext<u64> =
+    let pbs_multiplication_plaintext: Plaintext<u64> =
         decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_multiplication_ct);
 
     // Round and remove our encoding
     let pbs_multiplication_result: u64 =
-        signed_decomposer.closest_representable(pbs_multipliation_plaintext.0) / delta;
+        signed_decomposer.closest_representable(pbs_multiplication_plaintext.0) / delta;
 
     println!("Checking result...");
     assert_eq!(6, pbs_multiplication_result);

@@ -267,7 +267,7 @@ pub mod tests {
         );
 
         // Decrypt the PBS multiplication result
-        let pbs_multipliation_plaintext: Plaintext<Scalar> =
+        let pbs_multiplication_plaintext: Plaintext<Scalar> =
             decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_multiplication_ct);
 
         // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
@@ -278,7 +278,7 @@ pub mod tests {
 
         // Round and remove our encoding
         let pbs_multiplication_result: Scalar =
-            signed_decomposer.closest_representable(pbs_multipliation_plaintext.0) / delta;
+            signed_decomposer.closest_representable(pbs_multiplication_plaintext.0) / delta;
 
         println!("Checking result...");
         assert_eq!(f(input_message), pbs_multiplication_result);
