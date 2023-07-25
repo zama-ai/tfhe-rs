@@ -1,8 +1,10 @@
 #[path = "../utilities.rs"]
 mod utilities;
-use crate::utilities::{write_to_json, OperatorType};
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use crate::utilities::{write_to_json, OperatorType};
+use std::env;
+
+use criterion::{criterion_group, Criterion};
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{Ciphertext, ClassicPBSParameters, ServerKey, ShortintParameterSet};
@@ -638,33 +640,32 @@ define_server_key_scalar_div_bench_fn!(
 );
 
 criterion_group!(
-    arithmetic_operation,
-    unchecked_neg,
-    unchecked_add,
-    unchecked_sub,
-    unchecked_mul_lsb,
-    unchecked_mul_msb,
-    unchecked_div,
+    smart_ops,
     smart_bitand,
     smart_bitor,
     smart_bitxor,
     smart_add,
     smart_sub,
     smart_mul_lsb,
+);
+
+criterion_group!(
+    unchecked_ops,
+    unchecked_neg,
+    unchecked_add,
+    unchecked_sub,
+    unchecked_mul_lsb,
+    unchecked_mul_msb,
+    unchecked_div,
     unchecked_greater,
     unchecked_less,
     unchecked_equal,
     carry_extract,
-    // programmable_bootstrapping,
-    // multivalue_programmable_bootstrapping
-    //bench_two_block_pbs
-    //wopbs_v0_norm2_2,
-    //bench_wopbs_param_message_8_norm2_5,
     programmable_bootstrapping
 );
 
 criterion_group!(
-    arithmetic_scalar_operation,
+    unchecked_scalar_ops,
     unchecked_scalar_add,
     unchecked_scalar_mul,
     unchecked_scalar_sub,
@@ -717,10 +718,27 @@ criterion_group!(
     casting::cast
 );
 
-criterion_main!(
-    // arithmetic_operation,
-    // arithmetic_scalar_operation,
-    casting,
-    default_ops,
-    default_scalar_ops,
-);
+fn main() {
+    fn default_bench() {
+        casting();
+        default_ops();
+        default_scalar_ops();
+    }
+
+    match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
+        Ok(val) => {
+            match val.to_lowercase().as_str() {
+                "default" => default_bench(),
+                "smart" => smart_ops(),
+                "unchecked" => {
+                    unchecked_ops();
+                    unchecked_scalar_ops();
+                }
+                _ => panic!("unknown benchmark operations flavor"),
+            };
+        }
+        Err(_) => default_bench(),
+    };
+
+    Criterion::default().configure_from_args().final_summary();
+}
