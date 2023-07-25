@@ -12,6 +12,7 @@ use super::ggsw::{
 };
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -314,7 +315,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
 
     let mut out_pfksk_buffer_iter = glwe_out_pfksk_buffer.iter_mut();
 
-    for decomposition_level in (1..=level_cbs.0).map(DecompositionLevelCount) {
+    for decomposition_level in (1..=level_cbs.0).rev().map(DecompositionLevel) {
         homomorphic_shift_boolean(
             fourier_bsk,
             lwe_out_bs_buffer.as_mut_view(),
@@ -364,7 +365,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     fourier_bsk: FourierLweBootstrapKeyView<'_>,
     mut lwe_out: LweCiphertext<&mut [Scalar]>,
     lwe_in: LweCiphertext<&[Scalar]>,
-    level_count_cbs: DecompositionLevelCount,
+    level_cbs: DecompositionLevel,
     base_log_cbs: DecompositionBaseLog,
     delta_log: DeltaLog,
     fft: FftView<'_>,
@@ -415,9 +416,8 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     // The LUT is filled with -alpha in each coefficient where
     // alpha = 2^{log(q) - 1 - base_log * level}
     pbs_accumulator.get_mut_body().as_mut().fill(
-        Scalar::ZERO.wrapping_sub(
-            Scalar::ONE << (ciphertext_n_bits - 1 - base_log_cbs.0 * level_count_cbs.0),
-        ),
+        Scalar::ZERO
+            .wrapping_sub(Scalar::ONE << (ciphertext_n_bits - 1 - base_log_cbs.0 * level_cbs.0)),
     );
 
     // Applying a negacyclic LUT on a ciphertext with one bit of message in the MSB and no bit
@@ -434,7 +434,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     // To end up with an encryption of 0 if the message bit was 0 and 1 in the other case
     let out_body = lwe_out.get_mut_body();
     *out_body.data = (*out_body.data)
-        .wrapping_add(Scalar::ONE << (ciphertext_n_bits - 1 - base_log_cbs.0 * level_count_cbs.0));
+        .wrapping_add(Scalar::ONE << (ciphertext_n_bits - 1 - base_log_cbs.0 * level_cbs.0));
 }
 
 pub fn cmux_tree_memory_optimized_scratch<Scalar>(

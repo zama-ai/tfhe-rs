@@ -109,6 +109,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     let output_glwe_size = output.glwe_size();
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
+    let decomp_level_count = output.decomposition_level_count();
     let ciphertext_modulus = output.ciphertext_modulus();
 
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
@@ -116,7 +117,7 @@ pub fn encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     for (level_index, (mut level_matrix, mut generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
-        let decomp_level = DecompositionLevel(level_index + 1);
+        let decomp_level = DecompositionLevel(decomp_level_count.0 - level_index);
         // We scale the factor down from the native torus to whatever our torus is, the
         // encryption process will scale it back up
         let factor = encoded
@@ -249,13 +250,14 @@ pub fn par_encrypt_constant_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
     let output_glwe_size = output.glwe_size();
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
+    let decomp_level_count = output.decomposition_level_count();
     let ciphertext_modulus = output.ciphertext_modulus();
 
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
         |(level_index, (mut level_matrix, mut generator))| {
-            let decomp_level = DecompositionLevel(level_index + 1);
+            let decomp_level = DecompositionLevel(decomp_level_count.0 - level_index);
             // We scale the factor down from the native torus to whatever our torus is, the
             // encryption process will scale it back up
             let factor = encoded
@@ -369,6 +371,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     let output_glwe_size = output.glwe_size();
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
+    let decomp_level_count = output.decomposition_level_count();
     let ciphertext_modulus = output.ciphertext_modulus();
 
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
@@ -376,7 +379,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     for (level_index, (mut level_matrix, mut loop_generator)) in
         output.iter_mut().zip(gen_iter).enumerate()
     {
-        let decomp_level = DecompositionLevel(level_index + 1);
+        let decomp_level = DecompositionLevel(decomp_level_count.0 - level_index);
         // We scale the factor down from the native torus to whatever our torus is, the
         // encryption process will scale it back up
         let factor = encoded
@@ -546,13 +549,14 @@ pub fn par_encrypt_constant_seeded_ggsw_ciphertext_with_existing_generator<
     let output_glwe_size = output.glwe_size();
     let output_polynomial_size = output.polynomial_size();
     let decomp_base_log = output.decomposition_base_log();
+    let decomp_level_count = output.decomposition_level_count();
     let ciphertext_modulus = output.ciphertext_modulus();
 
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     output.par_iter_mut().zip(gen_iter).enumerate().for_each(
         |(level_index, (mut level_matrix, mut generator))| {
-            let decomp_level = DecompositionLevel(level_index + 1);
+            let decomp_level = DecompositionLevel(decomp_level_count.0 - level_index);
             // We scale the factor down from the native torus to whatever our torus is, the
             // encryption process will scale it back up
             let factor = encoded
@@ -822,7 +826,7 @@ where
         glwe_secret_key.glwe_dimension()
     );
 
-    let level_matrix = ggsw_ciphertext.last().unwrap();
+    let level_matrix = ggsw_ciphertext.get(0);
     let level_matrix_as_glwe_list = level_matrix.as_glwe_list();
     let last_row = level_matrix_as_glwe_list.last().unwrap();
     let decomp_level = ggsw_ciphertext.decomposition_level_count();

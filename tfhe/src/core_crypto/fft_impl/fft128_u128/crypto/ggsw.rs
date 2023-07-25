@@ -113,9 +113,8 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
             let mod_b_mask_lo = mod_b_mask as u64;
             let mod_b_mask_hi = (mod_b_mask >> 64) as u64;
 
-            // We loop through the levels (we reverse to match the order of the decomposition
-            // iterator.)
-            for ggsw_decomp_matrix in ggsw.into_levels().rev() {
+            // We loop through the levels
+            for ggsw_decomp_matrix in ggsw.into_levels() {
                 // We retrieve the decomposition of this level.
                 assert_ne!(current_level, 0);
                 let glwe_level = DecompositionLevel(current_level);

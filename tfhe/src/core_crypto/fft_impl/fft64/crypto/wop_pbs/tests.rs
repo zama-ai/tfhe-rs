@@ -327,7 +327,7 @@ fn test_circuit_bootstrapping_binary() {
                 .take(glwe_dimension.0)
                 .zip(glwe_sk.as_polynomial_list().iter())
             {
-                let current_level = level_idx + 1;
+                let current_level = level_count_cbs.0 - level_idx;
                 let mut expected_decryption = PlaintextListOwned::new(
                     0u64,
                     PlaintextCount(original_polynomial_from_glwe_sk.polynomial_size().0),
