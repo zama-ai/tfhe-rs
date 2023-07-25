@@ -6,7 +6,7 @@ mod utilities;
 use crate::utilities::{write_to_json, OperatorType};
 use std::env;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, Criterion};
 use itertools::iproduct;
 use rand::Rng;
 use std::vec::IntoIter;
@@ -739,7 +739,7 @@ define_server_key_bench_default_fn!(
 );
 
 criterion_group!(
-    smart_arithmetic_operation,
+    smart_ops,
     smart_neg,
     smart_add,
     smart_mul,
@@ -756,7 +756,7 @@ criterion_group!(
 );
 
 criterion_group!(
-    smart_arithmetic_parallelized_operation,
+    smart_parallelized_ops,
     smart_add_parallelized,
     smart_sub_parallelized,
     smart_mul_parallelized,
@@ -773,10 +773,11 @@ criterion_group!(
 );
 
 criterion_group!(
-    arithmetic_parallelized_operation,
+    default_parallelized_ops,
     add_parallelized,
     sub_parallelized,
     mul_parallelized,
+    neg_parallelized,
     bitand_parallelized,
     bitnot_parallelized,
     bitor_parallelized,
@@ -784,37 +785,50 @@ criterion_group!(
     max_parallelized,
     min_parallelized,
     eq_parallelized,
+    ne_parallelized,
     lt_parallelized,
     le_parallelized,
     gt_parallelized,
     ge_parallelized,
+    left_shift_parallelized,
+    right_shift_parallelized,
+    rotate_left_parallelized,
+    rotate_right_parallelized,
 );
 
 criterion_group!(
-    smart_scalar_arithmetic_operation,
+    smart_scalar_ops,
     smart_scalar_add,
     smart_scalar_sub,
     smart_scalar_mul,
 );
 
 criterion_group!(
-    smart_scalar_arithmetic_parallel_operation,
+    smart_scalar_parallelized_ops,
     smart_scalar_add_parallelized,
     smart_scalar_sub_parallelized,
     smart_scalar_mul_parallelized,
 );
 
 criterion_group!(
-    scalar_arithmetic_parallel_operation,
+    default_scalar_parallelized_ops,
     scalar_add_parallelized,
     scalar_sub_parallelized,
     scalar_mul_parallelized,
     scalar_left_shift_parallelized,
     scalar_right_shift_parallelized,
+    scalar_eq_parallelized,
+    scalar_ne_parallelized,
+    scalar_lt_parallelized,
+    scalar_le_parallelized,
+    scalar_gt_parallelized,
+    scalar_ge_parallelized,
+    scalar_min_parallelized,
+    scalar_max_parallelized,
 );
 
 criterion_group!(
-    unchecked_arithmetic_operation,
+    unchecked_ops,
     unchecked_add,
     unchecked_sub,
     unchecked_mul,
@@ -831,7 +845,7 @@ criterion_group!(
 );
 
 criterion_group!(
-    unchecked_scalar_arithmetic_operation,
+    unchecked_scalar_ops,
     unchecked_scalar_add,
     unchecked_scalar_sub,
     unchecked_small_scalar_mul,
@@ -849,52 +863,27 @@ criterion_group!(
 
 criterion_group!(misc, full_propagate, full_propagate_parallelized);
 
-// User-oriented benchmark group.
-// This gather all the operations that a high-level user could use.
-criterion_group!(
-    fast_integer_benchmarks,
-    bitand_parallelized,
-    bitnot_parallelized,
-    bitor_parallelized,
-    bitxor_parallelized,
-    add_parallelized,
-    sub_parallelized,
-    mul_parallelized,
-    neg_parallelized,
-    min_parallelized,
-    max_parallelized,
-    eq_parallelized,
-    ne_parallelized,
-    lt_parallelized,
-    le_parallelized,
-    gt_parallelized,
-    ge_parallelized,
-    left_shift_parallelized,
-    right_shift_parallelized,
-    rotate_left_parallelized,
-    rotate_right_parallelized,
-    scalar_add_parallelized,
-    scalar_sub_parallelized,
-    scalar_mul_parallelized,
-    scalar_left_shift_parallelized,
-    scalar_right_shift_parallelized,
-    scalar_eq_parallelized,
-    scalar_ne_parallelized,
-    scalar_lt_parallelized,
-    scalar_le_parallelized,
-    scalar_gt_parallelized,
-    scalar_ge_parallelized,
-    scalar_min_parallelized,
-    scalar_max_parallelized,
-);
+fn main() {
+    match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
+        Ok(val) => {
+            match val.to_lowercase().as_str() {
+                "default" => default_parallelized_ops(),
+                "default_scalar" => default_scalar_parallelized_ops(),
+                "smart" => smart_ops(),
+                "smart_scalar" => smart_scalar_ops(),
+                "smart_parallelized" => smart_parallelized_ops(),
+                "smart_scalar_parallelized" => smart_scalar_parallelized_ops(),
+                "unchecked" => unchecked_ops(),
+                "unchecked_scalar" => unchecked_scalar_ops(),
+                "misc" => misc(),
+                _ => panic!("unknown benchmark operations flavor"),
+            };
+        }
+        Err(_) => {
+            default_parallelized_ops();
+            default_scalar_parallelized_ops()
+        }
+    };
 
-criterion_main!(
-    fast_integer_benchmarks,
-    // smart_arithmetic_operation,
-    // smart_arithmetic_parallelized_operation,
-    // smart_scalar_arithmetic_operation,
-    // smart_scalar_arithmetic_parallel_operation,
-    // unchecked_arithmetic_operation,
-    // unchecked_scalar_arithmetic_operation,
-    // misc,
-);
+    Criterion::default().configure_from_args().final_summary();
+}

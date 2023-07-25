@@ -14,6 +14,7 @@ BIG_TESTS_INSTANCE?=FALSE
 GEN_KEY_CACHE_MULTI_BIT_ONLY?=FALSE
 PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
+BENCH_OP_FLAVOR?=DEFAULT
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -407,19 +408,22 @@ no_dbg_log:
 
 .PHONY: bench_integer # Run benchmarks for integer
 bench_integer: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p tfhe --
 
 .PHONY: bench_integer_multi_bit # Run benchmarks for integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p tfhe --
 
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench shortint-bench \
 	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,$(AVX512_FEATURE) -p tfhe
 
