@@ -35,9 +35,20 @@ impl Default for ParamsAndNumBlocksIter {
             Err(_) => false,
         };
 
+        let is_fast_bench = match env::var("__TFHE_RS_FAST_BENCH") {
+            Ok(val) => val.to_lowercase() == "true",
+            Err(_) => false,
+        };
+
         if is_multi_bit {
             let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
-            let bit_sizes = vec![8, 16, 32, 40, 64];
+
+            let bit_sizes = if is_fast_bench {
+                vec![32]
+            } else {
+                vec![8, 16, 32, 40, 64]
+            };
+
             let params_and_bit_sizes = iproduct!(params, bit_sizes);
             Self {
                 params_and_bit_sizes,
@@ -50,7 +61,13 @@ impl Default for ParamsAndNumBlocksIter {
                 // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
                 // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
             ];
-            let bit_sizes = vec![8, 16, 32, 40, 64, 128, 256];
+
+            let bit_sizes = if is_fast_bench {
+                vec![32]
+            } else {
+                vec![8, 16, 32, 40, 64, 128, 256]
+            };
+
             let params_and_bit_sizes = iproduct!(params, bit_sizes);
             Self {
                 params_and_bit_sizes,
