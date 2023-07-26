@@ -1,0 +1,43 @@
+# Start all benchmark jobs on Slab CI bot.
+name: Start all benchmarks
+
+on:
+# TODO schedule event would be activated later, once the cost of running full benchmarks would be assessed
+#  schedule:
+#    # Job will be triggered each Saturday at 1a.m.
+#    - cron: '0 1 * * 6'
+  workflow_dispatch:
+
+jobs:
+  start-benchmarks:
+    if: ${{ (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      matrix:
+        command: [ boolean_bench, shortint_full_bench, integer_full_bench, pbs_bench, wasm_client_bench ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        with:
+          fetch-depth: 0
+
+      - name: Checkout Slab repo
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        with:
+          repository: zama-ai/slab
+          path: slab
+          token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
+
+      - name: Start AWS job in Slab
+        shell: bash
+        run: |
+          echo -n '{"command": "${{ matrix.command }}", "git_ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}' > command.json
+          SIGNATURE="$(slab/scripts/hmac_calculator.sh command.json '${{ secrets.JOB_SECRET }}')"
+          curl -v -k \
+          --fail-with-body \
+          -H "Content-Type: application/json" \
+          -H "X-Slab-Repository: ${{ github.repository }}" \
+          -H "X-Slab-Command: start_aws" \
+          -H "X-Hub-Signature-256: sha256=${SIGNATURE}" \
+          -d @command.json \
+          ${{ secrets.SLAB_URL }}
