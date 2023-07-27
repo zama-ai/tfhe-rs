@@ -338,12 +338,21 @@ test_kreyvium: install_rs_build_toolchain
 
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
-	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
+	RUSTDOCFLAGS="--html-in-header katex-header.html" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer --no-deps
 
 .PHONY: docs # Build rust doc alias for doc
 docs: doc
+
+.PHONY: lint_doc # Build rust doc with linting enabled
+lint_doc: install_rs_check_toolchain
+	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer --no-deps
+
+.PHONY: lint_docs # Build rust doc with linting enabled alias for lint_doc
+lint_docs: lint_doc
 
 .PHONY: format_doc_latex # Format the documentation latex equations to avoid broken rendering.
 format_doc_latex:
@@ -511,10 +520,10 @@ sha256_bool: install_rs_check_toolchain
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
 .PHONY: pcc # pcc stands for pre commit checks
-pcc: no_tfhe_typo no_dbg_log check_fmt doc clippy_all check_compile_tests
+pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_all check_compile_tests
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
-fpcc: no_tfhe_typo no_dbg_log check_fmt doc clippy_fast check_compile_tests
+fpcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_fast check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fmt
