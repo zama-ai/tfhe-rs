@@ -31,7 +31,9 @@ implementation. The goal is to have a stable, simple, high-performance, and
 production-ready library for all the advanced features of TFHE.
 
 ## Getting Started
+The steps to run a first example are described below. 
 
+### Cargo.toml configuration
 To use the latest version of `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
 + For x86_64-based machines running Unix-like OSes:
@@ -57,95 +59,69 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] 
 
 Note: aarch64-based machines are not yet supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs
 
+
+## A simple example
+
+Here is a full example:
+
+``` rust
+use tfhe::prelude::*;
+use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32, FheUint8};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Basic configuration to use homomorphic integers
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+
+    // Key generation
+    let (client_key, server_keys) = generate_keys(config);
+
+    let clear_a = 1344u32;
+    let clear_b = 5u32;
+    let clear_c = 7u8;
+
+    // Encrypting the input data using the (private) client_key
+    // FheUint32: Encrypted equivalent to u32
+    let mut encrypted_a = FheUint32::try_encrypt(clear_a, &client_key)?;
+    let encrypted_b = FheUint32::try_encrypt(clear_b, &client_key)?;
+
+    // FheUint8: Encrypted equivalent to u8
+    let encrypted_c = FheUint8::try_encrypt(clear_c, &client_key)?;
+
+    // On the server side:
+    set_server_key(server_keys);
+
+    // Clear equivalent computations: 1344 * 8 = 10752
+    let encrypted_res_mul = &encrypted_a * &encrypted_b;
+
+    // Clear equivalent computations: 1344 >> 8 = 42
+    encrypted_a = &encrypted_res_mul >> &encrypted_b;
+
+    // Clear equivalent computations: let casted_a = a as u8;
+    let casted_a: FheUint8 = encrypted_a.cast_into();
+
+    // Clear equivalent computations: min(42, 7) = 7
+    let encrypted_res_min = &casted_a.min(&encrypted_c);
+
+    // Operation between clear and encrypted data:
+    // Clear equivalent computations: 7 & 1 = 1
+    let encrypted_res = encrypted_res_min & 1_u8;
+
+    // Decrypting on the client side:
+    let clear_res: u8 = encrypted_res.decrypt(&client_key);
+    assert_eq!(clear_res, 1_u8);
+
+    Ok(())
+}
+```
+
+To run this code, use the following command: 
+<p align="center"> <code> cargo run --release </code> </p>
+
 Note that when running code that uses `tfhe-rs`, it is highly recommended
 to run in release mode with cargo's `--release` flag to have the best performances possible,
-eg: `cargo run --release`.
 
-Here is a full example evaluating a Boolean circuit:
-
-```rust
-use tfhe::boolean::prelude::*;
-
-fn main() {
-    // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys();
-
-    // We use the client secret key to encrypt two messages:
-    let ct_1 = client_key.encrypt(true);
-    let ct_2 = client_key.encrypt(false);
-
-    // We use the server public key to execute a boolean circuit:
-    // if ((NOT ct_2) NAND (ct_1 AND ct_2)) then (NOT ct_2) else (ct_1 AND ct_2)
-    let ct_3 = server_key.not(&ct_2);
-    let ct_4 = server_key.and(&ct_1, &ct_2);
-    let ct_5 = server_key.nand(&ct_3, &ct_4);
-    let ct_6 = server_key.mux(&ct_5, &ct_3, &ct_4);
-
-    // We use the client key to decrypt the output of the circuit:
-    let output = client_key.decrypt(&ct_6);
-    assert_eq!(output, true);
-}
-```
-
-Another example of how the library can be used with shortints:
-
-```rust
-use tfhe::shortint::prelude::*;
-
-fn main() {
-    // Generate a set of client/server keys
-    // with 2 bits of message and 2 bits of carry
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-
-    let msg1 = 3;
-    let msg2 = 2;
-
-    // Encrypt two messages using the (private) client key:
-    let ct_1 = client_key.encrypt(msg1);
-    let ct_2 = client_key.encrypt(msg2);
-
-    // Homomorphically compute an addition
-    let ct_add = server_key.unchecked_add(&ct_1, &ct_2);
-
-    // Define the Hamming weight function
-    // f: x -> sum of the bits of x
-    let f = |x:u64| x.count_ones() as u64;
-
-    // Generate the lookup table for the function
-    let acc = server_key.generate_lookup_table(f);
-
-    // Compute the function over the ciphertext using the PBS
-    let ct_res = server_key.apply_lookup_table(&ct_add, &acc);
-
-    // Decrypt the ciphertext using the (private) client key
-    let output = client_key.decrypt(&ct_res);
-    assert_eq!(output, f(msg1 + msg2));
-}
-```
-
-An example using integer:
-
-```rust
-use tfhe::integer::gen_keys_radix;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-
-fn main() {
-    // We create keys to create 16 bits integers
-    // using 8 blocks of 2 bits
-    let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, 8);
-
-    let clear_a = 2382u16;
-    let clear_b = 29374u16;
-
-    let mut a = cks.encrypt(clear_a as u64);
-    let mut b = cks.encrypt(clear_b as u64);
-
-    let encrypted_max = sks.smart_max_parallelized(&mut a, &mut b);
-    let decrypted_max: u64 = cks.decrypt(&encrypted_max);
-
-    assert_eq!(decrypted_max as u16, clear_a.max(clear_b))
-}
-```
 
 ## Contributing
 
