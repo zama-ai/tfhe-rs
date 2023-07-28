@@ -38,16 +38,27 @@ jobs:
           echo "Type: ${{ inputs.instance_type }}"
           echo "Request ID: ${{ inputs.request_id }}"
 
-      - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          fetch-depth: 0
-
       - name: Get benchmark details
         run: |
           echo "BENCH_DATE=$(date --iso-8601=seconds)" >> "${GITHUB_ENV}"
           echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})" >> "${GITHUB_ENV}"
           echo "COMMIT_HASH=$(git describe --tags --dirty)" >> "${GITHUB_ENV}"
+
+  integer-benchmarks:
+    name: Execute integer benchmarks for all operations flavor
+    runs-on: ${{ github.event.inputs.runner_name }}
+    if: ${{ !cancelled() }}
+    needs: prepare-benchmarks
+    strategy:
+      max-parallel: 1
+      matrix:
+        command: [ integer, integer_multi_bit ]
+        op_flavor: [ default, default_scalar, smart, smart_scalar, smart_parallelized, smart_scalar_parallelized, unchecked, unchecked_scalar, misc ]
+    steps:
+      - name: Checkout tfhe-rs repo with tags
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        with:
+            fetch-depth: 0
 
       - name: Set up home
         # "Install rust" step require root user to have a HOME directory which is not set.
@@ -67,17 +78,6 @@ jobs:
           path: slab
           token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
 
-  integer-benchmarks:
-    name: Execute integer benchmarks for all operations flavor
-    runs-on: ${{ github.event.inputs.runner_name }}
-    if: ${{ !cancelled() }}
-    needs: prepare-benchmarks
-    strategy:
-      max-parallel: 1
-      matrix:
-        command: [ integer, integer_multi_bit]
-        op_flavor: [ default, default_scalar, smart, smart_scalar, smart_parallelized, smart_scalar_parallelized, unchecked, unchecked_scalar, misc ]
-    steps:
       - name: Run benchmarks with AVX512
         run: |
           make AVX512_SUPPORT=ON BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_${{ matrix.command }}
