@@ -441,48 +441,41 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
         }
         let param_name = param.name();
 
-        for clear_size in [2, 4, 8, 16, 32, 40, 64] {
-            if clear_size > bit_size {
-                break;
-            }
+        let bench_id = format!("{param_name}::{bit_size}_bits_scalar_{bit_size}");
+        bench_group.bench_function(&bench_id, |b| {
+            let (cks, sks) = KEY_CACHE.get_from_params(param);
 
-            let bench_id = format!("{param_name}::{bit_size}_bits_scalar_{clear_size}");
-            bench_group.bench_function(&bench_id, |b| {
-                let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let encrypt_one_value = || {
+                let clearlow = rng.gen::<u128>();
+                let clearhigh = rng.gen::<u128>();
 
-                let encrypt_one_value = || {
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
+                let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
-                    let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
-                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                // Avoid overflow issues for u64 where we would take values mod 1
+                let clear_1 = (rng_func(&mut rng, bit_size) as u128 % (1u128 << bit_size)) as u64;
 
-                    // Avoid overflow issues for u64 where we would take values mod 1
-                    let clear_1 =
-                        (rng_func(&mut rng, clear_size) as u128 % (1u128 << clear_size)) as u64;
+                (ct_0, clear_1)
+            };
 
-                    (ct_0, clear_1)
-                };
+            b.iter_batched(
+                encrypt_one_value,
+                |(mut ct_0, clear_1)| {
+                    binary_op(&sks, &mut ct_0, clear_1);
+                },
+                criterion::BatchSize::SmallInput,
+            )
+        });
 
-                b.iter_batched(
-                    encrypt_one_value,
-                    |(mut ct_0, clear_1)| {
-                        binary_op(&sks, &mut ct_0, clear_1);
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            });
-
-            write_to_json::<u64, _>(
-                &bench_id,
-                param,
-                param.name(),
-                display_name,
-                &OperatorType::Atomic,
-                bit_size as u32,
-                vec![param.message_modulus().0.ilog2(); num_block],
-            );
-        }
+        write_to_json::<u64, _>(
+            &bench_id,
+            param,
+            param.name(),
+            display_name,
+            &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus().0.ilog2(); num_block],
+        );
     }
 
     bench_group.finish()
