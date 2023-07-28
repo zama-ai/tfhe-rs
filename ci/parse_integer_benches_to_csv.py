@@ -21,8 +21,15 @@ def main(args):
 
             split = bench_function_id.split("::")
             (_, function_name, parameter_set, bits) = split
-            (bits, _) = bits.split("_")
-            bits = int(bits)
+
+            if "_scalar_" in bits:
+                (bits, scalar) = bits.split("_bits_scalar_")
+                bits = int(bits)
+                scalar = int(scalar)
+            else:
+                (bits, _) = bits.split("_")
+                bits = int(bits)
+                scalar = None
 
             estimate_mean_ms = estimate_data["mean"]["point_estimate"] / 1000000
             estimate_lower_bound_ms = (
@@ -37,6 +44,7 @@ def main(args):
                     function_name,
                     parameter_set,
                     bits,
+                    scalar,
                     estimate_mean_ms,
                     estimate_lower_bound_ms,
                     estimate_upper_bound_ms,
@@ -51,7 +59,7 @@ def main(args):
 
     with open(output_file, "w", encoding="utf-8") as output:
         output.write(
-            "function_name,parameter_set,bits,mean_ms,"
+            "function_name,parameter_set,bits,scalar,mean_ms,"
             "confidence_interval_lower_bound_ms,confidence_interval_upper_bound_ms\n"
         )
         # Sort by func_name, bit width and then parameters
@@ -62,12 +70,13 @@ def main(args):
                 function_name,
                 parameter_set,
                 bits,
+                scalar,
                 estimate_mean_ms,
                 estimate_lower_bound_ms,
                 estimate_upper_bound_ms,
             ) = dat
             output.write(
-                f"{function_name},{parameter_set},{bits},{estimate_mean_ms},"
+                f"{function_name},{parameter_set},{bits},{scalar},{estimate_mean_ms},"
                 f"{estimate_lower_bound_ms},{estimate_upper_bound_ms}\n"
             )
 
