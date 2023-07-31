@@ -1,6 +1,7 @@
 mod add;
 mod bit_extractor;
 mod bitwise_op;
+mod cmux;
 mod comparison;
 mod div_mod;
 mod mul;

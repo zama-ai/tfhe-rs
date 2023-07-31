@@ -286,7 +286,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         debug_assert!(lhs.block_carries_are_empty());
 
@@ -303,7 +303,8 @@ impl ServerKey {
 
         let mut scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(rhs, total_modulus.ilog2())
-                .iter_as::<u8>()
+                .iter_as::<u64>()
+                .map(|x| x as u8)
                 .collect::<Vec<_>>();
 
         // If we have more scalar blocks than lhs.blocks
@@ -368,7 +369,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         debug_assert!(lhs.block_carries_are_empty());
 
@@ -385,7 +386,8 @@ impl ServerKey {
 
         let mut scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(rhs, total_modulus.ilog2())
-                .iter_as::<u8>()
+                .iter_as::<u64>()
+                .map(|x| x as u8)
                 .collect::<Vec<_>>();
 
         // If we have more scalar blocks than lhs.blocks
@@ -455,7 +457,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -465,7 +467,7 @@ impl ServerKey {
 
     pub fn scalar_eq_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         let mut tmp_lhs: RadixCiphertext;
         let lhs = if !lhs.block_carries_are_empty() {
@@ -484,7 +486,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -494,7 +496,7 @@ impl ServerKey {
 
     pub fn scalar_ne_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         let mut tmp_lhs: RadixCiphertext;
         let lhs = if !lhs.block_carries_are_empty() {
@@ -517,7 +519,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).unchecked_scalar_gt_parallelized(lhs, rhs)
     }
@@ -528,7 +530,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).unchecked_scalar_ge_parallelized(lhs, rhs)
     }
@@ -539,7 +541,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).unchecked_scalar_lt_parallelized(lhs, rhs)
     }
@@ -550,7 +552,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).unchecked_scalar_le_parallelized(lhs, rhs)
     }
@@ -561,7 +563,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).unchecked_scalar_max_parallelized(lhs, rhs)
     }
@@ -572,7 +574,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).unchecked_scalar_min_parallelized(lhs, rhs)
     }
@@ -587,7 +589,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).smart_scalar_gt_parallelized(lhs, rhs)
     }
@@ -598,7 +600,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).smart_scalar_ge_parallelized(lhs, rhs)
     }
@@ -609,7 +611,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).smart_scalar_lt_parallelized(lhs, rhs)
     }
@@ -620,7 +622,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).smart_scalar_le_parallelized(lhs, rhs)
     }
@@ -631,7 +633,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).smart_scalar_max_parallelized(lhs, rhs)
     }
@@ -642,7 +644,7 @@ impl ServerKey {
         rhs: T,
     ) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).smart_scalar_min_parallelized(lhs, rhs)
     }
@@ -653,42 +655,42 @@ impl ServerKey {
 
     pub fn scalar_gt_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).scalar_gt_parallelized(lhs, rhs)
     }
 
     pub fn scalar_ge_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).scalar_ge_parallelized(lhs, rhs)
     }
 
     pub fn scalar_lt_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).scalar_lt_parallelized(lhs, rhs)
     }
 
     pub fn scalar_le_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).scalar_le_parallelized(lhs, rhs)
     }
 
     pub fn scalar_max_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).scalar_max_parallelized(lhs, rhs)
     }
 
     pub fn scalar_min_parallelized<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        T: DecomposableInto<u8>,
+        T: DecomposableInto<u64>,
     {
         Comparator::new(self).scalar_min_parallelized(lhs, rhs)
     }

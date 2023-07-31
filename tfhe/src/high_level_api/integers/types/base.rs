@@ -343,7 +343,7 @@ where
 
 impl<P, Clear> FheMax<Clear> for GenericInteger<P>
 where
-    Clear: DecomposableInto<u8>,
+    Clear: DecomposableInto<u64>,
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
@@ -380,7 +380,7 @@ where
 
 impl<P, Clear> FheMin<Clear> for GenericInteger<P>
 where
-    Clear: DecomposableInto<u8>,
+    Clear: DecomposableInto<u64>,
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
@@ -453,7 +453,7 @@ where
 
 impl<P, Clear> FheEq<Clear> for GenericInteger<P>
 where
-    Clear: DecomposableInto<u8>,
+    Clear: DecomposableInto<u64>,
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
@@ -571,7 +571,7 @@ where
 
 impl<P, Clear> FheOrd<Clear> for GenericInteger<P>
 where
-    Clear: DecomposableInto<u8>,
+    Clear: DecomposableInto<u64>,
     P: IntegerParameter,
     GenericInteger<P>: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,

@@ -8,6 +8,7 @@ use std::env;
 
 use criterion::{criterion_group, Criterion};
 use itertools::iproduct;
+use rand::rngs::ThreadRng;
 use rand::Rng;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
@@ -457,6 +458,92 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F>(
     bench_group.finish()
 }
 
+// Functions used to apply different way of selecting a scalar based on the context.
+fn default_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> u64 {
+    rng.gen::<u64>()
+}
+
+fn shift_scalar(_rng: &mut ThreadRng, _clear_bit_size: usize) -> u64 {
+    // Shifting by one is the worst case scenario.
+    1
+}
+
+fn mul_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> u64 {
+    loop {
+        let scalar = rng.gen_range(3u64..=u64::MAX);
+        // If scalar is power of two, it is just a shit, which is an happy path.
+        if !scalar.is_power_of_two() {
+            return scalar;
+        }
+    }
+}
+
+fn div_scalar(rng: &mut ThreadRng, clear_bit_size: usize) -> u64 {
+    loop {
+        let scalar = rng.gen_range(1..=u64::MAX);
+        // Avoid overflow issues for u64 where we would take values mod 1
+        if (scalar as u128 % (1u128 << clear_bit_size)) != 0 {
+            return scalar;
+        }
+    }
+}
+
+fn if_then_else_parallelized(c: &mut Criterion) {
+    let bench_name = "integer::if_then_else_parallelized";
+    let display_name = "if_then_else";
+
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
+    let mut rng = rand::thread_rng();
+
+    for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+        let param_name = param.name();
+
+        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+        bench_group.bench_function(&bench_id, |b| {
+            let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+            let encrypt_tree_values = || {
+                let clearlow = rng.gen::<u128>();
+                let clearhigh = rng.gen::<u128>();
+                let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                let ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+                let clearlow = rng.gen::<u128>();
+                let clearhigh = rng.gen::<u128>();
+                let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                let ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                let cond = sks.create_trivial_radix(rng.gen_bool(0.5) as u64, num_block);
+
+                (cond, ct_0, ct_1)
+            };
+
+            b.iter_batched(
+                encrypt_tree_values,
+                |(condition, true_ct, false_ct)| {
+                    sks.if_then_else_parallelized(&condition, &true_ct, &false_ct)
+                },
+                criterion::BatchSize::SmallInput,
+            )
+        });
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            param,
+            param.name(),
+            display_name,
+            &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus().0.ilog2(); num_block],
+        );
+    }
+
+    bench_group.finish()
+}
+
 macro_rules! define_server_key_bench_unary_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident) => {
         fn $server_key_method(c: &mut Criterion) {
@@ -794,6 +881,7 @@ criterion_group!(
     right_shift_parallelized,
     rotate_left_parallelized,
     rotate_right_parallelized,
+    if_then_else_parallelized,
 );
 
 criterion_group!(
