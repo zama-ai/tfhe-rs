@@ -408,7 +408,7 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(3, clear % modulus);
     /// ```
-    pub fn smart_scalar_mul(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn smart_scalar_mul(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_mul(self, ct, scalar).unwrap()
         })

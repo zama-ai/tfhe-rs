@@ -761,7 +761,7 @@ impl ServerKey {
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
-    pub fn smart_scalar_left_shift(&self, ct: &mut Ciphertext, shift: u8) -> Ciphertext {
+    pub fn smart_scalar_left_shift(&self, ct: &Ciphertext, shift: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_left_shift(self, ct, shift).unwrap()
         })

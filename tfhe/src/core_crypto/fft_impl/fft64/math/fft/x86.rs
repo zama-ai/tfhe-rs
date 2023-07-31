@@ -708,8 +708,8 @@ pub unsafe fn convert_add_backward_torus_u32_fma(
 
     let normalization = _mm256_set1_pd(1.0 / n as f64);
     let scaling = _mm256_set1_pd(2.0_f64.powi(u32::BITS as i32));
-    let out_re = out_re.as_mut_ptr() as *mut u32;
-    let out_im = out_im.as_mut_ptr() as *mut u32;
+    let out_re = out_re.as_mut_ptr();
+    let out_im = out_im.as_mut_ptr();
     let inp = inp.as_ptr();
     let w_re = twisties.re.as_ptr();
     let w_im = twisties.im.as_ptr();
@@ -759,8 +759,8 @@ pub unsafe fn convert_add_backward_torus_u64_fma(
 
     let normalization = _mm256_set1_pd(1.0 / n as f64);
     let scaling = _mm256_set1_pd(2.0_f64.powi(u64::BITS as i32));
-    let out_re = out_re.as_mut_ptr() as *mut u64;
-    let out_im = out_im.as_mut_ptr() as *mut u64;
+    let out_re = out_re.as_mut_ptr();
+    let out_im = out_im.as_mut_ptr();
     let inp = inp.as_ptr();
     let w_re = twisties.re.as_ptr();
     let w_im = twisties.im.as_ptr();

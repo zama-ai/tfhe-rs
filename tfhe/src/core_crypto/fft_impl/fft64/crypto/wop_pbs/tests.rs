@@ -360,8 +360,7 @@ fn test_circuit_bootstrapping_binary() {
             }
             let last_decrypted_glwe = level_decrypted_glwe
                 .chunks_exact(polynomial_size.0)
-                .rev()
-                .next()
+                .next_back()
                 .unwrap();
 
             let mut last_decoded_glwe =

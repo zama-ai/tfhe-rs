@@ -147,9 +147,7 @@ pub struct IntegerCompressedServerKey {
 impl IntegerCompressedServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
         let Some(integer_key) = &client_key.key else {
-            return Self {
-                key: None,
-            };
+            return Self { key: None };
         };
         if client_key.wopbs_block_parameters.is_some() {
             panic!(
@@ -185,9 +183,7 @@ impl IntegerCompactPublicKey {
 
     pub(in crate::high_level_api) fn try_new(client_key: &IntegerClientKey) -> Option<Self> {
         let Some(cks) = client_key.key.as_ref() else {
-            return Some(Self {
-                key: None,
-            });
+            return Some(Self { key: None });
         };
 
         let key = CompactPublicKey::try_new(cks)?;
@@ -235,9 +231,7 @@ pub(in crate::high_level_api) struct IntegerCompressedCompactPublicKey {
 impl IntegerCompressedCompactPublicKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
         let Some(cks) = client_key.key.as_ref() else {
-            return Self {
-                key: None,
-            };
+            return Self { key: None };
         };
 
         let key = CompressedCompactPublicKey::new(cks);

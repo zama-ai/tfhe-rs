@@ -83,7 +83,7 @@ impl ShortintEngine {
     pub(crate) fn unchecked_mul_lsb_small_carry_modulus(
         &mut self,
         server_key: &ServerKey,
-        ct1: &mut Ciphertext,
+        ct1: &Ciphertext,
         ct2: &Ciphertext,
     ) -> EngineResult<Ciphertext> {
         //ct1 + ct2
@@ -162,8 +162,12 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
+        if !server_key.is_mul_possible(ct_left, ct_right) {
+            self.message_extract_assign(server_key, ct_left)?;
+            self.message_extract_assign(server_key, ct_right)?;
+        }
         let mut result = ct_left.clone();
-        self.smart_mul_lsb_assign(server_key, &mut result, ct_right)?;
+        self.unchecked_mul_msb_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
@@ -187,8 +191,12 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
+        if !server_key.is_mul_possible(ct_left, ct_right) {
+            self.message_extract_assign(server_key, ct_left)?;
+            self.message_extract_assign(server_key, ct_right)?;
+        }
         let mut result = ct_left.clone();
-        self.smart_mul_msb_assign(server_key, &mut result, ct_right)?;
+        self.unchecked_mul_msb_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 }

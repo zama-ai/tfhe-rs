@@ -101,15 +101,11 @@ impl BooleanEngine {
     }
 
     pub fn create_server_key(&mut self, cks: &ClientKey) -> ServerKey {
-        let server_key = self.bootstrapper.new_server_key(cks).unwrap();
-
-        server_key
+        self.bootstrapper.new_server_key(cks).unwrap()
     }
 
     pub fn create_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {
-        let server_key = self.bootstrapper.new_compressed_server_key(cks).unwrap();
-
-        server_key
+        self.bootstrapper.new_compressed_server_key(cks).unwrap()
     }
 
     pub fn create_public_key(&mut self, client_key: &ClientKey) -> PublicKey {

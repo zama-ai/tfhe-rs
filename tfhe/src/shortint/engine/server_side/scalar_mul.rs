@@ -44,7 +44,7 @@ impl ShortintEngine {
     pub(crate) fn smart_scalar_mul(
         &mut self,
         server_key: &ServerKey,
-        ctxt: &mut Ciphertext,
+        ctxt: &Ciphertext,
         scalar: u8,
     ) -> EngineResult<Ciphertext> {
         let mut ct_result = ctxt.clone();

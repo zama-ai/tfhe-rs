@@ -305,7 +305,7 @@ impl WopbsKey {
             .circuit_bootstrapping_vertical_packing(lut.as_ref(), &extracted_bits_blocks);
 
         let mut ct_vec_out = vec![];
-        for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out.into_iter()) {
+        for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out) {
             ct_vec_out.push(crate::shortint::Ciphertext {
                 ct: block_out,
                 degree: Degree(block.message_modulus.0 - 1),
@@ -391,7 +391,7 @@ impl WopbsKey {
             .circuit_bootstrapping_vertical_packing(lut.as_ref(), &extracted_bits_blocks);
 
         let mut ct_vec_out = vec![];
-        for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out.into_iter()) {
+        for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out) {
             ct_vec_out.push(crate::shortint::Ciphertext {
                 ct: block_out,
                 degree: Degree(block.message_modulus.0 - 1),
@@ -778,7 +778,7 @@ impl WopbsKey {
         RadixCiphertext: IntegerCiphertext,
         F: Fn(u64, u64) -> u64,
     {
-        let mut nb_bit_to_extract = vec![0; 2];
+        let mut nb_bit_to_extract = [0; 2];
         let block_nb = ct1.blocks.len();
         //ct2 & ct1 should have the same basis
         let basis = ct1.moduli();
@@ -811,11 +811,11 @@ impl WopbsKey {
                 as u64;
 
         for lut_index_val in 0..(1 << total_bit) {
-            let split = vec![
+            let split = [
                 lut_index_val % (1 << nb_bit_to_extract[0]),
                 lut_index_val >> nb_bit_to_extract[0],
             ];
-            let mut decoded_val = vec![0; 2];
+            let mut decoded_val = [0; 2];
             for i in 0..2 {
                 let encoded_with_deg_val = encode_mix_radix(split[i], &vec_deg_basis[i], basis);
                 decoded_val[i] = decode_radix(encoded_with_deg_val.clone(), basis);
@@ -873,7 +873,7 @@ impl WopbsKey {
         F: Fn(u64, u64) -> u64,
     {
         let mut bit = vec![];
-        let mut nb_bit_to_extract = vec![0; 2];
+        let mut nb_bit_to_extract = [0; 2];
         let mut modulus = 1;
 
         //ct2 & ct1 should have the same basis
@@ -1101,7 +1101,7 @@ impl WopbsKey {
             .circuit_bootstrapping_vertical_packing(lut.as_ref(), &extracted_bits_blocks);
 
         let mut ct_vec_out = Vec::with_capacity(vec_ct_in.len());
-        for (block, block_out) in vec_ct_in[0].blocks().iter().zip(vec_ct_out.into_iter()) {
+        for (block, block_out) in vec_ct_in[0].blocks().iter().zip(vec_ct_out) {
             ct_vec_out.push(crate::shortint::Ciphertext {
                 ct: block_out,
                 degree: Degree(block.message_modulus.0 - 1),

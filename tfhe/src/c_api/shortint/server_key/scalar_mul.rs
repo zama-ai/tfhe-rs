@@ -6,7 +6,7 @@ use super::{ShortintCiphertext, ShortintServerKey};
 #[no_mangle]
 pub unsafe extern "C" fn shortint_server_key_smart_scalar_mul(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
     scalar_right: u8,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
@@ -14,9 +14,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_mul(
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
 
-        let res = server_key.0.smart_scalar_mul(&mut ct_left.0, scalar_right);
+        let res = server_key.0.smart_scalar_mul(&ct_left.0, scalar_right);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 

@@ -34,24 +34,13 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
-        let mut result = ct_left.clone();
-        self.smart_greater_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
-    }
-
-    pub(crate) fn smart_greater_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-
-        self.unchecked_greater_assign(server_key, ct_left, ct_right)?;
-        Ok(())
+        let mut result = ct_left.clone();
+        self.unchecked_greater_assign(server_key, &mut result, ct_right)?;
+        Ok(result)
     }
 
     pub(crate) fn unchecked_greater_or_equal(
@@ -86,23 +75,13 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
-        let mut result = ct_left.clone();
-        self.smart_greater_or_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
-    }
-
-    pub(crate) fn smart_greater_or_equal_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        self.unchecked_greater_or_equal_assign(server_key, ct_left, ct_right)?;
-        Ok(())
+        let mut result = ct_left.clone();
+        self.unchecked_greater_or_equal_assign(server_key, &mut result, ct_right)?;
+        Ok(result)
     }
 
     pub(crate) fn unchecked_less(
@@ -137,23 +116,13 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
-        let mut result = ct_left.clone();
-        self.smart_less_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
-    }
-
-    pub(crate) fn smart_less_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        self.unchecked_less_assign(server_key, ct_left, ct_right)?;
-        Ok(())
+        let mut result = ct_left.clone();
+        self.unchecked_less_assign(server_key, &mut result, ct_right)?;
+        Ok(result)
     }
 
     pub(crate) fn unchecked_less_or_equal(
@@ -188,23 +157,13 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
-        let mut result = ct_left.clone();
-        self.smart_less_or_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
-    }
-
-    pub(crate) fn smart_less_or_equal_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        self.unchecked_less_or_equal_assign(server_key, ct_left, ct_right)?;
-        Ok(())
+        let mut result = ct_left.clone();
+        self.unchecked_less_or_equal_assign(server_key, &mut result, ct_right)?;
+        Ok(result)
     }
 
     pub(crate) fn unchecked_equal(
@@ -239,23 +198,13 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
-        let mut result = ct_left.clone();
-        self.smart_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
-    }
-
-    pub(crate) fn smart_equal_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        self.unchecked_equal_assign(server_key, ct_left, ct_right)?;
-        Ok(())
+        let mut result = ct_left.clone();
+        self.unchecked_equal_assign(server_key, &mut result, ct_right)?;
+        Ok(result)
     }
 
     pub(crate) fn smart_scalar_equal(
@@ -315,23 +264,13 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
-        let mut result = ct_left.clone();
-        self.smart_not_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
-    }
-
-    pub(crate) fn smart_not_equal_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> EngineResult<()> {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        self.unchecked_not_equal_assign(server_key, ct_left, ct_right)?;
-        Ok(())
+        let mut result = ct_left.clone();
+        self.unchecked_not_equal_assign(server_key, &mut result, ct_right)?;
+        Ok(result)
     }
 
     pub(crate) fn smart_scalar_not_equal(

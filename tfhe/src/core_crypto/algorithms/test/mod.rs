@@ -251,4 +251,4 @@ macro_rules! create_parametrized_test{
     };
 }
 
-pub(self) use create_parametrized_test;
+use create_parametrized_test;

@@ -933,7 +933,7 @@ where
         clear_0 *= scalar as u64;
 
         // add the two ciphertexts
-        let ct_res = sks.smart_scalar_bitand(&mut ctxt_0, clear_1 as u8);
+        let ct_res = sks.smart_scalar_bitand(&ctxt_0, clear_1 as u8);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -1080,7 +1080,7 @@ where
         clear_0 *= scalar as u64;
 
         // add the two ciphertexts
-        let ct_res = sks.smart_scalar_bitor(&mut ctxt_0, clear_1 as u8);
+        let ct_res = sks.smart_scalar_bitor(&ctxt_0, clear_1 as u8);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -1227,7 +1227,7 @@ where
         clear_0 *= scalar as u64;
 
         // add the two ciphertexts
-        let ct_res = sks.smart_scalar_bitxor(&mut ctxt_0, clear_1 as u8);
+        let ct_res = sks.smart_scalar_bitxor(&ctxt_0, clear_1 as u8);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -2561,16 +2561,16 @@ where
         let clear_1 = rng.gen::<u8>() % modulus;
 
         // encryption of an integer
-        let mut ctxt_0 = cks.encrypt(clear_0 as u64);
+        let ctxt_0 = cks.encrypt(clear_0 as u64);
 
         // add the two ciphertexts
-        let mut ct_res = sks.smart_scalar_add(&mut ctxt_0, clear_1);
+        let mut ct_res = sks.smart_scalar_add(&ctxt_0, clear_1);
 
         let mut clear = (clear_0 + clear_1) % modulus;
 
         //add multiple times to raise the degree
         for _ in 0..30 {
-            ct_res = sks.smart_scalar_add(&mut ct_res, clear_1);
+            ct_res = sks.smart_scalar_add(&ct_res, clear_1);
             clear = (clear + clear_1) % modulus;
 
             // decryption of ct_res
@@ -2667,10 +2667,10 @@ where
         let clear_1 = rng.gen::<u8>() % modulus;
 
         // encryption of an integer
-        let mut ctxt_0 = cks.encrypt(clear_0 as u64);
+        let ctxt_0 = cks.encrypt(clear_0 as u64);
 
         // add the two ciphertexts
-        let mut ct_res = sks.smart_scalar_sub(&mut ctxt_0, clear_1);
+        let mut ct_res = sks.smart_scalar_sub(&ctxt_0, clear_1);
 
         let mut clear = (clear_0 - clear_1) % modulus;
 
@@ -2680,7 +2680,7 @@ where
 
         //add multiple times to raise the degree
         for _ in 0..30 {
-            ct_res = sks.smart_scalar_sub(&mut ct_res, clear_1);
+            ct_res = sks.smart_scalar_sub(&ct_res, clear_1);
             clear = (clear - clear_1) % modulus;
 
             // decryption of ct_res
@@ -2788,14 +2788,14 @@ where
         let scalar = rng.gen::<u8>() % scalar_modulus;
 
         // encryption of an integer
-        let mut ct = cks.encrypt(clear as u64);
+        let ct = cks.encrypt(clear as u64);
 
-        let mut ct_res = sks.smart_scalar_mul(&mut ct, scalar);
+        let mut ct_res = sks.smart_scalar_mul(&ct, scalar);
 
         let mut clear_res = clear * scalar;
         for _ in 0..10 {
             // scalar multiplication
-            ct_res = sks.smart_scalar_mul(&mut ct_res, scalar);
+            ct_res = sks.smart_scalar_mul(&ct_res, scalar);
             clear_res = (clear_res * scalar) % modulus;
         }
 
@@ -3084,13 +3084,13 @@ where
         let clear_1 = rng.gen::<u64>() % modulus;
 
         // encryption of an integer
-        let mut ctxt_zero = cks.encrypt(clear_0);
+        let ctxt_zero = cks.encrypt(clear_0);
 
         // encryption of an integer
-        let mut ctxt_one = cks.encrypt(clear_1);
+        let ctxt_one = cks.encrypt(clear_1);
 
         // multiply together the two ciphertexts
-        let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ctxt_zero, &mut ctxt_one);
+        let ct_res = sks.unchecked_mul_lsb_small_carry(&ctxt_zero, &ctxt_one);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -3120,11 +3120,11 @@ where
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
-        let mut ct1 = cks.encrypt_with_message_modulus(clear1, MessageModulus(modulus as usize));
-        let mut ct2 = cks.encrypt_with_message_modulus(clear2, MessageModulus(modulus as usize));
+        let ct1 = cks.encrypt_with_message_modulus(clear1, MessageModulus(modulus as usize));
+        let ct2 = cks.encrypt_with_message_modulus(clear2, MessageModulus(modulus as usize));
 
         println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
-        let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct1, &mut ct2);
+        let ct_res = sks.unchecked_mul_lsb_small_carry(&ct1, &ct2);
         assert_eq!(
             (clear1 * clear2) % modulus,
             cks.decrypt_message_and_carry(&ct_res) % modulus
@@ -3158,19 +3158,19 @@ where
         let clear1 = rng.gen::<u64>() % msg_modulus;
         let clear2 = rng.gen::<u64>() % msg_modulus;
 
-        let mut ct1 = cks.encrypt_with_message_and_carry_modulus(
+        let ct1 = cks.encrypt_with_message_and_carry_modulus(
             clear1,
             MessageModulus(msg_modulus as usize),
             CarryModulus(carry_modulus as usize),
         );
-        let mut ct2 = cks.encrypt_with_message_and_carry_modulus(
+        let ct2 = cks.encrypt_with_message_and_carry_modulus(
             clear2,
             MessageModulus(msg_modulus as usize),
             CarryModulus(carry_modulus as usize),
         );
 
         println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, msg_mod = {msg_modulus}, carry_mod = {carry_modulus}");
-        let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct1, &mut ct2);
+        let ct_res = sks.unchecked_mul_lsb_small_carry(&ct1, &ct2);
         assert_eq!(
             (clear1 * clear2) % msg_modulus,
             cks.decrypt_message_and_carry(&ct_res) % msg_modulus

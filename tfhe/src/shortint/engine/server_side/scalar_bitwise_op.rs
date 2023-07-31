@@ -30,7 +30,7 @@ impl ShortintEngine {
     pub(crate) fn smart_scalar_bitand(
         &mut self,
         server_key: &ServerKey,
-        lhs: &mut Ciphertext,
+        lhs: &Ciphertext,
         rhs: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = lhs.clone();
@@ -76,7 +76,7 @@ impl ShortintEngine {
     pub(crate) fn smart_scalar_bitxor(
         &mut self,
         server_key: &ServerKey,
-        lhs: &mut Ciphertext,
+        lhs: &Ciphertext,
         rhs: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = lhs.clone();
@@ -122,7 +122,7 @@ impl ShortintEngine {
     pub(crate) fn smart_scalar_bitor(
         &mut self,
         server_key: &ServerKey,
-        lhs: &mut Ciphertext,
+        lhs: &Ciphertext,
         rhs: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = lhs.clone();

@@ -66,7 +66,7 @@ fn test_sum_uint_3_vec() -> Result<(), Box<dyn std::error::Error>> {
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
 
-    let clear_vec = vec![2, 5];
+    let clear_vec = [2, 5];
     let expected = clear_vec.iter().copied().sum::<u8>() % (2u8 << 3);
 
     let fhe_vec: Vec<FheUint3> = clear_vec
@@ -99,7 +99,7 @@ fn test_product_uint_4_vec() -> Result<(), Box<dyn std::error::Error>> {
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
 
-    let clear_vec = vec![2, 5];
+    let clear_vec = [2, 5];
     let expected = clear_vec.iter().copied().product();
 
     let fhe_vec: Vec<FheUint4> = clear_vec

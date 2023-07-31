@@ -50,7 +50,7 @@ impl ShortintEngine {
     pub(crate) fn smart_scalar_left_shift(
         &mut self,
         server_key: &ServerKey,
-        ct: &mut Ciphertext,
+        ct: &Ciphertext,
         shift: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = ct.clone();
