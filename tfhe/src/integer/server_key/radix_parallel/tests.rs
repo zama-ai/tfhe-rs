@@ -185,6 +185,8 @@ create_parametrized_test!(integer_smart_scalar_sub);
 create_parametrized_test!(integer_default_scalar_sub);
 create_parametrized_test!(integer_smart_scalar_add);
 create_parametrized_test!(integer_default_scalar_add);
+create_parametrized_test!(integer_smart_if_then_else);
+create_parametrized_test!(integer_default_if_then_else);
 
 fn integer_smart_add<P>(param: P)
 where
@@ -2581,6 +2583,25 @@ where
         // Check the correctness
         assert_eq!(clear, dec);
     }
+
+    {
+        // test x * y and y * x
+        // where y encrypts a boolean value
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen_range(0u64..=1);
+
+        let ctxt_1 = cks.encrypt(clear1);
+        let ctxt_2 = sks.create_trivial_radix(clear2, ctxt_1.blocks.len());
+        assert!(ctxt_2.holds_boolean_value());
+
+        let res = sks.mul_parallelized(&ctxt_1, &ctxt_2);
+        let dec: u64 = cks.decrypt(&res);
+        assert_eq!(dec, clear1 * clear2);
+
+        let res = sks.mul_parallelized(&ctxt_2, &ctxt_1);
+        let dec: u64 = cks.decrypt(&res);
+        assert_eq!(dec, clear1 * clear2);
+    }
 }
 
 fn integer_smart_scalar_add<P>(param: P)
@@ -2799,4 +2820,145 @@ fn test_non_regression_clone_from() {
     assert_eq!(client_key.decrypt_radix::<u8>(&r1r2), 1);
     let q1q2 = server_key.smart_mul_parallelized(&mut q1, &mut q2);
     assert_eq!(client_key.decrypt_radix::<u8>(&q1q2), 1);
+}
+
+fn integer_smart_if_then_else<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_condition = rng.gen_range(0u64..1);
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+        // cks.encrypt returns a ciphertext which does not look like
+        // (when looking at the degree) it encrypts a boolean value.
+        // So we 'force' having a boolean encrypting ciphertext by using eq (==)
+        let mut ctxt_condition = sks.scalar_eq_parallelized(&cks.encrypt(clear_condition), 1);
+        assert!(ctxt_condition.holds_boolean_value());
+
+        let ct_res =
+            sks.smart_if_then_else_parallelized(&mut ctxt_condition, &mut ctxt_0, &mut ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(
+            dec_res,
+            if clear_condition == 1 {
+                clear_0
+            } else {
+                clear_1
+            }
+        );
+
+        let clear_2 = rng.gen::<u64>() % modulus;
+        let clear_3 = rng.gen::<u64>() % modulus;
+
+        let ctxt_2 = cks.encrypt(clear_2);
+        let ctxt_3 = cks.encrypt(clear_3);
+
+        // Add to have non empty carries
+        sks.unchecked_add_assign(&mut ctxt_0, &ctxt_2);
+        sks.unchecked_add_assign(&mut ctxt_1, &ctxt_3);
+        assert!(!ctxt_0.block_carries_are_empty());
+        assert!(!ctxt_1.block_carries_are_empty());
+
+        let ct_res =
+            sks.smart_if_then_else_parallelized(&mut ctxt_condition, &mut ctxt_0, &mut ctxt_1);
+        assert!(ctxt_0.block_carries_are_empty());
+        assert!(ctxt_1.block_carries_are_empty());
+        assert!(ct_res.block_carries_are_empty());
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(
+            dec_res,
+            if clear_condition == 1 {
+                (clear_0 + clear_2) % modulus
+            } else {
+                (clear_1 + clear_3) % modulus
+            }
+        );
+    }
+}
+
+fn integer_default_if_then_else<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_condition = rng.gen_range(0u64..1);
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+        // cks.encrypt returns a ciphertext which does not look like
+        // (when looking at the degree) it encrypts a boolean value.
+        // So we 'force' having a boolean encrypting ciphertext by using eq (==)
+        let ctxt_condition = sks.scalar_eq_parallelized(&cks.encrypt(clear_condition), 1);
+        assert!(ctxt_condition.holds_boolean_value());
+
+        let ct_res = sks.if_then_else_parallelized(&ctxt_condition, &ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(
+            dec_res,
+            if clear_condition == 1 {
+                clear_0
+            } else {
+                clear_1
+            }
+        );
+
+        let ct_res2 = sks.if_then_else_parallelized(&ctxt_condition, &ctxt_0, &ctxt_1);
+        assert_eq!(ct_res, ct_res2, "Operation if not deterministic");
+
+        let clear_2 = rng.gen::<u64>() % modulus;
+        let clear_3 = rng.gen::<u64>() % modulus;
+
+        let ctxt_2 = cks.encrypt(clear_2);
+        let ctxt_3 = cks.encrypt(clear_3);
+
+        // Add to have non empty carries
+        sks.unchecked_add_assign(&mut ctxt_0, &ctxt_2);
+        sks.unchecked_add_assign(&mut ctxt_1, &ctxt_3);
+        assert!(!ctxt_0.block_carries_are_empty());
+        assert!(!ctxt_1.block_carries_are_empty());
+
+        let ct_res = sks.if_then_else_parallelized(&ctxt_condition, &ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(
+            dec_res,
+            if clear_condition == 1 {
+                (clear_0 + clear_2) % modulus
+            } else {
+                (clear_1 + clear_3) % modulus
+            }
+        );
+    }
 }

@@ -20,6 +20,11 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
+        if ct_left.degree == Degree(0) || ct_right.degree == Degree(0) {
+            // One of the ciphertext is a trivial 0
+            self.create_trivial_assign(server_key, ct_left, 0)?;
+            return Ok(());
+        }
         let modulus = (ct_right.degree.0 + 1) as u64;
 
         //message 1 is shifted to the carry bits
@@ -58,6 +63,11 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
+        if ct_left.degree == Degree(0) || ct_right.degree == Degree(0) {
+            // One of the ciphertext is a trivial 0
+            self.create_trivial_assign(server_key, ct_left, 0)?;
+            return Ok(());
+        }
         let modulus = (ct_right.degree.0 + 1) as u64;
         let deg = (ct_left.degree.0 * ct_right.degree.0) / ct_right.message_modulus.0;
 

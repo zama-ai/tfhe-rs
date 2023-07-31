@@ -319,15 +319,10 @@ impl ServerKey {
     /// assert_eq!(16, clear);
     /// ```
     pub fn blockshift(&self, ctxt: &RadixCiphertext, shift: usize) -> RadixCiphertext {
-        let ctxt_zero = self.key.create_trivial(0_u64);
         let mut result = ctxt.clone();
-
-        for res_i in result.blocks[..shift].iter_mut() {
-            *res_i = ctxt_zero.clone();
-        }
-
-        for (res_i, c_i) in result.blocks[shift..].iter_mut().zip(ctxt.blocks.iter()) {
-            *res_i = c_i.clone();
+        result.blocks.rotate_right(shift);
+        for block in &mut result.blocks[..shift] {
+            self.key.create_trivial_assign(block, 0);
         }
         result
     }
