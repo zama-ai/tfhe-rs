@@ -19,6 +19,12 @@ use crate::integer::encryption::encrypt_words_radix_impl;
 mod tests;
 
 impl ServerKey {
+    pub fn create_trivial_zero_assign_radix(&self, ctxt: &mut RadixCiphertext) {
+        for block in &mut ctxt.blocks {
+            self.key.create_trivial_assign(block, 0)
+        }
+    }
+
     /// Create a ciphertext filled with zeros
     ///
     /// # Example

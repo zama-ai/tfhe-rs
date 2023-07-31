@@ -1,7 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::comparator::ZeroComparisonType;
 use crate::integer::ServerKey;
-use rayon::prelude::*;
 
 use super::bit_extractor::BitExtractor;
 
@@ -35,15 +34,6 @@ impl ServerKey {
 
         let mut quotient = self.create_trivial_zero_radix(num_blocks);
         let mut remainder = self.create_trivial_zero_radix(num_blocks);
-
-        // This lut only works when y values are 0 or 1
-        let zeroer_lut_for_merged_cmp =
-            self.key
-                .generate_lookup_table_bivariate(|x, y| if y != 1 { 0 } else { x });
-        // This lut works when y is <= 2
-        let zeroer_lut_summed_cmp =
-            self.key
-                .generate_lookup_table_bivariate(|x, y| if y != 2 { 0 } else { x });
 
         let merge_two_cmp_lut = self
             .key
@@ -125,25 +115,15 @@ impl ServerKey {
                     &merge_two_cmp_lut,
                 );
 
-                interesting_divisor.blocks.par_iter_mut().for_each(|block| {
-                    self.key.unchecked_apply_lookup_table_bivariate_assign(
-                        block,
-                        &merged_cmp,
-                        &zeroer_lut_for_merged_cmp,
-                    );
-                });
+                self.zero_out_if_condition_is_false(&mut interesting_divisor, &merged_cmp);
                 is_remainder_greater_or_eq_than_divisor = Some(merged_cmp)
             } else {
                 let summed_cmp = self.key.unchecked_add(
                     &trivial_blocks_are_zero,
                     &non_trivial_blocks_are_ge.blocks[0],
                 );
-                interesting_divisor.blocks.par_iter_mut().for_each(|block| {
-                    self.key.unchecked_apply_lookup_table_bivariate_assign(
-                        block,
-                        &summed_cmp,
-                        &zeroer_lut_summed_cmp,
-                    );
+                self.zero_out_if(&mut interesting_divisor, &summed_cmp, |summed_cmp| {
+                    summed_cmp != 2 // summed_cmp != 2 => remainder < divisor
                 });
                 is_remainder_greater_or_eq_than_divisor = None;
             }

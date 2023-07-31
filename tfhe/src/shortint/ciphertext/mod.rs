@@ -6,7 +6,7 @@ use std::cmp;
 use std::fmt::Debug;
 
 /// This tracks the number of operations that has been done.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct Degree(pub usize);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

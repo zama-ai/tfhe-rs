@@ -511,6 +511,62 @@ fn div_scalar(rng: &mut ThreadRng, clear_bit_size: usize) -> u64 {
     }
 }
 
+fn if_then_else_parallelized(c: &mut Criterion) {
+    let bench_name = "integer::if_then_else_parallelized";
+    let display_name = "if_then_else";
+
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(15)
+        .measurement_time(std::time::Duration::from_secs(60));
+    let mut rng = rand::thread_rng();
+
+    for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+        let param_name = param.name();
+
+        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+        bench_group.bench_function(&bench_id, |b| {
+            let (cks, sks) = KEY_CACHE.get_from_params(param);
+
+            let encrypt_tree_values = || {
+                let clearlow = rng.gen::<u128>();
+                let clearhigh = rng.gen::<u128>();
+                let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                let ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+                let clearlow = rng.gen::<u128>();
+                let clearhigh = rng.gen::<u128>();
+                let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                let ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                let cond = sks.create_trivial_radix(rng.gen_bool(0.5) as u64, num_block);
+
+                (cond, ct_0, ct_1)
+            };
+
+            b.iter_batched(
+                encrypt_tree_values,
+                |(condition, true_ct, false_ct)| {
+                    sks.if_then_else_parallelized(&condition, &true_ct, &false_ct)
+                },
+                criterion::BatchSize::SmallInput,
+            )
+        });
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            param,
+            param.name(),
+            display_name,
+            &OperatorType::Atomic,
+            bit_size as u32,
+            vec![param.message_modulus().0.ilog2(); num_block],
+        );
+    }
+
+    bench_group.finish()
+}
+
 macro_rules! define_server_key_bench_unary_fn (
     (method_name: $server_key_method:ident, display_name:$name:ident) => {
         fn $server_key_method(c: &mut Criterion) {
@@ -890,6 +946,7 @@ criterion_group!(
     right_shift_parallelized,
     rotate_left_parallelized,
     rotate_right_parallelized,
+    if_then_else_parallelized,
 );
 
 criterion_group!(
