@@ -108,7 +108,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{param_name}::{bit_size}_bits");
+        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
             let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -182,7 +182,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{param_name}::{bit_size}_bits");
+        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
             let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -243,7 +243,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{param_name}::{bit_size}_bits");
+        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
             let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -314,7 +314,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{param_name}::{bit_size}_bits");
+        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
             let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -367,7 +367,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{param_name}::{bit_size}_bits");
+        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
             let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -441,7 +441,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
         }
         let param_name = param.name();
 
-        let bench_id = format!("{param_name}::{bit_size}_bits_scalar_{bit_size}");
+        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
         bench_group.bench_function(&bench_id, |b| {
             let (cks, sks) = KEY_CACHE.get_from_params(param);
 
@@ -516,7 +516,7 @@ macro_rules! define_server_key_bench_unary_fn (
         fn $server_key_method(c: &mut Criterion) {
             bench_server_key_unary_function_dirty_inputs(
                 c,
-                concat!("ServerKey::", stringify!($server_key_method)),
+                concat!("integer::", stringify!($server_key_method)),
                 stringify!($name),
                 |server_key, lhs| {
                   server_key.$server_key_method(lhs);
@@ -530,7 +530,7 @@ macro_rules! define_server_key_bench_unary_default_fn (
         fn $server_key_method(c: &mut Criterion) {
             bench_server_key_unary_function_clean_inputs(
                 c,
-                concat!("ServerKey::", stringify!($server_key_method)),
+                concat!("integer::", stringify!($server_key_method)),
                 stringify!($name),
                 |server_key, lhs| {
                   server_key.$server_key_method(lhs);
@@ -544,7 +544,7 @@ macro_rules! define_server_key_bench_fn (
       fn $server_key_method(c: &mut Criterion) {
         bench_server_key_binary_function_dirty_inputs(
               c,
-              concat!("ServerKey::", stringify!($server_key_method)),
+              concat!("integer::", stringify!($server_key_method)),
               stringify!($name),
               |server_key, lhs, rhs| {
                 server_key.$server_key_method(lhs, rhs);
@@ -558,7 +558,7 @@ macro_rules! define_server_key_bench_default_fn (
         fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_function_clean_inputs(
                 c,
-                concat!("ServerKey::", stringify!($server_key_method)),
+                concat!("integer::", stringify!($server_key_method)),
                 stringify!($name),
                 |server_key, lhs, rhs| {
                   server_key.$server_key_method(lhs, rhs);
@@ -572,7 +572,7 @@ macro_rules! define_server_key_bench_scalar_fn (
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_scalar_function_dirty_inputs(
               c,
-              concat!("ServerKey::", stringify!($server_key_method)),
+              concat!("integer::", stringify!($server_key_method)),
               stringify!($name),
               |server_key, lhs, rhs| {
                 server_key.$server_key_method(lhs, rhs);
@@ -586,7 +586,7 @@ macro_rules! define_server_key_bench_scalar_default_fn (
         fn $server_key_method(c: &mut Criterion) {
             bench_server_key_binary_scalar_function_clean_inputs(
                 c,
-                concat!("ServerKey::", stringify!($server_key_method)),
+                concat!("integer::", stringify!($server_key_method)),
                 stringify!($name),
                 |server_key, lhs, rhs| {
                   server_key.$server_key_method(lhs, rhs);

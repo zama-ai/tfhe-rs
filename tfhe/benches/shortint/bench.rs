@@ -244,7 +244,7 @@ fn carry_extract(c: &mut Criterion) {
 
         let ct_0 = cks.encrypt(clear_0);
 
-        let bench_id = format!("ServerKey::carry_extract::{}", param.name());
+        let bench_id = format!("shortint::carry_extract::{}", param.name());
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let _ = sks.carry_extract(&ct_0);
@@ -283,7 +283,7 @@ fn programmable_bootstrapping(c: &mut Criterion) {
 
         let ctxt = cks.encrypt(clear_0);
 
-        let bench_id = format!("ServerKey::programmable_bootstrap::{}", param.name());
+        let bench_id = format!("shortint::programmable_bootstrap::{}", param.name());
 
         bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
@@ -338,7 +338,7 @@ macro_rules! define_server_key_unary_bench_fn (
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_unary_function(
               c,
-              concat!("ServerKey::", stringify!($server_key_method)),
+              concat!("shortint::", stringify!($server_key_method)),
               stringify!($name),
               |server_key, lhs| {
                 let _ = server_key.$server_key_method(lhs);},
@@ -352,7 +352,7 @@ macro_rules! define_server_key_bench_fn (
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_function(
               c,
-              concat!("ServerKey::", stringify!($server_key_method)),
+              concat!("shortint::", stringify!($server_key_method)),
               stringify!($name),
               |server_key, lhs, rhs| {
                 let _ = server_key.$server_key_method(lhs, rhs);},
@@ -366,7 +366,7 @@ macro_rules! define_server_key_scalar_bench_fn (
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_scalar_function(
               c,
-              concat!("ServerKey::", stringify!($server_key_method)),
+              concat!("shortint::", stringify!($server_key_method)),
               stringify!($name),
               |server_key, lhs, rhs| {
                 let _ = server_key.$server_key_method(lhs, rhs);},
@@ -380,7 +380,7 @@ macro_rules! define_server_key_scalar_div_bench_fn (
       fn $server_key_method(c: &mut Criterion) {
           bench_server_key_binary_scalar_division_function(
               c,
-              concat!("ServerKey::", stringify!($server_key_method)),
+              concat!("shortint::", stringify!($server_key_method)),
               stringify!($name),
               |server_key, lhs, rhs| {
                 let _ = server_key.$server_key_method(lhs, rhs);},
