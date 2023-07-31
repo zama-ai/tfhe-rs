@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -492,14 +493,31 @@ impl ServerKey {
         lhs: &mut RadixCiphertext,
         rhs: &RadixCiphertext,
     ) {
-        let num_blocks = lhs.blocks.len();
-        let mut terms = vec![self.create_trivial_zero_radix(num_blocks); num_blocks];
-        terms
-            .par_iter_mut()
-            .zip(rhs.blocks.par_iter().enumerate())
-            .for_each(|(term, (i, rhs_i))| {
-                *term = self.unchecked_block_mul_parallelized(lhs, rhs_i, i);
-            });
+        if rhs.holds_boolean_value() {
+            self.zero_out_if_condition_is_false(lhs, &rhs.blocks[0]);
+            return;
+        }
+
+        if lhs.holds_boolean_value() {
+            let mut cloned_rhs = rhs.clone();
+            self.zero_out_if_condition_is_false(&mut cloned_rhs, &lhs.blocks[0]);
+            *lhs = cloned_rhs;
+            return;
+        }
+
+        let terms = rhs
+            .blocks
+            .par_iter()
+            .enumerate()
+            .filter_map(|(i, block)| {
+                if block.degree == Degree(0) {
+                    // Block is a trivial 0, no need to waste time multiplying
+                    None
+                } else {
+                    Some(self.unchecked_block_mul_parallelized(lhs, block, i))
+                }
+            })
+            .collect::<Vec<_>>();
 
         self.sum_multiplication_terms_into(lhs, terms);
     }
