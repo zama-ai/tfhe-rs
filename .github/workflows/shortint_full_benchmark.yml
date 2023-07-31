@@ -1,5 +1,5 @@
 # Run all shortint benchmarks on an AWS instance and return parsed results to Slab CI bot.
-name: Integer benchmarks
+name: Shortint full benchmarks
 
 on:
   workflow_dispatch:
@@ -26,10 +26,14 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 jobs:
-  prepare-benchmarks:
-    name: Prepare benchmarks environment
+  shortint-benchmarks:
+    name: Execute shortint benchmarks for all operations flavor
     runs-on: ${{ github.event.inputs.runner_name }}
     if: ${{ !cancelled() }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        op_flavor: [ default, smart, unchecked ]
     steps:
       - name: Instance configuration used
         run: |
@@ -38,26 +42,16 @@ jobs:
           echo "Type: ${{ inputs.instance_type }}"
           echo "Request ID: ${{ inputs.request_id }}"
 
+      - name: Checkout tfhe-rs repo with tags
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        with:
+          fetch-depth: 0
+
       - name: Get benchmark details
         run: |
           echo "BENCH_DATE=$(date --iso-8601=seconds)" >> "${GITHUB_ENV}"
           echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})" >> "${GITHUB_ENV}"
           echo "COMMIT_HASH=$(git describe --tags --dirty)" >> "${GITHUB_ENV}"
-
-  shortint-benchmarks:
-    name: Execute shortint benchmarks for all operations flavor
-    runs-on: ${{ github.event.inputs.runner_name }}
-    if: ${{ !cancelled() }}
-    needs: prepare-benchmarks
-    strategy:
-      max-parallel: 1
-      matrix:
-        op_flavor: [ default, smart, unchecked ]
-    steps:
-      - name: Checkout tfhe-rs repo with tags
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          fetch-depth: 0
 
       - name: Set up home
         # "Install rust" step require root user to have a HOME directory which is not set.
@@ -133,7 +127,7 @@ jobs:
     name: Slack Notification
     runs-on: ${{ github.event.inputs.runner_name }}
     if: ${{ failure() }}
-    needs: integer-benchmarks
+    needs: shortint-benchmarks
     steps:
       - name: Notify
         continue-on-error: true
