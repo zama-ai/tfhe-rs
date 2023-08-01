@@ -25,6 +25,8 @@ use super::ServerKey;
 use crate::integer::ciphertext::RadixCiphertext;
 pub use scalar_div_mod::{MiniUnsignedInteger, Reciprocable};
 
+use rayon::prelude::*;
+
 // parallelized versions
 impl ServerKey {
     /// Propagate the carry of the 'index' block to the next one.
@@ -67,9 +69,40 @@ impl ServerKey {
     }
 
     pub fn partial_propagate_parallelized(&self, ctxt: &mut RadixCiphertext, start_index: usize) {
-        let len = ctxt.blocks.len();
-        for i in start_index..len {
-            self.propagate_parallelized(ctxt, i);
+        // The fully parallelized way introduces more work
+        // and so is slower for low number of blocks
+        const MIN_NUM_BLOCKS: usize = 6;
+        if self.is_eligible_for_parallel_carryless_add() && ctxt.blocks.len() >= MIN_NUM_BLOCKS {
+            let num_blocks = ctxt.blocks.len();
+
+            let (mut message_blocks, carry_blocks) = rayon::join(
+                || {
+                    ctxt.blocks[start_index..]
+                        .par_iter()
+                        .map(|block| self.key.message_extract(block))
+                        .collect::<Vec<_>>()
+                },
+                || {
+                    let mut carry_blocks = Vec::with_capacity(num_blocks);
+                    // No need to compute the carry of the last block, we would just throw it away
+                    ctxt.blocks[start_index..num_blocks - 1]
+                        .par_iter()
+                        .map(|block| self.key.carry_extract(block))
+                        .collect_into_vec(&mut carry_blocks);
+                    carry_blocks.insert(0, self.key.create_trivial(0));
+                    carry_blocks
+                },
+            );
+
+            ctxt.blocks[start_index..].swap_with_slice(&mut message_blocks);
+            let carries = RadixCiphertext::from(carry_blocks);
+            self.unchecked_add_assign_parallelized(ctxt, &carries);
+            self.propagate_single_carry_parallelized_low_latency(ctxt)
+        } else {
+            let len = ctxt.blocks.len();
+            for i in start_index..len {
+                self.propagate_parallelized(ctxt, i);
+            }
         }
     }
 
