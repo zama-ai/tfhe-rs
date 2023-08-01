@@ -425,30 +425,8 @@ impl ServerKey {
             self.unchecked_add_assign(result, term);
         }
 
-        let (mut message_blocks, carry_blocks) = rayon::join(
-            || {
-                result
-                    .blocks
-                    .par_iter()
-                    .map(|block| self.key.message_extract(block))
-                    .collect::<Vec<_>>()
-            },
-            || {
-                let mut carry_blocks = Vec::with_capacity(num_blocks);
-                result.blocks[..num_blocks - 1] // last carry is not interesting
-                    .par_iter()
-                    .map(|block| self.key.carry_extract(block))
-                    .collect_into_vec(&mut carry_blocks);
-                carry_blocks.insert(0, self.key.create_trivial(0));
-                carry_blocks
-            },
-        );
-
-        std::mem::swap(&mut lhs.blocks, &mut message_blocks);
-
-        let carry = RadixCiphertext::from(carry_blocks);
-        self.add_assign_parallelized(lhs, &carry);
-
+        std::mem::swap(&mut lhs.blocks, &mut result.blocks);
+        self.full_propagate_parallelized(lhs);
         assert!(lhs.block_carries_are_empty());
     }
 
