@@ -7,7 +7,6 @@ use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, ServerKey};
 use lazy_static::*;
-use paste::paste;
 use serde::{Deserialize, Serialize};
 
 pub use utils::{
@@ -37,32 +36,29 @@ pub mod utils {
     }
 
     #[macro_export]
-    macro_rules! expose_params_name(
-        ( $($const_param:ident),* $(,)? ) => {
+    macro_rules! named_params_impl(
+        (expose $($const_param:ident),* $(,)? ) => {
             $(
-                paste! {
+                paste::paste! {
                     pub const [<$const_param _NAME>]: &'static str = stringify!($const_param);
                 }
             )*
-        }
-    );
+        };
 
-    #[macro_export]
-    macro_rules! named_params_impl(
-        ( $($const_param:ident),* $(,)? ) => {
-            expose_params_name!($($const_param),*);
+        ($param_type:ty => $($const_param:ident),* $(,)? ) => {
+            named_params_impl!(expose $($const_param),*);
 
-            impl NamedParam for ShortintParameterSet {
+            impl NamedParam for $param_type {
                 fn name(&self) -> &'static str {
-                    named_params_impl!({ *self } == ( $($const_param),* ));
+                    named_params_impl!({*self; $param_type} == ( $($const_param),* ));
                 }
             }
         };
 
-        ( { $thing:expr } == ( $($const_param:ident),* $(,)? )) => {
+        ({$thing:expr; $param_type:ty} == ( $($const_param:ident),* $(,)? )) => {
             $(
-                paste! {
-                    if $thing == $crate::shortint::parameters::ShortintParameterSet::from($const_param) {
+                paste::paste! {
+                    if $thing == <$param_type>::from($const_param) {
                         return [<$const_param _NAME>];
                     }
                 }
@@ -234,7 +230,7 @@ pub mod utils {
     }
 }
 
-named_params_impl!(
+named_params_impl!( ShortintParameterSet =>
     PARAM_MESSAGE_1_CARRY_0_KS_PBS,
     PARAM_MESSAGE_1_CARRY_1_KS_PBS,
     PARAM_MESSAGE_1_CARRY_2_KS_PBS,
