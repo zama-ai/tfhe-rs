@@ -1,2 +1,14 @@
 # Placeholder workflow file allowing running it without having to merge to main first
 name: Placeholder Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    name: Placeholder
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          echo "Hello this is a Placeholder Workflow"
