@@ -702,42 +702,42 @@ define_server_key_bench_scalar_default_fn!(
 );
 define_server_key_bench_scalar_default_fn!(
     method_name: scalar_eq_parallelized,
-    display_name: scalar_equal,
+    display_name: equal,
     rng_func: default_scalar
 );
 define_server_key_bench_scalar_default_fn!(
     method_name: scalar_ne_parallelized,
-    display_name: scalar_not_equal,
+    display_name: not_equal,
     rng_func: default_scalar
 );
 define_server_key_bench_scalar_default_fn!(
     method_name: scalar_le_parallelized,
-    display_name: scalar_less_or_equal,
+    display_name: less_or_equal,
     rng_func: default_scalar
 );
 define_server_key_bench_scalar_default_fn!(
     method_name: scalar_lt_parallelized,
-    display_name: scalar_less_than,
+    display_name: less_than,
     rng_func: default_scalar
 );
 define_server_key_bench_scalar_default_fn!(
     method_name: scalar_ge_parallelized,
-    display_name: scalar_greater_or_equal,
+    display_name: greater_or_equal,
     rng_func: default_scalar
 );
 define_server_key_bench_scalar_default_fn!(
     method_name: scalar_gt_parallelized,
-    display_name: scalar_greater_than,
+    display_name: greater_than,
     rng_func: default_scalar
 );
 define_server_key_bench_scalar_default_fn!(
     method_name: scalar_max_parallelized,
-    display_name: scalar_max,
+    display_name: max,
     rng_func: default_scalar
 );
 define_server_key_bench_scalar_default_fn!(
     method_name: scalar_min_parallelized,
-    display_name: scalar_min,
+    display_name: min,
     rng_func: default_scalar
 );
 
