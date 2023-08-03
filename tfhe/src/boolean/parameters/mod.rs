@@ -106,15 +106,15 @@ impl BooleanKeySwitchingParameters {
 /// This parameter set allows to evaluate faster Boolean circuits than the `TFHE_LIB_PARAMETERS`
 /// one.
 pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(777),
-    glwe_dimension: GlweDimension(3),
+    lwe_dimension: LweDimension(722),
+    glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.000003725679281679651),
-    glwe_modular_std_dev: StandardDev(0.0000000000034525330484572114),
-    pbs_base_log: DecompositionBaseLog(18),
-    pbs_level: DecompositionLevelCount(1),
-    ks_base_log: DecompositionBaseLog(4),
-    ks_level: DecompositionLevelCount(3),
+    lwe_modular_std_dev: StandardDev(0.000013071021089943935),
+    glwe_modular_std_dev: StandardDev(0.00000004990272175010415),
+    pbs_base_log: DecompositionBaseLog(6),
+    pbs_level: DecompositionLevelCount(3),
+    ks_base_log: DecompositionBaseLog(3),
+    ks_level: DecompositionLevelCount(4),
 };
 
 /// The secret keys generated with this parameter set are uniform binary.
@@ -123,13 +123,13 @@ pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
 /// They are updated to the last security standards, so they differ from the original
 /// publication.
 pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(830),
+    lwe_dimension: LweDimension(767),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000001412290588219445),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_base_log: DecompositionBaseLog(5),
-    ks_level: DecompositionLevelCount(3),
+    lwe_modular_std_dev: StandardDev(0.000005104350373791501),
+    glwe_modular_std_dev: StandardDev(0.0000000009313225746154785),
+    pbs_base_log: DecompositionBaseLog(10),
+    pbs_level: DecompositionLevelCount(2),
+    ks_base_log: DecompositionBaseLog(3),
+    ks_level: DecompositionLevelCount(5),
 };
