@@ -37,7 +37,13 @@ Each operation may come in different 'flavors':
 
 Not all operations have these 4 flavors, as some of them are implemented in a way that the operation is always possible without ever exceeding the plaintext space capacity.
 
+{% hint style="info" %}
+If you don't know which flavor to use, you should use the `default` one.
+{% endhint %}
+
+
 ## How to use operation types
+
 
 Let's try to do a circuit evaluation using the different flavors of operations that we have already introduced. For a very small circuit, the `unchecked` flavour may be enough to do the computation correctly. Otherwise,`checked` and `smart` are the best options.
 

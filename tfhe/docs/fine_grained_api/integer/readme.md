@@ -1,6 +1,6 @@
 # Tutorial
 
-`tfhe::integer` is dedicated to unsigned integers smaller than 256 bits. The steps to homomorphically evaluate an integer circuit are described here.
+`tfhe::integer` is dedicated to integers smaller than 256 bits. The steps to homomorphically evaluate an integer circuit are described here.
 
 ## Key Types
 
@@ -25,7 +25,7 @@ To generate the keys, a user needs two parameters:
 * A set of `shortint` cryptographic parameters.
 * The number of ciphertexts used to encrypt an integer (we call them "shortint blocks").
 
-We are now going to build a pair of keys that can encrypt an **8-bit** integer by using **4** shortint blocks that store **2** bits of message each.
+We are now going to build a pair of keys that can encrypt **8-bit** integers (signed or unsigned) by using **4** shortint blocks that store **2** bits of message each.
 
 ```rust
 use tfhe::integer::gen_keys_radix;

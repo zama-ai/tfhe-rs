@@ -1,6 +1,6 @@
 # Tutorial
 
-`tfhe::shortint` is dedicated to small unsigned integers smaller than 8 bits. The steps to homomorphically evaluate a circuit are described below.
+`tfhe::shortint` is dedicated to unsigned integers smaller than 8 bits. The steps to homomorphically evaluate a circuit are described below.
 
 ## Key generation
 
