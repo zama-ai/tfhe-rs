@@ -4,14 +4,19 @@ use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tfhe::boolean::client_key::ClientKey;
-use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS};
-use tfhe::boolean::prelude::BinaryBooleanGates;
+use tfhe::boolean::parameters::{
+    BooleanParameters, DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
+    PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
+};
+use tfhe::boolean::prelude::{BinaryBooleanGates, DEFAULT_PARAMETERS_KS_PBS};
 use tfhe::boolean::server_key::ServerKey;
 
 criterion_group!(
     gates_benches,
     bench_default_parameters,
-    bench_tfhe_lib_parameters
+    bench_tfhe_lib_parameters,
+    bench_default_parameters_ks_pbs,
+    bench_tfhe_lib_parameters_pbs,
 );
 
 criterion_main!(gates_benches);
@@ -80,5 +85,20 @@ fn bench_default_parameters(c: &mut Criterion) {
 }
 
 fn bench_tfhe_lib_parameters(c: &mut Criterion) {
-    benchs(c, TFHE_LIB_PARAMETERS, "TFHE_LIB_PARAMETERS");
+    benchs(
+        c,
+        PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
+        "TFHE_LIB_PARAMETERS",
+    );
+}
+fn bench_default_parameters_ks_pbs(c: &mut Criterion) {
+    benchs(c, DEFAULT_PARAMETERS_KS_PBS, "DEFAULT_PARAMETERS_KS_PBS");
+}
+
+fn bench_tfhe_lib_parameters_pbs(c: &mut Criterion) {
+    benchs(
+        c,
+        PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
+        "TFHE_LIB_PARAMETERS_KS_PBS",
+    );
 }

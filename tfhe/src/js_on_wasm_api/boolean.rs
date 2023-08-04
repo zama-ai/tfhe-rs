@@ -32,6 +32,8 @@ pub struct BooleanParameters(pub(crate) crate::boolean::parameters::BooleanParam
 pub enum BooleanParameterSet {
     Default,
     TfheLib,
+    DefaultKsPbs,
+    TfheLibKsPbs,
 }
 
 impl TryFrom<u32> for BooleanParameterSet {
@@ -41,10 +43,33 @@ impl TryFrom<u32> for BooleanParameterSet {
         match value {
             0 => Ok(BooleanParameterSet::Default),
             1 => Ok(BooleanParameterSet::TfheLib),
+            2 => Ok(BooleanParameterSet::DefaultKsPbs),
+            3 => Ok(BooleanParameterSet::TfheLibKsPbs),
             _ => Err(format!(
                 "Invalid value '{value}' for BooleansParametersSet, use \
                 BooleanParameterSet constants"
             )),
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub enum BooleanEncryptionKeyChoice {
+    Big,
+    Small,
+}
+
+impl From<BooleanEncryptionKeyChoice>
+    for crate::core_crypto::commons::parameters::EncryptionKeyChoice
+{
+    fn from(value: BooleanEncryptionKeyChoice) -> Self {
+        match value {
+            BooleanEncryptionKeyChoice::Big => {
+                crate::shortint::parameters::EncryptionKeyChoice::Big
+            }
+            BooleanEncryptionKeyChoice::Small => {
+                crate::shortint::parameters::EncryptionKeyChoice::Small
+            }
         }
     }
 }
@@ -59,7 +84,15 @@ impl Boolean {
 
         match parameter_choice {
             BooleanParameterSet::Default => Ok(crate::boolean::parameters::DEFAULT_PARAMETERS),
-            BooleanParameterSet::TfheLib => Ok(crate::boolean::parameters::TFHE_LIB_PARAMETERS),
+            BooleanParameterSet::TfheLib => {
+                Ok(crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165)
+            }
+            BooleanParameterSet::DefaultKsPbs => {
+                Ok(crate::boolean::parameters::DEFAULT_PARAMETERS_KS_PBS)
+            }
+            BooleanParameterSet::TfheLibKsPbs => {
+                Ok(crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS)
+            }
         }
         .map(BooleanParameters)
     }
@@ -76,6 +109,7 @@ impl Boolean {
         pbs_level: usize,
         ks_base_log: usize,
         ks_level: usize,
+        encryption_key_choice: BooleanEncryptionKeyChoice,
     ) -> BooleanParameters {
         set_hook(Box::new(console_error_panic_hook::hook));
         use crate::core_crypto::prelude::*;
@@ -89,6 +123,7 @@ impl Boolean {
             pbs_level: DecompositionLevelCount(pbs_level),
             ks_base_log: DecompositionBaseLog(ks_base_log),
             ks_level: DecompositionLevelCount(ks_level),
+            encryption_key_choice: encryption_key_choice.into(),
         })
     }
 

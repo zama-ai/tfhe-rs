@@ -5,7 +5,9 @@ use rayon::prelude::*;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use serde::Serialize;
-use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS};
+use tfhe::boolean::parameters::{
+    BooleanParameters, DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
+};
 use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
@@ -31,7 +33,10 @@ const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 15] = [
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
     ("BOOLEAN_DEFAULT_PARAMS", DEFAULT_PARAMETERS),
-    ("BOOLEAN_TFHE_LIB_PARAMS", TFHE_LIB_PARAMETERS),
+    (
+        "BOOLEAN_TFHE_LIB_PARAMS",
+        PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
+    ),
 ];
 
 criterion_group!(

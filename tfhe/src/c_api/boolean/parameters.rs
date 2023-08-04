@@ -5,6 +5,43 @@ use crate::core_crypto::commons::parameters::{
 
 #[repr(C)]
 #[derive(Copy, Clone)]
+pub enum BooleanEncryptionKeyChoice {
+    BooleanEncryptionKeyChoiceBig,
+    BooleanEncryptionKeyChoiceSmall,
+}
+
+impl From<BooleanEncryptionKeyChoice>
+    for crate::core_crypto::commons::parameters::EncryptionKeyChoice
+{
+    fn from(value: BooleanEncryptionKeyChoice) -> Self {
+        match value {
+            BooleanEncryptionKeyChoice::BooleanEncryptionKeyChoiceBig => {
+                crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big
+            }
+            BooleanEncryptionKeyChoice::BooleanEncryptionKeyChoiceSmall => {
+                crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small
+            }
+        }
+    }
+}
+
+impl BooleanEncryptionKeyChoice {
+    // From::from cannot be marked as const, so we have to have
+    // our own function
+    const fn convert(rust_choice: crate::shortint::EncryptionKeyChoice) -> Self {
+        match rust_choice {
+            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big => {
+                Self::BooleanEncryptionKeyChoiceBig
+            }
+            crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small => {
+                Self::BooleanEncryptionKeyChoiceSmall
+            }
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct BooleanParameters {
     pub lwe_dimension: usize,
     pub glwe_dimension: usize,
@@ -15,6 +52,7 @@ pub struct BooleanParameters {
     pub pbs_level: usize,
     pub ks_base_log: usize,
     pub ks_level: usize,
+    pub encryption_key_choice: BooleanEncryptionKeyChoice,
 }
 
 impl From<BooleanParameters> for crate::boolean::parameters::BooleanParameters {
@@ -29,6 +67,7 @@ impl From<BooleanParameters> for crate::boolean::parameters::BooleanParameters {
             pbs_level: DecompositionLevelCount(c_params.pbs_level),
             ks_base_log: DecompositionBaseLog(c_params.ks_base_log),
             ks_level: DecompositionLevelCount(c_params.ks_level),
+            encryption_key_choice: c_params.encryption_key_choice.into(),
         }
     }
 }
@@ -51,6 +90,9 @@ impl BooleanParameters {
             pbs_level: rust_params.pbs_level.0,
             ks_base_log: rust_params.ks_base_log.0,
             ks_level: rust_params.ks_level.0,
+            encryption_key_choice: BooleanEncryptionKeyChoice::convert(
+                rust_params.encryption_key_choice,
+            ),
         }
     }
 }
@@ -61,4 +103,14 @@ pub static BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS: BooleanParameters =
 
 #[no_mangle]
 pub static BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS: BooleanParameters =
-    BooleanParameters::convert(crate::boolean::parameters::TFHE_LIB_PARAMETERS);
+    BooleanParameters::convert(crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+
+#[no_mangle]
+pub static BOOLEAN_PARAMETERS_SET_DEFAULT_PARAMETERS_KS_PBS: BooleanParameters =
+    BooleanParameters::convert(crate::boolean::parameters::DEFAULT_PARAMETERS_KS_PBS);
+
+#[no_mangle]
+pub static BOOLEAN_PARAMETERS_SET_TFHE_LIB_PARAMETERS_KS_PBS: BooleanParameters =
+    BooleanParameters::convert(
+        crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
+    );

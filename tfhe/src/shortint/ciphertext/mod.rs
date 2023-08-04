@@ -1,4 +1,5 @@
 //! Module with the definition of the Ciphertext.
+pub use crate::core_crypto::commons::parameters::PBSOrder;
 use crate::core_crypto::entities::*;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
@@ -8,20 +9,6 @@ use std::fmt::Debug;
 /// This tracks the number of operations that has been done.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct Degree(pub usize);
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum PBSOrder {
-    /// Ciphertext is encrypted using the big LWE secret key corresponding to the GLWE secret key.
-    ///
-    /// A keyswitch is first performed to bring it to the small LWE secret key realm, then the PBS
-    /// is computed bringing it back to the large LWE secret key.
-    KeyswitchBootstrap = 0,
-    /// Ciphertext is encrypted using the small LWE secret key.
-    ///
-    /// The PBS is computed first and a keyswitch is applied to get back to the small LWE secret
-    /// key realm.
-    BootstrapKeyswitch = 1,
-}
 
 impl Degree {
     pub(crate) fn after_bitxor(&self, other: Degree) -> Degree {

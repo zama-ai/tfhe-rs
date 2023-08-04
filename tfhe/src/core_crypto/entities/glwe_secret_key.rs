@@ -110,6 +110,11 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
         LweSecretKey::from_container(self.data)
     }
 
+    /// Borrowes and returns the [`GlweSecretKey`] views as an [`LweSecretKey`].
+    pub fn as_lwe_secret_key(&self) -> LweSecretKey<&[C::Element]> {
+        LweSecretKey::from_container(self.data.as_ref())
+    }
+
     /// Interpret the [`GlweSecretKey`] as a [`PolynomialList`].
     pub fn as_polynomial_list(&self) -> PolynomialListView<'_, C::Element> {
         PolynomialListView::from_container(self.as_ref(), self.polynomial_size)
