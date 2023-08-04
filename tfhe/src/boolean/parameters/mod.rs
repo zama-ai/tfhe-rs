@@ -150,8 +150,8 @@ pub fn format_lwe_parameters_to_lattice_estimator(param: BooleanParameters) -> S
         .get_modular_standard_dev(log_ciphertext_modulus);
 
     format!(
-        "{}_LWE = LWE.Parameters(\n n = {},\n q = 4294967296,\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_lwe' \n)\n\n",
-        param.name(), param.lwe_dimension.0, modular_std_dev, param.name())
+        "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_lwe' \n)\n\n",
+        param.name(), param.lwe_dimension.0, (1u128<<log_ciphertext_modulus as u128), modular_std_dev, param.name())
 }
 
 ///Function to print in the lattice_estimator format the parameters
@@ -163,8 +163,8 @@ pub fn format_glwe_parameters_to_lattice_estimator(param: BooleanParameters) -> 
         .get_modular_standard_dev(log_ciphertext_modulus);
 
     format!(
-        "{}_GLWE = LWE.Parameters(\n n = {},\n q = 4294967296,\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_glwe' \n)\n\n",
-        param.name(), param.glwe_dimension.0*param.polynomial_size.0, modular_std_dev, param.name())
+        "{}_GLWE = LWE.Parameters(\n n = {},\n q = {},\n Xs=ND.UniformMod(2), \n Xe=ND.DiscreteGaussian({}),\n tag='{}_glwe' \n)\n\n",
+        param.name(), param.glwe_dimension.0*param.polynomial_size.0, (1u128<<log_ciphertext_modulus as u128), modular_std_dev, param.name())
 }
 
 pub fn write_all_param_in_file(vec_boolean_param: &[BooleanParameters]) {
@@ -192,8 +192,12 @@ pub fn write_all_param_in_file(vec_boolean_param: &[BooleanParameters]) {
 
 #[test]
 pub fn test_format_le() {
-    write_all_param_in_file(&VEC_BOOLEAN_PARAM);
-    //panic!();
+    //write_all_param_in_file(&VEC_BOOLEAN_PARAM);
+    println!(
+        "{}",
+        format_glwe_parameters_to_lattice_estimator(DEFAULT_PARAMETERS)
+    );
+    panic!();
 }
 impl NamedParam for BooleanParameters {
     fn name(&self) -> &'static str {
