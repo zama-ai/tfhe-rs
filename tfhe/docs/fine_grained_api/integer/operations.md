@@ -17,7 +17,7 @@ This crate implements two ways to represent an integer:
 
 The first possibility to represent a large integer is to use a Radix-based decomposition on the plaintexts. Let $$B \in \mathbb{N}$$ be a basis such that the size of $$B$$ is smaller than (or equal to) 4 bits. Then, an integer $$m \in \mathbb{N}$$ can be written as $$m = m_0 + m_1*B + m_2*B^2 + ...$$, where each $$m_i$$ is strictly smaller than $$B$$. Each $$m_i$$ is then independently encrypted. In the end, an Integer ciphertext is defined as a set of shortint ciphertexts.
 
-The definition of an integer requires a basis and a number of blocks. This is done at key generation. Below, the keys are dedicated to unsigned integers encrypting messages over 8 bits, using a basis over 2 bits (i.e., $$B=2^2$$) and 4 blocks.
+The definition of an integer requires a basis and a number of blocks. These parameters are chosen at key generation. Below, the keys are dedicated to integers encrypting messages over 8 bits, using a basis over 2 bits (i.e., $$B=2^2$$) and 4 blocks.
 
 ```rust
 use tfhe::integer::gen_keys_radix;
@@ -92,6 +92,10 @@ Each operation may come in different 'flavors':
 * `default`: always compute the operation and always clear the carry. Could be **slower** than smart, but ensure that the timings are consistent from one call to another.
 
 Not all operations have these 4 flavors, as some of them are implemented in a way that the operation is always possible without ever exceeding the plaintext space capacity.
+
+{% hint style="info" %}
+If you don't know which flavor to use, you should use the `default` one.
+{% endhint %}
 
 ## How to use each operation type
 
@@ -210,6 +214,14 @@ fn main() {
     assert_eq!(output, ((msg1 * scalar as u64 - msg2) + msg3) % modulus as u64);
 }
 ```
+
+{% hint style="warning" %}
+You must avoid cloning the inputs when calling `smart` operations to preserve performance. For instance, you SHOULD NOT have these kind of patterns in the code:
+```Rust
+sks.smart_add(&mut a.clone(), &mut b.clone());
+```
+{% endhint %}
+
 
 The main advantage of the default flavor is to ensure predictable timings, as long as only this kind of operation is used. Only the parallelized version of the operations is provided.
 
