@@ -232,3 +232,32 @@ impl LweBskGroupingFactor {
 /// The number of GGSW ciphertexts required per multi_bit BSK element
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct GgswPerLweMultiBitBskElement(pub usize);
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub enum EncryptionKeyChoice {
+    Big,
+    Small,
+}
+
+impl From<EncryptionKeyChoice> for PBSOrder {
+    fn from(value: EncryptionKeyChoice) -> Self {
+        match value {
+            EncryptionKeyChoice::Big => Self::KeyswitchBootstrap,
+            EncryptionKeyChoice::Small => Self::BootstrapKeyswitch,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PBSOrder {
+    /// Ciphertext is encrypted using the big LWE secret key corresponding to the GLWE secret key.
+    ///
+    /// A keyswitch is first performed to bring it to the small LWE secret key realm, then the PBS
+    /// is computed bringing it back to the large LWE secret key.
+    KeyswitchBootstrap = 0,
+    /// Ciphertext is encrypted using the small LWE secret key.
+    ///
+    /// The PBS is computed first and a keyswitch is applied to get back to the small LWE secret
+    /// key realm.
+    BootstrapKeyswitch = 1,
+}

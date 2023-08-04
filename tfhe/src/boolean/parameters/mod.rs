@@ -20,11 +20,24 @@
 
 pub use crate::core_crypto::commons::dispersion::StandardDev;
 pub use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
+    DecompositionBaseLog, DecompositionLevelCount, EncryptionKeyChoice, GlweDimension,
+    LweDimension, PolynomialSize,
 };
 use serde::{Deserialize, Serialize};
 
 /// A set of cryptographic parameters for homomorphic Boolean circuit evaluation.
+/// The choice of encryption key for (`boolean ciphertext`)[`super::ciphertext::Ciphertext`].
+///
+/// * The `Big` choice means the big LWE key derived from the GLWE key is used to encrypt the input
+///   ciphertext. This offers better performance but the (`public
+///   key`)[`super::public_key::PublicKey`] can be extremely large and in some cases may not fit in
+///   memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
+///   first followed by a keyswitch.
+/// * The `Small` choice means the small LWE key is used to encrypt the input ciphertext.
+///   Performance is not as good as in the `Big` case but (`public
+///   key`)[`super::public_key::PublicKey`] sizes are much more manageable and shoud always fit in
+///   memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch is
+///   computed first followed by a PBS.
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BooleanParameters {
     pub lwe_dimension: LweDimension,
@@ -36,6 +49,7 @@ pub struct BooleanParameters {
     pub pbs_level: DecompositionLevelCount,
     pub ks_base_log: DecompositionBaseLog,
     pub ks_level: DecompositionLevelCount,
+    pub encryption_key_choice: EncryptionKeyChoice,
 }
 
 impl BooleanParameters {
@@ -58,6 +72,7 @@ impl BooleanParameters {
         pbs_level: DecompositionLevelCount,
         ks_base_log: DecompositionBaseLog,
         ks_level: DecompositionLevelCount,
+        encryption_key_choice: EncryptionKeyChoice,
     ) -> BooleanParameters {
         BooleanParameters {
             lwe_dimension,
@@ -69,6 +84,7 @@ impl BooleanParameters {
             pbs_level,
             ks_level,
             ks_base_log,
+            encryption_key_choice,
         }
     }
 }
@@ -79,6 +95,7 @@ pub struct BooleanKeySwitchingParameters {
     pub ks_base_log: DecompositionBaseLog,
     pub ks_level: DecompositionLevelCount,
 }
+
 impl BooleanKeySwitchingParameters {
     /// Constructs a new set of parameters for boolean circuit evaluation.
     ///
@@ -106,30 +123,72 @@ impl BooleanKeySwitchingParameters {
 /// This parameter set allows to evaluate faster Boolean circuits than the `TFHE_LIB_PARAMETERS`
 /// one.
 pub const DEFAULT_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(777),
-    glwe_dimension: GlweDimension(3),
+    lwe_dimension: LweDimension(722),
+    glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(512),
-    lwe_modular_std_dev: StandardDev(0.000003725679281679651),
-    glwe_modular_std_dev: StandardDev(0.0000000000034525330484572114),
-    pbs_base_log: DecompositionBaseLog(18),
-    pbs_level: DecompositionLevelCount(1),
-    ks_base_log: DecompositionBaseLog(4),
-    ks_level: DecompositionLevelCount(3),
+    lwe_modular_std_dev: StandardDev(0.000013071021089943935),
+    glwe_modular_std_dev: StandardDev(0.00000004990272175010415),
+    pbs_base_log: DecompositionBaseLog(6),
+    pbs_level: DecompositionLevelCount(3),
+    ks_base_log: DecompositionBaseLog(3),
+    ks_level: DecompositionLevelCount(4),
+    encryption_key_choice: EncryptionKeyChoice::Small,
+};
+
+pub const DEFAULT_PARAMETERS_KS_PBS: BooleanParameters = BooleanParameters {
+    lwe_dimension: LweDimension(664),
+    glwe_dimension: GlweDimension(2),
+    polynomial_size: PolynomialSize(512),
+    lwe_modular_std_dev: StandardDev(0.00003808282923459771),
+    glwe_modular_std_dev: StandardDev(0.00000004990272175010415),
+    pbs_base_log: DecompositionBaseLog(6),
+    pbs_level: DecompositionLevelCount(3),
+    ks_base_log: DecompositionBaseLog(3),
+    ks_level: DecompositionLevelCount(4),
+    encryption_key_choice: EncryptionKeyChoice::Big,
 };
 
 /// The secret keys generated with this parameter set are uniform binary.
-/// This parameter set ensures a probability of error upper-bounded by $2^{-165}$ as the ones
-/// proposed into [TFHE library](https://tfhe.github.io/tfhe/) for for 128-bits of security.
-/// They are updated to the last security standards, so they differ from the original
-/// publication.
-pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
-    lwe_dimension: LweDimension(830),
+/// This parameter set ensures a probability of error upper-bounded by $2^{-165}$
+/// for for 128-bits of security.
+pub const PARAMETERS_ERROR_PROB_2_POW_MINUS_165: BooleanParameters = BooleanParameters {
+    lwe_dimension: LweDimension(767),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(0.000001412290588219445),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
-    pbs_base_log: DecompositionBaseLog(23),
-    pbs_level: DecompositionLevelCount(1),
-    ks_base_log: DecompositionBaseLog(5),
-    ks_level: DecompositionLevelCount(3),
+    lwe_modular_std_dev: StandardDev(0.000005104350373791501),
+    glwe_modular_std_dev: StandardDev(0.0000000009313225746154785),
+    pbs_base_log: DecompositionBaseLog(10),
+    pbs_level: DecompositionLevelCount(2),
+    ks_base_log: DecompositionBaseLog(3),
+    ks_level: DecompositionLevelCount(5),
+    encryption_key_choice: EncryptionKeyChoice::Small,
+};
+
+pub const PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS: BooleanParameters = BooleanParameters {
+    lwe_dimension: LweDimension(700),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(1024),
+    lwe_modular_std_dev: StandardDev(0.0000196095987892077),
+    glwe_modular_std_dev: StandardDev(0.00000004990272175010415),
+    pbs_base_log: DecompositionBaseLog(5),
+    pbs_level: DecompositionLevelCount(4),
+    ks_base_log: DecompositionBaseLog(2),
+    ks_level: DecompositionLevelCount(7),
+    encryption_key_choice: EncryptionKeyChoice::Big,
+};
+
+/// Parameter sets given in TFHE-lib:
+/// <https://github.com/tfhe/tfhe/blob/bc71bfae7ad9d5f8ce5f29bdfd691189bfe207f3/src/libtfhe/tfhe_gate_bootstrapping.cpp#L51>
+/// Original security in 2020 was 129-bits, while it is currently around 120 bits.
+pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
+    lwe_dimension: LweDimension(630),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(1024),
+    lwe_modular_std_dev: StandardDev(0.000005104350373791501),
+    glwe_modular_std_dev: StandardDev(0.0000000009313225746154785),
+    pbs_base_log: DecompositionBaseLog(7),
+    pbs_level: DecompositionLevelCount(3),
+    ks_base_log: DecompositionBaseLog(2),
+    ks_level: DecompositionLevelCount(8),
+    encryption_key_choice: EncryptionKeyChoice::Small,
 };
