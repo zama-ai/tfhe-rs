@@ -1,11 +1,11 @@
 use tfhe::boolean::client_key::ClientKey;
-use tfhe::boolean::parameters::TFHE_LIB_PARAMETERS;
+use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
 use tfhe::boolean::prelude::BinaryBooleanGates;
 use tfhe::boolean::server_key::ServerKey;
 
 fn main() {
     // let (cks, sks) = gen_keys();
-    let cks = ClientKey::new(&TFHE_LIB_PARAMETERS);
+    let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     let sks = ServerKey::new(&cks);
 
     let left = false;

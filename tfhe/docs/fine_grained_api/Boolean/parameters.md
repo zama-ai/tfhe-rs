@@ -38,6 +38,7 @@ fn main() {
             DecompositionLevelCount(2),
             DecompositionBaseLog(2),
             DecompositionLevelCount(5),
+            EncryptionKeyChoice::Small,
         )
     };
 }

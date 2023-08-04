@@ -59,6 +59,144 @@ mod default_parameters_tests {
     }
 }
 
+mod low_prob_parameters_tests {
+    use super::*;
+    use crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
+
+    #[test]
+    fn test_encrypt_decrypt_lwe_secret_key_low_prob() {
+        test_encrypt_decrypt_lwe_secret_key(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+    #[test]
+    fn test_and_gate_low_prob() {
+        test_and_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+    #[test]
+    fn test_nand_gate_low_prob() {
+        test_nand_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+    #[test]
+    fn test_or_gate_low_prob() {
+        test_or_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+    #[test]
+    fn test_nor_gate_low_prob() {
+        test_nor_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+    #[test]
+    fn test_xor_gate_low_prob() {
+        test_xor_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+    #[test]
+    fn test_xnor_gate_low_prob() {
+        test_xnor_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+    #[test]
+    fn test_not_gate_low_prob() {
+        test_not_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+    #[test]
+    fn test_mux_gate_low_prob() {
+        test_mux_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+    #[test]
+    fn test_deep_circuit_low_prob() {
+        test_deep_circuit(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
+    }
+}
+
+mod default_parameters_ks_pbs_tests {
+    use super::*;
+    use crate::boolean::parameters::DEFAULT_PARAMETERS_KS_PBS;
+
+    #[test]
+    fn test_encrypt_decrypt_lwe_secret_key_default_parameters_ks_pbs() {
+        test_encrypt_decrypt_lwe_secret_key(DEFAULT_PARAMETERS_KS_PBS);
+    }
+    #[test]
+    fn test_and_gate_default_parameters_ks_pbs() {
+        test_and_gate(DEFAULT_PARAMETERS_KS_PBS);
+    }
+    #[test]
+    fn test_nand_gate_default_parameters_ks_pbs() {
+        test_nand_gate(DEFAULT_PARAMETERS_KS_PBS);
+    }
+    #[test]
+    fn test_or_gate_default_parameters_ks_pbs() {
+        test_or_gate(DEFAULT_PARAMETERS_KS_PBS);
+    }
+    #[test]
+    fn test_nor_gate_default_parameters_ks_pbs() {
+        test_nor_gate(DEFAULT_PARAMETERS_KS_PBS);
+    }
+    #[test]
+    fn test_xor_gate_default_parameters_ks_pbs() {
+        test_xor_gate(DEFAULT_PARAMETERS_KS_PBS);
+    }
+    #[test]
+    fn test_xnor_gate_default_parameters_ks_pbs() {
+        test_xnor_gate(DEFAULT_PARAMETERS_KS_PBS);
+    }
+    #[test]
+    fn test_not_gate_default_parameters_ks_pbs() {
+        test_not_gate(DEFAULT_PARAMETERS_KS_PBS);
+    }
+    #[test]
+    fn test_mux_gate_default_parameters_ks_pbs() {
+        test_mux_gate(DEFAULT_PARAMETERS_KS_PBS);
+    }
+    #[test]
+    fn test_deep_circuit_default_parameters_ks_pbs() {
+        test_deep_circuit(DEFAULT_PARAMETERS_KS_PBS);
+    }
+}
+
+mod low_prob_parameters_ks_pbs_tests {
+    use super::*;
+    use crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS;
+
+    #[test]
+    fn test_encrypt_decrypt_lwe_secret_key_low_probability_ks_pbs() {
+        test_encrypt_decrypt_lwe_secret_key(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+    #[test]
+    fn test_and_gate_low_probability_ks_pbs() {
+        test_and_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+    #[test]
+    fn test_nand_gate_low_probability_ks_pbs() {
+        test_nand_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+    #[test]
+    fn test_or_gate_low_probability_ks_pbs() {
+        test_or_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+    #[test]
+    fn test_nor_gate_low_probability_ks_pbs() {
+        test_nor_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+    #[test]
+    fn test_xor_gate_low_probability_ks_pbs() {
+        test_xor_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+    #[test]
+    fn test_xnor_gate_low_probability_ks_pbs() {
+        test_xnor_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+    #[test]
+    fn test_not_gate_low_probability_ks_pbs() {
+        test_not_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+    #[test]
+    fn test_mux_gate_low_probability_ks_pbs() {
+        test_mux_gate(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+    #[test]
+    fn test_deep_circuit_low_probability_ks_pbs() {
+        test_deep_circuit(PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS);
+    }
+}
+
 mod tfhe_lib_parameters_tests {
     use super::*;
     use crate::boolean::parameters::TFHE_LIB_PARAMETERS;
