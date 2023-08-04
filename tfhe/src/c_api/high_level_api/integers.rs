@@ -134,6 +134,26 @@ macro_rules! impl_operations_for_integer_type {
                 })
             }
         }
+
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$name:snake _if_then_else>](
+                condition_ct: *const $name,
+                then_ct: *const $name,
+                else_ct: *const $name,
+                result: *mut *mut $name,
+            ) -> c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    let condition_ct = &$crate::c_api::utils::get_ref_checked(condition_ct).unwrap().0;
+                    let then_ct = &$crate::c_api::utils::get_ref_checked(then_ct).unwrap().0;
+                    let else_ct = &$crate::c_api::utils::get_ref_checked(else_ct).unwrap().0;
+
+                    let r = condition_ct.if_then_else(then_ct, else_ct);
+
+                    *result = Box::into_raw(Box::new($name(r)));
+                })
+            }
+        }
     };
 }
 

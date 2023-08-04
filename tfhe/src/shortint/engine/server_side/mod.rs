@@ -619,12 +619,18 @@ impl ShortintEngine {
     where
         F: Fn(u64, u64) -> u64,
     {
-        // Generate the lookup table for the function
+        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            // We don't have enough space in carries, so clear them
+            self.message_extract_assign(server_key, ct_left)?;
+            self.message_extract_assign(server_key, ct_right)?;
+        }
         let factor = MessageModulus(ct_right.degree.0 + 1);
+
+        // Generate the lookup table for the function
         let lookup_table =
             self.generate_lookup_table_bivariate_with_factor(server_key, f, factor)?;
 
-        self.smart_apply_lookup_table_bivariate_assign(
+        self.unchecked_apply_lookup_table_bivariate_assign(
             server_key,
             ct_left,
             ct_right,
