@@ -1,8 +1,8 @@
 use crate::boolean::parameters::{
-    BooleanParameters, DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension,
-    PolynomialSize, StandardDev,
+    BooleanParameters, DecompositionBaseLog, DecompositionLevelCount, EncryptionKeyChoice,
+    GlweDimension, LweDimension, PolynomialSize, StandardDev,
 };
-pub use crate::boolean::parameters::{DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS};
+pub use crate::boolean::parameters::{DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165};
 
 use serde::{Deserialize, Serialize};
 
@@ -21,11 +21,12 @@ pub struct FheBoolParameters {
     pub pbs_level: DecompositionLevelCount,
     pub ks_base_log: DecompositionBaseLog,
     pub ks_level: DecompositionLevelCount,
+    pub encryption_key_choice: EncryptionKeyChoice,
 }
 
 impl FheBoolParameters {
     pub fn tfhe_lib() -> Self {
-        Self::from_static(&TFHE_LIB_PARAMETERS)
+        Self::from_static(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165)
     }
 
     fn from_static(params: &'static BooleanParameters) -> Self {
@@ -51,6 +52,7 @@ impl From<FheBoolParameters> for BooleanParameters {
             pbs_level: params.pbs_level,
             ks_base_log: params.ks_base_log,
             ks_level: params.ks_level,
+            encryption_key_choice: params.encryption_key_choice,
         }
     }
 }
@@ -67,6 +69,7 @@ impl From<BooleanParameters> for FheBoolParameters {
             pbs_level: params.pbs_level,
             ks_base_log: params.ks_base_log,
             ks_level: params.ks_level,
+            encryption_key_choice: params.encryption_key_choice,
         }
     }
 }

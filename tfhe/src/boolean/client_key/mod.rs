@@ -124,11 +124,11 @@ impl ClientKey {
     /// ```rust
     /// # fn main() {
     /// use tfhe::boolean::client_key::ClientKey;
-    /// use tfhe::boolean::parameters::TFHE_LIB_PARAMETERS;
+    /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
     /// use tfhe::boolean::prelude::*;
     ///
     /// // Generate the client key:
-    /// let cks = ClientKey::new(&TFHE_LIB_PARAMETERS);
+    /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     /// # }
     /// ```
     pub fn new(parameter_set: &BooleanParameters) -> ClientKey {

@@ -10,7 +10,6 @@ pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
-use crate::shortint::ciphertext::PBSOrder;
 use serde::{Deserialize, Serialize};
 
 pub mod key_switching;
@@ -20,37 +19,11 @@ pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub(crate) mod parameters_wopbs_prime_moduli;
 
+pub use crate::core_crypto::commons::parameters::EncryptionKeyChoice;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use multi_bit::*;
 pub use parameters_compact_pk::*;
 pub use parameters_wopbs::WopbsParameters;
-
-/// The choice of encryption key for (`shortint ciphertext`)[`super::ciphertext::Ciphertext`].
-///
-/// * The `Big` choice means the big LWE key derived from the GLWE key is used to encrypt the input
-///   ciphertext. This offers better performance but the (`public
-///   key`)[`super::public_key::PublicKey`] can be extremely large and in some cases may not fit in
-///   memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
-///   first followed by a keyswitch.
-/// * The `Small` choice means the small LWE key is used to encrypt the input ciphertext.
-///   Performance is not as good as in the `Big` case but (`public
-///   key`)[`super::public_key::PublicKey`] sizes are much more manageable and shoud always fit in
-///   memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch is
-///   computed first followed by a PBS.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub enum EncryptionKeyChoice {
-    Big,
-    Small,
-}
-
-impl From<EncryptionKeyChoice> for PBSOrder {
-    fn from(value: EncryptionKeyChoice) -> Self {
-        match value {
-            EncryptionKeyChoice::Big => Self::KeyswitchBootstrap,
-            EncryptionKeyChoice::Small => Self::BootstrapKeyswitch,
-        }
-    }
-}
 
 /// The number of bits on which the message will be encoded.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -65,6 +38,19 @@ pub type CiphertextModulus = CoreCiphertextModulus<u64>;
 
 /// A structure defining the set of cryptographic parameters for homomorphic integer circuit
 /// evaluation.
+///
+/// The choice of encryption key for (`shortint ciphertext`)[`super::ciphertext::Ciphertext`].
+///
+/// * The `Big` choice means the big LWE key derived from the GLWE key is used to encrypt the input
+///   ciphertext. This offers better performance but the (`public
+///   key`)[`super::public_key::PublicKey`] can be extremely large and in some cases may not fit in
+///   memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
+///   first followed by a keyswitch.
+/// * The `Small` choice means the small LWE key is used to encrypt the input ciphertext.
+///   Performance is not as good as in the `Big` case but (`public
+///   key`)[`super::public_key::PublicKey`] sizes are much more manageable and shoud always fit in
+///   memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch is
+///   computed first followed by a PBS.
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq)]
 pub struct ClassicPBSParameters {
     pub lwe_dimension: LweDimension,

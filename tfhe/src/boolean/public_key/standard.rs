@@ -82,7 +82,7 @@ impl From<CompressedPublicKey> for PublicKey {
 mod tests {
     use crate::boolean::prelude::{
         BinaryBooleanGates, BooleanParameters, ClientKey, CompressedPublicKey, ServerKey,
-        DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS,
+        DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
     };
     use crate::boolean::random_boolean;
 
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_public_key_tfhe_lib_parameters() {
-        test_public_key(TFHE_LIB_PARAMETERS);
+        test_public_key(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     }
 
     fn test_public_key(parameters: BooleanParameters) {
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_decompressing_public_key_tfhe_lib_parameters() {
-        test_decompressing_public_key(TFHE_LIB_PARAMETERS);
+        test_decompressing_public_key(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     }
 
     fn test_decompressing_public_key(parameters: BooleanParameters) {

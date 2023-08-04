@@ -4,7 +4,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder};
-use crate::core_crypto::commons::parameters::CiphertextModulus;
+use crate::core_crypto::commons::parameters::{CiphertextModulus, PBSOrder};
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use serde::{Deserialize, Serialize};
@@ -19,24 +19,27 @@ struct Memory {
     buffer: Vec<u32>,
 }
 
+pub struct BuffersRef<'a> {
+    pub(crate) lookup_table: GlweCiphertextMutView<'a, u32>,
+    // For the intermediate keyswitch result in the case of a big ciphertext
+    pub(crate) buffer_lwe_after_ks: LweCiphertextMutView<'a, u32>,
+    // For the intermediate PBS result in the case of a smallciphertext
+    pub(crate) buffer_lwe_after_pbs: LweCiphertextMutView<'a, u32>,
+}
+
 impl Memory {
-    /// Return a tuple with buffers that matches the server key.
-    ///
-    /// - The first element is the accumulator for bootstrap step.
-    /// - The second element is a lwe buffer where the result of the of the bootstrap should be
-    ///   written
-    fn as_buffers(
-        &mut self,
-        server_key: &ServerKey,
-    ) -> (GlweCiphertextView<'_, u32>, LweCiphertextMutView<'_, u32>) {
+    fn as_buffers(&mut self, server_key: &ServerKey) -> BuffersRef<'_> {
         let num_elem_in_accumulator = server_key.bootstrapping_key.glwe_size().0
             * server_key.bootstrapping_key.polynomial_size().0;
-        let num_elem_in_lwe = server_key
+        let num_elem_in_lwe_after_ks = server_key.key_switching_key.output_lwe_size().0;
+        let num_elem_in_lwe_after_pbs = server_key
             .bootstrapping_key
             .output_lwe_dimension()
             .to_lwe_size()
             .0;
-        let total_elem_needed = num_elem_in_accumulator + num_elem_in_lwe;
+
+        let total_elem_needed =
+            num_elem_in_accumulator + num_elem_in_lwe_after_ks + num_elem_in_lwe_after_pbs;
 
         let all_elements = if self.buffer.len() < total_elem_needed {
             self.buffer.resize(total_elem_needed, 0u32);
@@ -45,30 +48,35 @@ impl Memory {
             &mut self.buffer[..total_elem_needed]
         };
 
-        let (accumulator_elements, lwe_elements) =
+        let (accumulator_elements, other_elements) =
             all_elements.split_at_mut(num_elem_in_accumulator);
 
-        {
-            let mut accumulator = GlweCiphertextMutView::from_container(
-                accumulator_elements,
-                server_key.bootstrapping_key.polynomial_size(),
-                CiphertextModulus::new_native(),
-            );
-
-            accumulator.get_mut_mask().as_mut().fill(0u32);
-            accumulator.get_mut_body().as_mut().fill(PLAINTEXT_TRUE);
-        }
-
-        let accumulator = GlweCiphertextView::from_container(
+        let mut acc = GlweCiphertext::from_container(
             accumulator_elements,
             server_key.bootstrapping_key.polynomial_size(),
             CiphertextModulus::new_native(),
         );
 
-        let lwe =
-            LweCiphertextMutView::from_container(lwe_elements, CiphertextModulus::new_native());
+        acc.get_mut_mask().as_mut().fill(0u32);
+        acc.get_mut_body().as_mut().fill(PLAINTEXT_TRUE);
 
-        (accumulator, lwe)
+        let (after_ks_elements, after_pbs_elements) =
+            other_elements.split_at_mut(num_elem_in_lwe_after_ks);
+
+        let buffer_lwe_after_ks = LweCiphertextMutView::from_container(
+            after_ks_elements,
+            CiphertextModulus::new_native(),
+        );
+        let buffer_lwe_after_pbs = LweCiphertextMutView::from_container(
+            after_pbs_elements,
+            CiphertextModulus::new_native(),
+        );
+
+        BuffersRef {
+            lookup_table: acc,
+            buffer_lwe_after_ks,
+            buffer_lwe_after_pbs,
+        }
     }
 }
 
@@ -86,6 +94,7 @@ impl Memory {
 pub struct ServerKey {
     pub(crate) bootstrapping_key: FourierLweBootstrapKeyOwned,
     pub(crate) key_switching_key: LweKeyswitchKeyOwned<u32>,
+    pub(crate) pbs_order: PBSOrder,
 }
 
 impl ServerKey {
@@ -120,6 +129,7 @@ impl ServerKey {
 pub struct CompressedServerKey {
     pub(crate) bootstrapping_key: SeededLweBootstrapKeyOwned<u32>,
     pub(crate) key_switching_key: SeededLweKeyswitchKeyOwned<u32>,
+    pub(crate) pbs_order: PBSOrder,
 }
 
 /// Perform ciphertext bootstraps on the CPU
@@ -204,6 +214,7 @@ impl Bootstrapper {
         Ok(ServerKey {
             bootstrapping_key: fourier_bsk,
             key_switching_key: ksk,
+            pbs_order: cks.parameters.encryption_key_choice.into(),
         })
     }
 
@@ -249,6 +260,7 @@ impl Bootstrapper {
         Ok(CompressedServerKey {
             bootstrapping_key,
             key_switching_key,
+            pbs_order: cks.parameters.encryption_key_choice.into(),
         })
     }
 
@@ -257,7 +269,11 @@ impl Bootstrapper {
         input: &LweCiphertextOwned<u32>,
         server_key: &ServerKey,
     ) -> Result<LweCiphertextOwned<u32>, Box<dyn Error>> {
-        let (accumulator, mut buffer_after_pbs) = self.memory.as_buffers(server_key);
+        let BuffersRef {
+            lookup_table: accumulator,
+            mut buffer_lwe_after_pbs,
+            ..
+        } = self.memory.as_buffers(server_key);
 
         let fourier_bsk = &server_key.bootstrapping_key;
 
@@ -277,7 +293,7 @@ impl Bootstrapper {
 
         programmable_bootstrap_lwe_ciphertext_mem_optimized(
             input,
-            &mut buffer_after_pbs,
+            &mut buffer_lwe_after_pbs,
             &accumulator,
             fourier_bsk,
             fft,
@@ -285,7 +301,7 @@ impl Bootstrapper {
         );
 
         Ok(LweCiphertext::from_container(
-            buffer_after_pbs.as_ref().to_owned(),
+            buffer_lwe_after_pbs.as_ref().to_owned(),
             input.ciphertext_modulus(),
         ))
     }
@@ -315,7 +331,11 @@ impl Bootstrapper {
         mut ciphertext: LweCiphertextOwned<u32>,
         server_key: &ServerKey,
     ) -> Result<Ciphertext, Box<dyn Error>> {
-        let (accumulator, mut buffer_lwe_after_pbs) = self.memory.as_buffers(server_key);
+        let BuffersRef {
+            lookup_table,
+            mut buffer_lwe_after_pbs,
+            ..
+        } = self.memory.as_buffers(server_key);
 
         let fourier_bsk = &server_key.bootstrapping_key;
 
@@ -337,7 +357,7 @@ impl Bootstrapper {
         programmable_bootstrap_lwe_ciphertext_mem_optimized(
             &ciphertext,
             &mut buffer_lwe_after_pbs,
-            &accumulator,
+            &lookup_table,
             fourier_bsk,
             fft,
             stack,
@@ -352,6 +372,63 @@ impl Bootstrapper {
 
         Ok(Ciphertext::Encrypted(ciphertext))
     }
+
+    pub(crate) fn keyswitch_bootstrap(
+        &mut self,
+        mut ciphertext: LweCiphertextOwned<u32>,
+        server_key: &ServerKey,
+    ) -> Result<Ciphertext, Box<dyn Error>> {
+        let BuffersRef {
+            lookup_table,
+            mut buffer_lwe_after_ks,
+            ..
+        } = self.memory.as_buffers(server_key);
+
+        let fourier_bsk = &server_key.bootstrapping_key;
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        self.computation_buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+        let stack = self.computation_buffers.stack();
+
+        // Keyswitch from large LWE key to the small one
+        keyswitch_lwe_ciphertext(
+            &server_key.key_switching_key,
+            &ciphertext,
+            &mut buffer_lwe_after_ks,
+        );
+
+        // Compute a bootstrap
+        programmable_bootstrap_lwe_ciphertext_mem_optimized(
+            &buffer_lwe_after_ks,
+            &mut ciphertext,
+            &lookup_table,
+            fourier_bsk,
+            fft,
+            stack,
+        );
+
+        Ok(Ciphertext::Encrypted(ciphertext))
+    }
+    pub(crate) fn apply_bootstrapping_pattern(
+        &mut self,
+        ct: LweCiphertextOwned<u32>,
+        server_key: &ServerKey,
+    ) -> Result<Ciphertext, Box<dyn Error>> {
+        match server_key.pbs_order {
+            PBSOrder::KeyswitchBootstrap => self.keyswitch_bootstrap(ct, server_key),
+            PBSOrder::BootstrapKeyswitch => self.bootstrap_keyswitch(ct, server_key),
+        }
+    }
 }
 
 impl From<CompressedServerKey> for ServerKey {
@@ -359,6 +436,7 @@ impl From<CompressedServerKey> for ServerKey {
         let CompressedServerKey {
             key_switching_key,
             bootstrapping_key,
+            pbs_order,
         } = compressed_server_key;
 
         let key_switching_key = key_switching_key.decompress_into_lwe_keyswitch_key();
@@ -380,6 +458,7 @@ impl From<CompressedServerKey> for ServerKey {
         Self {
             key_switching_key,
             bootstrapping_key,
+            pbs_order,
         }
     }
 }
