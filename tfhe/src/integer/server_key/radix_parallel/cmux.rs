@@ -133,7 +133,7 @@ impl ServerKey {
 
         ct_refs.par_iter_mut().for_each(|ct_ref| {
             if !ct_ref.block_carries_are_empty() {
-                self.full_propagate_parallelized(ct_ref);
+                self.full_propagate_parallelized(*ct_ref);
             }
         });
 

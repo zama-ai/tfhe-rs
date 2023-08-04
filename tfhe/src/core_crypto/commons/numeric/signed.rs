@@ -1,4 +1,4 @@
-use super::{CastFrom, CastInto, Numeric, UnsignedInteger};
+use super::{CastFrom, CastInto, Numeric, SignedNumeric, UnsignedInteger};
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -6,7 +6,7 @@ use std::ops::{
 
 /// A trait shared by all the signed integer types.
 pub trait SignedInteger:
-    Numeric
+    SignedNumeric
     + Neg<Output = Self>
     + Add<Self, Output = Self>
     + AddAssign<Self>
@@ -52,6 +52,9 @@ macro_rules! implement {
             const TWO: Self = 2;
             const MAX: Self = <$Type>::MAX;
         }
+
+        impl SignedNumeric for $Type {}
+
         impl SignedInteger for $Type {
             type Unsigned = $UnsignedType;
             #[inline]

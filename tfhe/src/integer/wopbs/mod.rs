@@ -335,7 +335,7 @@ impl WopbsKey {
     /// let ct = cks.encrypt_radix_without_padding(clear as u64, nb_block);
     /// let lut = wopbs_key.generate_lut_radix_without_padding(&ct, |x| 2 * x);
     /// let ct_res = wopbs_key.wopbs_without_padding(&ct, &lut);
-    /// let res = cks.decrypt_radix_without_padding(&ct_res);
+    /// let res: u64 = cks.decrypt_radix_without_padding(&ct_res);
     ///
     /// assert_eq!(res, (clear * 2) % moduli)
     /// ```
@@ -565,7 +565,7 @@ impl WopbsKey {
     /// let lut = wopbs_key.generate_lut_radix_without_padding(&ct, |x| 2 * x);
     /// let ct_res = wopbs_key.wopbs_without_padding(&ct, &lut);
     /// let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
-    /// let res = cks.decrypt_radix_without_padding(&ct_res);
+    /// let res: u64 = cks.decrypt_radix_without_padding(&ct_res);
     ///
     /// assert_eq!(res, (clear * 2) % moduli)
     /// ```

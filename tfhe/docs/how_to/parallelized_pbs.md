@@ -20,8 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
     
-    let clear_a = 673;
-    let clear_b = 6;
+    let clear_a = 673u32;
+    let clear_b = 6u32;
     let a = FheUint32::try_encrypt(clear_a, &keys)?;
     let b = FheUint32::try_encrypt(clear_b, &keys)?;
 
@@ -51,8 +51,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
     
-    let clear_a = 673;
-    let clear_b = 6;
+    let clear_a = 673u32;
+    let clear_b = 6u32;
     let a = FheUint32::try_encrypt(clear_a, &keys)?;
     let b = FheUint32::try_encrypt(clear_b, &keys)?;
 

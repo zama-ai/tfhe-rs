@@ -1,10 +1,10 @@
 //! Definition of the client key for radix decomposition
 
-use super::ClientKey;
+use super::{ClientKey, RecomposableSignedInteger};
+use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::{Ciphertext as ShortintCiphertext, PBSParameters as ShortintParameters};
-
 use serde::{Deserialize, Serialize};
 
 /// Client key "specialized" for radix decomposition.
@@ -53,15 +53,32 @@ impl RadixClientKey {
         }
     }
 
-    pub fn encrypt<T: DecomposableInto<u64>>(&self, message: T) -> RadixCiphertext {
+    pub fn encrypt<T: DecomposableInto<u64> + UnsignedNumeric>(
+        &self,
+        message: T,
+    ) -> RadixCiphertext {
         self.key.encrypt_radix(message, self.num_blocks)
+    }
+
+    pub fn encrypt_signed<T: DecomposableInto<u64> + SignedNumeric>(
+        &self,
+        message: T,
+    ) -> SignedRadixCiphertext {
+        self.key.encrypt_signed_radix(message, self.num_blocks)
     }
 
     pub fn decrypt<T>(&self, ciphertext: &RadixCiphertext) -> T
     where
-        T: RecomposableFrom<u64>,
+        T: RecomposableFrom<u64> + UnsignedNumeric,
     {
         self.key.decrypt_radix(ciphertext)
+    }
+
+    pub fn decrypt_signed<T>(&self, ciphertext: &SignedRadixCiphertext) -> T
+    where
+        T: RecomposableSignedInteger,
+    {
+        self.key.decrypt_signed_radix(ciphertext)
     }
 
     /// Returns the parameters used by the client key.
