@@ -1,6 +1,5 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -192,7 +191,7 @@ impl ServerKey {
         ct: &mut RadixCiphertext,
         condition_block: &crate::shortint::Ciphertext,
     ) {
-        assert_eq!(condition_block.degree, Degree(1));
+        assert!(condition_block.degree.0 <= 1);
 
         self.zero_out_if_condition_equals(ct, condition_block, 0)
     }
@@ -228,9 +227,15 @@ impl ServerKey {
                 |block, condition| if predicate(condition) { 0 } else { block },
             );
 
-        ct.blocks.par_iter_mut().for_each(|block| {
-            self.key
-                .unchecked_apply_lookup_table_bivariate_assign(block, condition_block, &lut);
-        });
+        ct.blocks
+            .par_iter_mut()
+            .filter(|block| block.degree.0 != 0)
+            .for_each(|block| {
+                self.key.unchecked_apply_lookup_table_bivariate_assign(
+                    block,
+                    condition_block,
+                    &lut,
+                );
+            });
     }
 }

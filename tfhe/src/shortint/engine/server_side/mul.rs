@@ -20,7 +20,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        if ct_left.degree == Degree(0) || ct_right.degree == Degree(0) {
+        if ct_left.degree.0 == 0 || ct_right.degree.0 == 0 {
             // One of the ciphertext is a trivial 0
             self.create_trivial_assign(server_key, ct_left, 0)?;
             return Ok(());
@@ -63,7 +63,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> EngineResult<()> {
-        if ct_left.degree == Degree(0) || ct_right.degree == Degree(0) {
+        if ct_left.degree.0 == 0 || ct_right.degree.0 == 0 {
             // One of the ciphertext is a trivial 0
             self.create_trivial_assign(server_key, ct_left, 0)?;
             return Ok(());

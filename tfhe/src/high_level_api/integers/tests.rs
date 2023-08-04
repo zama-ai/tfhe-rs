@@ -786,3 +786,34 @@ fn test_integer_casting() {
         assert_eq!(da, clear);
     }
 }
+
+#[test]
+fn test_if_then_else() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+
+    let (client_key, server_key) = generate_keys(config);
+
+    set_server_key(server_key);
+
+    let clear_a = 27u8;
+    let clear_b = 128u8;
+
+    let a = FheUint8::encrypt(clear_a, &client_key);
+    let b = FheUint8::encrypt(clear_b, &client_key);
+
+    let result = a.le(&b).if_then_else(&a, &b);
+    let decrypted_result: u8 = result.decrypt(&client_key);
+    assert_eq!(
+        decrypted_result,
+        if clear_a <= clear_b { clear_a } else { clear_b }
+    );
+
+    let result = a.le(&b).if_then_else(&b, &a);
+    let decrypted_result: u8 = result.decrypt(&client_key);
+    assert_eq!(
+        decrypted_result,
+        if clear_a <= clear_b { clear_b } else { clear_a }
+    );
+}
