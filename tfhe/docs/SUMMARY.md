@@ -5,7 +5,7 @@
 ## Getting Started
 * [Installation](getting_started/installation.md)
 * [Quick Start](getting_started/quick_start.md)
-* [Operations](getting_started/operations.md)
+* [Types & Operations](getting_started/operations.md)
 * [Benchmarks](getting_started/benchmarks.md)
 * [Security and Cryptography](getting_started/security_and_cryptography.md)
 

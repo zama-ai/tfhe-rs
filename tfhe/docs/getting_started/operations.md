@@ -1,30 +1,52 @@
-# Operations
+# Homomorphic Types and Operations
 
-The table below contains an overview of the available operations in `TFHE-rs`. More details, and further examples, are given in the following sections.
+## Types
+`TFHE-rs` includes two main types to represent encrypted data:
+- `FheUint`: this is the homomorphic equivalent of Rust `uint`
+- `FheInt`: this is the homomorphic equivalent of Rust `int`
 
-| name                  | symbol      | FheUint/FheUint    | FheUint/Uint             | Uint/FheUint             |
-|-----------------------|-------------|--------------------|--------------------------|--------------------------|
-| Neg                   | `-`         | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Add                   | `+`         | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Sub                   | `-`         | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Mul                   | `*`         | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Div                   | `/`         | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Rem                   | `%`         | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Not                   | `!`         | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| BitAnd                | `&`         | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| BitOr                 | `\|`        | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| BitXor                | `^`         | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Shr                   | `>>`        | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Shl                   | `<<`        | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Min                   | `min`       | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Max                   | `max`       | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Greater than          | `gt`        | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Greater or equal than | `ge`        | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Lower than            | `lt`        | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Lower or equal than   | `le`        | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Equal                 | `eq`        | :heavy_check_mark: | :heavy_check_mark:       | :heavy_check_mark:       |
-| Cast (into dest type) | `cast_into` | :heavy_check_mark: | :heavy_multiplication_x: | :heavy_multiplication_x: |
-| Cast (from src type)  | `cast_from` | :heavy_check_mark: | :heavy_multiplication_x: | :heavy_multiplication_x: |
+In the same manner than many programming languages, the number of bits used to represent the data must be chosen when declaring a variable. For instance:
+
+```rust
+
+    // let clear_a: u64 = 7;
+    let mut a = FheUint64::try_encrypt(clear_a, &keys)?;
+    
+    // let clear_b: i8 = 3;
+    let mut b = FheInt8::try_encrypt(clear_b, &keys)?;
+    
+    // let clear_c: u128 = 2;
+    let mut c = FheUint128::try_encrypt(clear_c, &keys)?;
+```
+
+## Operation list 
+The table below contains an overview of the available operations in `TFHE-rs`. The notation `Enc` (for Encypted Data) either refers to `FheInt` or `FheUint`, for any size between 1 and 256-bits. 
+
+More details, and further examples, are given in the following sections.
+
+| name                  | symbol      | `Enc`/`Enc`        | `Enc`/ `Int`             |
+|-----------------------|-------------|--------------------|--------------------------|
+| Neg                   | `-`         | :heavy_check_mark: | :heavy_check_mark:       |
+| Add                   | `+`         | :heavy_check_mark: | :heavy_check_mark:       |
+| Sub                   | `-`         | :heavy_check_mark: | :heavy_check_mark:       |
+| Mul                   | `*`         | :heavy_check_mark: | :heavy_check_mark:       |
+| Div                   | `/`         | :heavy_check_mark: | :heavy_check_mark:       |
+| Rem                   | `%`         | :heavy_check_mark: | :heavy_check_mark:       |
+| Not                   | `!`         | :heavy_check_mark: | :heavy_check_mark:       |
+| BitAnd                | `&`         | :heavy_check_mark: | :heavy_check_mark:       |
+| BitOr                 | `\|`        | :heavy_check_mark: | :heavy_check_mark:       |
+| BitXor                | `^`         | :heavy_check_mark: | :heavy_check_mark:       |
+| Shr                   | `>>`        | :heavy_check_mark: | :heavy_check_mark:       |
+| Shl                   | `<<`        | :heavy_check_mark: | :heavy_check_mark:       |
+| Min                   | `min`       | :heavy_check_mark: | :heavy_check_mark:       |
+| Max                   | `max`       | :heavy_check_mark: | :heavy_check_mark:       |
+| Greater than          | `gt`        | :heavy_check_mark: | :heavy_check_mark:       |
+| Greater or equal than | `ge`        | :heavy_check_mark: | :heavy_check_mark:       |
+| Lower than            | `lt`        | :heavy_check_mark: | :heavy_check_mark:       |
+| Lower or equal than   | `le`        | :heavy_check_mark: | :heavy_check_mark:       |
+| Equal                 | `eq`        | :heavy_check_mark: | :heavy_check_mark:       |
+| Cast (into dest type) | `cast_into` | :heavy_check_mark: | :heavy_multiplication_x: |
+| Cast (from src type)  | `cast_from` | :heavy_check_mark: | :heavy_multiplication_x: |
 
 ## Boolean Operations
 
@@ -455,7 +477,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ### Casting.
-
 Casting between integer types is possible via the `cast_from` associated function
 or the `cast_into` method.
 

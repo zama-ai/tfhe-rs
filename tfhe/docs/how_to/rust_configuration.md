@@ -52,11 +52,11 @@ rustup show
 
 This crate exposes two kinds of data types. Each kind is enabled by activating its corresponding feature in the TOML line. Each kind may have multiple types:
 
-| Kind      | Features   | Type(s)                           |
-| --------- | ---------- | --------------------------------- |
-| Booleans  | `boolean`  | Booleans                          |
-| ShortInts | `shortint` | Short unsigned integers           |
-| Integers  | `integer`  | Arbitrary-sized unsigned integers |
+| Kind      | Features   | Type(s)                   |
+|-----------|------------|---------------------------|
+| Booleans  | `boolean`  | Booleans                  |
+| ShortInts | `shortint` | Short integers            |
+| Integers  | `integer`  | Arbitrary-sized  integers |
 
 
 ## AVX-512
