@@ -1,5 +1,4 @@
 //! This module implements the ciphertext structures.
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::{Ciphertext, CompressedCiphertext};
 use serde::{Deserialize, Serialize};
 
@@ -82,10 +81,7 @@ impl RadixCiphertext {
     /// Since it uses degree to do so, it will not
     /// always return the correct answer.
     pub(crate) fn holds_boolean_value(&self) -> bool {
-        self.blocks[0].degree <= Degree(1)
-            && self.blocks[1..]
-                .iter()
-                .all(|block| block.degree == Degree(0))
+        self.blocks[0].degree.0 <= 1 && self.blocks[1..].iter().all(|block| block.degree.0 == 0)
     }
 }
 

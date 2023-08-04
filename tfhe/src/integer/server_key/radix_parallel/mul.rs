@@ -1,6 +1,5 @@
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::ciphertext::Degree;
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -510,7 +509,7 @@ impl ServerKey {
             .par_iter()
             .enumerate()
             .filter_map(|(i, block)| {
-                if block.degree == Degree(0) {
+                if block.degree.0 == 0 {
                     // Block is a trivial 0, no need to waste time multiplying
                     None
                 } else {

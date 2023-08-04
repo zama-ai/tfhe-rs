@@ -608,58 +608,6 @@ where {
                     sign == Self::IS_INFERIOR
                 }),
         }
-        //
-        // let (lhs_lut, rhs_lut) = match selector {
-        //     MinMaxSelector::Max => (&self.lhs_lut, &self.rhs_lut),
-        //     MinMaxSelector::Min => (&self.rhs_lut, &self.lhs_lut),
-        // };
-        //
-        // let mut offset = self.unchecked_scalar_sign_parallelized(lhs, rhs);
-        // self.server_key
-        //     .key
-        //     .apply_lookup_table_assign(&mut offset, &self.sign_to_offset_lut);
-        //
-        // let message_modulus = self.server_key.key.message_modulus.0 as u64;
-        // let bits_in_message = message_modulus.ilog2();
-        // let scalar_blocks = BlockDecomposer::with_early_stop_at_zero(rhs, bits_in_message)
-        //     .iter_as::<u8>()
-        //     .chain(std::iter::repeat(0))
-        //     .take(lhs.blocks.len())
-        //     .collect::<Vec<_>>();
-        //
-        // let blocks = lhs
-        //     .blocks
-        //     .par_iter()
-        //     .zip(scalar_blocks.into_par_iter())
-        //     .map(|(lhs_block, scalar_block)| {
-        //         let (maybe_lhs, maybe_rhs) = rayon::join(
-        //             || {
-        //                 let mut lhs_block = self.server_key.key.unchecked_add(lhs_block,
-        // &offset);                 self.server_key
-        //                     .key
-        //                     .apply_lookup_table_assign(&mut lhs_block, lhs_lut);
-        //                 lhs_block
-        //             },
-        //             || {
-        //                 let mut rhs_block = if scalar_block != 0 {
-        //                     self.server_key
-        //                         .key
-        //                         .unchecked_scalar_add(&offset, scalar_block)
-        //                 } else {
-        //                     offset.clone()
-        //                 };
-        //                 self.server_key
-        //                     .key
-        //                     .apply_lookup_table_assign(&mut rhs_block, rhs_lut);
-        //                 rhs_block
-        //             },
-        //         );
-        //
-        //         self.server_key.key.unchecked_add(&maybe_lhs, &maybe_rhs)
-        //     })
-        //     .collect::<Vec<_>>();
-        //
-        // RadixCiphertext { blocks }
     }
 
     fn smart_min_or_max(
