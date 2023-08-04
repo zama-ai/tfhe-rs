@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
@@ -34,11 +34,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
-    pub fn unchecked_add(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_add<T>(&self, ct_left: &T, ct_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ct_left.clone();
         self.unchecked_add_assign(&mut result, ct_right);
         result
@@ -70,8 +69,15 @@ impl ServerKey {
     /// let dec_ct1: u64 = cks.decrypt(&ct1);
     /// assert_eq!(dec_ct1, msg1 + msg2);
     /// ```
-    pub fn unchecked_add_assign(&self, ct_left: &mut RadixCiphertext, ct_right: &RadixCiphertext) {
-        for (ct_left_i, ct_right_i) in ct_left.blocks.iter_mut().zip(ct_right.blocks.iter()) {
+    pub fn unchecked_add_assign<T>(&self, ct_left: &mut T, ct_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        for (ct_left_i, ct_right_i) in ct_left
+            .blocks_mut()
+            .iter_mut()
+            .zip(ct_right.blocks().iter())
+        {
             self.key.unchecked_add_assign(ct_left_i, ct_right_i);
         }
     }
@@ -99,8 +105,11 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_add_possible(&self, ct_left: &RadixCiphertext, ct_right: &RadixCiphertext) -> bool {
-        for (ct_left_i, ct_right_i) in ct_left.blocks.iter().zip(ct_right.blocks.iter()) {
+    pub fn is_add_possible<T>(&self, ct_left: &T, ct_right: &T) -> bool
+    where
+        T: IntegerRadixCiphertext,
+    {
+        for (ct_left_i, ct_right_i) in ct_left.blocks().iter().zip(ct_right.blocks().iter()) {
             if !self.key.is_add_possible(ct_left_i, ct_right_i) {
                 return false;
             }
@@ -140,11 +149,10 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_add(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> Result<RadixCiphertext, CheckError> {
+    pub fn checked_add<T>(&self, ct_left: &T, ct_right: &T) -> Result<T, CheckError>
+    where
+        T: IntegerRadixCiphertext,
+    {
         if self.is_add_possible(ct_left, ct_right) {
             let mut result = ct_left.clone();
             self.unchecked_add_assign(&mut result, ct_right);
@@ -184,11 +192,10 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 + msg2, clear);
     /// ```
-    pub fn checked_add_assign(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> Result<(), CheckError> {
+    pub fn checked_add_assign<T>(&self, ct_left: &mut T, ct_right: &T) -> Result<(), CheckError>
+    where
+        T: IntegerRadixCiphertext,
+    {
         if self.is_add_possible(ct_left, ct_right) {
             self.unchecked_add_assign(ct_left, ct_right);
             Ok(())
@@ -222,11 +229,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
-    pub fn smart_add(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_add<T>(&self, ct_left: &mut T, ct_right: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_add_possible(ct_left, ct_right) {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
@@ -234,7 +240,10 @@ impl ServerKey {
         self.unchecked_add(ct_left, ct_right)
     }
 
-    pub fn smart_add_assign(&self, ct_left: &mut RadixCiphertext, ct_right: &mut RadixCiphertext) {
+    pub fn smart_add_assign<T>(&self, ct_left: &mut T, ct_right: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
         if !self.is_add_possible(ct_left, ct_right) {
             self.full_propagate(ct_left);

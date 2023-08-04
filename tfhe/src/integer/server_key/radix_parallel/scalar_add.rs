@@ -1,5 +1,5 @@
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 
 impl ServerKey {
@@ -29,13 +29,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_parallelized<T>(
-        &self,
-        ct: &mut RadixCiphertext,
-        scalar: T,
-    ) -> RadixCiphertext
+    pub fn smart_scalar_add_parallelized<T, C>(&self, ct: &mut C, scalar: T) -> C
     where
         T: DecomposableInto<u8>,
+        C: IntegerRadixCiphertext,
     {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
@@ -69,9 +66,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn smart_scalar_add_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, scalar: T)
+    pub fn smart_scalar_add_assign_parallelized<T, C>(&self, ct: &mut C, scalar: T)
     where
         T: DecomposableInto<u8>,
+        C: IntegerRadixCiphertext,
     {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
@@ -114,9 +112,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn scalar_add_parallelized<T>(&self, ct: &RadixCiphertext, scalar: T) -> RadixCiphertext
+    pub fn scalar_add_parallelized<T, C>(&self, ct: &C, scalar: T) -> C
     where
         T: DecomposableInto<u8>,
+        C: IntegerRadixCiphertext,
     {
         let mut ct_res = ct.clone();
         self.scalar_add_assign_parallelized(&mut ct_res, scalar);
@@ -158,9 +157,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg + scalar, dec);
     /// ```
-    pub fn scalar_add_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, scalar: T)
+    pub fn scalar_add_assign_parallelized<T, C>(&self, ct: &mut C, scalar: T)
     where
         T: DecomposableInto<u8>,
+        C: IntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);

@@ -60,22 +60,17 @@ create_parametrized_test!(integer_unchecked_scalar_decomposition_overflow);
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
 
-    // RNG
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
 
-        //encryption
         let ct = cks.encrypt_radix(clear, NB_CTXT);
 
-        // decryption
         let dec: u64 = cks.decrypt_radix(&ct);
 
-        // assert
         assert_eq!(clear, dec);
     }
 }
@@ -83,19 +78,15 @@ fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
 fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
 
-    // RNG
     let mut rng = rand::thread_rng();
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
     for _ in 0..10 {
         let clear = rng.gen::<u128>();
 
-        //encryption
         let ct = cks.encrypt_radix(clear, num_block);
 
-        // decryption
         let dec: u128 = cks.decrypt_radix(&ct);
 
-        // assert
         assert_eq!(clear, dec);
     }
 }
@@ -241,7 +232,6 @@ fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
 fn integer_unchecked_add(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
@@ -249,22 +239,13 @@ fn integer_unchecked_add(param: ClassicPBSParameters) {
 
     for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
-
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        // encryption of an integer
         let ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
 
-        // add the two ciphertexts
         let ct_res = sks.unchecked_add(&ctxt_0, &ctxt_1);
-
-        // decryption of ct_res
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        // assert
         assert_eq!((clear_0 + clear_1) % modulus, dec_res);
     }
 }
@@ -272,41 +253,30 @@ fn integer_unchecked_add(param: ClassicPBSParameters) {
 fn integer_smart_add(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
-    // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
 
     let mut clear;
 
     for _ in 0..NB_TEST_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
-
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        // encryption of an integer
         let mut ctxt_0 = cks.encrypt_radix(clear_0, NB_CTXT);
-
-        // encryption of an integer
         let mut ctxt_1 = cks.encrypt_radix(clear_1, NB_CTXT);
 
-        // add the two ciphertexts
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
-
         clear = (clear_0 + clear_1) % modulus;
 
-        // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
-        //add multiple times to raise the degree
+        // add multiple times to raise the degree
         for _ in 0..NB_TEST_SMALLER {
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
             clear = (clear + clear_0) % modulus;
 
-            // decryption of ct_res
             let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
             // println!("clear = {}, dec_res = {}", clear, dec_res);
-            // assert
             assert_eq!(clear, dec_res);
         }
     }

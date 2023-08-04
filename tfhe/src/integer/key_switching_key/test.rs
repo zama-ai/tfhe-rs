@@ -27,7 +27,7 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger() {
     );
 
     // Encrypt a value and cast
-    let ct1 = client_key_1.encrypt(228);
+    let ct1 = client_key_1.encrypt(228u8);
     let ct2 = ksk.cast(&ct1);
 
     // High level decryption and test
@@ -112,7 +112,7 @@ fn gen_multi_keys_test_integer_to_integer() {
     );
 
     // Encrypt a value and cast
-    let ct1 = client_key_1.encrypt_radix(228, 4);
+    let ct1 = client_key_1.encrypt_radix(228u8, 4);
     let ct2 = ksk.cast(&ct1);
 
     // High level decryption and test

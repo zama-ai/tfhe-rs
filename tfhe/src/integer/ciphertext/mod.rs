@@ -2,7 +2,8 @@
 use crate::shortint::{Ciphertext, CompressedCiphertext};
 use serde::{Deserialize, Serialize};
 
-/// Structure containing a ciphertext in radix decomposition.
+/// Structure containing a ciphertext in radix decomposition
+/// holding an unsigned value.
 #[derive(Serialize, Clone, Deserialize, PartialEq, Eq, Debug)]
 pub struct BaseRadixCiphertext<Block> {
     /// The blocks are stored from LSB to MSB
@@ -20,6 +21,18 @@ pub type RadixCiphertext = BaseRadixCiphertext<Ciphertext>;
 
 /// Structure containing a **compressed** ciphertext in radix decomposition.
 pub type CompressedRadixCiphertext = BaseRadixCiphertext<CompressedCiphertext>;
+
+impl From<CompressedRadixCiphertext> for RadixCiphertext {
+    fn from(compressed: CompressedRadixCiphertext) -> Self {
+        Self::from(
+            compressed
+                .blocks
+                .into_iter()
+                .map(From::from)
+                .collect::<Vec<_>>(),
+        )
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CompactCiphertextList {
@@ -85,8 +98,34 @@ impl RadixCiphertext {
     }
 }
 
-impl From<CompressedRadixCiphertext> for RadixCiphertext {
-    fn from(compressed: CompressedRadixCiphertext) -> Self {
+/// Structure containing a ciphertext in radix decomposition
+/// holding a signed value.
+#[derive(Serialize, Clone, Deserialize, PartialEq, Eq, Debug)]
+pub struct BaseSignedRadixCiphertext<Block> {
+    /// The blocks are stored from LSB to MSB
+    pub(crate) blocks: Vec<Block>,
+}
+
+impl<Block> From<Vec<Block>> for BaseSignedRadixCiphertext<Block> {
+    fn from(blocks: Vec<Block>) -> Self {
+        Self { blocks }
+    }
+}
+
+// Type alias to save some typing in implementation parts
+pub type SignedRadixCiphertext = BaseSignedRadixCiphertext<Ciphertext>;
+
+/// Structure containing a **compressed** ciphertext in radix decomposition
+/// holding a signed valued
+pub type CompressedSignedRadixCiphertext = BaseSignedRadixCiphertext<CompressedCiphertext>;
+
+impl SignedRadixCiphertext {
+    pub fn block_carries_are_empty(&self) -> bool {
+        self.blocks.iter().all(|block| block.carry_is_empty())
+    }
+}
+impl From<CompressedSignedRadixCiphertext> for SignedRadixCiphertext {
+    fn from(compressed: CompressedSignedRadixCiphertext) -> Self {
         Self::from(
             compressed
                 .blocks
@@ -109,6 +148,12 @@ pub trait IntegerCiphertext: Clone {
     }
 }
 
+pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send {
+    fn block_carries_are_empty(&self) -> bool {
+        self.blocks().iter().all(|block| block.carry_is_empty())
+    }
+}
+
 impl IntegerCiphertext for RadixCiphertext {
     fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
         Self::from(blocks)
@@ -120,6 +165,22 @@ impl IntegerCiphertext for RadixCiphertext {
         &mut self.blocks
     }
 }
+
+impl IntegerRadixCiphertext for RadixCiphertext {}
+
+impl IntegerCiphertext for SignedRadixCiphertext {
+    fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
+        Self::from(blocks)
+    }
+    fn blocks(&self) -> &[Ciphertext] {
+        &self.blocks
+    }
+    fn blocks_mut(&mut self) -> &mut [Ciphertext] {
+        &mut self.blocks
+    }
+}
+
+impl IntegerRadixCiphertext for SignedRadixCiphertext {}
 
 impl IntegerCiphertext for CrtCiphertext {
     fn from_blocks(blocks: Vec<Ciphertext>) -> Self {

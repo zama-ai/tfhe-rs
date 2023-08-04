@@ -7,6 +7,7 @@ mod crt;
 mod radix;
 pub(crate) mod utils;
 
+use crate::core_crypto::prelude::{CastFrom, SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::BlockRecomposer;
 use crate::integer::ciphertext::{CompressedCrtCiphertext, CrtCiphertext};
 use crate::integer::client_key::utils::i_crt;
@@ -22,7 +23,28 @@ pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 
 use super::block_decomposition::{DecomposableInto, RecomposableFrom};
-use super::ciphertext::{CompressedRadixCiphertext, RadixCiphertext};
+use super::ciphertext::{
+    CompressedRadixCiphertext, CompressedSignedRadixCiphertext, RadixCiphertext,
+    SignedRadixCiphertext,
+};
+
+pub trait RecomposableSignedInteger:
+    RecomposableFrom<u64>
+    + std::ops::Neg<Output = Self>
+    + std::ops::Shr<u32, Output = Self>
+    + std::ops::BitOrAssign<Self>
+    + std::ops::BitOr<Self, Output = Self>
+    + std::ops::Mul<Self, Output = Self>
+    + CastFrom<Self>
+    + SignedNumeric
+{
+}
+
+impl RecomposableSignedInteger for i8 {}
+impl RecomposableSignedInteger for i16 {}
+impl RecomposableSignedInteger for i32 {}
+impl RecomposableSignedInteger for i64 {}
+impl RecomposableSignedInteger for i128 {}
 
 /// A structure containing the client key, which must be kept secret.
 ///
@@ -104,7 +126,7 @@ impl ClientKey {
     /// ```
     pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
     where
-        T: DecomposableInto<u64>,
+        T: DecomposableInto<u64> + UnsignedNumeric,
     {
         self.encrypt_words_radix(message, num_blocks, crate::shortint::ClientKey::encrypt)
     }
@@ -129,9 +151,9 @@ impl ClientKey {
     /// let dec = cks.decrypt_radix_without_padding(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_radix_without_padding(
+    pub fn encrypt_radix_without_padding<T: DecomposableInto<u64> + UnsignedNumeric>(
         &self,
-        message: u64,
+        message: T,
         num_blocks: usize,
     ) -> RadixCiphertext {
         self.encrypt_words_radix(
@@ -141,7 +163,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_compressed<T: DecomposableInto<u64>>(
+    pub fn encrypt_radix_compressed<T: DecomposableInto<u64> + UnsignedNumeric>(
         &self,
         message: T,
         num_blocks: usize,
@@ -153,7 +175,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_without_padding_compressed<T: DecomposableInto<u64>>(
+    pub fn encrypt_radix_without_padding_compressed<T: DecomposableInto<u64> + UnsignedNumeric>(
         &self,
         message: T,
         num_blocks: usize,
@@ -178,11 +200,200 @@ impl ClientKey {
         encrypt_block: F,
     ) -> RadixCiphertextType
     where
-        T: DecomposableInto<u64>,
+        T: DecomposableInto<u64> + UnsignedNumeric,
         F: Fn(&crate::shortint::ClientKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
         encrypt_words_radix_impl(&self.key, message_words, num_blocks, encrypt_block)
+    }
+
+    /// Decrypts a ciphertext encrypting an radix integer
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::ClientKey;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let num_block = 4;
+    ///
+    /// let msg = 191_u64;
+    ///
+    /// // Encryption
+    /// let ct = cks.encrypt_radix(msg, num_block);
+    ///
+    /// // Decryption
+    /// let dec = cks.decrypt_radix(&ct);
+    /// assert_eq!(msg, dec);
+    /// ```
+    pub fn decrypt_radix<T>(&self, ctxt: &RadixCiphertext) -> T
+    where
+        T: RecomposableFrom<u64> + UnsignedNumeric,
+    {
+        self.decrypt_radix_impl(
+            &ctxt.blocks,
+            crate::shortint::ClientKey::decrypt_message_and_carry,
+        )
+    }
+
+    /// Decrypts a ciphertext encrypting an radix integer encrypted without padding
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::ClientKey;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let num_block = 4;
+    ///
+    /// let msg = 191_u64;
+    ///
+    /// // Encryption
+    /// let ct = cks.encrypt_radix_without_padding(msg, num_block);
+    ///
+    /// // Decryption
+    /// let dec = cks.decrypt_radix_without_padding(&ct);
+    /// assert_eq!(msg, dec);
+    /// ```
+    pub fn decrypt_radix_without_padding<T>(&self, ctxt: &RadixCiphertext) -> T
+    where
+        T: RecomposableFrom<u64> + UnsignedNumeric,
+    {
+        self.decrypt_radix_impl(
+            &ctxt.blocks,
+            crate::shortint::ClientKey::decrypt_message_and_carry_without_padding,
+        )
+    }
+
+    /// Decrypts a ciphertext in radix decomposition into 64bits
+    ///
+    /// The words are assumed to be in little endian order.
+    fn decrypt_radix_impl<T, F>(
+        &self,
+        blocks: &[crate::shortint::Ciphertext],
+        decrypt_block: F,
+    ) -> T
+    where
+        T: RecomposableFrom<u64>,
+        F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
+    {
+        if blocks.is_empty() {
+            return T::ZERO;
+        }
+
+        let bits_in_block = self.key.parameters.message_modulus().0.ilog2();
+        let mut recomposer = BlockRecomposer::<T>::new(bits_in_block);
+
+        for encrypted_block in blocks {
+            let decrypted_block = decrypt_block(&self.key, encrypted_block);
+            if !recomposer.add_unmasked(decrypted_block) {
+                // End of T::BITS reached no need to try more
+                // recomposition
+                break;
+            };
+        }
+
+        recomposer.value()
+    }
+
+    pub fn encrypt_signed_radix<T>(&self, message: T, num_blocks: usize) -> SignedRadixCiphertext
+    where
+        T: DecomposableInto<u64> + SignedNumeric,
+    {
+        encrypt_words_radix_impl(
+            &self.key,
+            message,
+            num_blocks,
+            crate::shortint::ClientKey::encrypt,
+        )
+    }
+
+    pub fn encrypt_signed_radix_without_padding<T>(
+        &self,
+        message: T,
+        num_blocks: usize,
+    ) -> SignedRadixCiphertext
+    where
+        T: DecomposableInto<u64> + SignedNumeric,
+    {
+        encrypt_words_radix_impl(
+            &self.key,
+            message,
+            num_blocks,
+            crate::shortint::ClientKey::encrypt_without_padding,
+        )
+    }
+
+    pub fn encrypt_signed_radix_compressed<T: DecomposableInto<u64> + SignedNumeric>(
+        &self,
+        message: T,
+        num_blocks: usize,
+    ) -> CompressedSignedRadixCiphertext {
+        encrypt_words_radix_impl(
+            &self.key,
+            message,
+            num_blocks,
+            crate::shortint::ClientKey::encrypt_compressed,
+        )
+    }
+
+    pub fn encrypt_signed_radix_without_padding_compressed<
+        T: DecomposableInto<u64> + SignedNumeric,
+    >(
+        &self,
+        message: T,
+        num_blocks: usize,
+    ) -> CompressedSignedRadixCiphertext {
+        encrypt_words_radix_impl(
+            &self.key,
+            message,
+            num_blocks,
+            crate::shortint::ClientKey::encrypt_without_padding_compressed,
+        )
+    }
+
+    pub fn decrypt_signed_radix<T>(&self, ctxt: &SignedRadixCiphertext) -> T
+    where
+        T: RecomposableSignedInteger,
+    {
+        self.decrypt_signed_radix_impl(ctxt, crate::shortint::ClientKey::decrypt_message_and_carry)
+    }
+
+    pub fn decrypt_signed_radix_impl<T, F>(
+        &self,
+        ctxt: &SignedRadixCiphertext,
+        decrypt_block: F,
+    ) -> T
+    where
+        T: RecomposableSignedInteger,
+        F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
+    {
+        let message_modulus = self.parameters().message_modulus().0;
+        assert!(message_modulus.is_power_of_two());
+
+        // Decrypting a signed value is the same as decrypting an unsigned value
+        // but, in the signed case,
+        // we have to take care of the case when the clear type T has more bits
+        // than what the ciphertext encrypts.
+        let unpadded_value = self.decrypt_radix_impl(&ctxt.blocks, decrypt_block);
+
+        let num_bits_in_message = message_modulus.ilog2();
+        let num_bits_in_ctxt = num_bits_in_message * ctxt.blocks.len() as u32;
+        if num_bits_in_ctxt >= T::BITS as u32 {
+            return unpadded_value;
+        }
+
+        let sign_bit_pos = num_bits_in_ctxt - 1;
+        let sign_bit_mask = T::cast_from(1u32 << sign_bit_pos);
+        let sign_bit = (unpadded_value & sign_bit_mask) >> sign_bit_pos;
+
+        // Creates a padding mask
+        // where bits above num_bits_in_ctxt
+        // are 1s if sign bit is one else 0
+        let padding = (T::MAX * sign_bit) << num_bits_in_ctxt;
+        padding | unpadded_value
     }
 
     /// Encrypts one block.
@@ -216,88 +427,6 @@ impl ClientKey {
     /// This takes a shortint ciphertext as input.
     pub fn decrypt_one_block(&self, ct: &Ciphertext) -> u64 {
         self.key.decrypt(ct)
-    }
-
-    /// Decrypts a ciphertext encrypting an radix integer
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    /// let num_block = 4;
-    ///
-    /// let msg = 191_u64;
-    ///
-    /// // Encryption
-    /// let ct = cks.encrypt_radix(msg, num_block);
-    ///
-    /// // Decryption
-    /// let dec = cks.decrypt_radix(&ct);
-    /// assert_eq!(msg, dec);
-    /// ```
-    pub fn decrypt_radix<T>(&self, ctxt: &RadixCiphertext) -> T
-    where
-        T: RecomposableFrom<u64>,
-    {
-        self.decrypt_radix_impl(ctxt, crate::shortint::ClientKey::decrypt_message_and_carry)
-    }
-
-    /// Decrypts a ciphertext encrypting an radix integer encrypted without padding
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    /// let num_block = 4;
-    ///
-    /// let msg = 191_u64;
-    ///
-    /// // Encryption
-    /// let ct = cks.encrypt_radix_without_padding(msg, num_block);
-    ///
-    /// // Decryption
-    /// let dec = cks.decrypt_radix_without_padding(&ct);
-    /// assert_eq!(msg, dec);
-    /// ```
-    pub fn decrypt_radix_without_padding(&self, ctxt: &RadixCiphertext) -> u64 {
-        self.decrypt_radix_impl(
-            ctxt,
-            crate::shortint::ClientKey::decrypt_message_and_carry_without_padding,
-        )
-    }
-
-    /// Decrypts a ciphertext in radix decomposition into 64bits
-    ///
-    /// The words are assumed to be in little endian order.
-    pub fn decrypt_radix_impl<T, F>(&self, ctxt: &RadixCiphertext, decrypt_block: F) -> T
-    where
-        T: RecomposableFrom<u64>,
-
-        F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
-    {
-        if ctxt.blocks.is_empty() {
-            return T::ZERO;
-        }
-
-        let bits_in_block = self.key.parameters.message_modulus().0.ilog2();
-        let mut recomposer = BlockRecomposer::<T>::new(bits_in_block);
-
-        for encrypted_block in &ctxt.blocks {
-            let decrypted_block = decrypt_block(&self.key, encrypted_block);
-            if !recomposer.add_unmasked(decrypted_block) {
-                // End of T::BITS reached no need to try more
-                // recomposition
-                break;
-            };
-        }
-
-        recomposer.value()
     }
 
     /// Encrypts an integer using crt representation

@@ -1,6 +1,6 @@
 use std::ops::ShlAssign;
 
-use crate::core_crypto::prelude::{CastFrom, Numeric};
+use crate::core_crypto::prelude::{CastFrom, Numeric, UnsignedNumeric};
 
 // Little endian order
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
@@ -409,6 +409,8 @@ impl Numeric for U256 {
 
     const MAX: Self = Self::MAX;
 }
+
+impl UnsignedNumeric for U256 {}
 
 #[cfg(test)]
 mod tests {

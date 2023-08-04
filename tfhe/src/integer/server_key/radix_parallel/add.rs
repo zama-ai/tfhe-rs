@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::Ciphertext;
 
@@ -38,24 +38,22 @@ fn prefix_sum_carry_propagation(msb: u64, lsb: u64) -> u64 {
 }
 
 impl ServerKey {
-    pub fn unchecked_add_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_add_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = lhs.clone();
         self.unchecked_add_assign_parallelized(&mut result, rhs);
         result
     }
 
-    pub fn unchecked_add_assign_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) {
-        lhs.blocks
+    pub fn unchecked_add_assign_parallelized<T>(&self, lhs: &mut T, rhs: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        lhs.blocks_mut()
             .par_iter_mut()
-            .zip(rhs.blocks.par_iter())
+            .zip(rhs.blocks().par_iter())
             .for_each(|(ct_left_i, ct_right_i)| {
                 self.key.unchecked_add_assign(ct_left_i, ct_right_i);
             });
@@ -90,11 +88,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
-    pub fn smart_add_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_add_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_add_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -104,11 +101,10 @@ impl ServerKey {
         self.unchecked_add(ct_left, ct_right)
     }
 
-    pub fn smart_add_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) {
+    pub fn smart_add_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_add_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -156,22 +152,20 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 + msg2);
     /// ```
-    pub fn add_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn add_parallelized<T>(&self, ct_left: &T, ct_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct_left.clone();
         self.add_assign_parallelized(&mut ct_res, ct_right);
         ct_res
     }
 
-    pub fn add_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn add_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs: T;
 
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
@@ -205,22 +199,20 @@ impl ServerKey {
         }
     }
 
-    pub fn add_parallelized_work_efficient(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn add_parallelized_work_efficient<T>(&self, ct_left: &T, ct_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct_left.clone();
         self.add_assign_parallelized_work_efficient(&mut ct_res, ct_right);
         ct_res
     }
 
-    pub fn add_assign_parallelized_work_efficient(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn add_assign_parallelized_work_efficient<T>(&self, ct_left: &mut T, ct_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs: T;
 
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
@@ -277,13 +269,15 @@ impl ServerKey {
     /// # Output
     ///
     /// - lhs will have its carries empty
-    pub(crate) fn unchecked_add_assign_parallelized_low_latency(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) {
-        let degree_after_add_does_not_go_beyond_first_carry =
-            lhs.blocks.iter().zip(rhs.blocks.iter()).all(|(bl, br)| {
+    pub(crate) fn unchecked_add_assign_parallelized_low_latency<T>(&self, lhs: &mut T, rhs: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let degree_after_add_does_not_go_beyond_first_carry = lhs
+            .blocks()
+            .iter()
+            .zip(rhs.blocks().iter())
+            .all(|(bl, br)| {
                 let degree_after_add = bl.degree.0 + br.degree.0;
                 degree_after_add < (self.key.message_modulus.0 * 2)
             });
@@ -300,11 +294,14 @@ impl ServerKey {
     /// - first unchecked_add
     /// - at this point at most on bit of carry is taken
     /// - use this function to propagate them in parallel
-    pub(crate) fn propagate_single_carry_parallelized_low_latency(&self, ct: &mut RadixCiphertext) {
+    pub(crate) fn propagate_single_carry_parallelized_low_latency<T>(&self, ct: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         let generates_or_propagates = self.generate_init_carry_array(ct);
         let input_carries =
             self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
-        ct.blocks
+        ct.blocks_mut()
             .par_iter_mut()
             .zip(input_carries.par_iter())
             .for_each(|(block, input_carry)| {
@@ -381,13 +378,15 @@ impl ServerKey {
     /// # Output
     ///
     /// - lhs will have its carries empty
-    pub(crate) fn unchecked_add_assign_parallelized_work_efficient(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) {
-        let degree_after_add_does_not_go_beyond_first_carry =
-            lhs.blocks.iter().zip(rhs.blocks.iter()).all(|(bl, br)| {
+    pub(crate) fn unchecked_add_assign_parallelized_work_efficient<T>(&self, lhs: &mut T, rhs: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let degree_after_add_does_not_go_beyond_first_carry = lhs
+            .blocks()
+            .iter()
+            .zip(rhs.blocks().iter())
+            .all(|(bl, br)| {
                 let degree_after_add = bl.degree.0 + br.degree.0;
                 degree_after_add < (self.key.message_modulus.0 * 2)
             });
@@ -399,7 +398,7 @@ impl ServerKey {
         let carry_out =
             self.compute_carry_propagation_parallelized_work_efficient(generates_or_propagates);
 
-        lhs.blocks
+        lhs.blocks_mut()
             .par_iter_mut()
             .zip(carry_out.par_iter())
             .for_each(|(block, carry_in)| {
@@ -509,10 +508,13 @@ impl ServerKey {
         carry_out
     }
 
-    pub(super) fn generate_init_carry_array(
+    pub(super) fn generate_init_carry_array<T>(
         &self,
-        sum_ct: &RadixCiphertext,
-    ) -> Vec<crate::shortint::Ciphertext> {
+        sum_ct: &T,
+    ) -> Vec<crate::shortint::Ciphertext>
+    where
+        T: IntegerRadixCiphertext,
+    {
         let modulus = self.key.message_modulus.0 as u64;
 
         // This used for the first pair of blocks
@@ -535,9 +537,9 @@ impl ServerKey {
             }
         });
 
-        let mut generates_or_propagates = Vec::with_capacity(sum_ct.blocks.len());
+        let mut generates_or_propagates = Vec::with_capacity(sum_ct.blocks().len());
         sum_ct
-            .blocks
+            .blocks()
             .par_iter()
             .enumerate()
             .map(|(i, block)| {
@@ -556,22 +558,20 @@ impl ServerKey {
     }
 
     /// op must be associative and commutative
-    pub fn smart_binary_op_seq_parallelized<'this, 'item>(
+    pub fn smart_binary_op_seq_parallelized<'this, 'item, T>(
         &'this self,
-        ct_seq: impl IntoIterator<Item = &'item mut RadixCiphertext>,
-        op: impl for<'a> Fn(
-                &'a ServerKey,
-                &'a mut RadixCiphertext,
-                &'a mut RadixCiphertext,
-            ) -> RadixCiphertext
-            + Sync,
-    ) -> Option<RadixCiphertext> {
-        enum CiphertextCow<'a> {
-            Borrowed(&'a mut RadixCiphertext),
-            Owned(RadixCiphertext),
+        ct_seq: impl IntoIterator<Item = &'item mut T>,
+        op: impl for<'a> Fn(&'a ServerKey, &'a mut T, &'a mut T) -> T + Sync,
+    ) -> Option<T>
+    where
+        T: IntegerRadixCiphertext + 'item + From<Vec<crate::shortint::Ciphertext>>,
+    {
+        enum CiphertextCow<'a, C: IntegerRadixCiphertext> {
+            Borrowed(&'a mut C),
+            Owned(C),
         }
-        impl CiphertextCow<'_> {
-            fn as_mut(&mut self) -> &mut RadixCiphertext {
+        impl<C: IntegerRadixCiphertext> CiphertextCow<'_, C> {
+            fn as_mut(&mut self) -> &mut C {
                 match self {
                     CiphertextCow::Borrowed(b) => b,
                     CiphertextCow::Owned(o) => o,
@@ -589,16 +589,14 @@ impl ServerKey {
         // we defer all calls to a single implementation to avoid code bloat and long compile
         // times
         #[allow(clippy::type_complexity)]
-        fn reduce_impl(
+        fn reduce_impl<C>(
             sks: &ServerKey,
-            mut ct_seq: Vec<CiphertextCow>,
-            op: &(dyn for<'a> Fn(
-                &'a ServerKey,
-                &'a mut RadixCiphertext,
-                &'a mut RadixCiphertext,
-            ) -> RadixCiphertext
-                  + Sync),
-        ) -> Option<RadixCiphertext> {
+            mut ct_seq: Vec<CiphertextCow<C>>,
+            op: &(dyn for<'a> Fn(&'a ServerKey, &'a mut C, &'a mut C) -> C + Sync),
+        ) -> Option<C>
+        where
+            C: IntegerRadixCiphertext + From<Vec<crate::shortint::Ciphertext>>,
+        {
             use rayon::prelude::*;
 
             if ct_seq.is_empty() {
@@ -606,7 +604,7 @@ impl ServerKey {
             } else {
                 // we repeatedly divide the number of terms by two by iteratively reducing
                 // consecutive terms in the array
-                let num_blocks = ct_seq[0].as_mut().blocks.len();
+                let num_blocks = ct_seq[0].as_mut().blocks().len();
                 while ct_seq.len() > 1 {
                     let mut results =
                         vec![sks.create_trivial_radix(0u64, num_blocks); ct_seq.len() / 2];
@@ -642,18 +640,20 @@ impl ServerKey {
     }
 
     /// op must be associative and commutative
-    pub fn default_binary_op_seq_parallelized<'this, 'item>(
+    pub fn default_binary_op_seq_parallelized<'this, 'item, T>(
         &'this self,
-        ct_seq: impl IntoIterator<Item = &'item RadixCiphertext>,
-        op: impl for<'a> Fn(&'a ServerKey, &'a RadixCiphertext, &'a RadixCiphertext) -> RadixCiphertext
-            + Sync,
-    ) -> Option<RadixCiphertext> {
-        enum CiphertextCow<'a> {
-            Borrowed(&'a RadixCiphertext),
-            Owned(RadixCiphertext),
+        ct_seq: impl IntoIterator<Item = &'item T>,
+        op: impl for<'a> Fn(&'a ServerKey, &'a T, &'a T) -> T + Sync,
+    ) -> Option<T>
+    where
+        T: IntegerRadixCiphertext + 'item + From<Vec<crate::shortint::Ciphertext>>,
+    {
+        enum CiphertextCow<'a, C: IntegerRadixCiphertext> {
+            Borrowed(&'a C),
+            Owned(C),
         }
-        impl CiphertextCow<'_> {
-            fn as_ref(&self) -> &RadixCiphertext {
+        impl<C: IntegerRadixCiphertext> CiphertextCow<'_, C> {
+            fn as_ref(&self) -> &C {
                 match self {
                     CiphertextCow::Borrowed(b) => b,
                     CiphertextCow::Owned(o) => o,
@@ -671,16 +671,14 @@ impl ServerKey {
         // we defer all calls to a single implementation to avoid code bloat and long compile
         // times
         #[allow(clippy::type_complexity)]
-        fn reduce_impl(
+        fn reduce_impl<C>(
             sks: &ServerKey,
-            mut ct_seq: Vec<CiphertextCow>,
-            op: &(dyn for<'a> Fn(
-                &'a ServerKey,
-                &'a RadixCiphertext,
-                &'a RadixCiphertext,
-            ) -> RadixCiphertext
-                  + Sync),
-        ) -> Option<RadixCiphertext> {
+            mut ct_seq: Vec<CiphertextCow<C>>,
+            op: &(dyn for<'a> Fn(&'a ServerKey, &'a C, &'a C) -> C + Sync),
+        ) -> Option<C>
+        where
+            C: IntegerRadixCiphertext + From<Vec<crate::shortint::Ciphertext>>,
+        {
             use rayon::prelude::*;
 
             if ct_seq.is_empty() {
@@ -688,7 +686,7 @@ impl ServerKey {
             } else {
                 // we repeatedly divide the number of terms by two by iteratively reducing
                 // consecutive terms in the array
-                let num_blocks = ct_seq[0].as_ref().blocks.len();
+                let num_blocks = ct_seq[0].as_ref().blocks().len();
                 while ct_seq.len() > 1 {
                     let mut results =
                         vec![sks.create_trivial_radix(0u64, num_blocks); ct_seq.len() / 2];

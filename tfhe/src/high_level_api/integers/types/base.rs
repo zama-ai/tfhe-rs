@@ -4,6 +4,7 @@ use std::ops::{
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
+use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::errors::{
     UninitializedClientKey, UninitializedCompressedPublicKey, UninitializedPublicKey,
     UnwrapResultExt,
@@ -232,7 +233,7 @@ where
 
 impl<P, T> FheTryEncrypt<T, ClientKey> for GenericInteger<P>
 where
-    T: crate::integer::block_decomposition::DecomposableInto<u64>,
+    T: crate::integer::block_decomposition::DecomposableInto<u64> + UnsignedNumeric,
     P: IntegerParameter,
     P::Id: Default + TypeIdentifier,
 {

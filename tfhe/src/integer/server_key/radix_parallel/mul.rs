@@ -306,7 +306,9 @@ impl ServerKey {
         // so we use another one that still works
         if num_bits_in_carry == 1 {
             *lhs = self
-                .smart_binary_op_seq_parallelized(&mut terms, ServerKey::smart_add_parallelized)
+                .smart_binary_op_seq_parallelized(&mut terms, |sks, a, b| {
+                    sks.smart_add_parallelized(a, b)
+                })
                 .unwrap_or_else(|| self.create_trivial_zero_radix(num_blocks));
 
             self.full_propagate_parallelized(lhs);

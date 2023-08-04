@@ -40,6 +40,9 @@ pub trait Numeric:
     const MAX: Self;
 }
 
+pub trait UnsignedNumeric: Numeric {}
+pub trait SignedNumeric: Numeric {}
+
 /// A trait that allows to generically cast one type from another.
 ///
 /// This type is similar to the [`std::convert::From`] trait, but the conversion between the two

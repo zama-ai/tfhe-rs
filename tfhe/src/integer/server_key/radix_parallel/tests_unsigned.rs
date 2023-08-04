@@ -1,5 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{RadixClientKey, ServerKey};
+use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
 use paste::paste;
 use rand::Rng;
@@ -261,7 +261,9 @@ where
                 .collect::<Vec<_>>();
 
             let ct_res = sks
-                .smart_binary_op_seq_parallelized(&mut ctxts, ServerKey::smart_add_parallelized)
+                .smart_binary_op_seq_parallelized(&mut ctxts, |sks, a, b| {
+                    sks.smart_add_parallelized(a, b)
+                })
                 .unwrap();
             let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
@@ -303,8 +305,10 @@ where
                 .unwrap();
 
             let ct_res = threadpool.install(|| {
-                sks.smart_binary_op_seq_parallelized(&mut ctxts, ServerKey::smart_add_parallelized)
-                    .unwrap()
+                sks.smart_binary_op_seq_parallelized(&mut ctxts, |sks, a, b| {
+                    sks.smart_add_parallelized(a, b)
+                })
+                .unwrap()
             });
             let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
@@ -2591,7 +2595,7 @@ where
         let clear2 = rng.gen_range(0u64..=1);
 
         let ctxt_1 = cks.encrypt(clear1);
-        let ctxt_2 = sks.create_trivial_radix(clear2, ctxt_1.blocks.len());
+        let ctxt_2: RadixCiphertext = sks.create_trivial_radix(clear2, ctxt_1.blocks.len());
         assert!(ctxt_2.holds_boolean_value());
 
         let res = sks.mul_parallelized(&ctxt_1, &ctxt_2);

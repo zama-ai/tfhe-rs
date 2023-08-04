@@ -12,7 +12,7 @@ mod sub;
 use super::ServerKey;
 
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::encryption::encrypt_words_radix_impl;
 
 #[cfg(test)]
@@ -74,9 +74,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ctxt);
     /// assert_eq!(212, dec);
     /// ```
-    pub fn create_trivial_radix<T>(&self, value: T, num_blocks: usize) -> RadixCiphertext
+    pub fn create_trivial_radix<T, C>(&self, value: T, num_blocks: usize) -> C
     where
         T: DecomposableInto<u64>,
+        C: IntegerRadixCiphertext + From<Vec<crate::shortint::Ciphertext>>,
     {
         encrypt_words_radix_impl(
             &self.key,
@@ -401,15 +402,18 @@ where {
     /// let res: u64 = cks.decrypt_one_block(&ct_res.blocks()[1]);
     /// assert_eq!(3, res);
     /// ```
-    pub fn propagate(&self, ctxt: &mut RadixCiphertext, index: usize) {
-        let carry = self.key.carry_extract(&ctxt.blocks[index]);
+    pub fn propagate<T>(&self, ctxt: &mut T, index: usize)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let carry = self.key.carry_extract(&ctxt.blocks()[index]);
 
-        ctxt.blocks[index] = self.key.message_extract(&ctxt.blocks[index]);
+        ctxt.blocks_mut()[index] = self.key.message_extract(&ctxt.blocks()[index]);
 
         //add the carry to the next block
-        if index < ctxt.blocks.len() - 1 {
+        if index < ctxt.blocks().len() - 1 {
             self.key
-                .unchecked_add_assign(&mut ctxt.blocks[index + 1], &carry);
+                .unchecked_add_assign(&mut ctxt.blocks_mut()[index + 1], &carry);
         }
     }
 
@@ -439,7 +443,10 @@ where {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg + msg, res);
     /// ```
-    pub fn full_propagate(&self, ctxt: &mut RadixCiphertext) {
+    pub fn full_propagate<T>(&self, ctxt: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         self.partial_propagate(ctxt, 0);
     }
 
@@ -448,8 +455,11 @@ where {
     ///
     /// Last carry is not propagated as
     /// it has nothing to propagate to.
-    fn partial_propagate(&self, ctxt: &mut RadixCiphertext, start_index: usize) {
-        let len = ctxt.blocks.len();
+    fn partial_propagate<T>(&self, ctxt: &mut T, start_index: usize)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let len = ctxt.blocks().len();
         for i in start_index..len {
             self.propagate(ctxt, i);
         }
