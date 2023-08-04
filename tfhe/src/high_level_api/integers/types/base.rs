@@ -141,6 +141,25 @@ where
     }
 }
 
+impl<P> GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: WithGlobalKey<Key = IntegerServerKey>,
+{
+    pub fn if_then_else(&self, ct_then: &Self, ct_else: &Self) -> GenericInteger<P> {
+        let ct_condition = self;
+        let new_ct = ct_condition.id.with_unwrapped_global(|integer_key| {
+            integer_key.pbs_key().if_then_else_parallelized(
+                &ct_condition.ciphertext,
+                &ct_then.ciphertext,
+                &ct_else.ciphertext,
+            )
+        });
+
+        GenericInteger::new(new_ct, ct_condition.id)
+    }
+}
+
 impl<P> TryFrom<RadixCiphertext> for GenericInteger<P>
 where
     P: IntegerParameter,

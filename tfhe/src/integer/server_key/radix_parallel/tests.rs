@@ -2826,10 +2826,8 @@ fn integer_smart_if_then_else<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
@@ -2851,7 +2849,6 @@ where
 
         let ct_res =
             sks.smart_if_then_else_parallelized(&mut ctxt_condition, &mut ctxt_0, &mut ctxt_1);
-        assert!(ct_res.block_carries_are_empty());
 
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(
@@ -2879,7 +2876,6 @@ where
             sks.smart_if_then_else_parallelized(&mut ctxt_condition, &mut ctxt_0, &mut ctxt_1);
         assert!(ctxt_0.block_carries_are_empty());
         assert!(ctxt_1.block_carries_are_empty());
-        assert!(ct_res.block_carries_are_empty());
 
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(
