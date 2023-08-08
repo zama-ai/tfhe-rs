@@ -18,6 +18,8 @@ Then, a small random value called noise is added to the least significant bits. 
 
 $$plaintext = (\Delta * m) + e$$
 
+$$m \in \mathbb{Z}_p$$
+
 ![](../_static/lwe.png)
 
 To go from a **plaintext** to a **ciphertext,** one must encrypt the plaintext using a secret key.
@@ -68,7 +70,7 @@ In `TFHE-rs`, noise is encoded in the least significant bits of each plaintext. 
 
 The figure below illustrates this problem in the case of an addition, where an extra bit of noise is incurred as a result.
 
-![Noise overtaking the plaintexts after homomorphic addition. Most significant bits are on the left.](../_static/fig7.png)
+![Noise overtaking the plaintexts after homomorphic addition. Most significant bits are on the left.](../_static/overflow.png)
 
 `TFHE-rs` offers the ability to automatically manage noise by performing bootstrapping operations to reset the noise.
 
@@ -84,7 +86,7 @@ Since encoded values have a fixed precision, operating on them can produce resul
 
 As an example, consider adding two ciphertexts. Adding two values could end up outside the range of either ciphertext, and thus necessitate a carry, which would then be carried onto the first padding bit. In the figure below, each plaintext over 32 bits has one bit of padding on its left (i.e., the most significant bit). After the addition, the padding bit is no longer available, as it has been used in order for the carry. This is referred to as **consuming** bits of padding. Since no padding is left, there is no guarantee that further additions would yield correct results.
 
-![](../_static/fig6.png)
+![](../_static/carry.png)
 
 
 ### Security.
