@@ -2,10 +2,9 @@
 name: Start all benchmarks
 
 on:
-# TODO schedule event would be activated later, once the cost of running full benchmarks would be assessed
-#  schedule:
-#    # Job will be triggered each Saturday at 1a.m.
-#    - cron: '0 1 * * 6'
+  schedule:
+    # Job will be triggered each Saturday at 1a.m.
+    - cron: '0 1 * * 6'
   workflow_dispatch:
 
 jobs:

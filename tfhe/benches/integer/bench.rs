@@ -898,6 +898,10 @@ criterion_group!(
     smart_bitand,
     smart_bitor,
     smart_bitxor,
+);
+
+criterion_group!(
+    smart_ops_comp,
     smart_max,
     smart_min,
     smart_eq,
@@ -915,6 +919,10 @@ criterion_group!(
     smart_bitand_parallelized,
     smart_bitor_parallelized,
     smart_bitxor_parallelized,
+);
+
+criterion_group!(
+    smart_parallelized_ops_comp,
     smart_max_parallelized,
     smart_min_parallelized,
     smart_eq_parallelized,
@@ -934,6 +942,14 @@ criterion_group!(
     bitnot_parallelized,
     bitor_parallelized,
     bitxor_parallelized,
+    left_shift_parallelized,
+    right_shift_parallelized,
+    rotate_left_parallelized,
+    rotate_right_parallelized,
+);
+
+criterion_group!(
+    default_parallelized_ops_comp,
     max_parallelized,
     min_parallelized,
     eq_parallelized,
@@ -942,10 +958,6 @@ criterion_group!(
     le_parallelized,
     gt_parallelized,
     ge_parallelized,
-    left_shift_parallelized,
-    right_shift_parallelized,
-    rotate_left_parallelized,
-    rotate_right_parallelized,
     if_then_else_parallelized,
 );
 
@@ -972,6 +984,12 @@ criterion_group!(
     scalar_rem_parallelized,
     scalar_left_shift_parallelized,
     scalar_right_shift_parallelized,
+    scalar_rotate_left_parallelized,
+    scalar_rotate_right_parallelized,
+);
+
+criterion_group!(
+    default_scalar_parallelized_ops_comp,
     scalar_eq_parallelized,
     scalar_ne_parallelized,
     scalar_lt_parallelized,
@@ -980,8 +998,6 @@ criterion_group!(
     scalar_ge_parallelized,
     scalar_min_parallelized,
     scalar_max_parallelized,
-    scalar_rotate_left_parallelized,
-    scalar_rotate_right_parallelized,
 );
 
 criterion_group!(
@@ -992,6 +1008,10 @@ criterion_group!(
     unchecked_bitand,
     unchecked_bitor,
     unchecked_bitxor,
+);
+
+criterion_group!(
+    unchecked_ops_comp,
     unchecked_max,
     unchecked_min,
     unchecked_eq,
@@ -1006,6 +1026,13 @@ criterion_group!(
     unchecked_scalar_add,
     unchecked_scalar_sub,
     unchecked_small_scalar_mul,
+    unchecked_bitand_parallelized,
+    unchecked_bitor_parallelized,
+    unchecked_bitxor_parallelized,
+);
+
+criterion_group!(
+    unchecked_scalar_ops_comp,
     unchecked_max_parallelized,
     unchecked_min_parallelized,
     unchecked_eq_parallelized,
@@ -1013,9 +1040,6 @@ criterion_group!(
     unchecked_le_parallelized,
     unchecked_gt_parallelized,
     unchecked_ge_parallelized,
-    unchecked_bitand_parallelized,
-    unchecked_bitor_parallelized,
-    unchecked_bitxor_parallelized,
 );
 
 criterion_group!(misc, full_propagate, full_propagate_parallelized);
@@ -1025,13 +1049,19 @@ fn main() {
         Ok(val) => {
             match val.to_lowercase().as_str() {
                 "default" => default_parallelized_ops(),
+                "default_comp" => default_parallelized_ops_comp(),
                 "default_scalar" => default_scalar_parallelized_ops(),
+                "default_scalar_comp" => default_scalar_parallelized_ops_comp(),
                 "smart" => smart_ops(),
+                "smart_comp" => smart_ops_comp(),
                 "smart_scalar" => smart_scalar_ops(),
                 "smart_parallelized" => smart_parallelized_ops(),
+                "smart_parallelized_comp" => smart_parallelized_ops_comp(),
                 "smart_scalar_parallelized" => smart_scalar_parallelized_ops(),
                 "unchecked" => unchecked_ops(),
+                "unchecked_comp" => unchecked_ops_comp(),
                 "unchecked_scalar" => unchecked_scalar_ops(),
+                "unchecked_scalar_comp" => unchecked_scalar_ops_comp(),
                 "misc" => misc(),
                 _ => panic!("unknown benchmark operations flavor"),
             };
