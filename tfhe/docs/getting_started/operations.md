@@ -43,7 +43,7 @@ The list of supported operations is:
 
 Native small homomorphic integer types (e.g., FheUint3 or FheUint4) easily compute various operations. In general, computing over encrypted data is as easy as computing over clear data, since the same operation symbol is used. The addition between two ciphertexts is done using the symbol `+` between two FheUint values. Many operations can be computed between a clear value (i.e. a scalar) and a ciphertext.
 
-In Rust, operations on native types are modular. For example, computations on `u8` are carried out modulo 2^8. A similar idea applies for FheUintX, where operations are done modulo 2^X. For FheUint3, operations are done modulo 8 = 2^3.
+In Rust, operations on native types are modular. For example, computations on `u8` are carried out modulo $$2^{8}$$. A similar idea applies for FheUintX, where operations are done modulo $$2^{X}$$. For FheUint3, operations are done modulo $$8 = 2^{3}$$.
 
 ### Arithmetic operations.
 
@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::all_disabled().enable_default_uint3().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
-    
+
     let clear_a = 7;
     let clear_b = 3;
     let clear_c = 2;
@@ -85,10 +85,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     a = a * &b;  // Clear equivalent computations: 7 * 3 mod 8 = 5
     b = &b + &c; // Clear equivalent computations: 3 + 2 mod 8 = 5
     b = b - 5;   // Clear equivalent computations: 5 - 5 mod 8 = 0
-    
+
     let dec_a = a.decrypt(&keys);
     let dec_b = b.decrypt(&keys);
-    
+
     // We homomorphically swapped values using bitwise operations
     assert_eq!(dec_a, (clear_a * clear_b) % 8);
     assert_eq!(dec_b, ((clear_b + clear_c) - 5) % 8);
@@ -124,20 +124,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::all_disabled().enable_default_uint3().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
-    
+
     let clear_a = 7;
     let clear_b = 3;
-    
+
     let mut a = FheUint3::try_encrypt(clear_a, &keys)?;
     let mut b = FheUint3::try_encrypt(clear_b, &keys)?;
-    
+
     a = a ^ &b;
     b = b ^ &a;
     a = a ^ &b;
-    
+
     let dec_a = a.decrypt(&keys);
     let dec_b = b.decrypt(&keys);
-    
+
     // We homomorphically swapped values using bitwise operations
     assert_eq!(dec_a, clear_b);
     assert_eq!(dec_b, clear_a);
@@ -179,13 +179,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::all_disabled().enable_default_uint3().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
-    
+
     let clear_a = 7;
     let clear_b = 3;
-    
+
     let mut a = FheUint3::try_encrypt(clear_a, &keys)?;
     let mut b = FheUint3::try_encrypt(clear_b, &keys)?;
-    
+
     assert_eq!(a.gt(&b).decrypt(&keys) != 0, true);
     assert_eq!(b.le(&a).decrypt(&keys) != 0, true);
 
@@ -237,13 +237,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::all_disabled().enable_default_uint2().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
-    
+
     let clear_a = 1;
     let clear_b = 3;
     let a = FheUint2::try_encrypt(clear_a, &keys)?;
     let b = FheUint2::try_encrypt(clear_b, &keys)?;
 
-    
+
     let c = a.bivariate_function(&b, std::cmp::max);
     let decrypted = c.decrypt(&keys);
     assert_eq!(decrypted, std::cmp::max(clear_a, clear_b) as u8);
@@ -286,7 +286,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::all_disabled().enable_default_integers().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
-    
+
     let clear_a = 15_u64;
     let clear_b = 27_u64;
     let clear_c = 43_u64;
@@ -299,10 +299,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     a = a * &b;  // Clear equivalent computations: 15 * 27 mod 256 = 149
     b = &b + &c; // Clear equivalent computations: 27 + 43 mod 256 = 70
     b = b - 76u8;   // Clear equivalent computations: 70 - 76 mod 256 = 250
-    
+
     let dec_a: u8 = a.decrypt(&keys);
     let dec_b: u8 = b.decrypt(&keys);
-    
+
     assert_eq!(dec_a, ((clear_a * clear_b) % 256_u64) as u8);
     assert_eq!(dec_b, (((clear_b  + clear_c).wrapping_sub(76_u64)) % 256_u64) as u8);
 
@@ -337,7 +337,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ConfigBuilder::all_disabled().enable_default_integers().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
-    
+
     let clear_a = 164;
     let clear_b = 212;
 

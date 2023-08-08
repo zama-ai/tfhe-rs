@@ -2,7 +2,9 @@
 
 Due to their nature, homomorphic operations are naturally slower than their clear equivalent. Some timings are exposed for basic operations. For completeness, benchmarks for other libraries are also given.
 
+{% hint style="info" %}
 All benchmarks were launched on an AWS m6i.metal with the following specifications: Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz and 512GB of RAM.
+{% endhint %}
 
 ## Boolean
 
@@ -31,7 +33,7 @@ This measures the execution time of a single binary Boolean gate.
 
 ## Integer
 This measures the execution time for some operation sets of tfhe-rs::integer.
-  
+
 | Operation \ Size                                       | `FheUint8` | `FheUint16` | `FheUint32` | ` FheUint64` | `FheUint128` | `FheUint256` |
 |--------------------------------------------------------|------------|-------------|-------------|--------------|--------------|--------------|
 | Negation (`-`)                                         | 80.4 ms    | 106 ms      | 132 ms      | 193 ms       | 257 ms       | 348 ms       |
@@ -48,7 +50,7 @@ This measures the execution time for some operation sets of tfhe-rs::integer.
 
 
 All timings are related to parallelized Radix-based integer operations, where each block is encrypted using the default parameters (i.e., PARAM\_MESSAGE\_2\_CARRY\_2, more information about parameters can be found [here](../fine_grained_api/shortint/parameters.md)).
-To ensure predictable timings, the operation flavor is the `default` one: the carry is propagated if needed. The operation costs could be reduced by using `unchecked`, `checked`, or `smart`. 
+To ensure predictable timings, the operation flavor is the `default` one: the carry is propagated if needed. The operation costs could be reduced by using `unchecked`, `checked`, or `smart`.
 
 
 ## Shortint
