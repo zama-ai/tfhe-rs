@@ -45,7 +45,7 @@ doctest!(
     booleans_serialization
 );
 doctest!(
-    "../docs/fine_grained_api/Boolean/tutorial.md",
+    "../docs/fine_grained_api/Boolean/readme.md",
     booleans_tutorial
 );
 
@@ -64,7 +64,7 @@ doctest!(
     shortint_serialization
 );
 doctest!(
-    "../docs/fine_grained_api/shortint/tutorial.md",
+    "../docs/fine_grained_api/shortint/readme.md",
     shortint_tutorial
 );
 
@@ -78,7 +78,7 @@ doctest!(
     integer_serialization_tuto
 );
 doctest!(
-    "../docs/fine_grained_api/integer/tutorial.md",
+    "../docs/fine_grained_api/integer/readme.md",
     integer_first_circuit
 );
 

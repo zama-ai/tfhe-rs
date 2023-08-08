@@ -9,7 +9,7 @@
 * [Benchmarks](getting_started/benchmarks.md)
 * [Security and Cryptography](getting_started/security_and_cryptography.md)
 
-## Tutorials 
+## Tutorials
 * [Homomorphic Parity Bit](tutorials/parity_bit.md)
 * [Homomorphic Case Changing on Latin String](tutorials/latin_fhe_string.md)
 
@@ -25,17 +25,17 @@
 
 ## Fine-grained APIs
 * [Quick Start](fine_grained_api/quick_start.md)
-* [Boolean](fine_grained_api/Boolean/tutorial.md)
+* [Boolean](fine_grained_api/Boolean/readme.md)
     * [Operations](fine_grained_api/Boolean/operations.md)
     * [Cryptographic Parameters](fine_grained_api/Boolean/parameters.md)
     * [Serialization/Deserialization](fine_grained_api/Boolean/serialization.md)
 
-* [Shortint](fine_grained_api/shortint/tutorial.md)
+* [Shortint](fine_grained_api/shortint/readme.md)
     * [Operations](fine_grained_api/shortint/operations.md)
     * [Cryptographic Parameters](fine_grained_api/shortint/parameters.md)
     * [Serialization/Deserialization](fine_grained_api/shortint/serialization.md)
 
-* [Integer](fine_grained_api/integer/tutorial.md)
+* [Integer](fine_grained_api/integer/readme.md)
     * [Operations](fine_grained_api/integer/operations.md)
     * [Cryptographic Parameters](fine_grained_api/integer/parameters.md)
     * [Serialization/Deserialization](fine_grained_api/integer/serialization.md)
