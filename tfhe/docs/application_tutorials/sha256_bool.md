@@ -17,11 +17,8 @@ The sha256 function processes the input data in blocks or chunks of 512 bits. Be
 
 Or visually:
 
-```
-0                                   L   L+1                              L+1+k                  L+1+k+64
-|-----------------------------------|---|--------------------------------|----------------------|
-    Original input (L bits)        "1" bit          "0" bits             Encoding of the number L
-```
+![](../_static/sha256.png)
+
 Where the numbers on the top represent the length of the padded input at each position, and L+1+k+64 is a multiple of 512 (the length of the padded input).
 
 #### Operations and functions
@@ -63,7 +60,7 @@ Note that all these operations can be evaluated homomorphically. ROTR and SHR ca
 
 #### Sha256 computation
 
-As we have mentioned, the sha256 function works with chunks of 512 bits. For each chunk, we will compute 64 32-bit words. 16 will come from the 512 bits and the rest will be computed using the previous functions. After computing the 64 words, and still within the same chunk iteration, a compression loop will compute a hash value (8 32-bit words), again using the previous functions and some constants to mix everything up. When we finish the last chunk iteration, the resulting hash values will be the output of the sha256 function. 
+As we have mentioned, the sha256 function works with chunks of 512 bits. For each chunk, we will compute 64 32-bit words. 16 will come from the 512 bits and the rest will be computed using the previous functions. After computing the 64 words, and still within the same chunk iteration, a compression loop will compute a hash value (8 32-bit words), again using the previous functions and some constants to mix everything up. When we finish the last chunk iteration, the resulting hash values will be the output of the sha256 function.
 
 Here is how this function looks like using arrays of 32 bools to represent words:
 
@@ -317,6 +314,6 @@ By using ```stdin``` we can supply the data to hash using a file instead of the 
 
 Our implementation also accepts hexadecimal inputs. To be considered as such, the input must start with "0x" and contain only valid hex digits (otherwise it's interpreted as text).
 
-Finally see that padding is executed on the client side. This has the advantage of hiding the exact length of the input to the server, who already doesn't know anything about the contents of it but may extract information from the length. 
+Finally see that padding is executed on the client side. This has the advantage of hiding the exact length of the input to the server, who already doesn't know anything about the contents of it but may extract information from the length.
 
 Another option would be to perform padding on the server side. The padding function would receive the encrypted input and pad it with trivial bit encryptions. We could then integrate the padding function inside the ```sha256_fhe``` function computed by the server.
