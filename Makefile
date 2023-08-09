@@ -100,7 +100,7 @@ clippy_core: install_rs_check_toolchain
 .PHONY: clippy_boolean # Run clippy lints enabling the boolean features
 clippy_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),boolean \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_shortint # Run clippy lints enabling the shortint features
@@ -118,19 +118,19 @@ clippy_integer: install_rs_check_toolchain
 .PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
 clippy: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
 clippy_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,internal-keycache \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint, integer and the js wasm API
 clippy_js_wasm_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api \
+		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,internal-keycache \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_tasks # Run clippy lints on helper tasks crate.
@@ -349,7 +349,7 @@ docs: doc
 lint_doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer --no-deps
+		--features=$(TARGET_ARCH_FEATURE),internal-keycache,boolean,shortint,integer --no-deps
 
 .PHONY: lint_docs # Build rust doc with linting enabled alias for lint_doc
 lint_docs: lint_doc
@@ -494,6 +494,12 @@ parse_wasm_benchmarks: install_rs_check_toolchain
 	--example wasm_benchmarks_parser \
 	--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache \
 	-- web_wasm_parallel_tests/test/benchmark_results
+
+.PHONY: write_params_to_file # Gather all crypto parameters into a file with a Sage readable format.
+write_params_to_file: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+	--example write_params_to_file \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache
 
 #
 # Real use case examples

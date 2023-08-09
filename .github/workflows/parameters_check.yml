@@ -1,0 +1,72 @@
+# Perform a security check on all of the cryptographic parameters set
+name: Parameters curves security check
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+
+on:
+  push:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+jobs:
+  check-file-change:
+    runs-on: ubuntu-latest
+    outputs:
+      file_has_changed: ${{ steps.changed-files.outputs.params_files_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@a96679dfee2a1e64b1db5a210c0ffaf1f2cb24ce
+        with:
+          files_yaml: |
+            params_files:
+              - tfhe/src/boolean/parameters/mod.rs
+              - tfhe/src/shortint/parameters/mod.rs
+              - tfhe/src/shortint/parameters/multi_bit.rs
+              - tfhe/src/shortint/parameters/parameters_compact_pk.rs
+
+  params-curves-security-check:
+    needs: check-file-change
+    if: (github.event_name == 'workflow_dispatch' || needs.check-file-change.outputs.file_has_changed == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+
+      - name: Checkout lattice-estimator
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        with:
+          repository: malb/lattice-estimator
+          path: lattice_estimator
+
+      - name: Install Sage
+        run: |
+          sudo apt update
+          sudo apt install -y sagemath
+
+      - name: Collect parameters
+        run: |
+          make write_params_to_file
+
+      - name: Perform security check
+        run: |
+          PYTHONPATH=lattice_estimator sage ci/lattice_estimator.sage
+
+      - name: Slack Notification
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@12e36fc18b0689399306c2e0b3e0f2978b7f1ee7
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_MESSAGE: "Security check for parameters finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
