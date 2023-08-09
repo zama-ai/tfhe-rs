@@ -23,6 +23,8 @@ pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, EncryptionKeyChoice, GlweDimension,
     LweDimension, PolynomialSize,
 };
+
+use crate::shortint::keycache::NamedParam;
 use serde::{Deserialize, Serialize};
 
 /// A set of cryptographic parameters for homomorphic Boolean circuit evaluation.
@@ -192,3 +194,17 @@ pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
     ks_level: DecompositionLevelCount(8),
     encryption_key_choice: EncryptionKeyChoice::Small,
 };
+
+pub const VEC_BOOLEAN_PARAM: [BooleanParameters; 2] = [DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS];
+
+impl NamedParam for BooleanParameters {
+    fn name(&self) -> &'static str {
+        if *self == DEFAULT_PARAMETERS {
+            "DEFAULT_PARAMETERS"
+        } else if *self == TFHE_LIB_PARAMETERS {
+            "TFHE_LIB_PARAMETERS"
+        } else {
+            panic!("Unknown parameters, missing name implementation")
+        }
+    }
+}
