@@ -55,5 +55,10 @@ mod test_user_docs;
 /// cbindgen:ignore
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 pub(crate) mod high_level_api;
+
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 pub use high_level_api::*;
+
+/// cbindgen:ignore
+#[cfg(any(test, doctest, feature = "internal-keycache"))]
+pub mod keycache;

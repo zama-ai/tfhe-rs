@@ -13,7 +13,7 @@ use rand::Rng;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{RadixCiphertext, ServerKey};
-use tfhe::shortint::keycache::NamedParam;
+use tfhe::keycache::NamedParam;
 
 #[allow(unused_imports)]
 use tfhe::shortint::parameters::{

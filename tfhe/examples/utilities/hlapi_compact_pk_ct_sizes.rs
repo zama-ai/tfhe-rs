@@ -7,8 +7,8 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use tfhe::integer::U256;
+use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
-use tfhe::shortint::keycache::NamedParam;
 use tfhe::shortint::parameters::{
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
 };

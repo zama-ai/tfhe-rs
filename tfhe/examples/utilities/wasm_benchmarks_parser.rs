@@ -9,9 +9,9 @@ use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
+use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::{
-    NamedParam, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_NAME,
-    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_NAME,
+    PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_NAME, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_NAME,
 };
 use tfhe::shortint::parameters::{
     PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS, PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS,
