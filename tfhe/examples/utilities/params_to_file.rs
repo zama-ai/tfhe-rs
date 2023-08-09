@@ -4,7 +4,7 @@ use std::path::Path;
 use tfhe::boolean::parameters::{BooleanParameters, VEC_BOOLEAN_PARAM};
 use tfhe::core_crypto::commons::dispersion::StandardDev;
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
-use tfhe::shortint::keycache::NamedParam;
+use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::multi_bit::ALL_MULTI_BIT_PARAMETER_VEC;
 use tfhe::shortint::parameters::{ShortintParameterSet, ALL_PARAMETER_VEC};
 

@@ -5,7 +5,8 @@ use crate::utilities::{write_to_json, OperatorType};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use tfhe::shortint::keycache::{NamedParam, KEY_CACHE};
+use tfhe::keycache::NamedParam;
+use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
     PARAM_MESSAGE_4_CARRY_4_KS_PBS, PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS,

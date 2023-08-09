@@ -1,5 +1,6 @@
 use clap::{Arg, ArgAction, Command};
-use tfhe::shortint::keycache::{NamedParam, KEY_CACHE, KEY_CACHE_WOPBS};
+use tfhe::keycache::NamedParam;
+use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 use tfhe::shortint::parameters::parameters_wopbs_message_carry::{
     WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS, WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
     WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS, WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,

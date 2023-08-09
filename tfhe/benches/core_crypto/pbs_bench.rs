@@ -9,7 +9,7 @@ use tfhe::boolean::parameters::{
     BooleanParameters, DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
 };
 use tfhe::core_crypto::prelude::*;
-use tfhe::shortint::keycache::NamedParam;
+use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::ClassicPBSParameters;
 

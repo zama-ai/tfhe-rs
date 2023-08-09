@@ -100,7 +100,7 @@ clippy_core: install_rs_check_toolchain
 .PHONY: clippy_boolean # Run clippy lints enabling the boolean features
 clippy_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache \
+		--features=$(TARGET_ARCH_FEATURE),boolean \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_shortint # Run clippy lints enabling the shortint features
@@ -118,19 +118,19 @@ clippy_integer: install_rs_check_toolchain
 .PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
 clippy: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
 clippy_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,internal-keycache \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint, integer and the js wasm API
 clippy_js_wasm_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,internal-keycache \
+		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_tasks # Run clippy lints on helper tasks crate.
@@ -141,7 +141,7 @@ clippy_tasks:
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_all # Run all clippy targets
@@ -199,7 +199,7 @@ build_tfhe_full: install_rs_build_toolchain
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api, \
 		-p tfhe
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
@@ -349,7 +349,7 @@ docs: doc
 lint_doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=$(TARGET_ARCH_FEATURE),internal-keycache,boolean,shortint,integer --no-deps
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer --no-deps
 
 .PHONY: lint_docs # Build rust doc with linting enabled alias for lint_doc
 lint_docs: lint_doc
