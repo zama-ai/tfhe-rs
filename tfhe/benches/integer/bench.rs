@@ -673,23 +673,23 @@ define_server_key_bench_default_fn!(method_name: bitxor_parallelized, display_na
 define_server_key_bench_default_fn!(method_name: bitor_parallelized, display_name: bitor);
 define_server_key_bench_unary_default_fn!(method_name: bitnot_parallelized, display_name: bitnot);
 
-define_server_key_bench_fn!(method_name: unchecked_add, display_name: add);
-define_server_key_bench_fn!(method_name: unchecked_sub, display_name: sub);
-define_server_key_bench_fn!(method_name: unchecked_mul, display_name: mul);
-define_server_key_bench_fn!(method_name: unchecked_bitand, display_name: bitand);
-define_server_key_bench_fn!(method_name: unchecked_bitor, display_name: bitor);
-define_server_key_bench_fn!(method_name: unchecked_bitxor, display_name: bitxor);
+define_server_key_bench_default_fn!(method_name: unchecked_add, display_name: add);
+define_server_key_bench_default_fn!(method_name: unchecked_sub, display_name: sub);
+define_server_key_bench_default_fn!(method_name: unchecked_mul, display_name: mul);
+define_server_key_bench_default_fn!(method_name: unchecked_bitand, display_name: bitand);
+define_server_key_bench_default_fn!(method_name: unchecked_bitor, display_name: bitor);
+define_server_key_bench_default_fn!(method_name: unchecked_bitxor, display_name: bitxor);
 
-define_server_key_bench_fn!(method_name: unchecked_mul_parallelized, display_name: mul);
-define_server_key_bench_fn!(
+define_server_key_bench_default_fn!(method_name: unchecked_mul_parallelized, display_name: mul);
+define_server_key_bench_default_fn!(
     method_name: unchecked_bitand_parallelized,
     display_name: bitand
 );
-define_server_key_bench_fn!(
+define_server_key_bench_default_fn!(
     method_name: unchecked_bitor_parallelized,
     display_name: bitor
 );
-define_server_key_bench_fn!(
+define_server_key_bench_default_fn!(
     method_name: unchecked_bitxor_parallelized,
     display_name: bitxor
 );
@@ -797,9 +797,21 @@ define_server_key_bench_scalar_default_fn!(
     rng_func: default_scalar
 );
 
-define_server_key_bench_scalar_fn!(method_name: unchecked_scalar_add, display_name: add);
-define_server_key_bench_scalar_fn!(method_name: unchecked_scalar_sub, display_name: sub);
-define_server_key_bench_scalar_fn!(method_name: unchecked_small_scalar_mul, display_name: mul);
+define_server_key_bench_scalar_default_fn!(
+    method_name: unchecked_scalar_add,
+    display_name: add,
+    rng_func: default_scalar
+);
+define_server_key_bench_scalar_default_fn!(
+    method_name: unchecked_scalar_sub,
+    display_name: sub,
+    rng_func: default_scalar
+);
+define_server_key_bench_scalar_default_fn!(
+    method_name: unchecked_small_scalar_mul,
+    display_name: mul,
+    rng_func: mul_scalar
+);
 
 define_server_key_bench_unary_fn!(method_name: smart_neg, display_name: negation);
 define_server_key_bench_unary_fn!(method_name: smart_neg_parallelized, display_name: negation);
@@ -811,30 +823,30 @@ define_server_key_bench_unary_fn!(
     display_name: carry_propagation
 );
 
-define_server_key_bench_fn!(method_name: unchecked_max, display_name: max);
-define_server_key_bench_fn!(method_name: unchecked_min, display_name: min);
-define_server_key_bench_fn!(method_name: unchecked_eq, display_name: equal);
-define_server_key_bench_fn!(method_name: unchecked_lt, display_name: less_than);
-define_server_key_bench_fn!(method_name: unchecked_le, display_name: less_or_equal);
-define_server_key_bench_fn!(method_name: unchecked_gt, display_name: greater_than);
-define_server_key_bench_fn!(method_name: unchecked_ge, display_name: greater_or_equal);
+define_server_key_bench_default_fn!(method_name: unchecked_max, display_name: max);
+define_server_key_bench_default_fn!(method_name: unchecked_min, display_name: min);
+define_server_key_bench_default_fn!(method_name: unchecked_eq, display_name: equal);
+define_server_key_bench_default_fn!(method_name: unchecked_lt, display_name: less_than);
+define_server_key_bench_default_fn!(method_name: unchecked_le, display_name: less_or_equal);
+define_server_key_bench_default_fn!(method_name: unchecked_gt, display_name: greater_than);
+define_server_key_bench_default_fn!(method_name: unchecked_ge, display_name: greater_or_equal);
 
-define_server_key_bench_fn!(method_name: unchecked_max_parallelized, display_name: max);
-define_server_key_bench_fn!(method_name: unchecked_min_parallelized, display_name: min);
-define_server_key_bench_fn!(method_name: unchecked_eq_parallelized, display_name: equal);
-define_server_key_bench_fn!(
+define_server_key_bench_default_fn!(method_name: unchecked_max_parallelized, display_name: max);
+define_server_key_bench_default_fn!(method_name: unchecked_min_parallelized, display_name: min);
+define_server_key_bench_default_fn!(method_name: unchecked_eq_parallelized, display_name: equal);
+define_server_key_bench_default_fn!(
     method_name: unchecked_lt_parallelized,
     display_name: less_than
 );
-define_server_key_bench_fn!(
+define_server_key_bench_default_fn!(
     method_name: unchecked_le_parallelized,
     display_name: less_or_equal
 );
-define_server_key_bench_fn!(
+define_server_key_bench_default_fn!(
     method_name: unchecked_gt_parallelized,
     display_name: greater_than
 );
-define_server_key_bench_fn!(
+define_server_key_bench_default_fn!(
     method_name: unchecked_ge_parallelized,
     display_name: greater_or_equal
 );
