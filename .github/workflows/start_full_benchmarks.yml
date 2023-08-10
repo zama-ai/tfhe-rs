@@ -1,5 +1,5 @@
-# Start all benchmark jobs on Slab CI bot.
-name: Start all benchmarks
+# Start all benchmark jobs, including full shortint and integer, on Slab CI bot.
+name: Start full suite benchmarks
 
 on:
   schedule:
