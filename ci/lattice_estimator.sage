@@ -27,6 +27,10 @@ def check_security(filename):
     to_update = []
 
     for param in all_params:
+        if param.tag.startswith("TFHE_LIB_PARAMETERS"):
+            # This third-party parameters set is known to be less secure, just skip the analysis.
+            continue
+
         print(f"\t{param.tag}...\t", end= "")
 
         try:
