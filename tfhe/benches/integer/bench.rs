@@ -21,6 +21,7 @@ use tfhe::integer::U256;
 use tfhe::shortint::parameters::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
     PARAM_MESSAGE_4_CARRY_4_KS_PBS, PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
 };
 
 /// The type used to hold scalar values
@@ -57,6 +58,11 @@ impl Default for ParamsAndNumBlocksIter {
             Err(_) => false,
         };
 
+        let is_gpu = match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
+            Ok(val) => val.contains("gpu"),
+            Err(_) => false,
+        };
+
         let bit_sizes = if is_fast_bench {
             FAST_BENCH_BIT_SIZES.to_vec()
         } else {
@@ -64,7 +70,18 @@ impl Default for ParamsAndNumBlocksIter {
         };
 
         if is_multi_bit {
-            let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
+            let params = if is_gpu {
+                vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS.into()]
+            } else {
+                vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()]
+            };
+
+            let bit_sizes = if is_fast_bench {
+                vec![32]
+            } else {
+                BENCH_BIT_SIZES.to_vec()
+            };
+
             let params_and_bit_sizes = iproduct!(params, bit_sizes);
             Self {
                 params_and_bit_sizes,
@@ -77,6 +94,7 @@ impl Default for ParamsAndNumBlocksIter {
                 // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
                 // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
             ];
+
             let params_and_bit_sizes = iproduct!(params, bit_sizes);
             Self {
                 params_and_bit_sizes,
@@ -1136,6 +1154,709 @@ define_server_key_bench_default_fn!(
     display_name: rotate_right
 );
 
+#[cfg(feature = "gpu")]
+mod cuda {
+    use super::{default_scalar, shift_scalar, ParamsAndNumBlocksIter, ScalarType};
+    use crate::utilities::{write_to_json, OperatorType};
+    use criterion::{criterion_group, Criterion};
+    use rand::prelude::*;
+    use tfhe::core_crypto::gpu::{CudaDevice, CudaStream};
+    use tfhe::integer::gpu::ciphertext::CudaRadixCiphertext;
+    use tfhe::integer::gpu::server_key::CudaServerKey;
+    use tfhe::integer::keycache::KEY_CACHE;
+    use tfhe::integer::IntegerKeyKind;
+    use tfhe::keycache::NamedParam;
+
+    fn bench_cuda_server_key_unary_function_clean_inputs<F>(
+        c: &mut Criterion,
+        bench_name: &str,
+        display_name: &str,
+        unary_op: F,
+    ) where
+        F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, &CudaStream),
+    {
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            let param_name = param.name();
+
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                let encrypt_two_values = || {
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+                    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ct_0, &stream);
+
+                    d_ctxt_1
+                };
+
+                b.iter_batched(
+                    encrypt_two_values,
+                    |mut ct_0| {
+                        unary_op(&gpu_sks, &mut ct_0, &stream);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    /// Base function to bench a server key function that is a binary operation, input ciphertext
+    /// will contain only zero carries
+    fn bench_cuda_server_key_binary_function_clean_inputs<F>(
+        c: &mut Criterion,
+        bench_name: &str,
+        display_name: &str,
+        binary_op: F,
+    ) where
+        F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, &mut CudaRadixCiphertext, &CudaStream),
+    {
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            let param_name = param.name();
+
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                let encrypt_two_values = || {
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                    let ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ct_0, &stream);
+                    let d_ctxt_2 = CudaRadixCiphertext::from_radix_ciphertext(&ct_1, &stream);
+
+                    (d_ctxt_1, d_ctxt_2)
+                };
+
+                b.iter_batched(
+                    encrypt_two_values,
+                    |(mut ct_0, mut ct_1)| {
+                        binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &stream);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    fn bench_cuda_server_key_binary_scalar_function_clean_inputs<F, G>(
+        c: &mut Criterion,
+        bench_name: &str,
+        display_name: &str,
+        binary_op: F,
+        rng_func: G,
+    ) where
+        F: Fn(&CudaServerKey, &mut CudaRadixCiphertext, ScalarType, &CudaStream),
+        G: Fn(&mut ThreadRng, usize) -> ScalarType,
+    {
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            if bit_size > ScalarType::BITS as usize {
+                break;
+            }
+
+            let param_name = param.name();
+
+            let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
+
+            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                let encrypt_one_value = || {
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+                    let d_ctxt_1 = CudaRadixCiphertext::from_radix_ciphertext(&ct_0, &stream);
+
+                    let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+
+                    (d_ctxt_1, clear_1)
+                };
+
+                b.iter_batched(
+                    encrypt_one_value,
+                    |(mut ct_0, clear_1)| {
+                        binary_op(&gpu_sks, &mut ct_0, clear_1, &stream);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    fn cuda_default_if_then_else(c: &mut Criterion) {
+        let mut bench_group = c.benchmark_group("integer::cuda::if_then_else");
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        let gpu_index = 0;
+        let device = CudaDevice::new(gpu_index);
+        let stream = CudaStream::new_unchecked(device);
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            if bit_size > ScalarType::BITS as usize {
+                break;
+            }
+
+            let param_name = param.name();
+
+            let bench_id = format!("if_then_else:{param_name}::{bit_size}_bits_scalar_{bit_size}");
+            bench_group.bench_function(&bench_id, |b| {
+                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                let encrypt_tree_values = || {
+                    let clear_cond = rng.gen::<bool>();
+                    let ct_cond =
+                        cks.encrypt_radix(tfhe::integer::U256::from(clear_cond), num_block);
+
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
+                    let ct_then = cks.encrypt_radix(clear_0, num_block);
+
+                    let clearlow = rng.gen::<u128>();
+                    let clearhigh = rng.gen::<u128>();
+                    let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                    let ct_else = cks.encrypt_radix(clear_1, num_block);
+
+                    let d_ct_cond = CudaRadixCiphertext::from_radix_ciphertext(&ct_cond, &stream);
+                    let d_ct_then = CudaRadixCiphertext::from_radix_ciphertext(&ct_then, &stream);
+                    let d_ct_else = CudaRadixCiphertext::from_radix_ciphertext(&ct_else, &stream);
+
+                    (d_ct_cond, d_ct_then, d_ct_else)
+                };
+
+                b.iter_batched(
+                    encrypt_tree_values,
+                    |(ct_cond, ct_then, ct_else)| {
+                        let _ = gpu_sks.if_then_else(&ct_cond, &ct_then, &ct_else, &stream);
+                    },
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                "if_then_else",
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    macro_rules! define_cuda_server_key_bench_clean_input_unary_fn (
+        (method_name: $server_key_method:ident, display_name:$name:ident) => {
+            ::paste::paste!{
+                fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                    bench_cuda_server_key_unary_function_clean_inputs(
+                        c,
+                        concat!("integer::cuda::", stringify!($server_key_method)),
+                        stringify!($name),
+                        |server_key, lhs, stream| {
+                            server_key.$server_key_method(lhs, stream);
+                        }
+                    )
+                }
+            }
+        }
+      );
+
+    macro_rules! define_cuda_server_key_bench_clean_input_fn (
+    (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        ::paste::paste!{
+            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                bench_cuda_server_key_binary_function_clean_inputs(
+                    c,
+                    concat!("integer::cuda::", stringify!($server_key_method)),
+                    stringify!($name),
+                    |server_key, lhs, rhs, stream| {
+                        server_key.$server_key_method(lhs, rhs, stream);
+                    }
+                )
+            }
+        }
+    }
+  );
+
+    macro_rules! define_cuda_server_key_bench_clean_input_scalar_fn (
+    (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
+        ::paste::paste!{
+            fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                bench_cuda_server_key_binary_scalar_function_clean_inputs(
+                    c,
+                    concat!("integer::cuda::", stringify!($server_key_method)),
+                    stringify!($name),
+                    |server_key, lhs, rhs, stream| {
+                        server_key.$server_key_method(lhs, rhs, stream);
+                    },
+                    $($rng_fn)*
+                )
+            }
+        }
+    }
+  );
+
+    //===========================================
+    // Unchecked
+    //===========================================
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: unchecked_neg,
+        display_name: negation
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_bitand,
+        display_name: bitand
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_bitor,
+        display_name: bitor
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_bitxor,
+        display_name: bitxor
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_mul,
+        display_name: mul
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_add,
+        display_name: add
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_sub,
+        display_name: sub
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_eq,
+        display_name: equal
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: unchecked_ne,
+        display_name: not_equal
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_bitand,
+        display_name: bitand,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_bitor,
+        display_name: bitand,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_bitxor,
+        display_name: bitand,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_add,
+        display_name: add,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_sub,
+        display_name: sub,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_left_shift,
+        display_name: left_shift,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_right_shift,
+        display_name: right_shift,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_left_rotate,
+        display_name: left_rotate,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_right_rotate,
+        display_name: right_rotate,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_gt,
+        display_name: greater_than,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_ge,
+        display_name: greater_or_equal,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_lt,
+        display_name: less_than,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_le,
+        display_name: less_or_equal,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_max,
+        display_name: max,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: unchecked_scalar_min,
+        display_name: min,
+        rng_func: default_scalar
+    );
+
+    //===========================================
+    // Default
+    //===========================================
+
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: neg,
+        display_name: negation
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: add,
+        display_name: add
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: sub,
+        display_name: sub
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: mul,
+        display_name: mul
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: ne,
+        display_name: not_equal
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: eq,
+        display_name: equal
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: bitand,
+        display_name: bitand
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: bitor,
+        display_name: bitor
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: bitxor,
+        display_name: bitxor
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: gt,
+        display_name: greater_than
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: ge,
+        display_name: greater_or_equal
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: lt,
+        display_name: less_than
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: le,
+        display_name: less_or_equal
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: max,
+        display_name: max
+    );
+
+    define_cuda_server_key_bench_clean_input_fn!(
+        method_name: min,
+        display_name: min
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_sub,
+        display_name: sub,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_add,
+        display_name: add,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_left_shift,
+        display_name: left_shift,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_right_shift,
+        display_name: right_shift,
+        rng_func: shift_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_bitand,
+        display_name: bitand,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_bitor,
+        display_name: bitor,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_bitxor,
+        display_name: bitxor,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_gt,
+        display_name: greater_than,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_ge,
+        display_name: greater_or_equal,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_lt,
+        display_name: less_than,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_le,
+        display_name: less_or_equal,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_max,
+        display_name: max,
+        rng_func: default_scalar
+    );
+
+    define_cuda_server_key_bench_clean_input_scalar_fn!(
+        method_name: scalar_min,
+        display_name: min,
+        rng_func: default_scalar
+    );
+
+    criterion_group!(
+        unchecked_cuda_ops,
+        cuda_unchecked_neg,
+        cuda_unchecked_bitand,
+        cuda_unchecked_bitor,
+        cuda_unchecked_bitxor,
+        cuda_unchecked_mul,
+        cuda_unchecked_sub,
+        cuda_unchecked_add,
+        cuda_unchecked_eq,
+        cuda_unchecked_ne,
+    );
+
+    criterion_group!(
+        unchecked_scalar_cuda_ops,
+        cuda_unchecked_scalar_bitand,
+        cuda_unchecked_scalar_bitor,
+        cuda_unchecked_scalar_bitxor,
+        cuda_unchecked_scalar_add,
+        cuda_unchecked_scalar_sub,
+        cuda_unchecked_scalar_left_shift,
+        cuda_unchecked_scalar_right_shift,
+        cuda_unchecked_scalar_left_rotate,
+        cuda_unchecked_scalar_right_rotate,
+        cuda_unchecked_scalar_ge,
+        cuda_unchecked_scalar_gt,
+        cuda_unchecked_scalar_le,
+        cuda_unchecked_scalar_lt,
+        cuda_unchecked_scalar_max,
+        cuda_unchecked_scalar_min,
+    );
+
+    criterion_group!(
+        default_cuda_ops,
+        cuda_neg,
+        cuda_sub,
+        cuda_add,
+        cuda_mul,
+        cuda_eq,
+        cuda_ne,
+        cuda_ge,
+        cuda_gt,
+        cuda_le,
+        cuda_lt,
+        cuda_max,
+        cuda_min,
+        cuda_bitand,
+        cuda_bitor,
+        cuda_bitxor,
+        cuda_default_if_then_else,
+    );
+
+    criterion_group!(
+        default_scalar_cuda_ops,
+        cuda_scalar_sub,
+        cuda_scalar_add,
+        cuda_scalar_left_shift,
+        cuda_scalar_right_shift,
+        cuda_scalar_bitand,
+        cuda_scalar_bitor,
+        cuda_scalar_bitxor,
+        cuda_scalar_ge,
+        cuda_scalar_gt,
+        cuda_scalar_le,
+        cuda_scalar_lt,
+        cuda_scalar_max,
+        cuda_scalar_min,
+    );
+}
+
+#[cfg(feature = "gpu")]
+use cuda::{
+    default_cuda_ops, default_scalar_cuda_ops, unchecked_cuda_ops, unchecked_scalar_cuda_ops,
+};
+
 criterion_group!(
     smart_ops,
     smart_neg,
@@ -1371,35 +2092,56 @@ criterion_group!(
 
 criterion_group!(misc, full_propagate, full_propagate_parallelized);
 
+#[cfg(feature = "gpu")]
+fn go_through_gpu_bench_groups(val: &str) {
+    match val.to_lowercase().as_str() {
+        "default" => {
+            default_cuda_ops();
+            default_scalar_cuda_ops()
+        }
+        "unchecked" => {
+            unchecked_cuda_ops();
+            unchecked_scalar_cuda_ops()
+        }
+        _ => panic!("unknown benchmark operations flavor"),
+    };
+}
+
+fn go_through_cpu_bench_groups(val: &str) {
+    match val.to_lowercase().as_str() {
+        "default" => {
+            default_parallelized_ops();
+            default_parallelized_ops_comp();
+            default_scalar_parallelized_ops();
+            default_scalar_parallelized_ops_comp()
+        }
+        "smart" => {
+            smart_ops();
+            smart_ops_comp();
+            smart_scalar_ops();
+            smart_parallelized_ops();
+            smart_parallelized_ops_comp();
+            smart_scalar_parallelized_ops();
+            smart_scalar_parallelized_ops_comp()
+        }
+        "unchecked" => {
+            unchecked_ops();
+            unchecked_parallelized_ops();
+            unchecked_ops_comp();
+            unchecked_scalar_ops();
+            unchecked_scalar_ops_comp()
+        }
+        "misc" => misc(),
+        _ => panic!("unknown benchmark operations flavor"),
+    };
+}
 fn main() {
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
-            match val.to_lowercase().as_str() {
-                "default" => {
-                    default_parallelized_ops();
-                    default_parallelized_ops_comp();
-                    default_scalar_parallelized_ops();
-                    default_scalar_parallelized_ops_comp()
-                }
-                "smart" => {
-                    smart_ops();
-                    smart_ops_comp();
-                    smart_scalar_ops();
-                    smart_parallelized_ops();
-                    smart_parallelized_ops_comp();
-                    smart_scalar_parallelized_ops();
-                    smart_scalar_parallelized_ops_comp()
-                }
-                "unchecked" => {
-                    unchecked_ops();
-                    unchecked_parallelized_ops();
-                    unchecked_ops_comp();
-                    unchecked_scalar_ops();
-                    unchecked_scalar_ops_comp()
-                }
-                "misc" => misc(),
-                _ => panic!("unknown benchmark operations flavor"),
-            };
+            #[cfg(feature = "gpu")]
+            go_through_gpu_bench_groups(&val);
+            #[cfg(not(feature = "gpu"))]
+            go_through_cpu_bench_groups(&val);
         }
         Err(_) => {
             default_parallelized_ops();

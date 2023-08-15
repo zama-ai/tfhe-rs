@@ -49,6 +49,7 @@ jobs:
         command: [ boolean_bench, shortint_bench,
                    integer_bench, integer_multi_bit_bench,
                    signed_integer_bench, signed_integer_multi_bit_bench,
+                   integer_gpu_bench, integer_multi_bit_gpu_bench,
                    pbs_bench, wasm_client_bench ]
     runs-on: ubuntu-latest
     steps:

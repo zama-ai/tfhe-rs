@@ -263,7 +263,7 @@ impl std::ops::Mul<usize> for Degree {
 pub struct Ciphertext {
     pub ct: LweCiphertextOwned<u64>,
     pub degree: Degree,
-    noise_level: NoiseLevel,
+    pub(crate) noise_level: NoiseLevel,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub pbs_order: PBSOrder,

@@ -53,6 +53,10 @@ endif
 REGEX_STRING?=''
 REGEX_PATTERN?=''
 
+# tfhe-cuda-backend
+TFHECUDA_SRC="backends/tfhe-cuda-backend/implementation"
+TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
+
 # Exclude these files from coverage reports
 define COVERAGE_EXCLUDED_FILES
 --exclude-files apps/trivium/src/trivium/* \
@@ -137,9 +141,20 @@ check_linelint_installed:
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
 
+.PHONY: fmt_gpu # Format rust and cuda code
+fmt_gpu: install_rs_check_toolchain
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
+	cd backends/tfhe-cuda-backend/implementation/ && ./format_tfhe_cuda_backend.sh
+
 .PHONY: check_fmt # Check rust code format
 check_fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
+
+.PHONY: clippy_gpu # Run clippy lints on the gpu backend
+clippy_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=$(TARGET_ARCH_FEATURE),integer,shortint,gpu \
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: fix_newline # Fix newline at end of file issues to be UNIX compliant
 fix_newline: check_linelint_installed
@@ -333,6 +348,23 @@ test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain inst
 			-p $(TFHE_SPEC) -- core_crypto::; \
 	fi
 
+.PHONY: test_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
+test_gpu: test_core_crypto_gpu test_integer_gpu
+
+.PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
+test_core_crypto_gpu: install_rs_build_toolchain install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p tfhe -- core_crypto::gpu::
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p tfhe -- core_crypto::gpu::
+
+.PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
+test_integer_gpu: install_rs_build_toolchain install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p tfhe -- integer::gpu::server_key::
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),integer,gpu -p tfhe -- integer::gpu::server_key::
+
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
@@ -498,7 +530,7 @@ docs: doc
 lint_doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer --no-deps
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p tfhe --no-deps
 
 .PHONY: lint_docs # Build rust doc with linting enabled alias for lint_doc
 lint_docs: lint_doc
@@ -577,19 +609,26 @@ bench_integer: install_rs_check_toolchain
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
 
+.PHONY: bench_signed_integer # Run benchmarks for signed integer
+bench_signed_integer: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-signed-bench \
+	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
+
+.PHONY: bench_integer_gpu # Run benchmarks for integer on GPU backend
+bench_integer_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-bench \
+	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,$(AVX512_FEATURE) -p tfhe --
+
 .PHONY: bench_integer_multi_bit # Run benchmarks for unsigned integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT \
 	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
-
-.PHONY: bench_signed_integer # Run benchmarks for signed integer
-bench_signed_integer: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
-	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench integer-signed-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
 
 .PHONY: bench_signed_integer_multi_bit # Run benchmarks for signed integer using multi-bit parameters
@@ -599,6 +638,14 @@ bench_signed_integer_multi_bit: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
+
+.PHONY: bench_integer_multi_bit_gpu # Run benchmarks for integer on GPU backend using multi-bit parameters
+bench_integer_multi_bit_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT \
+	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-bench \
+	--features=$(TARGET_ARCH_FEATURE),integer,gpu,internal-keycache,$(AVX512_FEATURE) -p tfhe --
 
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
@@ -715,8 +762,11 @@ sha256_bool: install_rs_check_toolchain
 	--example sha256_bool \
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
-.PHONY: pcc # pcc stands for pre commit checks
+.PHONY: pcc # pcc stands for pre commit checks (except GPU)
 pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_all check_compile_tests
+
+.PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
+pcc_gpu: pcc clippy_gpu
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_fast check_compile_tests

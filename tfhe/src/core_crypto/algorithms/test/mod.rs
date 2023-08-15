@@ -332,7 +332,7 @@ pub fn round_decode<Scalar: UnsignedInteger>(decrypted: Scalar, delta: Scalar) -
 }
 
 // Here we will define a helper function to generate an accumulator for a PBS
-fn generate_accumulator<F, Scalar: UnsignedTorus + CastFrom<usize>>(
+pub(crate) fn generate_accumulator<F, Scalar: UnsignedTorus + CastFrom<usize>>(
     polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
     message_modulus: usize,

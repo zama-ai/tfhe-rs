@@ -56,8 +56,8 @@ and FheUint4Parameters only contains `PARAM_MESSAGE_4_CARRY_4_KS_PBS`.
 This way, we can specialize our wrapper types:
 * `type FheUint2 = GenericWrapperStruct<FheUint2Parameters>`
 * `type FheUint4 = GenericWrapperStruct<FheUint4Parameters>`
-and now we have two disctint types, that have specific crypto parameters associated with them.
-Also, they are type safe (can't `+` a FheUint2 to a FheUint4 without a compilatation error
+and now we have two distinct types, that have specific crypto parameters associated with them.
+Also, they are type safe (can't `+` a FheUint2 to a FheUint4 without a compilation error
 unless the implementation explicitly allows it since the type are different, which is not the case if you
 use the 'raw' shortint api)
 

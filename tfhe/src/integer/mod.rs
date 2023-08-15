@@ -63,6 +63,9 @@ pub mod public_key;
 pub mod server_key;
 pub mod wopbs;
 
+#[cfg(feature = "gpu")]
+pub mod gpu;
+
 pub use bigint::i256::I256;
 pub use bigint::i512::I512;
 pub use bigint::u256::U256;

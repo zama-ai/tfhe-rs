@@ -18,5 +18,7 @@ pub mod seeders;
 
 pub mod fft_impl;
 
+#[cfg(feature = "gpu")]
+pub mod gpu;
 #[cfg(test)]
 pub mod keycache;

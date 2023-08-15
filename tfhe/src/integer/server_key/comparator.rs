@@ -40,9 +40,9 @@ pub struct Comparator<'a> {
 }
 
 impl<'a> Comparator<'a> {
-    const IS_INFERIOR: u64 = 0;
+    pub(crate) const IS_INFERIOR: u64 = 0;
     const IS_EQUAL: u64 = 1;
-    const IS_SUPERIOR: u64 = 2;
+    pub(crate) const IS_SUPERIOR: u64 = 2;
 
     /// Creates a new Comparator for the given ServerKey
     ///

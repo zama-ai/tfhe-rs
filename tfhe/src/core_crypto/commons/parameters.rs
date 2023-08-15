@@ -23,6 +23,11 @@ pub struct CiphertextCount(pub usize);
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct LweCiphertextCount(pub usize);
 
+/// The index of a ciphertext in an lwe ciphertext list.
+#[cfg(feature = "gpu")]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+pub struct LweCiphertextIndex(pub usize);
+
 /// The number of ciphertexts in a glwe ciphertext list.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct GlweCiphertextCount(pub usize);
