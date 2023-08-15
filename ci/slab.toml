@@ -18,6 +18,31 @@ region = "eu-west-1"
 image_id = "ami-0e88d98b86aff13de"
 instance_type = "hpc7a.96xlarge"
 
+[profile.gpu-test]
+region = "us-east-1"
+image_id = "ami-05b4b37bcbb24dc48"
+instance_type = "p3.2xlarge"
+# One spawn attempt every 30 seconds for 1 hour
+spawn_retry_attempts = 120
+spawn_retry_duration = 60
+
+[profile.gpu-bench]
+region = "us-east-1"
+image_id = "ami-05b4b37bcbb24dc48"
+instance_type = "p4d.24xlarge"
+# One spawn attempt every 30 seconds for 6 hours
+spawn_retry_attempts = 720
+spawn_retry_duration = 360
+max_spot_hourly_price = "100.0"
+
+[profile.gpu-bench-big]
+region = "us-east-1"
+image_id = "ami-05b4b37bcbb24dc48"
+instance_type = "p5.48xlarge"
+spawn_retry_attempts = 720
+spawn_retry_duration = 360
+max_spot_hourly_price = "150.0"
+
 [command.cpu_test]
 workflow = "aws_tfhe_tests.yml"
 profile = "cpu-big"
@@ -43,20 +68,35 @@ workflow = "aws_tfhe_fast_tests.yml"
 profile = "cpu-big"
 check_run_name = "CPU AWS Fast Tests"
 
-[command.integer_full_bench]
-workflow = "integer_full_benchmark.yml"
-profile = "bench"
-check_run_name = "Integer CPU AWS Benchmarks Full Suite"
+[command.gpu_test]
+workflow = "aws_tfhe_gpu_tests.yml"
+profile = "gpu-test"
+check_run_name = "GPU AWS Tests"
 
 [command.signed_integer_full_bench]
 workflow = "signed_integer_full_benchmark.yml"
 profile = "bench"
 check_run_name = "Signed Integer CPU AWS Benchmarks Full Suite"
 
+[command.integer_full_bench]
+workflow = "integer_full_benchmark.yml"
+profile = "bench"
+check_run_name = "Integer CPU AWS Benchmarks Full Suite"
+
+[command.integer_gpu_full_bench]
+workflow = "integer_gpu_full_benchmark.yml"
+profile = "gpu-test" # p3.2xlarge is the baseline for GPU benchmarks
+check_run_name = "Integer GPU AWS Benchmarks Full Suite"
+
 [command.integer_bench]
 workflow = "integer_benchmark.yml"
 profile = "bench"
 check_run_name = "Integer CPU AWS Benchmarks"
+
+[command.integer_gpu_bench]
+workflow = "integer_gpu_benchmark.yml"
+profile = "gpu-test"
+check_run_name = "Integer GPU AWS Benchmarks"
 
 [command.integer_multi_bit_bench]
 workflow = "integer_multi_bit_benchmark.yml"
@@ -72,6 +112,11 @@ check_run_name = "Signed integer CPU AWS Benchmarks"
 workflow = "signed_integer_multi_bit_benchmark.yml"
 profile = "bench"
 check_run_name = "Signed integer multi bit CPU AWS Benchmarks"
+
+[command.integer_multi_bit_gpu_bench]
+workflow = "integer_multi_bit_gpu_benchmark.yml"
+profile = "gpu-bench"
+check_run_name = "Integer multi bit GPU AWS Benchmarks"
 
 [command.shortint_full_bench]
 workflow = "shortint_full_benchmark.yml"

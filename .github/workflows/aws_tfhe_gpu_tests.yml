@@ -1,14 +1,101 @@
 # Compile and test Concrete-cuda on an AWS instance
 name: Concrete Cuda - Full tests
 
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+
 on:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
+    # All the inputs are provided by Slab
+    inputs:
+      instance_id:
+        description: "AWS instance ID"
+        type: string
+      instance_image_id:
+        description: "AWS instance AMI ID"
+        type: string
+      instance_type:
+        description: "AWS instance product type"
+        type: string
+      runner_name:
+        description: "Action runner name"
+        type: string
+      request_id:
+        description: 'Slab request ID'
+        type: string
+      fork_repo:
+        description: 'Name of forked repo as user/repo'
+        type: string
+      fork_git_sha:
+        description: 'Git SHA to checkout from fork'
+        type: string
 
 jobs:
-  placeholder:
-    name: Placeholder
-    runs-on: ubuntu-latest
+  run-cuda-tests-linux:
+    concurrency:
+      group: tfhe_cuda_backend_test-${{ github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    name: Test code in EC2
+    runs-on: ${{ inputs.runner_name }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.2"
+            gcc: 9
+    env:
+      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
 
     steps:
-      - run: |
-          echo "Hello this is a Placeholder for GPU Workflow"
+      # Step used for log purpose.
+      - name: Instance configuration used
+        run: |
+          echo "ID: ${{ inputs.instance_id }}"
+          echo "AMI: ${{ inputs.instance_image_id }}"
+          echo "Type: ${{ inputs.instance_type }}"
+          echo "Request ID: ${{ inputs.request_id }}"
+          echo "Fork repo: ${{ inputs.fork_repo }}"
+          echo "Fork git sha: ${{ inputs.fork_git_sha }}"
+
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        with:
+          repository: ${{ inputs.fork_repo }}
+          ref: ${{ inputs.fork_git_sha }}
+
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install latest stable
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        with:
+          toolchain: stable
+          default: true
+
+      - name: Export CUDA variables
+        if: ${{ !cancelled() }}
+        run: |
+          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
+          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
+          echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc" >> "${GITHUB_ENV}"
+
+      # Specify the correct host compilers
+      - name: Export gcc and g++ variables
+        if: ${{ !cancelled() }}
+        run: |
+          echo "CC=/usr/bin/gcc-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
+          echo "CXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
+          echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}" >> "${GITHUB_ENV}"
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Run all tests
+        run: |
+          make clippy_gpu
+          make test_gpu

@@ -360,6 +360,12 @@ impl<const N: usize> From<u128> for StaticUnsignedBigInt<N> {
     }
 }
 
+impl<const N: usize> CastFrom<StaticUnsignedBigInt<N>> for u32 {
+    fn cast_from(input: StaticUnsignedBigInt<N>) -> Self {
+        input.0[0] as Self
+    }
+}
+
 impl<const N: usize> CastFrom<StaticUnsignedBigInt<N>> for u64 {
     fn cast_from(input: StaticUnsignedBigInt<N>) -> Self {
         input.0[0]

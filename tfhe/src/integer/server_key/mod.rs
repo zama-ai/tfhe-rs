@@ -40,7 +40,7 @@ impl MaxDegree {
     /// [`RadixCiphertext`](`crate::integer::RadixCiphertext`) (which includes adding the extracted
     /// carry from one shortint block to the next block), this formula provisions space to add a
     /// carry.
-    fn integer_radix_server_key(
+    pub(crate) fn integer_radix_server_key(
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
     ) -> Self {
