@@ -6,7 +6,10 @@ use tfhe::core_crypto::commons::dispersion::StandardDev;
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::multi_bit::ALL_MULTI_BIT_PARAMETER_VEC;
-use tfhe::shortint::parameters::{ShortintParameterSet, ALL_PARAMETER_VEC};
+use tfhe::shortint::parameters::{
+    ShortintParameterSet, ALL_PARAMETER_VEC, PARAM_MESSAGE_1_CARRY_1_PBS_KS,
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS, PARAM_MESSAGE_3_CARRY_3_PBS_KS, PARAM_MESSAGE_4_CARRY_4_PBS_KS,
+};
 
 pub trait ParamDetails {
     fn lwe_dimension(&self) -> LweDimension;
@@ -144,7 +147,14 @@ fn main() {
         &VEC_BOOLEAN_PARAM,
     );
 
-    let classic_pbs = ALL_PARAMETER_VEC
+    let classic_params_small = vec![
+        PARAM_MESSAGE_1_CARRY_1_PBS_KS,
+        PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+        PARAM_MESSAGE_3_CARRY_3_PBS_KS,
+        PARAM_MESSAGE_4_CARRY_4_PBS_KS,
+    ];
+    let all_classic_pbs = [ALL_PARAMETER_VEC.to_vec(), classic_params_small].concat();
+    let classic_pbs = all_classic_pbs
         .iter()
         .map(|p| ShortintParameterSet::from(*p))
         .collect::<Vec<_>>();
