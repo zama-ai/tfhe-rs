@@ -54,18 +54,15 @@ impl KreyviumStreamByte<u8> {
         let mut c_byte_reg = [0u8; 14];
 
         // Copy key bits into a register
-        for b in 0..12 {
-            a_byte_reg[b] = key_bytes[b + 4];
-        }
+        a_byte_reg.copy_from_slice(&key_bytes[4..]);
+
         // Copy iv bits into a register
-        for b in 0..11 {
-            b_byte_reg[b] = iv_bytes[b + 5];
-        }
+        b_byte_reg.copy_from_slice(&iv_bytes[5..]);
+
         // Copy a lot of ones in the c register
         c_byte_reg[0] = 252;
-        for b in 1..8 {
-            c_byte_reg[b] = 255;
-        }
+        c_byte_reg[1..8].fill(255);
+
         // Copy iv bits in the c register
         c_byte_reg[8] = (iv_bytes[0] << 4) | 31;
         for b in 9..14 {
@@ -100,23 +97,22 @@ impl KreyviumStreamByte<FheUint8> {
 
         // Initialization of Kreyvium registers: a has the secret key, b the input vector,
         // and c a few ones.
-        let mut a_byte_reg = [0u8; 12].map(|x| FheUint8::encrypt_trivial(x));
-        let mut b_byte_reg = [0u8; 11].map(|x| FheUint8::encrypt_trivial(x));
-        let mut c_byte_reg = [0u8; 14].map(|x| FheUint8::encrypt_trivial(x));
+        let mut a_byte_reg = [0u8; 12].map(FheUint8::encrypt_trivial);
+        let mut b_byte_reg = [0u8; 11].map(FheUint8::encrypt_trivial);
+        let mut c_byte_reg = [0u8; 14].map(FheUint8::encrypt_trivial);
 
         // Copy key bits into a register
-        for b in 0..12 {
-            a_byte_reg[b] = key_bytes[b + 4].clone();
-        }
+        a_byte_reg.clone_from_slice(&key_bytes[4..]);
+
         // Copy iv bits into a register
         for b in 0..11 {
             b_byte_reg[b] = FheUint8::encrypt_trivial(iv_bytes[b + 5]);
         }
         // Copy a lot of ones in the c register
         c_byte_reg[0] = FheUint8::encrypt_trivial(252u8);
-        for b in 1..8 {
-            c_byte_reg[b] = FheUint8::encrypt_trivial(255u8);
-        }
+
+        c_byte_reg[1..8].fill_with(|| FheUint8::encrypt_trivial(255u8));
+
         // Copy iv bits in the c register
         c_byte_reg[8] = FheUint8::encrypt_trivial((&iv_bytes[0] << 4u8) | 31u8);
         for b in 9..14 {
@@ -292,6 +288,6 @@ where
 
 impl KreyviumStreamByte<FheUint8> {
     pub fn get_server_key(&self) -> &ServerKey {
-        &self.fhe_key.as_ref().unwrap()
+        self.fhe_key.as_ref().unwrap()
     }
 }

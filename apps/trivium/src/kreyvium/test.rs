@@ -56,7 +56,7 @@ fn get_hexadecimal_string_from_lsb_first_stream(a: Vec<bool>) -> String {
             _ => (),
         };
     }
-    return hexadecimal;
+    hexadecimal
 }
 
 fn get_hexagonal_string_from_bytes(a: Vec<u8>) -> String {
@@ -65,7 +65,7 @@ fn get_hexagonal_string_from_bytes(a: Vec<u8>) -> String {
     for test in a {
         hexadecimal.push_str(&format!("{:02X?}", test));
     }
-    return hexadecimal;
+    hexadecimal
 }
 
 fn get_hexagonal_string_from_u64(a: Vec<u64>) -> String {
@@ -73,7 +73,7 @@ fn get_hexagonal_string_from_u64(a: Vec<u64>) -> String {
     for test in a {
         hexadecimal.push_str(&format!("{:016X?}", test));
     }
-    return hexadecimal;
+    hexadecimal
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn kreyvium_test_1() {
 
     let mut vec = Vec::<bool>::with_capacity(64);
     while vec.len() < 64 {
-        vec.push(kreyvium.next());
+        vec.push(kreyvium.next_bool());
     }
 
     let hexadecimal = get_hexadecimal_string_from_lsb_first_stream(vec);
@@ -105,7 +105,7 @@ fn kreyvium_test_2() {
 
     let mut vec = Vec::<bool>::with_capacity(64);
     while vec.len() < 64 {
-        vec.push(kreyvium.next());
+        vec.push(kreyvium.next_bool());
     }
 
     let hexadecimal = get_hexadecimal_string_from_lsb_first_stream(vec);
@@ -124,7 +124,7 @@ fn kreyvium_test_3() {
 
     let mut vec = Vec::<bool>::with_capacity(64);
     while vec.len() < 64 {
-        vec.push(kreyvium.next());
+        vec.push(kreyvium.next_bool());
     }
 
     let hexadecimal = get_hexadecimal_string_from_lsb_first_stream(vec);
@@ -161,7 +161,7 @@ fn kreyvium_test_4() {
 
     let mut vec = Vec::<bool>::with_capacity(64);
     while vec.len() < 64 {
-        vec.push(kreyvium.next());
+        vec.push(kreyvium.next_bool());
     }
 
     let hexadecimal = get_hexadecimal_string_from_lsb_first_stream(vec);

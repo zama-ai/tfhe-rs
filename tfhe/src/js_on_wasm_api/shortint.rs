@@ -3,7 +3,6 @@ pub use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
 pub use crate::shortint::parameters::parameters_compact_pk::*;
 pub use crate::shortint::parameters::*;
-use bincode;
 use wasm_bindgen::prelude::*;
 
 use std::panic::set_hook;

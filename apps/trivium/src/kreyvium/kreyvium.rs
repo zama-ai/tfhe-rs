@@ -80,9 +80,9 @@ impl KreyviumStream<FheBool> {
 
         // Initialization of Kreyvium registers: a has the secret key, b the input vector,
         // and c a few ones.
-        let mut a_register = [false; 93].map(|x| FheBool::encrypt_trivial(x));
-        let mut b_register = [false; 84].map(|x| FheBool::encrypt_trivial(x));
-        let mut c_register = [false; 111].map(|x| FheBool::encrypt_trivial(x));
+        let mut a_register = [false; 93].map(FheBool::encrypt_trivial);
+        let mut b_register = [false; 84].map(FheBool::encrypt_trivial);
+        let mut c_register = [false; 111].map(FheBool::encrypt_trivial);
 
         for i in 0..93 {
             a_register[i] = key[128 - 93 + i].clone();
@@ -99,7 +99,7 @@ impl KreyviumStream<FheBool> {
 
         key.reverse();
         iv.reverse();
-        let iv = iv.map(|x| FheBool::encrypt_trivial(x));
+        let iv = iv.map(FheBool::encrypt_trivial);
 
         unset_server_key();
         KreyviumStream::<FheBool>::new_from_registers(
@@ -149,7 +149,7 @@ where
     }
 
     /// Computes one turn of the stream, updating registers and outputting the new bit.
-    pub fn next(&mut self) -> T {
+    pub fn next_bool(&mut self) -> T {
         match &self.fhe_key {
             Some(sk) => set_server_key(sk.clone()),
             None => (),

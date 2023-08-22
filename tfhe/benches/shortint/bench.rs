@@ -358,7 +358,7 @@ fn server_key_from_compressed_key(c: &mut Criterion) {
 
     for param in params.iter() {
         let keys = KEY_CACHE.get_from_param(*param);
-        let sks_compressed = CompressedServerKey::new(&keys.client_key());
+        let sks_compressed = CompressedServerKey::new(keys.client_key());
 
         let bench_id = format!("shortint::uncompress_key::{}", param.name());
 

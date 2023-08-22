@@ -77,7 +77,7 @@ where
         }
 
         let byte_next: &T = &self.deque[i / 8 + 1];
-        return (byte << bit_idx) | (byte_next >> (8 - bit_idx as u8));
+        (byte << bit_idx) | (byte_next >> (8 - bit_idx))
     }
 }
 
@@ -101,7 +101,7 @@ mod tests {
         assert!(deque.bit(7) == 0);
 
         // second youngest: 128
-        assert!(deque.bit(8 + 0) == 0);
+        assert!(deque.bit(8) == 0);
         assert!(deque.bit(8 + 1) == 0);
         assert!(deque.bit(8 + 2) == 0);
         assert!(deque.bit(8 + 3) == 0);
@@ -111,7 +111,7 @@ mod tests {
         assert!(deque.bit(8 + 7) > 0);
 
         // oldest: 64
-        assert!(deque.bit(16 + 0) == 0);
+        assert!(deque.bit(16) == 0);
         assert!(deque.bit(16 + 1) == 0);
         assert!(deque.bit(16 + 2) == 0);
         assert!(deque.bit(16 + 3) == 0);

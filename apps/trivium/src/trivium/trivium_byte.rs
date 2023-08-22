@@ -81,9 +81,9 @@ impl TriviumStreamByte<FheUint8> {
 
         // Initialization of Trivium registers: a has the secret key, b the input vector,
         // and c a few ones.
-        let mut a_byte_reg = [0u8; 12].map(|x| FheUint8::encrypt_trivial(x));
-        let mut b_byte_reg = [0u8; 11].map(|x| FheUint8::encrypt_trivial(x));
-        let mut c_byte_reg = [0u8; 14].map(|x| FheUint8::encrypt_trivial(x));
+        let mut a_byte_reg = [0u8; 12].map(FheUint8::encrypt_trivial);
+        let mut b_byte_reg = [0u8; 11].map(FheUint8::encrypt_trivial);
+        let mut c_byte_reg = [0u8; 14].map(FheUint8::encrypt_trivial);
 
         for i in 0..10 {
             a_byte_reg[12 - 10 + i] = key[i].clone();
@@ -236,6 +236,6 @@ where
 
 impl TriviumStreamByte<FheUint8> {
     pub fn get_server_key(&self) -> &ServerKey {
-        &self.fhe_key.as_ref().unwrap()
+        self.fhe_key.as_ref().unwrap()
     }
 }
