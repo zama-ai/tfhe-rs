@@ -75,7 +75,7 @@ impl KreyviumStreamShortint {
     }
 
     /// Computes one turn of the stream, updating registers and outputting the new bit.
-    pub fn next(&mut self) -> Ciphertext {
+    pub fn next_ct(&mut self) -> Ciphertext {
         let [o, a, b, c] = self.get_output_and_values(0);
 
         self.a.push(a);

@@ -93,7 +93,7 @@ impl ShortintEngine {
     pub(crate) fn unchecked_mul_lsb_small_carry_modulus(
         &mut self,
         server_key: &ServerKey,
-        ct1: &mut Ciphertext,
+        ct1: &Ciphertext,
         ct2: &Ciphertext,
     ) -> EngineResult<Ciphertext> {
         //ct1 + ct2

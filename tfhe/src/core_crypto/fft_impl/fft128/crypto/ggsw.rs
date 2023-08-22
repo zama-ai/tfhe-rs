@@ -406,10 +406,6 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
         // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
         // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
         // it has been fully initialized for the first time.
-        let output_fft_buffer_re0 = &mut *output_fft_buffer_re0;
-        let output_fft_buffer_re1 = &mut *output_fft_buffer_re1;
-        let output_fft_buffer_im0 = &mut *output_fft_buffer_im0;
-        let output_fft_buffer_im1 = &mut *output_fft_buffer_im1;
         let mut is_output_uninit = true;
 
         {
@@ -471,10 +467,10 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                     // Now we loop through the polynomials of the output, and add the
                     // corresponding product of polynomials.
                     update_with_fmadd(
-                        output_fft_buffer_re0,
-                        output_fft_buffer_re1,
-                        output_fft_buffer_im0,
-                        output_fft_buffer_im1,
+                        &mut output_fft_buffer_re0,
+                        &mut output_fft_buffer_re1,
+                        &mut output_fft_buffer_im0,
+                        &mut output_fft_buffer_im1,
                         ggsw_row,
                         &fourier_re0,
                         &fourier_re1,

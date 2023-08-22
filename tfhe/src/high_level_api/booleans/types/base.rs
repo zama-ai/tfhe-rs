@@ -16,7 +16,7 @@ use crate::high_level_api::traits::{
 
 use super::static_::{FheBoolClientKey, FheBoolPublicKey, FheBoolServerKey};
 
-#[derive(Default, Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 struct FheBoolId;
 
 impl_with_global_key!(
@@ -87,7 +87,7 @@ impl FheBool {
     pub(in crate::high_level_api::booleans) fn new(ciphertext: Ciphertext) -> Self {
         Self {
             ciphertext,
-            id: Default::default(),
+            id: FheBoolId,
         }
     }
 
@@ -142,7 +142,7 @@ impl FheTryEncrypt<bool, ClientKey> for CompressedFheBool {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
-        let id = FheBoolId::default();
+        let id = FheBoolId;
         let key = <FheBoolId as RefKeyFromKeyChain>::ref_key(id, key)?;
         let ciphertext = key.key.encrypt_compressed(value);
         Ok(CompressedFheBool::new(ciphertext))
@@ -153,7 +153,7 @@ impl FheTryEncrypt<bool, ClientKey> for FheBool {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
-        let id = FheBoolId::default();
+        let id = FheBoolId;
         let key = <FheBoolId as RefKeyFromKeyChain>::ref_key(id, key)?;
         let ciphertext = key.key.encrypt(value);
         Ok(FheBool::new(ciphertext))
@@ -164,7 +164,7 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt_trivial(value: bool) -> Result<Self, Self::Error> {
-        FheBoolId::default().with_global(|key| {
+        FheBoolId.with_global(|key| {
             let ciphertext = key.key.trivial_encrypt(value);
             Ok(FheBool::new(ciphertext))
         })?
@@ -202,7 +202,7 @@ impl FheTryEncrypt<bool, PublicKey> for FheBool {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: bool, key: &PublicKey) -> Result<Self, Self::Error> {
-        let id = FheBoolId::default();
+        let id = FheBoolId;
         let key = <FheBoolId as RefKeyFromPublicKeyChain>::ref_key(id, key)?;
         let ciphertext = key.key.encrypt(value);
         Ok(FheBool::new(ciphertext))
@@ -212,7 +212,7 @@ impl FheTryEncrypt<bool, PublicKey> for FheBool {
 impl FheDecrypt<bool> for FheBool {
     #[track_caller]
     fn decrypt(&self, key: &ClientKey) -> bool {
-        let id = FheBoolId::default();
+        let id = FheBoolId;
         let key = <FheBoolId as RefKeyFromKeyChain>::unwrapped_ref_key(id, key);
         key.key.decrypt(&self.ciphertext)
     }

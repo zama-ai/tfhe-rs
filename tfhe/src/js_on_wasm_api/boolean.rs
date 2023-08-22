@@ -1,5 +1,4 @@
 pub use crate::core_crypto::commons::math::random::Seed;
-use bincode;
 use wasm_bindgen::prelude::*;
 
 use crate::core_crypto::commons::generators::DeterministicSeeder;

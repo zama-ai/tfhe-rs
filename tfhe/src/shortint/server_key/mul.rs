@@ -495,8 +495,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_mul_lsb_small_carry(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -508,7 +508,7 @@ impl ServerKey {
     pub fn unchecked_mul_lsb_small_carry_assign(
         &self,
         ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_right: &Ciphertext,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
@@ -627,8 +627,8 @@ impl ServerKey {
     /// ```
     pub fn checked_mul_lsb_with_small_carry(
         &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
         if self.is_mul_small_carry_possible(ct_left, ct_right) {
             let mut ct_result = self.unchecked_mul_lsb_small_carry(ct_left, ct_right);

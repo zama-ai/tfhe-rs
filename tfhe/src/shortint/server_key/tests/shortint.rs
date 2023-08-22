@@ -3084,13 +3084,13 @@ where
         let clear_1 = rng.gen::<u64>() % modulus;
 
         // encryption of an integer
-        let mut ctxt_zero = cks.encrypt(clear_0);
+        let ctxt_zero = cks.encrypt(clear_0);
 
         // encryption of an integer
-        let mut ctxt_one = cks.encrypt(clear_1);
+        let ctxt_one = cks.encrypt(clear_1);
 
         // multiply together the two ciphertexts
-        let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ctxt_zero, &mut ctxt_one);
+        let ct_res = sks.unchecked_mul_lsb_small_carry(&ctxt_zero, &ctxt_one);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -3120,11 +3120,11 @@ where
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
-        let mut ct1 = cks.encrypt_with_message_modulus(clear1, MessageModulus(modulus as usize));
-        let mut ct2 = cks.encrypt_with_message_modulus(clear2, MessageModulus(modulus as usize));
+        let ct1 = cks.encrypt_with_message_modulus(clear1, MessageModulus(modulus as usize));
+        let ct2 = cks.encrypt_with_message_modulus(clear2, MessageModulus(modulus as usize));
 
         println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
-        let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct1, &mut ct2);
+        let ct_res = sks.unchecked_mul_lsb_small_carry(&ct1, &ct2);
         assert_eq!(
             (clear1 * clear2) % modulus,
             cks.decrypt_message_and_carry(&ct_res) % modulus
@@ -3158,19 +3158,19 @@ where
         let clear1 = rng.gen::<u64>() % msg_modulus;
         let clear2 = rng.gen::<u64>() % msg_modulus;
 
-        let mut ct1 = cks.encrypt_with_message_and_carry_modulus(
+        let ct1 = cks.encrypt_with_message_and_carry_modulus(
             clear1,
             MessageModulus(msg_modulus as usize),
             CarryModulus(carry_modulus as usize),
         );
-        let mut ct2 = cks.encrypt_with_message_and_carry_modulus(
+        let ct2 = cks.encrypt_with_message_and_carry_modulus(
             clear2,
             MessageModulus(msg_modulus as usize),
             CarryModulus(carry_modulus as usize),
         );
 
         println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, msg_mod = {msg_modulus}, carry_mod = {carry_modulus}");
-        let ct_res = sks.unchecked_mul_lsb_small_carry(&mut ct1, &mut ct2);
+        let ct_res = sks.unchecked_mul_lsb_small_carry(&ct1, &ct2);
         assert_eq!(
             (clear1 * clear2) % msg_modulus,
             cks.decrypt_message_and_carry(&ct_res) % msg_modulus

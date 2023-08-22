@@ -98,7 +98,7 @@ fn client_server_key_sizes(results_file: &Path) {
             bsk_size,
         );
 
-        let sks_compressed = CompressedServerKey::new(&cks);
+        let sks_compressed = CompressedServerKey::new(cks);
         let bsk_compressed_size = sks_compressed
             .bootstrapping_key
             .bootstrapping_key_size_bytes();

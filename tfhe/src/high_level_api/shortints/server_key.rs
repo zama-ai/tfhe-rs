@@ -156,17 +156,17 @@ where
         }
     }
 
-    pub(crate) fn scalar_add_assign(&self, lhs: &mut GenericShortInt<P>, rhs: u8) {
+    pub(crate) fn scalar_add_assign(&self, lhs: &GenericShortInt<P>, rhs: u8) {
         self.key
             .scalar_add_assign(&mut lhs.ciphertext.borrow_mut(), rhs)
     }
 
-    pub(crate) fn scalar_mul_assign(&self, lhs: &mut GenericShortInt<P>, rhs: u8) {
+    pub(crate) fn scalar_mul_assign(&self, lhs: &GenericShortInt<P>, rhs: u8) {
         self.key
             .scalar_mul_assign(&mut lhs.ciphertext.borrow_mut(), rhs)
     }
 
-    pub(crate) fn scalar_sub_assign(&self, lhs: &mut GenericShortInt<P>, rhs: u8) {
+    pub(crate) fn scalar_sub_assign(&self, lhs: &GenericShortInt<P>, rhs: u8) {
         self.key
             .scalar_sub_assign(&mut lhs.ciphertext.borrow_mut(), rhs)
     }
@@ -431,7 +431,7 @@ where
         }
     }
 
-    pub(super) fn bootstrap_inplace_with<F>(&self, ciphertext: &mut GenericShortInt<P>, func: F)
+    pub(super) fn bootstrap_inplace_with<F>(&self, ciphertext: &GenericShortInt<P>, func: F)
     where
         F: Fn(u64) -> u64,
     {

@@ -15,7 +15,7 @@ fn write_result(file: &mut File, name: &str, value: usize) {
 }
 
 fn client_server_key_sizes(results_file: &Path) {
-    let boolean_params_vec = vec![
+    let boolean_params_vec = [
         (DEFAULT_PARAMETERS, "DEFAULT_PARAMETERS"),
         (PARAMETERS_ERROR_PROB_2_POW_MINUS_165, "TFHE_LIB_PARAMETERS"),
     ];

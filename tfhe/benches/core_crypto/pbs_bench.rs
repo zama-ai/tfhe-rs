@@ -478,8 +478,6 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
             params.ciphertext_modulus.unwrap(),
         );
 
-        let lwe_vec = lwe_vec;
-
         let fft = Fft::new(params.polynomial_size.unwrap());
         let fft = fft.as_view();
 

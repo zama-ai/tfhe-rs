@@ -1,6 +1,5 @@
 use crate::c_api::buffer::*;
 use crate::c_api::utils::*;
-use bincode;
 use std::os::raw::c_int;
 
 use crate::boolean;
