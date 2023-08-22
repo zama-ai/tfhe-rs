@@ -438,7 +438,9 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
                     queue_lock.pop()
                 };
 
-                let Some((lwe_mask_elements, ggsw_group)) = maybe_work else {break};
+                let Some((lwe_mask_elements, ggsw_group)) = maybe_work else {
+                    break;
+                };
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
                 // Wait while the buffer is not ready for processing and wait on the condvar
@@ -1468,7 +1470,9 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
                     queue_lock.pop()
                 };
 
-                let Some((lwe_mask_elements, ggsw_group)) = maybe_work else {break};
+                let Some((lwe_mask_elements, ggsw_group)) = maybe_work else {
+                    break;
+                };
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
                 // Wait while the buffer is not ready for processing and wait on the condvar

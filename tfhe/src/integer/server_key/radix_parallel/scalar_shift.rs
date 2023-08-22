@@ -106,8 +106,8 @@ impl ServerKey {
         // since `shift` is a clear value.
         //
         // So we can use that to implement shifting in two step
-        // 1) shift blocks (implemented by using rotate + replace with
-        //    trivial ciphertext block which 'wrapped around`
+        // 1) shift blocks (implemented by using rotate + replace with trivial ciphertext block
+        //    which 'wrapped around`
         // 2) shift within each block and 'propagate' block to the next one
         //
         debug_assert!(ct.block_carries_are_empty());
@@ -389,8 +389,8 @@ impl ServerKey {
         // since `shift` is a clear value.
         //
         // So we can use that to implement shifting in two step
-        // 1) shift blocks (implemented by using rotate + replace with
-        //    trivial ciphertext block which 'wrapped around`
+        // 1) shift blocks (implemented by using rotate + replace with trivial ciphertext block
+        //    which 'wrapped around`
         // 2) shift within each block in propagate block to the next one
 
         debug_assert!(ct.block_carries_are_empty());
