@@ -668,6 +668,8 @@ define_server_key_bench_fn!(method_name: smart_bitor_parallelized, display_name:
 define_server_key_bench_default_fn!(method_name: add_parallelized, display_name: add);
 define_server_key_bench_default_fn!(method_name: sub_parallelized, display_name: sub);
 define_server_key_bench_default_fn!(method_name: mul_parallelized, display_name: mul);
+define_server_key_bench_default_fn!(method_name: div_parallelized, display_name: div);
+define_server_key_bench_default_fn!(method_name: rem_parallelized, display_name: modulo);
 define_server_key_bench_default_fn!(method_name: bitand_parallelized, display_name: bitand);
 define_server_key_bench_default_fn!(method_name: bitxor_parallelized, display_name: bitxor);
 define_server_key_bench_default_fn!(method_name: bitor_parallelized, display_name: bitor);
@@ -949,6 +951,8 @@ criterion_group!(
     add_parallelized,
     sub_parallelized,
     mul_parallelized,
+    div_parallelized,
+    rem_parallelized,
     neg_parallelized,
     bitand_parallelized,
     bitnot_parallelized,
