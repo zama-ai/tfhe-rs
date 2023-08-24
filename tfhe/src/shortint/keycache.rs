@@ -1,5 +1,6 @@
 use crate::keycache::*;
 use crate::named_params_impl;
+use crate::shortint::parameters::key_switching::*;
 use crate::shortint::parameters::multi_bit::*;
 use crate::shortint::parameters::parameters_compact_pk::*;
 use crate::shortint::parameters::parameters_wopbs::*;
@@ -7,7 +8,7 @@ use crate::shortint::parameters::parameters_wopbs_message_carry::*;
 use crate::shortint::parameters::parameters_wopbs_prime_moduli::*;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
-use crate::shortint::{ClientKey, ServerKey};
+use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use lazy_static::*;
 use serde::{Deserialize, Serialize};
 
@@ -240,26 +241,43 @@ named_params_impl!( ShortintParameterSet =>
 );
 
 impl NamedParam for ClassicPBSParameters {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> String {
         PBSParameters::from(*self).name()
     }
 }
 
 impl NamedParam for MultiBitPBSParameters {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> String {
         PBSParameters::from(*self).name()
     }
 }
 
 impl NamedParam for PBSParameters {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> String {
         ShortintParameterSet::from(*self).name()
     }
 }
 
 impl NamedParam for WopbsParameters {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> String {
         ShortintParameterSet::from(*self).name()
+    }
+}
+
+impl NamedParam for ShortintKeySwitchingParameters {
+    fn name(&self) -> String {
+        named_params_impl!(expose PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS);
+        named_params_impl!(
+            {
+                *self;
+                ShortintKeySwitchingParameters
+            } == (PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS)
+        );
+
+        format!(
+            "PARAM_KEYSWITCH_CUSTOM_KS_LEVEL_{}_KS_BASE_LOG_{}",
+            self.ks_level.0, self.ks_base_log.0
+        )
     }
 }
 
@@ -301,6 +319,12 @@ pub struct SharedWopbsKey {
     wopbs: GenericSharedKey<WopbsKey>,
 }
 
+pub struct SharedKeySwitchingKey {
+    inner_1: GenericSharedKey<(ClientKey, ServerKey)>,
+    inner_2: GenericSharedKey<(ClientKey, ServerKey)>,
+    ksk: GenericSharedKey<KeySwitchingKey>,
+}
+
 impl SharedKey {
     pub fn client_key(&self) -> &ClientKey {
         &self.inner.0
@@ -319,6 +343,24 @@ impl SharedWopbsKey {
     }
     pub fn wopbs_key(&self) -> &WopbsKey {
         &self.wopbs
+    }
+}
+
+impl SharedKeySwitchingKey {
+    pub fn client_key_1(&self) -> &ClientKey {
+        &self.inner_1.0
+    }
+    pub fn server_key_1(&self) -> &ServerKey {
+        &self.inner_1.1
+    }
+    pub fn client_key_2(&self) -> &ClientKey {
+        &self.inner_2.0
+    }
+    pub fn server_key_2(&self) -> &ServerKey {
+        &self.inner_2.1
+    }
+    pub fn key_switching_key(&self) -> &KeySwitchingKey {
+        &self.ksk
     }
 }
 
@@ -359,7 +401,7 @@ impl From<WopbsParamPair> for WopbsKey {
 }
 
 impl NamedParam for WopbsParamPair {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> String {
         self.1.name()
     }
 }
@@ -396,7 +438,78 @@ impl KeycacheWopbsV0 {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct KeySwitchingKeyParams(
+    pub PBSParameters,
+    pub PBSParameters,
+    pub ShortintKeySwitchingParameters,
+);
+
+impl<P> From<(P, P, ShortintKeySwitchingParameters)> for KeySwitchingKeyParams
+where
+    P: Into<PBSParameters>,
+{
+    fn from(tuple: (P, P, ShortintKeySwitchingParameters)) -> Self {
+        Self(tuple.0.into(), tuple.1.into(), tuple.2)
+    }
+}
+
+impl From<KeySwitchingKeyParams> for KeySwitchingKey {
+    fn from(params: KeySwitchingKeyParams) -> Self {
+        // use with_key to avoid doing a temporary cloning
+        KEY_CACHE.inner.with_key(params.0, |keys_1| {
+            KEY_CACHE.inner.with_key(params.1, |keys_2| {
+                KeySwitchingKey::new((&keys_1.0, &keys_1.1), (&keys_2.0, &keys_2.1), params.2)
+            })
+        })
+    }
+}
+
+impl NamedParam for KeySwitchingKeyParams {
+    fn name(&self) -> String {
+        format!("{}__{}__{}", self.0.name(), self.1.name(), self.2.name())
+    }
+}
+
+/// The KeyCache struct for shortint.
+///
+/// You should not create an instance yourself,
+/// but rather use the global variable defined: [KEY_CACHE_KSK]
+pub struct KeycacheKeySwitchingKey {
+    inner: ImplKeyCache<KeySwitchingKeyParams, KeySwitchingKey, FileStorage>,
+}
+
+impl Default for KeycacheKeySwitchingKey {
+    fn default() -> Self {
+        Self {
+            inner: ImplKeyCache::new(FileStorage::new("../keys/shortint/ksk".to_string())),
+        }
+    }
+}
+
+impl KeycacheKeySwitchingKey {
+    pub fn get_from_param<T: Into<KeySwitchingKeyParams>>(
+        &self,
+        params: T,
+    ) -> SharedKeySwitchingKey {
+        let params = params.into();
+        let key_1 = KEY_CACHE.get_from_param(params.0);
+        let key_2 = KEY_CACHE.get_from_param(params.1);
+        let ksk = self.inner.get(params);
+        SharedKeySwitchingKey {
+            inner_1: key_1.inner,
+            inner_2: key_2.inner,
+            ksk,
+        }
+    }
+
+    pub fn clear_in_memory_cache(&self) {
+        self.inner.clear_in_memory_cache();
+    }
+}
+
 lazy_static! {
     pub static ref KEY_CACHE: Keycache = Default::default();
     pub static ref KEY_CACHE_WOPBS: KeycacheWopbsV0 = Default::default();
+    pub static ref KEY_CACHE_KSK: KeycacheKeySwitchingKey = Default::default();
 }

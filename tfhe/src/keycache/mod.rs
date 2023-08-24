@@ -21,7 +21,7 @@ pub mod utils {
     }
 
     pub trait NamedParam {
-        fn name(&self) -> &'static str;
+        fn name(&self) -> String;
     }
 
     #[macro_export]
@@ -38,8 +38,9 @@ pub mod utils {
             named_params_impl!(expose $($const_param),*);
 
             impl NamedParam for $param_type {
-                fn name(&self) -> &'static str {
+                fn name(&self) -> String {
                     named_params_impl!({*self; $param_type} == ( $($const_param),* ));
+                    panic!("Unnamed parameters");
                 }
             }
         };
@@ -48,12 +49,10 @@ pub mod utils {
             $(
                 paste::paste! {
                     if $thing == <$param_type>::from($const_param) {
-                        return [<$const_param _NAME>];
+                        return [<$const_param _NAME>].to_string();
                     }
                 }
             )*
-
-            panic!("Unnamed parameters");
         }
     );
 
