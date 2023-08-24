@@ -5,13 +5,3 @@ failure-output = "final"
 fail-fast = false
 retries = 0
 slow-timeout = "5m"
-
-
-[[profile.ci.overrides]]
-filter = 'test(/^.*param_message_1_carry_[567]_ks_pbs$/) or test(/^.*param_message_4_carry_4_ks_pbs$/)'
-retries = 3
-
-[[profile.ci.overrides]]
-filter = 'test(/^.*param_message_[23]_carry_[23]_ks_pbs$/)'
-retries = 1
-

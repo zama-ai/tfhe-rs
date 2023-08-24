@@ -142,7 +142,7 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
     fi
 
     num_cpu_threads="$(${nproc_bin})"
-    num_threads=$((num_cpu_threads * 2 / 3))
+    num_threads=$((num_cpu_threads * 1 / 2))
     cargo "${RUST_TOOLCHAIN}" nextest run \
         --tests \
         --cargo-profile "${cargo_profile}" \
