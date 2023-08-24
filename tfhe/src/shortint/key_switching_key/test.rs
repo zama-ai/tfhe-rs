@@ -1,16 +1,17 @@
+use crate::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK};
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::prelude::*;
 
 #[test]
 fn gen_multi_keys_test_fresh() {
-    let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
-    let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-
-    let ksk = KeySwitchingKey::new(
-        (&ck1, &sk1),
-        (&ck2, &sk2),
+    let keys = KEY_CACHE_KSK.get_from_param((
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
-    );
+    ));
+    let ck1 = keys.client_key_1();
+    let (ck2, sk2) = (keys.client_key_2(), keys.server_key_2());
+    let ksk = keys.key_switching_key();
 
     assert_eq!(ksk.cast_rshift, 2);
 
@@ -53,14 +54,21 @@ fn gen_multi_keys_test_fresh() {
 
 #[test]
 fn gen_multi_keys_test_fresh_2() {
-    let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
-    let (ck2, sk2) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    let keys2 = KEY_CACHE.get_from_param(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    let (ck2, sk2) = (keys2.client_key(), keys2.server_key());
 
     let ksk_params = ShortintKeySwitchingParameters::new(
         ck2.parameters.ks_base_log(),
         ck2.parameters.ks_level(),
     );
-    let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), ksk_params);
+
+    let keys = KEY_CACHE_KSK.get_from_param((
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+        ksk_params,
+    ));
+    let ck1 = keys.client_key_1();
+    let ksk = keys.key_switching_key();
 
     assert_eq!(ksk.cast_rshift, 4);
 
@@ -103,14 +111,14 @@ fn gen_multi_keys_test_fresh_2() {
 
 #[test]
 fn gen_multi_keys_test_add_with_overflow() {
-    let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
-    let (ck2, sk2) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-
-    let ksk = KeySwitchingKey::new(
-        (&ck1, &sk1),
-        (&ck2, &sk2),
+    let keys = KEY_CACHE_KSK.get_from_param((
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+        PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
-    );
+    ));
+    let (ck1, sk1) = (keys.client_key_1(), keys.server_key_1());
+    let (ck2, sk2) = (keys.client_key_2(), keys.server_key_2());
+    let ksk = keys.key_switching_key();
 
     // volontary overflow
     let c1 = ck1.encrypt(1);
@@ -129,27 +137,42 @@ fn gen_multi_keys_test_add_with_overflow() {
 
 #[test]
 fn gen_multi_keys_test_no_shift() {
-    let (ck1, sk1) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
-    let (ck2, sk2) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let keys2 = KEY_CACHE.get_from_param(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let ck2 = keys2.client_key();
 
     let ksk_params = ShortintKeySwitchingParameters::new(
         ck2.parameters.ks_base_log(),
         ck2.parameters.ks_level(),
     );
-    let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), ksk_params);
+
+    let keys = KEY_CACHE_KSK.get_from_param((
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+        ksk_params,
+    ));
+    let ksk = keys.key_switching_key();
+
     assert_eq!(ksk.cast_rshift, 0);
 }
 
 #[test]
 fn gen_multi_keys_test_truncate() {
-    let (ck1, sk1) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    let (ck2, sk2) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let keys2 = KEY_CACHE.get_from_param(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+    let (ck2, sk2) = (keys2.client_key(), keys2.server_key());
 
     let ksk_params = ShortintKeySwitchingParameters::new(
         ck2.parameters.ks_base_log(),
         ck2.parameters.ks_level(),
     );
-    let ksk = KeySwitchingKey::new((&ck1, &sk1), (&ck2, &sk2), ksk_params);
+
+    let keys = KEY_CACHE_KSK.get_from_param((
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+        ksk_params,
+    ));
+    let (ck1, sk1) = (keys.client_key_1(), keys.server_key_1());
+    let ksk = keys.key_switching_key();
+
     assert_eq!(ksk.cast_rshift, -2);
 
     // Message 0 Carry 0

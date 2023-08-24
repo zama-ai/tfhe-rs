@@ -200,11 +200,11 @@ pub const VEC_BOOLEAN_PARAM: [BooleanParameters; 2] = [DEFAULT_PARAMETERS, TFHE_
 
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
 impl NamedParam for BooleanParameters {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> String {
         if *self == DEFAULT_PARAMETERS {
-            "DEFAULT_PARAMETERS"
+            "DEFAULT_PARAMETERS".to_string()
         } else if *self == TFHE_LIB_PARAMETERS {
-            "TFHE_LIB_PARAMETERS"
+            "TFHE_LIB_PARAMETERS".to_string()
         } else {
             panic!("Unknown parameters, missing name implementation")
         }
