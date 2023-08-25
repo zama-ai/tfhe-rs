@@ -11,6 +11,7 @@ AVX512_SUPPORT?=OFF
 WASM_RUSTFLAGS:=
 BIG_TESTS_INSTANCE?=FALSE
 GEN_KEY_CACHE_MULTI_BIT_ONLY?=FALSE
+GEN_KEY_CACHE_COVERAGE_ONLY?=FALSE
 PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
@@ -29,6 +30,12 @@ ifeq ($(GEN_KEY_CACHE_MULTI_BIT_ONLY),TRUE)
 		MULTI_BIT_ONLY=--multi-bit-only
 else
 		MULTI_BIT_ONLY=
+endif
+
+ifeq ($(GEN_KEY_CACHE_COVERAGE_ONLY),TRUE)
+		COVERAGE_ONLY=--coverage-only
+else
+		COVERAGE_ONLY=
 endif
 
 # Variables used only for regex_engine example
@@ -183,7 +190,7 @@ gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 		--example generates_test_keys \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe -- \
-		$(MULTI_BIT_ONLY)
+		$(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
