@@ -88,6 +88,12 @@ install_dieharder:
 		brew install dieharder; \
 	fi || ( echo "Unable to install dieharder, unknown error." && exit 1 )
 
+.PHONY: install_tarpaulin # Install tarpaulin to perform code coverage
+install_tarpaulin: install_rs_build_toolchain
+	@cargo tarpaulin --version > /dev/null 2>&1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-tarpaulin --locked || \
+	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
+
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
@@ -303,6 +309,11 @@ test_shortint_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 test_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe -- shortint::
+
+.PHONY: test_shortint_cov # Run the tests of the shortint module with code coverage
+test_shortint_cov: install_tarpaulin
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --out Xml --line --engine Llvm --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,__coverage -p tfhe -- shortint::
 
 .PHONY: test_integer_ci # Run the tests for integer ci
 test_integer_ci: install_rs_build_toolchain install_cargo_nextest
