@@ -13,7 +13,7 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::ClassicPBSParameters;
 
-const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 15] = [
+const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 19] = [
     PARAM_MESSAGE_1_CARRY_0_KS_PBS,
     PARAM_MESSAGE_1_CARRY_1_KS_PBS,
     PARAM_MESSAGE_2_CARRY_0_KS_PBS,
@@ -29,6 +29,10 @@ const SHORTINT_BENCH_PARAMS: [ClassicPBSParameters; 15] = [
     PARAM_MESSAGE_6_CARRY_0_KS_PBS,
     PARAM_MESSAGE_7_CARRY_0_KS_PBS,
     PARAM_MESSAGE_8_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_1_CARRY_1_PBS_KS,
+    PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    PARAM_MESSAGE_3_CARRY_3_PBS_KS,
+    PARAM_MESSAGE_4_CARRY_4_PBS_KS,
 ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
