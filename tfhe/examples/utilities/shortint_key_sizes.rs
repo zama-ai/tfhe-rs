@@ -16,7 +16,7 @@ use tfhe::shortint::parameters::{
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS,
 };
-use tfhe::shortint::PBSParameters;
+use tfhe::shortint::{CompressedServerKey, PBSParameters};
 
 fn write_result(file: &mut File, name: &str, value: usize) {
     let line = format!("{name},{value}\n");
@@ -56,8 +56,7 @@ fn client_server_key_sizes(results_file: &Path) {
 
         let keys = KEY_CACHE.get_from_param(params);
 
-        // Client keys don't have public access to members, but the keys in there are small anyways
-        // let cks = keys.client_key();
+        let cks = keys.client_key();
         let sks = keys.server_key();
         let ksk_size = sks.key_switching_key_size_bytes();
         let test_name = format!("shortint_key_sizes_{}_ksk", params.name());
@@ -97,6 +96,31 @@ fn client_server_key_sizes(results_file: &Path) {
             "Element in BSK: {}, size in bytes: {}",
             sks.bootstrapping_key_size_elements(),
             bsk_size,
+        );
+
+        let sks_compressed = CompressedServerKey::new(&cks);
+        let bsk_compressed_size = sks_compressed
+            .bootstrapping_key
+            .bootstrapping_key_size_bytes();
+        let test_name = format!("shortint_key_sizes_{}_bsk_compressed", params.name());
+
+        write_result(&mut file, &test_name, bsk_compressed_size);
+        write_to_json::<u64, _>(
+            &test_name,
+            params,
+            params.name(),
+            "BSK",
+            &operator,
+            0,
+            vec![],
+        );
+
+        println!(
+            "Element in BSK compressed: {}, size in bytes: {}",
+            sks_compressed
+                .bootstrapping_key
+                .bootstrapping_key_size_elements(),
+            bsk_compressed_size,
         );
 
         // Clear keys as we go to avoid filling the RAM
