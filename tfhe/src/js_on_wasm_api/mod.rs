@@ -11,5 +11,5 @@ pub use boolean::*;
 #[cfg(feature = "parallel-wasm-api")]
 pub use wasm_bindgen_rayon::init_thread_pool;
 
-mod high_level_api;
-pub use high_level_api::*;
+mod js_high_level_api;
+pub use js_high_level_api::*;

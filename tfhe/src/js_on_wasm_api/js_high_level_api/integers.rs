@@ -3,7 +3,7 @@ use wasm_bindgen::JsError;
 
 use crate::high_level_api::prelude::*;
 use crate::integer::U256;
-use crate::js_on_wasm_api::high_level_api::{catch_panic, catch_panic_result, into_js_error};
+use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, into_js_error};
 
 const U128_MAX_AS_STR: &str = "340282366920938463463374607431768211455";
 
@@ -57,7 +57,7 @@ macro_rules! create_wrapper_type_non_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_client_key(
                 value: JsValue,
-                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheClientKey,
+                client_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheClientKey,
             ) -> Result<$type_name, JsError> {
                 catch_panic_result(|| {
                     let value = <$rust_type>::try_from(value)
@@ -71,7 +71,7 @@ macro_rules! create_wrapper_type_non_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_public_key(
                 value: JsValue,
-                public_key: &crate::js_on_wasm_api::high_level_api::keys::TfhePublicKey,
+                public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfhePublicKey,
             ) -> Result<$type_name, JsError> {
                 catch_panic_result(|| {
                     let value = <$rust_type>::try_from(value)
@@ -85,7 +85,7 @@ macro_rules! create_wrapper_type_non_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_compressed_public_key(
                 value: JsValue,
-                compressed_public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompressedPublicKey,
+                compressed_public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompressedPublicKey,
             ) -> Result<$type_name, JsError> {
                 catch_panic_result(|| {
                     let value = <$rust_type>::try_from(value)
@@ -99,7 +99,7 @@ macro_rules! create_wrapper_type_non_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_compact_public_key(
                 value: JsValue,
-                compact_public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+                compact_public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey,
             ) -> Result<$type_name, JsError> {
                 catch_panic_result(|| {
                     let value = <$rust_type>::try_from(value)
@@ -113,7 +113,7 @@ macro_rules! create_wrapper_type_non_native_type(
             #[wasm_bindgen]
             pub fn decrypt(
                 &self,
-                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheClientKey,
+                client_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheClientKey,
             ) -> Result<JsValue, JsError> {
                 catch_panic_result(|| {
                     let value: $rust_type = self.0.decrypt(&client_key.0);
@@ -146,7 +146,7 @@ macro_rules! create_wrapper_type_non_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_client_key(
                 value: JsValue,
-                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheClientKey,
+                client_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheClientKey,
             ) -> Result<$compressed_type_name, JsError> {
                 catch_panic_result(|| {
                     let value = <$rust_type>::try_from(value)
@@ -189,7 +189,7 @@ macro_rules! create_wrapper_type_non_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_compact_public_key(
                 value: JsValue,
-                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+                client_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey,
             ) -> Result<$compact_type_name, JsError> {
                 catch_panic_result(|| {
                     let value = <$rust_type>::try_from(value)
@@ -232,7 +232,7 @@ macro_rules! create_wrapper_type_non_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_compact_public_key(
                 values: Vec<JsValue>,
-                public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+                public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey,
             ) -> Result<$compact_list_type_name, JsError> {
                 catch_panic_result(|| {
                     let values = values
@@ -343,7 +343,7 @@ macro_rules! create_wrapper_type_that_has_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_client_key(
                 value: $native_type,
-                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheClientKey,
+                client_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheClientKey,
             ) -> Result<$type_name, JsError> {
                 catch_panic_result(|| {
                     crate::high_level_api::$type_name::try_encrypt(value, &client_key.0)
@@ -355,7 +355,7 @@ macro_rules! create_wrapper_type_that_has_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_public_key(
                 value: $native_type,
-                public_key: &crate::js_on_wasm_api::high_level_api::keys::TfhePublicKey,
+                public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfhePublicKey,
             ) -> Result<$type_name, JsError> {
                 catch_panic_result(|| {
                     crate::high_level_api::$type_name::try_encrypt(value, &public_key.0)
@@ -367,7 +367,7 @@ macro_rules! create_wrapper_type_that_has_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_compressed_public_key(
                 value: $native_type,
-                compressed_public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompressedPublicKey,
+                compressed_public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompressedPublicKey,
             ) -> Result<$type_name, JsError> {
                 catch_panic_result(|| {
                     crate::high_level_api::$type_name::try_encrypt(value, &compressed_public_key.0)
@@ -379,7 +379,7 @@ macro_rules! create_wrapper_type_that_has_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_compact_public_key(
                 value: $native_type,
-                compact_public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+                compact_public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey,
             ) -> Result<$type_name, JsError> {
                 catch_panic_result(|| {
                     crate::high_level_api::$type_name::try_encrypt(value, &compact_public_key.0)
@@ -392,7 +392,7 @@ macro_rules! create_wrapper_type_that_has_native_type(
             #[wasm_bindgen]
             pub fn decrypt(
                 &self,
-                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheClientKey,
+                client_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheClientKey,
             ) -> Result<$native_type, JsError> {
                 catch_panic(|| self.0.decrypt(&client_key.0))
             }
@@ -419,7 +419,7 @@ macro_rules! create_wrapper_type_that_has_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_client_key(
                 value: $native_type,
-                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheClientKey,
+                client_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheClientKey,
             ) -> Result<$compressed_type_name, JsError> {
                 catch_panic_result(|| {
                     crate::high_level_api::$compressed_type_name::try_encrypt(value, &client_key.0)
@@ -460,7 +460,7 @@ macro_rules! create_wrapper_type_that_has_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_compact_public_key(
                 value: $native_type,
-                client_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+                client_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey,
             ) -> Result<$compact_type_name, JsError> {
                 catch_panic_result(|| {
                     crate::high_level_api::$compact_type_name::try_encrypt(value, &client_key.0)
@@ -501,7 +501,7 @@ macro_rules! create_wrapper_type_that_has_native_type(
             #[wasm_bindgen]
             pub fn encrypt_with_compact_public_key(
                 values: Vec<$native_type>,
-                public_key: &crate::js_on_wasm_api::high_level_api::keys::TfheCompactPublicKey,
+                public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey,
             ) -> Result<$compact_list_type_name, JsError> {
                 catch_panic_result(|| {
                     crate::high_level_api::$compact_list_type_name::try_encrypt(&values, &public_key.0)
