@@ -404,6 +404,46 @@ impl<'a> FftView<'a> {
         self.forward_with_conv(fourier, standard, convert_forward_integer, stack)
     }
 
+    #[must_use]
+    pub fn incomplete_monomial_forward_as_integer(
+        self,
+        fourier: FourierPolynomialMutView<'_>,
+        degree: usize,
+    ) -> c64 {
+        let n = self.polynomial_size().0;
+        let fourier = fourier.data;
+
+        let negate = (degree / n) % 2 == 1;
+        let degree = degree % n;
+
+        assert!(degree < n);
+
+        let unit = if degree >= n / 2 {
+            c64::new(0.0, 1.0) // imaginary unit
+        } else {
+            c64::new(1.0, 0.0) // real unit
+        };
+        let folded_degree = if degree >= n / 2 {
+            degree - n / 2
+        } else {
+            degree
+        };
+
+        self.plan.fwd_monomial(folded_degree, fourier);
+
+        let twist = unit
+            * c64::new(
+                self.twisties.re[folded_degree],
+                self.twisties.im[folded_degree],
+            );
+
+        if negate {
+            -twist
+        } else {
+            twist
+        }
+    }
+
     /// Perform an inverse negacyclic real FFT of `fourier` and stores the result in `standard`,
     /// viewed as torus elements.
     ///

@@ -8,7 +8,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
-    add_external_product_assign, add_external_product_assign_scratch, update_with_fmadd,
+    add_external_product_assign, add_external_product_assign_scratch, update_with_fmadd_factor,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use concrete_fft::c64;
@@ -19,23 +19,20 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
     Scalar,
     GgswBufferCont,
     GgswGroupCont,
-    PolyCont,
     FourierPolyCont,
 >(
     fourier_ggsw_buffer: &mut FourierGgswCiphertext<GgswBufferCont>,
     ggsw_group: &[FourierGgswCiphertext<GgswGroupCont>],
     lwe_mask_elements: &[Scalar],
-    a_monomial: &mut Polynomial<PolyCont>,
     fourier_a_monomial: &mut FourierPolynomial<FourierPolyCont>,
     fft: FftView<'_>,
-    buffers: &mut ComputationBuffers,
 ) where
     Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize>,
     GgswBufferCont: ContainerMut<Element = c64>,
     GgswGroupCont: Container<Element = c64>,
-    PolyCont: ContainerMut<Element = Scalar>,
     FourierPolyCont: ContainerMut<Element = c64>,
 {
+    let polynomial_size = fft.polynomial_size();
     let mut ggsw_group_iter = ggsw_group.iter();
 
     // Keygen guarantees the first term is a constant term of the polynomial, no
@@ -48,8 +45,6 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
         .copy_from_slice(ggsw_a_none.as_view().data());
 
     let multi_bit_fourier_ggsw = fourier_ggsw_buffer.as_mut_view().data();
-
-    let polynomial_size = a_monomial.polynomial_size();
 
     for (ggsw_idx, fourier_ggsw) in ggsw_group_iter.enumerate() {
         // We already processed the first ggsw, advance the index by 1
@@ -73,20 +68,15 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
             LutCountLog(0),
         );
 
-        a_monomial.as_mut()[0] = Scalar::ONE;
-        a_monomial.as_mut()[1..].fill(Scalar::ZERO);
-        polynomial_wrapping_monic_monomial_mul_assign(a_monomial, MonomialDegree(switched_degree));
-
-        fft.forward_as_integer(
+        let factor = fft.incomplete_monomial_forward_as_integer(
             fourier_a_monomial.as_mut_view(),
-            a_monomial.as_view(),
-            buffers.stack(),
+            switched_degree,
         );
-
-        update_with_fmadd(
+        update_with_fmadd_factor(
             multi_bit_fourier_ggsw,
             fourier_ggsw.as_view().data(),
             fourier_a_monomial.as_view().data,
+            factor,
             false,
             polynomial_size.to_fourier_polynomial_size().0,
         );
@@ -419,11 +409,6 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     let fft = fft.as_view();
     thread::scope(|s| {
         let produce_multi_bit_fourier_ggsw = |thread_id: usize, tx: mpsc::Sender<usize>| {
-            let mut buffers = ComputationBuffers::new();
-
-            buffers.resize(fft.forward_scratch().unwrap().unaligned_bytes_required());
-
-            let mut a_monomial = Polynomial::new(Scalar::ZERO, multi_bit_bsk.polynomial_size());
             let mut fourier_a_monomial = FourierPolynomial::new(multi_bit_bsk.polynomial_size());
 
             let work_queue = &work_queue;
@@ -455,10 +440,8 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
                     &mut fourier_ggsw_buffer,
                     ggsw_group,
                     lwe_mask_elements,
-                    &mut a_monomial,
                     &mut fourier_a_monomial,
                     fft,
-                    &mut buffers,
                 );
 
                 // Drop the lock before we wake other threads
@@ -669,17 +652,9 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 
     thread::scope(|s| {
         let produce_multi_bit_fourier_ggsw = |thread_id| {
-            let mut buffers = ComputationBuffers::new();
-
             let fft = Fft::new(multi_bit_bsk.polynomial_size());
             let fft = fft.as_view();
 
-            buffers.resize(fft.forward_scratch().unwrap().unaligned_bytes_required());
-
-            let mut unit_polynomial =
-                Polynomial::new(Scalar::ZERO, multi_bit_bsk.polynomial_size());
-            unit_polynomial.as_mut()[0] = Scalar::ONE;
-            let mut a_monomial = unit_polynomial.clone();
             let mut fourier_a_monomial = FourierPolynomial::new(multi_bit_bsk.polynomial_size());
 
             let dest_idx = thread_id;
@@ -732,24 +707,15 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
                         LutCountLog(0),
                     );
 
-                    a_monomial
-                        .as_mut()
-                        .copy_from_slice(unit_polynomial.as_ref());
-                    polynomial_wrapping_monic_monomial_mul_assign(
-                        &mut a_monomial,
-                        MonomialDegree(switched_degree),
-                    );
-
-                    fft.forward_as_integer(
+                    let factor = fft.incomplete_monomial_forward_as_integer(
                         fourier_a_monomial.as_mut_view(),
-                        a_monomial.as_view(),
-                        buffers.stack(),
+                        switched_degree,
                     );
-
-                    update_with_fmadd(
+                    update_with_fmadd_factor(
                         multi_bit_fourier_ggsw,
                         fourier_ggsw.as_view().data(),
                         fourier_a_monomial.as_view().data,
+                        factor,
                         false,
                         lut_poly_size.to_fourier_polynomial_size().0,
                     );
