@@ -791,6 +791,63 @@ pub(crate) fn update_with_fmadd(
     });
 }
 
+pub(crate) fn update_with_fmadd_factor(
+    output_fft_buffer: &mut [c64],
+    lhs_polynomial_list: &[c64],
+    fourier: &[c64],
+    factor: c64,
+    is_output_uninit: bool,
+    fourier_poly_size: usize,
+) {
+    struct Impl<'a> {
+        output_fft_buffer: &'a mut [c64],
+        lhs_polynomial_list: &'a [c64],
+        fourier: &'a [c64],
+        factor: c64,
+        is_output_uninit: bool,
+        fourier_poly_size: usize,
+    }
+
+    impl pulp::WithSimd for Impl<'_> {
+        type Output = ();
+
+        #[inline(always)]
+        fn with_simd<S: pulp::Simd>(self, simd: S) -> Self::Output {
+            let factor = simd.c64s_splat(self.factor);
+
+            for (output_fourier, ggsw_poly) in izip!(
+                self.output_fft_buffer.into_chunks(self.fourier_poly_size),
+                self.lhs_polynomial_list.into_chunks(self.fourier_poly_size)
+            ) {
+                let out = S::c64s_as_mut_simd(output_fourier).0;
+                let lhs = S::c64s_as_simd(ggsw_poly).0;
+                let rhs = S::c64s_as_simd(self.fourier).0;
+
+                if self.is_output_uninit {
+                    for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
+                        // NOTE: factor * (lhs * rhs) is more efficient than (lhs * rhs) * factor
+                        *out = simd.c64s_mul(factor, simd.c64s_mul(lhs, rhs));
+                    }
+                } else {
+                    for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
+                        // NOTE: see above
+                        *out = simd.c64s_mul_adde(factor, simd.c64s_mul(lhs, rhs), *out);
+                    }
+                }
+            }
+        }
+    }
+
+    pulp::Arch::new().dispatch(Impl {
+        output_fft_buffer,
+        lhs_polynomial_list,
+        fourier,
+        factor,
+        is_output_uninit,
+        fourier_poly_size,
+    })
+}
+
 /// Return the required memory for [`cmux`].
 pub fn cmux_scratch<Scalar>(
     glwe_size: GlweSize,
