@@ -507,9 +507,27 @@ impl ShortintEngine {
     where
         F: Fn(u64, u64) -> u64,
     {
+        // Generate the lookup table for the function
+        let factor = MessageModulus(ct_right.degree.0 + 1);
+        let lookup_table =
+            self.generate_lookup_table_bivariate_with_factor(server_key, f, factor)?;
+
+        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
+            // so the factor has to be message_modulus
+            assert_eq!(ct_right.message_modulus.0, lookup_table.ct_right_modulus.0);
+            self.message_extract_assign(server_key, ct_left)?;
+            self.message_extract_assign(server_key, ct_right)?;
+        }
         let mut ct_res = ct_left.clone();
 
-        self.smart_evaluate_bivariate_function_assign(server_key, &mut ct_res, ct_right, f)?;
+        self.unchecked_apply_lookup_table_bivariate_assign(
+            server_key,
+            &mut ct_res,
+            ct_right,
+            &lookup_table,
+        )?;
+
         Ok(ct_res)
     }
 
@@ -546,12 +564,20 @@ impl ShortintEngine {
     pub(crate) fn smart_apply_lookup_table_bivariate(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &Ciphertext,
+        ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) -> EngineResult<Ciphertext> {
+        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
+            // so the factor has to be message_modulus
+            assert_eq!(ct_right.message_modulus.0, acc.ct_right_modulus.0);
+            self.message_extract_assign(server_key, ct_left)?;
+            self.message_extract_assign(server_key, ct_right)?;
+        }
+
         let mut ct_res = ct_left.clone();
-        self.smart_apply_lookup_table_bivariate_assign(server_key, &mut ct_res, ct_right, acc)?;
+        self.unchecked_apply_lookup_table_bivariate_assign(server_key, &mut ct_res, ct_right, acc)?;
         Ok(ct_res)
     }
 

@@ -119,7 +119,7 @@ pub unsafe extern "C" fn shortint_server_key_generate_bivariate_pbs_lookup_table
 pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap(
     server_key: *const ShortintServerKey,
     lookup_table: *const ShortintBivariatePBSLookupTable,
-    ct_left: *const ShortintCiphertext,
+    ct_left: *mut ShortintCiphertext,
     ct_right: *mut ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
@@ -132,14 +132,14 @@ pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap(
 
         let server_key = get_ref_checked(server_key).unwrap();
         let lookup_table = get_ref_checked(lookup_table).unwrap();
-        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_left = get_mut_checked(ct_left).unwrap();
         let ct_right = get_mut_checked(ct_right).unwrap();
 
         let res = crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .smart_apply_lookup_table_bivariate(
                     &server_key.0,
-                    &ct_left.0,
+                    &mut ct_left.0,
                     &mut ct_right.0,
                     &lookup_table.0,
                 )

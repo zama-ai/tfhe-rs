@@ -392,14 +392,14 @@ impl ServerKey {
     /// let msg_1 = 3;
     /// let msg_2 = 2;
     ///
-    /// let ct1 = cks.encrypt(msg_1);
+    /// let mut ct1 = cks.encrypt(msg_1);
     /// let mut ct2 = cks.encrypt(msg_2);
     ///
     /// let f = |x, y| (x + y) % 4;
     ///
     /// let acc = sks.generate_lookup_table_bivariate(f);
     /// assert!(acc.is_bivariate_pbs_possible(&ct1, &ct2));
-    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&ct1, &mut ct2, &acc);
+    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&mut ct1, &mut ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(dec, f(msg_1, msg_2));
@@ -475,13 +475,13 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let msg: u64 = 3;
-    /// let ct1 = cks.encrypt(msg);
+    /// let mut ct1 = cks.encrypt(msg);
     /// let mut ct2 = cks.encrypt(msg);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
     /// // Generate the lookup table for the function f: x -> x^3 mod 2^2
     /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
-    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&ct1, &mut ct2, &acc);
+    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&mut ct1, &mut ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
     /// // 3^3 mod 4 = 3
@@ -489,7 +489,7 @@ impl ServerKey {
     /// ```
     pub fn smart_apply_lookup_table_bivariate(
         &self,
-        ct_left: &Ciphertext,
+        ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) -> Ciphertext {
