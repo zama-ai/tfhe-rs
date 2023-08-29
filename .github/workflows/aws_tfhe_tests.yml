@@ -65,6 +65,10 @@ jobs:
           toolchain: stable
           default: true
 
+      - name: Run concrete-csprng tests
+        run: |
+          make test_concrete_csprng
+
       - name: Run core tests
         run: |
           AVX512_SUPPORT=ON make test_core_crypto
