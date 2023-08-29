@@ -7,7 +7,9 @@ use std::env;
 use criterion::{criterion_group, Criterion};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
-use tfhe::shortint::{Ciphertext, ClassicPBSParameters, ServerKey, ShortintParameterSet};
+use tfhe::shortint::{
+    Ciphertext, ClassicPBSParameters, CompressedServerKey, ServerKey, ShortintParameterSet,
+};
 
 use rand::Rng;
 use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
@@ -295,6 +297,45 @@ fn programmable_bootstrapping(c: &mut Criterion) {
             param,
             param.name(),
             "pbs",
+            &OperatorType::Atomic,
+            param.message_modulus().0.ilog2(),
+            vec![param.message_modulus().0.ilog2()],
+        );
+    }
+
+    bench_group.finish();
+}
+
+fn server_key_from_compressed_key(c: &mut Criterion) {
+    let mut bench_group = c.benchmark_group("uncompress_key");
+    bench_group
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(60));
+
+    for param in SERVER_KEY_BENCH_PARAMS {
+        let param: PBSParameters = param.into();
+        let keys = KEY_CACHE.get_from_param(param);
+        let sks_compressed = CompressedServerKey::new(&keys.client_key());
+
+        let bench_id = format!("shortint::uncompress_key::{}", param.name());
+
+        bench_group.bench_function(&bench_id, |b| {
+            let clone_compressed_key = || sks_compressed.clone();
+
+            b.iter_batched(
+                clone_compressed_key,
+                |sks_cloned| {
+                    let _ = ServerKey::from(sks_cloned);
+                },
+                criterion::BatchSize::PerIteration,
+            )
+        });
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            param,
+            param.name(),
+            "uncompress_key",
             &OperatorType::Atomic,
             param.message_modulus().0.ilog2(),
             vec![param.message_modulus().0.ilog2()],
@@ -709,6 +750,8 @@ criterion_group!(
     scalar_not_equal
 );
 
+criterion_group!(misc, server_key_from_compressed_key);
+
 mod casting;
 criterion_group!(
     casting,
@@ -722,6 +765,7 @@ fn main() {
         casting();
         default_ops();
         default_scalar_ops();
+        misc();
     }
 
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
