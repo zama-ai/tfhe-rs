@@ -48,7 +48,7 @@ log = "0.4.19"
 cbindgen = { version = "0.24.3", optional = true }
 
 [dependencies]
-concrete-csprng = { version = "0.3.0", features = [
+concrete-csprng = { version = "0.4.0", path= "../concrete-csprng", features = [
     "generator_fallback",
     "parallel",
 ] }
