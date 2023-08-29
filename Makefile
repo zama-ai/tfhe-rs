@@ -150,12 +150,19 @@ clippy_all_targets:
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
 		-p tfhe -- --no-deps -D warnings
 
+.PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
+clippy_concrete_csprng:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=$(TARGET_ARCH_FEATURE) \
+		-p concrete-csprng -- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets clippy_c_api \
-clippy_js_wasm_api clippy_tasks clippy_core clippy_trivium
+clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_trivium
 
 .PHONY: clippy_fast # Run main clippy targets
-clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core
+clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core \
+clippy_concrete_csprng
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache: install_rs_build_toolchain
@@ -236,6 +243,11 @@ build_node_js_api: install_rs_build_toolchain install_wasm_pack
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
 		wasm-pack build --release --target=nodejs \
 		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api
+
+.PHONY: build_concrete_csprng # Build concrete_csprng
+build_concrete_csprng: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-csprng --all-targets
 
 .PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
 test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
@@ -341,6 +353,11 @@ test_kreyvium: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		kreyvium --features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
 		-- --test-threads=1
+
+.PHONY: test_concrete_csprng # Run concrete-csprng tests
+test_concrete_csprng:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-csprng
 
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
