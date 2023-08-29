@@ -13,3 +13,6 @@ target/
 # Some of our bench outputs
 /tfhe/benchmarks_parameters
 **/*.csv
+
+# Directory to use the NIST STS test suite built
+/sts_testing
