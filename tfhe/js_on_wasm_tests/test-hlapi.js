@@ -46,6 +46,9 @@ test('hlapi_panic', (t) => {
     let clientKey = TfheClientKey.generate(config);
 
     let clear = 73;
+
+    console.log("\nThe following log is an expected error log:\n=======================\n")
+
     try {
         let _ = FheUint8.encrypt_with_client_key(clear, clientKey);
         assert(false);
