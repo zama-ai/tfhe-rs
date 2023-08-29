@@ -40,6 +40,10 @@ jobs:
         run: |
           make pcc
 
+      - name: Build concrete-csprng
+        run: |
+          make build_concrete_csprng
+
       - name: Build Release core
         run: |
           make build_core
@@ -63,6 +67,10 @@ jobs:
       - name: Build Release c_api
         run: |
           make build_c_api
+
+      - name: Run concrete-csprng tests
+        run: |
+          make test_concrete_csprng
 
       - name: Run core tests
         run: |
