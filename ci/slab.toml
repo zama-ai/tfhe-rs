@@ -77,3 +77,8 @@ check_run_name = "PBS CPU AWS Benchmarks"
 workflow = "wasm_client_benchmark.yml"
 profile = "cpu-small"
 check_run_name = "WASM Client AWS Benchmarks"
+
+[command.csprng_randomness_testing]
+workflow = "csprng_randomness_testing.yml"
+profile = "cpu-small"
+check_run_name = "CSPRNG randomness testing"

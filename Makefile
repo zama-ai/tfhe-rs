@@ -79,6 +79,15 @@ install_node:
 	$(SHELL) -i -c 'nvm install node' || \
 	( echo "Unable to install node, unknown error." && exit 1 )
 
+.PHONY: install_dieharder # Install dieharder for apt distributions or macOS
+install_dieharder:
+	@dieharder -h > /dev/null 2>&1 || \
+	if [[ "$(OS)" == "Linux" ]]; then \
+		sudo apt update && sudo apt install -y dieharder; \
+	elif [[ "$(OS)" == "Darwin" ]]; then\
+		brew install dieharder; \
+	fi || ( echo "Unable to install dieharder, unknown error." && exit 1 )
+
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
@@ -433,6 +442,10 @@ no_tfhe_typo:
 .PHONY: no_dbg_log # Check we did not leave dbg macro calls in the rust code
 no_dbg_log:
 	@./scripts/no_dbg_calls.sh
+
+.PHONY: dieharder_csprng # Run the dieharder test suite on our CSPRNG implementation
+dieharder_csprng: install_dieharder build_concrete_csprng
+	./scripts/dieharder_test.sh
 
 #
 # Benchmarks
