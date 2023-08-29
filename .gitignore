@@ -13,3 +13,6 @@ target/
 # Some of our bench outputs
 /tfhe/benchmarks_parameters
 **/*.csv
+
+# dieharder run log
+dieharder_run.log

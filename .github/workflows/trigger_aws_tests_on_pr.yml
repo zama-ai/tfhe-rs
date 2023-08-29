@@ -32,3 +32,4 @@ jobs:
             @slab-ci cpu_integer_test
             @slab-ci cpu_multi_bit_test
             @slab-ci cpu_wasm_test
+            @slab-ci csprng_randomness_testing
