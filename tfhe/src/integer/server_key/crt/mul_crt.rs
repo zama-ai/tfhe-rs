@@ -76,9 +76,11 @@ impl ServerKey {
         }
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_crt_mul(
         &self,
-        ct_left: &CrtCiphertext,
+        ct_left: &mut CrtCiphertext,
         ct_right: &mut CrtCiphertext,
     ) -> CrtCiphertext {
         let mut ct_res = ct_left.clone();

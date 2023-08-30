@@ -129,10 +129,13 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
+
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_block_mul(
         &self,
         ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &mut crate::shortint::Ciphertext,
         index: usize,
     ) -> RadixCiphertext {
         //Makes sure we can do the multiplications
@@ -160,7 +163,7 @@ impl ServerKey {
     pub fn smart_block_mul_assign(
         &self,
         ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &mut crate::shortint::Ciphertext,
         index: usize,
     ) {
         *ct1 = self.smart_block_mul(ct1, ct2, index);
