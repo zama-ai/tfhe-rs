@@ -124,19 +124,22 @@ impl ServerKey {
     ///
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
-    /// let ctxt_2 = cks.encrypt_one_block(clear_2);
+    /// let mut ctxt_2 = cks.encrypt_one_block(clear_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// let ct_res = sks.smart_block_mul_parallelized(&mut ctxt_1, &ctxt_2, 0);
+    /// let ct_res = sks.smart_block_mul_parallelized(&mut ctxt_1, &mut ctxt_2, 0);
     ///
     /// // Decrypt
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
+
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_block_mul_parallelized(
         &self,
         ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &mut crate::shortint::Ciphertext,
         index: usize,
     ) -> RadixCiphertext {
         //Makes sure we can do the multiplications
@@ -266,7 +269,7 @@ impl ServerKey {
     pub fn smart_block_mul_assign_parallelized(
         &self,
         ct1: &mut RadixCiphertext,
-        ct2: &crate::shortint::Ciphertext,
+        ct2: &mut crate::shortint::Ciphertext,
         index: usize,
     ) {
         *ct1 = self.smart_block_mul_parallelized(ct1, ct2, index);

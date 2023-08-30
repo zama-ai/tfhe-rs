@@ -1983,10 +1983,10 @@ where
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
 
         // encryption of an integer
-        let ctxt = cks.encrypt(clear);
+        let mut ctxt = cks.encrypt(clear);
 
         // add the two ciphertexts
-        let ct_res = sks.smart_scalar_equal(&ctxt, scalar);
+        let ct_res = sks.smart_scalar_equal(&mut ctxt, scalar);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -2015,10 +2015,10 @@ where
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
 
         // encryption of an integer
-        let ctxt = cks.encrypt(clear);
+        let mut ctxt = cks.encrypt(clear);
 
         // add the two ciphertexts
-        let ct_res = sks.smart_scalar_less(&ctxt, scalar);
+        let ct_res = sks.smart_scalar_less(&mut ctxt, scalar);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -2047,10 +2047,10 @@ where
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
 
         // encryption of an integer
-        let ctxt = cks.encrypt(clear);
+        let mut ctxt = cks.encrypt(clear);
 
         // add the two ciphertexts
-        let ct_res = sks.smart_scalar_less_or_equal(&ctxt, scalar);
+        let ct_res = sks.smart_scalar_less_or_equal(&mut ctxt, scalar);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -2079,10 +2079,10 @@ where
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
 
         // encryption of an integer
-        let ctxt = cks.encrypt(clear);
+        let mut ctxt = cks.encrypt(clear);
 
         // add the two ciphertexts
-        let ct_res = sks.smart_scalar_greater(&ctxt, scalar);
+        let ct_res = sks.smart_scalar_greater(&mut ctxt, scalar);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -2111,10 +2111,10 @@ where
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
 
         // encryption of an integer
-        let ctxt = cks.encrypt(clear);
+        let mut ctxt = cks.encrypt(clear);
 
         // add the two ciphertexts
-        let ct_res = sks.smart_scalar_greater_or_equal(&ctxt, scalar);
+        let ct_res = sks.smart_scalar_greater_or_equal(&mut ctxt, scalar);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);

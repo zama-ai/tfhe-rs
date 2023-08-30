@@ -2435,14 +2435,14 @@ where
 
         // Encrypt the integers
         let ctxt_1 = cks.encrypt(clear1);
-        let ctxt_2 = cks.encrypt_one_block(clear2);
+        let mut ctxt_2 = cks.encrypt_one_block(clear2);
 
         let mut res = ctxt_1.clone();
         let mut clear = clear1;
 
-        res = sks.smart_block_mul_parallelized(&mut res, &ctxt_2, 0);
+        res = sks.smart_block_mul_parallelized(&mut res, &mut ctxt_2, 0);
         for _ in 0..5 {
-            res = sks.smart_block_mul_parallelized(&mut res, &ctxt_2, 0);
+            res = sks.smart_block_mul_parallelized(&mut res, &mut ctxt_2, 0);
             clear = (clear * clear2) % modulus;
         }
         let dec: u64 = cks.decrypt(&res);

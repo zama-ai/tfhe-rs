@@ -1339,9 +1339,9 @@ impl ServerKey {
     /// let scalar = 2;
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_equal(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_equal(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -1350,15 +1350,15 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_equal(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_equal(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(res, (msg_1 == scalar as u64) as u64);
     /// ```
-    pub fn smart_scalar_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn smart_scalar_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_equal(self, ct_left, scalar).unwrap()
         })
@@ -1373,7 +1373,7 @@ impl ServerKey {
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn scalar_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         self.smart_scalar_equal(ct_left, scalar)
     }
 
@@ -1393,9 +1393,9 @@ impl ServerKey {
     /// let scalar = 2;
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_not_equal(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_not_equal(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -1404,15 +1404,15 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_not_equal(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_not_equal(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(res, (msg_1 != scalar as u64) as u64);
     /// ```
-    pub fn smart_scalar_not_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn smart_scalar_not_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .smart_scalar_not_equal(self, ct_left, scalar)
@@ -1429,7 +1429,7 @@ impl ServerKey {
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_not_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn scalar_not_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         self.smart_scalar_not_equal(ct_left, scalar)
     }
 
@@ -1450,9 +1450,9 @@ impl ServerKey {
     /// let scalar = 2;
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_greater_or_equal(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_greater_or_equal(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -1461,15 +1461,19 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_greater_or_equal(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_greater_or_equal(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(res, (msg_1 >= scalar as u64) as u64);
     /// ```
-    pub fn smart_scalar_greater_or_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn smart_scalar_greater_or_equal(
+        &self,
+        ct_left: &mut Ciphertext,
+        scalar: u8,
+    ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .smart_scalar_greater_or_equal(self, ct_left, scalar)
@@ -1487,7 +1491,7 @@ impl ServerKey {
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_greater_or_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn scalar_greater_or_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         self.smart_scalar_greater_or_equal(ct_left, scalar)
     }
 
@@ -1508,9 +1512,9 @@ impl ServerKey {
     /// let scalar = 2;
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_less_or_equal(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_less_or_equal(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -1519,15 +1523,15 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_less_or_equal(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_less_or_equal(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(res, (msg_1 <= scalar as u64) as u64);
     /// ```
-    pub fn smart_scalar_less_or_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn smart_scalar_less_or_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .smart_scalar_less_or_equal(self, ct_left, scalar)
@@ -1545,7 +1549,7 @@ impl ServerKey {
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_less_or_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn scalar_less_or_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         self.smart_scalar_less_or_equal(ct_left, scalar)
     }
 
@@ -1565,9 +1569,9 @@ impl ServerKey {
     /// let scalar = 2;
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_greater(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_greater(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -1576,15 +1580,15 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_greater(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_greater(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(res, (msg_1 > scalar as u64) as u64);
     /// ```
-    pub fn smart_scalar_greater(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn smart_scalar_greater(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_greater(self, ct_left, scalar).unwrap()
         })
@@ -1599,7 +1603,7 @@ impl ServerKey {
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_greater(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn scalar_greater(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         self.smart_scalar_greater(ct_left, scalar)
     }
 
@@ -1619,9 +1623,9 @@ impl ServerKey {
     /// let scalar = 2;
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_less(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_less(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
@@ -1630,15 +1634,15 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt our message
-    /// let ct_left = cks.encrypt(msg_1);
+    /// let mut ct_left = cks.encrypt(msg_1);
     ///
-    /// let ct_res = sks.smart_scalar_less(&ct_left, scalar);
+    /// let ct_res = sks.smart_scalar_less(&mut ct_left, scalar);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(res, (msg_1 < scalar as u64) as u64);
     /// ```
-    pub fn smart_scalar_less(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn smart_scalar_less(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_less(self, ct_left, scalar).unwrap()
         })
@@ -1653,7 +1657,7 @@ impl ServerKey {
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_less(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn scalar_less(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         self.smart_scalar_less(ct_left, scalar)
     }
 }

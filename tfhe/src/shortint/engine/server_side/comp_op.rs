@@ -207,10 +207,12 @@ impl ShortintEngine {
         Ok(result)
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_scalar_equal(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &Ciphertext,
+        ct_left: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
@@ -273,10 +275,12 @@ impl ShortintEngine {
         Ok(result)
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_scalar_not_equal(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &Ciphertext,
+        ct_left: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
@@ -298,10 +302,12 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_scalar_greater_or_equal(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &Ciphertext,
+        ct_left: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
@@ -321,10 +327,12 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_scalar_less_or_equal(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &Ciphertext,
+        ct_left: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
@@ -344,10 +352,12 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_scalar_greater(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &Ciphertext,
+        ct_left: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
@@ -367,10 +377,12 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_scalar_less(
         &mut self,
         server_key: &ServerKey,
-        ct_left: &Ciphertext,
+        ct_left: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<Ciphertext> {
         let mut result = ct_left.clone();
