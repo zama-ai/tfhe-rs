@@ -28,6 +28,8 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_greater(
         &mut self,
         server_key: &ServerKey,
@@ -80,6 +82,8 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_greater_or_equal(
         &mut self,
         server_key: &ServerKey,
@@ -131,6 +135,8 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_less(
         &mut self,
         server_key: &ServerKey,
@@ -182,6 +188,8 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_less_or_equal(
         &mut self,
         server_key: &ServerKey,
@@ -233,6 +241,8 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_equal(
         &mut self,
         server_key: &ServerKey,
@@ -309,6 +319,8 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_not_equal(
         &mut self,
         server_key: &ServerKey,
