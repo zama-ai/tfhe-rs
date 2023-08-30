@@ -298,7 +298,9 @@ where
     }
 
     pub(crate) fn scalar_equal(&self, lhs: &GenericShortInt<P>, scalar: u8) -> GenericShortInt<P> {
-        let ciphertext = self.key.scalar_equal(&lhs.ciphertext.borrow(), scalar);
+        let ciphertext = self
+            .key
+            .scalar_equal(&mut lhs.ciphertext.borrow_mut(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
@@ -310,7 +312,9 @@ where
         lhs: &GenericShortInt<P>,
         scalar: u8,
     ) -> GenericShortInt<P> {
-        let ciphertext = self.key.scalar_not_equal(&lhs.ciphertext.borrow(), scalar);
+        let ciphertext = self
+            .key
+            .scalar_not_equal(&mut lhs.ciphertext.borrow_mut(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
@@ -324,7 +328,7 @@ where
     ) -> GenericShortInt<P> {
         let ciphertext = self
             .key
-            .scalar_greater_or_equal(&lhs.ciphertext.borrow(), scalar);
+            .scalar_greater_or_equal(&mut lhs.ciphertext.borrow_mut(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
@@ -338,7 +342,7 @@ where
     ) -> GenericShortInt<P> {
         let ciphertext = self
             .key
-            .scalar_less_or_equal(&lhs.ciphertext.borrow(), scalar);
+            .scalar_less_or_equal(&mut lhs.ciphertext.borrow_mut(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
@@ -350,7 +354,9 @@ where
         lhs: &GenericShortInt<P>,
         scalar: u8,
     ) -> GenericShortInt<P> {
-        let ciphertext = self.key.scalar_greater(&lhs.ciphertext.borrow(), scalar);
+        let ciphertext = self
+            .key
+            .scalar_greater(&mut lhs.ciphertext.borrow_mut(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
@@ -358,7 +364,9 @@ where
     }
 
     pub(crate) fn scalar_less(&self, lhs: &GenericShortInt<P>, scalar: u8) -> GenericShortInt<P> {
-        let ciphertext = self.key.scalar_less(&lhs.ciphertext.borrow(), scalar);
+        let ciphertext = self
+            .key
+            .scalar_less(&mut lhs.ciphertext.borrow_mut(), scalar);
         GenericShortInt {
             ciphertext: RefCell::new(ciphertext),
             id: lhs.id,
