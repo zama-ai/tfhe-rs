@@ -41,6 +41,8 @@ impl ShortintEngine {
         Ok(())
     }
 
+    // by convention smart operations take mut refs to their inputs, even if they do not modify them
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_scalar_mul(
         &mut self,
         server_key: &ServerKey,
