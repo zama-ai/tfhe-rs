@@ -21,6 +21,7 @@ doctest!(
 );
 doctest!("../docs/how_to/public_key.md", how_to_public_key);
 doctest!("../docs/how_to/serialization.md", how_to_serialize);
+doctest!("../docs/how_to/trait_bounds.md", how_to_trait_bounds);
 doctest!(
     "../docs/how_to/trivial_ciphertext.md",
     how_to_trivial_ciphertext

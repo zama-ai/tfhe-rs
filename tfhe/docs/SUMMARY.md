@@ -19,6 +19,7 @@
 * [Compress Ciphertexts/Keys](how_to/compress.md)
 * [Use Public Key Encryption](how_to/public_key.md)
 * [Use Trivial Ciphertext](how_to/trivial_ciphertext.md)
+* [Generic Function Bounds](how_to/trait_bounds.md)
 * [Use Parallelized PBS](how_to/parallelized_pbs.md)
 * [Use the C API](how_to/c_api.md)
 * [Use the JS on WASM API](how_to/js_on_wasm_api.md)
