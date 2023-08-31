@@ -27,6 +27,9 @@ use tfhe::shortint::parameters::{
 /// It must be as big as the largest bit size tested
 type ScalarType = U256;
 
+const FAST_BENCH_BIT_SIZES: [usize; 1] = [32];
+const BENCH_BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
+
 fn gen_random_u256(rng: &mut ThreadRng) -> U256 {
     let clearlow = rng.gen::<u128>();
     let clearhigh = rng.gen::<u128>();
@@ -54,15 +57,14 @@ impl Default for ParamsAndNumBlocksIter {
             Err(_) => false,
         };
 
+        let bit_sizes = if is_fast_bench {
+            FAST_BENCH_BIT_SIZES.to_vec()
+        } else {
+            BENCH_BIT_SIZES.to_vec()
+        };
+
         if is_multi_bit {
             let params = vec![PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS.into()];
-
-            let bit_sizes = if is_fast_bench {
-                vec![32]
-            } else {
-                vec![8, 16, 32, 40, 64]
-            };
-
             let params_and_bit_sizes = iproduct!(params, bit_sizes);
             Self {
                 params_and_bit_sizes,
@@ -75,13 +77,6 @@ impl Default for ParamsAndNumBlocksIter {
                 // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
                 // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
             ];
-
-            let bit_sizes = if is_fast_bench {
-                vec![32]
-            } else {
-                vec![8, 16, 32, 40, 64, 128, 256]
-            };
-
             let params_and_bit_sizes = iproduct!(params, bit_sizes);
             Self {
                 params_and_bit_sizes,
