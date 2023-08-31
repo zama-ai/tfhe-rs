@@ -36,7 +36,7 @@ impl ServerKey {
 
     pub fn scalar_bitand_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
         if !lhs.carry_is_empty() {
-            self.clear_carry_assign(lhs);
+            self.message_extract_assign(lhs);
         }
 
         self.unchecked_scalar_bitand_assign(lhs, rhs);
@@ -103,7 +103,7 @@ impl ServerKey {
 
     pub fn scalar_bitxor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
         if !lhs.carry_is_empty() {
-            self.clear_carry_assign(lhs);
+            self.message_extract_assign(lhs);
         }
 
         self.unchecked_scalar_bitxor_assign(lhs, rhs);
@@ -169,7 +169,7 @@ impl ServerKey {
 
     pub fn scalar_bitor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
         if !lhs.carry_is_empty() {
-            self.clear_carry_assign(lhs);
+            self.message_extract_assign(lhs);
         }
 
         self.unchecked_scalar_bitor_assign(lhs, rhs);

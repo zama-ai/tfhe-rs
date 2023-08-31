@@ -77,18 +77,18 @@ impl ServerKey {
         let tmp_rhs: Ciphertext;
 
         if !ct_left.carry_is_empty() {
-            self.clear_carry_assign(ct_left);
+            self.message_extract_assign(ct_left);
         }
 
         let rhs = if ct_right.carry_is_empty() {
             ct_right
         } else {
-            tmp_rhs = self.clear_carry(ct_right);
+            tmp_rhs = self.message_extract(ct_right);
             &tmp_rhs
         };
 
         self.unchecked_sub_assign(ct_left, rhs);
-        self.clear_carry_assign(ct_left);
+        self.message_extract_assign(ct_left);
     }
 
     /// Homomorphically subtracts ct_right to ct_left.

@@ -149,7 +149,7 @@ impl KreyviumStreamShortint {
                             .unchecked_add_assign(&mut new_c, c5);
                         self.internal_server_key
                             .unchecked_add_assign(&mut new_c, &temp_b);
-                        self.internal_server_key.clear_carry_assign(&mut new_c);
+                        self.internal_server_key.message_extract_assign(&mut new_c);
                         new_c
                     },
                     || {

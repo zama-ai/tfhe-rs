@@ -413,60 +413,6 @@ impl ServerKey {
         })
     }
 
-    /// Compute a keyswitch and a bootstrap, returning a new ciphertext with empty
-    /// carry bits.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let mut ct1 = cks.encrypt(3);
-    /// // |      ct1        |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  0 0  |   1 1   |
-    /// let mut ct2 = cks.encrypt(2);
-    /// // |      ct2        |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  0 0  |   1 0   |
-    ///
-    /// let ct_res = sks.smart_add(&mut ct1, &mut ct2);
-    /// // |     ct_res      |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  0 1  |   0 1   |
-    ///
-    /// // Get the carry
-    /// let ct_carry = sks.carry_extract(&ct_res);
-    /// let carry = cks.decrypt(&ct_carry);
-    /// assert_eq!(carry, 1);
-    ///
-    /// let ct_res = sks.clear_carry(&ct_res);
-    ///
-    /// let ct_carry = sks.carry_extract(&ct_res);
-    /// let carry = cks.decrypt(&ct_carry);
-    /// assert_eq!(carry, 0);
-    ///
-    /// let clear = cks.decrypt(&ct_res);
-    ///
-    /// assert_eq!(clear, (3 + 2) % 4);
-    /// ```
-    pub fn clear_carry(&self, ct_in: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.clear_carry(self, ct_in).unwrap())
-    }
-
-    pub fn clear_carry_assign(&self, ct_in: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.clear_carry_assign(self, ct_in).unwrap()
-        })
-    }
-
     /// Compute a keyswitch and programmable bootstrap.
     ///
     /// # Example
