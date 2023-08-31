@@ -47,7 +47,7 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64-un
 ```toml
 tfhe = { version = "*", features = ["boolean", "shortint", "integer", "aarch64-unix"] }
 ```
-Note: users with ARM devices must use `TFHE-rs` by compiling using the `nightly` toolchain.
+Note: users with ARM devices must compile `TFHE-rs` using a stable toolchain with version >= 1.72.
 
 
 + For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) 
