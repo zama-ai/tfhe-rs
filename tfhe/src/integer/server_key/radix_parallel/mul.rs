@@ -217,7 +217,7 @@ impl ServerKey {
             (true, true) => (ct1, ct2),
             (true, false) => {
                 tmp_rhs = ct2.clone();
-                self.key.clear_carry_assign(&mut tmp_rhs);
+                self.key.message_extract_assign(&mut tmp_rhs);
                 (ct1, &tmp_rhs)
             }
             (false, true) => {
@@ -228,7 +228,7 @@ impl ServerKey {
                 tmp_rhs = ct2.clone();
                 rayon::join(
                     || self.full_propagate_parallelized(ct1),
-                    || self.key.clear_carry_assign(&mut tmp_rhs),
+                    || self.key.message_extract_assign(&mut tmp_rhs),
                 );
                 (ct1, &tmp_rhs)
             }

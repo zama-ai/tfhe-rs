@@ -113,7 +113,7 @@ impl TriviumStreamShortint {
                             .unchecked_add_assign(&mut new_a, a5);
                         self.internal_server_key
                             .unchecked_add_assign(&mut new_a, &temp_c);
-                        self.internal_server_key.clear_carry_assign(&mut new_a);
+                        self.internal_server_key.message_extract_assign(&mut new_a);
                         new_a
                     },
                     || {
@@ -122,7 +122,7 @@ impl TriviumStreamShortint {
                             .unchecked_add_assign(&mut new_b, b5);
                         self.internal_server_key
                             .unchecked_add_assign(&mut new_b, &temp_a);
-                        self.internal_server_key.clear_carry_assign(&mut new_b);
+                        self.internal_server_key.message_extract_assign(&mut new_b);
                         new_b
                     },
                 )
@@ -135,7 +135,7 @@ impl TriviumStreamShortint {
                             .unchecked_add_assign(&mut new_c, c5);
                         self.internal_server_key
                             .unchecked_add_assign(&mut new_c, &temp_b);
-                        self.internal_server_key.clear_carry_assign(&mut new_c);
+                        self.internal_server_key.message_extract_assign(&mut new_c);
                         new_c
                     },
                     || {

@@ -310,7 +310,7 @@ where
         let ctxt_0 = cks.encrypt(clear_0);
 
         // keyswitch and bootstrap
-        let ct_res = sks.clear_carry(&ctxt_0);
+        let ct_res = sks.message_extract(&ctxt_0);
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);

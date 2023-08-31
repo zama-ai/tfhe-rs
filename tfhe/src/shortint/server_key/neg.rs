@@ -113,10 +113,10 @@ impl ServerKey {
     /// ```
     pub fn neg_assign(&self, ct: &mut Ciphertext) {
         if !ct.carry_is_empty() {
-            self.clear_carry_assign(ct);
+            self.message_extract_assign(ct);
         }
         self.unchecked_neg_assign(ct);
-        self.clear_carry_assign(ct);
+        self.message_extract_assign(ct);
     }
 
     /// Homomorphically negates a message without checks.

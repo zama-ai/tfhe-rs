@@ -65,14 +65,14 @@ impl ServerKey {
         let lhs = if ct_left.carry_is_empty() {
             ct_left
         } else {
-            tmp_lhs = self.clear_carry(ct_left);
+            tmp_lhs = self.message_extract(ct_left);
             &tmp_lhs
         };
 
         let rhs = if ct_right.carry_is_empty() {
             ct_right
         } else {
-            tmp_rhs = self.clear_carry(ct_right);
+            tmp_rhs = self.message_extract(ct_right);
             &tmp_rhs
         };
 
@@ -279,14 +279,14 @@ impl ServerKey {
         let lhs = if ct_left.carry_is_empty() {
             ct_left
         } else {
-            tmp_lhs = self.clear_carry(ct_left);
+            tmp_lhs = self.message_extract(ct_left);
             &tmp_lhs
         };
 
         let rhs = if ct_right.carry_is_empty() {
             ct_right
         } else {
-            tmp_rhs = self.clear_carry(ct_right);
+            tmp_rhs = self.message_extract(ct_right);
             &tmp_rhs
         };
 
@@ -505,14 +505,14 @@ impl ServerKey {
         let lhs = if ct_left.carry_is_empty() {
             ct_left
         } else {
-            tmp_lhs = self.clear_carry(ct_left);
+            tmp_lhs = self.message_extract(ct_left);
             &tmp_lhs
         };
 
         let rhs = if ct_right.carry_is_empty() {
             ct_right
         } else {
-            tmp_rhs = self.clear_carry(ct_right);
+            tmp_rhs = self.message_extract(ct_right);
             &tmp_rhs
         };
 
@@ -721,14 +721,14 @@ impl ServerKey {
         let lhs = if ct_left.carry_is_empty() {
             ct_left
         } else {
-            tmp_lhs = self.clear_carry(ct_left);
+            tmp_lhs = self.message_extract(ct_left);
             &tmp_lhs
         };
 
         let rhs = if ct_right.carry_is_empty() {
             ct_right
         } else {
-            tmp_rhs = self.clear_carry(ct_right);
+            tmp_rhs = self.message_extract(ct_right);
             &tmp_rhs
         };
 
@@ -945,14 +945,14 @@ impl ServerKey {
         let lhs = if ct_left.carry_is_empty() {
             ct_left
         } else {
-            tmp_lhs = self.clear_carry(ct_left);
+            tmp_lhs = self.message_extract(ct_left);
             &tmp_lhs
         };
 
         let rhs = if ct_right.carry_is_empty() {
             ct_right
         } else {
-            tmp_rhs = self.clear_carry(ct_right);
+            tmp_rhs = self.message_extract(ct_right);
             &tmp_rhs
         };
 
@@ -1159,14 +1159,14 @@ impl ServerKey {
         let lhs = if ct_left.carry_is_empty() {
             ct_left
         } else {
-            tmp_lhs = self.clear_carry(ct_left);
+            tmp_lhs = self.message_extract(ct_left);
             &tmp_lhs
         };
 
         let rhs = if ct_right.carry_is_empty() {
             ct_right
         } else {
-            tmp_rhs = self.clear_carry(ct_right);
+            tmp_rhs = self.message_extract(ct_right);
             &tmp_rhs
         };
 
