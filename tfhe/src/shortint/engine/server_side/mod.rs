@@ -681,11 +681,15 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = ct.message_modulus.0 as u64;
+        if ct.carry_is_empty() {
+            self.create_trivial_assign(server_key, ct, 0)?;
+        } else {
+            let modulus = ct.message_modulus.0 as u64;
 
-        let lookup_table = self.generate_lookup_table(server_key, |x| x / modulus)?;
+            let lookup_table = self.generate_lookup_table(server_key, |x| x / modulus)?;
 
-        self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
+            self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
+        }
 
         Ok(())
     }
@@ -705,12 +709,13 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
     ) -> EngineResult<()> {
-        let modulus = ct.message_modulus.0 as u64;
+        if !ct.carry_is_empty() {
+            let modulus = ct.message_modulus.0 as u64;
 
-        let acc = self.generate_lookup_table(server_key, |x| x % modulus)?;
+            let acc = self.generate_lookup_table(server_key, |x| x % modulus)?;
 
-        self.apply_lookup_table_assign(server_key, ct, &acc)?;
-
+            self.apply_lookup_table_assign(server_key, ct, &acc)?;
+        }
         Ok(())
     }
 
