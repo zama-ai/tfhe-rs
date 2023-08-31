@@ -12,9 +12,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::ContainerMut;
 use crate::core_crypto::seeders::new_seeder;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::{
-    BivariateLookupTableOwned, LookupTableMutView, LookupTableOwned,
-};
+use crate::shortint::server_key::{BivariateLookupTableOwned, LookupTableOwned};
 use crate::shortint::ServerKey;
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -32,7 +30,6 @@ thread_local! {
 }
 
 pub struct BuffersRef<'a> {
-    pub(crate) lookup_table: LookupTableMutView<'a>,
     // For the intermediate keyswitch result in the case of a big ciphertext
     pub(crate) buffer_lwe_after_ks: LweCiphertextMutView<'a, u64>,
     // For the intermediate PBS result in the case of a smallciphertext
@@ -46,8 +43,6 @@ struct Memory {
 
 impl Memory {
     fn as_buffers(&mut self, server_key: &ServerKey) -> BuffersRef<'_> {
-        let num_elem_in_accumulator = server_key.bootstrapping_key.glwe_size().0
-            * server_key.bootstrapping_key.polynomial_size().0;
         let num_elem_in_lwe_after_ks = server_key.key_switching_key.output_lwe_size().0;
         let num_elem_in_lwe_after_pbs = server_key
             .bootstrapping_key
@@ -55,8 +50,7 @@ impl Memory {
             .to_lwe_size()
             .0;
 
-        let total_elem_needed =
-            num_elem_in_accumulator + num_elem_in_lwe_after_ks + num_elem_in_lwe_after_pbs;
+        let total_elem_needed = num_elem_in_lwe_after_ks + num_elem_in_lwe_after_pbs;
 
         let all_elements = if self.buffer.len() < total_elem_needed {
             self.buffer.resize(total_elem_needed, 0u64);
@@ -65,23 +59,8 @@ impl Memory {
             &mut self.buffer[..total_elem_needed]
         };
 
-        let (accumulator_elements, other_elements) =
-            all_elements.split_at_mut(num_elem_in_accumulator);
-
-        let acc = GlweCiphertext::from_container(
-            accumulator_elements,
-            server_key.bootstrapping_key.polynomial_size(),
-            server_key.ciphertext_modulus,
-        );
-
-        let lookup_table = LookupTableMutView {
-            acc,
-            // As a safety, the degree should be updated once the accumulator is actually filled
-            degree: Degree(server_key.max_degree.0),
-        };
-
         let (after_ks_elements, after_pbs_elements) =
-            other_elements.split_at_mut(num_elem_in_lwe_after_ks);
+            all_elements.split_at_mut(num_elem_in_lwe_after_ks);
 
         let buffer_lwe_after_ks =
             LweCiphertextMutView::from_container(after_ks_elements, server_key.ciphertext_modulus);
@@ -89,7 +68,6 @@ impl Memory {
             LweCiphertextMutView::from_container(after_pbs_elements, server_key.ciphertext_modulus);
 
         BuffersRef {
-            lookup_table,
             buffer_lwe_after_ks,
             buffer_lwe_after_pbs,
         }
@@ -299,16 +277,13 @@ impl ShortintEngine {
     }
 
     /// Return the [`BuffersRef`] and [`ComputationBuffers`] for the given `ServerKey`
-    pub fn get_carry_clearing_lookup_table_and_buffers(
+    pub fn get_buffers(
         &mut self,
         server_key: &ServerKey,
     ) -> (BuffersRef<'_>, &mut ComputationBuffers) {
-        let mut buffers = self.ciphertext_buffers.as_buffers(server_key);
-        let max_degree = fill_accumulator(&mut buffers.lookup_table.acc, server_key, |n| {
-            n % server_key.message_modulus.0 as u64
-        });
-        buffers.lookup_table.degree = Degree(max_degree as usize);
-
-        (buffers, &mut self.computation_buffers)
+        (
+            self.ciphertext_buffers.as_buffers(server_key),
+            &mut self.computation_buffers,
+        )
     }
 }

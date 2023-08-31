@@ -326,77 +326,6 @@ impl ShortintEngine {
         Self::generate_lookup_table_with_engine(server_key, f)
     }
 
-    pub(crate) fn keyswitch_bootstrap_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct: &mut Ciphertext,
-    ) -> EngineResult<()> {
-        // Compute the programmable bootstrapping with fixed test polynomial
-        let (mut ciphertext_buffers, buffers) =
-            self.get_carry_clearing_lookup_table_and_buffers(server_key);
-
-        // Compute a keyswitch
-        keyswitch_lwe_ciphertext(
-            &server_key.key_switching_key,
-            &ct.ct,
-            &mut ciphertext_buffers.buffer_lwe_after_ks,
-        );
-
-        match &server_key.bootstrapping_key {
-            ShortintBootstrappingKey::Classic(fourier_bsk) => {
-                let fft = Fft::new(fourier_bsk.polynomial_size());
-                let fft = fft.as_view();
-                buffers.resize(
-                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
-                        fourier_bsk.glwe_size(),
-                        fourier_bsk.polynomial_size(),
-                        fft,
-                    )
-                    .unwrap()
-                    .unaligned_bytes_required(),
-                );
-                let stack = buffers.stack();
-
-                // Compute a bootstrap
-                programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                    &ciphertext_buffers.buffer_lwe_after_ks,
-                    &mut ct.ct,
-                    &ciphertext_buffers.lookup_table.acc,
-                    fourier_bsk,
-                    fft,
-                    stack,
-                );
-            }
-            ShortintBootstrappingKey::MultiBit {
-                fourier_bsk,
-                thread_count,
-                deterministic_execution,
-            } => {
-                if *deterministic_execution {
-                    multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
-                        &ciphertext_buffers.buffer_lwe_after_ks,
-                        &mut ct.ct,
-                        &ciphertext_buffers.lookup_table.acc,
-                        fourier_bsk,
-                        *thread_count,
-                    );
-                } else {
-                    multi_bit_programmable_bootstrap_lwe_ciphertext(
-                        &ciphertext_buffers.buffer_lwe_after_ks,
-                        &mut ct.ct,
-                        &ciphertext_buffers.lookup_table.acc,
-                        fourier_bsk,
-                        *thread_count,
-                    );
-                }
-            }
-        };
-
-        ct.degree = ciphertext_buffers.lookup_table.degree;
-
-        Ok(())
-    }
-
     pub(crate) fn keyswitch_programmable_bootstrap_assign(
         &mut self,
         server_key: &ServerKey,
@@ -404,8 +333,7 @@ impl ShortintEngine {
         acc: &LookupTableOwned,
     ) -> EngineResult<()> {
         // Compute the programmable bootstrapping with fixed test polynomial
-        let (mut ciphertext_buffers, buffers) =
-            self.get_carry_clearing_lookup_table_and_buffers(server_key);
+        let (mut ciphertext_buffers, buffers) = self.get_buffers(server_key);
 
         // Compute a key switch
         keyswitch_lwe_ciphertext(
@@ -651,8 +579,7 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
         acc: &LookupTableOwned,
     ) -> EngineResult<()> {
-        let (mut ciphertext_buffers, buffers) =
-            self.get_carry_clearing_lookup_table_and_buffers(server_key);
+        let (mut ciphertext_buffers, buffers) = self.get_buffers(server_key);
 
         match &server_key.bootstrapping_key {
             ShortintBootstrappingKey::Classic(fourier_bsk) => {
@@ -716,77 +643,6 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn bootstrap_keyswitch_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct: &mut Ciphertext,
-    ) -> EngineResult<()> {
-        // Compute the programmable bootstrapping with fixed test polynomial
-        let (mut ciphertext_buffers, buffers) =
-            self.get_carry_clearing_lookup_table_and_buffers(server_key);
-
-        match &server_key.bootstrapping_key {
-            ShortintBootstrappingKey::Classic(fourier_bsk) => {
-                let fft = Fft::new(fourier_bsk.polynomial_size());
-                let fft = fft.as_view();
-                buffers.resize(
-                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
-                        fourier_bsk.glwe_size(),
-                        fourier_bsk.polynomial_size(),
-                        fft,
-                    )
-                    .unwrap()
-                    .unaligned_bytes_required(),
-                );
-                let stack = buffers.stack();
-
-                // Compute a bootstrap
-                programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                    &ct.ct,
-                    &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                    &ciphertext_buffers.lookup_table.acc,
-                    fourier_bsk,
-                    fft,
-                    stack,
-                );
-            }
-            ShortintBootstrappingKey::MultiBit {
-                fourier_bsk,
-                thread_count,
-                deterministic_execution,
-            } => {
-                if *deterministic_execution {
-                    multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
-                        &ct.ct,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                        &ciphertext_buffers.lookup_table.acc,
-                        fourier_bsk,
-                        *thread_count,
-                    );
-                } else {
-                    multi_bit_programmable_bootstrap_lwe_ciphertext(
-                        &ct.ct,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                        &ciphertext_buffers.lookup_table.acc,
-                        fourier_bsk,
-                        *thread_count,
-                    );
-                }
-            }
-        };
-
-        // Compute a keyswitch
-        keyswitch_lwe_ciphertext(
-            &server_key.key_switching_key,
-            &ciphertext_buffers.buffer_lwe_after_pbs,
-            &mut ct.ct,
-        );
-
-        ct.degree = ciphertext_buffers.lookup_table.degree;
-
-        Ok(())
-    }
-
     pub(crate) fn apply_lookup_table_assign(
         &mut self,
         server_key: &ServerKey,
@@ -818,25 +674,6 @@ impl ShortintEngine {
         self.apply_lookup_table_assign(server_key, &mut ct_res, acc)?;
 
         Ok(ct_res)
-    }
-
-    pub(crate) fn apply_msg_identity_lut_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct: &mut Ciphertext,
-    ) -> EngineResult<()> {
-        match server_key.pbs_order {
-            PBSOrder::KeyswitchBootstrap => {
-                // This updates the ciphertext degree
-                self.keyswitch_bootstrap_assign(server_key, ct)?;
-            }
-            PBSOrder::BootstrapKeyswitch => {
-                // This updates the ciphertext degree
-                self.bootstrap_keyswitch_assign(server_key, ct)?;
-            }
-        };
-
-        Ok(())
     }
 
     pub(crate) fn carry_extract_assign(
