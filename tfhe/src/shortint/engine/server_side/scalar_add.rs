@@ -45,14 +45,15 @@ impl ShortintEngine {
         Ok(())
     }
 
-    // by convention smart operations take mut refs to their inputs, even if they do not modify them
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_scalar_add(
         &mut self,
         server_key: &ServerKey,
         ct: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<Ciphertext> {
+        if !server_key.is_scalar_add_possible(ct, scalar) {
+            self.message_extract_assign(server_key, ct)?;
+        }
         let mut ct_result = ct.clone();
         self.smart_scalar_add_assign(server_key, &mut ct_result, scalar)?;
 

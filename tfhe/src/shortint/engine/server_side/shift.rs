@@ -47,14 +47,15 @@ impl ShortintEngine {
         Ok(())
     }
 
-    // by convention smart operations take mut refs to their inputs, even if they do not modify them
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_scalar_left_shift(
         &mut self,
         server_key: &ServerKey,
         ct: &mut Ciphertext,
         shift: u8,
     ) -> EngineResult<Ciphertext> {
+        if !server_key.is_scalar_left_shift_possible(ct, shift) {
+            self.message_extract_assign(server_key, ct)?;
+        }
         let mut result = ct.clone();
         self.smart_scalar_left_shift_assign(server_key, &mut result, shift)?;
         Ok(result)

@@ -137,7 +137,7 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         //Choice of the multiplication algorithm depending on the parameters
         if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
-            //If the ciphertext cannot be added together without exceeding the capacity of a
+            //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
             if !server_key.is_mul_small_carry_possible(ct_left, ct_right) {
                 self.message_extract_assign(server_key, ct_left)?;
@@ -145,7 +145,7 @@ impl ShortintEngine {
             }
             self.unchecked_mul_lsb_small_carry_modulus_assign(server_key, ct_left, ct_right)?;
         } else {
-            //If the ciphertext cannot be added together without exceeding the capacity of a
+            //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
             if !server_key.is_mul_possible(ct_left, ct_right) {
                 if (server_key.message_modulus.0 - 1) * ct_right.degree.0
@@ -166,17 +166,47 @@ impl ShortintEngine {
         Ok(())
     }
 
-    // by convention smart operations take mut refs to their inputs, even if they do not modify them
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_mul_lsb(
         &mut self,
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
-        let mut result = ct_left.clone();
-        self.smart_mul_lsb_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
+            //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
+            // ciphertext
+            if !server_key.is_mul_small_carry_possible(ct_left, ct_right) {
+                self.message_extract_assign(server_key, ct_left)?;
+                self.message_extract_assign(server_key, ct_right)?;
+            }
+
+            let mut result = ct_left.clone();
+            self.unchecked_mul_lsb_small_carry_modulus_assign(server_key, &mut result, ct_right)?;
+
+            Ok(result)
+        } else {
+            //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
+            // ciphertext
+            if !server_key.is_mul_possible(ct_left, ct_right) {
+                if (server_key.message_modulus.0 - 1) * ct_right.degree.0
+                    < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
+                {
+                    self.message_extract_assign(server_key, ct_left)?;
+                } else if (server_key.message_modulus.0 - 1) + ct_left.degree.0
+                    < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
+                {
+                    self.message_extract_assign(server_key, ct_right)?;
+                } else {
+                    self.message_extract_assign(server_key, ct_left)?;
+                    self.message_extract_assign(server_key, ct_right)?;
+                }
+            }
+            let mut result = ct_left.clone();
+
+            self.unchecked_mul_lsb_assign(server_key, &mut result, ct_right)?;
+
+            Ok(result)
+        }
     }
 
     pub(crate) fn smart_mul_msb_assign(
@@ -189,18 +219,22 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+
+        assert!(server_key.is_mul_possible(ct_left, ct_right));
         self.unchecked_mul_msb_assign(server_key, ct_left, ct_right)?;
         Ok(())
     }
 
-    // by convention smart operations take mut refs to their inputs, even if they do not modify them
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_mul_msb(
         &mut self,
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
+        if !server_key.is_mul_possible(ct_left, ct_right) {
+            self.message_extract_assign(server_key, ct_left)?;
+            self.message_extract_assign(server_key, ct_right)?;
+        }
         let mut result = ct_left.clone();
         self.smart_mul_msb_assign(server_key, &mut result, ct_right)?;
         Ok(result)

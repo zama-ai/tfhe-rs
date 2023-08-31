@@ -39,16 +39,25 @@ impl ShortintEngine {
         Ok(())
     }
 
-    // by convention smart operations take mut refs to their inputs, even if they do not modify them
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn smart_div(
         &mut self,
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> EngineResult<Ciphertext> {
+        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+            if ct_left.message_modulus.0 + ct_right.degree.0 <= server_key.max_degree.0 {
+                self.message_extract_assign(server_key, ct_left)?;
+            } else if ct_right.message_modulus.0 + (ct_left.degree.0 + 1) <= server_key.max_degree.0
+            {
+                self.message_extract_assign(server_key, ct_right)?;
+            } else {
+                self.message_extract_assign(server_key, ct_left)?;
+                self.message_extract_assign(server_key, ct_right)?;
+            }
+        }
         let mut result = ct_left.clone();
-        self.smart_div_assign(server_key, &mut result, ct_right)?;
+        self.unchecked_div_assign(server_key, &mut result, ct_right)?;
         Ok(result)
     }
 
