@@ -81,7 +81,7 @@ impl ServerKey {
             ctxt
         };
 
-        if self.is_eligible_for_parallel_carryless_add() {
+        if self.is_eligible_for_parallel_single_carry_propagation(ct) {
             let mut ct = self.unchecked_neg(ct);
             self.propagate_single_carry_parallelized_low_latency(&mut ct);
             ct
