@@ -857,13 +857,13 @@ impl ServerKey {
         let tmp_rhs: Ciphertext;
 
         if !ct_left.carry_is_empty() {
-            self.clear_carry_assign(ct_left);
+            self.message_extract_assign(ct_left);
         }
 
         let rhs = if ct_right.carry_is_empty() {
             ct_right
         } else {
-            tmp_rhs = self.clear_carry(ct_right);
+            tmp_rhs = self.message_extract(ct_right);
             &tmp_rhs
         };
 
@@ -873,7 +873,7 @@ impl ServerKey {
                     .unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, rhs)
                     .unwrap()
             });
-            self.clear_carry_assign(ct_left);
+            self.message_extract_assign(ct_left);
         } else {
             ShortintEngine::with_thread_local_mut(|engine| {
                 engine.unchecked_mul_lsb_assign(self, ct_left, rhs).unwrap()
@@ -996,13 +996,13 @@ impl ServerKey {
         let tmp_rhs: Ciphertext;
 
         if !ct_left.carry_is_empty() {
-            self.clear_carry_assign(ct_left);
+            self.message_extract_assign(ct_left);
         }
 
         let rhs = if ct_right.carry_is_empty() {
             ct_right
         } else {
-            tmp_rhs = self.clear_carry(ct_right);
+            tmp_rhs = self.message_extract(ct_right);
             &tmp_rhs
         };
 

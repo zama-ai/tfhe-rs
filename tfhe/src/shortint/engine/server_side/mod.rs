@@ -397,32 +397,6 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn clear_carry(
-        &mut self,
-        server_key: &ServerKey,
-        ct: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
-        let mut ct_in = ct.clone();
-        self.clear_carry_assign(server_key, &mut ct_in)?;
-        Ok(ct_in)
-    }
-
-    pub(crate) fn clear_carry_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct: &mut Ciphertext,
-    ) -> EngineResult<()> {
-        match server_key.pbs_order {
-            PBSOrder::KeyswitchBootstrap => {
-                self.keyswitch_bootstrap_assign(server_key, ct)?;
-            }
-            PBSOrder::BootstrapKeyswitch => {
-                self.bootstrap_keyswitch_assign(server_key, ct)?;
-            }
-        }
-        Ok(())
-    }
-
     pub(crate) fn keyswitch_programmable_bootstrap_assign(
         &mut self,
         server_key: &ServerKey,
