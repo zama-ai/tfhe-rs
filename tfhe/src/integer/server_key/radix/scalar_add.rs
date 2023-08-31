@@ -200,6 +200,8 @@ impl ServerKey {
             self.full_propagate(ct);
         }
 
+        assert!(self.is_scalar_add_possible(ct, scalar));
+
         let mut ct = ct.clone();
         self.unchecked_scalar_add_assign(&mut ct, scalar);
         ct
@@ -239,6 +241,7 @@ impl ServerKey {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate(ct);
         }
+        assert!(self.is_scalar_add_possible(ct, scalar));
         self.unchecked_scalar_add_assign(ct, scalar);
     }
 }

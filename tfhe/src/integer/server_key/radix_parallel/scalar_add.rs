@@ -37,6 +37,7 @@ impl ServerKey {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
+        assert!(self.is_scalar_add_possible(ct, scalar));
         self.unchecked_scalar_add(ct, scalar)
     }
 
@@ -74,6 +75,7 @@ impl ServerKey {
         if !self.is_scalar_add_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
+        assert!(self.is_scalar_add_possible(ct, scalar));
         self.unchecked_scalar_add_assign(ct, scalar);
     }
 

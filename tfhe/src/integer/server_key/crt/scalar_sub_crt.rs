@@ -190,6 +190,7 @@ impl ServerKey {
         if !self.is_crt_scalar_sub_possible(ct, scalar) {
             self.full_extract_message_assign(ct);
         }
+        assert!(self.is_crt_scalar_sub_possible(ct, scalar));
 
         self.unchecked_crt_scalar_sub(ct, scalar)
     }
@@ -198,6 +199,7 @@ impl ServerKey {
         if !self.is_crt_scalar_sub_possible(ct, scalar) {
             self.full_extract_message_assign(ct);
         }
+        assert!(self.is_crt_scalar_sub_possible(ct, scalar));
 
         self.unchecked_crt_scalar_sub_assign(ct, scalar);
     }

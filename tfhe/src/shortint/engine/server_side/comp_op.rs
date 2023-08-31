@@ -40,6 +40,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         let mut result = ct_left.clone();
         self.unchecked_greater_assign(server_key, &mut result, ct_right)?;
         Ok(result)
@@ -83,6 +84,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         let mut result = ct_left.clone();
         self.unchecked_greater_or_equal_assign(server_key, &mut result, ct_right)?;
         Ok(result)
@@ -126,6 +128,8 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+
         let mut result = ct_left.clone();
         self.unchecked_less_assign(server_key, &mut result, ct_right)?;
         Ok(result)
@@ -169,6 +173,8 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+
         let mut result = ct_left.clone();
         self.unchecked_less_or_equal_assign(server_key, &mut result, ct_right)?;
         Ok(result)
@@ -212,6 +218,8 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+
         let mut result = ct_left.clone();
         self.unchecked_equal_assign(server_key, &mut result, ct_right)?;
         Ok(result)
@@ -282,6 +290,8 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+
         let mut result = ct_left.clone();
         self.unchecked_not_equal_assign(server_key, &mut result, ct_right)?;
         Ok(result)

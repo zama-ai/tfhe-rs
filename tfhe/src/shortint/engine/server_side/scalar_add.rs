@@ -54,8 +54,9 @@ impl ShortintEngine {
         if !server_key.is_scalar_add_possible(ct, scalar) {
             self.message_extract_assign(server_key, ct)?;
         }
+        assert!(server_key.is_scalar_add_possible(ct, scalar));
         let mut ct_result = ct.clone();
-        self.smart_scalar_add_assign(server_key, &mut ct_result, scalar)?;
+        self.unchecked_scalar_add_assign(&mut ct_result, scalar)?;
 
         Ok(ct_result)
     }

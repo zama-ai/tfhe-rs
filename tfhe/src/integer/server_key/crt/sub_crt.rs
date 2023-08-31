@@ -111,6 +111,8 @@ impl ServerKey {
             self.full_extract_message_assign(ctxt_right);
         }
 
+        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
+
         let mut result = ctxt_left.clone();
         self.unchecked_crt_sub_assign(&mut result, ctxt_right);
 
@@ -151,6 +153,8 @@ impl ServerKey {
             self.full_extract_message_assign(ctxt_left);
             self.full_extract_message_assign(ctxt_right);
         }
+
+        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
 
         self.unchecked_crt_sub_assign(ctxt_left, ctxt_right);
     }

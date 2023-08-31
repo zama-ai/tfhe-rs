@@ -56,6 +56,8 @@ impl ShortintEngine {
                 self.message_extract_assign(server_key, ct_right)?;
             }
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+
         let mut result = ct_left.clone();
         self.unchecked_div_assign(server_key, &mut result, ct_right)?;
         Ok(result)
@@ -78,6 +80,8 @@ impl ShortintEngine {
                 self.message_extract_assign(server_key, ct_right)?;
             }
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+
         self.unchecked_div_assign(server_key, ct_left, ct_right)?;
         Ok(())
     }

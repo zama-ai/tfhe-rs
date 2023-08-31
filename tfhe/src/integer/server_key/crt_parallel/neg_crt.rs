@@ -72,6 +72,7 @@ impl ServerKey {
         if !self.is_crt_neg_possible(ctxt) {
             self.full_extract_message_assign_parallelized(ctxt);
         }
+        assert!(self.is_crt_neg_possible(ctxt));
         self.unchecked_crt_neg_assign_parallelized(ctxt);
     }
 
@@ -79,6 +80,7 @@ impl ServerKey {
         if !self.is_crt_neg_possible(ctxt) {
             self.full_extract_message_assign_parallelized(ctxt);
         }
+        assert!(self.is_crt_neg_possible(ctxt));
         self.unchecked_crt_neg_parallelized(ctxt)
     }
 }
