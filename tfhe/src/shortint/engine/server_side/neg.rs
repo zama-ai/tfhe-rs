@@ -69,7 +69,7 @@ impl ShortintEngine {
     ) -> EngineResult<Ciphertext> {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !server_key.is_neg_possible(ct) {
-            self.apply_msg_identity_lut_assign(server_key, ct)?;
+            self.message_extract_assign(server_key, ct)?;
         }
         self.unchecked_neg(server_key, ct)
     }
@@ -81,7 +81,7 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !server_key.is_neg_possible(ct) {
-            self.apply_msg_identity_lut_assign(server_key, ct)?;
+            self.message_extract_assign(server_key, ct)?;
         }
         self.unchecked_neg_assign(server_key, ct)
     }
