@@ -78,10 +78,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        // The fully parallelized way introduces more work
-        // and so is slower for low number of blocks
-        const MIN_NUM_BLOCKS: usize = 6;
-        if self.is_eligible_for_parallel_carryless_add() && ctxt.blocks().len() >= MIN_NUM_BLOCKS {
+        if self.is_eligible_for_parallel_single_carry_propagation(ctxt) {
             let num_blocks = ctxt.blocks().len();
 
             let (mut message_blocks, carry_blocks) = rayon::join(

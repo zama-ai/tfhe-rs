@@ -166,7 +166,7 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         };
 
-        if self.is_eligible_for_parallel_carryless_add() {
+        if self.is_eligible_for_parallel_single_carry_propagation(ct) {
             self.unchecked_scalar_add_assign(ct, scalar);
             self.propagate_single_carry_parallelized_low_latency(ct);
         } else {

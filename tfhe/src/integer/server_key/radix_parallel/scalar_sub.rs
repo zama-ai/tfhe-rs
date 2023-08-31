@@ -104,7 +104,7 @@ impl ServerKey {
 
         self.unchecked_scalar_sub_assign(ct, scalar);
 
-        if self.is_eligible_for_parallel_carryless_add() {
+        if self.is_eligible_for_parallel_single_carry_propagation(ct) {
             self.propagate_single_carry_parallelized_low_latency(ct);
         } else {
             self.full_propagate_parallelized(ct);

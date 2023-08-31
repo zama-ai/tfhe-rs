@@ -210,7 +210,7 @@ impl ServerKey {
             }
         };
 
-        if self.is_eligible_for_parallel_carryless_add() {
+        if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
             let neg = self.unchecked_neg(rhs);
             self.unchecked_add_assign_parallelized_low_latency(lhs, &neg);
         } else {

@@ -191,7 +191,7 @@ impl ServerKey {
             }
         };
 
-        if self.is_eligible_for_parallel_carryless_add() {
+        if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
             self.unchecked_add_assign_parallelized_low_latency(lhs, rhs);
         } else {
             self.unchecked_add_assign(lhs, rhs);
@@ -241,12 +241,34 @@ impl ServerKey {
         self.unchecked_add_assign_parallelized_work_efficient(lhs, rhs);
     }
 
-    pub(crate) fn is_eligible_for_parallel_carryless_add(&self) -> bool {
+    pub(crate) fn is_eligible_for_parallel_single_carry_propagation<T>(&self, ct: &T) -> bool
+    where
+        T: IntegerRadixCiphertext,
+    {
         // having 4-bits is a hard requirement
         // as the parallel implementation uses a bivariate BPS where individual values need
         // 2 bits
         let total_modulus = self.key.message_modulus.0 * self.key.carry_modulus.0;
-        total_modulus >= (1 << 4)
+        let has_enough_bits_per_block = total_modulus >= (1 << 4);
+        if !has_enough_bits_per_block {
+            return false;
+        }
+
+        // The fully parallelized way introduces more work
+        // and so is slower for low number of blocks
+        const MIN_NUM_BLOCKS: usize = 6;
+        let has_enough_blocks = ct.blocks().len() >= MIN_NUM_BLOCKS;
+        if !has_enough_blocks {
+            return false;
+        }
+
+        // Use rayon to get that number as the implementation uses rayon for parallelism
+        let has_enough_threads = rayon::current_num_threads() >= ct.blocks().len();
+        if !has_enough_threads {
+            return false;
+        }
+
+        true
     }
 
     /// This add_assign two numbers
