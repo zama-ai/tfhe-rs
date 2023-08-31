@@ -27,6 +27,5 @@ TFHE-rs is supported on Linux (x86, aarch64), macOS (x86, aarch64) and Windows (
 | Windows | `x86_64`      | Unsupported      |
 
 {% hint style="info" %}
-Users who have ARM devices can use TFHE-rs by compiling using the `nightly` toolchain (see
-[Configuration](../how_to/rust_configuration.md) for more details).
+Users who have ARM devices can compile TFHE-rs using a stable toolchain with version >= 1.72 (see [Configuration](../how_to/rust_configuration.md) for more details).
 {% endhint %}
