@@ -2135,7 +2135,7 @@ where
     // hard-coded tests
     // 10, 7, 14 are from the paper and should trigger different branches
     // 16 is a power of two and should trigger the corresponding branch
-    let hard_coded_divisors: [u32; 4] = [10, 7, 14, 16];
+    let hard_coded_divisors: [u64; 4] = [10, 7, 14, 16];
     for divisor in hard_coded_divisors {
         let clear = rng.gen::<u64>() % modulus;
         let ct = cks.encrypt(clear);
@@ -2144,13 +2144,13 @@ where
 
         let q_res: u64 = cks.decrypt(&q);
         let r_res: u64 = cks.decrypt(&r);
-        assert_eq!(q_res, clear / divisor as u64);
-        assert_eq!(r_res, clear % divisor as u64);
+        assert_eq!(q_res, clear / divisor);
+        assert_eq!(r_res, clear % divisor);
     }
 
     for _ in 0..NB_TEST {
         let clear = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen_range(1u32..=u32::MAX);
+        let scalar = rng.gen_range(1u32..=u32::MAX) as u64;
 
         let ct = cks.encrypt(clear);
 
@@ -2164,8 +2164,8 @@ where
 
             let q_res: u64 = cks.decrypt(&q);
             let r_res: u64 = cks.decrypt(&r);
-            assert_eq!(q_res, clear / scalar as u64);
-            assert_eq!(r_res, clear % scalar as u64);
+            assert_eq!(q_res, clear / scalar);
+            assert_eq!(r_res, clear % scalar);
         }
 
         {
