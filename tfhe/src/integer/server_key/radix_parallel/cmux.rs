@@ -9,11 +9,6 @@ impl ServerKey {
         true_ct: &RadixCiphertext,
         false_ct: &RadixCiphertext,
     ) -> RadixCiphertext {
-        assert!(
-            condition.holds_boolean_value(),
-            "The condition ciphertext does not encrypt a boolean (0 or 1) value"
-        );
-
         let condition_block = &condition.blocks[0];
         self.unchecked_programmable_if_then_else_parallelized(
             condition_block,
@@ -202,7 +197,7 @@ impl ServerKey {
         condition_block: &crate::shortint::Ciphertext,
         value: u64,
     ) {
-        assert!(condition_block.degree.0 < condition_block.message_modulus.0);
+        // assert!(condition_block.degree.0 < condition_block.message_modulus.0);
         assert!(value < condition_block.message_modulus.0 as u64);
 
         self.zero_out_if(ct, condition_block, |x| x == value);
@@ -216,7 +211,7 @@ impl ServerKey {
     ) where
         F: Fn(u64) -> bool,
     {
-        assert!(condition_block.degree.0 < condition_block.message_modulus.0);
+        // assert!(condition_block.degree.0 < condition_block.message_modulus.0);
 
         if condition_block.degree.0 == 0 {
             return self.create_trivial_zero_assign_radix(ct);

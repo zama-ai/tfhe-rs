@@ -315,7 +315,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
-        let modulus = ct_left.message_modulus.0 as u64;
+        let modulus: u64 = ct_left.message_modulus.0 as u64;
         let acc =
             self.generate_lookup_table(server_key, |x| (x % modulus != scalar as u64) as u64)?;
         self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
