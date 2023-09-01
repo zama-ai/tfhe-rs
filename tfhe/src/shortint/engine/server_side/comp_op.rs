@@ -230,7 +230,6 @@ impl ShortintEngine {
         let acc =
             self.generate_lookup_table(server_key, |x| (x % modulus == scalar as u64) as u64)?;
         self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
-        ct_left.degree.0 = 1;
         Ok(())
     }
 
@@ -298,7 +297,6 @@ impl ShortintEngine {
         let acc =
             self.generate_lookup_table(server_key, |x| (x % modulus != scalar as u64) as u64)?;
         self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
-        ct_left.degree.0 = 1;
         Ok(())
     }
 
@@ -323,7 +321,6 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         let acc = self.generate_lookup_table(server_key, |x| (x >= scalar as u64) as u64)?;
         self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
-        ct_left.degree.0 = 1;
         Ok(())
     }
 
@@ -348,7 +345,6 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         let acc = self.generate_lookup_table(server_key, |x| (x <= scalar as u64) as u64)?;
         self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
-        ct_left.degree.0 = 1;
         Ok(())
     }
 
@@ -373,7 +369,6 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         let acc = self.generate_lookup_table(server_key, |x| (x > scalar as u64) as u64)?;
         self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
-        ct_left.degree.0 = 1;
         Ok(())
     }
 
@@ -398,7 +393,6 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         let acc = self.generate_lookup_table(server_key, |x| (x < scalar as u64) as u64)?;
         self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
-        ct_left.degree.0 = 1;
         Ok(())
     }
 }

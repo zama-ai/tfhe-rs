@@ -1,4 +1,3 @@
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
 
@@ -99,7 +98,7 @@ impl ShortintEngine {
         assert_ne!(scalar, 0, "attempt to divide by zero");
         let lookup_table = self.generate_lookup_table(server_key, |x| x / (scalar as u64))?;
         self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
-        ct.degree = Degree(ct.degree.0 / scalar as usize);
+
         Ok(())
     }
 
@@ -126,7 +125,6 @@ impl ShortintEngine {
         assert_ne!(modulus, 0);
         let acc = self.generate_lookup_table(server_key, |x| x % modulus as u64)?;
         self.apply_lookup_table_assign(server_key, ct, &acc)?;
-        ct.degree = Degree(modulus as usize - 1);
         Ok(())
     }
 }

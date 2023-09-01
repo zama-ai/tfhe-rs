@@ -1,5 +1,3 @@
-use crate::core_crypto::algorithms::*;
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
 
@@ -47,9 +45,7 @@ impl ShortintEngine {
     ) -> EngineResult<u64> {
         let (neg_right, z) = self.unchecked_neg_with_correcting_term(server_key, ct_right)?;
 
-        lwe_ciphertext_add_assign(&mut ct_left.ct, &neg_right.ct);
-
-        ct_left.degree = Degree(ct_left.degree.0 + z as usize);
+        self.unchecked_add_assign(ct_left, &neg_right)?;
 
         Ok(z)
     }
