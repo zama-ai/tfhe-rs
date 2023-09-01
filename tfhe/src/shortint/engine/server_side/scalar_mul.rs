@@ -67,13 +67,11 @@ impl ShortintEngine {
         // Direct scalar computation is possible
         if server_key.is_scalar_mul_possible(ctxt, scalar) {
             self.unchecked_scalar_mul_assign(ctxt, scalar)?;
-            ctxt.degree = Degree(ctxt.degree.0 * scalar as usize);
         }
         // If the ciphertext cannot be multiplied without exceeding the degree max
         else {
             let acc = self.generate_lookup_table(server_key, |x| (scalar as u64 * x) % modulus)?;
             self.apply_lookup_table_assign(server_key, ctxt, &acc)?;
-            ctxt.degree = Degree(server_key.message_modulus.0 - 1);
         }
         Ok(())
     }

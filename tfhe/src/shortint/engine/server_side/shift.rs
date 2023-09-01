@@ -1,4 +1,3 @@
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
 
@@ -23,7 +22,6 @@ impl ShortintEngine {
         let acc = self.generate_lookup_table(server_key, |x| x >> shift)?;
         self.apply_lookup_table_assign(server_key, ct, &acc)?;
 
-        ct.degree = Degree(ct.degree.0 >> shift);
         Ok(())
     }
 
@@ -73,7 +71,6 @@ impl ShortintEngine {
             let modulus = server_key.message_modulus.0 as u64;
             let acc = self.generate_lookup_table(server_key, |x| (x << shift) % modulus)?;
             self.apply_lookup_table_assign(server_key, ct, &acc)?;
-            ct.degree = ct.degree.after_left_shift(shift, modulus as usize);
         }
         Ok(())
     }

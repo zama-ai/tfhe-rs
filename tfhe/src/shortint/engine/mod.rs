@@ -11,7 +11,6 @@ use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::ContainerMut;
 use crate::core_crypto::seeders::new_seeder;
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::{BivariateLookupTableOwned, LookupTableOwned};
 use crate::shortint::ServerKey;
 use std::cell::RefCell;
@@ -242,10 +241,7 @@ impl ShortintEngine {
         );
         let max_value = fill_accumulator(&mut acc, server_key, f);
 
-        Ok(LookupTableOwned {
-            acc,
-            degree: Degree(max_value as usize),
-        })
+        Ok(LookupTableOwned { acc, max_value })
     }
 
     /// Generates a bivariate accumulator

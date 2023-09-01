@@ -25,7 +25,6 @@ impl ShortintEngine {
             ct_right,
             |lhs, rhs| lhs & rhs,
         )?;
-        ct_left.degree = ct_left.degree.after_bitand(ct_right.degree);
         Ok(())
     }
 
@@ -83,7 +82,6 @@ impl ShortintEngine {
             ct_right,
             |lhs, rhs| lhs ^ rhs,
         )?;
-        ct_left.degree = ct_left.degree.after_bitxor(ct_right.degree);
         Ok(())
     }
 
@@ -141,7 +139,6 @@ impl ShortintEngine {
             ct_right,
             |lhs, rhs| lhs | rhs,
         )?;
-        ct_left.degree = ct_left.degree.after_bitor(ct_right.degree);
         Ok(())
     }
 

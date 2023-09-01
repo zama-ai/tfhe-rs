@@ -392,7 +392,7 @@ impl ShortintEngine {
             }
         };
 
-        ct.degree = acc.degree;
+        ct.degree.0 = (acc.max_value as usize).max(ct.message_modulus.0 - 1);
 
         Ok(())
     }
@@ -671,7 +671,7 @@ impl ShortintEngine {
             &mut ct.ct,
         );
 
-        ct.degree = acc.degree;
+        ct.degree.0 = (acc.max_value as usize).max(ct.message_modulus.0 - 1);
 
         Ok(())
     }

@@ -1,5 +1,4 @@
 use super::ServerKey;
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::server_key::CheckError::CarryFull;
@@ -631,8 +630,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
         if self.is_mul_small_carry_possible(ct_left, ct_right) {
-            let mut ct_result = self.unchecked_mul_lsb_small_carry(ct_left, ct_right);
-            ct_result.degree = Degree(ct_left.degree.0 * 2);
+            let ct_result = self.unchecked_mul_lsb_small_carry(ct_left, ct_right);
             Ok(ct_result)
         } else {
             Err(CarryFull)

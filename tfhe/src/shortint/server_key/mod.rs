@@ -28,7 +28,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::shortint::ciphertext::{Ciphertext, Degree};
+use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, CiphertextModulus, MessageModulus};
@@ -274,7 +274,7 @@ fn ciphertexts_can_be_packed_without_exceeding_space(
 #[must_use]
 pub struct LookupTable<C: Container<Element = u64>> {
     pub acc: GlweCiphertext<C>,
-    pub degree: Degree,
+    pub max_value: u64,
 }
 
 pub type LookupTableOwned = LookupTable<Vec<u64>>;
