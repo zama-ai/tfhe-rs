@@ -32,36 +32,33 @@ pub struct WopbsKey {
 #[must_use]
 pub struct WopbsLUTBase {
     // Flattened Wopbs LUT
-    plaintext_list: PlaintextListOwned<u64>,
+    plaintext_list: Vec<u64>,
     // How many output ciphertexts will be produced after applying the Wopbs to an input vector of
     // ciphertexts encrypting bits
     output_ciphertext_count: CiphertextCount,
 }
 
 impl WopbsLUTBase {
-    pub fn from_vec(value: Vec<u64>, output_ciphertext_count: CiphertextCount) -> Self {
+    pub fn from_vec(value: Vec<u64>, output_ciphertext_count: CiphertextCount) -> WopbsLUTBase {
         Self {
-            plaintext_list: PlaintextList::from_container(value),
+            plaintext_list: value,
             output_ciphertext_count,
         }
     }
 
     pub fn new(small_lut_size: PlaintextCount, output_ciphertext_count: CiphertextCount) -> Self {
         Self {
-            plaintext_list: PlaintextList::new(
-                0,
-                PlaintextCount(small_lut_size.0 * output_ciphertext_count.0),
-            ),
+            plaintext_list: vec![0; small_lut_size.0 * output_ciphertext_count.0],
             output_ciphertext_count,
         }
     }
 
-    pub fn lut(&self) -> &'_ PlaintextListOwned<u64> {
-        &self.plaintext_list
+    pub fn lut(&self) -> PlaintextListView<'_, u64> {
+        PlaintextList::from_container(&self.plaintext_list)
     }
 
-    pub fn lut_mut(&mut self) -> &'_ mut PlaintextListOwned<u64> {
-        &mut self.plaintext_list
+    pub fn lut_mut(&mut self) -> PlaintextListMutView<'_, u64> {
+        PlaintextList::from_container(&mut self.plaintext_list)
     }
 
     pub fn output_ciphertext_count(&self) -> CiphertextCount {
@@ -72,7 +69,7 @@ impl WopbsLUTBase {
         PlaintextCount(self.lut().plaintext_count().0 / self.output_ciphertext_count().0)
     }
 
-    pub fn get_small_lut(&self, index: usize) -> PlaintextListView<'_, u64> {
+    pub fn get_small_lut(&self, index: usize) -> &[u64] {
         assert!(
             index < self.output_ciphertext_count().0,
             "index {index} out of bounds, max {}",
@@ -81,11 +78,10 @@ impl WopbsLUTBase {
 
         let small_lut_size = self.small_lut_size().0;
 
-        self.lut()
-            .get_sub(index * small_lut_size..(index + 1) * small_lut_size)
+        &self.plaintext_list[index * small_lut_size..(index + 1) * small_lut_size]
     }
 
-    pub fn get_small_lut_mut(&mut self, index: usize) -> PlaintextListMutView<'_, u64> {
+    pub fn get_small_lut_mut(&mut self, index: usize) -> &mut [u64] {
         assert!(
             index < self.output_ciphertext_count().0,
             "index {index} out of bounds, max {}",
@@ -94,8 +90,19 @@ impl WopbsLUTBase {
 
         let small_lut_size = self.small_lut_size().0;
 
-        self.lut_mut()
-            .get_sub_mut(index * small_lut_size..(index + 1) * small_lut_size)
+        &mut self.plaintext_list[index * small_lut_size..(index + 1) * small_lut_size]
+    }
+}
+
+impl AsRef<[u64]> for WopbsLUTBase {
+    fn as_ref(&self) -> &[u64] {
+        self.plaintext_list.as_ref()
+    }
+}
+
+impl AsMut<[u64]> for WopbsLUTBase {
+    fn as_mut(&mut self) -> &mut [u64] {
+        self.plaintext_list.as_mut()
     }
 }
 
@@ -110,6 +117,14 @@ impl ShortintWopbsLUT {
             inner: WopbsLUTBase::new(lut_size, CiphertextCount(1)),
         }
     }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, u64> {
+        self.inner.as_ref().iter()
+    }
+
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, u64> {
+        self.inner.as_mut().iter_mut()
+    }
 }
 
 impl AsRef<WopbsLUTBase> for ShortintWopbsLUT {
@@ -121,6 +136,20 @@ impl AsRef<WopbsLUTBase> for ShortintWopbsLUT {
 impl AsMut<WopbsLUTBase> for ShortintWopbsLUT {
     fn as_mut(&mut self) -> &mut WopbsLUTBase {
         &mut self.inner
+    }
+}
+
+impl std::ops::Index<usize> for ShortintWopbsLUT {
+    type Output = u64;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.inner.as_ref()[index]
+    }
+}
+
+impl std::ops::IndexMut<usize> for ShortintWopbsLUT {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.inner.as_mut()[index]
     }
 }
 
@@ -228,14 +257,7 @@ impl WopbsKey {
         let delta = 64 - f64::log2((basis) as f64).ceil() as u64 - 1;
         let poly_size = self.wopbs_server_key.bootstrapping_key.polynomial_size().0;
         let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
-        for (i, value) in lut
-            .as_mut()
-            .lut_mut()
-            .as_mut()
-            .iter_mut()
-            .enumerate()
-            .take(basis)
-        {
+        for (i, value) in lut.iter_mut().enumerate().take(basis) {
             *value = f((i % ct.message_modulus.0) as u64) << delta;
         }
         lut
@@ -312,7 +334,7 @@ impl WopbsKey {
         let mut lut = ShortintWopbsLUT::new(PlaintextCount(poly_size));
         for i in 0..basis {
             let index_lut = (((i as u64 % basis as u64) << nb_bit) / basis as u64) as usize;
-            lut.as_mut().lut_mut().as_mut()[index_lut] =
+            lut[index_lut] =
                 (((f(i as u64) % basis as u64) as u128 * (1 << 64)) / basis as u128) as u64;
         }
         lut

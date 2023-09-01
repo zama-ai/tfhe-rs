@@ -364,7 +364,7 @@ impl ShortintEngine {
         let ciphertext_list = self.circuit_bootstrap_with_bits(
             wopbs_key,
             &extracted_bits.as_view(),
-            lut.lut(),
+            &lut.lut(),
             LweCiphertextCount(1),
         )?;
 
@@ -598,7 +598,7 @@ impl ShortintEngine {
             .circuit_bootstrap_with_bits(
                 wopbs_key,
                 extracted_bits_blocks,
-                lut.lut(),
+                &lut.lut(),
                 LweCiphertextCount(lut.output_ciphertext_count().0),
             )
             .unwrap();
