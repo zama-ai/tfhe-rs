@@ -67,6 +67,20 @@ impl AsMut<WopbsLUTBase> for IntegerWopbsLUT {
     }
 }
 
+impl std::ops::Index<usize> for IntegerWopbsLUT {
+    type Output = [u64];
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.as_ref().get_small_lut(index)
+    }
+}
+
+impl std::ops::IndexMut<usize> for IntegerWopbsLUT {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.as_mut().get_small_lut_mut(index)
+    }
+}
+
 /// ```rust
 /// use tfhe::integer::wopbs::{decode_radix, encode_radix};
 ///
@@ -536,8 +550,7 @@ impl WopbsKey {
             let f_val = f(decoded_val % modulus) % modulus;
             let encoded_f_val = encode_radix(f_val, basis, block_nb as u64);
             for (lut_number, radix_encoded_val) in encoded_f_val.iter().enumerate().take(block_nb) {
-                lut.as_mut().get_small_lut_mut(lut_number).as_mut()[lut_index_val as usize] =
-                    radix_encoded_val * delta;
+                lut[lut_number][lut_index_val as usize] = radix_encoded_val * delta;
             }
         }
         lut
@@ -598,8 +611,7 @@ impl WopbsKey {
 
             // fill the LUTs
             for block_index in 0..nb_block {
-                let mut lut_block = lut.as_mut().get_small_lut_mut(block_index);
-                lut_block.as_mut()[index] = ((f(value as u64)
+                lut[block_index][index] = ((f(value as u64)
                     >> (log_carry_modulus * block_index as u64))
                     % (1 << log_message_modulus))
                     << delta
@@ -663,7 +675,7 @@ impl WopbsKey {
                 tmp <<= bit;
             }
             for (j, b) in basis.iter().enumerate() {
-                lut.as_mut().get_small_lut_mut(j).as_mut()[index_lut as usize] =
+                lut[j][index_lut as usize] =
                     (((f(value) % b) as u128 * (1 << 64)) / *b as u128) as u64
             }
         }
@@ -726,10 +738,9 @@ impl WopbsKey {
                 let delta: u64 = (1 << 63)
                     / (self.wopbs_key.param.message_modulus.0
                         * self.wopbs_key.param.carry_modulus.0) as u64;
-                lut.as_mut().get_small_lut_mut(j).as_mut()[i as usize] =
-                    ((f((value % (1 << deg)) % block.message_modulus.0 as u64))
-                        % block.message_modulus.0 as u64)
-                        * delta;
+                lut[j][i as usize] = ((f((value % (1 << deg)) % block.message_modulus.0 as u64))
+                    % block.message_modulus.0 as u64)
+                    * delta;
                 value >>= deg;
             }
         }
@@ -823,8 +834,7 @@ impl WopbsKey {
             let f_val = f(decoded_val[0] % modulus, decoded_val[1] % modulus) % modulus;
             let encoded_f_val = encode_radix(f_val, basis, block_nb as u64);
             for (lut_number, radix_encoded_val) in encoded_f_val.iter().enumerate().take(block_nb) {
-                lut.as_mut().get_small_lut_mut(lut_number).as_mut()[lut_index_val as usize] =
-                    radix_encoded_val * delta;
+                lut[lut_number][lut_index_val as usize] = radix_encoded_val * delta;
             }
         }
         lut
@@ -915,8 +925,7 @@ impl WopbsKey {
             let value_2 = i_crt(&ct2.moduli(), &crt_value[1]);
             for (j, current_mod) in basis.iter().enumerate() {
                 let value = f(value_1, value_2) % current_mod;
-                lut.as_mut().get_small_lut_mut(j).as_mut()[index as usize] =
-                    (value % current_mod) * delta;
+                lut[j][index as usize] = (value % current_mod) * delta;
             }
         }
 
@@ -988,7 +997,7 @@ impl WopbsKey {
             }
             let index = (index_lut_2 << total_bit) + (index_lut_1);
             for (j, b) in basis.iter().enumerate() {
-                lut.as_mut().get_small_lut_mut(j).as_mut()[index as usize] =
+                lut[j][index as usize] =
                     (((f(value_1, value_2) % b) as u128 * (1 << 64)) / *b as u128) as u64
             }
         }
