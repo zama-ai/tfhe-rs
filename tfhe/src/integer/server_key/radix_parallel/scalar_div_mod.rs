@@ -220,6 +220,15 @@ impl ServerKey {
         // Rust has a check on all division, so we shall also have one
         assert_ne!(divisor, T::ZERO, "Cannot divide by zero");
 
+        assert!(
+            T::BITS >= numerator_bits as usize,
+            "The scalar divisor type must have a number of bits that is \
+            >= to the number of bits encrypted in the ciphertext: \n\
+            encrypted bits: {numerator_bits}, scalar bits: {}
+            ",
+            T::BITS
+        );
+
         if divisor.is_power_of_two() {
             // Even in FHE, shifting is faster than multiplying / dividing
             return self
