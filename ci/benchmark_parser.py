@@ -108,12 +108,25 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
                     )
                 )
 
+                # This is a special case where PBS are blasted as vector LWE ciphertext with
+                # variable length to saturate the machine. To get the actual throughput we need to
+                # multiply by the length of the vector.
+                if "PBS_throughput" in test_name and "chunk" in test_name:
+                    try:
+                        multiplier = int(test_name.split("chunk")[0].split("_")[-1])
+                    except ValueError:
+                        parsing_failures.append((full_name,
+                                                 "failed to extract throughput multiplier"))
+                        continue
+                else:
+                    multiplier = 1
+
                 if stat_name == "mean" and compute_throughput:
                     test_suffix = "ops-per-sec"
                     test_name_parts.append(test_suffix)
                     result_values.append(
                         _create_point(
-                            compute_ops_per_second(value),
+                            multiplier * compute_ops_per_second(value),
                             "_".join(test_name_parts),
                             bench_class,
                             "throughput",
@@ -129,7 +142,7 @@ def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throu
                         test_name_parts.append(test_suffix)
                         result_values.append(
                             _create_point(
-                                compute_ops_per_dollar(value, hardware_hourly_cost),
+                                multiplier * compute_ops_per_dollar(value, hardware_hourly_cost),
                                 "_".join(test_name_parts),
                                 bench_class,
                                 "throughput",
