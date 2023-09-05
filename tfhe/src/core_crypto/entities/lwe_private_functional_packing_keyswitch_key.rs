@@ -286,6 +286,12 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>>
 /// An [`LwePrivateFunctionalPackingKeyswitchKey`] owning the memory for its own storage.
 pub type LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> =
     LwePrivateFunctionalPackingKeyswitchKey<Vec<Scalar>>;
+/// An [`LwePrivateFunctionalPackingKeyswitchKey`] immutably borrowing memory for its own storage.
+pub type LwePrivateFunctionalPackingKeyswitchKeyView<'data, Scalar> =
+    LwePrivateFunctionalPackingKeyswitchKey<&'data [Scalar]>;
+/// An [`LwePrivateFunctionalPackingKeyswitchKey`] mutably borrowing memory for its own storage.
+pub type LwePrivateFunctionalPackingKeyswitchKeyMutView<'data, Scalar> =
+    LwePrivateFunctionalPackingKeyswitchKey<&'data mut [Scalar]>;
 
 impl<Scalar: UnsignedInteger> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> {
     /// Create an [`LwePrivateFunctionalPackingKeyswitchKey`] from an existing container.
@@ -339,11 +345,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     where
         Self: 'this;
 
-    type SelfViewMetadata = ();
+    type SelfViewMetadata = LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata<Self::Element>;
 
-    // At the moment it does not make sense to return "sub" packing keyswitch keys. So we use a
-    // dummy placeholder type here.
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this> = LwePrivateFunctionalPackingKeyswitchKeyView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -359,12 +363,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         self.input_key_element_encrypted_size()
     }
 
-    /// Unimplemented for [`LwePrivateFunctionalPackingKeyswitchKey`]. At the moment it does not
-    /// make sense to return "sub" packing keyswitch keys.
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        unimplemented!(
-            "This function is not supported for LwePrivateFunctionalPackingKeyswitchKey. \
-        At the moment it does not make sense to return 'sub' packing keyswitch keys."
+        LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata(
+            self.decomposition_base_log(),
+            self.decomposition_level_count(),
+            self.output_glwe_size(),
+            self.output_polynomial_size(),
+            self.ciphertext_modulus(),
         )
     }
 }
@@ -376,9 +381,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
     where
         Self: 'this;
 
-    // At the moment it does not make sense to return "sub" packing keyswitch keys. So we use a
-    // dummy placeholder type here.
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this> = LwePrivateFunctionalPackingKeyswitchKeyMutView<'this, Self::Element>
     where
         Self: 'this;
 }

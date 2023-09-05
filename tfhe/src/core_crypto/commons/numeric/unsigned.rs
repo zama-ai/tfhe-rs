@@ -36,6 +36,7 @@ pub trait UnsignedInteger:
     + CastFrom<u128>
     + CastInto<u128>
     + std::fmt::Binary
+    + From<bool>
 {
     /// The signed type of the same precision.
     type Signed: SignedInteger<Unsigned = Self> + CastFrom<Self>;

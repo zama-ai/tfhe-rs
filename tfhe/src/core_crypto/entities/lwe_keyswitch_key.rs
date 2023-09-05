@@ -343,6 +343,35 @@ impl<Scalar: UnsignedInteger> LweKeyswitchKeyOwned<Scalar> {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct LweKeyswitchKeyCreationMetadata<Scalar: UnsignedInteger>(
+    pub DecompositionBaseLog,
+    pub DecompositionLevelCount,
+    pub LweSize,
+    pub CiphertextModulus<Scalar>,
+);
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for LweKeyswitchKey<C> {
+    type Metadata = LweKeyswitchKeyCreationMetadata<Scalar>;
+
+    #[inline]
+    fn create_from(from: C, meta: Self::Metadata) -> LweKeyswitchKey<C> {
+        let LweKeyswitchKeyCreationMetadata(
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+        ) = meta;
+        LweKeyswitchKey::from_container(
+            from,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+        )
+    }
+}
+
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
     for LweKeyswitchKey<C>
 {
@@ -354,11 +383,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     where
         Self: 'this;
 
-    type SelfViewMetadata = ();
+    type SelfViewMetadata = LweKeyswitchKeyCreationMetadata<Self::Element>;
 
-    // At the moment it does not make sense to return "sub" keyswitch keys. So we use a dummy
-    // placeholder type here.
-    type SelfView<'this> = DummyCreateFrom
+    type SelfView<'this> = LweKeyswitchKeyView<'this, Self::Element>
     where
         Self: 'this;
 
@@ -370,12 +397,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         self.input_key_element_encrypted_size()
     }
 
-    /// Unimplemented for [`LweKeyswitchKey`]. At the moment it does not make sense to
-    /// return "sub" keyswitch keys.
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        unimplemented!(
-            "This function is not supported for LweKeyswitchKey. \
-        At the moment it does not make sense to return 'sub' keyswitch keys."
+        LweKeyswitchKeyCreationMetadata(
+            self.decomposition_base_log(),
+            self.decomposition_level_count(),
+            self.output_lwe_size(),
+            self.ciphertext_modulus(),
         )
     }
 }
@@ -387,9 +414,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
     where
         Self: 'this;
 
-    // At the moment it does not make sense to return "sub" keyswitch keys. So we use a dummy
-    // placeholder type here.
-    type SelfMutView<'this> = DummyCreateFrom
+    type SelfMutView<'this> = LweKeyswitchKeyMutView<'this, Self::Element>
     where
         Self: 'this;
 }

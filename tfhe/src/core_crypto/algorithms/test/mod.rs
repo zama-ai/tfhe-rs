@@ -13,6 +13,7 @@ mod lwe_multi_bit_bootstrap_key_generation;
 mod lwe_multi_bit_programmable_bootstrapping;
 mod lwe_packing_keyswitch;
 mod lwe_packing_keyswitch_key_generation;
+mod lwe_private_functional_packing_keyswitch;
 mod lwe_programmable_bootstrapping;
 mod noise_distribution;
 

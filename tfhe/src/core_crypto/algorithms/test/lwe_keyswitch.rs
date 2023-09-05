@@ -1,6 +1,8 @@
 use super::*;
 
-fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
+fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
+    params: TestParams<Scalar>,
+) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -67,9 +69,18 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<S
                 ciphertext_modulus,
             );
 
+            let mut output_ct_parallel = LweCiphertext::new(
+                Scalar::ZERO,
+                lwe_sk.lwe_dimension().to_lwe_size(),
+                ciphertext_modulus,
+            );
+
             keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct);
 
             assert!(check_content_respects_mod(&output_ct, ciphertext_modulus));
+
+            par_keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct_parallel);
+            assert_eq!(output_ct.as_ref(), output_ct_parallel.as_ref());
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &output_ct);
 

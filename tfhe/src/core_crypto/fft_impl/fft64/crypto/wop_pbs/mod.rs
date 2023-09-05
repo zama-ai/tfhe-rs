@@ -12,6 +12,7 @@ use super::ggsw::{
 };
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -309,12 +310,8 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     let mut lwe_out_bs_buffer =
         LweCiphertext::from_container(&mut *lwe_out_bs_buffer_data, lwe_in.ciphertext_modulus());
 
-    // Output for every pfksk that come from the output GGSW
-    let mut glwe_out_pfksk_buffer = ggsw_out.as_mut_glwe_list();
-
-    let mut out_pfksk_buffer_iter = glwe_out_pfksk_buffer.iter_mut();
-
-    for decomposition_level in (1..=level_cbs.0).map(DecompositionLevelCount) {
+    for (decomposition_level_minus_one, mut ggsw_level_matrix) in ggsw_out.iter_mut().enumerate() {
+        let decomposition_level = DecompositionLevel(decomposition_level_minus_one + 1);
         homomorphic_shift_boolean(
             fourier_bsk,
             lwe_out_bs_buffer.as_mut_view(),
@@ -326,8 +323,10 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
             stack.rb_mut(),
         );
 
-        for pfpksk in pfpksk_list.iter() {
-            let mut glwe_out = out_pfksk_buffer_iter.next().unwrap();
+        for (pfpksk, mut glwe_out) in pfpksk_list
+            .iter()
+            .zip(ggsw_level_matrix.as_mut_glwe_list().iter_mut())
+        {
             private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext(
                 &pfpksk,
                 &mut glwe_out,
@@ -364,7 +363,7 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     fourier_bsk: FourierLweBootstrapKeyView<'_>,
     mut lwe_out: LweCiphertext<&mut [Scalar]>,
     lwe_in: LweCiphertext<&[Scalar]>,
-    level_count_cbs: DecompositionLevelCount,
+    level_count_cbs: DecompositionLevel,
     base_log_cbs: DecompositionBaseLog,
     delta_log: DeltaLog,
     fft: FftView<'_>,

@@ -3,15 +3,28 @@
 use crate::core_crypto::prelude::*;
 
 #[inline]
-pub fn divide_round_to_u128<Scalar>(numerator: Scalar, denominator: Scalar) -> u128
+pub fn divide_ceil<Scalar>(numerator: Scalar, denominator: Scalar) -> Scalar
 where
     Scalar: UnsignedInteger,
 {
-    let numerator_128: u128 = numerator.cast_into();
-    let half_denominator: u128 = (denominator / Scalar::TWO).cast_into();
-    let denominator_128: u128 = denominator.cast_into();
-    // That's the rounding
-    (numerator_128 + half_denominator) / denominator_128
+    // Should be a single instruction on x86 and likely other processors
+    let (div, rem) = (numerator / denominator, numerator % denominator);
+    div + Scalar::from(rem != Scalar::ZERO)
+}
+
+#[inline]
+pub fn divide_round<Scalar: UnsignedInteger>(numerator: Scalar, denominator: Scalar) -> Scalar {
+    // // Does the following without overflowing (which can happen with the addition of denom / 2)
+    // (numerator + denominator / Scalar::TWO) / denominator
+
+    // Add the half interval mapping
+    // [denominator * (numerator - 1/2); denominator * (numerator + 1/2)[ to
+    // [denominator * numerator; denominator * (numerator + 1)[
+    // Dividing by denominator gives numerator which is what we want
+
+    // div and rem should be computed in a single instruction on most CPUs for native types < u128
+    let (div, rem) = (numerator / denominator, numerator % denominator);
+    div + Scalar::from(rem >= (denominator >> 1))
 }
 
 #[inline]
@@ -51,36 +64,49 @@ where
     y.wrapping_rem(Scalar::ONE.shl(log2_modulo))
 }
 
-#[test]
-fn test_divide_round() {
-    use rand::Rng;
+#[cfg(test)]
+mod test {
+    use super::*;
 
-    let mut rng = rand::thread_rng();
+    #[test]
+    fn test_divide_funcs() {
+        use rand::Rng;
 
-    const NB_TESTS: usize = 1_000_000_000;
-    const SCALING: f64 = u64::MAX as f64;
-    for _ in 0..NB_TESTS {
-        let num: f64 = rng.gen();
-        let mut denom = 0.0f64;
-        while denom == 0.0f64 {
-            denom = rng.gen();
+        let mut rng = rand::thread_rng();
+
+        const NB_TESTS: usize = 1_000_000_000;
+        const SCALING: f64 = u64::MAX as f64;
+        for _ in 0..NB_TESTS {
+            let num: f64 = rng.gen();
+            let mut denom = 0.0f64;
+            while denom == 0.0f64 {
+                denom = rng.gen();
+            }
+
+            let num = (num * SCALING).round();
+            let denom = (denom * SCALING).round();
+
+            let div_f64 = num / denom;
+
+            let rounded = div_f64.round();
+            let expected_rounded_u64: u64 = rounded as u64;
+
+            let num_u64: u64 = num as u64;
+            let denom_u64: u64 = denom as u64;
+
+            // sanity check
+            assert_eq!(num, num_u64 as f64);
+            assert_eq!(denom, denom_u64 as f64);
+
+            let rounded = divide_round(num_u64, denom_u64);
+
+            assert_eq!(expected_rounded_u64, rounded);
+
+            let ceiled = div_f64.ceil();
+            let expected_ceiled_u64: u64 = ceiled as u64;
+
+            let ceiled = divide_ceil(num_u64, denom_u64);
+            assert_eq!(expected_ceiled_u64, ceiled);
         }
-
-        let num = (num * SCALING).round();
-        let denom = (denom * SCALING).round();
-
-        let rounded = (num / denom).round();
-        let expected_rounded_u64: u64 = rounded as u64;
-
-        let num_u64: u64 = num as u64;
-        let denom_u64: u64 = denom as u64;
-
-        // sanity check
-        assert_eq!(num, num_u64 as f64);
-        assert_eq!(denom, denom_u64 as f64);
-
-        let rounded_u128 = divide_round_to_u128(num_u64, denom_u64);
-
-        assert_eq!(expected_rounded_u64, rounded_u128 as u64);
     }
 }
