@@ -107,6 +107,7 @@ impl KeySwitchingKey {
     /// ksk.cast_into(&cipher, &mut cipher_2);
     /// ```
     pub fn cast_into(&self, ct: &Ciphertext, ct_dest: &mut Ciphertext) {
+        let modulus = ct_dest.carry_modulus.0;
         match self.cast_rshift {
             // Same bit size: only key switch
             0 => keyswitch_lwe_ciphertext(&self.key_switching_key, &ct.ct, &mut ct_dest.ct),
@@ -115,14 +116,18 @@ impl KeySwitchingKey {
             i if i > 0 => {
                 keyswitch_lwe_ciphertext(&self.key_switching_key, &ct.ct, &mut ct_dest.ct);
 
-                let acc = self.dest_server_key.generate_lookup_table(|n| n >> i);
+                let acc = self
+                    .dest_server_key
+                    .generate_msg_lookup_table(|n| n >> i, modulus as u64);
                 self.dest_server_key
                     .apply_lookup_table_assign(ct_dest, &acc);
             }
 
             // Cast to smaller bit length: left shift, then keyswitch
             i if i < 0 => {
-                let acc = self.src_server_key.generate_lookup_table(|n| n << -i);
+                let acc = self
+                    .src_server_key
+                    .generate_msg_lookup_table(|n| (n << -i) % modulus as u64, modulus as u64);
                 let shifted_cipher = self.src_server_key.apply_lookup_table(ct, &acc);
 
                 keyswitch_lwe_ciphertext(

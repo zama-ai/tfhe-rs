@@ -420,8 +420,9 @@ impl ShortintEngine {
         wopbs_key: &WopbsKey,
         ct_in: &Ciphertext,
     ) -> EngineResult<Ciphertext> {
+        let modulus = ct_in.message_modulus.0 as u64;
         // First PBS to remove the noise
-        let acc = self.generate_lookup_table(sks, |x| x)?;
+        let acc = self.generate_msg_lookup_table(sks, |x| x, modulus)?;
         let ct_clean = self.apply_lookup_table(sks, ct_in, &acc)?;
 
         let mut buffer_lwe_after_ks = LweCiphertextOwned::new(
@@ -440,6 +441,7 @@ impl ShortintEngine {
             &mut buffer_lwe_after_ks,
         );
 
+        // Is this correct ?
         // The identity lut wrongly sets the max degree in the ciphertext, when in reality the
         // degree of the ciphertext has no changed, we manage this case manually here
         Ok(Ciphertext {
@@ -456,12 +458,14 @@ impl ShortintEngine {
         wopbs_key: &WopbsKey,
         ct_in: &Ciphertext,
     ) -> EngineResult<Ciphertext> {
+        let modulus = ct_in.message_modulus.0 as u64;
+
         // move to wopbs parameters to pbs parameters
         //Keyswitch-PBS:
         // 1. KS to go back to the original encryption key
         // 2. PBS to remove the noise added by the previous KS
         //
-        let acc = self.generate_lookup_table(&wopbs_key.pbs_server_key, |x| x)?;
+        let acc = self.generate_msg_lookup_table(&wopbs_key.pbs_server_key, |x| x, modulus)?;
         let (mut ciphertext_buffers, buffers) = self.get_buffers(&wopbs_key.pbs_server_key);
         // Compute a key switch
         keyswitch_lwe_ciphertext(
