@@ -5,10 +5,9 @@ use crate::core_crypto::commons::utils::izip;
 use concrete_fft::fft128::{f128, Plan};
 use core::any::TypeId;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
-use once_cell::sync::OnceCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 #[derive(Clone)]
 pub(crate) struct PlanWrapper(Plan);
@@ -47,8 +46,8 @@ impl Fft128 {
     }
 }
 
-type PlanMap = RwLock<HashMap<usize, Arc<OnceCell<Arc<PlanWrapper>>>>>;
-pub(crate) static PLANS: OnceCell<PlanMap> = OnceCell::new();
+type PlanMap = RwLock<HashMap<usize, Arc<OnceLock<Arc<PlanWrapper>>>>>;
+pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
     PLANS.get_or_init(|| RwLock::new(HashMap::new()))
 }
@@ -73,7 +72,7 @@ impl Fft128 {
         // could not find a plan of the given size, we lock the map again and try to insert it
         let mut plans = global_plans.write().unwrap();
         if let Entry::Vacant(v) = plans.entry(n) {
-            v.insert(Arc::new(OnceCell::new()));
+            v.insert(Arc::new(OnceLock::new()));
         }
 
         drop(plans);

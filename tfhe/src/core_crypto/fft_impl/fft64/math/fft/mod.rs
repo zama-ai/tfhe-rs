@@ -9,12 +9,11 @@ use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
 use concrete_fft::unordered::{Method, Plan};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
-use once_cell::sync::OnceCell;
 use std::any::TypeId;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::mem::{align_of, size_of};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 #[cfg(not(feature = "experimental-force_fft_algo_dif4"))]
 use std::time::Duration;
 
@@ -95,8 +94,8 @@ impl Fft {
     }
 }
 
-type PlanMap = RwLock<HashMap<usize, Arc<OnceCell<Arc<(Twisties, Plan)>>>>>;
-pub(crate) static PLANS: OnceCell<PlanMap> = OnceCell::new();
+type PlanMap = RwLock<HashMap<usize, Arc<OnceLock<Arc<(Twisties, Plan)>>>>>;
+pub(crate) static PLANS: OnceLock<PlanMap> = OnceLock::new();
 fn plans() -> &'static PlanMap {
     PLANS.get_or_init(|| RwLock::new(HashMap::new()))
 }
@@ -182,7 +181,7 @@ impl Fft {
         // could not find a plan of the given size, we lock the map again and try to insert it
         let mut plans = global_plans.write().unwrap();
         if let Entry::Vacant(v) = plans.entry(n) {
-            v.insert(Arc::new(OnceCell::new()));
+            v.insert(Arc::new(OnceLock::new()));
         }
 
         drop(plans);
