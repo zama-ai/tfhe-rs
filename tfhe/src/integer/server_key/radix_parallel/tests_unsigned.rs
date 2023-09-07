@@ -187,6 +187,7 @@ create_parametrized_test!(integer_smart_scalar_add);
 create_parametrized_test!(integer_default_scalar_add);
 create_parametrized_test!(integer_smart_if_then_else);
 create_parametrized_test!(integer_default_if_then_else);
+create_parametrized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
 
 fn integer_smart_add<P>(param: P)
 where
@@ -2961,4 +2962,42 @@ where
             }
         );
     }
+}
+
+fn integer_trim_radix_msb_blocks_handles_dirty_inputs<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let param = param.into();
+    let (client_key, server_key) = crate::integer::gen_keys_radix(param, NB_CTXT);
+    let modulus = (param.message_modulus().0 as u64)
+        .checked_pow(NB_CTXT as u32)
+        .expect("modulus of ciphertext exceed u64::MAX");
+    let num_bits = param.message_modulus().0.ilog2() * NB_CTXT as u32;
+
+    let msg1 = 1u64 << (num_bits - 1);
+    let msg2 = 1u64 << (num_bits - 1);
+
+    let mut ct_1 = client_key.encrypt(msg1);
+    let mut ct_2 = client_key.encrypt(msg2);
+
+    // We are now working on modulus * modulus
+    server_key.extend_radix_with_trivial_zero_blocks_msb_assign(&mut ct_1, NB_CTXT);
+    server_key.extend_radix_with_trivial_zero_blocks_msb_assign(&mut ct_2, NB_CTXT);
+
+    let mut ct_3 = server_key.unchecked_add_parallelized(&ct_1, &ct_2);
+    let output: u64 = client_key.decrypt(&ct_3);
+    assert_eq!(output, (msg2 + msg1) % (modulus * modulus));
+    assert_ne!(output, (msg2 + msg1) % (modulus));
+
+    server_key.trim_radix_blocks_msb_assign(&mut ct_3, NB_CTXT);
+
+    let output: u64 = client_key.decrypt(&ct_3);
+    assert_eq!(output, (msg2 + msg1) % (modulus));
+
+    // If the trim radix did not clean carries, the result of output
+    // would still be on modulus * modulus
+    server_key.extend_radix_with_trivial_zero_blocks_msb_assign(&mut ct_3, NB_CTXT);
+    let output: u64 = client_key.decrypt(&ct_3);
+    assert_eq!(output, (msg2 + msg1) % (modulus));
 }
