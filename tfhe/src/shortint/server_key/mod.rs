@@ -363,6 +363,15 @@ impl ServerKey {
         })
     }
 
+    pub fn generate_msg_lookup_table<F>(&self, f: F, modulus: u64) -> LookupTableOwned
+    where
+        F: Fn(u64) -> u64,
+    {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.generate_msg_lookup_table(self, f, modulus).unwrap()
+        })
+    }
+
     pub fn generate_lookup_table_bivariate_with_factor<F>(
         &self,
         f: F,

@@ -73,7 +73,11 @@ impl ShortintEngine {
             self.unchecked_scalar_add_assign(ct, scalar)?;
         } else {
             // If the scalar is too large, PBS is used to compute the scalar mul
-            let acc = self.generate_lookup_table(server_key, |x| (scalar as u64 + x) % modulus)?;
+            let acc = self.generate_msg_lookup_table(
+                server_key,
+                |x| (scalar as u64 + x) % modulus,
+                modulus,
+            )?;
             self.apply_lookup_table_assign(server_key, ct, &acc)?;
         }
         Ok(())

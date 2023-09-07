@@ -315,6 +315,18 @@ impl ShortintEngine {
         })
     }
 
+    pub(crate) fn generate_msg_lookup_table<F>(
+        &mut self,
+        server_key: &ServerKey,
+        f: F,
+        modulus: u64,
+    ) -> EngineResult<LookupTableOwned>
+    where
+        F: Fn(u64) -> u64,
+    {
+        Self::generate_lookup_table_with_engine(server_key, |x| f(x % modulus))
+    }
+
     pub(crate) fn generate_lookup_table<F>(
         &mut self,
         server_key: &ServerKey,
@@ -745,7 +757,7 @@ impl ShortintEngine {
         if !ct.carry_is_empty() {
             let modulus = ct.message_modulus.0 as u64;
 
-            let acc = self.generate_lookup_table(server_key, |x| x % modulus)?;
+            let acc = self.generate_msg_lookup_table(server_key, |x| x, modulus)?;
 
             self.apply_lookup_table_assign(server_key, ct, &acc)?;
         }
