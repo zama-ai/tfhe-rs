@@ -6,14 +6,13 @@ pub use utils::{
 #[macro_use]
 pub mod utils {
     use fs2::FileExt;
-    use once_cell::sync::OnceCell;
     use serde::de::DeserializeOwned;
     use serde::Serialize;
     use std::fs::File;
     use std::io::{BufReader, BufWriter};
     use std::ops::Deref;
     use std::path::PathBuf;
-    use std::sync::{Arc, RwLock};
+    use std::sync::{Arc, OnceLock, RwLock};
 
     pub trait PersistentStorage<P, K> {
         fn load(&self, param: P) -> Option<K>;
@@ -107,7 +106,7 @@ pub mod utils {
     }
 
     pub struct SharedKey<K> {
-        inner: Arc<OnceCell<K>>,
+        inner: Arc<OnceLock<K>>,
     }
 
     impl<K> Clone for SharedKey<K> {
@@ -131,7 +130,7 @@ pub mod utils {
         // So they are not generated between each run
         persistent_storage: S,
         // Temporary memory storage to avoid querying the persistent storage each time
-        // the outer Arc makes it so that we don't clone the OnceCell contents when initializing it
+        // the outer Arc makes it so that we don't clone the OnceLock contents when initializing it
         memory_storage: RwLock<Vec<(P, SharedKey<K>)>>,
     }
 
@@ -206,7 +205,7 @@ pub mod utils {
                             memory_storage.push((
                                 param,
                                 SharedKey {
-                                    inner: Arc::new(OnceCell::new()),
+                                    inner: Arc::new(OnceLock::new()),
                                 },
                             ));
                         }
