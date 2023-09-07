@@ -10,10 +10,10 @@
 //! lhs + &rhs
 //! &lhs + rhs
 //! &lhs + &rhs
+use crate::prelude::{FheDecrypt, FheTryEncrypt, *};
+use crate::{generate_keys, set_server_key, ClientKey, ConfigBuilder};
 use std::fmt::Debug;
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Shl, Shr, Sub};
-use tfhe::prelude::{FheDecrypt, FheTryEncrypt};
-use tfhe::ClientKey;
 
 macro_rules! define_operation_test {
     ($name:ident => ($trait:ident, $symbol:tt)) => {
@@ -161,8 +161,7 @@ where
 #[cfg(feature = "shortint")]
 #[test]
 fn test_static_shortint_supports_ops() {
-    use tfhe::prelude::*;
-    use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint2};
+    use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint2};
 
     let config = ConfigBuilder::all_disabled().enable_default_uint2().build();
     let (client_key, server_key) = generate_keys(config);
@@ -190,8 +189,7 @@ fn test_static_shortint_supports_ops() {
 #[cfg(feature = "integer")]
 #[test]
 fn test_static_supports_ops() {
-    use tfhe::prelude::*;
-    use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
+    use crate::FheUint8;
 
     let config = ConfigBuilder::all_disabled()
         .enable_default_integers()

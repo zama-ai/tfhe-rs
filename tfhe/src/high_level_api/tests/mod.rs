@@ -1,3 +1,5 @@
+mod test_fhe_number_ops;
+
 use crate::high_level_api::prelude::*;
 #[cfg(feature = "boolean")]
 use crate::high_level_api::FheBool;
