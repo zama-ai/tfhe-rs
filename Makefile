@@ -138,6 +138,12 @@ clippy_tasks:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		-p tasks -- --no-deps -D warnings
 
+.PHONY: clippy_trivium # Run clippy lints on Trivium app
+clippy_trivium: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy -p tfhe-trivium \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
+		-p tfhe -- --no-deps -D warnings
+
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
@@ -146,7 +152,7 @@ clippy_all_targets:
 
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets clippy_c_api \
-clippy_js_wasm_api clippy_tasks clippy_core
+clippy_js_wasm_api clippy_tasks clippy_core clippy_trivium
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core
