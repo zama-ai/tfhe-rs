@@ -30,8 +30,8 @@ pub struct MaskRandomGenerator<G: ByteRandomGenerator> {
 }
 
 impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
-    pub fn new(seed: Seed) -> Self {
-        Self {
+    pub fn new(seed: Seed) -> MaskRandomGenerator<G> {
+        MaskRandomGenerator {
             gen: RandomGenerator::new(seed),
         }
     }
