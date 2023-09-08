@@ -5,6 +5,7 @@
 pub mod ggsw_conversion;
 pub mod ggsw_encryption;
 pub mod glwe_encryption;
+pub mod glwe_linear_algebra;
 pub mod glwe_sample_extraction;
 pub mod glwe_secret_key_generation;
 pub mod lwe_bootstrap_key_conversion;
@@ -50,6 +51,7 @@ mod test;
 pub use ggsw_conversion::*;
 pub use ggsw_encryption::*;
 pub use glwe_encryption::*;
+pub use glwe_linear_algebra::*;
 pub use glwe_sample_extraction::*;
 pub use glwe_secret_key_generation::*;
 pub use lwe_bootstrap_key_conversion::*;

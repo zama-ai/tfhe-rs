@@ -312,6 +312,54 @@ where
         .for_each(|lhs| *lhs = (*lhs).wrapping_div(rhs));
 }
 
+/// Add the same scalar to all elements of mutable slice in place.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![1u8, 2, 3, 4, 5, 255];
+/// let scalar = 1;
+/// slice_wrapping_scalar_add_assign(&mut first, scalar);
+/// assert_eq!(&first, &[2u8, 3, 4, 5, 6, 0]);
+/// ```
+pub fn slice_wrapping_scalar_add_assign<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
+where
+    Scalar: UnsignedInteger,
+{
+    lhs.iter_mut()
+        .for_each(|dst| *dst = (*dst).wrapping_add(rhs));
+}
+
+/// Subtract the same scalar to all elements of mutable slice in place.
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+///
+/// # Example
+///
+/// ```
+/// use tfhe::core_crypto::algorithms::slice_algorithms::*;
+/// let mut first = vec![0u8, 1, 2, 3, 4, 5];
+/// let scalar = 1;
+/// slice_wrapping_scalar_sub_assign(&mut first, scalar);
+/// assert_eq!(&first, &[255u8, 0, 1, 2, 3, 4]);
+/// ```
+pub fn slice_wrapping_scalar_sub_assign<Scalar>(lhs: &mut [Scalar], rhs: Scalar)
+where
+    Scalar: UnsignedInteger,
+{
+    lhs.iter_mut()
+        .for_each(|dst| *dst = (*dst).wrapping_sub(rhs));
+}
+
 /// Primitive for compact LWE public key
 ///
 /// Here $i$ from section 3 of <https://eprint.iacr.org/2023/603> is taken equal to $n$.
