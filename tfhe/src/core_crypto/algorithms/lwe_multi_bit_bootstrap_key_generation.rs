@@ -131,19 +131,29 @@ pub fn generate_lwe_multi_bit_bootstrap_key<Scalar, InputKeyCont, OutputKeyCont,
         )
         .unwrap();
 
-    let grouping_factor = output.grouping_factor();
-    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+    let output_decomposition_level_count = output.decomposition_level_count();
+    let output_glwe_size = output.glwe_size();
+    let output_polynomial_size = output.polynomial_size();
+    let output_grouping_factor = output.grouping_factor();
+    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
 
     for ((mut ggsw_group, input_key_elements), mut loop_generator) in output
         .chunks_exact_mut(ggsw_per_multi_bit_element.0)
         .zip(
             input_lwe_secret_key
                 .as_ref()
-                .chunks_exact(grouping_factor.0),
+                .chunks_exact(output_grouping_factor.0),
         )
         .zip(gen_iter)
     {
-        let gen_iter = loop_generator.fork_n(ggsw_per_multi_bit_element.0).unwrap();
+        let gen_iter = loop_generator
+            .fork_multi_bit_bsk_ggsw_group_to_ggsw::<Scalar>(
+                output_decomposition_level_count,
+                output_glwe_size,
+                output_polynomial_size,
+                output_grouping_factor,
+            )
+            .unwrap();
         for ((bit_inversion_idx, mut ggsw), mut inner_loop_generator) in
             ggsw_group.iter_mut().enumerate().zip(gen_iter)
         {
@@ -342,8 +352,11 @@ pub fn par_generate_lwe_multi_bit_bootstrap_key<
         )
         .unwrap();
 
-    let grouping_factor = output.grouping_factor();
-    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+    let output_decomposition_level_count = output.decomposition_level_count();
+    let output_glwe_size = output.glwe_size();
+    let output_polynomial_size = output.polynomial_size();
+    let output_grouping_factor = output.grouping_factor();
+    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
 
     output
         .par_iter_mut()
@@ -351,13 +364,18 @@ pub fn par_generate_lwe_multi_bit_bootstrap_key<
         .zip(
             input_lwe_secret_key
                 .as_ref()
-                .par_chunks_exact(grouping_factor.0),
+                .par_chunks_exact(output_grouping_factor.0),
         )
         .zip(gen_iter)
         .for_each(
             |((mut ggsw_group, input_key_elements), mut loop_generator)| {
                 let gen_iter = loop_generator
-                    .par_fork_n(ggsw_per_multi_bit_element.0)
+                    .par_fork_multi_bit_bsk_ggsw_group_to_ggsw::<Scalar>(
+                        output_decomposition_level_count,
+                        output_glwe_size,
+                        output_polynomial_size,
+                        output_grouping_factor,
+                    )
                     .unwrap();
                 ggsw_group
                     .par_iter_mut()
@@ -542,19 +560,29 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
         )
         .unwrap();
 
-    let grouping_factor = output.grouping_factor();
-    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+    let output_decomposition_level_count = output.decomposition_level_count();
+    let output_glwe_size = output.glwe_size();
+    let output_polynomial_size = output.polynomial_size();
+    let output_grouping_factor = output.grouping_factor();
+    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
 
     for ((mut ggsw_group, input_key_elements), mut loop_generator) in output
         .chunks_exact_mut(ggsw_per_multi_bit_element.0)
         .zip(
             input_lwe_secret_key
                 .as_ref()
-                .chunks_exact(grouping_factor.0),
+                .chunks_exact(output_grouping_factor.0),
         )
         .zip(gen_iter)
     {
-        let gen_iter = loop_generator.fork_n(ggsw_per_multi_bit_element.0).unwrap();
+        let gen_iter = loop_generator
+            .fork_multi_bit_bsk_ggsw_group_to_ggsw::<Scalar>(
+                output_decomposition_level_count,
+                output_glwe_size,
+                output_polynomial_size,
+                output_grouping_factor,
+            )
+            .unwrap();
         for ((bit_inversion_idx, mut ggsw), mut inner_loop_generator) in
             ggsw_group.iter_mut().enumerate().zip(gen_iter)
         {
@@ -686,8 +714,11 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
         )
         .unwrap();
 
-    let grouping_factor = output.grouping_factor();
-    let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
+    let output_decomposition_level_count = output.decomposition_level_count();
+    let output_glwe_size = output.glwe_size();
+    let output_polynomial_size = output.polynomial_size();
+    let output_grouping_factor = output.grouping_factor();
+    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
 
     output
         .par_iter_mut()
@@ -695,13 +726,18 @@ pub fn par_generate_seeded_lwe_multi_bit_bootstrap_key<
         .zip(
             input_lwe_secret_key
                 .as_ref()
-                .par_chunks_exact(grouping_factor.0),
+                .par_chunks_exact(output_grouping_factor.0),
         )
         .zip(gen_iter)
         .for_each(
             |((mut ggsw_group, input_key_elements), mut loop_generator)| {
                 let gen_iter = loop_generator
-                    .par_fork_n(ggsw_per_multi_bit_element.0)
+                    .par_fork_multi_bit_bsk_ggsw_group_to_ggsw::<Scalar>(
+                        output_decomposition_level_count,
+                        output_glwe_size,
+                        output_polynomial_size,
+                        output_grouping_factor,
+                    )
                     .unwrap();
                 ggsw_group
                     .par_iter_mut()
