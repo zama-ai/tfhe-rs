@@ -82,7 +82,7 @@ fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Tes
 
 create_parametrized_test!(lwe_encrypt_pks_to_glwe_decrypt_custom_mod);
 
-fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(
+fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     params: TestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
@@ -98,7 +98,8 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
+    // These tests are pretty heavy, cut down a bit
+    const NB_TESTS: usize = 5;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -137,11 +138,7 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(
             );
 
             let mut input_plaintext_list =
-                PlaintextList::new(Scalar::ZERO, PlaintextCount(glwe_sk.polynomial_size().0));
-
-            input_plaintext_list
-                .iter_mut()
-                .for_each(|dst| *dst.0 = msg * delta);
+                PlaintextList::new(msg * delta, PlaintextCount(glwe_sk.polynomial_size().0));
 
             encrypt_lwe_ciphertext_list(
                 &lwe_sk,
@@ -163,6 +160,13 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 ciphertext_modulus,
             );
 
+            let mut ouptut_glwe_parallel = GlweCiphertext::new(
+                Scalar::ZERO,
+                glwe_sk.glwe_dimension().to_glwe_size(),
+                glwe_sk.polynomial_size(),
+                ciphertext_modulus,
+            );
+
             keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
                 &pksk,
                 &input_lwe_list,
@@ -170,6 +174,14 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(
             );
 
             assert!(check_content_respects_mod(&output_glwe, ciphertext_modulus));
+
+            par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
+                &pksk,
+                &input_lwe_list,
+                &mut ouptut_glwe_parallel,
+            );
+
+            assert_eq!(output_glwe.as_ref(), ouptut_glwe_parallel.as_ref());
 
             let mut decrypted_plaintext_list = PlaintextList::new(
                 Scalar::ZERO,
