@@ -3,6 +3,7 @@ TFHE-rs includes features to reduce the size of both keys and ciphertexts, by co
 
 In the library, entities that can be compressed are prefixed by `Compressed`. For instance, the type of a compressed `FheUint256` is `CompressedFheUint256`.
 
+In the following example code, we use the `bincode` crate dependency to serialize in a binary format and compare serialized sizes.
 
 ## Compressed ciphertexts
 This example shows how to compress a ciphertext encypting messages over 16 bits.
@@ -19,7 +20,18 @@ fn main() {
 
     let clear = 12_837u16;
     let compressed = CompressedFheUint16::try_encrypt(clear, &client_key).unwrap();
+    println!(
+        "compressed size  : {}",
+        bincode::serialize(&compressed).unwrap().len()
+    );
+    
     let decompressed = compressed.decompress();
+    
+    println!(
+        "decompressed size: {}",
+        bincode::serialize(&decompressed).unwrap().len()
+    );
+
     let clear_decompressed: u16 = decompressed.decrypt(&client_key);
     assert_eq!(clear_decompressed, clear);
 }
@@ -31,7 +43,9 @@ This example shows how to compress the server keys.
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, CompressedServerKey, ClientKey};
+use tfhe::{
+    generate_keys, set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheUint8,
+};
 
 fn main() {
     let config = ConfigBuilder::all_disabled()
@@ -40,7 +54,18 @@ fn main() {
 
     let cks = ClientKey::generate(config);
     let compressed_sks = CompressedServerKey::new(&cks);
+
+    println!(
+        "compressed size  : {}",
+        bincode::serialize(&compressed_sks).unwrap().len()
+    );
+
     let sks = compressed_sks.decompress();
+
+    println!(
+        "decompressed size: {}",
+        bincode::serialize(&sks).unwrap().len()
+    );
 
     set_server_key(sks);
 
@@ -51,6 +76,7 @@ fn main() {
     let decrypted: u8 = c.decrypt(&cks);
     assert_eq!(decrypted, clear_a.wrapping_add(234));
 }
+
 ```
 
 
@@ -71,7 +97,14 @@ fn main() {
         .build();
     let (client_key, _) = generate_keys(config);
 
-    let public_key = CompressedPublicKey::new(&client_key);
+    let compressed_public_key = CompressedPublicKey::new(&client_key);
+
+    println!("compressed size  : {}", bincode::serialize(&compressed_public_key).unwrap().len());
+
+    let public_key = compressed_public_key.decompress();
+
+    println!("decompressed size: {}", bincode::serialize(&public_key).unwrap().len());
+
 
     let a = FheUint8::try_encrypt(213u8, &public_key).unwrap();
     let clear: u8 = a.decrypt(&client_key);
@@ -86,10 +119,10 @@ This example shows how to use compressed compact public keys.
 
 ```rust
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, CompressedCompactPublicKey};
+use tfhe::{generate_keys, set_server_key, CompressedCompactPublicKey, ConfigBuilder, FheUint8};
 
 fn main() {
-     let config = ConfigBuilder::all_disabled()
+    let config = ConfigBuilder::all_disabled()
         .enable_custom_integers(
             tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
             None,
@@ -98,10 +131,22 @@ fn main() {
     let (client_key, _) = generate_keys(config);
 
     let public_key_compressed = CompressedCompactPublicKey::new(&client_key);
+
+    println!(
+        "compressed size  : {}",
+        bincode::serialize(&public_key_compressed).unwrap().len()
+    );
+
     let public_key = public_key_compressed.decompress();
-    
+
+    println!(
+        "decompressed size: {}",
+        bincode::serialize(&public_key).unwrap().len()
+    );
+
     let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
     let clear: u8 = a.decrypt(&client_key);
     assert_eq!(clear, 255u8);
 }
+
 ```

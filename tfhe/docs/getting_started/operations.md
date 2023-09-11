@@ -271,8 +271,8 @@ The list of supported operations is:
 | [Div](https://doc.rust-lang.org/std/ops/trait.Div.html)* | `/`    | Binary |
 | [Rem](https://doc.rust-lang.org/std/ops/trait.Rem.html)* | `%`    | Binary |
 
-For the division operator, the convention is to return the modulus - 1. For instance, for FheUint8, the modulus is $$2^8=256$$, so a division by 0 will return an encryption of 255.
-For the remainder operator, the convention is to return the first input without any modification.  For instance, for ct1 = FheUint8(63) and ct2 = FheUint8(0), then ct1 % ct2 will return FheUint8(63).
+For division by $$0$$, the convention is to return $$modulus - 1$$. For instance, for FheUint8, the modulus is $$2^8=256$$, so a division by $$0$$ will return an encryption of $$255$$.
+For the remainder operator, the convention is to return the first input without any modification.  For instance, for $$ct1 = FheUint8(63)$$ and $$ct2 = FheUint8(0)$$, then $$ct1 % ct2$$ will return $$FheUint8(63)$$.
 
 
 

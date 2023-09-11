@@ -1,9 +1,9 @@
 # Parallelized Programmable Bootstrapping
 
-The [Programmable Bootstrapping](../getting_started/security_and_cryptography.md)(PBS) is a sequential operation by nature. However, some [recent results](https://marcjoye.github.io/papers/JP22ternary.pdf) showed that parallelism could be added at the cost of having larger keys. Overall, the performance of the PBS are improved.
+The [Programmable Bootstrapping](../getting_started/security_and_cryptography.md)(PBS) is a sequential operation by nature. However, some [recent results](https://marcjoye.github.io/papers/JP22ternary.pdf) showed that parallelism could be added at the cost of having larger keys. Overall, the performance of the PBS are improved. This new PBS is called a multi bit PBS.
 In TFHE-rs, since integer homomorphic operations are already parallelized, activating this feature may improve performance in the case of high core count CPUs if enough cores are available, or for small input message precision.
 
-In what follows, an example on how to use the parallelized bootstrapping:
+In what follows, an example on how to use the parallelized bootstrapping by choosing multi bit PBS parameters:
 
 ```rust
 use tfhe::prelude::*;

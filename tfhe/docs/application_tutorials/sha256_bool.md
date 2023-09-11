@@ -136,7 +136,11 @@ fn sha256(padded_input: Vec<bool>) -> [bool; 256] {
 
 The key idea is that we can replace each bit of ```padded_input``` with a Fully Homomorphic Encryption of the same bit value, and operate over the encrypted values using homomorphic operations. To achieve this we need to change the function signatures and deal with the borrowing rules of the Ciphertext type (which represents an encrypted bit) but the structure of the sha256 function remains the same. The part of the code that requires more consideration is the implementation of the sha256 operations, since they will use homomorphic boolean operations internally.
 
-Homomorphic operations are really expensive, so we have to remove their unnecessary use and maximize parallelization in order to speed up the program. To simplify our code we use the Rayon crate which provides parallel iterators and efficiently manages threads. Let's now take a look at each sha256 operation!
+Homomorphic operations are really expensive, so we have to remove their unnecessary use and maximize parallelization in order to speed up the program. To simplify our code we use the Rayon crate which provides parallel iterators and efficiently manages threads.
+
+The final code is available at https://github.com/zama-ai/tfhe-rs/tree/main/tfhe/examples/sha256_bool
+
+Let's now take a look at each sha256 operation!
 
 #### Rotate Right and Shift Right
 
