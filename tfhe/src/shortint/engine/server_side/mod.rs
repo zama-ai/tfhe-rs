@@ -127,21 +127,10 @@ impl ShortintEngine {
                     bootstrap_key.grouping_factor(),
                 );
 
-                let fft = Fft::new(bootstrap_key.polynomial_size());
-                let fft = fft.as_view();
-                self.computation_buffers.resize(
-                    convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
-                        .unwrap()
-                        .unaligned_bytes_required(),
-                );
-                let stack = self.computation_buffers.stack();
-
                 // Conversion to fourier domain
-                convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized(
+                par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
                     &bootstrap_key,
                     &mut fourier_bsk,
-                    fft,
-                    stack,
                 );
 
                 let thread_count = self.get_thread_count_for_multi_bit_pbs(

@@ -161,7 +161,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
 ///     bsk.grouping_factor(),
 /// );
 ///
-/// convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut multi_bit_bsk);
+/// par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut multi_bit_bsk);
 ///
 /// // We don't need the standard bootstrapping key anymore
 /// drop(bsk);
@@ -902,7 +902,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 ///     bsk.grouping_factor(),
 /// );
 ///
-/// convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut multi_bit_bsk);
+/// par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut multi_bit_bsk);
 ///
 /// // We don't need the standard bootstrapping key anymore
 /// drop(bsk);

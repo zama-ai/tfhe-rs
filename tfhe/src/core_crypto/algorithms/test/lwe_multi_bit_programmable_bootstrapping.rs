@@ -99,7 +99,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
         grouping_factor,
     );
 
-    convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+    par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut fbsk);
 
     drop(bsk);
 
@@ -232,7 +232,7 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
         grouping_factor,
     );
 
-    convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+    par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut fbsk);
 
     drop(bsk);
 

@@ -277,7 +277,7 @@ where
 ///     grouping_factor,
 /// );
 ///
-/// convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut multi_bit_bsk);
+/// par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(&bsk, &mut multi_bit_bsk);
 ///
 /// let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 ///
