@@ -2,6 +2,7 @@
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::generators::MaskRandomGenerator;
+use crate::core_crypto::commons::parameters::LweDimension;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
@@ -22,11 +23,32 @@ pub fn decompress_seeded_ggsw_ciphertext_list_with_existing_generator<
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    for (mut ggsw_out, ggsw_in) in output_list.iter_mut().zip(input_seeded_list.iter()) {
+    let output_ciphertext_count = LweDimension(output_list.ggsw_ciphertext_count().0);
+    let output_decomp_level = output_list.decomposition_level_count();
+    let output_glwe_size = output_list.glwe_size();
+    let output_polynomial_size = output_list.polynomial_size();
+
+    // As we only generate ciphertext lists in the context of BSK generation we use the bsk forking
+    // If we ever have GGSW list encryption then it's easy to have a generic forking for GGSW
+    // ciphertext lists and adapt the bsk formula to forward to the GGSW primitive
+    let gen_iter = generator
+        .fork_bsk_to_ggsw::<Scalar>(
+            output_ciphertext_count,
+            output_decomp_level,
+            output_glwe_size,
+            output_polynomial_size,
+        )
+        .unwrap();
+
+    for ((mut ggsw_out, ggsw_in), mut loop_generator) in output_list
+        .iter_mut()
+        .zip(input_seeded_list.iter())
+        .zip(gen_iter)
+    {
         decompress_seeded_ggsw_ciphertext_with_existing_generator(
             &mut ggsw_out,
             &ggsw_in,
-            generator,
+            &mut loop_generator,
         )
     }
 }
