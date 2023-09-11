@@ -841,66 +841,68 @@ impl From<CompressedServerKey> for ServerKey {
             pbs_order,
         } = compressed_server_key;
 
-        let key_switching_key = key_switching_key.decompress_into_lwe_keyswitch_key();
-        let bootstrapping_key = match bootstrapping_key {
-            ShortintCompressedBootstrappingKey::Classic(bootstrapping_key) => {
-                let standard_bootstrapping_key =
-                    bootstrapping_key.decompress_into_lwe_bootstrap_key();
+        let (key_switching_key, bootstrapping_key) = rayon::join(
+            || key_switching_key.par_decompress_into_lwe_keyswitch_key(),
+            || match bootstrapping_key {
+                ShortintCompressedBootstrappingKey::Classic(bootstrapping_key) => {
+                    let standard_bootstrapping_key =
+                        bootstrapping_key.par_decompress_into_lwe_bootstrap_key();
 
-                let mut bootstrapping_key = FourierLweBootstrapKeyOwned::new(
-                    standard_bootstrapping_key.input_lwe_dimension(),
-                    standard_bootstrapping_key.glwe_size(),
-                    standard_bootstrapping_key.polynomial_size(),
-                    standard_bootstrapping_key.decomposition_base_log(),
-                    standard_bootstrapping_key.decomposition_level_count(),
-                );
-
-                convert_standard_lwe_bootstrap_key_to_fourier(
-                    &standard_bootstrapping_key,
-                    &mut bootstrapping_key,
-                );
-
-                ShortintBootstrappingKey::Classic(bootstrapping_key)
-            }
-            ShortintCompressedBootstrappingKey::MultiBit {
-                seeded_bsk: bootstrapping_key,
-                deterministic_execution,
-            } => {
-                let standard_bootstrapping_key =
-                    bootstrapping_key.decompress_into_lwe_multi_bit_bootstrap_key();
-
-                let mut bootstrapping_key = FourierLweMultiBitBootstrapKeyOwned::new(
-                    standard_bootstrapping_key.input_lwe_dimension(),
-                    standard_bootstrapping_key.glwe_size(),
-                    standard_bootstrapping_key.polynomial_size(),
-                    standard_bootstrapping_key.decomposition_base_log(),
-                    standard_bootstrapping_key.decomposition_level_count(),
-                    standard_bootstrapping_key.grouping_factor(),
-                );
-
-                convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
-                    &standard_bootstrapping_key,
-                    &mut bootstrapping_key,
-                );
-
-                let thread_count = ShortintEngine::with_thread_local_mut(|engine| {
-                    engine.get_thread_count_for_multi_bit_pbs(
+                    let mut bootstrapping_key = FourierLweBootstrapKeyOwned::new(
                         standard_bootstrapping_key.input_lwe_dimension(),
-                        standard_bootstrapping_key.glwe_size().to_glwe_dimension(),
+                        standard_bootstrapping_key.glwe_size(),
+                        standard_bootstrapping_key.polynomial_size(),
+                        standard_bootstrapping_key.decomposition_base_log(),
+                        standard_bootstrapping_key.decomposition_level_count(),
+                    );
+
+                    convert_standard_lwe_bootstrap_key_to_fourier(
+                        &standard_bootstrapping_key,
+                        &mut bootstrapping_key,
+                    );
+
+                    ShortintBootstrappingKey::Classic(bootstrapping_key)
+                }
+                ShortintCompressedBootstrappingKey::MultiBit {
+                    seeded_bsk: bootstrapping_key,
+                    deterministic_execution,
+                } => {
+                    let standard_bootstrapping_key =
+                        bootstrapping_key.par_decompress_into_lwe_multi_bit_bootstrap_key();
+
+                    let mut bootstrapping_key = FourierLweMultiBitBootstrapKeyOwned::new(
+                        standard_bootstrapping_key.input_lwe_dimension(),
+                        standard_bootstrapping_key.glwe_size(),
                         standard_bootstrapping_key.polynomial_size(),
                         standard_bootstrapping_key.decomposition_base_log(),
                         standard_bootstrapping_key.decomposition_level_count(),
                         standard_bootstrapping_key.grouping_factor(),
-                    )
-                });
+                    );
 
-                ShortintBootstrappingKey::MultiBit {
-                    fourier_bsk: bootstrapping_key,
-                    thread_count,
-                    deterministic_execution,
+                    convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
+                        &standard_bootstrapping_key,
+                        &mut bootstrapping_key,
+                    );
+
+                    let thread_count = ShortintEngine::with_thread_local_mut(|engine| {
+                        engine.get_thread_count_for_multi_bit_pbs(
+                            standard_bootstrapping_key.input_lwe_dimension(),
+                            standard_bootstrapping_key.glwe_size().to_glwe_dimension(),
+                            standard_bootstrapping_key.polynomial_size(),
+                            standard_bootstrapping_key.decomposition_base_log(),
+                            standard_bootstrapping_key.decomposition_level_count(),
+                            standard_bootstrapping_key.grouping_factor(),
+                        )
+                    });
+
+                    ShortintBootstrappingKey::MultiBit {
+                        fourier_bsk: bootstrapping_key,
+                        thread_count,
+                        deterministic_execution,
+                    }
                 }
-            }
-        };
+            },
+        );
 
         Self {
             key_switching_key,

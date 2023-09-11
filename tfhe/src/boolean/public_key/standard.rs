@@ -69,7 +69,7 @@ impl From<CompressedPublicKey> for PublicKey {
 
         let decompressed_public_key = compressed_public_key
             .compressed_lwe_public_key
-            .decompress_into_lwe_public_key();
+            .par_decompress_into_lwe_public_key();
 
         Self {
             lwe_public_key: decompressed_public_key,

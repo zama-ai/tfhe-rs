@@ -439,20 +439,26 @@ impl From<CompressedServerKey> for ServerKey {
             pbs_order,
         } = compressed_server_key;
 
-        let key_switching_key = key_switching_key.decompress_into_lwe_keyswitch_key();
-        let standard_bootstrapping_key = bootstrapping_key.decompress_into_lwe_bootstrap_key();
+        let (key_switching_key, bootstrapping_key) = rayon::join(
+            || key_switching_key.par_decompress_into_lwe_keyswitch_key(),
+            || {
+                let standard_bootstrapping_key =
+                    bootstrapping_key.par_decompress_into_lwe_bootstrap_key();
 
-        let mut bootstrapping_key = FourierLweBootstrapKeyOwned::new(
-            standard_bootstrapping_key.input_lwe_dimension(),
-            standard_bootstrapping_key.glwe_size(),
-            standard_bootstrapping_key.polynomial_size(),
-            standard_bootstrapping_key.decomposition_base_log(),
-            standard_bootstrapping_key.decomposition_level_count(),
-        );
+                let mut bootstrapping_key = FourierLweBootstrapKeyOwned::new(
+                    standard_bootstrapping_key.input_lwe_dimension(),
+                    standard_bootstrapping_key.glwe_size(),
+                    standard_bootstrapping_key.polynomial_size(),
+                    standard_bootstrapping_key.decomposition_base_log(),
+                    standard_bootstrapping_key.decomposition_level_count(),
+                );
 
-        convert_standard_lwe_bootstrap_key_to_fourier(
-            &standard_bootstrapping_key,
-            &mut bootstrapping_key,
+                convert_standard_lwe_bootstrap_key_to_fourier(
+                    &standard_bootstrapping_key,
+                    &mut bootstrapping_key,
+                );
+                bootstrapping_key
+            },
         );
 
         Self {
