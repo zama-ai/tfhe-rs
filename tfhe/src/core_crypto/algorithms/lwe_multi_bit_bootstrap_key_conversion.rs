@@ -5,7 +5,9 @@
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::core_crypto::fft_impl::fft64::math::fft::{
+    par_convert_polynomials_list_to_fourier, Fft, FftView,
+};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
@@ -77,4 +79,23 @@ pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized_req
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     fft.forward_scratch()
+}
+
+pub fn par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier<Scalar, InputCont, OutputCont>(
+    input_bsk: &LweMultiBitBootstrapKey<InputCont>,
+    output_bsk: &mut FourierLweMultiBitBootstrapKey<OutputCont>,
+) where
+    Scalar: UnsignedTorus,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = c64>,
+{
+    let fft = Fft::new(input_bsk.polynomial_size());
+    let fft = fft.as_view();
+
+    par_convert_polynomials_list_to_fourier(
+        output_bsk.as_mut_view().data(),
+        input_bsk.as_view().into_container(),
+        input_bsk.polynomial_size(),
+        fft,
+    );
 }

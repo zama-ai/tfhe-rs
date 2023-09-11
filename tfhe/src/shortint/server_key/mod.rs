@@ -879,7 +879,7 @@ impl From<CompressedServerKey> for ServerKey {
                         standard_bootstrapping_key.grouping_factor(),
                     );
 
-                    convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
+                    par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier(
                         &standard_bootstrapping_key,
                         &mut bootstrapping_key,
                     );
