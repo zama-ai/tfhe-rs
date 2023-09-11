@@ -1,7 +1,7 @@
 //! Module with primitives pertaining to [`SeededGlweCiphertext`] decompression.
 
 use crate::core_crypto::algorithms::slice_algorithms::slice_wrapping_scalar_mul_assign;
-use crate::core_crypto::commons::math::random::RandomGenerator;
+use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
@@ -15,7 +15,7 @@ pub fn decompress_seeded_glwe_ciphertext_with_existing_generator<
 >(
     output_glwe: &mut GlweCiphertext<OutputCont>,
     input_seeded_glwe: &SeededGlweCiphertext<InputCont>,
-    generator: &mut RandomGenerator<Gen>,
+    generator: &mut MaskRandomGenerator<Gen>,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
@@ -37,7 +37,7 @@ pub fn decompress_seeded_glwe_ciphertext_with_existing_generator<
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
     // generate a uniformly random mask
-    generator.fill_slice_with_random_uniform_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
     if !ciphertext_modulus.is_native_modulus() {
         slice_wrapping_scalar_mul_assign(
             output_mask.as_mut(),
@@ -60,7 +60,7 @@ pub fn decompress_seeded_glwe_ciphertext<Scalar, InputCont, OutputCont, Gen>(
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut generator = RandomGenerator::<Gen>::new(input_seeded_glwe.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_seeded_glwe.compression_seed().seed);
     decompress_seeded_glwe_ciphertext_with_existing_generator::<_, _, _, Gen>(
         output_glwe,
         input_seeded_glwe,

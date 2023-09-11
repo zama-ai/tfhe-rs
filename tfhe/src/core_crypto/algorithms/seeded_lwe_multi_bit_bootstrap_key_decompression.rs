@@ -1,7 +1,7 @@
 //! Module with primitives pertaining to [`SeededLweMultiBitBootstrapKey`] decompression.
 
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::random::RandomGenerator;
+use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
@@ -15,7 +15,7 @@ pub fn decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator<
 >(
     output_bsk: &mut LweMultiBitBootstrapKey<OutputCont>,
     input_bsk: &SeededLweMultiBitBootstrapKey<InputCont>,
-    generator: &mut RandomGenerator<Gen>,
+    generator: &mut MaskRandomGenerator<Gen>,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
@@ -54,7 +54,7 @@ pub fn decompress_seeded_lwe_multi_bit_bootstrap_key<Scalar, InputCont, OutputCo
         output_bsk.ciphertext_modulus(),
     );
 
-    let mut generator = RandomGenerator::<Gen>::new(input_bsk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_bsk.compression_seed().seed);
     decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator::<_, _, _, Gen>(
         output_bsk,
         input_bsk,

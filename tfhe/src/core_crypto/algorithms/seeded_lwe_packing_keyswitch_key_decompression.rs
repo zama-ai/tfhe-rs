@@ -1,7 +1,7 @@
 //! Module with primitives pertaining to [`SeededLwePackingKeyswitchKey`] decompression.
 
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::random::RandomGenerator;
+use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
@@ -15,7 +15,7 @@ pub fn decompress_seeded_lwe_packing_keyswitch_key_with_existing_generator<
 >(
     output_pksk: &mut LwePackingKeyswitchKey<OutputCont>,
     input_pksk: &SeededLwePackingKeyswitchKey<InputCont>,
-    generator: &mut RandomGenerator<Gen>,
+    generator: &mut MaskRandomGenerator<Gen>,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
@@ -40,7 +40,7 @@ pub fn decompress_seeded_lwe_packing_keyswitch_key<Scalar, InputCont, OutputCont
     OutputCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    let mut generator = RandomGenerator::<Gen>::new(input_pksk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_pksk.compression_seed().seed);
     decompress_seeded_lwe_packing_keyswitch_key_with_existing_generator::<_, _, _, Gen>(
         output_pksk,
         input_pksk,
