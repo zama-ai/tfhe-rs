@@ -1,7 +1,7 @@
 //! Module with primitives pertaining to [`SeededLwePublicKey`] decompression.
 
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::random::RandomGenerator;
+use crate::core_crypto::commons::generators::MaskRandomGenerator;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
@@ -25,7 +25,7 @@ pub fn decompress_seeded_lwe_public_key<Scalar, InputCont, OutputCont, Gen>(
         input_pk.ciphertext_modulus(),
     );
 
-    let mut generator = RandomGenerator::<Gen>::new(input_pk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_pk.compression_seed().seed);
     decompress_seeded_lwe_ciphertext_list_with_existing_generator::<_, _, _, Gen>(
         output_pk,
         input_pk,
@@ -53,7 +53,7 @@ pub fn par_decompress_seeded_lwe_public_key<Scalar, InputCont, OutputCont, Gen>(
         input_pk.ciphertext_modulus(),
     );
 
-    let mut generator = RandomGenerator::<Gen>::new(input_pk.compression_seed().seed);
+    let mut generator = MaskRandomGenerator::<Gen>::new(input_pk.compression_seed().seed);
     par_decompress_seeded_lwe_ciphertext_list_with_existing_generator::<_, _, _, Gen>(
         output_pk,
         input_pk,

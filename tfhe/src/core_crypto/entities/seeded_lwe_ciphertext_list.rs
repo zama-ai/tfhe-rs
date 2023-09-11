@@ -157,6 +157,25 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
         decompressed_list
     }
 
+    /// Parallel variant of
+    /// [`decompress_into_lwe_ciphertext_list`](`Self::decompress_into_lwe_ciphertext_list`)
+    pub fn par_decompress_into_lwe_ciphertext_list(self) -> LweCiphertextListOwned<Scalar>
+    where
+        Scalar: UnsignedTorus + Send + Sync,
+    {
+        let mut decompressed_list = LweCiphertextList::new(
+            Scalar::ZERO,
+            self.lwe_size(),
+            self.lwe_ciphertext_count(),
+            self.ciphertext_modulus(),
+        );
+        par_decompress_seeded_lwe_ciphertext_list::<_, _, _, ActivatedRandomGenerator>(
+            &mut decompressed_list,
+            &self,
+        );
+        decompressed_list
+    }
+
     /// Return a view of the [`SeededLweCiphertextList`]. This is useful if an algorithm takes a
     /// view by value.
     pub fn as_view(&self) -> SeededLweCiphertextList<&'_ [Scalar]> {

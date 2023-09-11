@@ -117,9 +117,14 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedToru
 
         assert_eq!(par_seeded_lwe_list, ser_seeded_lwe_list);
 
-        let decompressed_lwe_list = ser_seeded_lwe_list.decompress_into_lwe_ciphertext_list();
+        let ser_decompressed_lwe_list = ser_seeded_lwe_list.decompress_into_lwe_ciphertext_list();
 
-        assert_eq!(decompressed_lwe_list, ser_lwe_list);
+        assert_eq!(ser_decompressed_lwe_list, ser_lwe_list);
+
+        let par_decompressed_lwe_list =
+            par_seeded_lwe_list.par_decompress_into_lwe_ciphertext_list();
+
+        assert_eq!(par_decompressed_lwe_list, ser_decompressed_lwe_list);
     }
 }
 
