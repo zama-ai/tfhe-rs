@@ -8,7 +8,8 @@ use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
 use concrete_fft::unordered::{Method, Plan};
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use rayon::prelude::*;
 use std::any::TypeId;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -682,6 +683,53 @@ impl<'de, C: IntoContainerOwned<Element = c64>> serde::Deserialize<'de>
 
         deserializer.deserialize_seq(SeqVisitor::<C>(PhantomData))
     }
+}
+
+pub fn par_convert_polynomials_list_to_fourier<Scalar: UnsignedTorus>(
+    dest: &mut [c64],
+    origin: &[Scalar],
+    polynomial_size: PolynomialSize,
+    fft: FftView<'_>,
+) {
+    assert_eq!(origin.len() % polynomial_size.0, 0);
+    let nb_polynomial = origin.len() / polynomial_size.0;
+
+    let f_polynomial_size = polynomial_size.to_fourier_polynomial_size().0;
+
+    assert_eq!(nb_polynomial * f_polynomial_size, dest.len());
+
+    let nb_threads = rayon::current_num_threads();
+
+    let chunk_size = nb_polynomial / nb_threads
+        + if nb_polynomial % nb_threads == 0 {
+            0
+        } else {
+            1
+        };
+
+    dest.par_chunks_mut(chunk_size * f_polynomial_size)
+        .zip_eq(origin.par_chunks(chunk_size * polynomial_size.0))
+        .for_each(|(fourier_poly_chunk, standard_poly_chunk)| {
+            let stack_len = fft
+                .forward_scratch()
+                .unwrap()
+                .try_unaligned_bytes_required()
+                .unwrap();
+            let mut stack = vec![0; stack_len];
+
+            let mut stack = PodStack::new(&mut stack);
+
+            for (fourier_poly, standard_poly) in izip!(
+                fourier_poly_chunk.chunks_exact_mut(f_polynomial_size),
+                standard_poly_chunk.chunks_exact(polynomial_size.0)
+            ) {
+                fft.forward_as_torus(
+                    FourierPolynomialMutView { data: fourier_poly },
+                    PolynomialView::from_container(standard_poly),
+                    stack.rb_mut(),
+                );
+            }
+        });
 }
 
 #[cfg(test)]
