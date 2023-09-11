@@ -102,25 +102,23 @@ for buy_order in buy_orders.iter_mut() {
 #### The complete algorithm in plain Rust:
 
 ```rust
-fn volume_match_plain(sell_orders: &mut Vec<u16>, buy_orders: &mut Vec<u16>) {
+fn fill_orders(orders: &mut [u16], total_volume: u16) {
+    let mut volume_left_to_transact = total_volume;
+    for order in orders {
+        let filled_amount = std::cmp::min(volume_left_to_transact, *order);
+        *order = filled_amount;
+        volume_left_to_transact -= filled_amount;
+    }
+}
+
+pub fn volume_match(sell_orders: &mut [u16], buy_orders: &mut [u16]) {
     let total_sell_volume: u16 = sell_orders.iter().sum();
     let total_buy_volume: u16 = buy_orders.iter().sum();
 
     let total_volume = std::cmp::min(total_buy_volume, total_sell_volume);
 
-    let mut volume_left_to_transact = total_volume;
-    for sell_order in sell_orders.iter_mut() {
-        let filled_amount = std::cmp::min(volume_left_to_transact, *sell_order);
-        *sell_order = filled_amount;
-        volume_left_to_transact -= filled_amount;
-    }
-
-    let mut volume_left_to_transact = total_volume;
-    for buy_order in buy_orders.iter_mut() {
-        let filled_amount = std::cmp::min(volume_left_to_transact, *buy_order);
-        *buy_order = filled_amount;
-        volume_left_to_transact -= filled_amount;
-    }
+    fill_orders(sell_orders, total_volume);
+    fill_orders(buy_orders, total_volume);
 }
 ```
 
@@ -155,15 +153,17 @@ Now, we can start implementing the algorithm with FHE:
 1. Calculate the total sell volume and the total buy volume.
 
 ```rust
-let mut total_sell_volume = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
-for sell_order in sell_orders.iter_mut() {
-    server_key.smart_add_assign(&mut total_sell_volume, sell_order);
+fn vector_sum(server_key: &ServerKey, orders: &mut [RadixCiphertext]) -> RadixCiphertext {
+    let mut total_volume = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
+    for order in orders {
+        server_key.smart_add_assign(&mut total_volume, order);
+    }
+    total_volume
 }
 
-let mut total_buy_volume = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
-for buy_order in buy_orders.iter_mut() {
-    server_key.smart_add_assign(&mut total_buy_volume, buy_order);
-}
+let mut total_sell_volume = vector_sum(server_key, sell_orders);
+let mut total_buy_volume = vector_sum(server_key, buy_orders);
+
 ```
 
 2. Find the total volume that will be transacted by taking the minimum of the total sell volume and the total buy
@@ -177,17 +177,21 @@ let total_volume = server_key.smart_min(&mut total_sell_volume, &mut total_buy_v
 reduce code duplication since the code for filling buy orders and sell orders are the same.
 
 ```rust
-let fill_orders = |orders: &mut [RadixCiphertext]| {
-    let mut volume_left_to_transact = total_volume.clone();
-    for mut order in orders.iter_mut() {
-        let mut filled_amount = server_key.smart_min(&mut volume_left_to_transact, &mut order);
+fn fill_orders(
+    server_key: &ServerKey,
+    orders: &mut [RadixCiphertext],
+    total_volume: RadixCiphertext,
+) {
+    let mut volume_left_to_transact = total_volume;
+    for order in orders {
+        let mut filled_amount = server_key.smart_min(&mut volume_left_to_transact, order);
         server_key.smart_sub_assign(&mut volume_left_to_transact, &mut filled_amount);
         *order = filled_amount;
     }
-};
+}
 
-fill_orders(sell_orders);
-fill_orders(buy_orders);
+fill_orders(server_key, sell_orders, total_volume.clone());
+fill_orders(server_key, buy_orders, total_volume);
 ```
 
 #### The complete algorithm in TFHE-rs:
@@ -195,20 +199,34 @@ fill_orders(buy_orders);
 ```rust
 const NUMBER_OF_BLOCKS: usize = 8;
 
-fn volume_match_fhe(
+fn vector_sum(server_key: &ServerKey, orders: &mut [RadixCiphertext]) -> RadixCiphertext {
+    let mut total_volume = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
+    for order in orders {
+        server_key.smart_add_assign(&mut total_volume, order);
+    }
+    total_volume
+}
+
+fn fill_orders(
+    server_key: &ServerKey,
+    orders: &mut [RadixCiphertext],
+    total_volume: RadixCiphertext,
+) {
+    let mut volume_left_to_transact = total_volume;
+    for order in orders {
+        let mut filled_amount = server_key.smart_min(&mut volume_left_to_transact, order);
+        server_key.smart_sub_assign(&mut volume_left_to_transact, &mut filled_amount);
+        *order = filled_amount;
+    }
+}
+
+pub fn volume_match(
     sell_orders: &mut [RadixCiphertext],
     buy_orders: &mut [RadixCiphertext],
     server_key: &ServerKey,
 ) {
-    let mut total_sell_volume = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
-    for sell_order in sell_orders.iter_mut() {
-        server_key.smart_add_assign(&mut total_sell_volume, sell_order);
-    }
-
-    let mut total_buy_volume = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
-    for buy_order in buy_orders.iter_mut() {
-        server_key.smart_add_assign(&mut total_buy_volume, buy_order);
-    }
+    let mut total_sell_volume = vector_sum(server_key, sell_orders);
+    let mut total_buy_volume = vector_sum(server_key, buy_orders);
 
     let total_volume = server_key.smart_min(&mut total_sell_volume, &mut total_buy_volume);
 
@@ -225,63 +243,73 @@ fn volume_match_fhe(
 
 * We can parallelize vector sum with Rayon and `reduce` operation.
 ```rust
-let parallel_vector_sum = |vec: &mut [RadixCiphertext]| {
-    vec.to_vec().into_par_iter().reduce(
+fn vector_sum(server_key: &ServerKey, orders: Vec<RadixCiphertext>) -> RadixCiphertext {
+    orders.into_par_iter().reduce(
         || server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS),
-        |mut acc: RadixCiphertext, mut ele: RadixCiphertext| { 
+        |mut acc: RadixCiphertext, mut ele: RadixCiphertext| {
             server_key.smart_add_parallelized(&mut acc, &mut ele)
         },
     )
-};
+}
 ```
 
 * We can run vector summation on `buy_orders` and `sell_orders` in parallel since these operations do not depend on each other.
 ```rust
-let (mut total_sell_volume, mut total_buy_volume) =
-    rayon::join(|| vector_sum(sell_orders), || vector_sum(buy_orders));
+let (mut total_sell_volume, mut total_buy_volume) = rayon::join(
+    || vector_sum(server_key, sell_orders.to_owned()),
+    || vector_sum(server_key, buy_orders.to_owned()),
+);
 ```
 
 * We can match sell and buy orders in parallel since the matching does not depend on each other.
 ```rust
-rayon::join(|| fill_orders(sell_orders), || fill_orders(buy_orders));
+rayon::join(
+    || fill_orders(server_key, sell_orders, total_volume.clone()),
+    || fill_orders(server_key, buy_orders, total_volume.clone()),
+);
 ```
 
 #### Optimized algorithm
 ```rust
-fn volume_match_fhe_parallelized(
+fn vector_sum(server_key: &ServerKey, orders: Vec<RadixCiphertext>) -> RadixCiphertext {
+    orders.into_par_iter().reduce(
+        || server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS),
+        |mut acc: RadixCiphertext, mut ele: RadixCiphertext| {
+            server_key.smart_add_parallelized(&mut acc, &mut ele)
+        },
+    )
+}
+
+fn fill_orders(
+    server_key: &ServerKey,
+    orders: &mut [RadixCiphertext],
+    total_volume: RadixCiphertext,
+) {
+    let mut volume_left_to_transact = total_volume;
+    for order in orders {
+        let mut filled_amount =
+            server_key.smart_min_parallelized(&mut volume_left_to_transact, order);
+        server_key.smart_sub_assign_parallelized(&mut volume_left_to_transact, &mut filled_amount);
+        *order = filled_amount;
+    }
+}
+
+pub fn volume_match(
     sell_orders: &mut [RadixCiphertext],
     buy_orders: &mut [RadixCiphertext],
     server_key: &ServerKey,
 ) {
-    let parallel_vector_sum = |vec: &mut [RadixCiphertext]| {
-        vec.to_vec().into_par_iter().reduce(
-            || server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS),
-            |mut acc: RadixCiphertext, mut ele: RadixCiphertext| {
-                server_key.smart_add_parallelized(&mut acc, &mut ele)
-            },
-        )
-    };
-
     let (mut total_sell_volume, mut total_buy_volume) = rayon::join(
-        || parallel_vector_sum(sell_orders),
-        || parallel_vector_sum(buy_orders),
+        || vector_sum(server_key, sell_orders.to_owned()),
+        || vector_sum(server_key, buy_orders.to_owned()),
     );
 
     let total_volume =
         server_key.smart_min_parallelized(&mut total_sell_volume, &mut total_buy_volume);
-
-    let fill_orders = |orders: &mut [RadixCiphertext]| {
-        let mut volume_left_to_transact = total_volume.clone();
-        for mut order in orders.iter_mut() {
-            let mut filled_amount =
-                server_key.smart_min_parallelized(&mut volume_left_to_transact, &mut order);
-            server_key
-                .smart_sub_assign_parallelized(&mut volume_left_to_transact, &mut filled_amount);
-            *order = filled_amount;
-        }
-    };
-    
-    rayon::join(|| fill_orders(sell_orders), || fill_orders(buy_orders));
+    rayon::join(
+        || fill_orders(server_key, sell_orders, total_volume.clone()),
+        || fill_orders(server_key, buy_orders, total_volume.clone()),
+    );
 }
 ```
 
