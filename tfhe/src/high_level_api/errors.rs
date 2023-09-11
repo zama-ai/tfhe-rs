@@ -92,6 +92,24 @@ impl Display for UninitializedClientKey {
 
 impl std::error::Error for UninitializedClientKey {}
 
+/// The key switching key of a given type was not initialized
+#[derive(Debug)]
+pub struct UninitializedKeySwitchingKey(pub(crate) Type);
+
+impl Display for UninitializedKeySwitchingKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The key switching key for the type '{:?}' was not properly initialized\n\
+             Did you forget to enable the type in the config ?
+            ",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for UninitializedKeySwitchingKey {}
+
 /// The public key of a given type was not initialized
 #[derive(Debug)]
 pub struct UninitializedPublicKey(pub(crate) Type);
@@ -147,6 +165,7 @@ pub enum Error {
     UninitializedClientKey(Type),
     UninitializedPublicKey(Type),
     UninitializedServerKey(Type),
+    UninitializedKeySwitchingKey(Type),
 }
 
 impl From<OutOfRangeError> for Error {
@@ -173,6 +192,12 @@ impl From<UninitializedServerKey> for Error {
     }
 }
 
+impl From<UninitializedKeySwitchingKey> for Error {
+    fn from(value: UninitializedKeySwitchingKey) -> Self {
+        Self::UninitializedKeySwitchingKey(value.0)
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -187,6 +212,9 @@ impl Display for Error {
             }
             Error::UninitializedServerKey(ty) => {
                 write!(f, "{}", UninitializedServerKey(*ty))
+            }
+            Error::UninitializedKeySwitchingKey(ty) => {
+                write!(f, "{}", UninitializedKeySwitchingKey(*ty))
             }
         }
     }

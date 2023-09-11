@@ -18,6 +18,8 @@ macro_rules! define_key_structs {
                     [<$base_ty_name CompressedPublicKey>],
                     [<$base_ty_name ServerKey>],
                     [<$base_ty_name CompressedServerKey>],
+                    [<$base_ty_name KeySwitchingKey>],
+                    [<$base_ty_name KeySwitchingParameters>],
                 };
             )*
 
@@ -203,6 +205,82 @@ macro_rules! define_key_structs {
             }
 
             impl Default for [<$base_struct_name CompressedServerKey>] {
+                fn default() -> Self {
+                    Self {
+                        $(
+                            [<$name _key>]: None,
+                        )*
+                    }
+                }
+            }
+
+            ///////////////////////
+            // Key Switching Key
+            ///////////////////////
+
+            #[derive(Clone, Debug, Default, ::serde::Deserialize, ::serde::Serialize)]
+            pub(crate) struct [<$base_struct_name KeySwitchingParameters>] {
+                $(
+                    pub(crate) [<$name _params>]: Option<[<$base_ty_name KeySwitchingParameters>]>,
+                )*
+            }
+
+            #[derive(Clone, Debug, ::serde::Deserialize, ::serde::Serialize)]
+            pub(crate) struct [<$base_struct_name KeySwitchingKey>] {
+                $(
+                    pub(super) [<$name _key>]: Option<[<$base_ty_name KeySwitchingKey>]>,
+                )*
+            }
+
+            impl [<$base_struct_name KeySwitchingKey>] {
+                pub(crate) fn new(
+                    key_pair_1: (&[<$base_struct_name ClientKey>], &[<$base_struct_name ServerKey>]),
+                    key_pair_2: (&[<$base_struct_name ClientKey>], &[<$base_struct_name ServerKey>]),
+                    parameters: [<$base_struct_name KeySwitchingParameters>],
+                ) -> Self {
+                    Self {
+                        $(
+                            [<$name _key>]: match (
+                                key_pair_1.0.[<$name _key>].as_ref(),
+                                key_pair_1.1.[<$name _key>].as_ref(),
+                                key_pair_2.0.[<$name _key>].as_ref(),
+                                key_pair_2.1.[<$name _key>].as_ref(),
+                                parameters.[<$name _params>],
+                            ) {
+                                 (Some(ck1), Some(sk1), Some(ck2), Some(sk2), Some(ksk_params)) => {
+                                    Some(<[<$base_ty_name KeySwitchingKey>]>::new((ck1, sk1), (ck2, sk2), ksk_params))
+                                },
+                                _ => None
+                            },
+                        )*
+                    }
+                }
+
+                pub(crate) fn for_same_parameters(
+                    key_pair_1: (&[<$base_struct_name ClientKey>], &[<$base_struct_name ServerKey>]),
+                    key_pair_2: (&[<$base_struct_name ClientKey>], &[<$base_struct_name ServerKey>]))
+                -> Option<Self> {
+                    Some(Self {
+                        $(
+                            [<$name _key>]: match (
+                                key_pair_1.0.[<$name _key>].as_ref(),
+                                key_pair_1.1.[<$name _key>].as_ref(),
+                                key_pair_2.0.[<$name _key>].as_ref(),
+                                key_pair_2.1.[<$name _key>].as_ref())
+                            {
+                                (Some(ck1), Some(sk1), Some(ck2), Some(sk2)) => {
+                                    // Forward error if parameters are not compatible
+                                    let key = <[<$base_ty_name KeySwitchingKey>]>::for_same_parameters((ck1, sk1), (ck2, sk2))?;
+                                    Some(key)
+                                },
+                                _ => None
+                            },
+                        )*
+                    })
+                }
+            }
+
+            impl Default for [<$base_struct_name KeySwitchingKey>] {
                 fn default() -> Self {
                     Self {
                         $(

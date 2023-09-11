@@ -26,7 +26,7 @@ pub use errors::{Error, OutOfRangeError};
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
 pub use keys::{
     generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
-    CompressedServerKey, PublicKey, ServerKey,
+    CompressedServerKey, KeySwitchingKey, KeySwitchingParameters, PublicKey, ServerKey,
 };
 
 #[cfg(test)]

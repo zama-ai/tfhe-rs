@@ -7,7 +7,7 @@
 //! ```
 pub use crate::high_level_api::traits::{
     DivRem, DynamicFheEncryptor, DynamicFheTrivialEncryptor, DynamicFheTryEncryptor, FheBootstrap,
-    FheDecrypt, FheEncrypt, FheEq, FheMax, FheMin, FheNumberConstant, FheOrd, FheTrivialEncrypt,
-    FheTryEncrypt, FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight,
-    RotateRightAssign,
+    FheDecrypt, FheEncrypt, FheEq, FheKeySwitch, FheMax, FheMin, FheNumberConstant, FheOrd,
+    FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign,
+    RotateRight, RotateRightAssign,
 };

@@ -2,10 +2,13 @@
 mod client;
 #[macro_use]
 mod public;
+#[macro_use]
+mod key_switching;
 mod server;
 
 use crate::high_level_api::config::Config;
 pub use client::{ClientKey, RefKeyFromKeyChain};
+pub use key_switching::{KeySwitchingKey, KeySwitchingParameters, RefKeyFromKeySwitchingKeyChain};
 pub use public::{
     CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
     RefKeyFromCompressedPublicKeyChain, RefKeyFromPublicKeyChain,

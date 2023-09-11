@@ -11,7 +11,8 @@ use crate::high_level_api::shortints::{CompressedGenericShortint, GenericShortIn
 
 use super::{
     GenericShortIntClientKey, GenericShortIntCompressedPublicKey,
-    GenericShortIntCompressedServerKey, GenericShortIntPublicKey, GenericShortIntServerKey,
+    GenericShortIntCompressedServerKey, GenericShortIntKeySwitchingKey,
+    GenericShortIntKeySwitchingParameters, GenericShortIntPublicKey, GenericShortIntServerKey,
 };
 
 use crate::high_level_api::shortints::parameters::{
@@ -157,6 +158,9 @@ macro_rules! static_shortint_type {
             pub type [<$name Parameters>] = ShortIntegerParameterSet<$num_bits>;
 
             pub(in crate::high_level_api) type [<$name ClientKey>] = GenericShortIntClientKey<[<$name Parameters>]>;
+
+            pub(in crate::high_level_api) type [<$name KeySwitchingParameters>] = GenericShortIntKeySwitchingParameters<[<$name Parameters>]>;
+            pub(in crate::high_level_api) type [<$name KeySwitchingKey>] = GenericShortIntKeySwitchingKey<[<$name Parameters>]>;
             pub(in crate::high_level_api) type [<$name PublicKey>] = GenericShortIntPublicKey<[<$name Parameters>]>;
             pub(in crate::high_level_api) type [<$name CompressedPublicKey>] = GenericShortIntCompressedPublicKey<[<$name Parameters>]>;
             pub(in crate::high_level_api) type [<$name ServerKey>] = GenericShortIntServerKey<[<$name Parameters>]>;
@@ -173,6 +177,14 @@ macro_rules! static_shortint_type {
             impl_ref_key_from_keychain!(
                 for <[<$name Parameters>] as ShortIntegerParameter>::Id {
                     key_type: [<$name ClientKey>],
+                    keychain_member: $($member).*,
+                    type_variant: crate::high_level_api::errors::Type::$name,
+                }
+            );
+
+            impl_ref_key_from_key_switching_keychain!(
+                for <[<$name Parameters>] as ShortIntegerParameter>::Id {
+                    key_type: [<$name KeySwitchingKey>],
                     keychain_member: $($member).*,
                     type_variant: crate::high_level_api::errors::Type::$name,
                 }

@@ -7,6 +7,9 @@ pub use static_::{
 };
 
 use super::client_key::GenericShortIntClientKey;
+use super::key_switching_key::{
+    GenericShortIntKeySwitchingKey, GenericShortIntKeySwitchingParameters,
+};
 use super::public_key::compressed::GenericShortIntCompressedPublicKey;
 use super::public_key::GenericShortIntPublicKey;
 use super::server_key::{GenericShortIntCompressedServerKey, GenericShortIntServerKey};

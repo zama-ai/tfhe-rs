@@ -6,7 +6,7 @@ use crate::integer::U256;
 use crate::{
     CompactFheUint32, CompactFheUint32List, CompactPublicKey, CompressedFheUint16,
     CompressedFheUint256, CompressedPublicKey, Config, FheUint128, FheUint16, FheUint256,
-    FheUint32, FheUint64,
+    FheUint32, FheUint64, KeySwitchingKey,
 };
 
 #[test]
@@ -674,7 +674,7 @@ fn test_compact_public_key_list(config: Config) {
     let clear_results = clear_xs
         .iter()
         .zip(clear_ys)
-        .map(|(x, y)| x + y)
+        .map(|(x, y)| x.wrapping_add(y))
         .collect::<Vec<_>>();
 
     for (encrypted, clear) in encrypted_results.iter().zip(clear_results) {
@@ -816,4 +816,72 @@ fn test_if_then_else() {
         decrypted_result,
         if clear_a <= clear_b { clear_b } else { clear_a }
     );
+}
+
+#[test]
+fn test_integer_key_switching() {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+    let (client_key_1, server_key_1) = generate_keys(config.clone());
+    let (client_key_2, server_key_2) = generate_keys(config);
+    let ksk = KeySwitchingKey::for_same_parameters(
+        (&client_key_1, &server_key_1),
+        (&client_key_2, &server_key_2),
+    )
+    .unwrap();
+
+    let clear = 12_837u16;
+    let a = FheUint16::encrypt(clear, &client_key_1);
+
+    let a = a.keyswitch(&ksk);
+    let da: u16 = a.decrypt(&client_key_2);
+    assert_eq!(da, clear);
+}
+
+#[test]
+fn test_integer_key_switching_2() {
+    let mut parameters = crate::shortint::parameters::PARAM_MESSAGE_1_CARRY_1_KS_PBS;
+    parameters.message_modulus.0 = 4;
+    parameters.carry_modulus.0 = 4;
+
+    let config1 = ConfigBuilder::all_disabled()
+        .enable_custom_integers(parameters, None)
+        .build();
+    let (client_key_1, server_key_1) = generate_keys(config1);
+
+    let config2 = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+    let (client_key_2, server_key_2) = generate_keys(config2);
+
+    let mut ks_params = crate::KeySwitchingParameters::default();
+    ks_params.with_integer_parameters(
+        crate::shortint::parameters::key_switching::PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS,
+    );
+
+    let ksk = KeySwitchingKey::new(
+        (&client_key_1, &server_key_1),
+        (&client_key_2, &server_key_2),
+        ks_params,
+    );
+
+    let clear_a = 12_837u16;
+    let a = FheUint16::encrypt(clear_a, &client_key_1);
+
+    let clear_b = 9071u16;
+    let b = FheUint16::encrypt(clear_b, &client_key_1);
+
+    let a = a.keyswitch(&ksk);
+    let b = b.keyswitch(&ksk);
+    let da: u16 = a.decrypt(&client_key_2);
+    let db: u16 = b.decrypt(&client_key_2);
+    assert_eq!(da, clear_a);
+    assert_eq!(db, clear_b);
+
+    set_server_key(server_key_2);
+
+    let c = a + b;
+    let dc: u16 = c.decrypt(&client_key_2);
+    assert_eq!(dc, clear_a.wrapping_add(clear_b));
 }

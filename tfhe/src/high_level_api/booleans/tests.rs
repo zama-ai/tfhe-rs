@@ -8,7 +8,7 @@ use std::ops::{BitAnd, BitOr, BitXor, Not};
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{
     generate_keys, set_server_key, ClientKey, CompressedFheBool, ConfigBuilder, FheBool,
-    FheBoolParameters,
+    FheBoolParameters, KeySwitchingKey,
 };
 use crate::CompressedPublicKey;
 
@@ -226,4 +226,27 @@ fn test_decompressed_public_key_encrypt() {
     let a = FheBool::try_encrypt(true, &public_key).unwrap();
     let clear: bool = a.decrypt(&client_key);
     assert_eq!(clear, true);
+}
+
+#[test]
+fn test_boolean_key_switching_key() {
+    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let (client_key_1, server_key_1) = generate_keys(config.clone());
+    let (client_key_2, server_key_2) = generate_keys(config);
+
+    let ksk = KeySwitchingKey::for_same_parameters(
+        (&client_key_1, &server_key_1),
+        (&client_key_2, &server_key_2),
+    )
+    .unwrap();
+
+    let mut ct_true = FheBool::encrypt(true, &client_key_1);
+    ct_true = ct_true.keyswitch(&ksk);
+    let clear = ct_true.decrypt(&client_key_2);
+    assert_eq!(clear, true);
+
+    let mut ct_false = FheBool::encrypt(false, &client_key_1);
+    ct_false = ct_false.keyswitch(&ksk);
+    let clear = ct_false.decrypt(&client_key_2);
+    assert_eq!(clear, false);
 }

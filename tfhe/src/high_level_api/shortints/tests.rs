@@ -3,7 +3,7 @@ use crate::high_level_api::prelude::*;
 use crate::high_level_api::{
     generate_keys, set_server_key, CompressedFheUint2, ConfigBuilder, FheUint2,
 };
-use crate::{CompressedPublicKey, FheUint3, FheUint4};
+use crate::{CompressedPublicKey, FheUint3, FheUint4, KeySwitchingKey};
 
 #[test]
 fn test_shortint_compressed() {
@@ -222,4 +222,22 @@ fn test_branchless_min_max() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(max.decrypt(&keys), 12);
 
     Ok(())
+}
+
+#[test]
+fn test_key_switching_shortint() {
+    let config = ConfigBuilder::all_disabled().enable_default_uint2().build();
+    let (client_key_1, server_key_1) = generate_keys(config.clone());
+    let (client_key_2, server_key_2) = generate_keys(config);
+
+    let ksk = KeySwitchingKey::for_same_parameters(
+        (&client_key_1, &server_key_1),
+        (&client_key_2, &server_key_2),
+    )
+    .unwrap();
+
+    let mut a = FheUint2::try_encrypt(3, &client_key_1).unwrap();
+    a = a.keyswitch(&ksk);
+    let clear = a.decrypt(&client_key_2);
+    assert_eq!(clear, 3);
 }

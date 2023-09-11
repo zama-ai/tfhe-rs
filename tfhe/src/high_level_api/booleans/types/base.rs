@@ -8,13 +8,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::keys::{
-    ClientKey, PublicKey, RefKeyFromKeyChain, RefKeyFromPublicKeyChain,
+    ClientKey, KeySwitchingKey, PublicKey, RefKeyFromKeyChain, RefKeyFromKeySwitchingKeyChain,
+    RefKeyFromPublicKeyChain,
 };
 use crate::high_level_api::traits::{
-    FheDecrypt, FheEq, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
+    FheDecrypt, FheEq, FheKeySwitch, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
 };
 
-use super::static_::{FheBoolClientKey, FheBoolPublicKey, FheBoolServerKey};
+use super::static_::{
+    FheBoolClientKey, FheBoolKeySwitchingKey, FheBoolPublicKey, FheBoolServerKey,
+};
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
 struct FheBoolId;
@@ -30,6 +33,14 @@ impl_with_global_key!(
 impl_ref_key_from_keychain!(
     for FheBoolId {
         key_type: FheBoolClientKey,
+        keychain_member: boolean_key.bool_key,
+        type_variant: Type::FheBool,
+    }
+);
+
+impl_ref_key_from_key_switching_keychain!(
+    for FheBoolId {
+        key_type: FheBoolKeySwitchingKey,
         keychain_member: boolean_key.bool_key,
         type_variant: Type::FheBool,
     }
@@ -215,6 +226,17 @@ impl FheDecrypt<bool> for FheBool {
         let id = FheBoolId;
         let key = <FheBoolId as RefKeyFromKeyChain>::unwrapped_ref_key(id, key);
         key.key.decrypt(&self.ciphertext)
+    }
+}
+
+impl FheKeySwitch for FheBool {
+    fn keyswitch(&self, key: &KeySwitchingKey) -> FheBool {
+        let id = FheBoolId;
+        let key = <FheBoolId as RefKeyFromKeySwitchingKeyChain>::unwrapped_ref_key(id, key);
+        FheBool {
+            ciphertext: key.key.cast(&self.ciphertext),
+            id,
+        }
     }
 }
 

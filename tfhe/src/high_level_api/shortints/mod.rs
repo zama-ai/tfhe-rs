@@ -1,6 +1,6 @@
 pub(crate) use keys::{
     ShortIntClientKey, ShortIntCompressedPublicKey, ShortIntCompressedServerKey, ShortIntConfig,
-    ShortIntPublicKey, ShortIntServerKey,
+    ShortIntKeySwitchingKey, ShortIntKeySwitchingParameters, ShortIntPublicKey, ShortIntServerKey,
 };
 pub use types::{
     CompressedFheUint2, CompressedFheUint3, CompressedFheUint4, CompressedGenericShortint,
@@ -9,6 +9,7 @@ pub use types::{
 };
 
 mod client_key;
+mod key_switching_key;
 mod keys;
 mod parameters;
 mod public_key;

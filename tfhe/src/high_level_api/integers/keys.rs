@@ -6,6 +6,7 @@ use crate::core_crypto::prelude::ActivatedRandomGenerator;
 use crate::integer::ciphertext::{CompactCiphertextList, RadixCiphertext};
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::{CompressedCompactPublicKey, U256};
+use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::EncryptionKeyChoice;
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -243,5 +244,75 @@ impl IntegerCompressedCompactPublicKey {
         IntegerCompactPublicKey {
             key: self.key.map(CompressedCompactPublicKey::decompress),
         }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub(crate) struct IntegerKeySwitchingParameters {
+    pub(crate) params: Option<ShortintKeySwitchingParameters>,
+}
+
+impl From<ShortintKeySwitchingParameters> for IntegerKeySwitchingParameters {
+    fn from(params: ShortintKeySwitchingParameters) -> Self {
+        Self {
+            params: Some(params),
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct IntegerKeySwitchingKey {
+    pub(crate) key: Option<crate::integer::KeySwitchingKey>,
+}
+
+impl IntegerKeySwitchingKey {
+    pub(in crate::high_level_api) fn new(
+        key_pair_1: (&IntegerClientKey, &IntegerServerKey),
+        key_pair_2: (&IntegerClientKey, &IntegerServerKey),
+        parameters: IntegerKeySwitchingParameters,
+    ) -> Self {
+        let key = match (
+            &key_pair_1.0.key,
+            &key_pair_1.1.key,
+            &key_pair_2.0.key,
+            &key_pair_2.1.key,
+            parameters.params,
+        ) {
+            (Some(ck1), Some(sk1), Some(ck2), Some(sk2), Some(ksk_params)) => Some(
+                crate::integer::KeySwitchingKey::new((ck1, sk1), (ck2, sk2), ksk_params),
+            ),
+            _ => None,
+        };
+        Self { key }
+    }
+
+    pub(in crate::high_level_api) fn for_same_parameters(
+        key_pair_1: (&IntegerClientKey, &IntegerServerKey),
+        key_pair_2: (&IntegerClientKey, &IntegerServerKey),
+    ) -> Option<Self> {
+        Some(Self {
+            key: match (
+                &key_pair_1.0.key,
+                &key_pair_1.1.key,
+                &key_pair_2.0.key,
+                &key_pair_2.1.key,
+            ) {
+                (Some(ck1), Some(sk1), Some(ck2), Some(sk2)) => {
+                    if ck1.parameters() != ck2.parameters() {
+                        return None;
+                    }
+                    let ksk_params = ShortintKeySwitchingParameters::new(
+                        ck2.parameters().ks_base_log(),
+                        ck2.parameters().ks_level(),
+                    );
+                    Some(crate::integer::KeySwitchingKey::new(
+                        (ck1, sk1),
+                        (ck2, sk2),
+                        ksk_params,
+                    ))
+                }
+                _ => None,
+            },
+        })
     }
 }

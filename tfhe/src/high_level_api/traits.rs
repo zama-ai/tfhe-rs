@@ -1,4 +1,4 @@
-use crate::high_level_api::ClientKey;
+use crate::high_level_api::{ClientKey, KeySwitchingKey};
 
 /// Trait used to have a generic way of creating a value of a FHE type
 /// from a native value.
@@ -136,6 +136,16 @@ where
 
     /// Compute a function over the encrypted message.
     fn apply<F: Fn(u64) -> u64>(&mut self, func: F);
+}
+
+/// Trait used to have a generic way of keyswitching values
+/// that were encrypted using different client keys.
+///
+///
+/// The `Key` is required as it contains the key needed to do the
+/// actual key switch.
+pub trait FheKeySwitch {
+    fn keyswitch(&self, key: &KeySwitchingKey) -> Self;
 }
 
 #[doc(hidden)]

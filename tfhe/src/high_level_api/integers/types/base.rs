@@ -6,8 +6,8 @@ use std::ops::{
 
 use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::errors::{
-    UninitializedClientKey, UninitializedCompressedPublicKey, UninitializedPublicKey,
-    UnwrapResultExt,
+    UninitializedClientKey, UninitializedCompressedPublicKey, UninitializedKeySwitchingKey,
+    UninitializedPublicKey, UnwrapResultExt,
 };
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::integers::parameters::IntegerParameter;
@@ -15,11 +15,11 @@ use crate::high_level_api::integers::IntegerServerKey;
 use crate::high_level_api::internal_traits::{DecryptionKey, TypeIdentifier};
 use crate::high_level_api::keys::{CompressedPublicKey, RefKeyFromKeyChain};
 use crate::high_level_api::traits::{
-    DivRem, FheBootstrap, FheDecrypt, FheEq, FheMax, FheMin, FheOrd, FheTrivialEncrypt,
-    FheTryEncrypt, FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight,
-    RotateRightAssign,
+    DivRem, FheBootstrap, FheDecrypt, FheEq, FheKeySwitch, FheMax, FheMin, FheOrd,
+    FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign,
+    RotateRight, RotateRightAssign,
 };
-use crate::high_level_api::{ClientKey, PublicKey};
+use crate::high_level_api::{ClientKey, KeySwitchingKey, PublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::server_key::{Reciprocable, ScalarMultiplier};
@@ -660,6 +660,26 @@ where
     fn apply<F: Fn(u64) -> u64>(&mut self, func: F) {
         let result = self.map(func);
         *self = result;
+    }
+}
+
+impl<P> FheKeySwitch for GenericInteger<P>
+where
+    P: IntegerParameter,
+    P::Id: Default + TypeIdentifier,
+{
+    fn keyswitch(&self, key: &KeySwitchingKey) -> Self {
+        let id = P::Id::default();
+
+        let integer_casting_key = key
+            .integer_key
+            .key
+            .as_ref()
+            .ok_or(UninitializedKeySwitchingKey(id.type_variant()))
+            .unwrap_display();
+
+        let ciphertext = integer_casting_key.cast(&self.ciphertext);
+        Self::new(ciphertext, id)
     }
 }
 

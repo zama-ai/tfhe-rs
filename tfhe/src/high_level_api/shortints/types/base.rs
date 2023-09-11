@@ -13,16 +13,16 @@ use crate::high_level_api::errors::OutOfRangeError;
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::keys::{
     ClientKey, CompressedPublicKey, RefKeyFromCompressedPublicKeyChain, RefKeyFromKeyChain,
-    RefKeyFromPublicKeyChain,
+    RefKeyFromKeySwitchingKeyChain, RefKeyFromPublicKeyChain,
 };
 use crate::high_level_api::shortints::public_key::compressed::GenericShortIntCompressedPublicKey;
 use crate::high_level_api::traits::{
-    FheBootstrap, FheDecrypt, FheEq, FheNumberConstant, FheOrd, FheTrivialEncrypt, FheTryEncrypt,
-    FheTryTrivialEncrypt,
+    FheBootstrap, FheDecrypt, FheEq, FheKeySwitch, FheNumberConstant, FheOrd, FheTrivialEncrypt,
+    FheTryEncrypt, FheTryTrivialEncrypt,
 };
-use crate::high_level_api::PublicKey;
+use crate::high_level_api::{KeySwitchingKey, PublicKey};
 
-use super::{GenericShortIntClientKey, GenericShortIntServerKey};
+use super::{GenericShortIntClientKey, GenericShortIntKeySwitchingKey, GenericShortIntServerKey};
 
 use crate::high_level_api::shortints::parameters::{
     ShortIntegerParameter, StaticShortIntegerParameter,
@@ -452,6 +452,21 @@ where
         self.id.with_unwrapped_global(|key| {
             key.bootstrap_inplace_with(self, func);
         })
+    }
+}
+
+impl<P> FheKeySwitch for GenericShortInt<P>
+where
+    P: ShortIntegerParameter,
+    P::Id: Default + RefKeyFromKeySwitchingKeyChain<Key = GenericShortIntKeySwitchingKey<P>>,
+{
+    fn keyswitch(&self, key: &KeySwitchingKey) -> Self {
+        let id = P::Id::default();
+        let key: &GenericShortIntKeySwitchingKey<_> = id.unwrapped_ref_key(key);
+        Self {
+            ciphertext: RefCell::new(key.key.cast(&self.ciphertext.borrow())),
+            id,
+        }
     }
 }
 
