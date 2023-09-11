@@ -22,7 +22,7 @@ mod unsigned;
 
 /// A trait implemented by any generic numeric type suitable for computations.
 pub trait Numeric:
-    Sized + Copy + PartialEq + PartialOrd + bytemuck::Pod + std::fmt::Debug + 'static
+    Sized + Copy + PartialEq + PartialOrd + bytemuck::Pod + std::fmt::Debug + Sync + Send + 'static
 {
     /// This size of the type in bits.
     const BITS: usize;
