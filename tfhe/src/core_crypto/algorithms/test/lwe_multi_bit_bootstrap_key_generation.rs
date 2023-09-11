@@ -144,10 +144,18 @@ fn test_parallel_and_seeded_multi_bit_bsk_gen_equivalence<
             parallel_seeded_multi_bit_bsk
         );
 
-        let decompressed_multi_bit_bsk =
+        let ser_decompressed_multi_bit_bsk =
             sequential_seeded_multi_bit_bsk.decompress_into_lwe_multi_bit_bootstrap_key();
 
-        assert_eq!(decompressed_multi_bit_bsk, sequential_multi_bit_bsk);
+        assert_eq!(ser_decompressed_multi_bit_bsk, sequential_multi_bit_bsk);
+
+        let par_decompressed_multi_bit_bsk =
+            parallel_seeded_multi_bit_bsk.par_decompress_into_lwe_multi_bit_bootstrap_key();
+
+        assert_eq!(
+            ser_decompressed_multi_bit_bsk,
+            par_decompressed_multi_bit_bsk
+        );
     }
 }
 
