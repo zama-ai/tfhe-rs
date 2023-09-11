@@ -106,7 +106,7 @@ pub fn test_extract_bits() {
 
     fourier_bsk
         .as_mut_view()
-        .fill_with_forward_fourier(std_bsk.as_view(), fft, stack.rb_mut());
+        .par_fill_with_forward_fourier(std_bsk.as_view(), fft);
 
     let delta_log = DeltaLog(64 - number_of_bits_of_message_including_padding);
     // Decomposer to manage the rounding after decrypting the extracted bit
@@ -238,11 +238,9 @@ fn test_circuit_bootstrapping_binary() {
     let fft = Fft::new(polynomial_size);
     let fft = fft.as_view();
 
-    let mut mem = GlobalPodBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
-    let stack = PodStack::new(&mut mem);
     fourier_bsk
         .as_mut_view()
-        .fill_with_forward_fourier(std_bsk.as_view(), fft, stack);
+        .par_fill_with_forward_fourier(std_bsk.as_view(), fft);
 
     let lwe_sk_bs_output = glwe_sk.clone().into_lwe_secret_key();
 
@@ -589,12 +587,9 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     let fft = Fft::new(polynomial_size);
     let fft = fft.as_view();
 
-    let mut mem = GlobalPodBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
-    fourier_bsk.as_mut_view().fill_with_forward_fourier(
-        std_bsk.as_view(),
-        fft,
-        PodStack::new(&mut mem),
-    );
+    fourier_bsk
+        .as_mut_view()
+        .par_fill_with_forward_fourier(std_bsk.as_view(), fft);
 
     let ksk_lwe_big_to_small: LweKeyswitchKeyOwned<u64> =
         allocate_and_generate_new_lwe_keyswitch_key(
@@ -828,12 +823,9 @@ fn test_wop_add_one(polynomial_size: PolynomialSize) {
     let fft = Fft::new(polynomial_size);
     let fft = fft.as_view();
 
-    let mut mem = GlobalPodBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
-    fourier_bsk.as_mut_view().fill_with_forward_fourier(
-        std_bsk.as_view(),
-        fft,
-        PodStack::new(&mut mem),
-    );
+    fourier_bsk
+        .as_mut_view()
+        .par_fill_with_forward_fourier(std_bsk.as_view(), fft);
 
     // Creation of all the pfksk for the circuit bootstrapping
     let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(

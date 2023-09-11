@@ -15,6 +15,7 @@ use crate::core_crypto::commons::traits::{
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
+use crate::core_crypto::fft_impl::fft64::math::fft::par_convert_polynomials_list_to_fourier;
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
@@ -189,6 +190,21 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
         {
             fourier_ggsw.fill_with_forward_fourier(standard_ggsw, fft, stack.rb_mut());
         }
+    }
+    /// Fill a bootstrapping key with the Fourier transform of a bootstrapping key in the standard
+    /// domain.
+    pub fn par_fill_with_forward_fourier<Scalar: UnsignedTorus>(
+        self,
+        coef_bsk: LweBootstrapKey<&'_ [Scalar]>,
+        fft: FftView<'_>,
+    ) {
+        let polynomial_size = self.fourier.polynomial_size;
+        par_convert_polynomials_list_to_fourier(
+            self.data(),
+            coef_bsk.into_container(),
+            polynomial_size,
+            fft,
+        );
     }
 }
 
