@@ -31,7 +31,49 @@ pub fn decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator<
         output_bsk.ciphertext_modulus(),
     );
 
-    decompress_seeded_ggsw_ciphertext_list_with_existing_generator(output_bsk, input_bsk, generator)
+    // Forking logic must match multi bit BSK generation
+    let output_input_lwe_dimension = output_bsk.input_lwe_dimension();
+    let output_decomposition_level_count = output_bsk.decomposition_level_count();
+    let output_glwe_size = output_bsk.glwe_size();
+    let output_polynomial_size = output_bsk.polynomial_size();
+    let output_grouping_factor = output_bsk.grouping_factor();
+    let ggsw_per_multi_bit_element = output_grouping_factor.ggsw_per_multi_bit_element();
+
+    let gen_iter = generator
+        .fork_multi_bit_bsk_to_ggsw_group::<Scalar>(
+            output_input_lwe_dimension,
+            output_decomposition_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            output_grouping_factor,
+        )
+        .unwrap();
+
+    for ((mut output_ggsw_group, input_ggsw_group), mut loop_generator) in output_bsk
+        .chunks_exact_mut(ggsw_per_multi_bit_element.0)
+        .zip(input_bsk.chunks_exact(ggsw_per_multi_bit_element.0))
+        .zip(gen_iter)
+    {
+        let gen_iter = loop_generator
+            .fork_multi_bit_bsk_ggsw_group_to_ggsw::<Scalar>(
+                output_decomposition_level_count,
+                output_glwe_size,
+                output_polynomial_size,
+                output_grouping_factor,
+            )
+            .unwrap();
+        for ((mut output_ggsw, input_ggsw), mut inner_loop_generator) in output_ggsw_group
+            .iter_mut()
+            .zip(input_ggsw_group.iter())
+            .zip(gen_iter)
+        {
+            decompress_seeded_ggsw_ciphertext_with_existing_generator(
+                &mut output_ggsw,
+                &input_ggsw,
+                &mut inner_loop_generator,
+            );
+        }
+    }
 }
 
 /// Decompress a [`SeededLweMultiBitBootstrapKey`], without consuming it, into a standard
