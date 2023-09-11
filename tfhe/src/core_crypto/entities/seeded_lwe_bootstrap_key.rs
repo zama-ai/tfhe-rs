@@ -205,6 +205,28 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweBootstrap
         decompressed_bsk
     }
 
+    /// Parallel variant of
+    /// [`decompress_into_lwe_bootstrap_key`](`Self::decompress_into_lwe_bootstrap_key`).
+    pub fn par_decompress_into_lwe_bootstrap_key(self) -> LweBootstrapKeyOwned<Scalar>
+    where
+        Scalar: UnsignedTorus + Send + Sync,
+    {
+        let mut decompressed_bsk = LweBootstrapKeyOwned::new(
+            Scalar::ZERO,
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.decomposition_base_log(),
+            self.decomposition_level_count(),
+            self.input_lwe_dimension(),
+            self.ciphertext_modulus(),
+        );
+        par_decompress_seeded_lwe_bootstrap_key::<_, _, _, ActivatedRandomGenerator>(
+            &mut decompressed_bsk,
+            &self,
+        );
+        decompressed_bsk
+    }
+
     /// Return a view of the [`SeededLweBootstrapKey`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> SeededLweBootstrapKey<&'_ [Scalar]> {

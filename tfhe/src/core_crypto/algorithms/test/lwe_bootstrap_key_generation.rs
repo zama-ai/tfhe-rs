@@ -127,9 +127,13 @@ fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
 
         assert_eq!(sequential_seeded_bsk, parallel_seeded_bsk);
 
-        let decompressed_bsk = sequential_seeded_bsk.decompress_into_lwe_bootstrap_key();
+        let ser_decompressed_bsk = sequential_seeded_bsk.decompress_into_lwe_bootstrap_key();
 
-        assert_eq!(decompressed_bsk, sequential_bsk);
+        assert_eq!(ser_decompressed_bsk, sequential_bsk);
+
+        let par_decompressed_bsk = parallel_seeded_bsk.par_decompress_into_lwe_bootstrap_key();
+
+        assert_eq!(ser_decompressed_bsk, par_decompressed_bsk);
     }
 }
 

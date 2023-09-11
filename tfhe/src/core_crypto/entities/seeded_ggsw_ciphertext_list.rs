@@ -234,6 +234,28 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
         );
         decompressed_list
     }
+
+    /// Parallel variant of
+    /// [`decompress_into_ggsw_ciphertext_list`](`Self::decompress_into_ggsw_ciphertext_list`).
+    pub fn par_decompress_into_ggsw_ciphertext_list(self) -> GgswCiphertextListOwned<Scalar>
+    where
+        Scalar: UnsignedTorus + Send + Sync,
+    {
+        let mut decompressed_list = GgswCiphertextListOwned::new(
+            Scalar::ZERO,
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.decomposition_base_log(),
+            self.decomposition_level_count(),
+            self.ggsw_ciphertext_count(),
+            self.ciphertext_modulus(),
+        );
+        par_decompress_seeded_ggsw_ciphertext_list::<_, _, _, ActivatedRandomGenerator>(
+            &mut decompressed_list,
+            &self,
+        );
+        decompressed_list
+    }
 }
 
 /// A [`SeededGgswCiphertextList`] owning the memory for its own storage.
