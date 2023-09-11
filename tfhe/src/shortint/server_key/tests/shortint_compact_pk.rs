@@ -1,13 +1,27 @@
-// use crate::shortint::keycache::KEY_CACHE;
+use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::parameters_compact_pk::*;
 use crate::shortint::parameters::*;
 use paste::paste;
 use rand::Rng;
 
 /// Number of assert in randomized tests
+#[cfg(not(feature = "__coverage"))]
 const NB_TEST: usize = 30;
+/// Number of sub tests used to increase degree of ciphertexts
+#[cfg(not(feature = "__coverage"))]
+const NB_SUB_TEST: usize = 40;
+
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(feature = "__coverage")]
+const NB_TEST: usize = 1;
+// This constant is tailored to trigger a message extract during operation processing.
+// It's applicable for PARAM_MESSAGE_2_CARRY_2_KS_PBS parameters set.
+#[cfg(feature = "__coverage")]
+const NB_SUB_TEST: usize = 5;
 
 // Macro to generate tests for all parameter sets
+#[cfg(not(feature = "__coverage"))]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
         paste! {
@@ -81,11 +95,34 @@ macro_rules! create_parametrized_test{
     };
 }
 
+// Test against a small subset of parameters to speed up coverage tests
+#[cfg(feature = "__coverage")]
+macro_rules! create_parametrized_test{
+    ($name:ident { $($param:ident),* }) => {
+        paste! {
+            $(
+            #[test]
+            fn [<test_ $name _ $param:lower>]() {
+                $name($param)
+            }
+            )*
+        }
+    };
+     ($name:ident)=> {
+        create_parametrized_test!($name
+        {
+            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
+            PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS
+        });
+    };
+}
+
 create_parametrized_test!(shortint_compact_public_key_base_smart_add);
 
 fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
-    let (cks, sks) = crate::shortint::gen_keys(params);
-    let pk = crate::shortint::CompactPublicKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(params);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    let pk = crate::shortint::CompactPublicKey::new(cks);
 
     let mut rng = rand::thread_rng();
 
@@ -111,7 +148,7 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
         assert_eq!(d, clear % modulus);
 
         //add multiple times to raise the degree and test the smart operation
-        for _ in 0..40 {
+        for _ in 0..NB_SUB_TEST {
             sks.smart_add_assign(&mut ct_res, &mut ctxt_0);
             clear += clear_0;
 
@@ -127,8 +164,9 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
 create_parametrized_test!(shortint_compact_public_key_base_list_smart_sub);
 
 fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters) {
-    let (cks, sks) = crate::shortint::gen_keys(params);
-    let pk = crate::shortint::CompactPublicKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(params);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+    let pk = crate::shortint::CompactPublicKey::new(cks);
 
     let mut rng = rand::thread_rng();
 
@@ -166,7 +204,7 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
             assert_eq!(decrypted_1, second_clear_vec[i]);
         }
 
-        for _ in 0..10 {
+        for _ in 0..NB_SUB_TEST {
             for i in 0..num_ct_for_this_iter {
                 sks.smart_sub_assign(&mut first_expanded_vec[i], &mut second_expanded_vec[i]);
                 first_clear_vec[i] = first_clear_vec[i].wrapping_sub(second_clear_vec[i]);

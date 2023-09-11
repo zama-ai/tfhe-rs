@@ -4,9 +4,29 @@ use paste::paste;
 use rand::Rng;
 
 /// Number of assert in randomized tests
-const NB_TEST: usize = 30;
+#[cfg(not(feature = "__coverage"))]
+const NB_TEST: usize = 200;
+/// Number of iterations in randomized tests for smart operations
+#[cfg(not(feature = "__coverage"))]
+const NB_TEST_SMART: usize = 10;
+/// Number of sub tests used to increase degree of ciphertexts
+#[cfg(not(feature = "__coverage"))]
+const NB_SUB_TEST_SMART: usize = 40;
+
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(feature = "__coverage")]
+const NB_TEST: usize = 1;
+/// Number of iterations in randomized tests for smart operations
+#[cfg(feature = "__coverage")]
+const NB_TEST_SMART: usize = 1;
+// This constant is tailored to trigger a message extract during operation processing.
+// It's applicable for PARAM_MESSAGE_2_CARRY_2_KS_PBS parameters set.
+#[cfg(feature = "__coverage")]
+const NB_SUB_TEST_SMART: usize = 5;
 
 // Macro to generate tests for all parameter sets
+#[cfg(not(feature = "__coverage"))]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
         paste! {
@@ -59,7 +79,31 @@ macro_rules! create_parametrized_test{
     };
 }
 
+// Test against a small subset of parameters to speed up coverage tests
+#[cfg(feature = "__coverage")]
+macro_rules! create_parametrized_test{
+    ($name:ident { $($param:ident),* }) => {
+        paste! {
+            $(
+            #[test]
+            fn [<test_ $name _ $param:lower>]() {
+                $name($param)
+            }
+            )*
+        }
+    };
+     ($name:ident)=> {
+        create_parametrized_test!($name
+        {
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS
+        });
+    };
+}
+
 //Macro to generate tests for parameters sets compatible with the bivariate pbs
+#[cfg(not(feature = "__coverage"))]
 macro_rules! create_parametrized_test_bivariate_pbs_compliant{
     ($name:ident { $($param:ident),* }) => {
         paste! {
@@ -96,6 +140,29 @@ macro_rules! create_parametrized_test_bivariate_pbs_compliant{
             PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
             PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+        });
+    };
+}
+
+// Test against a small subset of parameters to speed up coverage tests
+#[cfg(feature = "__coverage")]
+macro_rules! create_parametrized_test_bivariate_pbs_compliant{
+    ($name:ident { $($param:ident),* }) => {
+        paste! {
+            $(
+            #[test]
+            fn [<test_ $name _ $param:lower>]() {
+                $name($param)
+            }
+            )*
+        }
+    };
+     ($name:ident)=> {
+        create_parametrized_test!($name
+        {
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+            PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS
         });
     };
 }
@@ -148,16 +215,19 @@ create_parametrized_test!(shortint_default_scalar_bitxor);
 // Public key tests are limited to small parameter sets to avoid blowing up memory and large testing
 // times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
 // 2_2 uncompressed keys take ~2 GB and 3_3 about ~34 GB, hence why we stop at 2_2.
+#[cfg(not(feature = "__coverage"))]
 #[test]
 fn test_shortint_compressed_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
     shortint_compressed_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS)
 }
 
+#[cfg(not(feature = "__coverage"))]
 #[test]
 fn test_shortint_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
     shortint_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS)
 }
 
+#[cfg(not(feature = "__coverage"))]
 #[test]
 fn test_shortint_public_key_smart_add_param_message_2_carry_2_ks_pbs() {
     shortint_public_key_smart_add(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
@@ -537,7 +607,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -552,8 +622,9 @@ where
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
         let mut clear = clear_0 + clear_1;
 
-        //add multiple times to raise the degree and test the smart operation
-        for _ in 0..40 {
+        // add multiple times to raise the degree and test the smart operation
+        for _ in 0..NB_SUB_TEST_SMART {
+            println!("SUB TEST");
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
             clear += clear_0;
 
@@ -579,7 +650,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -591,20 +662,13 @@ where
         let ctxt_1 = cks.encrypt(clear_1);
 
         // add the two ciphertexts
-        let mut ct_res = sks.add(&ctxt_0, &ctxt_1);
-        let mut clear = clear_0 + clear_1;
+        let ct_res = sks.add(&ctxt_0, &ctxt_1);
+        let clear_res = clear_0 + clear_1;
 
-        //add multiple times to raise the degree and test the smart operation
-        for _ in 0..40 {
-            ct_res = sks.add(&ct_res, &ctxt_0);
-            clear += clear_0;
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
 
-            // decryption of ct_res
-            let dec_res = cks.decrypt(&ct_res);
-
-            // assert
-            assert_eq!(clear % modulus, dec_res);
-        }
+        assert_eq!(clear_res % modulus, dec_res);
     }
 }
 
@@ -622,7 +686,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -637,8 +701,8 @@ where
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
         let mut clear = clear_0 + clear_1;
 
-        //add multiple times to raise the degree and test the smart operation
-        for _ in 0..40 {
+        // add multiple times to raise the degree and test the smart operation
+        for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
             clear += clear_0;
 
@@ -665,7 +729,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -680,8 +744,8 @@ where
         let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
         let mut clear = clear_0 + clear_1;
 
-        //add multiple times to raise the degree and test the smart operation
-        for _ in 0..40 {
+        // add multiple times to raise the degree and test the smart operation
+        for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
             clear += clear_0;
 
@@ -2244,7 +2308,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -2260,8 +2324,12 @@ where
 
         let mut clear = clear_0 * clear_1;
 
-        //add multiple times to raise the degree
-        for _ in 0..30 {
+        let dec_res = cks.decrypt(&ct_res);
+
+        assert_eq!(clear % modulus, dec_res);
+
+        // multiply several times to raise the degree
+        for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_mul_lsb(&mut ct_res, &mut ctxt_0);
             clear = (clear * clear_0) % modulus;
 
@@ -2286,7 +2354,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -2298,21 +2366,13 @@ where
         let ctxt_1 = cks.encrypt(clear_1);
 
         // add the two ciphertexts
-        let mut ct_res = sks.mul_lsb(&ctxt_0, &ctxt_1);
+        let ct_res = sks.mul_lsb(&ctxt_0, &ctxt_1);
 
-        let mut clear = clear_0 * clear_1;
+        let clear = clear_0 * clear_1;
 
-        //add multiple times to raise the degree
-        for _ in 0..30 {
-            ct_res = sks.mul_lsb(&ct_res, &ctxt_0);
-            clear = (clear * clear_0) % modulus;
+        let dec_res = cks.decrypt(&ct_res);
 
-            // decryption of ct_res
-            let dec_res = cks.decrypt(&ct_res);
-
-            // assert
-            assert_eq!(clear, dec_res);
-        }
+        assert_eq!(clear % modulus, dec_res);
     }
 }
 
@@ -2328,7 +2388,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -2344,12 +2404,12 @@ where
 
         let mut clear = (clear_0 * clear_1) / modulus;
 
-        // let dec_res = cks.decrypt(&ct_res);
-        // println!("clear_0 = {}, clear_1 = {}, dec = {}, clear = {}", clear_0, clear_1, dec_res,
-        // clear);
+        let dec_res = cks.decrypt(&ct_res);
 
-        //add multiple times to raise the degree
-        for _ in 0..30 {
+        assert_eq!(clear % modulus, dec_res);
+
+        // multiply several times to raise the degree
+        for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_mul_msb(&mut ct_res, &mut ctxt_0);
             clear = (clear * clear_0) / modulus;
 
@@ -2374,7 +2434,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -2386,25 +2446,13 @@ where
         let ctxt_1 = cks.encrypt(clear_1);
 
         // add the two ciphertexts
-        let mut ct_res = sks.mul_msb(&ctxt_0, &ctxt_1);
+        let ct_res = sks.mul_msb(&ctxt_0, &ctxt_1);
 
-        let mut clear = (clear_0 * clear_1) / modulus;
+        let clear = (clear_0 * clear_1) / modulus;
 
-        // let dec_res = cks.decrypt(&ct_res);
-        // println!("clear_0 = {}, clear_1 = {}, dec = {}, clear = {}", clear_0, clear_1, dec_res,
-        // clear);
+        let dec_res = cks.decrypt(&ct_res);
 
-        //add multiple times to raise the degree
-        for _ in 0..30 {
-            ct_res = sks.mul_msb(&ct_res, &ctxt_0);
-            clear = (clear * clear_0) / modulus;
-
-            // decryption of ct_res
-            let dec_res = cks.decrypt(&ct_res);
-
-            // assert
-            assert_eq!(clear % modulus, dec_res);
-        }
+        assert_eq!(clear % modulus, dec_res);
     }
 }
 
@@ -2452,7 +2500,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear1 = rng.gen::<u64>() % modulus;
 
         let mut ct1 = cks.encrypt(clear1);
@@ -2461,7 +2509,7 @@ where
 
         let mut clear_result = clear1.wrapping_neg() % modulus;
 
-        for _ in 0..30 {
+        for _ in 0..NB_SUB_TEST_SMART {
             // scalar multiplication
             ct_res = sks.smart_neg(&mut ct_res);
 
@@ -2488,27 +2536,20 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST {
         let clear1 = rng.gen::<u64>() % modulus;
 
         let ct1 = cks.encrypt(clear1);
 
-        let mut ct_res = sks.neg(&ct1);
+        let ct_res = sks.neg(&ct1);
 
-        let mut clear_result = clear1.wrapping_neg() % modulus;
+        let clear_result = clear1.wrapping_neg() % modulus;
 
-        for _ in 0..30 {
-            // scalar multiplication
-            ct_res = sks.neg(&ct_res);
+        // decryption of ct_res
+        let dec_res = cks.decrypt(&ct_res);
 
-            clear_result = clear_result.wrapping_neg() % modulus;
-
-            // decryption of ct_res
-            let dec_res = cks.decrypt(&ct_res);
-
-            // assert
-            assert_eq!(clear_result, dec_res);
-        }
+        // assert
+        assert_eq!(clear_result, dec_res);
     }
 }
 
@@ -2555,7 +2596,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear_0 = rng.gen::<u8>() % modulus;
 
         let clear_1 = rng.gen::<u8>() % modulus;
@@ -2568,8 +2609,8 @@ where
 
         let mut clear = (clear_0 + clear_1) % modulus;
 
-        //add multiple times to raise the degree
-        for _ in 0..30 {
+        // add multiple times to raise the degree
+        for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_scalar_add(&mut ct_res, clear_1);
             clear = (clear + clear_1) % modulus;
 
@@ -2593,7 +2634,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u8>() % modulus;
 
         let clear_1 = rng.gen::<u8>() % modulus;
@@ -2602,20 +2643,13 @@ where
         let ctxt_0 = cks.encrypt(clear_0 as u64);
 
         // add the two ciphertexts
-        let mut ct_res = sks.scalar_add(&ctxt_0, clear_1);
+        let ct_res = sks.scalar_add(&ctxt_0, clear_1);
 
-        let mut clear = (clear_0 + clear_1) % modulus;
+        let clear = (clear_0 + clear_1) % modulus;
 
-        //add multiple times to raise the degree
-        for _ in 0..30 {
-            ct_res = sks.scalar_add(&ct_res, clear_1);
-            clear = (clear + clear_1) % modulus;
+        let dec_res = cks.decrypt(&ct_res);
 
-            // decryption of ct_res
-            let dec_res = cks.decrypt(&ct_res);
-
-            assert_eq!(clear, dec_res as u8);
-        }
+        assert_eq!(clear, dec_res as u8);
     }
 }
 
@@ -2661,7 +2695,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear_0 = rng.gen::<u8>() % modulus;
 
         let clear_1 = rng.gen::<u8>() % modulus;
@@ -2678,8 +2712,8 @@ where
         // println!("clear_0 = {}, clear_1 = {}, dec = {}, clear = {}", clear_0, clear_1, dec_res,
         // clear);
 
-        //add multiple times to raise the degree
-        for _ in 0..30 {
+        // subtract multiple times to raise the degree
+        for _ in 0..NB_SUB_TEST_SMART {
             ct_res = sks.smart_scalar_sub(&mut ct_res, clear_1);
             clear = (clear - clear_1) % modulus;
 
@@ -2704,7 +2738,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST {
         let clear_0 = rng.gen::<u8>() % modulus;
 
         let clear_1 = rng.gen::<u8>() % modulus;
@@ -2713,26 +2747,13 @@ where
         let ctxt_0 = cks.encrypt(clear_0 as u64);
 
         // add the two ciphertexts
-        let mut ct_res = sks.scalar_sub(&ctxt_0, clear_1);
+        let ct_res = sks.scalar_sub(&ctxt_0, clear_1);
 
-        let mut clear = (clear_0.wrapping_sub(clear_1)) % modulus;
+        let clear = (clear_0.wrapping_sub(clear_1)) % modulus;
 
-        // let dec_res = cks.decrypt(&ct_res);
-        // println!("clear_0 = {}, clear_1 = {}, dec = {}, clear = {}", clear_0, clear_1, dec_res,
-        // clear);
+        let dec_res = cks.decrypt(&ct_res);
 
-        //add multiple times to raise the degree
-        for _ in 0..30 {
-            ct_res = sks.scalar_sub(&ct_res, clear_1);
-            clear = (clear.wrapping_sub(clear_1)) % modulus;
-
-            // decryption of ct_res
-            let dec_res = cks.decrypt(&ct_res);
-
-            // println!("clear_1 = {}, dec = {}, clear = {}", clear_1, dec_res, clear);
-            // assert
-            assert_eq!(clear, dec_res as u8);
-        }
+        assert_eq!(clear, dec_res as u8);
     }
 }
 
@@ -2782,7 +2803,7 @@ where
 
     let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear = rng.gen::<u8>() % modulus;
 
         let scalar = rng.gen::<u8>() % scalar_modulus;
@@ -2793,7 +2814,7 @@ where
         let mut ct_res = sks.smart_scalar_mul(&mut ct, scalar);
 
         let mut clear_res = clear * scalar;
-        for _ in 0..10 {
+        for _ in 0..NB_SUB_TEST_SMART {
             // scalar multiplication
             ct_res = sks.smart_scalar_mul(&mut ct_res, scalar);
             clear_res = (clear_res * scalar) % modulus;
@@ -2821,7 +2842,7 @@ where
 
     let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST {
         let clear = rng.gen::<u8>() % modulus;
 
         let scalar = rng.gen::<u8>() % scalar_modulus;
@@ -2829,14 +2850,9 @@ where
         // encryption of an integer
         let ct = cks.encrypt(clear as u64);
 
-        let mut ct_res = sks.scalar_mul(&ct, scalar);
+        let ct_res = sks.scalar_mul(&ct, scalar);
 
-        let mut clear_res = clear * scalar;
-        for _ in 0..10 {
-            // scalar multiplication
-            ct_res = sks.scalar_mul(&ct_res, scalar);
-            clear_res = (clear_res * scalar) % modulus;
-        }
+        let clear_res = (clear * scalar) % modulus;
 
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
@@ -3009,7 +3025,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST_SMART {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
@@ -3019,7 +3035,7 @@ where
         let mut ct_res = sks.smart_sub(&mut ct1, &mut ct2);
 
         let mut clear_res = (clear1 - clear2) % modulus;
-        for _ in 0..10 {
+        for _ in 0..NB_SUB_TEST_SMART {
             // scalar multiplication
             ct_res = sks.smart_sub(&mut ct_res, &mut ct2);
             clear_res = (clear_res - clear2) % modulus;
@@ -3043,21 +3059,17 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..10 {
+    for _ in 0..NB_TEST {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
         let ct1 = cks.encrypt(clear1);
         let ct2 = cks.encrypt(clear2);
 
-        let mut ct_res = sks.sub(&ct1, &ct2);
+        let ct_res = sks.sub(&ct1, &ct2);
 
-        let mut clear_res = (clear1.wrapping_sub(clear2)) % modulus;
-        for _ in 0..10 {
-            // scalar multiplication
-            ct_res = sks.sub(&ct_res, &ct2);
-            clear_res = (clear_res.wrapping_sub(clear2)) % modulus;
-        }
+        let clear_res = (clear1.wrapping_sub(clear2)) % modulus;
+
         // decryption of ct_res
         let dec_res = cks.decrypt(&ct_res);
 
