@@ -68,11 +68,6 @@ fn run_test_cases(tester: impl Fn(&[u16], &[u16], &[u16], &[u16])) {
 fn test_volume_match_fhe(
     fhe_function: fn(&mut [RadixCiphertext], &mut [RadixCiphertext], &ServerKey),
 ) {
-    let working_dir = std::env::current_dir().unwrap();
-    if working_dir.file_name().unwrap() != std::path::Path::new("tfhe") {
-        std::env::set_current_dir(working_dir.join("tfhe")).unwrap();
-    }
-
     println!("Generating keys...");
     let time = Instant::now();
     let (client_key, server_key) = IntegerKeyCache.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
