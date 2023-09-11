@@ -57,7 +57,7 @@ pub fn expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
     }
 }
 
-/// Parallel version of [`expand_lwe_compact_ciphertext_list`].
+/// Parallel variant of [`expand_lwe_compact_ciphertext_list`].
 pub fn par_expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
     output_lwe_ciphertext_list: &mut LweCiphertextList<OutputCont>,
     input_lwe_compact_ciphertext_list: &LweCompactCiphertextList<InputCont>,
