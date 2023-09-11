@@ -273,6 +273,27 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
         decompressed_ct
     }
 
+    /// Parllel variant of
+    /// [`decompress_into_ggsw_ciphertext`](`Self::decompress_into_ggsw_ciphertext`)
+    pub fn par_decompress_into_ggsw_ciphertext(self) -> GgswCiphertextOwned<Scalar>
+    where
+        Scalar: UnsignedTorus + Send + Sync,
+    {
+        let mut decompressed_ct = GgswCiphertextOwned::new(
+            Scalar::ZERO,
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.decomposition_base_log(),
+            self.decomposition_level_count(),
+            self.ciphertext_modulus(),
+        );
+        par_decompress_seeded_ggsw_ciphertext::<_, _, _, ActivatedRandomGenerator>(
+            &mut decompressed_ct,
+            &self,
+        );
+        decompressed_ct
+    }
+
     /// Consume the entity and return its underlying container.
     ///
     /// See [`SeededGgswCiphertext::from_container`] for usage.
