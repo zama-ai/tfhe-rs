@@ -249,6 +249,27 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
         decompressed_ksk
     }
 
+    /// Parallel variant of
+    /// [`decompress_into_lwe_keyswitch_key`](`Self::decompress_into_lwe_keyswitch_key`).
+    pub fn par_decompress_into_lwe_keyswitch_key(self) -> LweKeyswitchKeyOwned<Scalar>
+    where
+        Scalar: UnsignedTorus + Send + Sync,
+    {
+        let mut decompressed_ksk = LweKeyswitchKeyOwned::new(
+            Scalar::ZERO,
+            self.decomposition_base_log(),
+            self.decomposition_level_count(),
+            self.input_key_lwe_dimension(),
+            self.output_key_lwe_dimension(),
+            self.ciphertext_modulus(),
+        );
+        par_decompress_seeded_lwe_keyswitch_key::<_, _, _, ActivatedRandomGenerator>(
+            &mut decompressed_ksk,
+            &self,
+        );
+        decompressed_ksk
+    }
+
     pub fn as_seeded_lwe_ciphertext_list(&self) -> SeededLweCiphertextListView<'_, Scalar> {
         SeededLweCiphertextListView::from_container(
             self.as_ref(),

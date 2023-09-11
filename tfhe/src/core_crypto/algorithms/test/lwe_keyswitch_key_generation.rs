@@ -5,7 +5,7 @@ use crate::core_crypto::commons::generators::{
 };
 use crate::core_crypto::commons::math::random::ActivatedRandomGenerator;
 
-fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus>(
+fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
     ciphertext_modulus: CiphertextModulus<Scalar>,
 ) {
     // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -87,9 +87,13 @@ fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus>(
 
         assert!(check_content_respects_mod(&seeded_ksk, ciphertext_modulus));
 
-        let decompressed_ksk = seeded_ksk.decompress_into_lwe_keyswitch_key();
+        let ser_decompressed_ksk = seeded_ksk.clone().decompress_into_lwe_keyswitch_key();
 
-        assert_eq!(ksk, decompressed_ksk);
+        assert_eq!(ksk, ser_decompressed_ksk);
+
+        let par_decompressed_ksk = seeded_ksk.par_decompress_into_lwe_keyswitch_key();
+
+        assert_eq!(ser_decompressed_ksk, par_decompressed_ksk);
     }
 }
 
