@@ -1,6 +1,5 @@
-#[allow(clippy::module_inception)]
-mod trivium;
-pub use trivium::TriviumStream;
+mod trivium_bool;
+pub use trivium_bool::TriviumStream;
 
 mod trivium_byte;
 pub use trivium_byte::TriviumStreamByte;
