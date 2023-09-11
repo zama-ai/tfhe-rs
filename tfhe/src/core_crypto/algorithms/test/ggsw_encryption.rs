@@ -140,9 +140,13 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
 
         assert_eq!(ser_seeded_ggsw, par_seeded_ggsw);
 
-        let decompressed_ggsw = par_seeded_ggsw.decompress_into_ggsw_ciphertext();
+        let ser_decompressed_ggsw = ser_seeded_ggsw.decompress_into_ggsw_ciphertext();
 
-        assert_eq!(ser_ggsw, decompressed_ggsw);
+        assert_eq!(ser_ggsw, ser_decompressed_ggsw);
+
+        let par_decompressed_ggsw = par_seeded_ggsw.par_decompress_into_ggsw_ciphertext();
+
+        assert_eq!(ser_decompressed_ggsw, par_decompressed_ggsw);
     }
 }
 
