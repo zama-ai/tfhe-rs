@@ -11,7 +11,7 @@
 
 ## Tutorials
 * [Homomorphic Parity Bit](tutorials/parity_bit.md)
-* [Homomorphic Case Changing on Latin String](tutorials/latin_fhe_string.md)
+* [Homomorphic Case Changing on Ascii String](tutorials/ascii_fhe_string.md)
 
 ## How To
 * [Configure Rust](how_to/rust_configuration.md)

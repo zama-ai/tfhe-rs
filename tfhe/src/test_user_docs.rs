@@ -92,7 +92,7 @@ doctest!("../docs/core_crypto/tutorial.md", core_crypto_tutorial);
 
 // Tutorials
 doctest!(
-    "../docs/tutorials/latin_fhe_string.md",
-    latin_fhe_string_tutorial
+    "../docs/tutorials/ascii_fhe_string.md",
+    ascii_fhe_string_tutorial
 );
 doctest!("../docs/tutorials/parity_bit.md", parity_bit_tutorial);

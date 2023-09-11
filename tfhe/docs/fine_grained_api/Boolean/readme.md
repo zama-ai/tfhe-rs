@@ -86,7 +86,7 @@ fn main() {
     // Don't consider the following line; you should follow the procedure above.
     let (client_key, _) = gen_keys();
 
-//---------------------------- SERVER SIDE
+//---------------------------- CLIENT SIDE
 
 // We use the client key to encrypt the messages:
     let ct_1 = client_key.encrypt(true);
@@ -104,7 +104,8 @@ fn main() {
 
 ## Encrypting inputs using a public key
 
-Once the server key is available on the **server side**, it is possible to perform some homomorphic computations. The client simply needs to encrypt some data and send it to the server. Again, the `Ciphertext` type implements the `Serialize` and the `Deserialize` traits, so that any serializer and communication tool suiting your use case can be utilized:
+Anyone (the server or a third party) with the public key can also encrypt some (or all) of the inputs.
+The public key can only be used to encrypt, not to decrypt.
 
 ```rust
 use tfhe::boolean::prelude::*;
@@ -114,18 +115,18 @@ fn main() {
     let (client_key, _) = gen_keys();
     let public_key = PublicKey::new(&client_key);
 
-//---------------------------- SERVER SIDE
+//---------------------------- SERVER or THIRD_PARTY SIDE
 
 // We use the public key to encrypt the messages:
     let ct_1 = public_key.encrypt(true);
     let ct_2 = public_key.encrypt(false);
 
-// We serialize the ciphertexts:
+// We serialize the ciphertexts (if not on the server already):
     let encoded_1: Vec<u8> = bincode::serialize(&ct_1).unwrap();
     let encoded_2: Vec<u8> = bincode::serialize(&ct_2).unwrap();
 
 // ...
-// And we send them to the server somehow
+// And we send them to the server to be deserialized (if not on the server already)
 // ...
 }
 ```

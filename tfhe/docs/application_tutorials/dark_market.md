@@ -212,19 +212,9 @@ fn volume_match_fhe(
 
     let total_volume = server_key.smart_min(&mut total_sell_volume, &mut total_buy_volume);
 
-    let fill_orders = |orders: &mut [RadixCiphertext]| {
-        let mut volume_left_to_transact = total_volume.clone();
-        for mut order in orders.iter_mut() {
-            let mut filled_amount = server_key.smart_min(&mut volume_left_to_transact, &mut order);
-            server_key.smart_sub_assign(&mut volume_left_to_transact, &mut filled_amount);
-            *order = filled_amount;
-        }
-    };
-
-    fill_orders(sell_orders);
-    fill_orders(buy_orders);
+    fill_orders(server_key, sell_orders, total_volume.clone());
+    fill_orders(server_key, buy_orders, total_volume);
 }
-
 ```
 
 ### Optimizing the implementation
