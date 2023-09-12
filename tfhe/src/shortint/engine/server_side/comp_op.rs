@@ -38,9 +38,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        let mut result = ct_left.clone();
-        self.unchecked_greater_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_greater(server_key, ct_left, ct_right)
     }
 
     pub(crate) fn unchecked_greater_or_equal(
@@ -79,9 +77,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        let mut result = ct_left.clone();
-        self.unchecked_greater_or_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_greater_or_equal(server_key, ct_left, ct_right)
     }
 
     pub(crate) fn unchecked_less(
@@ -120,9 +116,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        let mut result = ct_left.clone();
-        self.unchecked_less_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_less(server_key, ct_left, ct_right)
     }
 
     pub(crate) fn unchecked_less_or_equal(
@@ -161,9 +155,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        let mut result = ct_left.clone();
-        self.unchecked_less_or_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_less_or_equal(server_key, ct_left, ct_right)
     }
 
     pub(crate) fn unchecked_equal(
@@ -202,9 +194,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        let mut result = ct_left.clone();
-        self.unchecked_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_equal(server_key, ct_left, ct_right)
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
@@ -270,9 +260,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
-        let mut result = ct_left.clone();
-        self.unchecked_not_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_not_equal(server_key, ct_left, ct_right)
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
