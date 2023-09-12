@@ -417,12 +417,12 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count<Scalar, KSKCont, InputCont
         lwe_keyswitch_key.decomposition_level_count(),
     );
 
-    let mut intermediate_accumulators: Vec<_> = Vec::with_capacity(thread_count.0);
+    // Don't go above the current number of threads
+    let thread_count = thread_count.0.min(rayon::current_num_threads());
+    let mut intermediate_accumulators = Vec::with_capacity(thread_count);
 
     let output_lwe_size = output_lwe_ciphertext.lwe_size();
     let output_ciphertext_modulus = output_lwe_ciphertext.ciphertext_modulus();
-    // Don't go above the current number of threads
-    let thread_count = thread_count.0.min(rayon::current_num_threads());
 
     // Smallest chunk_size such that thread_count * chunk_size >= input_lwe_size
     let chunk_size = divide_ceil(input_lwe_ciphertext.lwe_size().0, thread_count);
