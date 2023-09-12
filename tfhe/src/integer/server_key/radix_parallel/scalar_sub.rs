@@ -36,6 +36,7 @@ impl ServerKey {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
+        assert!(self.is_scalar_sub_possible(ct, scalar));
         self.unchecked_scalar_sub(ct, scalar)
     }
 
@@ -47,6 +48,7 @@ impl ServerKey {
         if !self.is_scalar_sub_possible(ct, scalar) {
             self.full_propagate_parallelized(ct);
         }
+        assert!(self.is_scalar_sub_possible(ct, scalar));
         self.unchecked_scalar_sub_assign(ct, scalar);
     }
 

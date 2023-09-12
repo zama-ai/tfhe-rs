@@ -177,6 +177,7 @@ impl ServerKey {
             self.full_extract_message_assign_parallelized(ct);
         }
 
+        assert!(self.is_crt_scalar_sub_possible(ct, scalar));
         self.unchecked_crt_scalar_sub_parallelized(ct, scalar)
     }
 
@@ -184,6 +185,8 @@ impl ServerKey {
         if !self.is_crt_scalar_sub_possible(ct, scalar) {
             self.full_extract_message_assign_parallelized(ct);
         }
+
+        assert!(self.is_crt_scalar_sub_possible(ct, scalar));
 
         self.unchecked_crt_scalar_sub_assign_parallelized(ct, scalar);
     }

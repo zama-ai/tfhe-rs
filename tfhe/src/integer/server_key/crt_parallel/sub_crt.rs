@@ -116,6 +116,8 @@ impl ServerKey {
             );
         }
 
+        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
+
         self.unchecked_crt_sub_parallelized(ctxt_left, ctxt_right)
     }
 
@@ -156,6 +158,8 @@ impl ServerKey {
                 || self.full_extract_message_assign_parallelized(ctxt_right),
             );
         }
+
+        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
 
         self.unchecked_crt_sub_assign_parallelized(ctxt_left, ctxt_right);
     }

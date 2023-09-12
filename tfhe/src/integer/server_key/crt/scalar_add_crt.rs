@@ -176,6 +176,8 @@ impl ServerKey {
             self.full_extract_message_assign(ct);
         }
 
+        assert!(self.is_crt_scalar_add_possible(ct, scalar));
+
         let mut ct = ct.clone();
         self.unchecked_crt_scalar_add_assign(&mut ct, scalar);
         ct
@@ -211,6 +213,9 @@ impl ServerKey {
         if !self.is_crt_scalar_add_possible(ct, scalar) {
             self.full_extract_message_assign(ct);
         }
+
+        assert!(self.is_crt_scalar_add_possible(ct, scalar));
+
         self.unchecked_crt_scalar_add_assign(ct, scalar);
     }
 }

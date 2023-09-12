@@ -282,6 +282,7 @@ impl ServerKey {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
             self.full_propagate(ctxt);
         }
+        assert!(self.is_small_scalar_mul_possible(ctxt, scalar));
         self.unchecked_small_scalar_mul(ctxt, scalar)
     }
 
@@ -320,6 +321,8 @@ impl ServerKey {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
             self.full_propagate(ctxt);
         }
+        assert!(self.is_small_scalar_mul_possible(ctxt, scalar));
+
         self.unchecked_small_scalar_mul_assign(ctxt, scalar);
     }
 

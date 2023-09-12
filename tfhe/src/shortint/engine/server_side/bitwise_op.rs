@@ -168,6 +168,9 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+
         self.unchecked_bitor_assign(server_key, ct_left, ct_right)?;
         Ok(())
     }

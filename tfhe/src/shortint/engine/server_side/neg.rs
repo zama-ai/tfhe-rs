@@ -71,6 +71,9 @@ impl ShortintEngine {
         if !server_key.is_neg_possible(ct) {
             self.message_extract_assign(server_key, ct)?;
         }
+
+        assert!(server_key.is_neg_possible(ct));
+
         self.unchecked_neg(server_key, ct)
     }
 
@@ -83,6 +86,7 @@ impl ShortintEngine {
         if !server_key.is_neg_possible(ct) {
             self.message_extract_assign(server_key, ct)?;
         }
+        assert!(server_key.is_neg_possible(ct));
         self.unchecked_neg_assign(server_key, ct)
     }
 }

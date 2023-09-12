@@ -64,6 +64,9 @@ impl ShortintEngine {
                 self.message_extract_assign(server_key, ct_right)?;
             }
         }
+
+        assert!(server_key.is_add_possible(ct_left, ct_right));
+
         self.unchecked_add_assign(ct_left, ct_right)?;
         Ok(())
     }

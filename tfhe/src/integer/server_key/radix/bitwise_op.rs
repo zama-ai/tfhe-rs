@@ -211,6 +211,7 @@ impl ServerKey {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
+        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_bitand(ct_left, ct_right)
     }
 
@@ -222,6 +223,7 @@ impl ServerKey {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
+        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_bitand_assign(ct_left, ct_right);
     }
 
@@ -396,6 +398,8 @@ impl ServerKey {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
+
+        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_bitor(ct_left, ct_right)
     }
 
@@ -407,6 +411,8 @@ impl ServerKey {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
+
+        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_bitor_assign(ct_left, ct_right);
     }
 
@@ -581,6 +587,7 @@ impl ServerKey {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
+        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_bitxor(ct_left, ct_right)
     }
 
@@ -592,6 +599,7 @@ impl ServerKey {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
+        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_bitxor_assign(ct_left, ct_right);
     }
 }

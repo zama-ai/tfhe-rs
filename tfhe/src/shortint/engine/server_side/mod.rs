@@ -511,6 +511,8 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+
         let factor = MessageModulus(ct_right.degree.0 + 1);
 
         // Generate the lookup table for the function
@@ -560,6 +562,8 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
 
         self.unchecked_apply_lookup_table_bivariate_assign(server_key, ct_left, ct_right, acc)
     }
