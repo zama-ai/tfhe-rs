@@ -16,3 +16,6 @@ target/
 
 # dieharder run log
 dieharder_run.log
+
+# Coverage reports
+./coverage/

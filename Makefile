@@ -318,8 +318,9 @@ test_shortint: install_rs_build_toolchain
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe -- shortint::
 
 .PHONY: test_shortint_cov # Run the tests of the shortint module with code coverage
-test_shortint_cov: install_tarpaulin
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --out Xml --line --engine Llvm --profile $(CARGO_PROFILE) \
+test_shortint_cov: install_rs_check_toolchain install_tarpaulin
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+		--out Xml --output-dir coverage/shortint --line --engine Llvm --timeout 500 \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,__coverage -p tfhe -- shortint::
 
 .PHONY: test_integer_ci # Run the tests for integer ci
