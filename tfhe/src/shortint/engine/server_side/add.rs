@@ -44,9 +44,7 @@ impl ShortintEngine {
 
         assert!(server_key.is_add_possible(ct_left, ct_right));
 
-        let mut result = ct_left.clone();
-        self.unchecked_add_assign(&mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_add(ct_left, ct_right)
     }
 
     pub(crate) fn smart_add_assign(

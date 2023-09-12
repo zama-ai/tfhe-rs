@@ -163,10 +163,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         if self.is_add_possible(ct_left, ct_right) {
-            let mut result = ct_left.clone();
-            self.unchecked_add_assign(&mut result, ct_right);
-
-            Ok(result)
+            Ok(self.unchecked_add(ct_left, ct_right))
         } else {
             Err(CarryFull)
         }
