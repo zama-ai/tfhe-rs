@@ -247,6 +247,7 @@ impl ServerKey {
         if !self.is_neg_possible(ctxt) {
             self.full_propagate(ctxt);
         }
+        assert!(self.is_neg_possible(ctxt));
         self.unchecked_neg(ctxt)
     }
 }

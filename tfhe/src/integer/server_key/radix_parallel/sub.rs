@@ -60,6 +60,8 @@ impl ServerKey {
             );
         }
 
+        assert!(self.is_sub_possible(ctxt_left, ctxt_right));
+
         let mut result = ctxt_left.clone();
         self.unchecked_sub_assign(&mut result, ctxt_right);
 
@@ -108,6 +110,7 @@ impl ServerKey {
                 || self.full_propagate_parallelized(ctxt_right),
             );
         }
+        assert!(self.is_sub_possible(ctxt_left, ctxt_right));
 
         self.unchecked_sub_assign(ctxt_left, ctxt_right);
     }

@@ -38,6 +38,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_greater(server_key, ct_left, ct_right)
     }
 
@@ -77,6 +78,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_greater_or_equal(server_key, ct_left, ct_right)
     }
 
@@ -116,6 +118,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_less(server_key, ct_left, ct_right)
     }
 
@@ -155,6 +158,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_less_or_equal(server_key, ct_left, ct_right)
     }
 
@@ -194,6 +198,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_equal(server_key, ct_left, ct_right)
     }
 
@@ -260,6 +265,7 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_left)?;
             self.message_extract_assign(server_key, ct_right)?;
         }
+        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_not_equal(server_key, ct_left, ct_right)
     }
 

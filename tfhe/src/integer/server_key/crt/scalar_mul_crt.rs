@@ -179,6 +179,9 @@ impl ServerKey {
         if !self.is_crt_scalar_mul_possible(ctxt, scalar) {
             self.full_extract_message_assign(ctxt);
         }
+
+        assert!(self.is_crt_scalar_mul_possible(ctxt, scalar));
+
         self.unchecked_crt_scalar_mul(ctxt, scalar)
     }
 
@@ -216,6 +219,8 @@ impl ServerKey {
         if !self.is_crt_small_scalar_mul_possible(ctxt, scalar) {
             self.full_extract_message_assign(ctxt);
         }
+        assert!(self.is_crt_scalar_mul_possible(ctxt, scalar));
+
         self.unchecked_crt_scalar_mul_assign(ctxt, scalar);
     }
 

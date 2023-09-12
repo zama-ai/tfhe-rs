@@ -179,6 +179,7 @@ impl ServerKey {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
             self.full_propagate_parallelized(ctxt);
         }
+        assert!(self.is_small_scalar_mul_possible(ctxt, scalar));
         self.unchecked_small_scalar_mul_parallelized(ctxt, scalar)
     }
 
@@ -221,6 +222,7 @@ impl ServerKey {
         if !self.is_small_scalar_mul_possible(ctxt, scalar) {
             self.full_propagate_parallelized(ctxt);
         }
+        assert!(self.is_small_scalar_mul_possible(ctxt, scalar));
         self.unchecked_small_scalar_mul_assign_parallelized(ctxt, scalar);
     }
 

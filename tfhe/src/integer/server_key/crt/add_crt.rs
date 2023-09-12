@@ -35,6 +35,8 @@ impl ServerKey {
             self.full_extract_message_assign(ct_left);
             self.full_extract_message_assign(ct_right);
         }
+        assert!(self.is_crt_add_possible(ct_left, ct_right));
+
         self.unchecked_crt_add(ct_left, ct_right)
     }
 
@@ -44,6 +46,7 @@ impl ServerKey {
             self.full_extract_message_assign(ct_left);
             self.full_extract_message_assign(ct_right);
         }
+        assert!(self.is_crt_add_possible(ct_left, ct_right));
         self.unchecked_crt_add_assign(ct_left, ct_right);
     }
 

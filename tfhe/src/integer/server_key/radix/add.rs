@@ -243,6 +243,8 @@ impl ServerKey {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
+
+        assert!(self.is_add_possible(ct_left, ct_right));
         self.unchecked_add(ct_left, ct_right)
     }
 
@@ -255,6 +257,8 @@ impl ServerKey {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
+        assert!(self.is_add_possible(ct_left, ct_right));
+
         self.unchecked_add_assign(ct_left, ct_right);
     }
 }
