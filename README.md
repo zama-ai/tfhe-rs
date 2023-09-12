@@ -92,10 +92,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // On the server side:
     set_server_key(server_keys);
 
-    // Clear equivalent computations: 1344 * 8 = 10752
+    // Clear equivalent computations: 1344 * 5 = 6720
     let encrypted_res_mul = &encrypted_a * &encrypted_b;
 
-    // Clear equivalent computations: 1344 >> 8 = 42
+    // Clear equivalent computations: 1344 >> 5 = 42
     encrypted_a = &encrypted_res_mul >> &encrypted_b;
 
     // Clear equivalent computations: let casted_a = a as u8;
