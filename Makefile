@@ -372,14 +372,12 @@ test_examples: test_sha256_bool test_regex_engine
 .PHONY: test_trivium # Run tests for trivium
 test_trivium: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		trivium --features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
-		-- --test-threads=1
+		-p tfhe-trivium -- --test-threads=1 trivium::
 
 .PHONY: test_kreyvium # Run tests for kreyvium
 test_kreyvium: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		kreyvium --features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
-		-- --test-threads=1
+		-p tfhe-trivium -- --test-threads=1 kreyvium::
 
 .PHONY: test_concrete_csprng # Run concrete-csprng tests
 test_concrete_csprng:
