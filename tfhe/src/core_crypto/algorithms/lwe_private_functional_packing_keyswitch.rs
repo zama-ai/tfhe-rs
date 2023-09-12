@@ -162,6 +162,11 @@ pub fn par_private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext_with
         "This operation currently only supports native moduli"
     );
 
+    assert!(
+        thread_count.0 != 0,
+        "Got thread_count == 0, this is not supported"
+    );
+
     // We reset the output
     output_glwe_ciphertext.as_mut().fill(Scalar::ZERO);
 
@@ -171,13 +176,13 @@ pub fn par_private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext_with
         lwe_pfpksk.decomposition_level_count(),
     );
 
-    let mut intermediate_accumulators: Vec<_> = Vec::with_capacity(thread_count.0);
+    // Don't go above the current number of threads
+    let thread_count = thread_count.0.min(rayon::current_num_threads());
+    let mut intermediate_accumulators = Vec::with_capacity(thread_count);
 
     let output_glwe_size = output_glwe_ciphertext.glwe_size();
     let output_glwe_polynomial_size = output_glwe_ciphertext.polynomial_size();
     let output_glwe_ciphertext_modulus = output_glwe_ciphertext.ciphertext_modulus();
-    // Don't go above the current number of threads
-    let thread_count = thread_count.0.min(rayon::current_num_threads());
 
     // Smallest chunk_size such that thread_count * chunk_size >= input_lwe_size
     let chunk_size = divide_ceil(input_lwe_ciphertext.lwe_size().0, thread_count);
