@@ -12,6 +12,16 @@ jobs:
     permissions:
       pull-requests: write
     steps:
+      - name: Get current labels
+        uses: snnaplab/get-labels-action@f426df40304808ace3b5282d4f036515f7609576
+
+      - name: Remove approved label
+        if: ${{ github.event_name == 'pull_request' && contains(fromJSON(env.LABELS), 'approved') }}
+        uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: approved
+
       - name: Launch fast tests
         if: ${{ github.event_name == 'pull_request' }}
         uses: mshick/add-pr-comment@a65df5f64fc741e91c59b8359a4bc56e57aaf5b1
@@ -20,8 +30,17 @@ jobs:
           message: |
             @slab-ci cpu_fast_test
 
+      - name: Add approved label
+        uses: actions-ecosystem/action-add-labels@bd52874380e3909a1ac983768df6976535ece7f8
+        if: ${{ github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && !contains(fromJSON(env.LABELS), 'approved') }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: approved
+
+      # PR label 'approved' presence is checked to avoid running the full test suite several times
+      # in case of multiple approvals without new commits in between.
       - name: Launch full tests suite
-        if: ${{ github.event_name == 'pull_request_review' && github.event.review.state == 'approved' }}
+        if: ${{ github.event_name == 'pull_request_review' && github.event.review.state == 'approved' && !contains(fromJSON(env.LABELS), 'approved') }}
         uses: mshick/add-pr-comment@a65df5f64fc741e91c59b8359a4bc56e57aaf5b1
         with:
           allow-repeats: true
