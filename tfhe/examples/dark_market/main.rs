@@ -7,6 +7,7 @@ use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 mod fhe;
 mod improved_parallel_fhe;
+mod improved_plain;
 mod parallel_fhe;
 mod plain;
 
@@ -62,9 +63,11 @@ fn run_test_cases(tester: impl Fn(&[u16], &[u16], &[u16], &[u16])) {
     }
 }
 
-/// Runs the test cases for the fhe implementation of the volume matching algorithm.
-///
-/// [parallelized] indicates whether the fhe implementation should be run in parallel.
+fn test_volume_match_plain(function: fn(&mut [u16], &mut [u16])) {
+    println!("Running test cases for the plain implementation");
+    run_test_cases(|a, b, c, d| plain::tester(a, b, c, d, function));
+}
+
 fn test_volume_match_fhe(
     fhe_function: fn(&mut [RadixCiphertext], &mut [RadixCiphertext], &ServerKey),
 ) {
@@ -81,9 +84,12 @@ fn main() {
     for argument in std::env::args() {
         if argument == "plain" {
             println!("Running plain version");
-            run_test_cases(plain::tester);
+            test_volume_match_plain(plain::volume_match);
             println!();
         }
+        if argument == "plain-improved" {
+            println!("Running plain improved version");
+            test_volume_match_plain(improved_plain::volume_match);
             println!();
         }
         if argument == "fhe" {
