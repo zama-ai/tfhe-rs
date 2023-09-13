@@ -67,12 +67,12 @@ jobs:
 
       - name: Run js on wasm API tests
         run: |
-          make test_nodejs_wasm_api_in_docker
+          just test_nodejs_wasm_api_in_docker
 
       - name: Run parallel wasm tests
         run: |
-          make install_node
-          make ci_test_web_js_api_parallel
+          just install_node
+          just ci_test_web_js_api_parallel
 
       - name: Slack Notification
         if: ${{ always() }}

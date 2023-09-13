@@ -60,12 +60,12 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make install_node
-          make ci_bench_web_js_api_parallel
+          just install_node
+          just ci_bench_web_js_api_parallel
 
       - name: Parse results
         run: |
-          make parse_wasm_benchmarks
+          just parse_wasm_benchmarks
 
           COMMIT_DATE="$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})"
           COMMIT_HASH="$(git describe --tags --dirty)"
@@ -80,7 +80,7 @@ jobs:
 
       - name: Measure public key and ciphertext sizes in HL Api
         run: |
-          make measure_hlapi_compact_pk_ct_sizes
+          just measure_hlapi_compact_pk_ct_sizes
 
       - name: Parse key and ciphertext sizes results
         run: |

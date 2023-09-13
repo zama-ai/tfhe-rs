@@ -67,39 +67,39 @@ jobs:
 
       - name: Run concrete-csprng tests
         run: |
-          make test_concrete_csprng
+          just test_concrete_csprng
 
       - name: Run core tests
         run: |
-          AVX512_SUPPORT=ON make test_core_crypto
+          AVX512_SUPPORT=ON just test_core_crypto
 
       - name: Run boolean tests
         run: |
-          make test_boolean
+          just test_boolean
 
       - name: Run C API tests
         run: |
-          make test_c_api
+          just test_c_api
 
       - name: Run user docs tests
         run: |
-          make test_user_doc
+          just test_user_doc
 
       - name: Gen Keys if required
         run: |
-          make gen_key_cache
+          just gen_key_cache
 
       - name: Run shortint tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_shortint_ci
+          BIG_TESTS_INSTANCE=TRUE just test_shortint_ci
 
       - name: Run high-level API tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_high_level_api
+          BIG_TESTS_INSTANCE=TRUE just test_high_level_api
 
       - name: Run example tests
         run: |
-          make test_examples
+          just test_examples
 
       - name: Slack Notification
         if: ${{ always() }}

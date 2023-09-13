@@ -25,36 +25,36 @@ jobs:
 
       - name: Run pcc checks
         run: |
-          make pcc
+          just pcc
 
       - name: Build concrete-csprng
         run: |
-          make build_concrete_csprng
+          just build_concrete_csprng
 
       - name: Build Release core
         run: |
-          make build_core AVX512_SUPPORT=ON
-          make build_core_experimental AVX512_SUPPORT=ON
+          just build_core AVX512_SUPPORT=ON
+          just build_core_experimental AVX512_SUPPORT=ON
 
       - name: Build Release boolean
         run: |
-          make build_boolean
+          just build_boolean
 
       - name: Build Release shortint
         run: |
-          make build_shortint
+          just build_shortint
 
       - name: Build Release integer
         run: |
-          make build_integer
+          just build_integer
 
       - name: Build Release tfhe full
         run: |
-          make build_tfhe_full
+          just build_tfhe_full
 
       - name: Build Release c_api
         run: |
-          make build_c_api
+          just build_c_api
 
       # The wasm build check is a bit annoying to set-up here and is done during the tests in
       # aws_tfhe_tests.yml

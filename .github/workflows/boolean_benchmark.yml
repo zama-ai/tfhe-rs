@@ -60,7 +60,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make AVX512_SUPPORT=ON bench_boolean
+          just AVX512_SUPPORT=ON bench_boolean
 
       - name: Parse results
         run: |
@@ -79,7 +79,7 @@ jobs:
 
       - name: Measure key sizes
         run: |
-          make measure_boolean_key_sizes
+          just measure_boolean_key_sizes
 
       - name: Parse key sizes results
         run: |

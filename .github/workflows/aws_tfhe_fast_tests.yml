@@ -68,47 +68,47 @@ jobs:
 
       - name: Run concrete-csprng tests
         run: |
-          make test_concrete_csprng
+          just test_concrete_csprng
 
       - name: Run core tests
         run: |
-          AVX512_SUPPORT=ON make test_core_crypto
+          AVX512_SUPPORT=ON just test_core_crypto
 
       - name: Run boolean tests
         run: |
-          make test_boolean
+          just test_boolean
 
       - name: Run user docs tests
         run: |
-          make test_user_doc
+          just test_user_doc
 
       - name: Run js on wasm API tests
         run: |
-          make test_nodejs_wasm_api_in_docker
+          just test_nodejs_wasm_api_in_docker
 
       - name: Gen Keys if required
         run: |
-          make gen_key_cache
+          just gen_key_cache
 
       - name: Run shortint tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_shortint_ci
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE just test_shortint_ci
 
       - name: Run integer tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_ci
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE just test_integer_ci
 
       - name: Run shortint multi-bit tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_shortint_multi_bit_ci
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE just test_shortint_multi_bit_ci
 
       - name: Run integer multi-bit tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_multi_bit_ci
+          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE just test_integer_multi_bit_ci
 
       - name: Run high-level API tests
         run: |
-          make test_high_level_api
+          just test_high_level_api
 
       - name: Slack Notification
         if: ${{ always() }}

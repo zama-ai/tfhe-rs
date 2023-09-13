@@ -38,83 +38,83 @@ jobs:
 
       - name: Run pcc checks
         run: |
-          make pcc
+          just pcc
 
       - name: Build concrete-csprng
         run: |
-          make build_concrete_csprng
+          just build_concrete_csprng
 
       - name: Build Release core
         run: |
-          make build_core
+          just build_core
 
       - name: Build Release boolean
         run: |
-          make build_boolean
+          just build_boolean
 
       - name: Build Release shortint
         run: |
-          make build_shortint
+          just build_shortint
 
       - name: Build Release integer
         run: |
-          make build_integer
+          just build_integer
 
       - name: Build Release tfhe full
         run: |
-          make build_tfhe_full
+          just build_tfhe_full
 
       - name: Build Release c_api
         run: |
-          make build_c_api
+          just build_c_api
 
       - name: Run concrete-csprng tests
         run: |
-          make test_concrete_csprng
+          just test_concrete_csprng
 
       - name: Run core tests
         run: |
-          make test_core_crypto
+          just test_core_crypto
 
       - name: Run boolean tests
         run: |
-          make test_boolean
+          just test_boolean
 
       - name: Run C API tests
         run: |
-          make test_c_api
+          just test_c_api
 
       - name: Run user docs tests
         run: |
-          make test_user_doc
+          just test_user_doc
 
       # JS tests are more easily launched in docker, we won't test that on M1 as docker is pretty
       # slow on Apple machines due to the virtualization layer.
 
       - name: Gen Keys if required
         run: |
-          make gen_key_cache
+          just gen_key_cache
 
       - name: Run shortint tests
         run: |
-          make test_shortint_ci
+          just test_shortint_ci
 
       - name: Run integer tests
         run: |
-          make test_integer_ci
+          just test_integer_ci
 
       - name: Gen Keys if required
         run: |
-          make GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
+          just GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
 
       - name: Run shortint multi bit tests
         run: |
-          make test_shortint_multi_bit_ci
+          just test_shortint_multi_bit_ci
 
       # # These multi bit integer tests are too slow on M1 with low core count and low RAM
       # - name: Run integer multi bit tests
       #   run: |
-      #     make test_integer_multi_bit_ci
+      #     just test_integer_multi_bit_ci
 
   remove_label:
     name: Remove m1_test label

@@ -59,7 +59,7 @@ jobs:
 
       - name: Dieharder randomness test suite
         run: |
-          make dieharder_csprng
+          just dieharder_csprng
 
       - name: Slack Notification
         if: ${{ failure() }}

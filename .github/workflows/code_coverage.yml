@@ -20,11 +20,11 @@ jobs:
 
       - name: Gen Keys if required
         run: |
-          make GEN_KEY_CACHE_COVERAGE_ONLY=TRUE gen_key_cache
+          just GEN_KEY_CACHE_COVERAGE_ONLY=TRUE gen_key_cache
 
       - name: Run shortint coverage
         run: |
-          make test_shortint_cov
+          just test_shortint_cov
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d

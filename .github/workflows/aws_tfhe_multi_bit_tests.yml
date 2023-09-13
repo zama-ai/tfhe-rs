@@ -67,15 +67,15 @@ jobs:
 
       - name: Gen Keys if required
         run: |
-          make GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
+          just GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
 
       - name: Run shortint multi-bit tests
         run: |
-          make test_shortint_multi_bit_ci
+          just test_shortint_multi_bit_ci
 
       - name: Run integer multi-bit tests
         run: |
-          make test_integer_multi_bit_ci
+          just test_integer_multi_bit_ci
 
       - name: Slack Notification
         if: ${{ always() }}

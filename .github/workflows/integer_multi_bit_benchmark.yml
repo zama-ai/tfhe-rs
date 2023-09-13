@@ -61,11 +61,11 @@ jobs:
 
       - name: Run multi-bit benchmarks with AVX512
         run: |
-          make AVX512_SUPPORT=ON FAST_BENCH=TRUE bench_integer_multi_bit
+          just AVX512_SUPPORT=ON FAST_BENCH=TRUE bench_integer_multi_bit
 
       - name: Parse benchmarks to csv
         run: |
-          make PARSE_INTEGER_BENCH_CSV_FILE=${{ env.PARSE_INTEGER_BENCH_CSV_FILE }} \
+          just PARSE_INTEGER_BENCH_CSV_FILE=${{ env.PARSE_INTEGER_BENCH_CSV_FILE }} \
             parse_integer_benches
 
       - name: Upload csv results artifact

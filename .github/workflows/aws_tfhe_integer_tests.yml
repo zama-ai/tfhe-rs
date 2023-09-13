@@ -67,11 +67,11 @@ jobs:
 
       - name: Gen Keys if required
         run: |
-          make gen_key_cache
+          just gen_key_cache
 
       - name: Run integer tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_integer_ci
+          BIG_TESTS_INSTANCE=TRUE just test_integer_ci
 
       - name: Slack Notification
         if: ${{ always() }}

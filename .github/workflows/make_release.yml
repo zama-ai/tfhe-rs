@@ -45,7 +45,7 @@ jobs:
       - name: Build web package
         if: ${{ inputs.push_web_package }}
         run: |
-          make build_web_js_api
+          just build_web_js_api
 
       - name: Publish web package
         if: ${{ inputs.push_web_package }}
@@ -60,7 +60,7 @@ jobs:
         run: |
           rm -rf tfhe/pkg
 
-          make build_node_js_api
+          just build_node_js_api
           sed -i 's/"tfhe"/"node-tfhe"/g' tfhe/pkg/package.json
 
       - name: Publish Node package

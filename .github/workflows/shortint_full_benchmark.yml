@@ -73,7 +73,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make AVX512_SUPPORT=ON BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_shortint
+          just AVX512_SUPPORT=ON BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_shortint
 
       - name: Parse results
         run: |
@@ -94,7 +94,7 @@ jobs:
       - name: Measure key sizes
         if: matrix.op_flavor == 'default'
         run: |
-          make measure_shortint_key_sizes
+          just measure_shortint_key_sizes
 
       - name: Parse key sizes results
         if: matrix.op_flavor == 'default'
