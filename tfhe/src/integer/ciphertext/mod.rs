@@ -88,14 +88,14 @@ impl RadixCiphertext {
         self.blocks.iter().all(|block| block.carry_is_empty())
     }
 
-    /// Returns wether the ciphertext _seems_ like it holds/encrypts
-    /// a boolean (0 or 1) value.
-    ///
-    /// Since it uses degree to do so, it will not
-    /// always return the correct answer.
-    pub(crate) fn holds_boolean_value(&self) -> bool {
-        self.blocks[0].degree.0 <= 1 && self.blocks[1..].iter().all(|block| block.degree.0 == 0)
-    }
+    // / Returns wether the ciphertext _seems_ like it holds/encrypts
+    // / a boolean (0 or 1) value.
+    // /
+    // / Since it uses degree to do so, it will not
+    // / always return the correct answer.
+    // pub(crate) fn holds_boolean_value(&self) -> bool {
+    //     self.blocks[0].degree.0 <= 1 && self.blocks[1..].iter().all(|block| block.degree.0 == 0)
+    // }
 }
 
 /// Structure containing a ciphertext in radix decomposition

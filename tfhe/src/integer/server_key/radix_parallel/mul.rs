@@ -475,17 +475,17 @@ impl ServerKey {
         lhs: &mut RadixCiphertext,
         rhs: &RadixCiphertext,
     ) {
-        if rhs.holds_boolean_value() {
-            self.zero_out_if_condition_is_false(lhs, &rhs.blocks[0]);
-            return;
-        }
+        // if rhs.holds_boolean_value() {
+        //     self.zero_out_if_condition_is_false(lhs, &rhs.blocks[0]);
+        //     return;
+        // }
 
-        if lhs.holds_boolean_value() {
-            let mut cloned_rhs = rhs.clone();
-            self.zero_out_if_condition_is_false(&mut cloned_rhs, &lhs.blocks[0]);
-            *lhs = cloned_rhs;
-            return;
-        }
+        // if lhs.holds_boolean_value() {
+        //     let mut cloned_rhs = rhs.clone();
+        //     self.zero_out_if_condition_is_false(&mut cloned_rhs, &lhs.blocks[0]);
+        //     *lhs = cloned_rhs;
+        //     return;
+        // }
 
         let terms = rhs
             .blocks

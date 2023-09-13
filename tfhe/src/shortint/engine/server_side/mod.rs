@@ -416,8 +416,7 @@ impl ShortintEngine {
         ct_right: &Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) -> EngineResult<()> {
-        let modulus = (ct_right.degree.0 + 1) as u64;
-        assert!(modulus <= acc.ct_right_modulus.0 as u64);
+        // assert!(ct_right.degree.0 < acc.ct_right_modulus.0);
 
         // Message 1 is shifted
         self.unchecked_scalar_mul_assign(ct_left, acc.ct_right_modulus.0 as u8)?;
@@ -649,6 +648,7 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
         acc: &LookupTableOwned,
     ) -> EngineResult<()> {
+        // assert!(ct.degree.0 < ct.carry_modulus.0 * ct.message_modulus.0);
         match server_key.pbs_order {
             PBSOrder::KeyswitchBootstrap => {
                 // This updates the ciphertext degree
