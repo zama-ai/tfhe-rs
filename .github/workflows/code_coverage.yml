@@ -6,17 +6,64 @@ env:
   RUSTFLAGS: "-C target-cpu=native"
 
 on:
-  push:
-    branches:
-      - "main"
-  pull_request:
+  # Allows you to run this workflow manually from the Actions tab as an alternative.
+  workflow_dispatch:
+    # All the inputs are provided by Slab
+    inputs:
+      instance_id:
+        description: "AWS instance ID"
+        type: string
+      instance_image_id:
+        description: "AWS instance AMI ID"
+        type: string
+      instance_type:
+        description: "AWS instance product type"
+        type: string
+      runner_name:
+        description: "Action runner name"
+        type: string
+      request_id:
+        description: 'Slab request ID'
+        type: string
+      fork_repo:
+        description: 'Name of forked repo as user/repo'
+        type: string
+      fork_git_sha:
+        description: 'Git SHA to checkout from fork'
+        type: string
 
 jobs:
   code-coverage:
-    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
+      cancel-in-progress: true
+    runs-on: ${{ inputs.runner_name }}
     steps:
+      # Step used for log purpose.
+      - name: Instance configuration used
+        run: |
+          echo "ID: ${{ inputs.instance_id }}"
+          echo "AMI: ${{ inputs.instance_image_id }}"
+          echo "Type: ${{ inputs.instance_type }}"
+          echo "Request ID: ${{ inputs.request_id }}"
+          echo "Fork repo: ${{ inputs.fork_repo }}"
+          echo "Fork git sha: ${{ inputs.fork_git_sha }}"
+
       - name: Checkout tfhe-rs
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        with:
+          repository: ${{ inputs.fork_repo }}
+          ref: ${{ inputs.fork_git_sha }}
+
+      - name: Set up home
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      - name: Install latest stable
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        with:
+          toolchain: stable
+          default: true
 
       - name: Check for file changes
         id: changed-files
@@ -37,9 +84,9 @@ jobs:
         run: |
           make test_shortint_cov
 
-      - name: Upload coverage to Codecov
+      - name: Upload tfhe coverage to Codecov
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
