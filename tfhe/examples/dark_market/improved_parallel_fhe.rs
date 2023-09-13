@@ -57,28 +57,31 @@ fn fill_orders(
         .into_par_iter()
         .enumerate()
         .for_each(move |(i, order)| {
-            server_key.smart_add_assign_parallelized(
-                order,
-                &mut server_key.smart_mul_parallelized(
-                    &mut server_key
-                        .smart_ge_parallelized(&mut order.clone(), &mut total_orders.clone()),
-                    &mut server_key.smart_sub_parallelized(
-                        &mut server_key.smart_sub_parallelized(
-                            &mut total_orders.clone(),
-                            &mut server_key.smart_min_parallelized(
-                                &mut total_orders.clone(),
-                                &mut prefix_sum_arr
-                                    .get(i - 1)
-                                    .unwrap_or(
-                                        &server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS),
-                                    )
-                                    .clone(),
-                            ),
-                        ),
-                        &mut order.clone(),
-                    ),
-                ),
-            );
+            // (total_orders - previous_prefix_sum).max(0)
+            let mut diff = if i == 0 {
+                total_orders.clone()
+            } else {
+                let previous_prefix_sum = &prefix_sum_arr[i - 1];
+
+                // total_orders - previous_prefix_sum
+                let mut diff = server_key.smart_sub_parallelized(
+                    &mut total_orders.clone(),
+                    &mut previous_prefix_sum.clone(),
+                );
+
+                // total_orders > prefix_sum
+                let mut cond = server_key.smart_gt_parallelized(
+                    &mut total_orders.clone(),
+                    &mut previous_prefix_sum.clone(),
+                );
+
+                // (total_orders - previous_prefix_sum) * (total_orders > previous_prefix_sum)
+                // = (total_orders - previous_prefix_sum).max(0)
+                server_key.smart_mul_parallelized(&mut cond, &mut diff)
+            };
+
+            // (total_orders - previous_prefix_sum).max(0).min(*order);
+            *order = server_key.smart_min_parallelized(&mut diff, order);
         });
 }
 

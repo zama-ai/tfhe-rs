@@ -28,13 +28,14 @@ pub fn tester(
     input_buy_orders: &[u16],
     expected_filled_sells: &[u16],
     expected_filled_buys: &[u16],
+    function: fn(&mut [u16], &mut [u16]),
 ) {
     let mut sell_orders = input_sell_orders.to_vec();
     let mut buy_orders = input_buy_orders.to_vec();
 
     println!("Running plain implementation...");
     let time = Instant::now();
-    volume_match(&mut sell_orders, &mut buy_orders);
+    function(&mut sell_orders, &mut buy_orders);
     println!("Ran plain implementation in {:?}", time.elapsed());
 
     assert_eq!(sell_orders, expected_filled_sells);

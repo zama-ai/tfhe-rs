@@ -330,14 +330,19 @@ We will call the new list the "prefix sum" of the array.
 
 The new version for the plain `fill_orders` is as follows:
 ```rust
-let fill_orders = |orders: &mut [u64], prefix_sum: &[u64], total_orders: u64|{
+fn fill_orders(total_orders: u16, orders: &mut [u16], prefix_sum_arr: &[u16]) {
     orders.iter().for_each(|order : &mut u64| {
-        if (total_orders >= prefix_sum[i]) {
-            continue;
-        } else if total_orders >= prefix_sum.get(i-1).unwrap_or(0) {
-            *order = total_orders - prefix_sum.get(i-1).unwrap_or(0);
-        } else {
+        let previous_prefix_sum = if i == 0 { 0 } else { prefix_sum_arr[i - 1] };
+        
+        let diff = total_orders as i64 - previous_prefix_sum as i64;
+        
+        if (diff < 0) {
             *order = 0;
+        } else if diff < order {
+            *order = diff as u16;
+        } else {
+            // *order = *order;
+            continue;
         }
     });
 };
@@ -346,11 +351,15 @@ let fill_orders = |orders: &mut [u64], prefix_sum: &[u64], total_orders: u64|{
 To write this new function we need transform the conditional code into a mathematical expression since FHE does not support conditional operations.
 ```rust
 
-let fill_orders = |orders: &mut [u64], prefix_sum: &[u64], total_orders: u64| {
-    orders.iter().for_each(|order| : &mut){
-        *order = *order + ((total_orders >= prefix_sum - std::cmp::min(total_orders, prefix_sum.get(i - 1).unwrap_or(&0).clone()) - *order);
+fn fill_orders(total_orders: u16, orders: &mut [u16], prefix_sum_arr: &[u16]) {
+    for (i, order) in orders.iter_mut().enumerate() {
+        let previous_prefix_sum = if i == 0 { 0 } else { prefix_sum_arr[i - 1] };
+
+        *order = (total_orders as i64 - previous_prefix_sum as i64)
+            .max(0)
+            .min(*order as i64) as u16;
     }
-};
+}
 ```
 
 New `fill_order` function requires a prefix sum array. We are going to calculate this prefix sum array in parallel 
@@ -363,108 +372,129 @@ So we modify how the algorithm is implemented, but we don't change the algorithm
 
 Here is the modified version of the algorithm in TFHE-rs:
 ```rust
-fn volume_match_fhe_modified(
+fn compute_prefix_sum(server_key: &ServerKey, arr: &[RadixCiphertext]) -> Vec<RadixCiphertext> {
+    if arr.is_empty() {
+        return arr.to_vec();
+    }
+    let mut prefix_sum: Vec<RadixCiphertext> = (0..arr.len().next_power_of_two())
+        .into_par_iter()
+        .map(|i| {
+            if i < arr.len() {
+                arr[i].clone()
+            } else {
+                server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS)
+            }
+        })
+        .collect();
+    for d in 0..prefix_sum.len().ilog2() {
+        prefix_sum
+            .par_chunks_exact_mut(2_usize.pow(d + 1))
+            .for_each(move |chunk| {
+                let length = chunk.len();
+                let mut left = chunk.get((length - 1) / 2).unwrap().clone();
+                server_key.smart_add_assign_parallelized(chunk.last_mut().unwrap(), &mut left)
+            });
+    }
+    let last = prefix_sum.last().unwrap().clone();
+    *prefix_sum.last_mut().unwrap() = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
+    for d in (0..prefix_sum.len().ilog2()).rev() {
+        prefix_sum
+            .par_chunks_exact_mut(2_usize.pow(d + 1))
+            .for_each(move |chunk| {
+                let length = chunk.len();
+                let temp = chunk.last().unwrap().clone();
+                let mut mid = chunk.get((length - 1) / 2).unwrap().clone();
+                server_key.smart_add_assign_parallelized(chunk.last_mut().unwrap(), &mut mid);
+                chunk[(length - 1) / 2] = temp;
+            });
+    }
+    prefix_sum.push(last);
+    prefix_sum[1..=arr.len()].to_vec()
+}
+
+fn fill_orders(
+    server_key: &ServerKey,
+    total_orders: &RadixCiphertext,
+    orders: &mut [RadixCiphertext],
+    prefix_sum_arr: &[RadixCiphertext],
+) {
+    orders
+        .into_par_iter()
+        .enumerate()
+        .for_each(move |(i, order)| {
+            // (total_orders - previous_prefix_sum).max(0)
+            let mut diff = if i == 0 {
+                total_orders.clone()
+            } else {
+                let previous_prefix_sum = &prefix_sum_arr[i - 1];
+
+                // total_orders - previous_prefix_sum
+                let mut diff = server_key.smart_sub_parallelized(
+                    &mut total_orders.clone(),
+                    &mut previous_prefix_sum.clone(),
+                );
+
+                // total_orders > prefix_sum
+                let mut cond = server_key.smart_gt_parallelized(
+                    &mut total_orders.clone(),
+                    &mut previous_prefix_sum.clone(),
+                );
+
+                // (total_orders - previous_prefix_sum) * (total_orders > previous_prefix_sum)
+                // = (total_orders - previous_prefix_sum).max(0)
+                server_key.smart_mul_parallelized(&mut cond, &mut diff)
+            };
+
+            // (total_orders - previous_prefix_sum).max(0).min(*order);
+            *order = server_key.smart_min_parallelized(&mut diff, order);
+        });
+}
+
+/// FHE implementation of the volume matching algorithm.
+///
+/// In this function, the implemented algorithm is modified to utilize more concurrency.
+///
+/// Matches the given encrypted [sell_orders] with encrypted [buy_orders] using the given
+/// [server_key]. The amount of the orders that are successfully filled is written over the original
+/// order count.
+pub fn volume_match(
     sell_orders: &mut [RadixCiphertext],
     buy_orders: &mut [RadixCiphertext],
     server_key: &ServerKey,
 ) {
-    let compute_prefix_sum = |arr: &[RadixCiphertext]| {
-        if arr.is_empty() {
-            return arr.to_vec();
-        }
-        let mut prefix_sum: Vec<RadixCiphertext> = (0..arr.len().next_power_of_two())
-            .into_par_iter()
-            .map(|i| {
-                if i < arr.len() {
-                    arr[i].clone()
-                } else {
-                    server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS)
-                }
-            })
-            .collect();
-        // Up sweep
-        for d in 0..(prefix_sum.len().ilog2() as u32) {
-            prefix_sum
-                .par_chunks_exact_mut(2_usize.pow(d + 1))
-                .for_each(move |chunk| {
-                    let length = chunk.len();
-                    let mut left = chunk.get((length - 1) / 2).unwrap().clone();
-                    server_key.smart_add_assign_parallelized(chunk.last_mut().unwrap(), &mut left)
-                });
-        }
-        // Down sweep
-        let last = prefix_sum.last().unwrap().clone();
-        *prefix_sum.last_mut().unwrap() = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
-        for d in (0..(prefix_sum.len().ilog2() as u32)).rev() {
-            prefix_sum
-                .par_chunks_exact_mut(2_usize.pow(d + 1))
-                .for_each(move |chunk| {
-                    let length = chunk.len();
-                    let t = chunk.last().unwrap().clone();
-                    let mut left = chunk.get((length - 1) / 2).unwrap().clone();
-                    server_key.smart_add_assign_parallelized(chunk.last_mut().unwrap(), &mut left);
-                    chunk[(length - 1) / 2] = t;
-                });
-        }
-        prefix_sum.push(last);
-        prefix_sum[1..=arr.len()].to_vec()
-    };
-
     println!("Creating prefix sum arrays...");
     let time = Instant::now();
     let (prefix_sum_sell_orders, prefix_sum_buy_orders) = rayon::join(
-        || compute_prefix_sum(sell_orders),
-        || compute_prefix_sum(buy_orders),
+        || compute_prefix_sum(server_key, sell_orders),
+        || compute_prefix_sum(server_key, buy_orders),
     );
     println!("Created prefix sum arrays in {:?}", time.elapsed());
 
-    let fill_orders = |total_orders: &RadixCiphertext,
-                        orders: &mut [RadixCiphertext],
-                        prefix_sum_arr: &[RadixCiphertext]| {
-        orders
-            .into_par_iter()
-            .enumerate()
-            .for_each(move |(i, order)| {
-                server_key.smart_add_assign_parallelized(
-                    order,
-                    &mut server_key.smart_mul_parallelized(
-                        &mut server_key
-                            .smart_ge_parallelized(&mut order.clone(), &mut total_orders.clone()),
-                        &mut server_key.smart_sub_parallelized(
-                            &mut server_key.smart_sub_parallelized(
-                                &mut total_orders.clone(),
-                                &mut server_key.smart_min_parallelized(
-                                    &mut total_orders.clone(),
-                                    &mut prefix_sum_arr
-                                        .get(i - 1)
-                                        .unwrap_or(
-                                            &server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS),
-                                        )
-                                        .clone(),
-                                ),
-                            ),
-                            &mut order.clone(),
-                        ),
-                    ),
-                );
-            });
-    };
+    let zero = server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS);
 
-    let total_buy_orders = &mut prefix_sum_buy_orders
-        .last()
-        .unwrap_or(&server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS))
-        .clone();
+    let total_buy_orders = prefix_sum_buy_orders.last().unwrap_or(&zero);
 
-    let total_sell_orders = &mut prefix_sum_sell_orders
-        .last()
-        .unwrap_or(&server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS))
-        .clone();
+    let total_sell_orders = prefix_sum_sell_orders.last().unwrap_or(&zero);
 
     println!("Matching orders...");
     let time = Instant::now();
     rayon::join(
-        || fill_orders(total_sell_orders, buy_orders, &prefix_sum_buy_orders),
-        || fill_orders(total_buy_orders, sell_orders, &prefix_sum_sell_orders),
+        || {
+            fill_orders(
+                server_key,
+                total_sell_orders,
+                buy_orders,
+                &prefix_sum_buy_orders,
+            )
+        },
+        || {
+            fill_orders(
+                server_key,
+                total_buy_orders,
+                sell_orders,
+                &prefix_sum_sell_orders,
+            )
+        },
     );
     println!("Matched orders in {:?}", time.elapsed());
 }
