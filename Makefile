@@ -16,6 +16,7 @@ PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
+COVERAGE_EXCLUDED_FILES = tfhe/benches/*,apps/trivium/src/*,tfhe/examples/*,tasks/src/*
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -321,7 +322,9 @@ test_shortint: install_rs_build_toolchain
 test_shortint_cov: install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 		--out Xml --output-dir coverage/shortint --line --engine Llvm --timeout 500 \
-		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,__coverage -p tfhe -- shortint::
+		--exclude-files $(COVERAGE_EXCLUDED_FILES) \
+		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,__coverage \
+		-p tfhe -- shortint::
 
 .PHONY: test_integer_ci # Run the tests for integer ci
 test_integer_ci: install_rs_build_toolchain install_cargo_nextest
