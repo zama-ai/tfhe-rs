@@ -10,7 +10,7 @@
 //! lhs + &rhs
 //! &lhs + rhs
 //! &lhs + &rhs
-use crate::prelude::{FheDecrypt, FheTryEncrypt, *};
+use crate::prelude::*;
 use crate::{generate_keys, set_server_key, ClientKey, ConfigBuilder};
 use std::fmt::Debug;
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Shl, Shr, Sub};
@@ -161,7 +161,7 @@ where
 #[cfg(feature = "shortint")]
 #[test]
 fn test_static_shortint_supports_ops() {
-    use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint2};
+    use crate::FheUint2;
 
     let config = ConfigBuilder::all_disabled().enable_default_uint2().build();
     let (client_key, server_key) = generate_keys(config);
