@@ -4,6 +4,7 @@ use paste::paste;
 mod ggsw_encryption;
 mod glwe_encryption;
 mod glwe_linear_algebra;
+mod glwe_sample_extraction;
 mod lwe_bootstrap_key_generation;
 mod lwe_compact_public_key_generation;
 mod lwe_encryption;
