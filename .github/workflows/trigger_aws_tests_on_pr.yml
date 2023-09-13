@@ -29,6 +29,7 @@ jobs:
           allow-repeats: true
           message: |
             @slab-ci cpu_fast_test
+            @slab-ci code_coverage
 
       - name: Add approved label
         uses: actions-ecosystem/action-add-labels@bd52874380e3909a1ac983768df6976535ece7f8

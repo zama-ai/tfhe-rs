@@ -82,3 +82,8 @@ check_run_name = "WASM Client AWS Benchmarks"
 workflow = "csprng_randomness_testing.yml"
 profile = "cpu-small"
 check_run_name = "CSPRNG randomness testing"
+
+[command.code_coverage]
+workflow = "code_coverage.yml"
+profile = "cpu-small"
+check_run_name = "Code coverage"
