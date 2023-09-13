@@ -57,7 +57,11 @@ jobs:
         with:
           toolchain: nightly
           override: true
-
+      
+      - name: Install just
+        run: |
+          cargo install just
+      
       - name: Run benchmarks
         run: |
           just install_node

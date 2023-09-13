@@ -42,6 +42,11 @@ jobs:
         run: |
           cargo publish -p tfhe --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
 
+      
+      - name: Install just
+        run: |
+          cargo install just
+      
       - name: Build web package
         if: ${{ inputs.push_web_package }}
         run: |
@@ -54,6 +59,10 @@ jobs:
           token: ${{ secrets.NPM_TOKEN }}
           package: tfhe/pkg/package.json
           dry-run: ${{ inputs.dry_run }}
+      
+      - name: Install just
+        run: |
+          cargo install just
 
       - name: Build Node package
         if: ${{ inputs.push_node_package }}

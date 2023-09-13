@@ -59,6 +59,11 @@ jobs:
           toolchain: nightly
           override: true
 
+      
+      - name: Install just
+        run: |
+          cargo install just
+      
       - name: Run multi-bit benchmarks with AVX512
         run: |
           just AVX512_SUPPORT=ON FAST_BENCH=TRUE bench_integer_multi_bit

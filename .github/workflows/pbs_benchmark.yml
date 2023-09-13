@@ -57,7 +57,11 @@ jobs:
         with:
           toolchain: nightly
           override: true
-
+      
+      - name: Install just
+        run: |
+          cargo install just
+      
       - name: Run benchmarks with AVX512
         run: |
           just AVX512_SUPPORT=ON bench_pbs

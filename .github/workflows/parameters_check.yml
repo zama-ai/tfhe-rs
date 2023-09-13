@@ -30,6 +30,11 @@ jobs:
           sudo apt update
           sudo apt install -y sagemath
 
+      
+      - name: Install just
+        run: |
+          cargo install just
+      
       - name: Collect parameters
         run: |
           just write_params_to_file

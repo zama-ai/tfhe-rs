@@ -72,7 +72,11 @@ jobs:
           repository: zama-ai/slab
           path: slab
           token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
-
+      
+      - name: Install just
+        run: |
+          cargo install just
+      
       - name: Run benchmarks with AVX512
         run: |
           just AVX512_SUPPORT=ON BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_${{ matrix.command }}

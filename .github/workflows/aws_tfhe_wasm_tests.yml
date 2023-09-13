@@ -64,7 +64,11 @@ jobs:
         with:
           toolchain: stable
           default: true
-
+      
+      - name: Install just
+        run: |
+          cargo install just
+      
       - name: Run js on wasm API tests
         run: |
           just test_nodejs_wasm_api_in_docker

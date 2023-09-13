@@ -64,7 +64,11 @@ jobs:
         with:
           toolchain: stable
           default: true
-
+      
+      - name: Install just
+        run: |
+          cargo install just
+      
       - name: Gen Keys if required
         run: |
           just gen_key_cache
