@@ -168,7 +168,7 @@ clippy_trivium: install_rs_check_toolchain
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
