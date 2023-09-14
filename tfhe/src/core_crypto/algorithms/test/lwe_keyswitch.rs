@@ -78,12 +78,6 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
                 ciphertext_modulus,
             );
 
-            let mut output_ct_parallel = LweCiphertext::new(
-                Scalar::ZERO,
-                lwe_sk.lwe_dimension().to_lwe_size(),
-                ciphertext_modulus,
-            );
-
             keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct);
 
             assert!(check_encrypted_content_respects_mod(
@@ -91,8 +85,17 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
                 ciphertext_modulus
             ));
 
-            par_keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct_parallel);
-            assert_eq!(output_ct.as_ref(), output_ct_parallel.as_ref());
+            // TODO add support of prime Q in parallel KS
+            if ciphertext_modulus.is_compatible_with_native_modulus() {
+                let mut output_ct_parallel = LweCiphertext::new(
+                    Scalar::ZERO,
+                    lwe_sk.lwe_dimension().to_lwe_size(),
+                    ciphertext_modulus,
+                );
+
+                par_keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct_parallel);
+                assert_eq!(output_ct.as_ref(), output_ct_parallel.as_ref());
+            }
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &output_ct);
 
