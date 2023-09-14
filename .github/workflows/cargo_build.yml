@@ -23,6 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac
 
+      - name: Install and run newline linter checks
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          wget https://github.com/fernandrone/linelint/releases/download/0.0.6/linelint-linux-amd64
+          echo "16b70fb7b471d6f95cbdc0b4e5dc2b0ac9e84ba9ecdc488f7bdf13df823aca4b linelint-linux-amd64" > checksum
+          sha256sum -c checksum || exit 1
+          chmod +x linelint-linux-amd64
+          mv linelint-linux-amd64 /usr/local/bin/linelint
+          make check_newline
+
       - name: Run pcc checks
         run: |
           make pcc

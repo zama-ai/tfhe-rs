@@ -1,0 +1,14 @@
+ignore:
+  - .git
+  - target
+  - tfhe/benchmarks_parameters
+  - tfhe/web_wasm_parallel_tests/node_modules
+  - tfhe/web_wasm_parallel_tests/dist
+  - keys
+  - coverage
+
+rules:
+  # checks if file ends in a newline character
+  end-of-file:
+    enable: true
+    single-new-line: true
