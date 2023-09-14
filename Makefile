@@ -102,13 +102,26 @@ install_tarpaulin: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cargo-tarpaulin --locked || \
 	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
 
+.PHONY: check_linelint_installed # Check if linelint newline linter is installed
+check_linelint_installed:
+	@printf "\n" | linelint - > /dev/null 2>&1 || \
+	( echo "Unable to locate linelint. Try installing it:  https://github.com/fernandrone/linelint/releases" && exit 1 )
+
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
 
-.PHONT: check_fmt # Check rust code format
+.PHONY: check_fmt # Check rust code format
 check_fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
+
+.PHONY: fix_newline # Fix newline at end of file issues to be UNIX compliant
+fix_newline: check_linelint_installed
+	linelint -a .
+
+.PHONY: check_newline # Check for newline at end of file to be UNIX compliant
+check_newline: check_linelint_installed
+	linelint .
 
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
@@ -604,7 +617,7 @@ pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_all check_compile_tests
 fpcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_fast check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
-conformance: fmt
+conformance: fix_newline fmt
 
 .PHONY: help # Generate list of targets with descriptions
 help:
