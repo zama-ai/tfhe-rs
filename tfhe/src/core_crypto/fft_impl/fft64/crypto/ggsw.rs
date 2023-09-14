@@ -15,11 +15,6 @@ use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
-#[cfg(target_arch = "x86")]
-use core::arch::x86::*;
-#[cfg(target_arch = "x86_64")]
-use core::arch::x86_64::*;
-
 /// A GGSW ciphertext in the Fourier domain.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
@@ -616,145 +611,6 @@ fn collect_next_term<'a, Scalar: UnsignedTorus>(
     (glwe_level, glwe_decomp_term, substack2)
 }
 
-/// # Safety
-///
-///  - `is_x86_feature_detected!("avx512f")` must be true.
-#[cfg(all(
-    feature = "nightly-avx512",
-    any(target_arch = "x86_64", target_arch = "x86")
-))]
-#[target_feature(enable = "avx512f")]
-unsafe fn update_with_fmadd_avx512(
-    output_fourier: &mut [c64],
-    ggsw_poly: &[c64],
-    fourier: &[c64],
-    is_output_uninit: bool,
-) {
-    let n = output_fourier.len();
-
-    debug_assert_eq!(n, ggsw_poly.len());
-    debug_assert_eq!(n, fourier.len());
-    debug_assert_eq!(n % 4, 0);
-
-    let out = output_fourier.as_mut_ptr();
-    let lhs = ggsw_poly.as_ptr();
-    let rhs = fourier.as_ptr();
-
-    // 4×c64 per register
-
-    if is_output_uninit {
-        for i in 0..n / 4 {
-            let i = 4 * i;
-            let ab = _mm512_loadu_pd(lhs.add(i) as _);
-            let xy = _mm512_loadu_pd(rhs.add(i) as _);
-            let aa = _mm512_unpacklo_pd(ab, ab);
-            let bb = _mm512_unpackhi_pd(ab, ab);
-            let yx = _mm512_permute_pd::<0b01010101>(xy);
-            _mm512_storeu_pd(
-                out.add(i) as _,
-                _mm512_fmaddsub_pd(aa, xy, _mm512_mul_pd(bb, yx)),
-            );
-        }
-    } else {
-        for i in 0..n / 4 {
-            let i = 4 * i;
-            let ab = _mm512_loadu_pd(lhs.add(i) as _);
-            let xy = _mm512_loadu_pd(rhs.add(i) as _);
-            let aa = _mm512_unpacklo_pd(ab, ab);
-            let bb = _mm512_unpackhi_pd(ab, ab);
-            let yx = _mm512_permute_pd::<0b01010101>(xy);
-            _mm512_storeu_pd(
-                out.add(i) as _,
-                _mm512_fmaddsub_pd(
-                    aa,
-                    xy,
-                    _mm512_fmaddsub_pd(bb, yx, _mm512_loadu_pd(out.add(i) as _)),
-                ),
-            );
-        }
-    }
-}
-
-/// # Safety
-///
-///  - `is_x86_feature_detected!("fma")` must be true.
-#[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
-#[target_feature(enable = "fma")]
-unsafe fn update_with_fmadd_fma(
-    output_fourier: &mut [c64],
-    ggsw_poly: &[c64],
-    fourier: &[c64],
-    is_output_uninit: bool,
-) {
-    let n = output_fourier.len();
-
-    debug_assert_eq!(n, ggsw_poly.len());
-    debug_assert_eq!(n, fourier.len());
-    debug_assert_eq!(n % 4, 0);
-
-    let out = output_fourier.as_mut_ptr();
-    let lhs = ggsw_poly.as_ptr();
-    let rhs = fourier.as_ptr();
-
-    // 2×c64 per register
-
-    if is_output_uninit {
-        for i in 0..n / 2 {
-            let i = 2 * i;
-            let ab = _mm256_loadu_pd(lhs.add(i) as _);
-            let xy = _mm256_loadu_pd(rhs.add(i) as _);
-            let aa = _mm256_unpacklo_pd(ab, ab);
-            let bb = _mm256_unpackhi_pd(ab, ab);
-            let yx = _mm256_permute_pd::<0b0101>(xy);
-            _mm256_storeu_pd(
-                out.add(i) as _,
-                _mm256_fmaddsub_pd(aa, xy, _mm256_mul_pd(bb, yx)),
-            );
-        }
-    } else {
-        for i in 0..n / 2 {
-            let i = 2 * i;
-            let ab = _mm256_loadu_pd(lhs.add(i) as _);
-            let xy = _mm256_loadu_pd(rhs.add(i) as _);
-            let aa = _mm256_unpacklo_pd(ab, ab);
-            let bb = _mm256_unpackhi_pd(ab, ab);
-            let yx = _mm256_permute_pd::<0b0101>(xy);
-            _mm256_storeu_pd(
-                out.add(i) as _,
-                _mm256_fmaddsub_pd(
-                    aa,
-                    xy,
-                    _mm256_fmaddsub_pd(bb, yx, _mm256_loadu_pd(out.add(i) as _)),
-                ),
-            );
-        }
-    }
-}
-
-/// # Safety
-///
-///  - if `is_output_uninit` is false, `output_fourier` must not hold any uninitialized values.
-unsafe fn update_with_fmadd_scalar(
-    output_fourier: &mut [c64],
-    ggsw_poly: &[c64],
-    fourier: &[c64],
-    is_output_uninit: bool,
-) {
-    if is_output_uninit {
-        // we're writing to output_fft_buffer for the first time
-        // so its contents are uninitialized
-        izip!(output_fourier, ggsw_poly, fourier).for_each(|(out_fourier, lhs, rhs)| {
-            *out_fourier = lhs * rhs;
-        });
-    } else {
-        // we already wrote to output_fft_buffer, so we can assume its contents are
-        // initialized.
-        izip!(output_fourier, ggsw_poly, fourier).for_each(|(out_fourier, lhs, rhs)| {
-            *out_fourier += lhs * rhs;
-        });
-    }
-}
-
 #[cfg_attr(__profiling, inline(never))]
 pub(crate) fn update_with_fmadd(
     output_fft_buffer: &mut [c64],
@@ -763,32 +619,80 @@ pub(crate) fn update_with_fmadd(
     is_output_uninit: bool,
     fourier_poly_size: usize,
 ) {
-    #[allow(clippy::type_complexity)]
-    let ptr_fn = || -> unsafe fn(&mut [c64], &[c64], &[c64], bool) {
-        #[cfg(all(
-            feature = "nightly-avx512",
-            any(target_arch = "x86_64", target_arch = "x86")
-        ))]
-        if is_x86_feature_detected!("avx512f") {
-            return update_with_fmadd_avx512;
+    struct Impl<'a> {
+        output_fft_buffer: &'a mut [c64],
+        lhs_polynomial_list: &'a [c64],
+        fourier: &'a [c64],
+        is_output_uninit: bool,
+        fourier_poly_size: usize,
+    }
+
+    impl pulp::WithSimd for Impl<'_> {
+        type Output = ();
+
+        #[inline(always)]
+        fn with_simd<S: pulp::Simd>(self, simd: S) -> Self::Output {
+            // Introducing a function boundary here means that the slices
+            // get `noalias` markers, possibly allowing better optimizations from LLVM.
+            //
+            // see:
+            // https://github.com/rust-lang/rust/blob/56e1aaadb31542b32953292001be2312810e88fd/library/core/src/slice/mod.rs#L960-L966
+            #[inline(always)]
+            fn implementation<S: pulp::Simd>(
+                simd: S,
+                output_fft_buffer: &mut [c64],
+                lhs_polynomial_list: &[c64],
+                fourier: &[c64],
+                is_output_uninit: bool,
+                fourier_poly_size: usize,
+            ) {
+                let rhs = S::c64s_as_simd(fourier).0;
+
+                if is_output_uninit {
+                    for (output_fourier, ggsw_poly) in izip!(
+                        output_fft_buffer.into_chunks(fourier_poly_size),
+                        lhs_polynomial_list.into_chunks(fourier_poly_size)
+                    ) {
+                        let out = S::c64s_as_mut_simd(output_fourier).0;
+                        let lhs = S::c64s_as_simd(ggsw_poly).0;
+
+                        for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
+                            *out = simd.c64s_mul(lhs, rhs);
+                        }
+                    }
+                } else {
+                    for (output_fourier, ggsw_poly) in izip!(
+                        output_fft_buffer.into_chunks(fourier_poly_size),
+                        lhs_polynomial_list.into_chunks(fourier_poly_size)
+                    ) {
+                        let out = S::c64s_as_mut_simd(output_fourier).0;
+                        let lhs = S::c64s_as_simd(ggsw_poly).0;
+
+                        for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
+                            *out = simd.c64s_mul_adde(lhs, rhs, *out);
+                        }
+                    }
+                }
+            }
+
+            implementation(
+                simd,
+                self.output_fft_buffer,
+                self.lhs_polynomial_list,
+                self.fourier,
+                self.is_output_uninit,
+                self.fourier_poly_size,
+            )
         }
-        #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
-        if is_x86_feature_detected!("fma") {
-            return update_with_fmadd_fma;
-        }
+    }
 
-        update_with_fmadd_scalar
-    };
-
-    let ptr = ptr_fn();
-
-    izip!(
-        output_fft_buffer.into_chunks(fourier_poly_size),
-        lhs_polynomial_list.into_chunks(fourier_poly_size)
-    )
-    .for_each(|(output_fourier, ggsw_poly)| {
-        unsafe { ptr(output_fourier, ggsw_poly, fourier, is_output_uninit) };
-    });
+    pulp::Arch::new().dispatch(Impl {
+        output_fft_buffer,
+        lhs_polynomial_list,
+        fourier,
+        is_output_uninit,
+        fourier_poly_size,
+    })
 }
 
 pub(crate) fn update_with_fmadd_factor(
