@@ -1,17 +1,27 @@
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::client_key::ClientKey;
+use crate::boolean::keycache::KEY_CACHE;
 use crate::boolean::parameters::BooleanParameters;
 use crate::boolean::server_key::{BinaryBooleanGates, BinaryBooleanGatesAssign, ServerKey};
 use crate::boolean::{random_boolean, random_integer};
 
 /// Number of assert in randomized tests
+#[cfg(not(feature = "__coverage"))]
 const NB_TEST: usize = 128;
+
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(feature = "__coverage")]
+const NB_TEST: usize = 1;
 
 /// Number of ciphertext in the deep circuit test
 const NB_CT: usize = 8;
 
 /// Number of gates computed in the deep circuit test
+#[cfg(not(feature = "__coverage"))]
 const NB_GATE: usize = 1 << 11;
+#[cfg(feature = "__coverage")]
+const NB_GATE: usize = 1 << 5;
 
 mod default_parameters_tests {
     use super::*;
@@ -245,11 +255,8 @@ mod tfhe_lib_parameters_tests {
 
 /// test encryption and decryption with the LWE secret key
 fn test_encrypt_decrypt_lwe_secret_key(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     for _ in 0..NB_TEST {
         // encryption of false
@@ -297,11 +304,8 @@ fn random_enum_encryption(cks: &ClientKey, sks: &ServerKey, message: bool) -> Ci
 }
 
 fn test_and_gate(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     for _ in 0..NB_TEST {
         // generation of two random booleans
@@ -310,10 +314,10 @@ fn test_and_gate(parameters: BooleanParameters) {
         let expected_result = b1 && b2;
 
         // encryption of b1
-        let ct1 = random_enum_encryption(&cks, &sks, b1);
+        let ct1 = random_enum_encryption(cks, sks, b1);
 
         // encryption of b2
-        let ct2 = random_enum_encryption(&cks, &sks, b2);
+        let ct2 = random_enum_encryption(cks, sks, b2);
 
         // AND gate -> "left: {:?}, right: {:?}",ct1, ct2
         let ct_res = sks.and(&ct1, &ct2);
@@ -375,11 +379,8 @@ fn test_and_gate(parameters: BooleanParameters) {
 }
 
 fn test_mux_gate(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     for _ in 0..NB_TEST {
         // generation of three random booleans
@@ -389,13 +390,13 @@ fn test_mux_gate(parameters: BooleanParameters) {
         let expected_result = if b1 { b2 } else { b3 };
 
         // encryption of b1
-        let ct1 = random_enum_encryption(&cks, &sks, b1);
+        let ct1 = random_enum_encryption(cks, sks, b1);
 
         // encryption of b2
-        let ct2 = random_enum_encryption(&cks, &sks, b2);
+        let ct2 = random_enum_encryption(cks, sks, b2);
 
         // encryption of b3
-        let ct3 = random_enum_encryption(&cks, &sks, b3);
+        let ct3 = random_enum_encryption(cks, sks, b3);
 
         // MUX gate
         let ct_res = sks.mux(&ct1, &ct2, &ct3);
@@ -412,11 +413,8 @@ fn test_mux_gate(parameters: BooleanParameters) {
 }
 
 fn test_nand_gate(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     for _ in 0..NB_TEST {
         // generation of two random booleans
@@ -425,10 +423,10 @@ fn test_nand_gate(parameters: BooleanParameters) {
         let expected_result = !(b1 && b2);
 
         // encryption of b1
-        let ct1 = random_enum_encryption(&cks, &sks, b1);
+        let ct1 = random_enum_encryption(cks, sks, b1);
 
         // encryption of b2
-        let ct2 = random_enum_encryption(&cks, &sks, b2);
+        let ct2 = random_enum_encryption(cks, sks, b2);
 
         // NAND gate -> left: Ciphertext, right: Ciphertext
         let ct_res = sks.nand(&ct1, &ct2);
@@ -490,11 +488,8 @@ fn test_nand_gate(parameters: BooleanParameters) {
 }
 
 fn test_nor_gate(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     for _ in 0..NB_TEST {
         // generation of two random booleans
@@ -503,10 +498,10 @@ fn test_nor_gate(parameters: BooleanParameters) {
         let expected_result = !(b1 || b2);
 
         // encryption of b1
-        let ct1 = random_enum_encryption(&cks, &sks, b1);
+        let ct1 = random_enum_encryption(cks, sks, b1);
 
         // encryption of b2
-        let ct2 = random_enum_encryption(&cks, &sks, b2);
+        let ct2 = random_enum_encryption(cks, sks, b2);
 
         // NOR gate -> left: Ciphertext, right: Ciphertext
         let ct_res = sks.nor(&ct1, &ct2);
@@ -568,11 +563,8 @@ fn test_nor_gate(parameters: BooleanParameters) {
 }
 
 fn test_not_gate(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     for _ in 0..NB_TEST {
         // generation of one random booleans
@@ -580,7 +572,7 @@ fn test_not_gate(parameters: BooleanParameters) {
         let expected_result = !b1;
 
         // encryption of b1
-        let ct1 = random_enum_encryption(&cks, &sks, b1);
+        let ct1 = random_enum_encryption(cks, sks, b1);
 
         // NOT gate
         let ct_res = sks.not(&ct1);
@@ -604,11 +596,8 @@ fn test_not_gate(parameters: BooleanParameters) {
 }
 
 fn test_or_gate(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     for _ in 0..NB_TEST {
         // generation of two random booleans
@@ -617,10 +606,10 @@ fn test_or_gate(parameters: BooleanParameters) {
         let expected_result = b1 || b2;
 
         // encryption of b1
-        let ct1 = random_enum_encryption(&cks, &sks, b1);
+        let ct1 = random_enum_encryption(cks, sks, b1);
 
         // encryption of b2
-        let ct2 = random_enum_encryption(&cks, &sks, b2);
+        let ct2 = random_enum_encryption(cks, sks, b2);
 
         // OR gate -> left: Ciphertext, right: Ciphertext
         let ct_res = sks.or(&ct1, &ct2);
@@ -682,11 +671,8 @@ fn test_or_gate(parameters: BooleanParameters) {
 }
 
 fn test_xnor_gate(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     for _ in 0..NB_TEST {
         // generation of two random booleans
@@ -695,10 +681,10 @@ fn test_xnor_gate(parameters: BooleanParameters) {
         let expected_result = b1 == b2;
 
         // encryption of b1
-        let ct1 = random_enum_encryption(&cks, &sks, b1);
+        let ct1 = random_enum_encryption(cks, sks, b1);
 
         // encryption of b2
-        let ct2 = random_enum_encryption(&cks, &sks, b2);
+        let ct2 = random_enum_encryption(cks, sks, b2);
 
         // XNOR gate -> left: Ciphertext, right: Ciphertext
         let ct_res = sks.xnor(&ct1, &ct2);
@@ -760,11 +746,8 @@ fn test_xnor_gate(parameters: BooleanParameters) {
 }
 
 fn test_xor_gate(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     for _ in 0..NB_TEST {
         // generation of two random booleans
@@ -773,10 +756,10 @@ fn test_xor_gate(parameters: BooleanParameters) {
         let expected_result = b1 ^ b2;
 
         // encryption of b1
-        let ct1 = random_enum_encryption(&cks, &sks, b1);
+        let ct1 = random_enum_encryption(cks, sks, b1);
 
         // encryption of b2
-        let ct2 = random_enum_encryption(&cks, &sks, b2);
+        let ct2 = random_enum_encryption(cks, sks, b2);
 
         // XOR gate -> left: Ciphertext, right: Ciphertext
         let ct_res = sks.xor(&ct1, &ct2);
@@ -899,11 +882,8 @@ fn random_gate_all(ct_tab: &mut [Ciphertext], bool_tab: &mut [bool], sks: &Serve
 }
 
 fn test_deep_circuit(parameters: BooleanParameters) {
-    // generate the client key set
-    let cks = ClientKey::new(&parameters);
-
-    // generate the server key set
-    let sks = ServerKey::new(&cks);
+    let keys = KEY_CACHE.get_from_param(parameters);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
 
     // create an array of ciphertexts
     let mut ct_tab: Vec<Ciphertext> = vec![cks.encrypt(true); NB_CT];
@@ -919,7 +899,7 @@ fn test_deep_circuit(parameters: BooleanParameters) {
 
     // compute NB_GATE gates
     for _ in 0..NB_GATE {
-        random_gate_all(&mut ct_tab, &mut bool_tab, &sks);
+        random_gate_all(&mut ct_tab, &mut bool_tab, sks);
     }
 
     // decrypt and assert equality

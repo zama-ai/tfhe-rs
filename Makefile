@@ -190,7 +190,7 @@ clippy_concrete_csprng
 gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 		--example generates_test_keys \
-		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache -p tfhe -- \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache -p tfhe -- \
 		$(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
 
 .PHONY: build_core # Build core_crypto without experimental features
@@ -284,6 +284,14 @@ test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean -p tfhe -- boolean::
+
+.PHONY: test_boolean_cov # Run the tests of the boolean module with code coverage
+test_boolean_cov: install_rs_check_toolchain install_tarpaulin
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+		--out Xml --output-dir coverage/boolean --line --engine Llvm --timeout 500 \
+		--exclude-files $(COVERAGE_EXCLUDED_FILES) \
+		--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache,__coverage \
+		-p tfhe -- boolean::
 
 .PHONY: test_c_api_rs # Run the rust tests for the C API
 test_c_api_rs: install_rs_check_toolchain

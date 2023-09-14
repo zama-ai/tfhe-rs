@@ -24,8 +24,6 @@ pub use crate::core_crypto::commons::parameters::{
     LweDimension, PolynomialSize,
 };
 
-#[cfg(any(test, doctest, feature = "internal-keycache"))]
-use crate::keycache::NamedParam;
 use serde::{Deserialize, Serialize};
 
 /// A set of cryptographic parameters for homomorphic Boolean circuit evaluation.
@@ -197,16 +195,3 @@ pub const TFHE_LIB_PARAMETERS: BooleanParameters = BooleanParameters {
 };
 
 pub const VEC_BOOLEAN_PARAM: [BooleanParameters; 2] = [DEFAULT_PARAMETERS, TFHE_LIB_PARAMETERS];
-
-#[cfg(any(test, doctest, feature = "internal-keycache"))]
-impl NamedParam for BooleanParameters {
-    fn name(&self) -> String {
-        if *self == DEFAULT_PARAMETERS {
-            "DEFAULT_PARAMETERS".to_string()
-        } else if *self == TFHE_LIB_PARAMETERS {
-            "TFHE_LIB_PARAMETERS".to_string()
-        } else {
-            panic!("Unknown parameters, missing name implementation")
-        }
-    }
-}
