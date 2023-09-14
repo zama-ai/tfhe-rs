@@ -63,6 +63,8 @@ pub mod ciphertext;
 pub mod client_key;
 pub mod engine;
 pub mod key_switching_key;
+#[cfg(any(test, doctest, feature = "internal-keycache"))]
+pub mod keycache;
 pub mod parameters;
 pub mod prelude;
 pub mod public_key;

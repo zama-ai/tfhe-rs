@@ -1,4 +1,10 @@
 use clap::{Arg, ArgAction, Command};
+use tfhe::boolean;
+use tfhe::boolean::parameters::{
+    BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS,
+    PARAMETERS_ERROR_PROB_2_POW_MINUS_165, PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
+    TFHE_LIB_PARAMETERS,
+};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK, KEY_CACHE_WOPBS};
 use tfhe::shortint::parameters::key_switching::{
@@ -47,7 +53,7 @@ fn client_server_keys() {
     if multi_bit_only {
         generate_pbs_multi_bit_keys(&ALL_MULTI_BIT_PARAMETER_VEC);
     } else if coverage_only {
-        println!("Generating shortint (ClientKey, ServerKey) for coverage");
+        println!("Generating keys (ClientKey, ServerKey) for coverage");
 
         const PBS_PARAMS: [ClassicPBSParameters; 5] = [
             PARAM_MESSAGE_1_CARRY_1_KS_PBS,
@@ -90,6 +96,15 @@ fn client_server_keys() {
             WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         )];
         generate_wopbs_keys(&WOPBS_PARAMS);
+
+        const BOOLEAN_PARAMS: [BooleanParameters; 5] = [
+            DEFAULT_PARAMETERS,
+            DEFAULT_PARAMETERS_KS_PBS,
+            TFHE_LIB_PARAMETERS,
+            PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
+            PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
+        ];
+        generate_boolean_keys(&BOOLEAN_PARAMS);
     } else {
         generate_pbs_keys(&ALL_PARAMETER_VEC);
 
@@ -218,6 +233,30 @@ fn generate_wopbs_keys(params: &[(ClassicPBSParameters, WopbsParameters)]) {
 
         // Clear keys as we go to avoid filling the RAM
         KEY_CACHE_WOPBS.clear_in_memory_cache()
+    }
+}
+
+fn generate_boolean_keys(params: &[BooleanParameters]) {
+    println!("Generating boolean (ClientKey, ServerKey)");
+
+    for (i, param) in params.iter().copied().enumerate() {
+        println!(
+            "Generating [{} / {}] : {}",
+            i + 1,
+            params.len(),
+            param.name()
+        );
+
+        let start = std::time::Instant::now();
+
+        let _ = boolean::keycache::KEY_CACHE.get_from_param(param);
+
+        let stop = start.elapsed().as_secs();
+
+        println!("Generation took {stop} seconds");
+
+        // Clear keys as we go to avoid filling the RAM
+        boolean::keycache::KEY_CACHE.clear_in_memory_cache()
     }
 }
 
