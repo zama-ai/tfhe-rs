@@ -36,7 +36,7 @@ def check_security(filename):
         try:
             # The lattice estimator is not able to manage such large dimension.
             # If we have the security for smaller `n` then we have security for larger ones.
-            if param.n == 32768:
+            if param.n >= 32768:
                 param = param.updated(n = 16384)
 
             usvp_level = LWE.primal_usvp(param, red_cost_model = model)
