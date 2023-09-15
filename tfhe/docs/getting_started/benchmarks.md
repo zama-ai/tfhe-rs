@@ -95,7 +95,3 @@ If the host machine supports AVX-512, then the argument `AVX512_SUPPORT=ON' shou
 #Integer benchmarks:
 make AVX512_SUPPORT=ON bench_integer
 ```
-
-
-
-

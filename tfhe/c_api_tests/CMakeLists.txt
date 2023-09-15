@@ -37,4 +37,3 @@ foreach (testsourcefile ${TEST_CASES})
     # Enabled asserts even in release mode
     add_definitions(-UNDEBUG)
 endforeach (testsourcefile ${TEST_CASES})
-
