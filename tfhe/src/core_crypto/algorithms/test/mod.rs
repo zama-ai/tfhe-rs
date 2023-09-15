@@ -93,7 +93,7 @@ pub const TEST_PARAMS_3_BITS_63_U64: TestParams<u64> = TestParams {
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(3),
-    ciphertext_modulus: unsafe { CiphertextModulus::new_unchecked(1 << 63) },
+    ciphertext_modulus: CiphertextModulus::new(1 << 63),
 };
 
 pub const DUMMY_NATIVE_U32: TestParams<u32> = TestParams {
@@ -131,7 +131,7 @@ pub const DUMMY_31_U32: TestParams<u32> = TestParams {
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(3),
-    ciphertext_modulus: unsafe { CiphertextModulus::new_unchecked(1 << 31) },
+    ciphertext_modulus: CiphertextModulus::new(1 << 31),
 };
 
 // Our representation of non native power of 2 moduli puts the information in the MSBs and leaves

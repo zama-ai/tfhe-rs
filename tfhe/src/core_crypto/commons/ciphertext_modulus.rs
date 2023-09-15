@@ -166,18 +166,18 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         }
     }
 
-    #[cfg(test)]
-    /// # Safety
-    /// modulus needs to be able to fit in the associated Scalar type
-    pub const unsafe fn new_unchecked(modulus: u128) -> Self {
+    /// # Panic
+    /// Panics if modulus is not able to fit in the associated Scalar type
+    #[track_caller]
+    pub const fn new(modulus: u128) -> Self {
         let res = match modulus {
-            0 => Self {
-                inner: CiphertextModulusInner::Native,
-                _scalar: PhantomData,
-            },
-            _ => Self {
-                inner: CiphertextModulusInner::Custom(NonZeroU128::new_unchecked(modulus)),
-                _scalar: PhantomData,
+            0 => Self::new_native(),
+            _ => match Self::try_new(modulus) {
+                Ok(ciphertext_modulus) => ciphertext_modulus,
+                Err(_) => panic!(
+                    "Error while building CiphertextModulus, \
+                modulus does not fit in the given UnsignedInteger Scalar type which is too small"
+                ),
             },
         };
         res.canonicalize()

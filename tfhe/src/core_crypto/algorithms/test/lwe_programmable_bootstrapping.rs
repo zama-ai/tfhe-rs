@@ -164,7 +164,7 @@ pub const TEST_PARAMS_3_BITS_127_U128: TestParams<u128> = TestParams {
     cbs_level: DecompositionLevelCount(0),
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(3),
-    ciphertext_modulus: unsafe { CiphertextModulus::new_unchecked(1 << 127) },
+    ciphertext_modulus: CiphertextModulus::new(1 << 127),
 };
 
 fn lwe_encrypt_pbs_f128_decrypt_custom_mod<
