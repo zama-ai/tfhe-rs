@@ -1,3 +1,6 @@
 {
-  "m6i.metal": 7.168
+  "m6i.metal": 7.168,
+  "r7iz.32xlarge": 7.168,
+  "hpc7a.48xlarge": 7.168,
+  "hpc7a.96xlarge": 7.168
 }

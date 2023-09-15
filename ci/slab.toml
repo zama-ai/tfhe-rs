@@ -13,34 +13,49 @@ region = "eu-west-3"
 image_id = "ami-051942e4055555752"
 instance_type = "m6i.metal"
 
+[profile.bench_alt]
+region = "us-east-1"
+image_id = "ami-04e3bb9aebb6786df"
+instance_type = "r7iz.32xlarge"
+
+[profile.bench_alt_2]
+region = "eu-west-1"
+image_id = "ami-0e88d98b86aff13de"
+instance_type = "hpc7a.48xlarge"
+
+[profile.bench_alt_3]
+region = "eu-west-1"
+image_id = "ami-0e88d98b86aff13de"
+instance_type = "hpc7a.96xlarge"
+
 [command.cpu_test]
 workflow = "aws_tfhe_tests.yml"
-profile = "cpu-big"
+profile = "bench_alt_3"
 check_run_name = "CPU AWS Tests"
 
 [command.cpu_integer_test]
 workflow = "aws_tfhe_integer_tests.yml"
-profile = "cpu-big"
+profile = "bench_alt_3"
 check_run_name = "CPU Integer AWS Tests"
 
 [command.cpu_multi_bit_test]
 workflow = "aws_tfhe_multi_bit_tests.yml"
-profile = "cpu-big"
+profile = "bench_alt_3"
 check_run_name = "CPU AWS Multi Bit Tests"
 
 [command.cpu_wasm_test]
 workflow = "aws_tfhe_wasm_tests.yml"
-profile = "cpu-small"
+profile = "bench_alt_3"
 check_run_name = "CPU AWS WASM Tests"
 
 [command.cpu_fast_test]
 workflow = "aws_tfhe_fast_tests.yml"
-profile = "cpu-big"
+profile = "bench_alt_3"
 check_run_name = "CPU AWS Fast Tests"
 
 [command.integer_full_bench]
 workflow = "integer_full_benchmark.yml"
-profile = "bench"
+profile = "bench_alt_3"
 check_run_name = "Integer CPU AWS Benchmarks Full Suite"
 
 [command.integer_bench]
@@ -70,7 +85,7 @@ check_run_name = "Boolean CPU AWS Benchmarks"
 
 [command.pbs_bench]
 workflow = "pbs_benchmark.yml"
-profile = "bench"
+profile = "bench_alt_3"
 check_run_name = "PBS CPU AWS Benchmarks"
 
 [command.wasm_client_bench]

@@ -35,7 +35,8 @@ jobs:
       max-parallel: 1
       matrix:
         command: [ integer, integer_multi_bit]
-        op_flavor: [ default, default_comp, default_scalar, default_scalar_comp, smart, smart_comp, smart_scalar, smart_parallelized, smart_parallelized_comp, smart_scalar_parallelized, unchecked, unchecked_comp, unchecked_scalar, unchecked_scalar_comp, misc ]
+#        op_flavor: [ default, default_comp, default_scalar, default_scalar_comp, smart, smart_comp, smart_scalar, smart_parallelized, smart_parallelized_comp, smart_scalar_parallelized, unchecked, unchecked_comp, unchecked_scalar, unchecked_scalar_comp, misc ]
+        op_flavor: [ default, default_comp, default_scalar, default_scalar_comp, ]
     steps:
       - name: Instance configuration used
         run: |

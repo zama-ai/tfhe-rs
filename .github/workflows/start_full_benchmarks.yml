@@ -12,7 +12,8 @@ jobs:
     if: ${{ (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs') || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
-        command: [ boolean_bench, shortint_full_bench, integer_full_bench, pbs_bench, wasm_client_bench ]
+#        command: [ boolean_bench, shortint_full_bench, integer_full_bench, pbs_bench, wasm_client_bench ]
+        command: [ integer_full_bench ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tfhe-rs
