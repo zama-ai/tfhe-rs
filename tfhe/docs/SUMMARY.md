@@ -56,4 +56,3 @@
 
 ## API references
 * [docs.rs](https://docs.rs/tfhe/)
-

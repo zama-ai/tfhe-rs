@@ -49,4 +49,3 @@ fn main() {
     assert_eq!(clear, 255u8);
 }
 ```
-

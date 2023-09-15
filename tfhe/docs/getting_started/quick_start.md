@@ -139,6 +139,3 @@ let clear_result = clear_a + clear_b;
 
 assert_eq!(decrypted_result, clear_result);
 ```
-
-
-
