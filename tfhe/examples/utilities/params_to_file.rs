@@ -6,6 +6,7 @@ use tfhe::core_crypto::commons::dispersion::StandardDev;
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::multi_bit::ALL_MULTI_BIT_PARAMETER_VEC;
+use tfhe::shortint::parameters::parameters_compact_pk::ALL_PARAMETER_VEC_COMPACT_PK;
 use tfhe::shortint::parameters::{
     ShortintParameterSet, ALL_PARAMETER_VEC, PARAM_MESSAGE_1_CARRY_1_PBS_KS,
     PARAM_MESSAGE_2_CARRY_2_PBS_KS, PARAM_MESSAGE_3_CARRY_3_PBS_KS, PARAM_MESSAGE_4_CARRY_4_PBS_KS,
@@ -153,7 +154,12 @@ fn main() {
         PARAM_MESSAGE_3_CARRY_3_PBS_KS,
         PARAM_MESSAGE_4_CARRY_4_PBS_KS,
     ];
-    let all_classic_pbs = [ALL_PARAMETER_VEC.to_vec(), classic_params_small].concat();
+    let all_classic_pbs = [
+        ALL_PARAMETER_VEC.to_vec(),
+        ALL_PARAMETER_VEC_COMPACT_PK.to_vec(),
+        classic_params_small,
+    ]
+    .concat();
     let classic_pbs = all_classic_pbs
         .iter()
         .map(|p| ShortintParameterSet::from(*p))
