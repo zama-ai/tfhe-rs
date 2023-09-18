@@ -35,17 +35,23 @@ impl AesBlockCipher for ArmAesBlockCipher {
     }
 
     fn generate_batch(&mut self, AesIndex(aes_ctr): AesIndex) -> [u8; BYTES_PER_BATCH] {
-        let mut output = [0u8; BYTES_PER_BATCH];
-        // We want 128 bytes of output, the ctr gives 128 bit message (16 bytes)
-        for (i, out) in output.chunks_exact_mut(16).enumerate() {
-            let encrypted = unsafe {
+        #[target_feature(enable = "aes,neon")]
+        unsafe fn implementation(
+            this: &ArmAesBlockCipher,
+            AesIndex(aes_ctr): AesIndex,
+        ) -> [u8; BYTES_PER_BATCH] {
+            let mut output = [0u8; BYTES_PER_BATCH];
+            // We want 128 bytes of output, the ctr gives 128 bit message (16 bytes)
+            for (i, out) in output.chunks_exact_mut(16).enumerate() {
                 // Safe because we prevent the user from creating the Generator
                 // on non-supported hardware
-                encrypt(aes_ctr + (i as u128), &self.round_keys)
-            };
-            out.copy_from_slice(&encrypted.to_ne_bytes());
+                let encrypted = encrypt(aes_ctr + (i as u128), &this.round_keys);
+                out.copy_from_slice(&encrypted.to_ne_bytes());
+            }
+            output
         }
-        output
+        // SAFETY: we checked for aes and neon availability in `Self::new`
+        unsafe { implementation(self, AesIndex(aes_ctr)) }
     }
 }
 
@@ -55,6 +61,7 @@ impl AesBlockCipher for ArmAesBlockCipher {
 ///
 /// You must make sure the CPU's arch is`aarch64` and has
 /// `neon` and `aes` features.
+#[inline(always)]
 unsafe fn sub_word(word: u32) -> u32 {
     let data = vreinterpretq_u8_u32(vdupq_n_u32(word));
     let zero_key = vdupq_n_u8(0u8);
@@ -68,14 +75,17 @@ unsafe fn sub_word(word: u32) -> u32 {
     vgetq_lane_u32::<0>(vreinterpretq_u32_u8(temp))
 }
 
+#[inline(always)]
 fn uint8x16_t_to_u128(input: uint8x16_t) -> u128 {
     unsafe { transmute(input) }
 }
 
+#[inline(always)]
 fn u128_to_uint8x16_t(input: u128) -> uint8x16_t {
     unsafe { transmute(input) }
 }
 
+#[target_feature(enable = "aes,neon")]
 unsafe fn generate_round_keys(key: AesKey) -> [uint8x16_t; NUM_ROUND_KEYS] {
     let mut round_keys: [uint8x16_t; NUM_ROUND_KEYS] = std::mem::zeroed();
     round_keys[0] = u128_to_uint8x16_t(key.0);
@@ -109,6 +119,7 @@ unsafe fn generate_round_keys(key: AesKey) -> [uint8x16_t; NUM_ROUND_KEYS] {
 ///
 /// You must make sure the CPU's arch is`aarch64` and has
 /// `neon` and `aes` features.
+#[inline(always)]
 unsafe fn encrypt(message: u128, keys: &[uint8x16_t; NUM_ROUND_KEYS]) -> u128 {
     // Notes:
     // According the [ARM Manual](https://developer.arm.com/documentation/ddi0487/gb/):

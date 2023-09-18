@@ -8,7 +8,7 @@ pub struct RdseedSeeder;
 
 impl Seeder for RdseedSeeder {
     fn seed(&mut self) -> Seed {
-        Seed(rdseed_random_m128())
+        Seed(unsafe { rdseed_random_m128() })
     }
 
     fn is_available() -> bool {
@@ -17,7 +17,8 @@ impl Seeder for RdseedSeeder {
 }
 
 // Generates a random 128 bits value from rdseed
-fn rdseed_random_m128() -> u128 {
+#[target_feature(enable = "rdseed")]
+unsafe fn rdseed_random_m128() -> u128 {
     let mut rand1: u64 = 0;
     let mut rand2: u64 = 0;
     let mut output_bytes = [0u8; 16];
