@@ -771,29 +771,28 @@ fn integer_unchecked_negation(param: ClassicPBSParameters) {
 fn integer_smart_neg(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param);
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    for _ in 0..NB_TEST {
-        // Define the cleartexts
+    for _ in 0..NB_TEST_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
 
-        // Encrypt the integers
         let mut ctxt = cks.encrypt_radix(clear, NB_CTXT);
 
-        // Negates the ctxt
-        let ct_tmp = sks.smart_neg(&mut ctxt);
+        let mut ct_res = sks.smart_neg(&mut ctxt);
+        let mut clear_res = clear.wrapping_neg() % modulus;
+        let dec: u64 = cks.decrypt_radix(&ct_res);
+        assert_eq!(clear_res, dec);
 
-        // Decrypt the result
-        let dec: u64 = cks.decrypt_radix(&ct_tmp);
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = sks.smart_neg(&mut ct_res);
+            clear_res = clear_res.wrapping_neg() % modulus;
 
-        // Check the correctness
-        let clear_result = clear.wrapping_neg() % modulus;
-
-        assert_eq!(clear_result, dec);
+            let dec: u64 = cks.decrypt_radix(&ct_res);
+            assert_eq!(clear_res, dec);
+        }
     }
 }
 

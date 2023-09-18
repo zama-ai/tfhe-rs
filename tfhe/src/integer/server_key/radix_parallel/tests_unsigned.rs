@@ -2195,29 +2195,28 @@ where
     let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    //RNG
     let mut rng = rand::thread_rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    for _ in 0..NB_TEST {
-        // Define the cleartexts
+    for _ in 0..NB_TEST_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
 
-        // Encrypt the integers
         let mut ctxt = cks.encrypt(clear);
 
-        // Negates the ctxt
-        let ct_tmp = sks.smart_neg_parallelized(&mut ctxt);
+        let mut ct_res = sks.smart_neg_parallelized(&mut ctxt);
+        let mut clear_res = clear.wrapping_neg() % modulus;
+        let dec: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_res, dec);
 
-        // Decrypt the result
-        let dec: u64 = cks.decrypt(&ct_tmp);
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = sks.smart_neg_parallelized(&mut ct_res);
+            clear_res = clear_res.wrapping_neg() % modulus;
 
-        // Check the correctness
-        let clear_result = clear.wrapping_neg() % modulus;
-
-        assert_eq!(clear_result, dec);
+            let dec: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear_res, dec);
+        }
     }
 }
 
