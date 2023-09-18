@@ -82,7 +82,7 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
             decomp_level_count,
         );
 
-        convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
+        par_convert_standard_lwe_bootstrap_key_to_fourier(&bsk, &mut fbsk);
 
         drop(bsk);
 

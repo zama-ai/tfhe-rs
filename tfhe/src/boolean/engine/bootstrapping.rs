@@ -187,14 +187,11 @@ impl Bootstrapper {
                 .unwrap()
                 .unaligned_bytes_required(),
         );
-        let stack = self.computation_buffers.stack();
 
         // Conversion to fourier domain
-        convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
+        par_convert_standard_lwe_bootstrap_key_to_fourier(
             &standard_bootstraping_key,
             &mut fourier_bsk,
-            fft,
-            stack,
         );
 
         // Convert the GLWE secret key into an LWE secret key:
@@ -452,8 +449,7 @@ impl From<CompressedServerKey> for ServerKey {
                     standard_bootstrapping_key.decomposition_base_log(),
                     standard_bootstrapping_key.decomposition_level_count(),
                 );
-
-                convert_standard_lwe_bootstrap_key_to_fourier(
+                par_convert_standard_lwe_bootstrap_key_to_fourier(
                     &standard_bootstrapping_key,
                     &mut bootstrapping_key,
                 );

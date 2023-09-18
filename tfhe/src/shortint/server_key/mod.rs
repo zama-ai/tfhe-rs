@@ -856,7 +856,7 @@ impl From<CompressedServerKey> for ServerKey {
                         standard_bootstrapping_key.decomposition_level_count(),
                     );
 
-                    convert_standard_lwe_bootstrap_key_to_fourier(
+                    par_convert_standard_lwe_bootstrap_key_to_fourier(
                         &standard_bootstrapping_key,
                         &mut bootstrapping_key,
                     );
