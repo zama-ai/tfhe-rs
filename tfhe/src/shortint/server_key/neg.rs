@@ -265,10 +265,7 @@ impl ServerKey {
         let mut z = (ct.degree.0 + msg_mod - 1) / msg_mod;
         z = z.wrapping_mul(msg_mod);
 
-        // counter = z / (2^p-1)
-        let counter = z / (self.message_modulus.0 - 1);
-
-        counter <= self.max_degree.0
+        z <= self.max_degree.0
     }
 
     /// Compute homomorphically a negation of a ciphertext.

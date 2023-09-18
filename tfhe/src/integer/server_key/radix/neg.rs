@@ -91,8 +91,24 @@ impl ServerKey {
     /// assert_eq!(true, res);
     /// ```
     pub fn is_neg_possible(&self, ctxt: &RadixCiphertext) -> bool {
-        for ct_i in ctxt.blocks.iter() {
-            if !self.key.is_neg_possible(ct_i) {
+        for i in 0..ctxt.blocks.len() {
+            // z = ceil( degree / 2^p ) x 2^p
+            let msg_mod = self.key.message_modulus.0;
+            let mut z = (ctxt.blocks[i].degree.0 + msg_mod - 1) / msg_mod;
+            z = z.wrapping_mul(msg_mod);
+
+            // z will be the new degree of ctxt.blocks[i]
+            if z > self.key.max_degree.0 {
+                return false;
+            }
+
+            let z_b = z / msg_mod;
+
+            if i < ctxt.blocks.len() - 1
+                && !self
+                    .key
+                    .is_scalar_add_possible(&ctxt.blocks[i + 1], z_b as u8)
+            {
                 return false;
             }
         }
