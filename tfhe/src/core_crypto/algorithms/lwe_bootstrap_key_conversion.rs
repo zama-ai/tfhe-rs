@@ -96,6 +96,60 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized<Scalar, Input
         .fill_with_forward_fourier(input_bsk.as_view(), fft, stack);
 }
 
+pub fn par_convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, OutputCont>(
+    input_bsk: &LweBootstrapKey<InputCont>,
+    output_bsk: &mut FourierLweBootstrapKey<OutputCont>,
+) where
+    Scalar: UnsignedTorus,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = c64>,
+{
+    assert_eq!(
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+        "Mismatched PolynomialSize between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+    );
+
+    assert_eq!(
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+        "Mismatched GlweSize"
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_base_log(),
+        output_bsk.decomposition_base_log(),
+        "Mismatched DecompositionBaseLog between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+        "Mismatched DecompositionLevelCount between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+    );
+
+    assert_eq!(
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+    );
+
+    let fft = Fft::new(input_bsk.polynomial_size());
+    let fft = fft.as_view();
+
+    output_bsk
+        .as_mut_view()
+        .par_fill_with_forward_fourier(input_bsk.as_view(), fft);
+}
+
 /// Return the required memory for [`convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized`].
 pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(
     fft: FftView<'_>,

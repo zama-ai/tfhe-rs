@@ -99,22 +99,8 @@ impl ShortintEngine {
                     bootstrap_key.decomposition_level_count(),
                 );
 
-                let fft = Fft::new(bootstrap_key.polynomial_size());
-                let fft = fft.as_view();
-                self.computation_buffers.resize(
-                    convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
-                        .unwrap()
-                        .unaligned_bytes_required(),
-                );
-                let stack = self.computation_buffers.stack();
-
                 // Conversion to fourier domain
-                convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
-                    &bootstrap_key,
-                    &mut fourier_bsk,
-                    fft,
-                    stack,
-                );
+                par_convert_standard_lwe_bootstrap_key_to_fourier(&bootstrap_key, &mut fourier_bsk);
 
                 ShortintBootstrappingKey::Classic(fourier_bsk)
             }

@@ -108,22 +108,8 @@ impl ShortintEngine {
             bootstrap_key.decomposition_level_count(),
         );
 
-        let fft = Fft::new(bootstrap_key.polynomial_size());
-        let fft = fft.as_view();
-        self.computation_buffers.resize(
-            convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
-                .unwrap()
-                .unaligned_bytes_required(),
-        );
-        let stack = self.computation_buffers.stack();
-
         // Conversion to fourier domain
-        convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized(
-            &bootstrap_key,
-            &mut small_bsk,
-            fft,
-            stack,
-        );
+        par_convert_standard_lwe_bootstrap_key_to_fourier(&bootstrap_key, &mut small_bsk);
 
         //KSK encryption_key -> small WoPBS key (used in the 1st KS in the extract bit)
         let ksk_wopbs_large_to_wopbs_small = allocate_and_generate_new_lwe_keyswitch_key(
