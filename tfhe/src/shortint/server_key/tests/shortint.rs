@@ -445,7 +445,7 @@ where
         let ctxt_0 = cks.encrypt(clear_0);
         let ctxt_1 = cks.encrypt(clear_1);
         //define the lookup_table as identity
-        let acc = sks.generate_lookup_table_bivariate(|x, y| x * 2 * y);
+        let acc = sks.generate_lookup_table_bivariate(|x, y| (x * 2 * y) % modulus);
         // add the two ciphertexts
         let ct_res = sks.unchecked_apply_lookup_table_bivariate(&ctxt_0, &ctxt_1, &acc);
 
@@ -532,7 +532,7 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let double = |x| 2 * x;
+    let double = |x| (2 * x) % sks.message_modulus.0 as u64;
     let acc = sks.generate_lookup_table(double);
 
     //RNG
