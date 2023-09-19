@@ -378,29 +378,6 @@ impl ServerKey {
             }
         };
 
-        use std::cell::UnsafeCell;
-
-        #[derive(Copy, Clone)]
-        pub struct UnsafeSlice<'a, T> {
-            slice: &'a [UnsafeCell<T>],
-        }
-        unsafe impl<'a, T: Send + Sync> Send for UnsafeSlice<'a, T> {}
-        unsafe impl<'a, T: Send + Sync> Sync for UnsafeSlice<'a, T> {}
-
-        impl<'a, T> UnsafeSlice<'a, T> {
-            pub fn new(slice: &'a mut [T]) -> Self {
-                let ptr = slice as *mut [T] as *const [UnsafeCell<T>];
-                Self {
-                    slice: unsafe { &*ptr },
-                }
-            }
-
-            /// SAFETY: It is UB if two threads read/write the pointer without synchronisation
-            pub unsafe fn get(&self, i: usize) -> *mut T {
-                self.slice[i].get()
-            }
-        }
-
         let is_right_shift = matches!(operation, BarrelShifterOperation::RightShift);
         let padding_bit = if T::IS_SIGNED && is_right_shift {
             // Do an "arithmetic shift" by padding with the sign bit
@@ -441,54 +418,38 @@ impl ServerKey {
                 }
             }
 
-            let input_bits_a_slc = UnsafeSlice::new(&mut input_bits_a);
-            let mux_inputs_slc = UnsafeSlice::new(&mut mux_inputs);
-
-            (0..total_nb_bits).into_par_iter().for_each(|i| {
-                unsafe {
-                    // SAFETY
-                    //
-                    // `get` still does bound checks
-                    // (but we expect the index to alway be valid)
-                    //
-                    // Also, each index i is unique to each thread
-                    // as it comes from the iteration over a range.
-                    //
-                    // (i + offset) % total_nb_bits is also unique to each
-                    // thread as i is in [0..total_nb_bits[ and offset is either 0
-                    // or total_nb_bits
-
-                    let a_ptr = input_bits_a_slc.get(i as usize);
-                    let b = &input_bits_b[((i + offset) % total_nb_bits) as usize];
+            input_bits_a
+                .par_iter_mut()
+                .zip_eq(mux_inputs.par_iter_mut())
+                .enumerate()
+                .for_each(|(i, (a, mux_gate_input))| {
+                    let b = &input_bits_b[((i as u64 + offset) % total_nb_bits) as usize];
 
                     // pack bits into one block so that we have
                     // control_bit|b|a
 
-                    let mux_gate_input = &mut *mux_inputs_slc.get(i as usize);
                     self.key.unchecked_scalar_mul_assign(mux_gate_input, 2);
                     self.key.unchecked_add_assign(mux_gate_input, b);
                     self.key.unchecked_scalar_mul_assign(mux_gate_input, 2);
-                    self.key.unchecked_add_assign(mux_gate_input, &*a_ptr);
+                    self.key.unchecked_add_assign(mux_gate_input, &*a);
 
                     // we have
                     //
                     // control_bit|b|a
                     self.key.apply_lookup_table_assign(mux_gate_input, &mux_lut);
-                    (*a_ptr).clone_from(mux_gate_input);
-                }
-            });
+                    (*a).clone_from(mux_gate_input);
+                });
         }
 
         // rename for clarity
         let mut output_bits = input_bits_a;
         assert!(output_bits.len() == message_bits_per_block as usize * num_blocks);
-        let output_blocks = UnsafeSlice::new(ct.blocks_mut());
         // We have to reconstruct blocks from the individual bits
         output_bits
             .as_mut_slice()
             .par_chunks_exact_mut(message_bits_per_block as usize)
-            .enumerate()
-            .for_each(|(block_index, grouped_bits)| {
+            .zip_eq(ct.blocks_mut().par_iter_mut())
+            .for_each(|(grouped_bits, block)| {
                 let (head, last) = grouped_bits.split_at_mut(message_bits_per_block as usize - 1);
                 for bit in head.iter().rev() {
                     self.key.unchecked_scalar_mul_assign(&mut last[0], 2);
@@ -496,17 +457,6 @@ impl ServerKey {
                 }
                 // To give back a clean ciphertext
                 self.key.message_extract_assign(&mut last[0]);
-                let block = unsafe {
-                    // SAFETY
-                    //
-                    // `get` still does bounds check,
-                    // (but we know block_index always be valid)
-                    //
-                    // As block index in acquired from enumerate,
-                    // we know it is unique to each thread/loop iteration
-                    // thus only one thread will access the element at block_index
-                    &mut *output_blocks.get(block_index)
-                };
                 std::mem::swap(block, &mut last[0]);
             });
     }
