@@ -61,12 +61,12 @@ criterion_group!(
 criterion_group!(
     name = pbs_throughput_group;
     config = Criterion::default().sample_size(100);
-    targets = pbs_throughput::<u64>, pbs_throughput::<u32>
+    // targets = pbs_throughput::<u64>, pbs_throughput::<u32>
     targets = pbs_throughput::<u64>
 );
 
-criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
-// criterion_main!(pbs_throughput_group);
+// criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
+criterion_main!(pbs_throughput_group);
 
 fn benchmark_parameters<Scalar: UnsignedInteger>() -> Vec<(String, CryptoParametersRecord<Scalar>)>
 {
@@ -96,9 +96,9 @@ fn throughput_benchmark_parameters<Scalar: UnsignedInteger>(
 ) -> Vec<(String, CryptoParametersRecord<Scalar>)> {
     if Scalar::BITS == 64 {
         vec![
-            PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+            // PARAM_MESSAGE_1_CARRY_1_KS_PBS,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+            // PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         ]
         .iter()
         .map(|params| {
@@ -511,41 +511,46 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
             params.pbs_level.unwrap(),
         );
 
-        for chunk_size in [1, 16, 32, 64, 128, 256, 512] {
-            let id = format!("{bench_name}_{name}_{chunk_size}chunk");
-            {
-                bench_group.bench_function(&id, |b| {
-                    b.iter(|| {
-                        lwe_vec
-                            .par_iter()
-                            .zip(output_lwe_list.par_iter_mut())
-                            .zip(vec_buffers.par_iter_mut())
-                            .take(chunk_size)
-                            .for_each(|((input_lwe, mut out_lwe), buffer)| {
-                                programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                                    input_lwe,
-                                    &mut out_lwe,
-                                    &glwe,
-                                    &fbsk,
-                                    fft,
-                                    buffer.stack(),
-                                );
-                            });
-                        black_box(&mut output_lwe_list);
-                    })
-                });
-            }
+        for thread_num in 1..8 {
+            let pool = rayon::ThreadPoolBuilder::new().num_threads(thread_num).build().unwrap();
 
-            let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-            write_to_json(
-                &id,
-                *params,
-                name,
-                "pbs",
-                &OperatorType::Atomic,
-                bit_size,
-                vec![bit_size],
-            );
+            // for chunk_size in [1, 16, 32, 64, 128, 256, 512] {
+            for chunk_size in [1, 16, 32] {
+                let id = format!("{bench_name}_{name}_{chunk_size}chunk");
+                {
+                    bench_group.bench_function(&id, |b| {
+                        b.iter(|| {
+                            lwe_vec
+                                .par_iter()
+                                .zip(output_lwe_list.par_iter_mut())
+                                .zip(vec_buffers.par_iter_mut())
+                                .take(chunk_size)
+                                .for_each(|((input_lwe, mut out_lwe), buffer)| {
+                                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                                        input_lwe,
+                                        &mut out_lwe,
+                                        &glwe,
+                                        &fbsk,
+                                        fft,
+                                        buffer.stack(),
+                                    );
+                                });
+                            black_box(&mut output_lwe_list);
+                        })
+                    });
+                }
+
+                let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+                write_to_json(
+                    &id,
+                    *params,
+                    name,
+                    "pbs",
+                    &OperatorType::Atomic,
+                    bit_size,
+                    vec![bit_size],
+                );
+            }
         }
     }
 }
