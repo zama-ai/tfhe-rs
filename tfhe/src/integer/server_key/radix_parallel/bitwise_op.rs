@@ -1,27 +1,25 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 use rayon::prelude::*;
 
 impl ServerKey {
-    pub fn unchecked_bitand_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_bitand_parallelized<T>(&self, ct_left: &T, ct_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ct_left.clone();
         self.unchecked_bitand_assign_parallelized(&mut result, ct_right);
         result
     }
 
-    pub fn unchecked_bitand_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) {
+    pub fn unchecked_bitand_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         ct_left
-            .blocks
+            .blocks_mut()
             .par_iter_mut()
-            .zip(ct_right.blocks.par_iter())
+            .zip(ct_right.blocks().par_iter())
             .for_each(|(ct_left_i, ct_right_i)| {
                 self.key.unchecked_bitand_assign(ct_left_i, ct_right_i);
             });
@@ -55,11 +53,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 & msg2);
     /// ```
-    pub fn smart_bitand_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_bitand_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -69,11 +66,10 @@ impl ServerKey {
         self.unchecked_bitand_parallelized(ct_left, ct_right)
     }
 
-    pub fn smart_bitand_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) {
+    pub fn smart_bitand_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -120,22 +116,20 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 & msg2);
     /// ```
-    pub fn bitand_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn bitand_parallelized<T>(&self, ct_left: &T, ct_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct_left.clone();
         self.bitand_assign_parallelized(&mut ct_res, ct_right);
         ct_res
     }
 
-    pub fn bitand_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn bitand_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
@@ -164,25 +158,23 @@ impl ServerKey {
         self.unchecked_bitand_assign_parallelized(lhs, rhs);
     }
 
-    pub fn unchecked_bitor_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_bitor_parallelized<T>(&self, ct_left: &T, ct_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ct_left.clone();
         self.unchecked_bitor_assign_parallelized(&mut result, ct_right);
         result
     }
 
-    pub fn unchecked_bitor_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) {
+    pub fn unchecked_bitor_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         ct_left
-            .blocks
+            .blocks_mut()
             .par_iter_mut()
-            .zip(ct_right.blocks.par_iter())
+            .zip(ct_right.blocks().par_iter())
             .for_each(|(ct_left_i, ct_right_i)| {
                 self.key.unchecked_bitor_assign(ct_left_i, ct_right_i);
             });
@@ -216,11 +208,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 | msg2);
     /// ```
-    pub fn smart_bitor_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_bitor_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -230,11 +221,10 @@ impl ServerKey {
         self.unchecked_bitor_parallelized(ct_left, ct_right)
     }
 
-    pub fn smart_bitor_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) {
+    pub fn smart_bitor_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -281,22 +271,20 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 | msg2);
     /// ```
-    pub fn bitor_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn bitor_parallelized<T>(&self, ct_left: &T, ct_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct_left.clone();
         self.bitor_assign_parallelized(&mut ct_res, ct_right);
         ct_res
     }
 
-    pub fn bitor_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn bitor_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
@@ -325,25 +313,23 @@ impl ServerKey {
         self.unchecked_bitor_assign_parallelized(lhs, rhs);
     }
 
-    pub fn unchecked_bitxor_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_bitxor_parallelized<T>(&self, ct_left: &T, ct_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ct_left.clone();
         self.unchecked_bitxor_assign_parallelized(&mut result, ct_right);
         result
     }
 
-    pub fn unchecked_bitxor_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) {
+    pub fn unchecked_bitxor_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         ct_left
-            .blocks
+            .blocks_mut()
             .par_iter_mut()
-            .zip(ct_right.blocks.par_iter())
+            .zip(ct_right.blocks().par_iter())
             .for_each(|(ct_left_i, ct_right_i)| {
                 self.key.unchecked_bitxor_assign(ct_left_i, ct_right_i);
             });
@@ -377,11 +363,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 ^ msg2);
     /// ```
-    pub fn smart_bitxor_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_bitxor_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -391,11 +376,10 @@ impl ServerKey {
         self.unchecked_bitxor_parallelized(ct_left, ct_right)
     }
 
-    pub fn smart_bitxor_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &mut RadixCiphertext,
-    ) {
+    pub fn smart_bitxor_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
@@ -442,22 +426,20 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 ^ msg2);
     /// ```
-    pub fn bitxor_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn bitxor_parallelized<T>(&self, ct_left: &T, ct_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct_left.clone();
         self.bitxor_assign_parallelized(&mut ct_res, ct_right);
         ct_res
     }
 
-    pub fn bitxor_assign_parallelized(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn bitxor_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
@@ -521,20 +503,26 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, (!msg) % (1 << 8));
     /// ```
-    pub fn bitnot_parallelized(&self, ct: &RadixCiphertext) -> RadixCiphertext {
+    pub fn bitnot_parallelized<T>(&self, ct: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct.clone();
         self.bitnot_assign_parallelized(&mut ct_res);
         ct_res
     }
 
-    pub fn bitnot_assign_parallelized(&self, ct: &mut RadixCiphertext) {
+    pub fn bitnot_assign_parallelized<T>(&self, ct: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
 
         let modulus = self.key.message_modulus.0 as u64;
         let lut = self.key.generate_lookup_table(|x| (!x) % modulus);
-        ct.blocks
+        ct.blocks_mut()
             .par_iter_mut()
             .for_each(|block| self.key.apply_lookup_table_assign(block, &lut))
     }

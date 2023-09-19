@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 
 impl ServerKey {
@@ -28,7 +28,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(255, dec);
     /// ```
-    pub fn smart_neg_parallelized(&self, ctxt: &mut RadixCiphertext) -> RadixCiphertext {
+    pub fn smart_neg_parallelized<T>(&self, ctxt: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_neg_possible(ctxt) {
             self.full_propagate_parallelized(ctxt);
         }
@@ -70,8 +73,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(255, dec);
     /// ```
-    pub fn neg_parallelized(&self, ctxt: &RadixCiphertext) -> RadixCiphertext {
-        let mut tmp_ctxt: RadixCiphertext;
+    pub fn neg_parallelized<T>(&self, ctxt: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_ctxt;
 
         let ct = if !ctxt.block_carries_are_empty() {
             tmp_ctxt = ctxt.clone();

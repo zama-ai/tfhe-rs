@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 use rayon::prelude::*;
 
@@ -39,12 +39,14 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_left);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul_assign_parallelized(
+    pub fn unchecked_block_mul_assign_parallelized<T>(
         &self,
-        ct_left: &mut RadixCiphertext,
+        ct_left: &mut T,
         ct_right: &crate::shortint::Ciphertext,
         index: usize,
-    ) {
+    ) where
+        T: IntegerRadixCiphertext,
+    {
         *ct_left = self.unchecked_block_mul_parallelized(ct_left, ct_right, index);
     }
 
@@ -84,12 +86,15 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul_parallelized(
+    pub fn unchecked_block_mul_parallelized<T>(
         &self,
-        ct1: &RadixCiphertext,
+        ct1: &T,
         ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext {
+    ) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let shifted_ct = self.blockshift(ct1, index);
 
         let mut result_lsb = shifted_ct.clone();
@@ -133,16 +138,18 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
     #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_block_mul_parallelized(
+    pub fn smart_block_mul_parallelized<T>(
         &self,
-        ct1: &mut RadixCiphertext,
+        ct1: &mut T,
         ct2: &mut crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext {
-        //Makes sure we can do the multiplications
+    ) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        // Makes sure we can do the multiplications
         self.full_propagate_parallelized(ct1);
 
         let shifted_ct = self.blockshift(ct1, index);
@@ -197,23 +204,28 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn block_mul_parallelized(
+    pub fn block_mul_parallelized<T>(
         &self,
-        ct1: &RadixCiphertext,
+        ct1: &T,
         ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext {
+    ) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct1.clone();
         self.block_mul_assign_parallelized(&mut ct_res, ct2, index);
         ct_res
     }
 
-    pub fn block_mul_assign_parallelized(
+    pub fn block_mul_assign_parallelized<T>(
         &self,
-        ct1: &mut RadixCiphertext,
+        ct1: &mut T,
         ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) {
+    ) where
+        T: IntegerRadixCiphertext,
+    {
         let mut tmp_rhs: crate::shortint::Ciphertext;
 
         let (lhs, rhs) = match (ct1.block_carries_are_empty(), ct2.carry_is_empty()) {
@@ -240,24 +252,26 @@ impl ServerKey {
         self.full_propagate_parallelized(lhs);
     }
 
-    fn unchecked_block_mul_lsb_msb_parallelized(
+    fn unchecked_block_mul_lsb_msb_parallelized<T>(
         &self,
-        result_lsb: &mut RadixCiphertext,
-        result_msb: &mut RadixCiphertext,
+        result_lsb: &mut T,
+        result_msb: &mut T,
         ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) {
-        let len = result_msb.blocks.len() - 1;
+    ) where
+        T: IntegerRadixCiphertext,
+    {
+        let len = result_msb.blocks().len() - 1;
         rayon::join(
             || {
-                result_lsb.blocks[index..]
+                result_lsb.blocks_mut()[index..]
                     .par_iter_mut()
                     .for_each(|res_lsb_i| {
                         self.key.unchecked_mul_lsb_assign(res_lsb_i, ct2);
                     });
             },
             || {
-                result_msb.blocks[index..len]
+                result_msb.blocks_mut()[index..len]
                     .par_iter_mut()
                     .for_each(|res_msb_i| {
                         self.key.unchecked_mul_msb_assign(res_msb_i, ct2);
@@ -266,12 +280,14 @@ impl ServerKey {
         );
     }
 
-    pub fn smart_block_mul_assign_parallelized(
+    pub fn smart_block_mul_assign_parallelized<T>(
         &self,
-        ct1: &mut RadixCiphertext,
+        ct1: &mut T,
         ct2: &mut crate::shortint::Ciphertext,
         index: usize,
-    ) {
+    ) where
+        T: IntegerRadixCiphertext,
+    {
         *ct1 = self.smart_block_mul_parallelized(ct1, ct2, index);
     }
 
@@ -281,19 +297,18 @@ impl ServerKey {
     /// `lhs` with the result.
     ///
     /// Each of the input term is expected to have _at most_ one carry consumed
-    pub(crate) fn sum_multiplication_terms_into(
-        &self,
-        lhs: &mut RadixCiphertext,
-        mut terms: Vec<RadixCiphertext>,
-    ) {
+    pub(crate) fn sum_multiplication_terms_into<T>(&self, lhs: &mut T, mut terms: Vec<T>)
+    where
+        T: IntegerRadixCiphertext,
+    {
         if terms.is_empty() {
-            for block in &mut lhs.blocks {
+            for block in lhs.blocks_mut() {
                 self.key.create_trivial_assign(block, 0);
             }
             return;
         }
 
-        let num_blocks = lhs.blocks.len();
+        let num_blocks = lhs.blocks().len();
 
         let num_bits_in_carry = self.key.carry_modulus.0.ilog2() as u64;
         // Among those bits of carry, we know one is already consumed by
@@ -343,14 +358,14 @@ impl ServerKey {
                 let mut last_block_where_addition_happenned = num_blocks - 1;
                 for a in rest.iter() {
                     let first_block_to_add = a
-                        .blocks
+                        .blocks()
                         .iter()
                         .position(|block| block.degree.0 != 0)
                         .unwrap_or(num_blocks);
                     first_block_where_addition_happenned =
                         first_block_where_addition_happenned.min(first_block_to_add);
                     let last_block_to_add = a
-                        .blocks
+                        .blocks()
                         .iter()
                         .rev()
                         .position(|block| block.degree.0 != 0)
@@ -358,21 +373,21 @@ impl ServerKey {
                         .unwrap_or(num_blocks - 1);
                     last_block_where_addition_happenned =
                         last_block_where_addition_happenned.max(last_block_to_add);
-                    for (ct_left_i, ct_right_i) in s.blocks
+                    for (ct_left_i, ct_right_i) in s.blocks_mut()
                         [first_block_to_add..last_block_to_add + 1]
                         .iter_mut()
-                        .zip(a.blocks[first_block_to_add..last_block_to_add + 1].iter())
+                        .zip(a.blocks()[first_block_to_add..last_block_to_add + 1].iter())
                     {
                         self.key.unchecked_add_assign(ct_left_i, ct_right_i);
                     }
                 }
 
                 // last carry is not interesting
-                let mut carry_blocks = s.blocks
+                let mut carry_blocks = s.blocks()
                     [first_block_where_addition_happenned..last_block_where_addition_happenned + 1]
                     .to_vec();
 
-                let message_blocks = &mut s.blocks;
+                let message_blocks = s.blocks_mut();
 
                 rayon::join(
                     || {
@@ -430,7 +445,7 @@ impl ServerKey {
             self.unchecked_add_assign(result, term);
         }
 
-        std::mem::swap(&mut lhs.blocks, &mut result.blocks);
+        lhs.blocks_mut().swap_with_slice(result.blocks_mut());
         self.full_propagate_parallelized(lhs);
         assert!(lhs.block_carries_are_empty());
     }
@@ -470,25 +485,24 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_mul_assign_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) {
+    pub fn unchecked_mul_assign_parallelized<T>(&self, lhs: &mut T, rhs: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         if rhs.holds_boolean_value() {
-            self.zero_out_if_condition_is_false(lhs, &rhs.blocks[0]);
+            self.zero_out_if_condition_is_false(lhs, &rhs.blocks()[0]);
             return;
         }
 
         if lhs.holds_boolean_value() {
             let mut cloned_rhs = rhs.clone();
-            self.zero_out_if_condition_is_false(&mut cloned_rhs, &lhs.blocks[0]);
+            self.zero_out_if_condition_is_false(&mut cloned_rhs, &lhs.blocks()[0]);
             *lhs = cloned_rhs;
             return;
         }
 
         let terms = rhs
-            .blocks
+            .blocks()
             .par_iter()
             .enumerate()
             .filter_map(|(i, block)| {
@@ -514,11 +528,10 @@ impl ServerKey {
     /// # Warning
     ///
     /// - Multithreaded
-    pub fn unchecked_mul_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_mul_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = lhs.clone();
         self.unchecked_mul_assign_parallelized(&mut result, rhs);
         result
@@ -555,11 +568,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn smart_mul_assign_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) {
+    pub fn smart_mul_assign_parallelized<T>(&self, lhs: &mut T, rhs: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !lhs.block_carries_are_empty() {
@@ -583,11 +595,10 @@ impl ServerKey {
     /// # Warning
     ///
     /// - Multithreaded
-    pub fn smart_mul_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_mul_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !lhs.block_carries_are_empty() {
@@ -644,18 +655,20 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn mul_parallelized(
-        &self,
-        ct1: &RadixCiphertext,
-        ct2: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn mul_parallelized<T>(&self, ct1: &T, ct2: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct1.clone();
         self.mul_assign_parallelized(&mut ct_res, ct2);
         ct_res
     }
 
-    pub fn mul_assign_parallelized(&self, ct1: &mut RadixCiphertext, ct2: &RadixCiphertext) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn mul_assign_parallelized<T>(&self, ct1: &mut T, ct2: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (ct1.block_carries_are_empty(), ct2.block_carries_are_empty()) {
             (true, true) => (ct1, ct2),

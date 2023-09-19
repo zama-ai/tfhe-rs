@@ -1,16 +1,15 @@
 use super::ServerKey;
 
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::comparator::Comparator;
 
 use rayon::prelude::*;
 
 impl ServerKey {
-    pub fn unchecked_eq_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_eq_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
@@ -18,10 +17,10 @@ impl ServerKey {
         let lut = self
             .key
             .generate_lookup_table_bivariate(|x, y| u64::from(x == y));
-        let mut block_comparisons = lhs.blocks.clone();
+        let mut block_comparisons = lhs.blocks().to_vec();
         block_comparisons
             .par_iter_mut()
-            .zip(rhs.blocks.par_iter())
+            .zip(rhs.blocks().par_iter())
             .for_each(|(lhs_block, rhs_block)| {
                 self.key
                     .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
@@ -29,18 +28,17 @@ impl ServerKey {
 
         let is_equal_result = self.are_all_comparisons_block_true(block_comparisons);
 
-        let mut blocks = Vec::with_capacity(lhs.blocks.len());
+        let mut blocks = Vec::with_capacity(lhs.blocks().len());
         blocks.push(is_equal_result);
-        blocks.resize_with(lhs.blocks.len(), || self.key.create_trivial(0));
+        blocks.resize_with(lhs.blocks().len(), || self.key.create_trivial(0));
 
-        RadixCiphertext { blocks }
+        T::from_blocks(blocks)
     }
 
-    pub fn unchecked_ne_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_ne_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
@@ -48,10 +46,10 @@ impl ServerKey {
         let lut = self
             .key
             .generate_lookup_table_bivariate(|x, y| u64::from(x != y));
-        let mut block_comparisons = lhs.blocks.clone();
+        let mut block_comparisons = lhs.blocks().to_vec();
         block_comparisons
             .par_iter_mut()
-            .zip(rhs.blocks.par_iter())
+            .zip(rhs.blocks().par_iter())
             .for_each(|(lhs_block, rhs_block)| {
                 self.key
                     .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
@@ -79,66 +77,57 @@ impl ServerKey {
             std::mem::swap(&mut block_comparisons_2, &mut block_comparisons);
         }
 
-        block_comparisons.resize_with(lhs.blocks.len(), || self.key.create_trivial(0));
+        block_comparisons.resize_with(lhs.blocks().len(), || self.key.create_trivial(0));
 
-        RadixCiphertext {
-            blocks: block_comparisons,
-        }
+        T::from_blocks(block_comparisons)
     }
 
-    pub fn unchecked_gt_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_gt_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_gt_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_ge_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_ge_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_lt_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_lt_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_le_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_le_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_le_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_max_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_max_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_max_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_min_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_min_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_min_parallelized(lhs, rhs)
     }
 
-    pub fn smart_eq_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_eq_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !lhs.block_carries_are_empty() {
@@ -154,11 +143,10 @@ impl ServerKey {
         self.unchecked_eq_parallelized(lhs, rhs)
     }
 
-    pub fn smart_ne_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_ne_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !lhs.block_carries_are_empty() {
@@ -174,57 +162,54 @@ impl ServerKey {
         self.unchecked_ne_parallelized(lhs, rhs)
     }
 
-    pub fn smart_gt_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_gt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_gt_parallelized(lhs, rhs)
     }
 
-    pub fn smart_ge_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_ge_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_ge_parallelized(lhs, rhs)
     }
 
-    pub fn smart_lt_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_lt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_lt_parallelized(lhs, rhs)
     }
 
-    pub fn smart_le_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_le_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_le_parallelized(lhs, rhs)
     }
 
-    pub fn smart_max_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_max_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_max_parallelized(lhs, rhs)
     }
 
-    pub fn smart_min_parallelized(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_min_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_min_parallelized(lhs, rhs)
     }
 
-    pub fn eq_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
-        let mut tmp_lhs: RadixCiphertext;
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn eq_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_lhs;
+        let mut tmp_rhs;
         let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
             (true, true) => (lhs, rhs),
             (true, false) => {
@@ -251,9 +236,12 @@ impl ServerKey {
         self.unchecked_eq_parallelized(lhs, rhs)
     }
 
-    pub fn ne_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
-        let mut tmp_lhs: RadixCiphertext;
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn ne_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_lhs;
+        let mut tmp_rhs;
         let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
             (true, true) => (lhs, rhs),
             (true, false) => {
@@ -280,35 +268,45 @@ impl ServerKey {
         self.unchecked_ne_parallelized(lhs, rhs)
     }
 
-    pub fn gt_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn gt_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).gt_parallelized(lhs, rhs)
     }
 
-    pub fn ge_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).ge_parallelized(lhs, rhs)
     }
 
-    pub fn lt_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).lt_parallelized(lhs, rhs)
     }
 
-    pub fn le_parallelized(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn le_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).le_parallelized(lhs, rhs)
     }
 
-    pub fn max_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn max_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).max_parallelized(lhs, rhs)
     }
 
-    pub fn min_parallelized(
-        &self,
-        lhs: &RadixCiphertext,
-        rhs: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn min_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).min_parallelized(lhs, rhs)
     }
 }

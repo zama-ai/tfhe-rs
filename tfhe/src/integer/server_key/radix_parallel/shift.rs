@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::radix_parallel::bit_extractor::BitExtractor;
 use crate::integer::ServerKey;
 
@@ -16,29 +16,26 @@ impl ServerKey {
     //                Shift Right
     //======================================================================
 
-    pub fn unchecked_right_shift_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        shift: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_right_shift_parallelized<T>(&self, ct_left: &T, shift: &RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ct_left.clone();
         self.unchecked_right_shift_assign_parallelized(&mut result, shift);
         result
     }
 
-    pub fn unchecked_right_shift_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        shift: &RadixCiphertext,
-    ) {
+    pub fn unchecked_right_shift_assign_parallelized<T>(&self, ct: &mut T, shift: &RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
         self.barrel_shifter(ct, shift, BarrelShifterOperation::RightShift);
     }
 
-    pub fn smart_right_shift_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        shift: &mut RadixCiphertext,
-    ) {
+    pub fn smart_right_shift_assign_parallelized<T>(&self, ct: &mut T, shift: &mut RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -54,11 +51,10 @@ impl ServerKey {
         self.unchecked_right_shift_assign_parallelized(ct, shift);
     }
 
-    pub fn smart_right_shift_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        shift: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_right_shift_parallelized<T>(&self, ct: &mut T, shift: &mut RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -74,12 +70,11 @@ impl ServerKey {
         self.unchecked_right_shift_parallelized(ct, shift)
     }
 
-    pub fn right_shift_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        shift: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn right_shift_assign_parallelized<T>(&self, ct: &mut T, shift: &RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (
             ct.block_carries_are_empty(),
@@ -144,11 +139,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     /// ```
-    pub fn right_shift_parallelized(
-        &self,
-        ct: &RadixCiphertext,
-        shift: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn right_shift_parallelized<T>(&self, ct: &T, shift: &RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct.clone();
         self.right_shift_assign_parallelized(&mut ct_res, shift);
         ct_res
@@ -164,11 +158,10 @@ impl ServerKey {
     /// - ct to have clean carries
     /// - shift to have clean carries
     /// - the number of bits in the block to be >= 3
-    pub fn unchecked_left_shift_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        shift: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_left_shift_parallelized<T>(&self, ct_left: &T, shift: &RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ct_left.clone();
         self.unchecked_left_shift_assign_parallelized(&mut result, shift);
         result
@@ -180,19 +173,17 @@ impl ServerKey {
     /// - ct to have clean carries
     /// - shift to have clean carries
     /// - the number of bits in the block to be >= 3
-    pub fn unchecked_left_shift_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        shift: &RadixCiphertext,
-    ) {
+    pub fn unchecked_left_shift_assign_parallelized<T>(&self, ct: &mut T, shift: &RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
         self.barrel_shifter(ct, shift, BarrelShifterOperation::LeftShift);
     }
 
-    pub fn smart_left_shift_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        shift: &mut RadixCiphertext,
-    ) {
+    pub fn smart_left_shift_assign_parallelized<T>(&self, ct: &mut T, shift: &mut RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -208,11 +199,10 @@ impl ServerKey {
         self.unchecked_left_shift_assign_parallelized(ct, shift);
     }
 
-    pub fn smart_left_shift_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        shift: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_left_shift_parallelized<T>(&self, ct: &mut T, shift: &mut RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -228,12 +218,11 @@ impl ServerKey {
         self.unchecked_left_shift_parallelized(ct, shift)
     }
 
-    pub fn left_shift_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        shift: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn left_shift_assign_parallelized<T>(&self, ct: &mut T, shift: &RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (
             ct.block_carries_are_empty(),
@@ -298,11 +287,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg << shift, dec);
     /// ```
-    pub fn left_shift_parallelized(
-        &self,
-        ct: &RadixCiphertext,
-        shift: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn left_shift_parallelized<T>(&self, ct: &T, shift: &RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct.clone();
         self.left_shift_assign_parallelized(&mut ct_res, shift);
         ct_res
@@ -329,12 +317,14 @@ impl ServerKey {
     /// thus, any bit that are higher than log2(16) will be removed
     ///
     /// `ct` will be assigned the result, and it will be in a fresh state
-    pub(super) fn barrel_shifter(
+    pub(super) fn barrel_shifter<T>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut T,
         shift: &RadixCiphertext,
         operation: BarrelShifterOperation,
-    ) {
+    ) where
+        T: IntegerRadixCiphertext,
+    {
         let num_blocks = shift.blocks.len();
         let message_bits_per_block = self.key.message_modulus.0.ilog2() as u64;
         let carry_bits_per_block = self.key.carry_modulus.0.ilog2() as u64;
@@ -347,7 +337,7 @@ impl ServerKey {
 
         let bit_extractor = BitExtractor::new(self, message_bits_per_block as usize);
         let (bits, shift_bits) = rayon::join(
-            || bit_extractor.extract_all_bits(&ct.blocks),
+            || bit_extractor.extract_all_bits(ct.blocks()),
             || {
                 let mut max_num_bits_that_tell_shift = total_nb_bits.ilog2() as u64;
                 // This effectively means, that if the block parameters
@@ -411,6 +401,14 @@ impl ServerKey {
             }
         }
 
+        let is_right_shift = matches!(operation, BarrelShifterOperation::RightShift);
+        let padding_bit = if T::IS_SIGNED && is_right_shift {
+            // Do an "arithmetic shift" by padding with the sign bit
+            bits.last().unwrap().clone()
+        } else {
+            self.key.create_trivial(0)
+        };
+
         let mut input_bits_a = bits;
         let mut input_bits_b = input_bits_a.clone();
         let mut mux_inputs = input_bits_a.clone();
@@ -425,14 +423,14 @@ impl ServerKey {
                 BarrelShifterOperation::LeftShift => {
                     input_bits_b.rotate_right(1 << d);
                     for bit_that_wrapped in &mut input_bits_b[..1 << d] {
-                        self.key.create_trivial_assign(bit_that_wrapped, 0);
+                        bit_that_wrapped.clone_from(&padding_bit);
                     }
                 }
                 BarrelShifterOperation::RightShift => {
                     input_bits_b.rotate_left(1 << d);
                     let bits_that_wrapped = &mut input_bits_b[total_nb_bits as usize - (1 << d)..];
                     for bit_that_wrapped in bits_that_wrapped {
-                        self.key.create_trivial_assign(bit_that_wrapped, 0);
+                        bit_that_wrapped.clone_from(&padding_bit);
                     }
                 }
                 BarrelShifterOperation::LeftRotate => {
@@ -484,7 +482,7 @@ impl ServerKey {
         // rename for clarity
         let mut output_bits = input_bits_a;
         assert!(output_bits.len() == message_bits_per_block as usize * num_blocks);
-        let output_blocks = UnsafeSlice::new(&mut ct.blocks);
+        let output_blocks = UnsafeSlice::new(ct.blocks_mut());
         // We have to reconstruct blocks from the individual bits
         output_bits
             .as_mut_slice()

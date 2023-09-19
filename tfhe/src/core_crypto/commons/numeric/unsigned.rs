@@ -95,7 +95,9 @@ macro_rules! implement {
             const MAX: Self = <$Type>::MAX;
         }
 
-        impl UnsignedNumeric for $Type {}
+        impl UnsignedNumeric for $Type {
+            type NumericSignedType = $SignedType;
+        }
 
         impl UnsignedInteger for $Type {
             type Signed = $SignedType;

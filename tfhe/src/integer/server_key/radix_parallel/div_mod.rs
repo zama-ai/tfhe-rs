@@ -1,6 +1,6 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::comparator::ZeroComparisonType;
-use crate::integer::ServerKey;
+use crate::integer::{IntegerCiphertext, ServerKey};
 
 use super::bit_extractor::BitExtractor;
 
@@ -8,12 +8,95 @@ impl ServerKey {
     //======================================================================
     //                Div Rem
     //======================================================================
-    pub fn unchecked_div_rem_parallelized(
+    pub fn unchecked_div_rem_parallelized<T>(&self, numerator: &T, divisor: &T) -> (T, T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        if !T::IS_SIGNED {
+            let n = RadixCiphertext::from_blocks(numerator.blocks().to_vec());
+            let d = RadixCiphertext::from_blocks(divisor.blocks().to_vec());
+            let (q, r) = self.unsigned_unchecked_div_rem_parallelized(&n, &d);
+            let q = T::from_blocks(q.into_blocks());
+            let r = T::from_blocks(r.into_blocks());
+            (q, r)
+        } else {
+            let n = SignedRadixCiphertext::from_blocks(numerator.blocks().to_vec());
+            let d = SignedRadixCiphertext::from_blocks(divisor.blocks().to_vec());
+            let (q, r) = self.signed_unchecked_div_rem_parallelized(&n, &d);
+            let q = T::from_blocks(q.into_blocks());
+            let r = T::from_blocks(r.into_blocks());
+            (q, r)
+        }
+    }
+
+    pub fn unchecked_div_rem_floor_parallelized(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
+        let (quotient, remainder) = self.unchecked_div_rem_parallelized(numerator, divisor);
+
+        let (remainder_is_not_zero, remainder_and_divisor_signs_disagrees) = rayon::join(
+            || self.unchecked_scalar_ne_parallelized(&remainder, 0).blocks[0].clone(),
+            || {
+                let sign_bit_pos = self.key.message_modulus.0.ilog2() - 1;
+                let compare_sign_bits = |x, y| {
+                    let x_sign_bit = (x >> sign_bit_pos) & 1;
+                    let y_sign_bit = (y >> sign_bit_pos) & 1;
+                    u64::from(x_sign_bit != y_sign_bit)
+                };
+                let lut = self.key.generate_lookup_table_bivariate(compare_sign_bits);
+                self.key.unchecked_apply_lookup_table_bivariate(
+                    remainder.blocks().last().unwrap(),
+                    divisor.blocks().last().unwrap(),
+                    &lut,
+                )
+            },
+        );
+
+        let condition = self.key.unchecked_add(
+            &remainder_is_not_zero,
+            &remainder_and_divisor_signs_disagrees,
+        );
+
+        let (remainder_plus_divisor, quotient_minus_one) = rayon::join(
+            || self.add_parallelized(&remainder, divisor),
+            || self.scalar_sub_parallelized(&quotient, 1),
+        );
+
+        let (quotient, remainder) = rayon::join(
+            || {
+                self.unchecked_programmable_if_then_else_parallelized(
+                    &condition,
+                    &quotient_minus_one,
+                    &quotient,
+                    |x| x == 2,
+                )
+            },
+            || {
+                self.unchecked_programmable_if_then_else_parallelized(
+                    &condition,
+                    &remainder_plus_divisor,
+                    &remainder,
+                    |x| x == 2,
+                )
+            },
+        );
+
+        (quotient, remainder)
+    }
+
+    fn unsigned_unchecked_div_rem_parallelized(
         &self,
         numerator: &RadixCiphertext,
         divisor: &RadixCiphertext,
     ) -> (RadixCiphertext, RadixCiphertext) {
-        // Pseudo-code of the school-bool / long-division algorithm:
+        assert_eq!(
+            numerator.blocks.len(),
+            divisor.blocks.len(),
+            "numerator and divisor must have same number of blocks"
+        );
+        // Pseudo-code of the school-book / long-division algorithm:
         //
         //
         // div(N/D):
@@ -32,8 +115,8 @@ impl ServerKey {
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_bits = num_bits_in_block * num_blocks as u64;
 
-        let mut quotient = self.create_trivial_zero_radix(num_blocks);
-        let mut remainder = self.create_trivial_zero_radix(num_blocks);
+        let mut quotient: RadixCiphertext = self.create_trivial_zero_radix(num_blocks);
+        let mut remainder: RadixCiphertext = self.create_trivial_zero_radix(num_blocks);
 
         let merge_two_cmp_lut = self
             .key
@@ -161,6 +244,79 @@ impl ServerKey {
         (quotient, remainder)
     }
 
+    fn signed_unchecked_div_rem_parallelized(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext) {
+        assert_eq!(
+            numerator.blocks.len(),
+            divisor.blocks.len(),
+            "numerator and divisor must have same length"
+        );
+        let (positive_numerator, positive_divisor) = rayon::join(
+            || {
+                let positive_numerator = self.unchecked_absolute_value(numerator);
+                RadixCiphertext::from_blocks(positive_numerator.into_blocks())
+            },
+            || {
+                let positive_divisor = self.unchecked_absolute_value(divisor);
+                RadixCiphertext::from_blocks(positive_divisor.into_blocks())
+            },
+        );
+
+        let ((quotient, remainder), sign_bits_are_different) = rayon::join(
+            || self.unsigned_unchecked_div_rem_parallelized(&positive_numerator, &positive_divisor),
+            || {
+                let sign_bit_pos = self.key.message_modulus.0.ilog2() - 1;
+                let compare_sign_bits = |x, y| {
+                    let x_sign_bit = (x >> sign_bit_pos) & 1;
+                    let y_sign_bit = (y >> sign_bit_pos) & 1;
+                    u64::from(x_sign_bit != y_sign_bit)
+                };
+                let lut = self.key.generate_lookup_table_bivariate(compare_sign_bits);
+                self.key.unchecked_apply_lookup_table_bivariate(
+                    numerator.blocks().last().unwrap(),
+                    divisor.blocks().last().unwrap(),
+                    &lut,
+                )
+            },
+        );
+
+        // Rules are
+        // Dividend (numerator) and remainder have the same sign
+        // Quotient is negative if signs of numerator and divisor are different
+        let (quotient, remainder) = rayon::join(
+            || {
+                let negated_quotient = self.neg_parallelized(&quotient);
+
+                let quotient = self.unchecked_programmable_if_then_else_parallelized(
+                    &sign_bits_are_different,
+                    &negated_quotient,
+                    &quotient,
+                    |x| x == 1,
+                );
+                SignedRadixCiphertext::from_blocks(quotient.into_blocks())
+            },
+            || {
+                let negated_remainder = self.neg_parallelized(&remainder);
+
+                let sign_block = numerator.blocks().last().unwrap();
+                let sign_bit_pos = self.key.message_modulus.0.ilog2() - 1;
+
+                let remainder = self.unchecked_programmable_if_then_else_parallelized(
+                    sign_block,
+                    &negated_remainder,
+                    &remainder,
+                    |sign_block| (sign_block >> sign_bit_pos) == 1,
+                );
+                SignedRadixCiphertext::from_blocks(remainder.into_blocks())
+            },
+        );
+
+        (quotient, remainder)
+    }
+
     /// Computes homomorphically the quotient and remainder of the division between two ciphertexts
     ///
     ///
@@ -189,13 +345,12 @@ impl ServerKey {
     /// assert_eq!(q, msg1 / msg2);
     /// assert_eq!(r, msg1 % msg2);
     /// ```
-    pub fn div_rem_parallelized(
-        &self,
-        numerator: &RadixCiphertext,
-        divisor: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        let mut tmp_numerator: RadixCiphertext;
-        let mut tmp_divisor: RadixCiphertext;
+    pub fn div_rem_parallelized<T>(&self, numerator: &T, divisor: &T) -> (T, T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_numerator;
+        let mut tmp_divisor;
 
         let (numerator, divisor) = match (
             numerator.block_carries_are_empty(),
@@ -226,11 +381,10 @@ impl ServerKey {
         self.unchecked_div_rem_parallelized(numerator, divisor)
     }
 
-    pub fn smart_div_rem_parallelized(
-        &self,
-        numerator: &mut RadixCiphertext,
-        divisor: &mut RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    pub fn smart_div_rem_parallelized<T>(&self, numerator: &mut T, divisor: &mut T) -> (T, T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !numerator.block_carries_are_empty() {
@@ -250,48 +404,43 @@ impl ServerKey {
     //                Div
     //======================================================================
 
-    pub fn unchecked_div_assign_parallelized(
-        &self,
-        numerator: &mut RadixCiphertext,
-        divisor: &RadixCiphertext,
-    ) {
+    pub fn unchecked_div_assign_parallelized<T>(&self, numerator: &mut T, divisor: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (q, _r) = self.unchecked_div_rem_parallelized(numerator, divisor);
         *numerator = q;
     }
 
-    pub fn unchecked_div_parallelized(
-        &self,
-        numerator: &RadixCiphertext,
-        divisor: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_div_parallelized<T>(&self, numerator: &T, divisor: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (q, _r) = self.unchecked_div_rem_parallelized(numerator, divisor);
         q
     }
 
-    pub fn smart_div_assign_parallelized(
-        &self,
-        numerator: &mut RadixCiphertext,
-        divisor: &mut RadixCiphertext,
-    ) {
+    pub fn smart_div_assign_parallelized<T>(&self, numerator: &mut T, divisor: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (q, _r) = self.smart_div_rem_parallelized(numerator, divisor);
         *numerator = q;
     }
 
-    pub fn smart_div_parallelized(
-        &self,
-        numerator: &mut RadixCiphertext,
-        divisor: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_div_parallelized<T>(&self, numerator: &mut T, divisor: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (q, _r) = self.smart_div_rem_parallelized(numerator, divisor);
         q
     }
 
-    pub fn div_assign_parallelized(
-        &self,
-        numerator: &mut RadixCiphertext,
-        divisor: &RadixCiphertext,
-    ) {
-        let mut tmp_divisor: RadixCiphertext;
+    pub fn div_assign_parallelized<T>(&self, numerator: &mut T, divisor: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_divisor;
 
         let (numerator, divisor) = match (
             numerator.block_carries_are_empty(),
@@ -350,11 +499,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 / msg2);
     /// ```
-    pub fn div_parallelized(
-        &self,
-        numerator: &RadixCiphertext,
-        divisor: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn div_parallelized<T>(&self, numerator: &T, divisor: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (q, _r) = self.div_rem_parallelized(numerator, divisor);
         q
     }
@@ -363,48 +511,43 @@ impl ServerKey {
     //                Rem
     //======================================================================
 
-    pub fn unchecked_rem_assign_parallelized(
-        &self,
-        numerator: &mut RadixCiphertext,
-        divisor: &RadixCiphertext,
-    ) {
+    pub fn unchecked_rem_assign_parallelized<T>(&self, numerator: &mut T, divisor: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (_q, r) = self.unchecked_div_rem_parallelized(numerator, divisor);
         *numerator = r;
     }
 
-    pub fn unchecked_rem_parallelized(
-        &self,
-        numerator: &RadixCiphertext,
-        divisor: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_rem_parallelized<T>(&self, numerator: &T, divisor: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (_q, r) = self.unchecked_div_rem_parallelized(numerator, divisor);
         r
     }
 
-    pub fn smart_rem_assign_parallelized(
-        &self,
-        numerator: &mut RadixCiphertext,
-        divisor: &mut RadixCiphertext,
-    ) {
+    pub fn smart_rem_assign_parallelized<T>(&self, numerator: &mut T, divisor: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (_q, r) = self.smart_div_rem_parallelized(numerator, divisor);
         *numerator = r;
     }
 
-    pub fn smart_rem_parallelized(
-        &self,
-        numerator: &mut RadixCiphertext,
-        divisor: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_rem_parallelized<T>(&self, numerator: &mut T, divisor: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (_q, r) = self.smart_div_rem_parallelized(numerator, divisor);
         r
     }
 
-    pub fn rem_assign_parallelized(
-        &self,
-        numerator: &mut RadixCiphertext,
-        divisor: &RadixCiphertext,
-    ) {
-        let mut tmp_divisor: RadixCiphertext;
+    pub fn rem_assign_parallelized<T>(&self, numerator: &mut T, divisor: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_divisor;
 
         let (numerator, divisor) = match (
             numerator.block_carries_are_empty(),
@@ -463,11 +606,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg1 % msg2);
     /// ```
-    pub fn rem_parallelized(
-        &self,
-        numerator: &RadixCiphertext,
-        divisor: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn rem_parallelized<T>(&self, numerator: &T, divisor: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let (_q, r) = self.div_rem_parallelized(numerator, divisor);
         r
     }

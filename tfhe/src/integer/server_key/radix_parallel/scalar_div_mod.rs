@@ -10,13 +10,13 @@
 //! In this case, the constant is a clear value at runtime, however,
 //! due to the huge difference between clear computation and FHE computation
 //! it is absolutely worth to compute the approximation of the inverse.
-use std::ops::{Add, AddAssign, BitAnd, Div, Mul, Shl, Shr, Sub};
+use std::ops::{Add, AddAssign, BitAnd, Div, Mul, Neg, Shl, Shr, Sub};
 
-use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric, UnsignedInteger};
+use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric, SignedNumeric, UnsignedInteger};
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::radix::scalar_mul::ScalarMultiplier;
-use crate::integer::{ServerKey, U256, U512};
+use crate::integer::{ServerKey, I256, I512, U256, U512};
 
 #[inline(always)]
 fn is_even<T>(d: T) -> bool
@@ -123,13 +123,94 @@ impl Reciprocable for U256 {
     type DoublePrecision = U512;
 }
 
+pub trait SignedReciprocable:
+    DecomposableInto<u64>
+    + DecomposableInto<u8>
+    + SignedNumeric
+    + Neg<Output = Self>
+    + Shl<usize, Output = Self>
+    + Shr<usize, Output = Self>
+    + std::fmt::Debug
+{
+    type Unsigned: Reciprocable + CastFrom<Self> + std::fmt::Debug;
+    type DoublePrecision: DecomposableInto<u8>
+        + ScalarMultiplier
+        + CastFrom<<Self::Unsigned as Reciprocable>::DoublePrecision>
+        + std::fmt::Debug;
+
+    fn wrapping_abs(self) -> Self;
+}
+
+impl SignedReciprocable for i8 {
+    type Unsigned = u8;
+
+    type DoublePrecision = i16;
+
+    fn wrapping_abs(self) -> Self {
+        self.wrapping_abs()
+    }
+}
+
+impl SignedReciprocable for i16 {
+    type Unsigned = u16;
+
+    type DoublePrecision = i32;
+
+    fn wrapping_abs(self) -> Self {
+        self.wrapping_abs()
+    }
+}
+
+impl SignedReciprocable for i32 {
+    type Unsigned = u32;
+
+    type DoublePrecision = i64;
+
+    fn wrapping_abs(self) -> Self {
+        self.wrapping_abs()
+    }
+}
+
+impl SignedReciprocable for i64 {
+    type Unsigned = u64;
+
+    type DoublePrecision = i128;
+
+    fn wrapping_abs(self) -> Self {
+        self.wrapping_abs()
+    }
+}
+
+impl SignedReciprocable for i128 {
+    type Unsigned = u128;
+
+    type DoublePrecision = I256;
+
+    fn wrapping_abs(self) -> Self {
+        self.wrapping_abs()
+    }
+}
+
+impl SignedReciprocable for I256 {
+    type Unsigned = U256;
+
+    type DoublePrecision = I512;
+
+    fn wrapping_abs(self) -> Self {
+        self.wrapping_abs()
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 struct ApproximatedMultiplier<T> {
     // The approximation of the inverse
     multiplier: T,
     // The shift that we might need
-    // to do post mutliplication to correct error
+    // to do post multiplication to correct error
     shift_post: u32,
+    // Ceil ilog2 of the divisor
+    // that is, we have: (l-1) < log2(divisor) <= l
+    l: u32,
 }
 
 #[allow(non_snake_case)]
@@ -141,7 +222,7 @@ fn choose_multiplier<T: Reciprocable>(
     // Keep the same name as in the paper
     let N = integer_bits;
 
-    assert_ne!(divisor, T::ZERO);
+    assert_ne!(divisor, T::ZERO, "attempt to divide by 0");
     assert!(precision >= 1 && precision <= N);
 
     let d = T::DoublePrecision::cast_from(divisor);
@@ -185,6 +266,7 @@ fn choose_multiplier<T: Reciprocable>(
     ApproximatedMultiplier {
         multiplier: m_high,
         shift_post,
+        l,
     }
 }
 
@@ -207,6 +289,37 @@ impl ServerKey {
         result
     }
 
+    fn signed_scalar_mul_high<T>(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        rhs: T,
+    ) -> SignedRadixCiphertext
+    where
+        T: ScalarMultiplier + DecomposableInto<u8>,
+    {
+        let num_blocks = lhs.blocks.len();
+        let mut result = lhs.clone();
+
+        let message_modulus = self.key.message_modulus.0 as u64;
+        let num_bits_in_block = message_modulus.ilog2();
+        let padding_block_creator_lut = self.key.generate_lookup_table(|x| {
+            let x = x % message_modulus;
+            let x_sign_bit = x >> (num_bits_in_block - 1) & 1;
+            // padding is a message full of 1 if sign bit is one
+            // else padding is a zero message
+            (message_modulus - 1) * x_sign_bit
+        });
+
+        let padding_block = self
+            .key
+            .apply_lookup_table(&lhs.blocks[num_blocks - 1], &padding_block_creator_lut);
+        result.blocks.resize(2 * num_blocks, padding_block);
+        self.scalar_mul_assign_parallelized(&mut result, rhs);
+        result.blocks.rotate_left(num_blocks);
+        result.blocks.truncate(num_blocks);
+        result
+    }
+
     pub fn unchecked_scalar_div_parallelized<T>(
         &self,
         numerator: &RadixCiphertext,
@@ -218,7 +331,7 @@ impl ServerKey {
         let numerator_bits = self.key.message_modulus.0.ilog2() * numerator.blocks.len() as u32;
 
         // Rust has a check on all division, so we shall also have one
-        assert_ne!(divisor, T::ZERO, "Cannot divide by zero");
+        assert_ne!(divisor, T::ZERO, "attempt to divide by 0");
 
         assert!(
             T::BITS >= numerator_bits as usize,
@@ -290,6 +403,295 @@ impl ServerKey {
             );
             quotient
         }
+    }
+
+    /// # Note
+    /// This division rounds (truncates) the quotient towards zero
+    pub fn unchecked_signed_scalar_div_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> SignedRadixCiphertext
+    where
+        T: SignedReciprocable,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        assert_ne!(divisor, T::ZERO, "attempt to divide by 0");
+
+        let numerator_bits = self.key.message_modulus.0.ilog2() * numerator.blocks.len() as u32;
+        assert!(
+            T::BITS >= numerator_bits as usize,
+            "The scalar divisor type must have a number of bits that is\
+            >= to the number of bits encrypted in the ciphertext"
+        );
+
+        // wrappings_abs returns T::MIN when its input is T::MIN (since in signed numbers
+        // T::MIN's absolute value cannot be represented.
+        // However, casting T::MIN to signed value will give the correct abs value
+        // If T and T::Unsigned have the same number of bits
+        let absolute_divisor = T::Unsigned::cast_from(divisor.wrapping_abs());
+
+        if absolute_divisor == T::Unsigned::ONE {
+            // Strangely, the paper says: Issue q = d;
+            return if divisor < T::ZERO {
+                // quotient = -quotient;
+                self.neg_parallelized(numerator)
+            } else {
+                numerator.clone()
+            };
+        }
+
+        let chosen_mutliplier =
+            choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
+
+        if chosen_mutliplier.l >= numerator_bits {
+            return self.create_trivial_zero_radix(numerator.blocks.len());
+        }
+
+        let quotient;
+        if absolute_divisor == (T::Unsigned::ONE << chosen_mutliplier.l as usize) {
+            // Issue q = SRA(n + SRL(SRA(n, l − 1), N − l), l);
+            let l = chosen_mutliplier.l;
+
+            // SRA(n, l − 1)
+            let mut tmp = self.unchecked_scalar_right_shift_parallelized(numerator, l - 1);
+
+            // SRL(SRA(n, l − 1), N − l)
+            self.unchecked_scalar_right_shift_logical_assign_parallelized(
+                &mut tmp,
+                (numerator_bits - l) as usize,
+            );
+            // n + SRL(SRA(n, l − 1), N − l)
+            self.add_assign_parallelized(&mut tmp, numerator);
+            // SRA(n + SRL(SRA(n, l − 1), N − l), l);
+            self.unchecked_scalar_right_shift_assign_parallelized(&mut tmp, l);
+            quotient = tmp;
+        } else if chosen_mutliplier.multiplier
+            < (<T::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1))
+        {
+            // in the condition above works (it makes more values take this branch,
+            // but results still seemed correct)
+
+            // multiplier is less than the max possible value of T
+            // Issue q = SRA(MULSH(m, n), shpost) − XSIGN(n);
+
+            let (mut tmp, xsign) = rayon::join(
+                move || {
+                    // MULSH(m, n)
+                    let mut tmp =
+                        self.signed_scalar_mul_high(numerator, chosen_mutliplier.multiplier);
+
+                    // SRA(MULSH(m, n), shpost)
+                    self.unchecked_scalar_right_shift_arithmetic_assign_parallelized(
+                        &mut tmp,
+                        chosen_mutliplier.shift_post,
+                    );
+                    tmp
+                },
+                || {
+                    // XSIGN is: -1 if x < 0 { -1 } else { 0 }
+                    // It is equivalent to SRA(x, N − 1)
+                    self.unchecked_scalar_right_shift_arithmetic_parallelized(
+                        numerator,
+                        numerator_bits - 1,
+                    )
+                },
+            );
+
+            self.sub_assign_parallelized(&mut tmp, &xsign);
+            quotient = tmp;
+        } else {
+            // Issue q = SRA(n + MULSH(m − 2^N , n), shpost) − XSIGN(n);
+            // Note from the paper: m - 2^N is negative
+
+            let (mut tmp, xsign) = rayon::join(
+                move || {
+                    // The subtraction may overflow.
+                    // We then cast the result to a signed type.
+                    // Overall, this will work fine due to two's complement representation
+                    let cst = chosen_mutliplier.multiplier
+                        - (<T::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
+                    let cst = T::DoublePrecision::cast_from(cst);
+
+                    // MULSH(m - 2^N, n)
+                    let mut tmp = self.signed_scalar_mul_high(numerator, cst);
+
+                    // n + MULSH(m − 2^N , n)
+                    self.add_assign_parallelized(&mut tmp, numerator);
+
+                    // SRA(n + MULSH(m - 2^N, n), shpost)
+                    self.unchecked_scalar_right_shift_assign_parallelized(
+                        &mut tmp,
+                        chosen_mutliplier.shift_post,
+                    );
+
+                    tmp
+                },
+                || {
+                    // XSIGN is: -1 if x < 0 { -1 } else { 0 }
+                    // It is equivalent to SRA(x, N − 1)
+                    self.unchecked_scalar_right_shift_parallelized(numerator, numerator_bits - 1)
+                },
+            );
+
+            self.sub_assign_parallelized(&mut tmp, &xsign);
+            quotient = tmp;
+        }
+
+        if divisor < T::ZERO {
+            self.neg_parallelized(&quotient)
+        } else {
+            quotient
+        }
+    }
+
+    /// # Note
+    /// This division rounds (truncates) the quotient towards 0
+    pub fn unchecked_signed_scalar_div_rem_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext)
+    where
+        T: SignedReciprocable + ScalarMultiplier,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        let quotient = self.unchecked_signed_scalar_div_parallelized(numerator, divisor);
+
+        // remainder = numerator - (quotient * divisor)
+        let tmp = self.unchecked_scalar_mul_parallelized(&quotient, divisor);
+        let remainder = self.sub_parallelized(numerator, &tmp);
+
+        (quotient, remainder)
+    }
+
+    /// # Note
+    /// This division rounds the quotient towards minus infinity
+    pub fn unchecked_signed_scalar_div_floor_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> SignedRadixCiphertext
+    where
+        T: SignedReciprocable,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        assert_ne!(divisor, T::ZERO, "Cannot devide by zero");
+
+        let numerator_bits = self.key.message_modulus.0.ilog2() * numerator.blocks.len() as u32;
+
+        if divisor < T::ZERO {
+            //dsign = XSIGN(d
+            // Rust uses arithmetic shift by default
+            let dsign = divisor >> (T::BITS - 1);
+
+            // nsign = XSIGN(OR(n, n + dsign))
+            let mut nsign = self.scalar_add_parallelized(numerator, dsign);
+            self.unchecked_bitor_assign_parallelized(&mut nsign, numerator);
+            self.scalar_right_shift_assign_parallelized(&mut nsign, numerator_bits - 1);
+
+            // qsign = EOR(nsign, dsign).
+            let qsign = self.unchecked_scalar_bitxor_parallelized(&nsign, dsign);
+
+            let mut new_n = numerator.clone();
+            self.smart_scalar_add_assign_parallelized(&mut new_n, dsign);
+            self.smart_sub_assign_parallelized(&mut new_n, &mut nsign);
+            self.full_propagate_parallelized(&mut new_n);
+
+            let mut q = self.unchecked_signed_scalar_div_parallelized(&new_n, divisor);
+            self.add_assign_parallelized(&mut q, &qsign);
+
+            q
+        } else {
+            let chosen_mutliplier = choose_multiplier(
+                T::Unsigned::cast_from(divisor),
+                numerator_bits - 1,
+                numerator_bits,
+            );
+
+            if chosen_mutliplier.l >= numerator_bits {
+                // divisor is > numerator
+                // so, in truncating div, q == 0, however in floor_div
+                // * q == 0 || q == -1.
+                // * q == -1 if the sign bit of the numerator and divisor sings differs.
+                // So here we will build that 0 or -1
+
+                // Conveniently in two's complement for the value 0, all bits are 0s
+                // and for the value 1, all bits are one, meaning all blocks are the same.
+                // So the idea is to build one correct block full of 0 or 1
+                // and clone it to build ou resulting integer ciphertext.
+                let divisor_sign_bit_is_set = u64::from(divisor < T::ZERO);
+                let sign_bit_pos = self.key.message_modulus.0.ilog2() - 1;
+                let lut = self.key.generate_lookup_table(|x| {
+                    let x = x % self.key.message_modulus.0 as u64;
+                    let numerator_sign_bit_is_set = (x >> sign_bit_pos) & 1;
+                    let numerator_and_divisor_sign_differs =
+                        numerator_sign_bit_is_set != divisor_sign_bit_is_set;
+
+                    if numerator_and_divisor_sign_differs {
+                        self.key.message_modulus.0 as u64 - 1
+                    } else {
+                        0
+                    }
+                });
+                let block = self
+                    .key
+                    .apply_lookup_table(&numerator.blocks[numerator.blocks.len() - 1], &lut);
+
+                let blocks = vec![block; numerator.blocks.len()];
+                return SignedRadixCiphertext::from(blocks);
+            }
+
+            assert!(chosen_mutliplier.l <= (T::BITS - 1) as u32);
+            if divisor == (T::ONE << chosen_mutliplier.l) {
+                self.unchecked_scalar_right_shift_parallelized(numerator, chosen_mutliplier.l)
+            } else {
+                assert!(
+                    chosen_mutliplier.multiplier
+                        < <T::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits
+                );
+
+                // XSIGN is: -1 if x < 0 { -1 } else { 0 }
+                // It is equivalent to SRA(x, N − 1)
+                let xsign =
+                    self.unchecked_scalar_right_shift_parallelized(numerator, numerator_bits - 1);
+
+                let tmp = self.unchecked_bitxor_parallelized(&xsign, numerator);
+                // Cast to Unsigned
+                let tmp = RadixCiphertext::from(tmp.blocks);
+                let mut tmp = self.scalar_mul_high(&tmp, chosen_mutliplier.multiplier);
+                self.unchecked_scalar_right_shift_logical_assign_parallelized(
+                    &mut tmp,
+                    chosen_mutliplier.shift_post,
+                );
+                // Cast xsign to unsigned
+                let xsign = RadixCiphertext::from(xsign.blocks);
+                self.unchecked_bitxor_assign_parallelized(&mut tmp, &xsign);
+
+                // cast quotient to signed
+                SignedRadixCiphertext::from(tmp.blocks)
+            }
+        }
+    }
+
+    /// # Note
+    /// This division rounds the quotient towards minus infinity
+    pub fn unchecked_signed_scalar_div_rem_floor_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext)
+    where
+        T: SignedReciprocable + ScalarMultiplier,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        let quotient = self.unchecked_signed_scalar_div_floor_parallelized(numerator, divisor);
+
+        // remainder = numerator - (quotient * divisor)
+        let tmp = self.unchecked_scalar_mul_parallelized(&quotient, divisor);
+        let remainder = self.sub_parallelized(numerator, &tmp);
+
+        (quotient, remainder)
     }
 
     pub fn unchecked_scalar_div_rem_parallelized<T>(
@@ -575,5 +977,10 @@ mod tests {
 
         let chosen = choose_multiplier(7u64, 32, 32);
         assert_eq!(chosen.multiplier, ((1u128 << 35) + 3) / 7);
+
+        // signed usage example
+        let chosen = choose_multiplier(3u64, 31, 32);
+        assert_eq!(chosen.multiplier, ((1u128 << 32) + 2) / 3);
+        assert_eq!(chosen.shift_post, 0);
     }
 }

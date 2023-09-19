@@ -40,8 +40,20 @@ pub trait Numeric:
     const MAX: Self;
 }
 
-pub trait UnsignedNumeric: Numeric {}
-pub trait SignedNumeric: Numeric {}
+pub trait UnsignedNumeric: Numeric {
+    /// The signed type of the same precision
+    ///
+    /// The name is long and explicit to avoid clash with the
+    /// same associated type in [UnsignedInteger]
+    type NumericSignedType: SignedNumeric<NumericUnsignedType = Self> + CastFrom<Self>;
+}
+pub trait SignedNumeric: Numeric {
+    /// The unsigned type of the same precision
+    ///
+    /// The name is long and explicit to avoid clash with the
+    /// same associated type in [SignedInteger]
+    type NumericUnsignedType: UnsignedNumeric<NumericSignedType = Self> + CastFrom<Self>;
+}
 
 /// A trait that allows to generically cast one type from another.
 ///

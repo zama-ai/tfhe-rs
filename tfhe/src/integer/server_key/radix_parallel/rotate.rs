@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::ServerKey;
 
 use super::shift::BarrelShifterOperation;
@@ -8,29 +8,26 @@ impl ServerKey {
     //                Rotate Right
     //======================================================================
 
-    pub fn unchecked_rotate_right_parallelized(
-        &self,
-        ct: &RadixCiphertext,
-        n: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_rotate_right_parallelized<T>(&self, ct: &T, n: &RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ct.clone();
         self.unchecked_rotate_right_assign_parallelized(&mut result, n);
         result
     }
 
-    pub fn unchecked_rotate_right_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        n: &RadixCiphertext,
-    ) {
+    pub fn unchecked_rotate_right_assign_parallelized<T>(&self, ct: &mut T, n: &RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
         self.barrel_shifter(ct, n, BarrelShifterOperation::RightRotate);
     }
 
-    pub fn smart_rotate_right_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        n: &mut RadixCiphertext,
-    ) {
+    pub fn smart_rotate_right_assign_parallelized<T>(&self, ct: &mut T, n: &mut RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -46,11 +43,10 @@ impl ServerKey {
         self.unchecked_rotate_right_assign_parallelized(ct, n);
     }
 
-    pub fn smart_rotate_right_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        rotate: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_rotate_right_parallelized<T>(&self, ct: &mut T, rotate: &mut RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -95,12 +91,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn rotate_right_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        rotate: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn rotate_right_assign_parallelized<T>(&self, ct: &mut T, rotate: &RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (
             ct.block_carries_are_empty(),
@@ -129,11 +124,10 @@ impl ServerKey {
         self.unchecked_rotate_right_assign_parallelized(lhs, rhs)
     }
 
-    pub fn rotate_right_parallelized(
-        &self,
-        ct: &RadixCiphertext,
-        rotate: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn rotate_right_parallelized<T>(&self, ct: &T, rotate: &RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct.clone();
         self.rotate_right_assign_parallelized(&mut ct_res, rotate);
         ct_res
@@ -143,29 +137,26 @@ impl ServerKey {
     //                Rotate Left
     //======================================================================
 
-    pub fn unchecked_rotate_left_parallelized(
-        &self,
-        ct_left: &RadixCiphertext,
-        n: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_rotate_left_parallelized<T>(&self, ct_left: &T, n: &RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ct_left.clone();
         self.unchecked_rotate_left_assign_parallelized(&mut result, n);
         result
     }
 
-    pub fn unchecked_rotate_left_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        n: &RadixCiphertext,
-    ) {
+    pub fn unchecked_rotate_left_assign_parallelized<T>(&self, ct: &mut T, n: &RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
         self.barrel_shifter(ct, n, BarrelShifterOperation::LeftRotate);
     }
 
-    pub fn smart_rotate_left_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        n: &mut RadixCiphertext,
-    ) {
+    pub fn smart_rotate_left_assign_parallelized<T>(&self, ct: &mut T, n: &mut RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -181,11 +172,10 @@ impl ServerKey {
         self.unchecked_rotate_left_assign_parallelized(ct, n);
     }
 
-    pub fn smart_rotate_left_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        rotate: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_rotate_left_parallelized<T>(&self, ct: &mut T, rotate: &mut RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         rayon::join(
             || {
                 if !ct.block_carries_are_empty() {
@@ -201,12 +191,11 @@ impl ServerKey {
         self.unchecked_rotate_left_parallelized(ct, rotate)
     }
 
-    pub fn rotate_left_assign_parallelized(
-        &self,
-        ct: &mut RadixCiphertext,
-        rotate: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn rotate_left_assign_parallelized<T>(&self, ct: &mut T, rotate: &RadixCiphertext)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (
             ct.block_carries_are_empty(),
@@ -264,11 +253,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn rotate_left_parallelized(
-        &self,
-        ct: &RadixCiphertext,
-        rotate: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn rotate_left_parallelized<T>(&self, ct: &T, rotate: &RadixCiphertext) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ct.clone();
         self.rotate_left_assign_parallelized(&mut ct_res, rotate);
         ct_res

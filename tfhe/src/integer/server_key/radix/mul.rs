@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 
 impl ServerKey {
@@ -34,12 +34,14 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_left);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul_assign(
+    pub fn unchecked_block_mul_assign<T>(
         &self,
-        ct_left: &mut RadixCiphertext,
+        ct_left: &mut T,
         ct_right: &crate::shortint::Ciphertext,
         index: usize,
-    ) {
+    ) where
+        T: IntegerRadixCiphertext,
+    {
         *ct_left = self.unchecked_block_mul(ct_left, ct_right, index);
     }
 
@@ -75,23 +77,26 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_block_mul(
+    pub fn unchecked_block_mul<T>(
         &self,
-        ct1: &RadixCiphertext,
+        ct1: &T,
         ct2: &crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext {
+    ) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let shifted_ct = self.blockshift(ct1, index);
 
         let mut result_lsb = shifted_ct.clone();
         let mut result_msb = shifted_ct;
 
-        for res_lsb_i in result_lsb.blocks[index..].iter_mut() {
+        for res_lsb_i in result_lsb.blocks_mut()[index..].iter_mut() {
             self.key.unchecked_mul_lsb_assign(res_lsb_i, ct2);
         }
 
-        let len = result_msb.blocks.len() - 1;
-        for res_msb_i in result_msb.blocks[index..len].iter_mut() {
+        let len = result_msb.blocks_mut().len() - 1;
+        for res_msb_i in result_msb.blocks_mut()[index..len].iter_mut() {
             self.key.unchecked_mul_msb_assign(res_msb_i, ct2);
         }
 
@@ -129,15 +134,17 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
     #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_block_mul(
+    pub fn smart_block_mul<T>(
         &self,
-        ct1: &mut RadixCiphertext,
+        ct1: &mut T,
         ct2: &mut crate::shortint::Ciphertext,
         index: usize,
-    ) -> RadixCiphertext {
+    ) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         //Makes sure we can do the multiplications
         self.full_propagate(ct1);
 
@@ -146,12 +153,12 @@ impl ServerKey {
         let mut result_lsb = shifted_ct.clone();
         let mut result_msb = shifted_ct;
 
-        for res_lsb_i in result_lsb.blocks[index..].iter_mut() {
+        for res_lsb_i in result_lsb.blocks_mut()[index..].iter_mut() {
             self.key.unchecked_mul_lsb_assign(res_lsb_i, ct2);
         }
 
-        let len = result_msb.blocks.len() - 1;
-        for res_msb_i in result_msb.blocks[index..len].iter_mut() {
+        let len = result_msb.blocks().len() - 1;
+        for res_msb_i in result_msb.blocks_mut()[index..len].iter_mut() {
             self.key.unchecked_mul_msb_assign(res_msb_i, ct2);
         }
 
@@ -160,12 +167,14 @@ impl ServerKey {
         self.smart_add(&mut result_lsb, &mut result_msb)
     }
 
-    pub fn smart_block_mul_assign(
+    pub fn smart_block_mul_assign<T>(
         &self,
-        ct1: &mut RadixCiphertext,
+        ct1: &mut T,
         ct2: &mut crate::shortint::Ciphertext,
         index: usize,
-    ) {
+    ) where
+        T: IntegerRadixCiphertext,
+    {
         *ct1 = self.smart_block_mul(ct1, ct2, index);
     }
 
@@ -199,7 +208,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn unchecked_mul_assign(&self, ct1: &mut RadixCiphertext, ct2: &RadixCiphertext) {
+    pub fn unchecked_mul_assign<T>(&self, ct1: &mut T, ct2: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         *ct1 = self.unchecked_mul(ct1, ct2);
     }
 
@@ -209,10 +221,13 @@ impl ServerKey {
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    pub fn unchecked_mul(&self, ct1: &RadixCiphertext, ct2: &RadixCiphertext) -> RadixCiphertext {
-        let mut result = self.create_trivial_zero_radix(ct1.blocks.len());
+    pub fn unchecked_mul<T>(&self, ct1: &T, ct2: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut result = self.create_trivial_zero_radix(ct1.blocks().len());
 
-        for (i, ct2_i) in ct2.blocks.iter().enumerate() {
+        for (i, ct2_i) in ct2.blocks().iter().enumerate() {
             let mut tmp = self.unchecked_block_mul(ct1, ct2_i, i);
 
             self.smart_add_assign(&mut result, &mut tmp);
@@ -248,24 +263,26 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!((clear_1 * clear_2) % 256, res);
     /// ```
-    pub fn smart_mul_assign(&self, ct1: &mut RadixCiphertext, ct2: &mut RadixCiphertext) {
+    pub fn smart_mul_assign<T>(&self, ct1: &mut T, ct2: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         *ct1 = self.smart_mul(ct1, ct2);
     }
 
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
     ///
     /// The result is returned as a new ciphertext.
-    pub fn smart_mul(
-        &self,
-        ct1: &mut RadixCiphertext,
-        ct2: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_mul<T>(&self, ct1: &mut T, ct2: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         self.full_propagate(ct1);
         self.full_propagate(ct2);
 
-        let mut result = self.create_trivial_zero_radix(ct1.blocks.len());
+        let mut result = self.create_trivial_zero_radix(ct1.blocks().len());
 
-        for (i, ct2_i) in ct2.blocks.iter().enumerate() {
+        for (i, ct2_i) in ct2.blocks().iter().enumerate() {
             let mut tmp = self.unchecked_block_mul(ct1, ct2_i, i);
             self.smart_add_assign(&mut result, &mut tmp);
         }

@@ -35,7 +35,7 @@ impl ServerKey {
     /// assert_eq!(msg / div, clear);
     /// ```
     pub fn blockshift_right(&self, ctxt: &RadixCiphertext, shift: usize) -> RadixCiphertext {
-        let mut result = self.create_trivial_zero_radix(ctxt.blocks.len());
+        let mut result: RadixCiphertext = self.create_trivial_zero_radix(ctxt.blocks.len());
 
         let limit = result.blocks.len() - shift;
 

@@ -1,4 +1,8 @@
 mod algorithms;
+pub mod i256;
+pub mod i512;
+pub mod static_signed;
+pub mod static_unsigned;
 pub mod u256;
 pub mod u512;
 
