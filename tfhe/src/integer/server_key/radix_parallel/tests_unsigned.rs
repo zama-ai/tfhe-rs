@@ -1,3 +1,4 @@
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;

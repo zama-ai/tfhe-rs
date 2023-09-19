@@ -1,6 +1,6 @@
 use super::ServerKey;
 
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::comparator::Comparator;
 
 impl ServerKey {
@@ -33,17 +33,20 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 == msg2));
     /// ```
-    pub fn unchecked_eq(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_eq<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
         let lut = self
             .key
             .generate_lookup_table_bivariate(|x, y| u64::from(x == y));
-        let mut block_comparisons = lhs.blocks.clone();
+        let mut block_comparisons = lhs.blocks().to_vec();
         block_comparisons
             .iter_mut()
-            .zip(rhs.blocks.iter())
+            .zip(rhs.blocks().iter())
             .for_each(|(lhs_block, rhs_block)| {
                 self.key
                     .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
@@ -79,24 +82,25 @@ impl ServerKey {
                 .collect::<Vec<_>>();
         }
 
-        block_comparisons.resize_with(lhs.blocks.len(), || self.key.create_trivial(0));
+        block_comparisons.resize_with(lhs.blocks().len(), || self.key.create_trivial(0));
 
-        RadixCiphertext {
-            blocks: block_comparisons,
-        }
+        T::from_blocks(block_comparisons)
     }
 
-    pub fn unchecked_ne(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_ne<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
         let lut = self
             .key
             .generate_lookup_table_bivariate(|x, y| u64::from(x != y));
-        let mut block_comparisons = lhs.blocks.clone();
+        let mut block_comparisons = lhs.blocks().to_vec();
         block_comparisons
             .iter_mut()
-            .zip(rhs.blocks.iter())
+            .zip(rhs.blocks().iter())
             .for_each(|(lhs_block, rhs_block)| {
                 self.key
                     .unchecked_apply_lookup_table_bivariate_assign(lhs_block, rhs_block, &lut);
@@ -121,11 +125,9 @@ impl ServerKey {
                 .collect::<Vec<_>>();
         }
 
-        block_comparisons.resize_with(lhs.blocks.len(), || self.key.create_trivial(0));
+        block_comparisons.resize_with(lhs.blocks().len(), || self.key.create_trivial(0));
 
-        RadixCiphertext {
-            blocks: block_comparisons,
-        }
+        T::from_blocks(block_comparisons)
     }
 
     /// Compares if lhs is strictly greater than rhs
@@ -157,7 +159,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 > msg2));
     /// ```
-    pub fn unchecked_gt(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_gt<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_gt(lhs, rhs)
     }
 
@@ -190,7 +195,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 >= msg2));
     /// ```
-    pub fn unchecked_ge(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_ge<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_ge(lhs, rhs)
     }
 
@@ -223,7 +231,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 < msg2));
     /// ```
-    pub fn unchecked_lt(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_lt<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_lt(lhs, rhs)
     }
 
@@ -256,7 +267,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 < msg2));
     /// ```
-    pub fn unchecked_le(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_le<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_le(lhs, rhs)
     }
 
@@ -288,7 +302,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, std::cmp::max(msg1, msg2));
     /// ```
-    pub fn unchecked_max(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_max<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_max(lhs, rhs)
     }
 
@@ -320,7 +337,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, std::cmp::min(msg1, msg2));
     /// ```
-    pub fn unchecked_min(&self, lhs: &RadixCiphertext, rhs: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_min<T>(&self, lhs: &T, rhs: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).unchecked_min(lhs, rhs)
     }
 
@@ -351,11 +371,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 == msg2));
     /// ```
-    pub fn smart_eq(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_eq<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
         }
@@ -365,11 +384,10 @@ impl ServerKey {
         self.unchecked_eq(lhs, rhs)
     }
 
-    pub fn smart_ne(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_ne<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
         }
@@ -406,11 +424,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 > msg2));
     /// ```
-    pub fn smart_gt(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_gt<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_gt(lhs, rhs)
     }
 
@@ -441,11 +458,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 >= msg2));
     /// ```
-    pub fn smart_ge(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_ge<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_ge(lhs, rhs)
     }
 
@@ -476,11 +492,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 < msg2));
     /// ```
-    pub fn smart_lt(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_lt<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_lt(lhs, rhs)
     }
 
@@ -511,11 +526,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, u64::from(msg1 <= msg2));
     /// ```
-    pub fn smart_le(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_le<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_le(lhs, rhs)
     }
 
@@ -546,11 +560,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, std::cmp::max(msg1, msg2));
     /// ```
-    pub fn smart_max(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_max<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_max(lhs, rhs)
     }
 
@@ -581,11 +594,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, std::cmp::min(msg1, msg2));
     /// ```
-    pub fn smart_min(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_min<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         Comparator::new(self).smart_min(lhs, rhs)
     }
 }

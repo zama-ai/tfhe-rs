@@ -1,20 +1,23 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 use rayon::prelude::*;
 
 impl ServerKey {
-    pub fn unchecked_if_then_else_parallelized(
+    pub fn unchecked_if_then_else_parallelized<T>(
         &self,
-        condition: &RadixCiphertext,
-        true_ct: &RadixCiphertext,
-        false_ct: &RadixCiphertext,
-    ) -> RadixCiphertext {
+        condition: &T,
+        true_ct: &T,
+        false_ct: &T,
+    ) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         assert!(
             condition.holds_boolean_value(),
             "The condition ciphertext does not encrypt a boolean (0 or 1) value"
         );
 
-        let condition_block = &condition.blocks[0];
+        let condition_block = &condition.blocks()[0];
         self.unchecked_programmable_if_then_else_parallelized(
             condition_block,
             true_ct,
@@ -61,12 +64,10 @@ impl ServerKey {
     /// assert_ne!(ct_a, ct_res);
     /// assert_ne!(ct_b, ct_res);
     /// ```
-    pub fn if_then_else_parallelized(
-        &self,
-        condition: &RadixCiphertext,
-        true_ct: &RadixCiphertext,
-        false_ct: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn if_then_else_parallelized<T>(&self, condition: &T, true_ct: &T, false_ct: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_clones = [None, None, None];
         let mut ct_refs = [condition, true_ct, false_ct];
 
@@ -123,12 +124,15 @@ impl ServerKey {
     /// assert_ne!(ct_a, ct_res);
     /// assert_ne!(ct_b, ct_res);
     /// ```
-    pub fn smart_if_then_else_parallelized(
+    pub fn smart_if_then_else_parallelized<T>(
         &self,
-        condition: &mut RadixCiphertext,
-        true_ct: &mut RadixCiphertext,
-        false_ct: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+        condition: &mut T,
+        true_ct: &mut T,
+        false_ct: &mut T,
+    ) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_refs = [condition, true_ct, false_ct];
 
         ct_refs.par_iter_mut().for_each(|ct_ref| {
@@ -141,14 +145,15 @@ impl ServerKey {
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
     }
 
-    pub(crate) fn unchecked_programmable_if_then_else_parallelized<F>(
+    pub(crate) fn unchecked_programmable_if_then_else_parallelized<T, F>(
         &self,
         condition_block: &crate::shortint::Ciphertext,
-        true_ct: &RadixCiphertext,
-        false_ct: &RadixCiphertext,
+        true_ct: &T,
+        false_ct: &T,
         predicate: F,
-    ) -> RadixCiphertext
+    ) -> T
     where
+        T: IntegerRadixCiphertext,
         F: Fn(u64) -> bool + Send + Sync + Copy,
     {
         let inverted_predicate = |x| !predicate(x);
@@ -171,9 +176,9 @@ impl ServerKey {
         // If the condition was true, true_ct will have kept its value and false_ct will be 0
         // If the condition was false, true_ct will be 0 and false_ct will have kept its value
         true_ct
-            .blocks
+            .blocks_mut()
             .par_iter_mut()
-            .zip(false_ct.blocks.par_iter())
+            .zip(false_ct.blocks().par_iter())
             .for_each(|(lhs_block, rhs_block)| {
                 self.key.unchecked_add_assign(lhs_block, rhs_block);
                 self.key.message_extract_assign(lhs_block)
@@ -186,34 +191,39 @@ impl ServerKey {
     ///
     /// The input integer ciphertext will have all its block zeroed if condition_block
     /// encrypts 0, otherwise each block keeps its value.
-    pub(crate) fn zero_out_if_condition_is_false(
+    pub(crate) fn zero_out_if_condition_is_false<T>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut T,
         condition_block: &crate::shortint::Ciphertext,
-    ) {
+    ) where
+        T: IntegerRadixCiphertext,
+    {
         assert!(condition_block.degree.0 <= 1);
 
         self.zero_out_if_condition_equals(ct, condition_block, 0)
     }
 
-    pub(crate) fn zero_out_if_condition_equals(
+    pub(crate) fn zero_out_if_condition_equals<T>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut T,
         condition_block: &crate::shortint::Ciphertext,
         value: u64,
-    ) {
+    ) where
+        T: IntegerRadixCiphertext,
+    {
         assert!(condition_block.degree.0 < condition_block.message_modulus.0);
         assert!(value < condition_block.message_modulus.0 as u64);
 
         self.zero_out_if(ct, condition_block, |x| x == value);
     }
 
-    pub(crate) fn zero_out_if<F>(
+    pub(crate) fn zero_out_if<T, F>(
         &self,
-        ct: &mut RadixCiphertext,
+        ct: &mut T,
         condition_block: &crate::shortint::Ciphertext,
         predicate: F,
     ) where
+        T: IntegerRadixCiphertext,
         F: Fn(u64) -> bool,
     {
         assert!(condition_block.degree.0 < condition_block.message_modulus.0);
@@ -227,7 +237,7 @@ impl ServerKey {
                 |block, condition| if predicate(condition) { 0 } else { block },
             );
 
-        ct.blocks
+        ct.blocks_mut()
             .par_iter_mut()
             .filter(|block| block.degree.0 != 0)
             .for_each(|block| {

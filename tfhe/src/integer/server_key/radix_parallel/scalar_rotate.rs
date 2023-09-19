@@ -1,7 +1,7 @@
 use std::ops::Rem;
 
 use crate::core_crypto::prelude::CastFrom;
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 
 use rayon::prelude::*;
@@ -40,14 +40,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_right_parallelized<T>(
-        &self,
-        ct: &mut RadixCiphertext,
-        n: T,
-    ) -> RadixCiphertext
+    pub fn smart_scalar_rotate_right_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar) -> T
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -85,10 +82,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_right_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, n: T)
+    pub fn smart_scalar_rotate_right_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -134,14 +132,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_right_parallelized<T>(
-        &self,
-        ct_right: &RadixCiphertext,
-        n: T,
-    ) -> RadixCiphertext
+    pub fn scalar_rotate_right_parallelized<T, Scalar>(&self, ct_right: &T, n: Scalar) -> T
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         let mut result = ct_right.clone();
         self.scalar_rotate_right_assign_parallelized(&mut result, n);
@@ -176,10 +171,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_right_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, n: T)
+    pub fn scalar_rotate_right_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -225,14 +221,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_right_parallelized<T>(
-        &self,
-        ct: &RadixCiphertext,
-        n: T,
-    ) -> RadixCiphertext
+    pub fn unchecked_scalar_rotate_right_parallelized<T, Scalar>(&self, ct: &T, n: Scalar) -> T
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         let mut result = ct.clone();
         self.unchecked_scalar_rotate_right_assign_parallelized(&mut result, n);
@@ -276,13 +269,14 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_right(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_right_assign_parallelized<T>(
+    pub fn unchecked_scalar_rotate_right_assign_parallelized<T, Scalar>(
         &self,
-        ct: &mut RadixCiphertext,
-        n: T,
+        ct: &mut T,
+        n: Scalar,
     ) where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         // The general idea, is that we know by how much we want to
         // rotate since `n` is a clear value.
@@ -294,9 +288,9 @@ impl ServerKey {
         debug_assert!(self.key.carry_modulus.0 >= self.key.message_modulus.0 / 2);
 
         let num_bits_in_message = self.key.message_modulus.0.ilog2() as u64;
-        let total_num_bits = num_bits_in_message * ct.blocks.len() as u64;
+        let total_num_bits = num_bits_in_message * ct.blocks().len() as u64;
 
-        let n = n % T::cast_from(total_num_bits);
+        let n = n % Scalar::cast_from(total_num_bits);
         let n = u64::cast_from(n);
 
         if n == 0 {
@@ -305,10 +299,10 @@ impl ServerKey {
 
         let rotations = (n / num_bits_in_message) as usize;
         let shift_within_block = n % num_bits_in_message;
-        let num_blocks = ct.blocks.len();
+        let num_blocks = ct.blocks().len();
 
         // rotate left as the blocks are from LSB to MSB
-        ct.blocks.rotate_left(rotations);
+        ct.blocks_mut().rotate_left(rotations);
 
         let message_modulus = self.key.message_modulus.0 as u64;
         if shift_within_block != 0 {
@@ -328,7 +322,7 @@ impl ServerKey {
 
                         message_of_current_block + carry_of_previous_block
                     });
-            let new_blocks = (0..num_blocks)
+            let mut new_blocks = (0..num_blocks)
                 .into_par_iter()
                 .map(|index| {
                     // rotate_right means moving bits from MSB to LSB
@@ -337,8 +331,8 @@ impl ServerKey {
                     let bit_receiver_index = index;
                     let bit_giver_index = (index + 1) % num_blocks;
 
-                    let bit_receiver_block = &ct.blocks[bit_receiver_index];
-                    let bit_giver_block = &ct.blocks[bit_giver_index];
+                    let bit_receiver_block = &ct.blocks()[bit_receiver_index];
+                    let bit_giver_block = &ct.blocks()[bit_giver_index];
                     self.key.unchecked_apply_lookup_table_bivariate(
                         bit_receiver_block,
                         bit_giver_block,
@@ -346,7 +340,7 @@ impl ServerKey {
                     )
                 })
                 .collect::<Vec<_>>();
-            ct.blocks = new_blocks;
+            ct.blocks_mut().swap_with_slice(&mut new_blocks);
         }
 
         debug_assert!(ct.block_carries_are_empty());
@@ -375,7 +369,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
     ///
     /// let msg = 128u8;
-    /// let n = 2;
+    /// let n = 2u32;
     ///
     /// let mut ct = cks.encrypt(msg as u64);
     ///
@@ -385,14 +379,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_left_parallelized<T>(
-        &self,
-        ct: &mut RadixCiphertext,
-        n: T,
-    ) -> RadixCiphertext
+    pub fn smart_scalar_rotate_left_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar) -> T
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -420,7 +411,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
     ///
     /// let msg = 128u8;
-    /// let n = 2;
+    /// let n = 2u32;
     ///
     /// let mut ct = cks.encrypt(msg as u64);
     ///
@@ -430,10 +421,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn smart_scalar_rotate_left_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, n: T)
+    pub fn smart_scalar_rotate_left_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -469,7 +461,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
     ///
     /// let msg = 128u8;
-    /// let n = 2;
+    /// let n = 2u32;
     ///
     /// let ct = cks.encrypt(msg as u64);
     ///
@@ -479,14 +471,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_left_parallelized<T>(
-        &self,
-        ct_left: &RadixCiphertext,
-        n: T,
-    ) -> RadixCiphertext
+    pub fn scalar_rotate_left_parallelized<T, Scalar>(&self, ct_left: &T, n: Scalar) -> T
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         let mut result = ct_left.clone();
         self.scalar_rotate_left_assign_parallelized(&mut result, n);
@@ -511,7 +500,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
     ///
     /// let msg = 128u8;
-    /// let n = 2;
+    /// let n = 2u32;
     ///
     /// let mut ct = cks.encrypt(msg as u64);
     ///
@@ -521,10 +510,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn scalar_rotate_left_assign_parallelized<T>(&self, ct: &mut RadixCiphertext, n: T)
+    pub fn scalar_rotate_left_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -560,7 +550,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
     ///
     /// let msg = 128u8;
-    /// let n = 2;
+    /// let n = 2u32;
     ///
     /// let ct = cks.encrypt(msg as u64);
     ///
@@ -570,14 +560,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_left_parallelized<T>(
-        &self,
-        ct: &RadixCiphertext,
-        n: T,
-    ) -> RadixCiphertext
+    pub fn unchecked_scalar_rotate_left_parallelized<T, Scalar>(&self, ct: &T, n: Scalar) -> T
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         let mut result = ct.clone();
         self.unchecked_scalar_rotate_left_assign_parallelized(&mut result, n);
@@ -611,7 +598,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
     ///
     /// let msg = 128u8;
-    /// let n = 2;
+    /// let n = 2u32;
     ///
     /// let mut ct = cks.encrypt(msg as u64);
     ///
@@ -621,13 +608,11 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg.rotate_left(n as u32) as u64, dec);
     /// ```
-    pub fn unchecked_scalar_rotate_left_assign_parallelized<T>(
-        &self,
-        ct: &mut RadixCiphertext,
-        n: T,
-    ) where
-        T: Rem<T, Output = T> + CastFrom<u64>,
-        u64: CastFrom<T>,
+    pub fn unchecked_scalar_rotate_left_assign_parallelized<T, Scalar>(&self, ct: &mut T, n: Scalar)
+    where
+        T: IntegerRadixCiphertext,
+        Scalar: Rem<Scalar, Output = Scalar> + CastFrom<u64>,
+        u64: CastFrom<Scalar>,
     {
         // The general idea, is that we know by how much we want to
         // rotate since `n` is a clear value.
@@ -639,7 +624,7 @@ impl ServerKey {
         debug_assert!(self.key.carry_modulus.0 >= self.key.message_modulus.0 / 2);
 
         let num_bits_in_message = self.key.message_modulus.0.ilog2() as u64;
-        let total_num_bits = num_bits_in_message * ct.blocks.len() as u64;
+        let total_num_bits = num_bits_in_message * ct.blocks().len() as u64;
 
         let n = u64::cast_from(n);
         let n = n % total_num_bits;
@@ -650,10 +635,10 @@ impl ServerKey {
 
         let rotations = (n / num_bits_in_message) as usize;
         let shift_within_block = n % num_bits_in_message;
-        let num_blocks = ct.blocks.len();
+        let num_blocks = ct.blocks().len();
 
         // rotate right as the blocks are from LSB to MSB
-        ct.blocks.rotate_right(rotations);
+        ct.blocks_mut().rotate_right(rotations);
 
         if shift_within_block != 0 {
             let lut = self
@@ -667,7 +652,7 @@ impl ServerKey {
                     let carry_of_giver_block = giver_block / self.key.message_modulus.0 as u64;
                     message_of_receiver_block + carry_of_giver_block
                 });
-            let new_blocks = (0..num_blocks)
+            let mut new_blocks = (0..num_blocks)
                 .into_par_iter()
                 .map(|index| {
                     // rotate_left means moving bits from LSB to MSB
@@ -680,8 +665,8 @@ impl ServerKey {
                         index - 1
                     };
 
-                    let bit_receiver_block = &ct.blocks[bit_receiver_index];
-                    let bit_giver_block = &ct.blocks[bit_giver_index];
+                    let bit_receiver_block = &ct.blocks()[bit_receiver_index];
+                    let bit_giver_block = &ct.blocks()[bit_giver_index];
                     self.key.unchecked_apply_lookup_table_bivariate(
                         bit_receiver_block,
                         bit_giver_block,
@@ -689,7 +674,7 @@ impl ServerKey {
                     )
                 })
                 .collect::<Vec<_>>();
-            ct.blocks = new_blocks;
+            ct.blocks_mut().swap_with_slice(&mut new_blocks);
         }
 
         debug_assert!(ct.block_carries_are_empty());

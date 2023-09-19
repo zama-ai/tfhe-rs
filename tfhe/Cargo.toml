@@ -183,6 +183,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "integer-signed-bench"
+path = "benches/integer/signed_bench.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "keygen"
 path = "benches/keygen/bench.rs"
 harness = false

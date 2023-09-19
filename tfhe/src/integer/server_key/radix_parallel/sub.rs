@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 
 impl ServerKey {
@@ -28,11 +28,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub_parallelized(
-        &self,
-        ctxt_left: &mut RadixCiphertext,
-        ctxt_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_sub_parallelized<T>(&self, ctxt_left: &mut T, ctxt_right: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {
             self.full_propagate_parallelized(ctxt_right);
@@ -78,11 +77,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub_assign_parallelized(
-        &self,
-        ctxt_left: &mut RadixCiphertext,
-        ctxt_right: &mut RadixCiphertext,
-    ) {
+    pub fn smart_sub_assign_parallelized<T>(&self, ctxt_left: &mut T, ctxt_right: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {
             self.full_propagate_parallelized(ctxt_right);
@@ -134,11 +132,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn sub_parallelized(
-        &self,
-        ctxt_left: &RadixCiphertext,
-        ctxt_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn sub_parallelized<T>(&self, ctxt_left: &T, ctxt_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ctxt_left.clone();
         self.sub_assign_parallelized(&mut ct_res, ctxt_right);
         ct_res
@@ -179,12 +176,11 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn sub_assign_parallelized(
-        &self,
-        ctxt_left: &mut RadixCiphertext,
-        ctxt_right: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn sub_assign_parallelized<T>(&self, ctxt_left: &mut T, ctxt_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (
             ctxt_left.block_carries_are_empty(),
@@ -219,22 +215,20 @@ impl ServerKey {
         }
     }
 
-    pub fn sub_parallelized_work_efficient(
-        &self,
-        ctxt_left: &RadixCiphertext,
-        ctxt_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn sub_parallelized_work_efficient<T>(&self, ctxt_left: &T, ctxt_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut ct_res = ctxt_left.clone();
         self.sub_assign_parallelized_work_efficient(&mut ct_res, ctxt_right);
         ct_res
     }
 
-    pub fn sub_assign_parallelized_work_efficient(
-        &self,
-        ctxt_left: &mut RadixCiphertext,
-        ctxt_right: &RadixCiphertext,
-    ) {
-        let mut tmp_rhs: RadixCiphertext;
+    pub fn sub_assign_parallelized_work_efficient<T>(&self, ctxt_left: &mut T, ctxt_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_rhs;
 
         let (lhs, rhs) = match (
             ctxt_left.block_carries_are_empty(),

@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
@@ -35,7 +35,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ctxt);
     /// assert_eq!(modulus - msg, dec);
     /// ```
-    pub fn unchecked_neg(&self, ctxt: &RadixCiphertext) -> RadixCiphertext {
+    pub fn unchecked_neg<T>(&self, ctxt: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ctxt.clone();
 
         self.unchecked_neg_assign(&mut result);
@@ -49,20 +52,23 @@ impl ServerKey {
     /// capacity of the ciphertext.
     ///
     /// The result is assigned to the `ct_left` ciphertext.
-    pub fn unchecked_neg_assign(&self, ctxt: &mut RadixCiphertext) {
+    pub fn unchecked_neg_assign<T>(&self, ctxt: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         //z is used to make sure the negation doesn't fill the padding bit
         let mut z;
         let mut z_b;
 
-        for i in 0..ctxt.blocks.len() {
-            let c_i = &mut ctxt.blocks[i];
+        for i in 0..ctxt.blocks().len() {
+            let c_i = &mut ctxt.blocks_mut()[i];
             z = self.key.unchecked_neg_assign_with_correcting_term(c_i);
 
             // Subtract z/B to the next ciphertext to compensate for the addition of z
             z_b = z / self.key.message_modulus.0 as u64;
 
-            if i < ctxt.blocks.len() - 1 {
-                let c_j = &mut ctxt.blocks[i + 1];
+            if i < ctxt.blocks().len() - 1 {
+                let c_j = &mut ctxt.blocks_mut()[i + 1];
                 self.key.unchecked_scalar_add_assign(c_j, z_b as u8);
             }
         }
@@ -90,11 +96,14 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_neg_possible(&self, ctxt: &RadixCiphertext) -> bool {
-        for i in 0..ctxt.blocks.len() {
+    pub fn is_neg_possible<T>(&self, ctxt: &T) -> bool
+    where
+        T: IntegerRadixCiphertext,
+    {
+        for i in 0..ctxt.blocks().len() {
             // z = ceil( degree / 2^p ) x 2^p
             let msg_mod = self.key.message_modulus.0;
-            let mut z = (ctxt.blocks[i].degree.0 + msg_mod - 1) / msg_mod;
+            let mut z = (ctxt.blocks()[i].degree.0 + msg_mod - 1) / msg_mod;
             z = z.wrapping_mul(msg_mod);
 
             // z will be the new degree of ctxt.blocks[i]
@@ -104,10 +113,10 @@ impl ServerKey {
 
             let z_b = z / msg_mod;
 
-            if i < ctxt.blocks.len() - 1
+            if i < ctxt.blocks().len() - 1
                 && !self
                     .key
-                    .is_scalar_add_possible(&ctxt.blocks[i + 1], z_b as u8)
+                    .is_scalar_add_possible(&ctxt.blocks()[i + 1], z_b as u8)
             {
                 return false;
             }
@@ -148,7 +157,10 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_neg(&self, ctxt: &RadixCiphertext) -> Result<RadixCiphertext, CheckError> {
+    pub fn checked_neg<T>(&self, ctxt: &T) -> Result<T, CheckError>
+    where
+        T: IntegerRadixCiphertext,
+    {
         //If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if self.is_neg_possible(ctxt) {
             let mut result = ctxt.clone();
@@ -186,7 +198,10 @@ impl ServerKey {
     /// let clear_res: u64 = cks.decrypt(&ct);
     /// assert_eq!(clear_res, (modulus - msg));
     /// ```
-    pub fn checked_neg_assign(&self, ctxt: &mut RadixCiphertext) -> Result<(), CheckError> {
+    pub fn checked_neg_assign<T>(&self, ctxt: &mut T) -> Result<(), CheckError>
+    where
+        T: IntegerRadixCiphertext,
+    {
         //If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if self.is_neg_possible(ctxt) {
             self.unchecked_neg_assign(ctxt);
@@ -222,7 +237,10 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(255, dec);
     /// ```
-    pub fn smart_neg(&self, ctxt: &mut RadixCiphertext) -> RadixCiphertext {
+    pub fn smart_neg<T>(&self, ctxt: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         if !self.is_neg_possible(ctxt) {
             self.full_propagate(ctxt);
         }

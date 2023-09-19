@@ -87,15 +87,6 @@ impl RadixCiphertext {
     pub fn block_carries_are_empty(&self) -> bool {
         self.blocks.iter().all(|block| block.carry_is_empty())
     }
-
-    /// Returns wether the ciphertext _seems_ like it holds/encrypts
-    /// a boolean (0 or 1) value.
-    ///
-    /// Since it uses degree to do so, it will not
-    /// always return the correct answer.
-    pub(crate) fn holds_boolean_value(&self) -> bool {
-        self.blocks[0].degree.0 <= 1 && self.blocks[1..].iter().all(|block| block.degree.0 == 0)
-    }
 }
 
 /// Structure containing a ciphertext in radix decomposition
@@ -148,16 +139,30 @@ pub trait IntegerCiphertext: Clone {
     }
 }
 
-pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send {
+pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send + From<Vec<Ciphertext>> {
+    const IS_SIGNED: bool;
+
     fn block_carries_are_empty(&self) -> bool {
         self.blocks().iter().all(|block| block.carry_is_empty())
     }
+
+    /// Returns wether the ciphertext _seems_ like it holds/encrypts
+    /// a boolean (0 or 1) value.
+    ///
+    /// Since it uses degree to do so, it will not
+    /// always return the correct answer.
+    fn holds_boolean_value(&self) -> bool {
+        self.blocks()[0].degree.0 <= 1 && self.blocks()[1..].iter().all(|block| block.degree.0 == 0)
+    }
+
+    fn into_blocks(self) -> Vec<Ciphertext>;
 }
 
 impl IntegerCiphertext for RadixCiphertext {
     fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
         Self::from(blocks)
     }
+
     fn blocks(&self) -> &[Ciphertext] {
         &self.blocks
     }
@@ -166,7 +171,13 @@ impl IntegerCiphertext for RadixCiphertext {
     }
 }
 
-impl IntegerRadixCiphertext for RadixCiphertext {}
+impl IntegerRadixCiphertext for RadixCiphertext {
+    const IS_SIGNED: bool = false;
+
+    fn into_blocks(self) -> Vec<Ciphertext> {
+        self.blocks
+    }
+}
 
 impl IntegerCiphertext for SignedRadixCiphertext {
     fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
@@ -180,7 +191,13 @@ impl IntegerCiphertext for SignedRadixCiphertext {
     }
 }
 
-impl IntegerRadixCiphertext for SignedRadixCiphertext {}
+impl IntegerRadixCiphertext for SignedRadixCiphertext {
+    const IS_SIGNED: bool = true;
+
+    fn into_blocks(self) -> Vec<Ciphertext> {
+        self.blocks
+    }
+}
 
 impl IntegerCiphertext for CrtCiphertext {
     fn from_blocks(blocks: Vec<Ciphertext>) -> Self {

@@ -1,5 +1,7 @@
-use crate::core_crypto::prelude::{Numeric, UnsignedInteger};
-use std::ops::{BitAnd, BitOrAssign, Not, Shl, ShlAssign, Shr, SubAssign};
+use crate::core_crypto::prelude::{
+    CastFrom, Numeric, SignedNumeric, UnsignedInteger, UnsignedNumeric,
+};
+use std::ops::{Add, BitAnd, BitOrAssign, Neg, Not, Shl, ShlAssign, Shr, Sub, SubAssign};
 
 const BYTES_PER_U64: usize = std::mem::size_of::<u64>() / std::mem::size_of::<u8>();
 
@@ -53,7 +55,7 @@ pub(crate) fn leading_zeros(lhs: &[u64]) -> u32 {
 }
 
 // Order of words must be little endian
-pub(crate) fn compare<T>(lhs: T, rhs: T) -> std::cmp::Ordering
+pub(crate) fn compare_unsigned<T>(lhs: T, rhs: T) -> std::cmp::Ordering
 where
     T: AsRef<[u64]>,
 {
@@ -73,6 +75,47 @@ where
     }
 
     current_ord
+}
+
+// Order of words must be little endian
+pub(crate) fn compare_signed<T>(lhs: T, rhs: T) -> std::cmp::Ordering
+where
+    T: AsRef<[u64]>,
+{
+    let lhs = lhs.as_ref();
+    let rhs = rhs.as_ref();
+    assert_eq!(lhs.len(), rhs.len());
+
+    if lhs.is_empty() {
+        // Both are empty
+        return std::cmp::Ordering::Equal;
+    }
+
+    let most_significant_lhs = lhs.last().unwrap();
+    let most_significant_rhs = rhs.last().unwrap();
+
+    let lhs_sign_bit = most_significant_lhs >> (u64::BITS - 1);
+    let rhs_sign_bit = most_significant_rhs >> (u64::BITS - 1);
+
+    let cmp = most_significant_lhs.cmp(most_significant_rhs);
+    if cmp == std::cmp::Ordering::Equal {
+        return compare_unsigned(&lhs[..lhs.len() - 1], &rhs[..rhs.len() - 1]);
+    }
+
+    if lhs_sign_bit != rhs_sign_bit {
+        // The block that has its sign bit set is going
+        // to be ordered as 'greater' by the cmp fn.
+        // However, we are dealing with signed number,
+        // so in reality, it is the smaller of the two
+        // i.e the cmp result is inversed
+        match cmp {
+            std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
+            std::cmp::Ordering::Greater => std::cmp::Ordering::Less,
+            _ => unreachable!(),
+        }
+    } else {
+        cmp
+    }
 }
 
 pub(crate) fn bitnot_assign<T: Copy + Not<Output = T>>(words: &mut [T]) {
@@ -153,9 +196,9 @@ pub(crate) fn schoolbook_mul_assign(lhs: &mut [u64], rhs: &[u64]) {
     }
 }
 
-pub(crate) fn slow_div<T>(numerator: T, divisor: T) -> (T, T)
+pub(crate) fn slow_div_unsigned<T>(numerator: T, divisor: T) -> (T, T)
 where
-    T: Numeric
+    T: UnsignedNumeric
         + ShlAssign<u32>
         + Shl<u32, Output = T>
         + Shr<u32, Output = T>
@@ -164,7 +207,7 @@ where
         + BitAnd<T, Output = T>
         + Ord,
 {
-    assert!(divisor != T::ZERO);
+    assert_ne!(divisor, T::ZERO, "attempt to divide by 0");
 
     let mut quotient = T::ZERO;
     let mut remainder = T::ZERO;
@@ -182,25 +225,109 @@ where
     (quotient, remainder)
 }
 
+pub(crate) fn slow_div_signed<T>(numerator: T, divisor: T) -> (T, T)
+where
+    T: SignedNumeric
+        + ShlAssign<u32>
+        + Shl<u32, Output = T>
+        + Shr<u32, Output = T>
+        + BitOrAssign<T>
+        + SubAssign<T>
+        + BitAnd<T, Output = T>
+        + Ord
+        + Neg<Output = T>
+        + Add<T, Output = T>
+        + Sub<T, Output = T>
+        + CastFrom<T::NumericUnsignedType>,
+    T::NumericUnsignedType: CastFrom<T>
+        + ShlAssign<u32>
+        + Shl<u32, Output = T::NumericUnsignedType>
+        + Shr<u32, Output = T::NumericUnsignedType>
+        + BitOrAssign<T::NumericUnsignedType>
+        + SubAssign<T::NumericUnsignedType>
+        + BitAnd<T::NumericUnsignedType, Output = T::NumericUnsignedType>
+        + Ord
+        + CastFrom<T>,
+{
+    assert!(divisor != T::ZERO);
+    assert_eq!(
+        T::BITS,
+        T::NumericUnsignedType::BITS,
+        "Signed and Unsigned types must have same number of bits"
+    );
+
+    let positive_numerator = if numerator < T::ZERO {
+        -numerator
+    } else {
+        numerator
+    };
+    let positive_numerator = T::NumericUnsignedType::cast_from(positive_numerator);
+
+    let positive_divisor =
+        T::NumericUnsignedType::cast_from(if divisor < T::ZERO { -divisor } else { divisor });
+
+    let (quotient, remainder) = slow_div_unsigned(positive_numerator, positive_divisor);
+
+    let mut quotient = T::cast_from(quotient);
+    let mut remainder = T::cast_from(remainder);
+
+    let numerator_and_divisor_signs_differs = (divisor < T::ZERO) != (numerator < T::ZERO);
+
+    if numerator < T::ZERO {
+        remainder = -remainder;
+    }
+
+    if numerator_and_divisor_signs_differs {
+        quotient = -quotient;
+    }
+
+    (quotient, remainder)
+}
+
+pub(crate) fn absolute_value<T>(value: T) -> T
+where
+    T: Numeric + Neg<Output = T>,
+{
+    if value < T::ZERO {
+        -value
+    } else {
+        value
+    }
+}
+
+pub(crate) enum ShiftType {
+    Logical,
+    Arithmetic,
+}
+
 // move bits from MSB to LSB
-pub(crate) fn shr_assign(lhs: &mut [u64], shift: u32) {
+pub(crate) fn shr_assign(lhs: &mut [u64], shift: u32, shift_type: ShiftType) {
     let len = lhs.len();
     let num_bits = len as u32 * u64::BITS;
     let shift = shift % num_bits;
+
+    let sign_bit = match shift_type {
+        ShiftType::Logical => 0,
+        ShiftType::Arithmetic => {
+            // sign bit
+            lhs.last().unwrap() >> (u64::BITS - 1)
+        }
+    };
 
     let num_rotations = (shift / u64::BITS) as usize;
     lhs.rotate_left(num_rotations);
 
     let len = lhs.len();
     let (head, tail) = lhs.split_at_mut(len - num_rotations);
-    tail.fill(0);
+
+    tail.fill(if sign_bit == 1 { u64::MAX } else { 0 });
 
     let shift_in_words = shift % u64::BITS;
 
     let value_mask = u64::MAX >> shift_in_words;
     let carry_mask = ((1u64 << shift_in_words) - 1u64).rotate_right(shift_in_words);
 
-    let mut carry = 0u64;
+    let mut carry = if sign_bit == 1 { u64::MAX } else { 0 };
     for word in &mut head.iter_mut().rev() {
         let rotated = word.rotate_right(shift_in_words);
         let value = (rotated & value_mask) | carry;

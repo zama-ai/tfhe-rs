@@ -1,9 +1,9 @@
-use crate::core_crypto::prelude::{Numeric, UnsignedInteger};
+use crate::core_crypto::prelude::{Numeric, SignedInteger};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
-use crate::integer::{ServerKey, U256, U512};
+use crate::integer::ServerKey;
 use std::collections::BTreeMap;
 
 pub trait ScalarMultiplier: Numeric {
@@ -12,9 +12,45 @@ pub trait ScalarMultiplier: Numeric {
     fn ilog2(self) -> u32;
 }
 
-impl<T> ScalarMultiplier for T
-where
-    T: UnsignedInteger,
+macro_rules! impl_scalar_multiplier_for_unsigned {
+    ($($type:ty),*) => {
+        $(
+            impl ScalarMultiplier for $type {
+                fn is_power_of_two(self) -> bool {
+                    <$type>::is_power_of_two(self)
+                }
+
+                fn ilog2(self) -> u32 {
+                    self.ilog2()
+                }
+            }
+        )*
+    }
+}
+
+macro_rules! impl_scalar_multiplier_for_signed {
+    ($($type:ty),*) => {
+        $(
+            impl ScalarMultiplier for $type {
+                // i8, i18, etc do not have their is_power_of_two
+                fn is_power_of_two(self) -> bool {
+                    self > 0 && <Self as SignedInteger>::into_unsigned(self).is_power_of_two()
+                }
+
+                // Panics is self is <= 0
+                fn ilog2(self) -> u32 {
+                    self.ilog2()
+                }
+            }
+        )*
+    }
+}
+
+impl_scalar_multiplier_for_unsigned!(u8, u16, u32, u64, u128);
+impl_scalar_multiplier_for_signed!(i8, i16, i32, i64, i128);
+
+impl<const N: usize> ScalarMultiplier
+    for crate::integer::bigint::static_signed::StaticSignedBigInt<N>
 {
     fn is_power_of_two(self) -> bool {
         self.is_power_of_two()
@@ -24,18 +60,9 @@ where
         self.ilog2()
     }
 }
-
-impl ScalarMultiplier for U256 {
-    fn is_power_of_two(self) -> bool {
-        self.is_power_of_two()
-    }
-
-    fn ilog2(self) -> u32 {
-        self.ilog2()
-    }
-}
-
-impl ScalarMultiplier for U512 {
+impl<const N: usize> ScalarMultiplier
+    for crate::integer::bigint::static_unsigned::StaticUnsignedBigInt<N>
+{
     fn is_power_of_two(self) -> bool {
         self.is_power_of_two()
     }
@@ -318,10 +345,13 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(16, clear);
     /// ```
-    pub fn blockshift(&self, ctxt: &RadixCiphertext, shift: usize) -> RadixCiphertext {
+    pub fn blockshift<T>(&self, ctxt: &T, shift: usize) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ctxt.clone();
-        result.blocks.rotate_right(shift);
-        for block in &mut result.blocks[..shift] {
+        result.blocks_mut().rotate_right(shift);
+        for block in &mut result.blocks_mut()[..shift] {
             self.key.create_trivial_assign(block, 0);
         }
         result

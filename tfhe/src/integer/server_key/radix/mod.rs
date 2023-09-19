@@ -19,8 +19,11 @@ use crate::integer::encryption::encrypt_words_radix_impl;
 mod tests;
 
 impl ServerKey {
-    pub fn create_trivial_zero_assign_radix(&self, ctxt: &mut RadixCiphertext) {
-        for block in &mut ctxt.blocks {
+    pub fn create_trivial_zero_assign_radix<T>(&self, ctxt: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        for block in ctxt.blocks_mut() {
             self.key.create_trivial_assign(block, 0)
         }
     }
@@ -44,13 +47,16 @@ impl ServerKey {
     /// let dec: u64 = cks.decrypt(&ctxt);
     /// assert_eq!(0, dec);
     /// ```
-    pub fn create_trivial_zero_radix(&self, num_blocks: usize) -> RadixCiphertext {
+    pub fn create_trivial_zero_radix<T>(&self, num_blocks: usize) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut vec_res = Vec::with_capacity(num_blocks);
         for _ in 0..num_blocks {
             vec_res.push(self.key.create_trivial(0_u64));
         }
 
-        RadixCiphertext::from(vec_res)
+        T::from_blocks(vec_res)
     }
 
     /// Create a trivial radix ciphertext

@@ -1,5 +1,5 @@
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::radix::scalar_mul::ScalarMultiplier;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
@@ -321,31 +321,30 @@ impl ServerKey {
         self.unchecked_small_scalar_mul_assign_parallelized(ctxt, scalar);
         self.full_propagate_parallelized(ctxt);
     }
-    pub fn unchecked_scalar_mul_parallelized<T>(
-        &self,
-        ct: &RadixCiphertext,
-        scalar: T,
-    ) -> RadixCiphertext
+
+    pub fn unchecked_scalar_mul_parallelized<T, Scalar>(&self, ct: &T, scalar: Scalar) -> T
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+        Scalar: ScalarMultiplier + DecomposableInto<u8>,
     {
         let mut ct_res = ct.clone();
         self.unchecked_scalar_mul_assign_parallelized(&mut ct_res, scalar);
         ct_res
     }
 
-    pub fn unchecked_scalar_mul_assign_parallelized<T>(&self, lhs: &mut RadixCiphertext, scalar: T)
+    pub fn unchecked_scalar_mul_assign_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar)
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+        Scalar: ScalarMultiplier + DecomposableInto<u8>,
     {
-        if scalar == T::ZERO || lhs.blocks.is_empty() {
-            for block in &mut lhs.blocks {
+        if scalar == Scalar::ZERO || lhs.blocks().is_empty() {
+            for block in lhs.blocks_mut() {
                 self.key.create_trivial_assign(block, 0);
             }
             return;
         }
 
-        if scalar == T::ONE {
+        if scalar == Scalar::ONE {
             return;
         }
 
@@ -357,7 +356,7 @@ impl ServerKey {
         }
 
         let message_modulus = self.key.message_modulus.0 as u64;
-        let num_blocks = lhs.blocks.len();
+        let num_blocks = lhs.blocks().len();
 
         // key is the small scalar we multiply by
         // value is the vector of blockshifts
@@ -374,7 +373,7 @@ impl ServerKey {
 
         // This can happen if scalar % (nb_blocks * message_modulus) == 0
         if task_map.iter().all(Vec::is_empty) {
-            for block in &mut lhs.blocks {
+            for block in lhs.blocks_mut() {
                 self.key.create_trivial_assign(block, 0);
             }
             return;
@@ -384,14 +383,14 @@ impl ServerKey {
             .into_par_iter()
             .enumerate()
             .filter(|(_, block_indices)| !block_indices.is_empty())
-            .map(|(i, block_indices)| -> Vec<RadixCiphertext> {
+            .map(|(i, block_indices)| -> Vec<T> {
                 let scalar = i + 1;
 
                 let min_index = block_indices.iter().min().unwrap();
 
                 let mut tmp = lhs.clone();
                 if scalar != 1 {
-                    tmp.blocks[0..num_blocks - min_index]
+                    tmp.blocks_mut()[0..num_blocks - min_index]
                         .par_iter_mut()
                         .for_each(|ct_i| {
                             if ct_i.degree.0 != 0 {
@@ -400,14 +399,14 @@ impl ServerKey {
                         });
                     let (mut message_blocks, carry_blocks) = rayon::join(
                         || {
-                            tmp.blocks[0..num_blocks - min_index]
+                            tmp.blocks()[0..num_blocks - min_index]
                                 .par_iter()
                                 .map(|block| self.key.message_extract(block))
                                 .collect::<Vec<_>>()
                         },
                         || {
                             let mut carry_blocks = Vec::new();
-                            tmp.blocks[..num_blocks - min_index - 1]
+                            tmp.blocks()[..num_blocks - min_index - 1]
                                 .par_iter()
                                 .map(|block| self.key.carry_extract(block))
                                 .collect_into_vec(&mut carry_blocks);
@@ -417,9 +416,9 @@ impl ServerKey {
                         },
                     );
                     for i in 0..num_blocks - min_index {
-                        std::mem::swap(&mut tmp.blocks[i], &mut message_blocks[i]);
+                        std::mem::swap(&mut tmp.blocks_mut()[i], &mut message_blocks[i]);
                         self.key
-                            .unchecked_add_assign(&mut tmp.blocks[i], &carry_blocks[i]);
+                            .unchecked_add_assign(&mut tmp.blocks_mut()[i], &carry_blocks[i]);
                     }
                 }
 
@@ -461,13 +460,10 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn smart_scalar_mul_parallelized<T>(
-        &self,
-        lhs: &mut RadixCiphertext,
-        scalar: T,
-    ) -> RadixCiphertext
+    pub fn smart_scalar_mul_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar) -> T
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+        Scalar: ScalarMultiplier + DecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -476,9 +472,10 @@ impl ServerKey {
         self.unchecked_scalar_mul_parallelized(lhs, scalar)
     }
 
-    pub fn smart_scalar_mul_assign_parallelized<T>(&self, lhs: &mut RadixCiphertext, scalar: T)
+    pub fn smart_scalar_mul_assign_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar)
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+        Scalar: ScalarMultiplier + DecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -521,18 +518,20 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
-    pub fn scalar_mul_parallelized<T>(&self, ct: &RadixCiphertext, scalar: T) -> RadixCiphertext
+    pub fn scalar_mul_parallelized<T, Scalar>(&self, ct: &T, scalar: Scalar) -> T
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+        Scalar: ScalarMultiplier + DecomposableInto<u8>,
     {
         let mut ct_res = ct.clone();
         self.scalar_mul_assign_parallelized(&mut ct_res, scalar);
         ct_res
     }
 
-    pub fn scalar_mul_assign_parallelized<T>(&self, lhs: &mut RadixCiphertext, scalar: T)
+    pub fn scalar_mul_assign_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar)
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+        Scalar: ScalarMultiplier + DecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);

@@ -32,7 +32,7 @@ pub trait SignedInteger:
     + CastFrom<f64>
     + CastInto<f64>
 {
-    /// The unsigned type of the same precicion
+    /// The unsigned type of the same precision
     type Unsigned: UnsignedInteger<Signed = Self> + CastFrom<Self>;
 
     /// Return the casting of the current value to the unsigned type of the same size.
@@ -53,7 +53,9 @@ macro_rules! implement {
             const MAX: Self = <$Type>::MAX;
         }
 
-        impl SignedNumeric for $Type {}
+        impl SignedNumeric for $Type {
+            type NumericUnsignedType = $UnsignedType;
+        }
 
         impl SignedInteger for $Type {
             type Unsigned = $UnsignedType;

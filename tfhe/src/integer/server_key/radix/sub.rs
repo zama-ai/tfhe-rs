@@ -1,4 +1,4 @@
-use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
@@ -34,11 +34,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(dec_result, msg_1 - msg_2);
     /// ```
-    pub fn unchecked_sub(
-        &self,
-        ctxt_left: &RadixCiphertext,
-        ctxt_right: &RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn unchecked_sub<T>(&self, ctxt_left: &T, ctxt_right: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         let mut result = ctxt_left.clone();
         self.unchecked_sub_assign(&mut result, ctxt_right);
         result
@@ -75,11 +74,10 @@ impl ServerKey {
     /// let dec_result: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(dec_result, msg_1 - msg_2);
     /// ```
-    pub fn unchecked_sub_assign(
-        &self,
-        ctxt_left: &mut RadixCiphertext,
-        ctxt_right: &RadixCiphertext,
-    ) {
+    pub fn unchecked_sub_assign<T>(&self, ctxt_left: &mut T, ctxt_right: &T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         let neg = self.unchecked_neg(ctxt_right);
         self.unchecked_add_assign(ctxt_left, &neg);
     }
@@ -108,12 +106,11 @@ impl ServerKey {
     ///
     /// assert_eq!(true, res);
     /// ```
-    pub fn is_sub_possible(
-        &self,
-        ctxt_left: &RadixCiphertext,
-        ctxt_right: &RadixCiphertext,
-    ) -> bool {
-        for (ct_left_i, ct_right_i) in ctxt_left.blocks.iter().zip(ctxt_right.blocks.iter()) {
+    pub fn is_sub_possible<T>(&self, ctxt_left: &T, ctxt_right: &T) -> bool
+    where
+        T: IntegerRadixCiphertext,
+    {
+        for (ct_left_i, ct_right_i) in ctxt_left.blocks().iter().zip(ctxt_right.blocks().iter()) {
             if !self.key.is_sub_possible(ct_left_i, ct_right_i) {
                 return false;
             }
@@ -155,11 +152,10 @@ impl ServerKey {
     ///     }
     /// }
     /// ```
-    pub fn checked_sub(
-        &self,
-        ctxt_left: &RadixCiphertext,
-        ctxt_right: &RadixCiphertext,
-    ) -> Result<RadixCiphertext, CheckError> {
+    pub fn checked_sub<T>(&self, ctxt_left: &T, ctxt_right: &T) -> Result<T, CheckError>
+    where
+        T: IntegerRadixCiphertext,
+    {
         if self.is_sub_possible(ctxt_left, ctxt_right) {
             Ok(self.unchecked_sub(ctxt_left, ctxt_right))
         } else {
@@ -199,11 +195,10 @@ impl ServerKey {
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1.wrapping_sub(msg2) as u64, clear);
     /// ```
-    pub fn checked_sub_assign(
-        &self,
-        ct_left: &mut RadixCiphertext,
-        ct_right: &RadixCiphertext,
-    ) -> Result<(), CheckError> {
+    pub fn checked_sub_assign<T>(&self, ct_left: &mut T, ct_right: &T) -> Result<(), CheckError>
+    where
+        T: IntegerRadixCiphertext,
+    {
         if self.is_sub_possible(ct_left, ct_right) {
             self.unchecked_sub_assign(ct_left, ct_right);
             Ok(())
@@ -238,11 +233,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub(
-        &self,
-        ctxt_left: &mut RadixCiphertext,
-        ctxt_right: &mut RadixCiphertext,
-    ) -> RadixCiphertext {
+    pub fn smart_sub<T>(&self, ctxt_left: &mut T, ctxt_right: &mut T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {
             self.full_propagate(ctxt_right);
@@ -286,11 +280,10 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt(&ctxt_1);
     /// assert_eq!(msg_1.wrapping_sub(msg_2) as u64, res);
     /// ```
-    pub fn smart_sub_assign(
-        &self,
-        ctxt_left: &mut RadixCiphertext,
-        ctxt_right: &mut RadixCiphertext,
-    ) {
+    pub fn smart_sub_assign<T>(&self, ctxt_left: &mut T, ctxt_right: &mut T)
+    where
+        T: IntegerRadixCiphertext,
+    {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
         if !self.is_neg_possible(ctxt_right) {
             self.full_propagate(ctxt_right);
