@@ -442,54 +442,22 @@ impl ServerKey {
             .key
             .generate_lookup_table_bivariate(prefix_sum_carry_propagation);
 
-        use std::cell::UnsafeCell;
-
-        #[derive(Copy, Clone)]
-        pub struct UnsafeSlice<'a, T> {
-            slice: &'a [UnsafeCell<T>],
-        }
-        unsafe impl<'a, T: Send + Sync> Send for UnsafeSlice<'a, T> {}
-        unsafe impl<'a, T: Send + Sync> Sync for UnsafeSlice<'a, T> {}
-
-        impl<'a, T> UnsafeSlice<'a, T> {
-            pub fn new(slice: &'a mut [T]) -> Self {
-                let ptr = slice as *mut [T] as *const [UnsafeCell<T>];
-                Self {
-                    slice: unsafe { &*ptr },
-                }
-            }
-
-            /// SAFETY: It is UB if two threads read/write the pointer without synchronisation
-            pub unsafe fn get(&self, i: usize) -> *mut T {
-                self.slice[i].get()
-            }
-        }
-
-        let carry_out_slice = UnsafeSlice::new(&mut carry_out);
         for i in 0..num_steps {
             let two_pow_i_plus_1 = 2usize.checked_pow((i + 1) as u32).unwrap();
             let two_pow_i = 2usize.checked_pow(i as u32).unwrap();
 
-            (0..num_blocks)
-                .into_par_iter()
-                .step_by(two_pow_i_plus_1)
-                .for_each(|k| {
-                    let current_index = k + two_pow_i_plus_1 - 1;
-                    let previous_index = k + two_pow_i - 1;
+            carry_out
+                .par_chunks_exact_mut(two_pow_i_plus_1)
+                .for_each(|carry_out| {
+                    let (last, head) = carry_out.split_last_mut().unwrap();
+                    let current_block = last;
+                    let previous_block = &head[two_pow_i - 1];
 
-                    unsafe {
-                        // SAFETY
-                        // We know none of the threads
-                        // are going to access the same pointers
-                        let current_block = carry_out_slice.get(current_index);
-                        let previous_block = carry_out_slice.get(previous_index) as *const _;
-
-                        self.key.unchecked_apply_lookup_table_bivariate_assign(
-                            &mut *current_block,
-                            &*previous_block,
-                            &lut_carry_propagation_sum,
-                        );
-                    }
+                    self.key.unchecked_apply_lookup_table_bivariate_assign(
+                        current_block,
+                        previous_block,
+                        &lut_carry_propagation_sum,
+                    );
                 });
         }
 
