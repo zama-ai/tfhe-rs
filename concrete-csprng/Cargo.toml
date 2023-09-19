@@ -19,8 +19,8 @@ libc = "0.2.133"
 
 [dev-dependencies]
 rand = "0.8.3"
-criterion = "0.3"
-clap = "=4.2.7"
+criterion = "0.5.1"
+clap = "=4.4.4"
 
 [features]
 parallel = ["rayon"]

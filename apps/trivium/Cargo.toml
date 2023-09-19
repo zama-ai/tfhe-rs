@@ -17,7 +17,7 @@ path = "../../tfhe"
 features = [ "boolean", "shortint", "integer", "aarch64-unix" ]
 
 [dev-dependencies]
-criterion = { version = "0.4", features = [ "html_reports" ]}
+criterion = { version = "0.5.1", features = [ "html_reports" ]}
 
 [[bench]]
 name = "trivium"
