@@ -43,16 +43,17 @@ def check_security(filename):
             dual_level = LWE.dual_hybrid(param, red_cost_model = model)
 
             estimator_level = log(min(usvp_level["rop"], dual_level["rop"]),2 )
+            security_level = f"security level = {estimator_level} bits"
             if estimator_level < 127:
-                print("FAIL")
-                reason = f"attained security level = {estimator_level} bits target is 128 bits"
+                print("FAIL\t({security_level})")
+                reason = f"attained {security_level} target is 128 bits"
                 to_update.append((param, reason))
                 continue
         except Exception as err:
             print("FAIL")
             to_update.append((param, f"{repr(err)}"))
         else:
-            print("OK")
+            print(f"OK\t({security_level})")
 
     return to_update
 
