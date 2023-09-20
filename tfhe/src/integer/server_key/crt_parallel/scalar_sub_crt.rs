@@ -23,6 +23,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 7;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     ///
@@ -30,7 +31,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt_crt(&ctxt_1);
-    /// assert_eq!((clear_1 - clear_2) % 30, res);
+    /// assert_eq!((clear_1 - clear_2) % modulus, res);
     /// ```
     pub fn unchecked_crt_scalar_sub_parallelized(
         &self,
@@ -76,6 +77,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 8;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     ///
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     ///
@@ -83,7 +85,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt_crt(&ct_res);
-    /// assert_eq!((clear_1 - clear_2) % 30, dec);
+    /// assert_eq!((clear_1 - clear_2) % modulus, dec);
     /// # Ok(())
     /// # }
     /// ```
@@ -117,6 +119,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 7;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     ///
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     ///
@@ -124,7 +127,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt_crt(&ctxt_1);
-    /// assert_eq!((clear_1 - clear_2) % 30, dec);
+    /// assert_eq!((clear_1 - clear_2) % modulus, dec);
     /// # Ok(())
     /// # }
     /// ```
@@ -155,6 +158,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 7;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     ///
@@ -162,7 +166,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt_crt(&ctxt_1);
-    /// assert_eq!((clear_1 - clear_2) % 30, res);
+    /// assert_eq!((clear_1 - clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_scalar_sub_parallelized(
         &self,

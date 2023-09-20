@@ -16,6 +16,7 @@ impl ServerKey {
     /// let clear_1 = 29;
     /// let clear_2 = 23;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     /// let ctxt_2 = cks.encrypt_crt(clear_2, basis);
@@ -24,7 +25,7 @@ impl ServerKey {
     /// sks.unchecked_crt_mul_assign(&mut ctxt_1, &ctxt_2);
     /// // Decrypt
     /// let res = cks.decrypt_crt(&ctxt_1);
-    /// assert_eq!((clear_1 * clear_2) % 30, res);
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_crt_mul_assign(&self, ct_left: &mut CrtCiphertext, ct_right: &CrtCiphertext) {
         for (ct_left, ct_right) in ct_left.blocks.iter_mut().zip(ct_right.blocks.iter()) {
@@ -59,6 +60,7 @@ impl ServerKey {
     /// let clear_1 = 29;
     /// let clear_2 = 29;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     /// let mut ctxt_2 = cks.encrypt_crt(clear_2, basis);
@@ -68,7 +70,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt_crt(&ctxt_1);
-    /// assert_eq!((clear_1 * clear_2) % 30, res);
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_mul_assign(&self, ct_left: &mut CrtCiphertext, ct_right: &mut CrtCiphertext) {
         for (block_left, block_right) in ct_left.blocks.iter_mut().zip(ct_right.blocks.iter_mut()) {
