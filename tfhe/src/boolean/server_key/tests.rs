@@ -69,6 +69,7 @@ mod default_parameters_tests {
     }
 }
 
+#[cfg(not(feature = "__coverage"))]
 mod low_prob_parameters_tests {
     use super::*;
     use crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
@@ -161,6 +162,7 @@ mod default_parameters_ks_pbs_tests {
     }
 }
 
+#[cfg(not(feature = "__coverage"))]
 mod low_prob_parameters_ks_pbs_tests {
     use super::*;
     use crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS;
@@ -207,6 +209,7 @@ mod low_prob_parameters_ks_pbs_tests {
     }
 }
 
+#[cfg(not(feature = "__coverage"))]
 mod tfhe_lib_parameters_tests {
     use super::*;
     use crate::boolean::parameters::TFHE_LIB_PARAMETERS;

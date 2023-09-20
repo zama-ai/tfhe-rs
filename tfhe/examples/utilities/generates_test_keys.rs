@@ -1,10 +1,6 @@
 use clap::{Arg, ArgAction, Command};
 use tfhe::boolean;
-use tfhe::boolean::parameters::{
-    BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS,
-    PARAMETERS_ERROR_PROB_2_POW_MINUS_165, PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
-    TFHE_LIB_PARAMETERS,
-};
+use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK, KEY_CACHE_WOPBS};
 use tfhe::shortint::parameters::key_switching::{
@@ -97,13 +93,8 @@ fn client_server_keys() {
         )];
         generate_wopbs_keys(&WOPBS_PARAMS);
 
-        const BOOLEAN_PARAMS: [BooleanParameters; 5] = [
-            DEFAULT_PARAMETERS,
-            DEFAULT_PARAMETERS_KS_PBS,
-            TFHE_LIB_PARAMETERS,
-            PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
-            PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
-        ];
+        const BOOLEAN_PARAMS: [BooleanParameters; 2] =
+            [DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS];
         generate_boolean_keys(&BOOLEAN_PARAMS);
     } else {
         generate_pbs_keys(&ALL_PARAMETER_VEC);
