@@ -263,7 +263,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
     ///
     /// let msg = 13;
-    /// let scalar = 5;
+    /// let scalar = 2;
     ///
     /// let mut ct = cks.encrypt(msg);
     ///
