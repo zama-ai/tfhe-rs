@@ -32,7 +32,7 @@ jobs:
 
       - name: Collect parameters
         run: |
-          make write_params_to_file
+          CARGO_PROFILE=devo make write_params_to_file
 
       - name: Perform security check
         run: |
