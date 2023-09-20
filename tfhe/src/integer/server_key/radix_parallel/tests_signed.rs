@@ -640,7 +640,7 @@ fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
     {
         let clear_0 = -modulus;
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ct_res = sks.unchecked_absolute_value(&ctxt_0);
+        let ct_res = sks.unchecked_abs_parallelized(&ctxt_0);
         let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
         assert_eq!(dec_res, -modulus);
     }
@@ -650,7 +650,7 @@ fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
 
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
 
-        let ct_res = sks.unchecked_absolute_value(&ctxt_0);
+        let ct_res = sks.unchecked_abs_parallelized(&ctxt_0);
         let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
         let clear_res = absolute_value_under_modulus(clear_0, modulus);
         assert_eq!(clear_res, dec_res);
@@ -1070,7 +1070,7 @@ fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
     {
         let clear_0 = -modulus;
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ct_res = sks.absolute_value(&ctxt_0);
+        let ct_res = sks.abs_parallelized(&ctxt_0);
         let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
         assert_eq!(dec_res, -modulus);
     }
@@ -1083,7 +1083,7 @@ fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
         sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_to_add);
         clear_0 = signed_add_under_modulus(clear_0, clear_to_add, modulus);
 
-        let ct_res = sks.absolute_value(&ctxt_0);
+        let ct_res = sks.abs_parallelized(&ctxt_0);
         let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
         let clear_res = absolute_value_under_modulus(clear_0, modulus);
         assert_eq!(clear_res, dec_res);
@@ -1451,7 +1451,7 @@ fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
     {
         let clear_0 = -modulus;
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
-        let ct_res = sks.absolute_value(&ctxt_0);
+        let ct_res = sks.abs_parallelized(&ctxt_0);
         let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
         assert_eq!(dec_res, -modulus);
     }
@@ -1464,12 +1464,12 @@ fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
         sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_to_add);
         clear_0 = signed_add_under_modulus(clear_0, clear_to_add, modulus);
 
-        let ct_res = sks.absolute_value(&ctxt_0);
+        let ct_res = sks.abs_parallelized(&ctxt_0);
         let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
         let clear_res = absolute_value_under_modulus(clear_0, modulus);
         assert_eq!(clear_res, dec_res);
 
-        let ct_res2 = sks.absolute_value(&ctxt_0);
+        let ct_res2 = sks.abs_parallelized(&ctxt_0);
         assert_eq!(ct_res2, ct_res);
     }
 }

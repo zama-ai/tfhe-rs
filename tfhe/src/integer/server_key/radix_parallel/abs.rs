@@ -2,7 +2,7 @@ use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 
 impl ServerKey {
-    pub fn unchecked_absolute_value<T>(&self, ct: &T) -> T
+    pub fn unchecked_abs_parallelized<T>(&self, ct: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
@@ -23,26 +23,26 @@ impl ServerKey {
         }
     }
 
-    pub fn smart_absolute_value<T>(&self, ct: &mut T) -> T
+    pub fn smart_abs_parallelized<T>(&self, ct: &mut T) -> T
     where
         T: IntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
         }
-        self.unchecked_absolute_value(ct)
+        self.unchecked_abs_parallelized(ct)
     }
 
-    pub fn absolute_value<T>(&self, ct: &T) -> T
+    pub fn abs_parallelized<T>(&self, ct: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
         if ct.block_carries_are_empty() {
-            self.unchecked_absolute_value(ct)
+            self.unchecked_abs_parallelized(ct)
         } else {
             let mut cloned = ct.clone();
             self.full_propagate_parallelized(&mut cloned);
-            self.unchecked_absolute_value(&cloned)
+            self.unchecked_abs_parallelized(&cloned)
         }
     }
 }
