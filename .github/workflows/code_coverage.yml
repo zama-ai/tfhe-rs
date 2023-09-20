@@ -76,15 +76,16 @@ jobs:
               - concrete-csprng/src/**
 
       - name: Generate Keys
+        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make GEN_KEY_CACHE_COVERAGE_ONLY=TRUE gen_key_cache
 
-      - name: Run boolean coverage
+      - name: Run coverage for boolean
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make test_boolean_cov
 
-      - name: Run shortint coverage
+      - name: Run coverage for shortint
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make test_shortint_cov

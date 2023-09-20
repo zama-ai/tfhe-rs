@@ -88,27 +88,32 @@ impl CompressedPublicKey {
 
 #[cfg(test)]
 mod tests {
+    use crate::boolean::keycache::KEY_CACHE;
     use crate::boolean::prelude::{
-        BinaryBooleanGates, BooleanParameters, ClientKey, CompressedPublicKey, ServerKey,
-        DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
+        BinaryBooleanGates, BooleanParameters, CompressedPublicKey, DEFAULT_PARAMETERS,
+        PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
     };
     use crate::boolean::random_boolean;
+    #[cfg(not(feature = "__coverage"))]
     const NB_TEST: usize = 32;
+    #[cfg(feature = "__coverage")]
+    const NB_TEST: usize = 1;
 
     #[test]
     fn test_compressed_public_key_default_parameters() {
         test_compressed_public_key(DEFAULT_PARAMETERS);
     }
 
+    #[cfg(not(feature = "__coverage"))]
     #[test]
     fn test_compressed_public_key_tfhe_lib_parameters() {
         test_compressed_public_key(PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     }
 
     fn test_compressed_public_key(parameters: BooleanParameters) {
-        let cks = ClientKey::new(&parameters);
-        let sks = ServerKey::new(&cks);
-        let cpks = CompressedPublicKey::new(&cks);
+        let keys = KEY_CACHE.get_from_param(parameters);
+        let (cks, sks) = (keys.client_key(), keys.server_key());
+        let cpks = CompressedPublicKey::new(cks);
 
         for _ in 0..NB_TEST {
             let b1 = random_boolean();
