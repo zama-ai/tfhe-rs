@@ -343,7 +343,9 @@ where {
     pub fn trim_radix_blocks_msb_assign(&self, ct: &mut RadixCiphertext, num_blocks: usize) {
         let len = ct.blocks.len();
         ct.blocks.truncate(len - num_blocks);
-        self.full_propagate_parallelized(ct);
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_parallelized(ct);
+        }
     }
 
     /// Remove MSB blocks from an existing [`RadixCiphertext`] and returns the result as a new
