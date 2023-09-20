@@ -22,6 +22,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 2;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     ///
@@ -29,7 +30,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt_crt(&ctxt_1);
-    /// assert_eq!((clear_1 * clear_2) % 30, res);
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_crt_scalar_mul(&self, ctxt: &CrtCiphertext, scalar: u64) -> CrtCiphertext {
         let mut ct_result = ctxt.clone();
@@ -96,6 +97,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 2;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     ///
@@ -103,7 +105,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt_crt(&ctxt_1);
-    /// assert_eq!((clear_1 * clear_2) % 30, res);
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// # Ok(())
     /// # }
     /// ```
@@ -163,6 +165,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 14;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     ///
@@ -170,7 +173,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt_crt(&ctxt);
-    /// assert_eq!((clear_1 * clear_2) % 30, res);
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_scalar_mul(&self, ctxt: &mut CrtCiphertext, scalar: u64) -> CrtCiphertext {
         if !self.is_crt_scalar_mul_possible(ctxt, scalar) {
@@ -199,6 +202,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 14;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     ///
@@ -206,7 +210,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt_crt(&ctxt_1);
-    /// assert_eq!((clear_1 * clear_2) % 30, res);
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_scalar_mul_assign(&self, ctxt: &mut CrtCiphertext, scalar: u64) {
         if !self.is_crt_small_scalar_mul_possible(ctxt, scalar) {

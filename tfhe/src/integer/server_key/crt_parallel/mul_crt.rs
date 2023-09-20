@@ -15,6 +15,7 @@ impl ServerKey {
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
     ///
     /// let clear_1 = 29;
@@ -28,7 +29,7 @@ impl ServerKey {
     /// sks.unchecked_crt_mul_assign_parallelized(&mut ctxt_1, &ctxt_2);
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
-    /// assert_eq!((clear_1 * clear_2) % 30, res);
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_crt_mul_assign_parallelized(
         &self,
@@ -67,6 +68,7 @@ impl ServerKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
     ///
     /// let clear_1 = 29;
@@ -81,7 +83,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
-    /// assert_eq!((clear_1 * clear_2) % 30, res);
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_mul_assign_parallelized(
         &self,

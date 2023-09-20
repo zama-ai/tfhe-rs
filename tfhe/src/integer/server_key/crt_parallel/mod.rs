@@ -25,6 +25,7 @@ impl ServerKey {
     /// let clear_1 = 14;
     /// let clear_2 = 14;
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
     /// let ctxt_2 = cks.encrypt_crt(clear_2, basis);
@@ -36,7 +37,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt_crt(&ctxt_1);
-    /// assert_eq!((clear_1 + clear_2) % 30, res);
+    /// assert_eq!((clear_1 + clear_2) % modulus, res);
     /// ```
     pub fn full_extract_message_assign_parallelized(&self, ctxt: &mut CrtCiphertext) {
         ctxt.blocks.par_iter_mut().for_each(|ct_i| {
@@ -60,6 +61,7 @@ impl ServerKey {
     ///
     /// // Generate the client key and the server key:
     /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
     /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis);
     ///
     /// let clear_1 = 28;
@@ -71,7 +73,7 @@ impl ServerKey {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
-    /// assert_eq!((clear_1 * clear_1 * clear_1) % 30, res);
+    /// assert_eq!((clear_1 * clear_1 * clear_1) % modulus, res);
     /// ```
     pub fn pbs_crt_compliant_function_assign_parallelized<F>(&self, ct1: &mut CrtCiphertext, f: F)
     where
