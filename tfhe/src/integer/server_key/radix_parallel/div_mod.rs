@@ -256,11 +256,11 @@ impl ServerKey {
         );
         let (positive_numerator, positive_divisor) = rayon::join(
             || {
-                let positive_numerator = self.unchecked_absolute_value(numerator);
+                let positive_numerator = self.unchecked_abs_parallelized(numerator);
                 RadixCiphertext::from_blocks(positive_numerator.into_blocks())
             },
             || {
-                let positive_divisor = self.unchecked_absolute_value(divisor);
+                let positive_divisor = self.unchecked_abs_parallelized(divisor);
                 RadixCiphertext::from_blocks(positive_divisor.into_blocks())
             },
         );

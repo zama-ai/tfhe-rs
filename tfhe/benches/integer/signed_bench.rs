@@ -465,8 +465,8 @@ fn unchecked_rotate_right_parallelized(c: &mut Criterion) {
 }
 
 define_server_key_bench_unary_signed_clean_input_fn!(
-    method_name: unchecked_absolute_value,
-    display_name: absolute_value,
+    method_name: unchecked_abs_parallelized,
+    display_name: abs,
 );
 
 criterion_group!(
@@ -479,7 +479,7 @@ criterion_group!(
     unchecked_bitand_parallelized,
     unchecked_bitor_parallelized,
     unchecked_bitxor_parallelized,
-    unchecked_absolute_value,
+    unchecked_abs_parallelized,
     unchecked_div_rem_parallelized,
     unchecked_div_rem_floor_parallelized,
 );
