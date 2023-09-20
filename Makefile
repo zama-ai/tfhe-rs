@@ -301,7 +301,7 @@ test_boolean: install_rs_build_toolchain
 .PHONY: test_boolean_cov # Run the tests of the boolean module with code coverage
 test_boolean_cov: install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
-		--out Xml --output-dir coverage/boolean --line --engine Llvm --timeout 500 \
+		--out xml --output-dir coverage/boolean --line --engine llvm --timeout 500 \
 		--exclude-files $(COVERAGE_EXCLUDED_FILES) \
 		--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache,__coverage \
 		-p tfhe -- boolean::
@@ -342,7 +342,7 @@ test_shortint: install_rs_build_toolchain
 .PHONY: test_shortint_cov # Run the tests of the shortint module with code coverage
 test_shortint_cov: install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
-		--out Xml --output-dir coverage/shortint --line --engine Llvm --timeout 500 \
+		--out xml --output-dir coverage/shortint --line --engine llvm --timeout 500 \
 		--exclude-files $(COVERAGE_EXCLUDED_FILES) \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,__coverage \
 		-p tfhe -- shortint::
