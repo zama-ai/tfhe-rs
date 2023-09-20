@@ -355,83 +355,50 @@ impl ServerKey {
             return;
         }
 
-        let message_modulus = self.key.message_modulus.0 as u64;
         let num_blocks = lhs.blocks().len();
+        let msg_bits = self.key.message_modulus.0.ilog2() as usize;
 
-        // key is the small scalar we multiply by
-        // value is the vector of blockshifts
-        let mut task_map = vec![vec![]; message_modulus as usize];
-
-        let decomposer = BlockDecomposer::with_early_stop_at_zero(scalar, message_modulus.ilog2())
+        let scalar_bits = BlockDecomposer::with_early_stop_at_zero(scalar, 1)
             .iter_as::<u8>()
-            .take(num_blocks);
-        for (i, scalar_block) in decomposer.enumerate() {
-            if scalar_block != 0 {
-                task_map[scalar_block as usize].push(i);
-            }
-        }
-
-        // This can happen if scalar % (nb_blocks * message_modulus) == 0
-        if task_map.iter().all(Vec::is_empty) {
-            for block in lhs.blocks_mut() {
-                self.key.create_trivial_assign(block, 0);
-            }
-            return;
-        }
-
-        let terms = task_map[1..] // Ignore multiplications by zero
-            .into_par_iter()
-            .enumerate()
-            .filter(|(_, block_indices)| !block_indices.is_empty())
-            .map(|(i, block_indices)| -> Vec<T> {
-                let scalar = i + 1;
-
-                let min_index = block_indices.iter().min().unwrap();
-
-                let mut tmp = lhs.clone();
-                if scalar != 1 {
-                    tmp.blocks_mut()[0..num_blocks - min_index]
-                        .par_iter_mut()
-                        .for_each(|ct_i| {
-                            if ct_i.degree.0 != 0 {
-                                self.key.unchecked_scalar_mul_assign(ct_i, scalar as u8)
-                            }
-                        });
-                    let (mut message_blocks, carry_blocks) = rayon::join(
-                        || {
-                            tmp.blocks()[0..num_blocks - min_index]
-                                .par_iter()
-                                .map(|block| self.key.message_extract(block))
-                                .collect::<Vec<_>>()
-                        },
-                        || {
-                            let mut carry_blocks = Vec::new();
-                            tmp.blocks()[..num_blocks - min_index - 1]
-                                .par_iter()
-                                .map(|block| self.key.carry_extract(block))
-                                .collect_into_vec(&mut carry_blocks);
-
-                            carry_blocks.insert(0, self.key.create_trivial(0));
-                            carry_blocks
-                        },
-                    );
-                    for i in 0..num_blocks - min_index {
-                        std::mem::swap(&mut tmp.blocks_mut()[i], &mut message_blocks[i]);
-                        self.key
-                            .unchecked_add_assign(&mut tmp.blocks_mut()[i], &carry_blocks[i]);
-                    }
-                }
-
-                block_indices
-                    .par_iter()
-                    .copied()
-                    .map(|i| self.blockshift(&tmp, i))
-                    .collect::<Vec<_>>()
-            })
-            .flatten()
             .collect::<Vec<_>>();
 
-        self.sum_multiplication_terms_into(lhs, terms);
+        // We don't want to compute shifts if we are not going to use the
+        // resulting value
+        let mut has_at_least_one_set = vec![false; msg_bits];
+        for (i, bit) in scalar_bits.iter().copied().enumerate() {
+            if bit == 1 {
+                has_at_least_one_set[i % msg_bits] = true;
+            }
+        }
+
+        // Contains all shifted values of lhs for shift in range (0..msg_bits)
+        // The idea is that with these we can create all other shift that are in
+        // range (0..total_bits) for free (block rotation)
+        let preshifted_lhs = (0..msg_bits)
+            .into_par_iter()
+            .map(|shift_amount| {
+                if has_at_least_one_set[shift_amount] {
+                    self.unchecked_scalar_left_shift_parallelized(lhs, shift_amount)
+                } else {
+                    self.create_trivial_zero_radix(num_blocks)
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let num_ciphertext_bits = msg_bits * num_blocks;
+        let all_shifted_lhs = scalar_bits
+            .iter()
+            .enumerate()
+            .take(num_ciphertext_bits) // shift beyond that are technically resulting in 0s
+            .filter(|(_, &rhs_bit)| rhs_bit == 1)
+            .map(|(i, _)| self.blockshift(&preshifted_lhs[i % msg_bits], i / msg_bits))
+            .collect::<Vec<_>>();
+
+        if let Some(result) = self.unchecked_sum_ciphertexts_vec_parallelized(all_shifted_lhs) {
+            *lhs = result;
+        } else {
+            self.create_trivial_zero_assign_radix(lhs);
+        }
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.

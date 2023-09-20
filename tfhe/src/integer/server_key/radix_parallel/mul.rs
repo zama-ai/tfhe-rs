@@ -291,165 +291,6 @@ impl ServerKey {
         *ct1 = self.smart_block_mul_parallelized(ct1, ct2, index);
     }
 
-    /// Sums the terms, putting the result into lhs
-    ///
-    /// This sums all of the terms in `terms` and overwrites
-    /// `lhs` with the result.
-    ///
-    /// Each of the input term is expected to have _at most_ one carry consumed
-    pub(crate) fn sum_multiplication_terms_into<T>(&self, lhs: &mut T, mut terms: Vec<T>)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if terms.is_empty() {
-            for block in lhs.blocks_mut() {
-                self.key.create_trivial_assign(block, 0);
-            }
-            return;
-        }
-
-        let num_blocks = lhs.blocks().len();
-
-        let num_bits_in_carry = self.key.carry_modulus.0.ilog2() as u64;
-        // Among those bits of carry, we know one is already consumed by
-        // the last step of the unchecked_block_mul_parallelized
-        // for each of the term.
-        //
-        // It means we can only do num_bits_in_carry - 1 additions
-        // Which then means we can iter on chunks of num_bits_in_carry
-        // to add them up as it will result in num_bits_in_carry - 1 additions
-        //
-        // If we have only one bit of carry, it is consumed
-        // and thus the faster algorithm is not possible
-        // so we use another one that still works
-        if num_bits_in_carry == 1 {
-            *lhs = self
-                .smart_binary_op_seq_parallelized(&mut terms, |sks, a, b| {
-                    sks.smart_add_parallelized(a, b)
-                })
-                .unwrap_or_else(|| self.create_trivial_zero_radix(num_blocks));
-
-            self.full_propagate_parallelized(lhs);
-            return;
-        }
-
-        let chunk_size = num_bits_in_carry as usize;
-
-        // For the last chunk, we want to finish it off
-        // using an addition that does not leave the resulting ciphertext with
-        // non empty carries.
-        //
-        // We use the fact, that terms are going to be padded with trivial ciphertext
-        // to avoid unecessary work.
-        //
-        // (0) = Trivial, (1) = Non-Trivial
-        // a: (0) (1) (1) (1)
-        // b: (0) (0) (1) (1)
-        //             ^
-        //             |- only need to start adding from here,
-        //                and only need to handle carries from here
-        //
-        // As we want to handle the last chunk separately
-        // only reduce until we have one last chunk
-        while terms.len() > chunk_size {
-            terms.par_chunks_exact_mut(chunk_size).for_each(|chunk| {
-                let (s, rest) = chunk.split_first_mut().unwrap();
-                let mut first_block_where_addition_happenned = num_blocks - 1;
-                let mut last_block_where_addition_happenned = num_blocks - 1;
-                for a in rest.iter() {
-                    let first_block_to_add = a
-                        .blocks()
-                        .iter()
-                        .position(|block| block.degree.0 != 0)
-                        .unwrap_or(num_blocks);
-                    first_block_where_addition_happenned =
-                        first_block_where_addition_happenned.min(first_block_to_add);
-                    let last_block_to_add = a
-                        .blocks()
-                        .iter()
-                        .rev()
-                        .position(|block| block.degree.0 != 0)
-                        .map(|pos| num_blocks - pos - 1)
-                        .unwrap_or(num_blocks - 1);
-                    last_block_where_addition_happenned =
-                        last_block_where_addition_happenned.max(last_block_to_add);
-                    for (ct_left_i, ct_right_i) in s.blocks_mut()
-                        [first_block_to_add..last_block_to_add + 1]
-                        .iter_mut()
-                        .zip(a.blocks()[first_block_to_add..last_block_to_add + 1].iter())
-                    {
-                        self.key.unchecked_add_assign(ct_left_i, ct_right_i);
-                    }
-                }
-
-                // last carry is not interesting
-                let mut carry_blocks = s.blocks()
-                    [first_block_where_addition_happenned..last_block_where_addition_happenned + 1]
-                    .to_vec();
-
-                let message_blocks = s.blocks_mut();
-
-                rayon::join(
-                    || {
-                        message_blocks[first_block_where_addition_happenned
-                            ..last_block_where_addition_happenned + 1]
-                            .par_iter_mut()
-                            .for_each(|block| {
-                                self.key.message_extract_assign(block);
-                            });
-                    },
-                    || {
-                        carry_blocks.par_iter_mut().for_each(|block| {
-                            self.key.carry_extract_assign(block);
-                        });
-                    },
-                );
-
-                for (ct_left_i, ct_right_i) in message_blocks
-                    [first_block_where_addition_happenned + 1..]
-                    .iter_mut()
-                    .zip(carry_blocks.iter())
-                {
-                    self.key.unchecked_add_assign(ct_left_i, ct_right_i);
-                }
-            });
-
-            // terms is organized like so:
-            // [S, C,..., S, C,.., S, C,..,U, U]
-            // where S is the sum of its following C as done by
-            // the chunked loop, and U are elements that did not create a complete chunk
-            //
-            // We want to get it to [S, S, S, U, U, C, C...]
-            // then truncate to only keep the Ss
-            for index_of_first_chunk_block in (0..terms.len()).step_by(chunk_size) {
-                let from = index_of_first_chunk_block;
-                let to = index_of_first_chunk_block / chunk_size;
-                terms.swap(from, to);
-            }
-            let rest = terms.len() % chunk_size;
-            for i in 0..rest {
-                let from = (terms.len() / chunk_size) + 1 + i;
-                let to = terms.len() - 1 - i;
-                terms.swap(from, to);
-            }
-            terms.truncate((terms.len() / chunk_size) + rest);
-        }
-        assert!(terms.len() <= chunk_size);
-
-        // Now we will add the last chunk of terms
-        // just as was done above, however we do it
-        // we want to use an addition that leaves
-        // the resulting ciphertext with empty carries
-        let (result, rest) = terms.split_first_mut().unwrap();
-        for term in rest.iter() {
-            self.unchecked_add_assign(result, term);
-        }
-
-        lhs.blocks_mut().swap_with_slice(result.blocks_mut());
-        self.full_propagate_parallelized(lhs);
-        assert!(lhs.block_carries_are_empty());
-    }
-
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
@@ -501,21 +342,65 @@ impl ServerKey {
             return;
         }
 
-        let terms = rhs
+        let message_modulus = self.key.message_modulus.0;
+
+        let lsb_block_mul_lut = self
+            .key
+            .generate_lookup_table_bivariate(|x, y| (x * y) % message_modulus as u64);
+
+        let msb_block_mul_lut = self
+            .key
+            .generate_lookup_table_bivariate(|x, y| (x * y) / message_modulus as u64);
+
+        let all_shifted_lhs = rhs
             .blocks()
             .par_iter()
             .enumerate()
-            .filter_map(|(i, block)| {
-                if block.degree.0 == 0 {
-                    // Block is a trivial 0, no need to waste time multiplying
-                    None
-                } else {
-                    Some(self.unchecked_block_mul_parallelized(lhs, block, i))
-                }
+            .filter(|(_, block)| block.degree.0 != 0)
+            .map(|(i, rhs_block)| {
+                let mut result = self.blockshift(lhs, i);
+                result.blocks_mut()[i..]
+                    .par_iter_mut()
+                    .for_each(|lhs_block| {
+                        self.key.unchecked_apply_lookup_table_bivariate_assign(
+                            lhs_block,
+                            rhs_block,
+                            &lsb_block_mul_lut,
+                        )
+                    });
+
+                result
             })
+            .chain(
+                rhs.blocks()
+                    .par_iter()
+                    .enumerate()
+                    .filter(|(_, block)| block.degree.0 != 0)
+                    .map(|(i, rhs_block)| {
+                        // Here we are doing (a * b) / modulus
+                        // that is, getting the carry part of the block multiplication
+                        // so the shift is one block longer
+                        let mut result = self.blockshift(lhs, i + 1);
+                        result.blocks_mut()[i + 1..]
+                            .par_iter_mut()
+                            .for_each(|lhs_block| {
+                                self.key.unchecked_apply_lookup_table_bivariate_assign(
+                                    lhs_block,
+                                    rhs_block,
+                                    &msb_block_mul_lut,
+                                )
+                            });
+
+                        result
+                    }),
+            )
             .collect::<Vec<_>>();
 
-        self.sum_multiplication_terms_into(lhs, terms);
+        if let Some(result) = self.unchecked_sum_ciphertexts_vec_parallelized(all_shifted_lhs) {
+            *lhs = result;
+        } else {
+            self.create_trivial_zero_assign_radix(lhs);
+        }
     }
 
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.

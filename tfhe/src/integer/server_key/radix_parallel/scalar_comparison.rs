@@ -270,7 +270,7 @@ impl ServerKey {
         //
         // If all blocks were 0, the sum will be zero
         // If at least one bock was not zero, the sum won't be zero
-        let num_additions_to_fill_carry = (total_modulus - message_max) / message_max;
+        let num_elements_to_fill_carry = (total_modulus - 1) / message_max;
         let is_equal_to_zero = self.key.generate_lookup_table(|x| {
             if matches!(comparison_type, ZeroComparisonType::Equality) {
                 u64::from((x % total_modulus as u64) == 0)
@@ -279,7 +279,7 @@ impl ServerKey {
             }
         });
 
-        lhs.par_chunks(num_additions_to_fill_carry)
+        lhs.par_chunks(num_elements_to_fill_carry)
             .map(|chunk| {
                 let mut sum = chunk[0].clone();
                 for other_block in &chunk[1..] {
