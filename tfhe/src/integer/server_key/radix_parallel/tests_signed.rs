@@ -861,9 +861,7 @@ fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
     // Test case of division by 0
     // This is mainly to show we know the behaviour of division by 0
     // using the current algorithm
-    {
-        let clear_0 = rng.gen::<i64>() % modulus;
-
+    for clear_0 in [0i64, rng.gen::<i64>() % modulus] {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(0, NB_CTXT);
 
@@ -872,7 +870,7 @@ fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
         let r: i64 = cks.decrypt_signed_radix(&r_res);
 
         assert_eq!(r, clear_0);
-        assert_eq!(q, if clear_0 > 0 { -1 } else { 1 });
+        assert_eq!(q, if clear_0 >= 0 { -1 } else { 1 });
     }
 
     // Div is the slowest operation
