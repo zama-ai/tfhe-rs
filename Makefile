@@ -16,7 +16,6 @@ PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
-COVERAGE_EXCLUDED_FILES = tfhe/benches/*,apps/trivium/src/*,tfhe/examples/*,tasks/src/*
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -42,6 +41,22 @@ endif
 # Variables used only for regex_engine example
 REGEX_STRING?=''
 REGEX_PATTERN?=''
+
+# Exclude these files from coverage reports
+define COVERAGE_EXCLUDED_FILES
+--exclude-files apps/trivium/src/trivium/* \
+--exclude-files apps/trivium/src/kreyvium/* \
+--exclude-files apps/trivium/src/static_deque/* \
+--exclude-files apps/trivium/src/trans_ciphering/* \
+--exclude-files tasks/src/* \
+--exclude-files tfhe/benches/boolean/* \
+--exclude-files tfhe/benches/core_crypto/* \
+--exclude-files tfhe/benches/shortint/* \
+--exclude-files tfhe/benches/integer/* \
+--exclude-files tfhe/benches/* \
+--exclude-files tfhe/examples/regex_engine/* \
+--exclude-files tfhe/examples/utilities/*
+endef
 
 .PHONY: rs_check_toolchain # Echo the rust toolchain used for checks
 rs_check_toolchain:
@@ -302,7 +317,7 @@ test_boolean: install_rs_build_toolchain
 test_boolean_cov: install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/boolean --line --engine llvm --timeout 500 \
-		--exclude-files $(COVERAGE_EXCLUDED_FILES) \
+		$(COVERAGE_EXCLUDED_FILES) \
 		--features=$(TARGET_ARCH_FEATURE),boolean,internal-keycache,__coverage \
 		-p tfhe -- boolean::
 
@@ -343,7 +358,7 @@ test_shortint: install_rs_build_toolchain
 test_shortint_cov: install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/shortint --line --engine llvm --timeout 500 \
-		--exclude-files $(COVERAGE_EXCLUDED_FILES) \
+		$(COVERAGE_EXCLUDED_FILES) \
 		--features=$(TARGET_ARCH_FEATURE),shortint,internal-keycache,__coverage \
 		-p tfhe -- shortint::
 
