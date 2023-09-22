@@ -135,7 +135,7 @@ fn test_product_uint_4_vec() -> Result<(), Box<dyn std::error::Error>> {
     set_server_key(server_keys);
 
     let clear_vec = [2, 5];
-    let expected = clear_vec.iter().copied().product();
+    let expected: u8 = clear_vec.iter().copied().product();
 
     let fhe_vec: Vec<FheUint4> = clear_vec
         .iter()
