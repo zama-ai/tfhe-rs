@@ -33,13 +33,17 @@ impl From<ServerKey> for crate::shortint::ServerKey {
     }
 }
 
-/// Compute the [`MaxDegree`] for an integer server key (compressed or uncompressed). This formula
-/// provisions a free carry bit. This allows carry propagation between shortint blocks in a
-/// [`RadixCiphertext`](`crate::integer::RadixCiphertext`), as that process requires adding a bit of
-/// carry from one shortint block to the next, which would overflow and lead to wrong results if we
-/// did not provision that carry bit.
+/// Compute the [`MaxDegree`] for an integer server key (compressed or uncompressed).
+/// To allow carry propagation between shortint blocks in a
+/// [`RadixCiphertext`](`crate::integer::RadixCiphertext`) (which includes adding the extracted
+/// carry from one shortint block to the next block), this formula provisions space to add a carry.
 fn integer_server_key_max_degree(parameters: crate::shortint::ShortintParameterSet) -> MaxDegree {
-    MaxDegree((parameters.message_modulus().0 - 1) * parameters.carry_modulus().0 - 1)
+    let full_max_degree = parameters.message_modulus().0 * parameters.carry_modulus().0 - 1;
+
+    let carry_max_degree = parameters.carry_modulus().0 - 1;
+
+    // We want to be have a margin to add a carry from another block
+    MaxDegree(full_max_degree - carry_max_degree)
 }
 
 impl ServerKey {
@@ -144,8 +148,8 @@ mod test {
     #[test]
     fn test_compressed_server_key_max_degree() {
         let cks = ClientKey::new(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-        // msg_mod = 4, carry_mod = 4, (msg_mod - 1) * carry_mod = 12; minus 1 => 11
-        let expected_max_degree = MaxDegree(11);
+        // msg_mod = 4, carry_mod = 4, (msg_mod * carry_mod - 1) - (carry_mod - 1) = 12
+        let expected_max_degree = MaxDegree(12);
 
         let sks = ServerKey::new(&cks);
         assert_eq!(sks.key.max_degree, expected_max_degree);
