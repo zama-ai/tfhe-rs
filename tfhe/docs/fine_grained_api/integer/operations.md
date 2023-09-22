@@ -162,12 +162,15 @@ fn main() {
     assert!(result.is_ok());
 
     let result = server_key.checked_sub_assign(&mut ct_1, &ct_2);
+    assert!(result.is_ok());
+    
+    let result = server_key.checked_add_assign(&mut ct_1, &ct_3);
     assert!(result.is_err());
 
     // We use the client key to decrypt the output of the circuit:
     // Only the scalar multiplication could be done
     let output: u64 = client_key.decrypt(&ct_1);
-    assert_eq!(output, (msg1 * scalar) % modulus as u64);
+    assert_eq!(output, ((msg1 * scalar) - msg2) % modulus as u64);
 }
 ```
 

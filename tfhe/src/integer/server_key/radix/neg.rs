@@ -1,3 +1,4 @@
+use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
@@ -58,19 +59,16 @@ impl ServerKey {
     {
         //z is used to make sure the negation doesn't fill the padding bit
         let mut z;
-        let mut z_b;
+        let mut z_b = 0;
 
-        for i in 0..ctxt.blocks().len() {
-            let c_i = &mut ctxt.blocks_mut()[i];
-            z = self.key.unchecked_neg_assign_with_correcting_term(c_i);
-
-            // Subtract z/B to the next ciphertext to compensate for the addition of z
-            z_b = z / self.key.message_modulus.0 as u64;
-
-            if i < ctxt.blocks().len() - 1 {
-                let c_j = &mut ctxt.blocks_mut()[i + 1];
-                self.key.unchecked_scalar_add_assign(c_j, z_b as u8);
+        for block in ctxt.blocks_mut() {
+            if z_b != 0 {
+                self.key.unchecked_scalar_add_assign(block, z_b);
             }
+            z = self.key.unchecked_neg_assign_with_correcting_term(block);
+            block.degree.0 = z as usize - z_b as usize;
+
+            z_b = (z / self.key.message_modulus.0 as u64) as u8;
         }
     }
 
@@ -100,26 +98,31 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        for i in 0..ctxt.blocks().len() {
+        let mut preceding_block_carry = 0;
+        let mut preceding_scaled_z = 0;
+        for block in ctxt.blocks().iter() {
+            let msg_mod = block.message_modulus.0;
+            let carry_mod = block.carry_modulus.0;
+            let total_modulus = msg_mod * carry_mod;
+
             // z = ceil( degree / 2^p ) x 2^p
-            let msg_mod = self.key.message_modulus.0;
-            let mut z = (ctxt.blocks()[i].degree.0 + msg_mod - 1) / msg_mod;
+            let mut z = divide_ceil(block.degree.0, msg_mod);
             z = z.wrapping_mul(msg_mod);
+            // In the actual operation, preceding_scaled_z is added to the ciphertext
+            // before doing lwe_ciphertext_opposite:
+            // i.e the code does -(ciphertext + preceding_scaled_z) + z
+            // here we do -ciphertext -preceding_scaled_z + z
+            // which is easier to express degree
+            let block_degree_after_negation = z - preceding_scaled_z;
 
-            // z will be the new degree of ctxt.blocks[i]
-            if z > self.key.max_degree.0 {
+            // We want to be able to add together the negated block and the carry
+            // from preceding negated block to make sure carry propagation would be correct.
+            if (block_degree_after_negation + preceding_block_carry) >= total_modulus {
                 return false;
             }
 
-            let z_b = z / msg_mod;
-
-            if i < ctxt.blocks().len() - 1
-                && !self
-                    .key
-                    .is_scalar_add_possible(&ctxt.blocks()[i + 1], z_b as u8)
-            {
-                return false;
-            }
+            preceding_block_carry = block_degree_after_negation / msg_mod;
+            preceding_scaled_z = z / msg_mod;
         }
         true
     }

@@ -1,3 +1,4 @@
+use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
@@ -110,10 +111,35 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        for (ct_left_i, ct_right_i) in ctxt_left.blocks().iter().zip(ctxt_right.blocks().iter()) {
-            if !self.key.is_sub_possible(ct_left_i, ct_right_i) {
+        let mut preceding_block_carry = 0;
+        let mut preceding_scaled_z = 0;
+        for (left_block, right_block) in ctxt_left.blocks().iter().zip(ctxt_right.blocks().iter()) {
+            // Assumes message_modulus and carry_modulus matches between pairs of block
+            let msg_mod = left_block.message_modulus.0;
+            let carry_mod = left_block.carry_modulus.0;
+            let total_modulus = msg_mod * carry_mod;
+
+            // z = ceil( degree / 2^p ) x 2^p
+            let mut z = divide_ceil(right_block.degree.0, msg_mod);
+            z = z.wrapping_mul(msg_mod);
+            // In the actual operation, preceding_scaled_z is added to the ciphertext
+            // before doing lwe_ciphertext_opposite:
+            // i.e the code does -(ciphertext + preceding_scaled_z) + z
+            // here we do -ciphertext -preceding_scaled_z + z
+            // which is easier to express degree
+            let right_block_degree_after_negation = z - preceding_scaled_z;
+
+            let degree_after_add = left_block.degree.0 + right_block_degree_after_negation;
+
+            // We want to be able to add the left block, the negated right block
+            // and we also want to be able to add the carry from preceding block addition
+            // to make sure carry propagation would be correct.
+            if (degree_after_add + preceding_block_carry) >= total_modulus {
                 return false;
             }
+
+            preceding_block_carry = degree_after_add / msg_mod;
+            preceding_scaled_z = z / msg_mod;
         }
         true
     }

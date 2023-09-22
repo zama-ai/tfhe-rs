@@ -109,10 +109,19 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        for (ct_left_i, ct_right_i) in ct_left.blocks().iter().zip(ct_right.blocks().iter()) {
-            if !self.key.is_add_possible(ct_left_i, ct_right_i) {
+        // Assumes message_modulus and carry_modulus matches between pairs of block
+        let mut preceding_block_carry = 0;
+        for (left_block, right_block) in ct_left.blocks().iter().zip(ct_right.blocks().iter()) {
+            let degree_after_add = left_block.degree.0 + right_block.degree.0;
+
+            // Also need to take into account preceding_carry
+            if (degree_after_add + preceding_block_carry)
+                >= (left_block.message_modulus.0 * left_block.carry_modulus.0)
+            {
+                // We would exceed the block 'capacity'
                 return false;
             }
+            preceding_block_carry = degree_after_add / left_block.message_modulus.0;
         }
         true
     }
