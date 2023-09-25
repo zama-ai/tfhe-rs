@@ -28,6 +28,11 @@ region = "eu-west-1"
 image_id = "ami-0e88d98b86aff13de"
 instance_type = "hpc7a.96xlarge"
 
+[profile.bench_alt_4]
+region = "eu-west-1"
+image_id = "ami-0e88d98b86aff13de"
+instance_type = "m7i.48xlarge"
+
 [command.cpu_test]
 workflow = "aws_tfhe_tests.yml"
 profile = "bench_alt_3"
@@ -55,7 +60,7 @@ check_run_name = "CPU AWS Fast Tests"
 
 [command.integer_full_bench]
 workflow = "integer_full_benchmark.yml"
-profile = "bench_alt_3"
+profile = "bench_alt_4"
 check_run_name = "Integer CPU AWS Benchmarks Full Suite"
 
 [command.integer_bench]
