@@ -1,5 +1,9 @@
 #![allow(unused_doc_comments)]
 
+// internal helper macro to make it easier to `pub use`
+// all necessary stuff tied to a FheUint/FheInt from the given `module_path`.
+//
+// Note: This is for Integers not Shortints
 #[allow(unused)]
 macro_rules! expand_pub_use_fhe_type(
     (

@@ -58,7 +58,6 @@ macro_rules! static_int_type {
         $(#[$outer:meta])*
         $name:ident {
             num_bits: $num_bits:literal,
-            keychain_member: $($member:ident).*,
         }
     ) => {
          paste! {
@@ -109,7 +108,6 @@ macro_rules! static_int_type {
         $(#[$outer:meta])*
         {
             num_bits: $num_bits:literal,
-            keychain_member: $($member:ident).*,
             parameters: Radix {
                 num_block: $num_block:literal,
             },
@@ -128,7 +126,6 @@ macro_rules! static_int_type {
                 $(#[$outer])*
                 [<FheUint $num_bits>] {
                     num_bits: $num_bits,
-                    keychain_member: $($member).*,
                 }
             );
         }
@@ -173,7 +170,6 @@ where
 static_int_type! {
     {
         num_bits: 8,
-        keychain_member: integer_key.uint8_key,
         parameters: Radix {
             num_block: 4,
         },
@@ -183,7 +179,6 @@ static_int_type! {
 static_int_type! {
     {
         num_bits: 10,
-        keychain_member: integer_key.uint10_key,
         parameters: Radix {
             num_block: 5,
         },
@@ -193,7 +188,6 @@ static_int_type! {
 static_int_type! {
     {
         num_bits: 12,
-        keychain_member: integer_key.uint12_key,
         parameters: Radix {
             num_block: 6,
         },
@@ -203,7 +197,6 @@ static_int_type! {
 static_int_type! {
     {
         num_bits: 14,
-        keychain_member: integer_key.uint14_key,
         parameters: Radix {
             num_block: 7,
         },
@@ -213,7 +206,6 @@ static_int_type! {
 static_int_type! {
     {
         num_bits: 16,
-        keychain_member: integer_key.uint16_key,
         parameters: Radix {
             num_block: 8,
         },
@@ -223,7 +215,6 @@ static_int_type! {
 static_int_type! {
     {
         num_bits: 32,
-        keychain_member: integer_key.uint32_key,
         parameters: Radix {
             num_block: 16,
         },
@@ -233,7 +224,6 @@ static_int_type! {
 static_int_type! {
     {
         num_bits: 64,
-        keychain_member: integer_key.uint64_key,
         parameters: Radix {
             num_block: 32,
         },
@@ -243,7 +233,6 @@ static_int_type! {
 static_int_type! {
     {
         num_bits: 128,
-        keychain_member: integer_key.uint128_key,
         parameters: Radix {
             num_block: 64,
         },
@@ -253,7 +242,6 @@ static_int_type! {
 static_int_type! {
     {
         num_bits: 256,
-        keychain_member: integer_key.uint256_key,
         parameters: Radix {
             num_block: 128,
         },
