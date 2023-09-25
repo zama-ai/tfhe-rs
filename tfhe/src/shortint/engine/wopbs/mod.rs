@@ -13,7 +13,7 @@ use crate::shortint::{Ciphertext, ClientKey, ServerKey, WopbsParameters};
 
 #[derive(Debug)]
 pub enum WopbsKeyCreationError {
-    UsupportedMultiBit,
+    UnsupportedMultiBit,
 }
 
 impl std::error::Error for WopbsKeyCreationError {}
@@ -21,7 +21,7 @@ impl std::error::Error for WopbsKeyCreationError {}
 impl std::fmt::Display for WopbsKeyCreationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            WopbsKeyCreationError::UsupportedMultiBit => {
+            WopbsKeyCreationError::UnsupportedMultiBit => {
                 write!(f, "WopbsKey does not yet support using multi bit PBS")
             }
         }
@@ -39,7 +39,7 @@ impl ShortintEngine {
             sks.bootstrapping_key,
             ShortintBootstrappingKey::MultiBit { .. }
         ) {
-            return Err(WopbsKeyCreationError::UsupportedMultiBit.into());
+            return Err(WopbsKeyCreationError::UnsupportedMultiBit.into());
         }
 
         let wop_params = cks.parameters.wopbs_parameters().unwrap();
@@ -329,7 +329,7 @@ impl ShortintEngine {
                 )
             }
             ShortintBootstrappingKey::MultiBit { .. } => {
-                return Err(WopbsKeyCreationError::UsupportedMultiBit.into());
+                return Err(WopbsKeyCreationError::UnsupportedMultiBit.into());
             }
         };
 
@@ -488,7 +488,7 @@ impl ShortintEngine {
                 ct_out
             }
             ShortintBootstrappingKey::MultiBit { .. } => {
-                return Err(WopbsKeyCreationError::UsupportedMultiBit.into());
+                return Err(WopbsKeyCreationError::UnsupportedMultiBit.into());
             }
         };
 

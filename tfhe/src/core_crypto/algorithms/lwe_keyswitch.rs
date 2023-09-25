@@ -10,7 +10,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
 
-/// Keyswitch an [`LWE ciphertext`](`LweCiphertext`) encrytped under an
+/// Keyswitch an [`LWE ciphertext`](`LweCiphertext`) encrypted under an
 /// [`LWE secret key`](`LweSecretKey`) to another [`LWE secret key`](`LweSecretKey`).
 ///
 /// # Formal Definition

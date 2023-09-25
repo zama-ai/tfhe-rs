@@ -51,7 +51,7 @@ impl AsRef<crate::integer::ServerKey> for ServerKey {
 }
 
 // By default, serde does not derives Serialize/Deserialize for `Rc` and `Arc` types
-// as they can result in mutiple copies, since serializing has to serialize the actual data
+// as they can result in multiple copies, since serializing has to serialize the actual data
 // not the pointer.
 //
 // serde has a `rc` feature to allow deriving on Arc and Rc types
@@ -61,7 +61,7 @@ impl AsRef<crate::integer::ServerKey> for ServerKey {
 //
 // In the case of our ServerKey, this is fine, we expect programs to only
 // serialize and deserialize the same server key only once.
-// The inner `Arc` are used to make copying a server key more perfomant before a `set_server_key`
+// The inner `Arc` are used to make copying a server key more performant before a `set_server_key`
 // in multi-threading scenarios.
 #[derive(serde::Serialize)]
 struct SerializableServerKey<'a> {

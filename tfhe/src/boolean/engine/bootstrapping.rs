@@ -160,7 +160,7 @@ impl Bootstrapper {
         &mut self,
         cks: &ClientKey,
     ) -> Result<ServerKey, Box<dyn std::error::Error>> {
-        let standard_bootstraping_key: LweBootstrapKeyOwned<u32> =
+        let standard_bootstrapping_key: LweBootstrapKeyOwned<u32> =
             par_allocate_and_generate_new_lwe_bootstrap_key(
                 &cks.lwe_secret_key,
                 &cks.glwe_secret_key,
@@ -173,14 +173,14 @@ impl Bootstrapper {
 
         // creation of the bootstrapping key in the Fourier domain
         let mut fourier_bsk = FourierLweBootstrapKey::new(
-            standard_bootstraping_key.input_lwe_dimension(),
-            standard_bootstraping_key.glwe_size(),
-            standard_bootstraping_key.polynomial_size(),
-            standard_bootstraping_key.decomposition_base_log(),
-            standard_bootstraping_key.decomposition_level_count(),
+            standard_bootstrapping_key.input_lwe_dimension(),
+            standard_bootstrapping_key.glwe_size(),
+            standard_bootstrapping_key.polynomial_size(),
+            standard_bootstrapping_key.decomposition_base_log(),
+            standard_bootstrapping_key.decomposition_level_count(),
         );
 
-        let fft = Fft::new(standard_bootstraping_key.polynomial_size());
+        let fft = Fft::new(standard_bootstrapping_key.polynomial_size());
         let fft = fft.as_view();
         self.computation_buffers.resize(
             convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(fft)
@@ -190,7 +190,7 @@ impl Bootstrapper {
 
         // Conversion to fourier domain
         par_convert_standard_lwe_bootstrap_key_to_fourier(
-            &standard_bootstraping_key,
+            &standard_bootstrapping_key,
             &mut fourier_bsk,
         );
 

@@ -17,9 +17,9 @@ pub struct TriviumStreamShortint {
 }
 
 impl TriviumStreamShortint {
-    /// Contructor for TriviumStreamShortint: arguments are the secret key and the input vector, and
-    /// a ServerKey reference. Outputs a TriviumStream object already initialized (1152 steps
-    /// have been run before returning)
+    /// Constructor for TriviumStreamShortint: arguments are the secret key and the input vector,
+    /// and a ServerKey reference. Outputs a TriviumStream object already initialized (1152
+    /// steps have been run before returning)
     pub fn new(
         key: [Ciphertext; 80],
         iv: [u64; 80],

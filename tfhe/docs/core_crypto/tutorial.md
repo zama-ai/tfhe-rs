@@ -249,7 +249,7 @@ pub fn main() {
     println!("Checking result...");
     assert_eq!(6, pbs_multiplication_result);
     println!(
-        "Mulitplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
+        "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
     );
 }
 ```

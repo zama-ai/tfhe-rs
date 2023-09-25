@@ -240,7 +240,7 @@ impl ServerKey {
     /// # Requirements
     ///
     /// - The blocks parameter's carry space have at least one more bit than message space
-    /// - The input ciphertext carry buffer is emtpy / clean
+    /// - The input ciphertext carry buffer is empty / clean
     ///
     /// # Output
     ///

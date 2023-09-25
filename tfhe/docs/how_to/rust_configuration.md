@@ -1,6 +1,6 @@
 # Using the right toolchain for TFHE-rs.
 
-TFHE-rs only requires a nighlty toolchain for building the C API and using advanced SIMD instructions, otherwise you can use a stable toolchain (with version >= 1.72 for ARM devices)
+TFHE-rs only requires a nightly toolchain for building the C API and using advanced SIMD instructions, otherwise you can use a stable toolchain (with version >= 1.72 for ARM devices)
 Install the needed Rust toolchain:
 
 ```shell
@@ -27,7 +27,7 @@ cargo +nightly test
 
 ```shell
 # This should not be necessary by default, but if you want to make sure your configuration is
-# correct you can still set the overriden toolchain to stable
+# correct you can still set the overridden toolchain to stable
 rustup override set stable
 # cargo will use the `stable` toolchain.
 cargo build

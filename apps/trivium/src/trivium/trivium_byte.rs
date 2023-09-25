@@ -1,5 +1,5 @@
 //! This module implements the Trivium stream cipher, using u8 or FheUint8
-//! for the representaion of the inner bits.
+//! for the representation of the inner bits.
 
 use crate::static_deque::{StaticByteDeque, StaticByteDequeInput};
 
@@ -41,7 +41,7 @@ pub struct TriviumStreamByte<T> {
 }
 
 impl TriviumStreamByte<u8> {
-    /// Contructor for `TriviumStreamByte<u8>`: arguments are the secret key and the input vector.
+    /// Constructor for `TriviumStreamByte<u8>`: arguments are the secret key and the input vector.
     /// Outputs a TriviumStream object already initialized (1152 steps have been run before
     /// returning)
     pub fn new(key: [u8; 10], iv: [u8; 10]) -> TriviumStreamByte<u8> {
@@ -111,7 +111,7 @@ where
     T: TriviumByteInput<T> + Send,
     for<'a> &'a T: TriviumByteInput<T>,
 {
-    /// Internal generic contructor: arguments are already prepared registers, and an optional FHE
+    /// Internal generic constructor: arguments are already prepared registers, and an optional FHE
     /// server key
     fn new_from_registers(
         a_register: [T; 12],

@@ -136,7 +136,7 @@ impl ServerKey {
 
             // All blocks starting from the first_trivial_block are known to be trivial
             // So we can avoid work.
-            // Note that, these are always non-emtpy
+            // Note that, these are always non-empty
             let mut interesting_remainder =
                 RadixCiphertext::from(remainder.blocks[..first_trivial_block].to_vec());
             let mut interesting_divisor =
@@ -188,7 +188,7 @@ impl ServerKey {
             // Delaying this PBS merge, is done because it creates noticeable
             // performance improvement.
             // When the PBS is done later (rather than right now), it will
-            // be done in parrallel with another PBS based operation meaning the
+            // be done in parallel with another PBS based operation meaning the
             // latency of this function won't be impacted (compared to doing it right now).
             let mut is_remainder_greater_or_eq_than_divisor;
             if self.key.message_modulus.0 < 3 {

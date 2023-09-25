@@ -490,7 +490,7 @@ pub fn polynomial_wrapping_sub_mul_assign<Scalar, OutputCont, InputCont1, InputC
     }
 }
 
-/// Fill the ouptut polynomial, with the result of the product of two polynomials, reduced modulo
+/// Fill the output polynomial, with the result of the product of two polynomials, reduced modulo
 /// $(X^{N} + 1)$ with the schoolbook algorithm Complexity: $O(N^{2})$
 ///
 /// # Note

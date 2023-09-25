@@ -19,7 +19,7 @@ pub struct KreyviumStreamShortint {
 }
 
 impl KreyviumStreamShortint {
-    /// Contructor for KreyviumStreamShortint: arguments are the secret key and the input vector,
+    /// Constructor for KreyviumStreamShortint: arguments are the secret key and the input vector,
     /// and a ServerKey reference. Outputs a KreyviumStream object already initialized (1152
     /// steps have been run before returning)
     pub fn new(

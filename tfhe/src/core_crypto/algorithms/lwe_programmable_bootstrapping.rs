@@ -36,7 +36,7 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// ```
 /// use tfhe::core_crypto::prelude::*;
 ///
-/// // This example recreates a PBS by combining a blind rotate and a smaple extract.
+/// // This example recreates a PBS by combining a blind rotate and a sample extract.
 ///
 /// // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
 /// // computations
@@ -226,7 +226,7 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// println!("Checking result...");
 /// assert_eq!(6, pbs_multiplication_result);
 /// println!(
-///     "Mulitplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
+///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
 pub fn blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
@@ -1011,7 +1011,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
 /// println!("Checking result...");
 /// assert_eq!(6, pbs_multiplication_result);
 /// println!(
-///     "Mulitplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
+///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
 pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccCont, KeyCont>(
@@ -1321,7 +1321,7 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 /// println!("Checking result...");
 /// assert_eq!(6, pbs_multiplication_result);
 /// println!(
-///     "Mulitplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
+///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
 pub fn programmable_bootstrap_f128_lwe_ciphertext<Scalar, InputCont, OutputCont, AccCont, KeyCont>(

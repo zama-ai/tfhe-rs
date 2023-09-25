@@ -50,7 +50,7 @@ pub(crate) fn leading_zeros(lhs: &[u64]) -> u32 {
         }
     }
 
-    // Everyting is zero
+    // Everything is zero
     lhs.len() as u32 * u64::BITS
 }
 

@@ -6,7 +6,7 @@ pub trait CreateFrom<T> {
     /// Concrete type containing enough information to instantiate a new T.
     type Metadata: Clone + Copy;
 
-    /// Intantiate a new T using the associated metadata type.
+    /// Instantiate a new T using the associated metadata type.
     fn create_from(from: T, meta: Self::Metadata) -> Self;
 }
 

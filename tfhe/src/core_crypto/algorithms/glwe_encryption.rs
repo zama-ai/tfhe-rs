@@ -831,7 +831,7 @@ where
 
 /// Convenience function to share the core logic of the seeded GLWE encryption between all
 /// functions needing it.
-pub fn encrypt_seeded_glwe_ciphertext_with_exsiting_generator<
+pub fn encrypt_seeded_glwe_ciphertext_with_existing_generator<
     Scalar,
     KeyCont,
     OutputCont,
@@ -988,7 +988,7 @@ pub fn encrypt_seeded_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont, No
         noise_seeder,
     );
 
-    encrypt_seeded_glwe_ciphertext_with_exsiting_generator(
+    encrypt_seeded_glwe_ciphertext_with_existing_generator(
         glwe_secret_key,
         output_glwe_ciphertext,
         input_plaintext_list,

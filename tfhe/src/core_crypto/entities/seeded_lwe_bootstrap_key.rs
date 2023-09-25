@@ -1,4 +1,4 @@
-//! Module containing the definition of the SeededLweBoostrapKey.
+//! Module containing the definition of the SeededLweBootstrapKey.
 
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};

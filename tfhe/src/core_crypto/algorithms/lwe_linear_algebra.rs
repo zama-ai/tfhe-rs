@@ -388,7 +388,7 @@ where
     slice_wrapping_opposite_assign(ct.as_mut());
 }
 
-/// Mulitply the left-hand side [`LWE ciphertext`](`LweCiphertext`) by the right-hand side cleartext
+/// Multiply the left-hand side [`LWE ciphertext`](`LweCiphertext`) by the right-hand side cleartext
 /// updating it in-place.
 ///
 /// # Example
@@ -455,7 +455,7 @@ pub fn lwe_ciphertext_cleartext_mul_assign<Scalar, InCont>(
     slice_wrapping_scalar_mul_assign(lhs.as_mut(), rhs.0);
 }
 
-/// Mulitply the left-hand side [`LWE ciphertext`](`LweCiphertext`) by the right-hand side cleartext
+/// Multiply the left-hand side [`LWE ciphertext`](`LweCiphertext`) by the right-hand side cleartext
 /// writing the result in the output [`LWE ciphertext`](`LweCiphertext`).
 ///
 /// # Example

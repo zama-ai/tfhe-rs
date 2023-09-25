@@ -40,11 +40,11 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedToru
             ciphertext_modulus,
         );
 
-        let mut determinisitic_seeder =
+        let mut deterministic_seeder =
             DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
         let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-            determinisitic_seeder.seed(),
-            &mut determinisitic_seeder,
+            deterministic_seeder.seed(),
+            &mut deterministic_seeder,
         );
         par_encrypt_lwe_ciphertext_list(
             &lwe_secret_key,
@@ -61,11 +61,11 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedToru
             ciphertext_modulus,
         );
 
-        let mut determinisitic_seeder =
+        let mut deterministic_seeder =
             DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
         let mut encryption_generator = EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-            determinisitic_seeder.seed(),
-            &mut determinisitic_seeder,
+            deterministic_seeder.seed(),
+            &mut deterministic_seeder,
         );
         encrypt_lwe_ciphertext_list(
             &lwe_secret_key,
@@ -77,14 +77,14 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedToru
 
         assert_eq!(par_lwe_list, ser_lwe_list);
 
-        let mut determinisitic_seeder =
+        let mut deterministic_seeder =
             DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
         // Create a new LweCiphertextList
         let mut par_seeded_lwe_list = SeededLweCiphertextList::new(
             Scalar::ZERO,
             lwe_dimension.to_lwe_size(),
             lwe_ciphertext_count,
-            determinisitic_seeder.seed().into(),
+            deterministic_seeder.seed().into(),
             ciphertext_modulus,
         );
 
@@ -93,17 +93,17 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedToru
             &mut par_seeded_lwe_list,
             &plaintext_list,
             lwe_modular_std_dev,
-            &mut determinisitic_seeder,
+            &mut deterministic_seeder,
         );
 
-        let mut determinisitic_seeder =
+        let mut deterministic_seeder =
             DeterministicSeeder::<ActivatedRandomGenerator>::new(main_seed);
 
         let mut ser_seeded_lwe_list = SeededLweCiphertextList::new(
             Scalar::ZERO,
             lwe_dimension.to_lwe_size(),
             lwe_ciphertext_count,
-            determinisitic_seeder.seed().into(),
+            deterministic_seeder.seed().into(),
             ciphertext_modulus,
         );
 
@@ -112,7 +112,7 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedToru
             &mut ser_seeded_lwe_list,
             &plaintext_list,
             lwe_modular_std_dev,
-            &mut determinisitic_seeder,
+            &mut deterministic_seeder,
         );
 
         assert_eq!(par_seeded_lwe_list, ser_seeded_lwe_list);

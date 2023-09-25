@@ -25,7 +25,7 @@ enum OutputCarry {
 ///   to propagate),
 /// - if lsb generates a carry, as msb propagates it, lsb will generate a carry. Note that this lsb
 ///   generates might be due to x propagating ('resolved' by an earlier iteration of the loop)
-/// - if lsb does not ouput a carry, msb will have nothing to propagate
+/// - if lsb does not output a carry, msb will have nothing to propagate
 ///
 /// Otherwise, msb either does not generate, or it does generate,
 /// but it means it won't propagate
@@ -277,8 +277,8 @@ impl ServerKey {
     /// prefix sum / cumulative sum in parallel.
     ///
     /// It it not "work efficient" as in, it adds a lot
-    /// of work compared to the single threaded aproach,
-    /// however it is higly parallelized and so is the fastest
+    /// of work compared to the single threaded approach,
+    /// however it is highly parallelized and so is the fastest
     /// assuming enough threads are available.
     ///
     /// At most num_block - 1 threads are used
@@ -310,7 +310,7 @@ impl ServerKey {
     }
 
     /// This function takes an input ciphertext for which at most one bit of carry
-    /// is consummed in each block, and does the carry propagation in place.
+    /// is consumed in each block, and does the carry propagation in place.
     ///
     /// Used in (among other) 'default' addition:
     /// - first unchecked_add
@@ -534,7 +534,7 @@ impl ServerKey {
             .enumerate()
             .map(|(i, block)| {
                 if i == 0 {
-                    // The first block can only ouput a carry
+                    // The first block can only output a carry
                     self.key
                         .apply_lookup_table(block, &lut_does_block_generate_carry)
                 } else {
@@ -721,7 +721,7 @@ impl ServerKey {
     ///
     /// - Returns None if ciphertexts is empty
     ///
-    /// - Expexts all ciphertexts to have empty carries
+    /// - Expects all ciphertexts to have empty carries
     /// - Expects all ciphertexts to have the same size
     pub fn unchecked_sum_ciphertexts_vec_parallelized<T>(
         &self,
@@ -770,16 +770,16 @@ impl ServerKey {
             chunks_iter
                 .map(|chunk| {
                     let (s, rest) = chunk.split_first_mut().unwrap();
-                    let mut first_block_where_addition_happenned = num_blocks - 1;
-                    let mut last_block_where_addition_happenned = num_blocks - 1;
+                    let mut first_block_where_addition_happened = num_blocks - 1;
+                    let mut last_block_where_addition_happened = num_blocks - 1;
                     for a in rest.iter() {
                         let first_block_to_add = a
                             .blocks()
                             .iter()
                             .position(|block| block.degree.0 != 0)
                             .unwrap_or(num_blocks);
-                        first_block_where_addition_happenned =
-                            first_block_where_addition_happenned.min(first_block_to_add);
+                        first_block_where_addition_happened =
+                            first_block_where_addition_happened.min(first_block_to_add);
                         let last_block_to_add = a
                             .blocks()
                             .iter()
@@ -787,8 +787,8 @@ impl ServerKey {
                             .position(|block| block.degree.0 != 0)
                             .map(|pos| num_blocks - pos - 1)
                             .unwrap_or(num_blocks - 1);
-                        last_block_where_addition_happenned =
-                            last_block_where_addition_happenned.max(last_block_to_add);
+                        last_block_where_addition_happened =
+                            last_block_where_addition_happened.max(last_block_to_add);
                         for (ct_left_i, ct_right_i) in s.blocks_mut()
                             [first_block_to_add..last_block_to_add + 1]
                             .iter_mut()
@@ -800,15 +800,15 @@ impl ServerKey {
 
                     // last carry is not interesting
                     let mut carry_blocks = s.blocks()
-                        [first_block_where_addition_happenned..last_block_where_addition_happenned]
+                        [first_block_where_addition_happened..last_block_where_addition_happened]
                         .to_vec();
 
                     let message_blocks = s.blocks_mut();
 
                     rayon::join(
                         || {
-                            message_blocks[first_block_where_addition_happenned
-                                ..last_block_where_addition_happenned + 1]
+                            message_blocks[first_block_where_addition_happened
+                                ..last_block_where_addition_happened + 1]
                                 .par_iter_mut()
                                 .for_each(|block| {
                                     self.key.message_extract_assign(block);

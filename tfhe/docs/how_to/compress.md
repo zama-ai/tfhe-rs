@@ -84,7 +84,7 @@ fn main() {
 This example shows how to compress the classical public keys.
 
 {% hint style="warning" %}
-It is not currently recommended to use the CompressedPublicKey to encrypt ciphertexts without first decompressing it. In case the resulting PublicKey is too large to fit in memory the encryption with the CompressedPublicKey will be very slow, this is a known problem and will be adressed in future releases.
+It is not currently recommended to use the CompressedPublicKey to encrypt ciphertexts without first decompressing it. In case the resulting PublicKey is too large to fit in memory the encryption with the CompressedPublicKey will be very slow, this is a known problem and will be addressed in future releases.
 {% endhint %}
 
 ```rust

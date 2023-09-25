@@ -289,7 +289,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
 /// println!("Checking result...");
 /// assert_eq!(6, pbs_multiplication_result);
 /// println!(
-///     "Mulitplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
+///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
 pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
@@ -307,7 +307,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     assert_eq!(
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
@@ -316,7 +316,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     assert_eq!(
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
-        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
         FourierLweMultiBitBootstrapKey GlweSize {:?}.",
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
@@ -325,7 +325,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     assert_eq!(
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
-        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
         FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
@@ -558,7 +558,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
     assert_eq!(
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
@@ -567,7 +567,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
     assert_eq!(
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
-        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
         FourierLweMultiBitBootstrapKey GlweSize {:?}.",
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
@@ -576,7 +576,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
     assert_eq!(
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
-        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
         FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
@@ -1025,7 +1025,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 /// println!("Checking result...");
 /// assert_eq!(6, pbs_multiplication_result);
 /// println!(
-///     "Mulitplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
+///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
 pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
@@ -1051,7 +1051,7 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
@@ -1060,7 +1060,7 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         output.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.output_lwe_dimension(),
-        "Mimatched output LweDimension. LweCiphertext output LweDimension {:?}. \
+        "Mismatched output LweDimension. LweCiphertext output LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey output LweDimension {:?}.",
         output.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.output_lwe_dimension(),
@@ -1069,7 +1069,7 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
-        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
         FourierLweMultiBitBootstrapKey GlweSize {:?}.",
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
@@ -1078,7 +1078,7 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
-        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
         FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
@@ -1145,7 +1145,7 @@ pub fn multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
@@ -1154,7 +1154,7 @@ pub fn multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         output.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.output_lwe_dimension(),
-        "Mimatched output LweDimension. LweCiphertext output LweDimension {:?}. \
+        "Mismatched output LweDimension. LweCiphertext output LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey output LweDimension {:?}.",
         output.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.output_lwe_dimension(),
@@ -1163,7 +1163,7 @@ pub fn multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
-        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
         FourierLweMultiBitBootstrapKey GlweSize {:?}.",
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
@@ -1172,7 +1172,7 @@ pub fn multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
-        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
         FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
@@ -1295,7 +1295,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
     assert_eq!(
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
@@ -1304,7 +1304,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
     assert_eq!(
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
-        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
         FourierLweMultiBitBootstrapKey GlweSize {:?}.",
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
@@ -1313,7 +1313,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
     assert_eq!(
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
-        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
         FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
@@ -1330,7 +1330,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
     assert_eq!(
         input.ciphertext_modulus(),
         multi_bit_bsk.ciphertext_modulus(),
-        "Mimatched CiphertextModulus. LweCiphertext CiphertextModulus {:?}. \
+        "Mismatched CiphertextModulus. LweCiphertext CiphertextModulus {:?}. \
         LweMultiBitBootstrapKey CiphertextModulus {:?}.",
         input.ciphertext_modulus(),
         multi_bit_bsk.ciphertext_modulus(),
@@ -1577,7 +1577,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
     assert_eq!(
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
@@ -1586,7 +1586,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
     assert_eq!(
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
-        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
         FourierLweMultiBitBootstrapKey GlweSize {:?}.",
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
@@ -1595,7 +1595,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
     assert_eq!(
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
-        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
         FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
@@ -1612,7 +1612,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
     assert_eq!(
         accumulator.ciphertext_modulus(),
         multi_bit_bsk.ciphertext_modulus(),
-        "Mimatched CiphertextModulus. Accumulator CiphertextModulus {:?}. \
+        "Mismatched CiphertextModulus. Accumulator CiphertextModulus {:?}. \
         LweMultiBitBootstrapKey CiphertextModulus {:?}.",
         accumulator.ciphertext_modulus(),
         multi_bit_bsk.ciphertext_modulus(),
@@ -1856,7 +1856,7 @@ pub fn std_multi_bit_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
@@ -1865,7 +1865,7 @@ pub fn std_multi_bit_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         output.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.output_lwe_dimension(),
-        "Mimatched output LweDimension. LweCiphertext output LweDimension {:?}. \
+        "Mismatched output LweDimension. LweCiphertext output LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey output LweDimension {:?}.",
         output.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.output_lwe_dimension(),
@@ -1874,7 +1874,7 @@ pub fn std_multi_bit_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
-        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
         FourierLweMultiBitBootstrapKey GlweSize {:?}.",
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
@@ -1883,7 +1883,7 @@ pub fn std_multi_bit_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
-        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
         FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
@@ -1950,7 +1950,7 @@ pub fn std_multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-        "Mimatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
@@ -1959,7 +1959,7 @@ pub fn std_multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         output.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.output_lwe_dimension(),
-        "Mimatched output LweDimension. LweCiphertext output LweDimension {:?}. \
+        "Mismatched output LweDimension. LweCiphertext output LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey output LweDimension {:?}.",
         output.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.output_lwe_dimension(),
@@ -1968,7 +1968,7 @@ pub fn std_multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
-        "Mimatched GlweSize. Accumulator GlweSize {:?}. \
+        "Mismatched GlweSize. Accumulator GlweSize {:?}. \
         FourierLweMultiBitBootstrapKey GlweSize {:?}.",
         accumulator.glwe_size(),
         multi_bit_bsk.glwe_size(),
@@ -1977,7 +1977,7 @@ pub fn std_multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext<
     assert_eq!(
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
-        "Mimatched PolynomialSize. Accumulator PolynomialSize {:?}. \
+        "Mismatched PolynomialSize. Accumulator PolynomialSize {:?}. \
         FourierLweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),

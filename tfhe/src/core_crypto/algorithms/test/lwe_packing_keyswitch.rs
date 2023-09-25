@@ -160,7 +160,7 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send 
                 ciphertext_modulus,
             );
 
-            let mut ouptut_glwe_parallel = GlweCiphertext::new(
+            let mut output_glwe_parallel = GlweCiphertext::new(
                 Scalar::ZERO,
                 glwe_sk.glwe_dimension().to_glwe_size(),
                 glwe_sk.polynomial_size(),
@@ -178,10 +178,10 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send 
             par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
                 &pksk,
                 &input_lwe_list,
-                &mut ouptut_glwe_parallel,
+                &mut output_glwe_parallel,
             );
 
-            assert_eq!(output_glwe.as_ref(), ouptut_glwe_parallel.as_ref());
+            assert_eq!(output_glwe.as_ref(), output_glwe_parallel.as_ref());
 
             let mut decrypted_plaintext_list = PlaintextList::new(
                 Scalar::ZERO,

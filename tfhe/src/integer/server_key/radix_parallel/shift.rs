@@ -296,10 +296,10 @@ impl ServerKey {
         ct_res
     }
 
-    /// This implemements a "barrel shifter".
+    /// This implements a "barrel shifter".
     ///
     /// This construct is what is used in hardware to
-    /// implemement left/right shift/rotate
+    /// implement left/right shift/rotate
     ///
     /// This requires:
     /// - ct to have clean carries

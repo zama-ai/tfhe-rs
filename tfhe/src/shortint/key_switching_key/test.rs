@@ -120,7 +120,7 @@ fn gen_multi_keys_test_add_with_overflow() {
     let (ck2, sk2) = (keys.client_key_2(), keys.server_key_2());
     let ksk = keys.key_switching_key();
 
-    // volontary overflow
+    // voluntary overflow
     let c1 = ck1.encrypt(1);
     let c2 = ck1.encrypt(1);
 

@@ -91,7 +91,7 @@ impl ServerKey {
         // If we had upcasted the scalar, its msb would be zeros (0)
         // then they would become ones (1) after the bitwise_not (!).
         // The only case where these msb could become 0 after the addition
-        // is if scalar == T::ZERO (=> !T::ZERO == T::MAX => T::MAX + 1 == overlfow),
+        // is if scalar == T::ZERO (=> !T::ZERO == T::MAX => T::MAX + 1 == overflow),
         // but this case has been handled earlier.
         let padding_bit = 1u32; // To handle when bits is not a multiple of T::BITS
                                 // All bits of message set to one
@@ -185,7 +185,7 @@ impl ServerKey {
     ///
     /// let ct = cks.encrypt(msg);
     ///
-    /// // Compute tne subtraction:
+    /// // Compute the subtraction:
     /// let ct_res = sks.checked_scalar_sub(&ct, scalar)?;
     ///
     /// // Decrypt:
@@ -227,7 +227,7 @@ impl ServerKey {
     ///
     /// let mut ct = cks.encrypt(msg);
     ///
-    /// // Compute tne subtraction:
+    /// // Compute the subtraction:
     /// sks.checked_scalar_sub_assign(&mut ct, scalar)?;
     ///
     /// // Decrypt:

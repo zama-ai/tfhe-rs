@@ -41,7 +41,7 @@ pub(crate) trait BinaryGatesAssignEngine<L, R, K> {
     fn xnor_assign(&mut self, ct_left: L, ct_right: R, server_key: &K);
 }
 
-/// Trait to be able to acces thread_local
+/// Trait to be able to access thread_local
 /// engines in a generic way
 pub(crate) trait WithThreadLocalEngine {
     fn with_thread_local_mut<R, F>(func: F) -> R

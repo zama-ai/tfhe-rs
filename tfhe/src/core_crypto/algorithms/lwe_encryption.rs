@@ -1573,7 +1573,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 {
     assert!(
         output.lwe_size().to_lwe_dimension() == lwe_compact_public_key.lwe_dimension(),
-        "Mismatch between LweDimension of output cipertext and input public key. \
+        "Mismatch between LweDimension of output ciphertext and input public key. \
     Got {:?} in output, and {:?} in public key.",
         output.lwe_size().to_lwe_dimension(),
         lwe_compact_public_key.lwe_dimension()
@@ -1581,7 +1581,7 @@ pub fn encrypt_lwe_ciphertext_with_compact_public_key<
 
     assert!(
         lwe_compact_public_key.ciphertext_modulus() == output.ciphertext_modulus(),
-        "Mismatch between CiphertextModulus of output cipertext and input public key. \
+        "Mismatch between CiphertextModulus of output ciphertext and input public key. \
     Got {:?} in output, and {:?} in public key.",
         output.ciphertext_modulus(),
         lwe_compact_public_key.ciphertext_modulus()
@@ -1728,7 +1728,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 {
     assert!(
         output.lwe_size().to_lwe_dimension() == lwe_compact_public_key.lwe_dimension(),
-        "Mismatch between LweDimension of output cipertext and input public key. \
+        "Mismatch between LweDimension of output ciphertext and input public key. \
     Got {:?} in output, and {:?} in public key.",
         output.lwe_size().to_lwe_dimension(),
         lwe_compact_public_key.lwe_dimension()
@@ -1736,7 +1736,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 
     assert!(
         lwe_compact_public_key.ciphertext_modulus() == output.ciphertext_modulus(),
-        "Mismatch between CiphertextModulus of output cipertext and input public key. \
+        "Mismatch between CiphertextModulus of output ciphertext and input public key. \
     Got {:?} in output, and {:?} in public key.",
         output.ciphertext_modulus(),
         lwe_compact_public_key.ciphertext_modulus()
@@ -1744,7 +1744,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 
     assert!(
         output.lwe_ciphertext_count().0 == encoded.plaintext_count().0,
-        "Mismatch between LweCiphertextCount of output cipertext and \
+        "Mismatch between LweCiphertextCount of output ciphertext and \
         PlaintextCount of input list. Got {:?} in output, and {:?} in input plaintext list.",
         output.lwe_ciphertext_count(),
         encoded.plaintext_count()
@@ -1936,7 +1936,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 {
     assert!(
         output.lwe_size().to_lwe_dimension() == lwe_compact_public_key.lwe_dimension(),
-        "Mismatch between LweDimension of output cipertext and input public key. \
+        "Mismatch between LweDimension of output ciphertext and input public key. \
     Got {:?} in output, and {:?} in public key.",
         output.lwe_size().to_lwe_dimension(),
         lwe_compact_public_key.lwe_dimension()
@@ -1944,7 +1944,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 
     assert!(
         lwe_compact_public_key.ciphertext_modulus() == output.ciphertext_modulus(),
-        "Mismatch between CiphertextModulus of output cipertext and input public key. \
+        "Mismatch between CiphertextModulus of output ciphertext and input public key. \
     Got {:?} in output, and {:?} in public key.",
         output.ciphertext_modulus(),
         lwe_compact_public_key.ciphertext_modulus()
@@ -1952,7 +1952,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
 
     assert!(
         output.lwe_ciphertext_count().0 == encoded.plaintext_count().0,
-        "Mismatch between LweCiphertextCount of output cipertext and \
+        "Mismatch between LweCiphertextCount of output ciphertext and \
         PlaintextCount of input list. Got {:?} in output, and {:?} in input plaintext list.",
         output.lwe_ciphertext_count(),
         encoded.plaintext_count()

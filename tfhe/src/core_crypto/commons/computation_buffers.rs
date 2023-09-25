@@ -10,7 +10,7 @@ pub struct ComputationBuffers {
 }
 
 impl ComputationBuffers {
-    /// Create a new emtpy [`ComputationBuffers`] instance.
+    /// Create a new empty [`ComputationBuffers`] instance.
     pub fn new() -> Self {
         ComputationBuffers { memory: Vec::new() }
     }

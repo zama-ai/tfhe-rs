@@ -1,5 +1,5 @@
 //! This module implements the Kreyvium stream cipher, using booleans or FheBool
-//! for the representaion of the inner bits.
+//! for the representation of the inner bits.
 
 use crate::static_deque::StaticDeque;
 
@@ -35,7 +35,7 @@ pub struct KreyviumStream<T> {
 }
 
 impl KreyviumStream<bool> {
-    /// Contructor for `KreyviumStream<bool>`: arguments are the secret key and the input vector.
+    /// Constructor for `KreyviumStream<bool>`: arguments are the secret key and the input vector.
     /// Outputs a KreyviumStream object already initialized (1152 steps have been run before
     /// returning)
     pub fn new(mut key: [bool; 128], mut iv: [bool; 128]) -> KreyviumStream<bool> {
@@ -118,7 +118,7 @@ where
     T: KreyviumBoolInput<T> + std::marker::Send + std::marker::Sync,
     for<'a> &'a T: KreyviumBoolInput<T>,
 {
-    /// Internal generic contructor: arguments are already prepared registers, and an optional FHE
+    /// Internal generic constructor: arguments are already prepared registers, and an optional FHE
     /// server key
     fn new_from_registers(
         a_register: [T; 93],

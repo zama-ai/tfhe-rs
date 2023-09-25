@@ -58,7 +58,7 @@ This way, we can specialize our wrapper types:
 * `type FheUint4 = GenericWrapperStruct<FheUint4Parameters>`
 and now we have two disctint types, that have specific crypto parameters associated with them.
 Also, they are type safe (can't `+` a FheUint2 to a FheUint4 without a compilatation error
-unless the implemenation explicitely allows it since the type are different, which is not the case if you
+unless the implementation explicitly allows it since the type are different, which is not the case if you
 use the 'raw' shortint api)
 
 In practice it is a bit more complex as we have to introduce traits to internally manipulate the 
@@ -72,8 +72,8 @@ pub trait ShortIntegerParameter: Copy + Into< crate::shortint::ClassicPBSParamet
 
 The `ShortIntegerParameter` is meant to be implemented on "parameter struct"
 that map to specific `shortint::Parameters`, like FheUint2Parameters and FheUint2Parameters
-does, and so we require the `Into<shortint::Parameters>` convertion to be able to internally
+does, and so we require the `Into<shortint::Parameters>` conversion to be able to internally
 interact with the shortint API.
 
-The same wrapping proccess is done for ClientKey, ServerKey, PublicKey, etc.
+The same wrapping process is done for ClientKey, ServerKey, PublicKey, etc.
   
