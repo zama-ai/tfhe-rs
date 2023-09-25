@@ -62,3 +62,10 @@ pub use high_level_api::*;
 /// cbindgen:ignore
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
 pub mod keycache;
+
+#[cfg(feature = "safe-deserialization")]
+pub mod safe_deserialization;
+
+pub mod conformance;
+
+pub mod named;

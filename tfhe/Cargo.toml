@@ -82,14 +82,15 @@ bytemuck = "1.13.1"
 boolean = ["dep:paste"]
 shortint = ["dep:paste"]
 integer = ["shortint", "dep:paste"]
-internal-keycache = ["lazy_static", "dep:fs2", "bincode", "dep:paste"]
+internal-keycache = ["lazy_static", "dep:fs2", "dep:bincode", "dep:paste"]
+safe-deserialization = ["dep:bincode"]
 
 # Experimental section
 experimental = []
 experimental-force_fft_algo_dif4 = []
 # End experimental section
 
-__c_api = ["cbindgen", "bincode", "dep:paste"]
+__c_api = ["cbindgen", "dep:bincode", "dep:paste"]
 boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
 high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer", "__c_api"]
@@ -101,7 +102,7 @@ __wasm_api = [
     "serde-wasm-bindgen",
     "getrandom",
     "getrandom/js",
-    "bincode",
+    "dep:bincode",
 ]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
