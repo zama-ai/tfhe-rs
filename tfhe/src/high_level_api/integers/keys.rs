@@ -119,6 +119,11 @@ impl IntegerServerKey {
         let Some(cks) = &client_key.key else {
             return Self::default();
         };
+        assert_eq!(
+            cks.parameters().message_modulus().0,
+            1 << 2,
+            "This API only supports integers with 2 bits per block (MessageModulus(16))",
+        );
         let base_integer_key = crate::integer::ServerKey::new(cks);
         let wopbs_key = client_key
             .wopbs_block_parameters
