@@ -259,6 +259,18 @@ pub fn polynomial_wrapping_monic_monomial_mul_assign<Scalar, OutputCont>(
         .for_each(|a| *a = a.wrapping_neg());
 }
 
+/// performs the operation: dst = -src, with wrapping arithmetic
+fn copy_with_neg<Scalar: UnsignedInteger>(dst: &mut [Scalar], src: &[Scalar]) {
+    for (dst, src) in dst.iter_mut().zip(src) {
+        *dst = src.wrapping_neg();
+    }
+}
+
+/// performs the operation: dst = src
+fn copy_without_neg<Scalar: UnsignedInteger>(dst: &mut [Scalar], src: &[Scalar]) {
+    dst.copy_from_slice(src);
+}
+
 /// Divides (mod $(X^{N}+1)$), the input polynomial with a monic monomial of a given degree i.e.
 /// $X^{degree}$.
 ///
@@ -297,24 +309,25 @@ pub fn polynomial_wrapping_monic_monomial_div<Scalar, OutputCont, InputCont>(
     let polynomial_size = output.polynomial_size().0;
     let remaining_degree = monomial_degree.0 % polynomial_size;
 
-    let src_slice = &input[remaining_degree..];
-    let src_slice_len = src_slice.len();
-    let dst_slice = &mut output[..src_slice_len];
-    dst_slice.copy_from_slice(src_slice);
-
-    for (dst, &src) in output[polynomial_size - remaining_degree..]
-        .iter_mut()
-        .zip(input[..remaining_degree].iter())
-    {
-        *dst = src.wrapping_neg();
-    }
-
     let full_cycles_count = monomial_degree.0 / polynomial_size;
-    if full_cycles_count % 2 != 0 {
-        output
-            .as_mut()
-            .iter_mut()
-            .for_each(|a| *a = a.wrapping_neg());
+    if full_cycles_count % 2 == 0 {
+        copy_without_neg(
+            &mut output[..polynomial_size - remaining_degree],
+            &input[remaining_degree..],
+        );
+        copy_with_neg(
+            &mut output[polynomial_size - remaining_degree..],
+            &input[..remaining_degree],
+        );
+    } else {
+        copy_with_neg(
+            &mut output[..polynomial_size - remaining_degree],
+            &input[remaining_degree..],
+        );
+        copy_without_neg(
+            &mut output[polynomial_size - remaining_degree..],
+            &input[..remaining_degree],
+        );
     }
 }
 
@@ -356,24 +369,101 @@ pub fn polynomial_wrapping_monic_monomial_mul<Scalar, OutputCont, InputCont>(
     let polynomial_size = output.polynomial_size().0;
     let remaining_degree = monomial_degree.0 % polynomial_size;
 
-    for (dst, &src) in output[..remaining_degree]
-        .iter_mut()
-        .zip(input[polynomial_size - remaining_degree..].iter())
-    {
-        *dst = src.wrapping_neg();
+    let full_cycles_count = monomial_degree.0 / polynomial_size;
+    if full_cycles_count % 2 == 0 {
+        copy_with_neg(
+            &mut output[..remaining_degree],
+            &input[polynomial_size - remaining_degree..],
+        );
+        copy_without_neg(
+            &mut output[remaining_degree..],
+            &input[..polynomial_size - remaining_degree],
+        );
+    } else {
+        copy_without_neg(
+            &mut output[..remaining_degree],
+            &input[polynomial_size - remaining_degree..],
+        );
+        copy_with_neg(
+            &mut output[remaining_degree..],
+            &input[..polynomial_size - remaining_degree],
+        );
+    }
+}
+
+/// Multiply (mod $(X^{N}+1)$), the input polynomial with a monic monomial of a given degree i.e.
+/// $X^{degree}$, then subtract the input from the result and assign to the output.
+///
+/// output = input * X^degree - input
+///
+/// # Note
+///
+/// Computations wrap around (similar to computing modulo $2^{n\_{bits}}$) when exceeding the
+/// unsigned integer capacity.
+pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, OutputCont, InputCont>(
+    output: &mut Polynomial<OutputCont>,
+    input: &Polynomial<InputCont>,
+    monomial_degree: MonomialDegree,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert!(
+        output.polynomial_size() == input.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input polynomial size {:?}.",
+        output.polynomial_size(),
+        input.polynomial_size(),
+    );
+
+    /// performs the operation: dst = -src - src_orig, with wrapping arithmetic
+    fn copy_with_neg_and_subtract<Scalar: UnsignedInteger>(
+        dst: &mut [Scalar],
+        src: &[Scalar],
+        src_orig: &[Scalar],
+    ) {
+        for ((dst, src), src_orig) in dst.iter_mut().zip(src).zip(src_orig) {
+            *dst = src.wrapping_neg().wrapping_sub(*src_orig);
+        }
     }
 
-    let dst_slice = &mut output[remaining_degree..];
-    let dst_slice_len = dst_slice.len();
-    let src_slice = &input[..dst_slice_len];
-    dst_slice.copy_from_slice(src_slice);
+    /// performs the operation: dst = src - src_orig, with wrapping arithmetic
+    fn copy_without_neg_and_subtract<Scalar: UnsignedInteger>(
+        dst: &mut [Scalar],
+        src: &[Scalar],
+        src_orig: &[Scalar],
+    ) {
+        for ((dst, src), src_orig) in dst.iter_mut().zip(src).zip(src_orig) {
+            *dst = src.wrapping_sub(*src_orig);
+        }
+    }
+
+    let polynomial_size = output.polynomial_size().0;
+    let remaining_degree = monomial_degree.0 % polynomial_size;
 
     let full_cycles_count = monomial_degree.0 / polynomial_size;
-    if full_cycles_count % 2 != 0 {
-        output
-            .as_mut()
-            .iter_mut()
-            .for_each(|a| *a = a.wrapping_neg());
+    if full_cycles_count % 2 == 0 {
+        copy_with_neg_and_subtract(
+            &mut output[..remaining_degree],
+            &input[polynomial_size - remaining_degree..],
+            &input[..remaining_degree],
+        );
+        copy_without_neg_and_subtract(
+            &mut output[remaining_degree..],
+            &input[..polynomial_size - remaining_degree],
+            &input[remaining_degree..],
+        );
+    } else {
+        copy_without_neg_and_subtract(
+            &mut output[..remaining_degree],
+            &input[polynomial_size - remaining_degree..],
+            &input[..remaining_degree],
+        );
+        copy_with_neg_and_subtract(
+            &mut output[remaining_degree..],
+            &input[..polynomial_size - remaining_degree],
+            &input[remaining_degree..],
+        );
     }
 }
 

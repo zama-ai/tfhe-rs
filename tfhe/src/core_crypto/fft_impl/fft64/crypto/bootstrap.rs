@@ -1,5 +1,5 @@
 use super::super::math::fft::{Fft, FftView, FourierPolynomialList};
-use super::ggsw::{cmux, *};
+use super::ggsw::*;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
@@ -214,8 +214,16 @@ pub fn blind_rotate_scratch<Scalar>(
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?
-        .try_and(cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)?)
+    StackReq::try_any_of([
+        // tmp_poly allocation
+        StackReq::try_new_aligned::<Scalar>(polynomial_size.0, CACHELINE_ALIGN)?,
+        StackReq::try_all_of([
+            // ct1 allocation
+            StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
+            // external product
+            add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
+        ])?,
+    ])
 }
 
 /// Return the required memory for [`FourierLweBootstrapKeyView::bootstrap`].
@@ -243,54 +251,67 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
         let lut_poly_size = lut.polynomial_size();
         let ciphertext_modulus = lut.ciphertext_modulus();
         assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-        let monomial_degree = pbs_modulus_switch(
+        let monomial_degree = MonomialDegree(pbs_modulus_switch(
             *lwe_body,
             lut_poly_size,
             ModulusSwitchOffset(0),
             LutCountLog(0),
-        );
+        ));
 
         lut.as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
-                polynomial_wrapping_monic_monomial_div_assign(
-                    &mut poly,
-                    MonomialDegree(monomial_degree),
-                )
+                let (mut tmp_poly, _) = stack
+                    .rb_mut()
+                    .make_aligned_raw(poly.as_ref().len(), CACHELINE_ALIGN);
+
+                let mut tmp_poly = Polynomial::from_container(&mut *tmp_poly);
+                tmp_poly.as_mut().copy_from_slice(poly.as_ref());
+                polynomial_wrapping_monic_monomial_div(&mut poly, &tmp_poly, monomial_degree)
             });
 
         // We initialize the ct_0 used for the successive cmuxes
         let mut ct0 = lut;
+        let (mut ct1, mut stack) = stack.make_aligned_raw(ct0.as_ref().len(), CACHELINE_ALIGN);
+        let mut ct1 =
+            GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
 
         for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), self.into_ggsw_iter())
         {
             if *lwe_mask_element != Scalar::ZERO {
-                let stack = stack.rb_mut();
-                // We copy ct_0 to ct_1
-                let (mut ct1, stack) =
-                    stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
-                let mut ct1 = GlweCiphertextMutView::from_container(
-                    &mut *ct1,
+                let monomial_degree = MonomialDegree(pbs_modulus_switch(
+                    *lwe_mask_element,
                     lut_poly_size,
-                    ciphertext_modulus,
-                );
+                    ModulusSwitchOffset(0),
+                    LutCountLog(0),
+                ));
 
-                // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
-                for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
-                    polynomial_wrapping_monic_monomial_mul_assign(
-                        &mut poly,
-                        MonomialDegree(pbs_modulus_switch(
-                            *lwe_mask_element,
-                            lut_poly_size,
-                            ModulusSwitchOffset(0),
-                            LutCountLog(0),
-                        )),
+                // we effectively inline the body of cmux here, merging the initial subtraction
+                // operation with the monic polynomial multiplication, then performing the external
+                // product manually
+
+                // We rotate ct_1 and subtract ct_0 (first step of cmux) by performing
+                // ct_1 <- (ct_0 * X^{a_hat}) - ct_0
+                for (mut ct1_poly, ct0_poly) in izip!(
+                    ct1.as_mut_polynomial_list().iter_mut(),
+                    ct0.as_polynomial_list().iter(),
+                ) {
+                    polynomial_wrapping_monic_monomial_mul_and_subtract(
+                        &mut ct1_poly,
+                        &ct0_poly,
+                        monomial_degree,
                     );
                 }
 
-                // ct1 is re-created each loop it can be moved, ct0 is already a view, but
                 // as_mut_view is required to keep borrow rules consistent
-                cmux(ct0.as_mut_view(), ct1, bootstrap_key_ggsw, fft, stack);
+                // second step of cmux
+                add_external_product_assign(
+                    ct0.as_mut_view(),
+                    bootstrap_key_ggsw,
+                    ct1.as_mut_view(),
+                    fft,
+                    stack.rb_mut(),
+                );
             }
         }
 
