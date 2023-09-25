@@ -158,7 +158,7 @@ macro_rules! impl_operations_for_integer_type {
 }
 
 /// Creates a type that will act as an opaque wrapper
-/// aroung a tfhe integer.
+/// around a tfhe integer.
 ///
 /// It also implements binary operations for this wrapper type
 macro_rules! create_integer_wrapper_type {

@@ -17,7 +17,7 @@ pub struct BytesPerChild(pub usize);
 #[derive(Clone, Copy, Debug, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ByteCount(pub u128);
 
-/// An error occuring during a generator fork.
+/// An error occurring during a generator fork.
 #[derive(Debug)]
 pub enum ForkError {
     ForkTooLarge,
@@ -145,7 +145,7 @@ pub mod generator_generic_test {
 
     /// Checks that the PRNG roughly generates uniform numbers.
     ///
-    /// To do that, we perform an histogram of the occurences of each byte value, over a fixed
+    /// To do that, we perform an histogram of the occurrences of each byte value, over a fixed
     /// number of samples and check that the empirical probabilities of the bins are close to
     /// the theoretical probabilities.
     pub fn test_roughly_uniform<G: RandomGenerator>() {

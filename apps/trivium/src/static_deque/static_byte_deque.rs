@@ -1,6 +1,6 @@
 //! This module implements the StaticByteDeque struct: a deque of bytes. The idea
 //! is that this is a wrapper around StaticDeque, but StaticByteDeque has an additional
-//! functionnality: it can construct the "intermediate" bytes, made of parts of other bytes.
+//! functionality: it can construct the "intermediate" bytes, made of parts of other bytes.
 //! This is pretending to store bits, and allows accessing bits in chunks of 8 consecutive.
 
 use crate::static_deque::StaticDeque;

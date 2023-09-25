@@ -651,7 +651,7 @@ where
             let res = integer_key
                 .wopbs_key
                 .as_ref()
-                .expect("Function evalutation on integers was not enabled in the config")
+                .expect("Function evaluation on integers was not enabled in the config")
                 .apply_wopbs(integer_key.pbs_key(), &self.ciphertext, func);
             GenericInteger::<P>::new(res, self.id)
         })
@@ -684,7 +684,7 @@ where
             let res = integer_key
                 .wopbs_key
                 .as_ref()
-                .expect("Function evalutation on integers was not enabled in the config")
+                .expect("Function evaluation on integers was not enabled in the config")
                 .apply_bivariate_wopbs(integer_key.pbs_key(), lhs, rhs, func);
             GenericInteger::<P>::new(res, self.id)
         })

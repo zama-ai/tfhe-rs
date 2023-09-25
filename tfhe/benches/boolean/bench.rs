@@ -43,7 +43,7 @@ pub fn write_to_json_boolean<T: Into<CryptoParametersRecord<u32>>>(
 
 // Put all `bench_function` in one place
 // so the keygen is only run once per parameters saving time.
-fn benchs(c: &mut Criterion, params: BooleanParameters, parameter_name: &str) {
+fn benches(c: &mut Criterion, params: BooleanParameters, parameter_name: &str) {
     let mut bench_group = c.benchmark_group("gates_benches");
 
     let cks = ClientKey::new(&params);
@@ -83,15 +83,15 @@ fn benchs(c: &mut Criterion, params: BooleanParameters, parameter_name: &str) {
 }
 
 fn bench_default_parameters(c: &mut Criterion) {
-    benchs(c, DEFAULT_PARAMETERS, "DEFAULT_PARAMETERS");
+    benches(c, DEFAULT_PARAMETERS, "DEFAULT_PARAMETERS");
 }
 
 fn bench_default_parameters_ks_pbs(c: &mut Criterion) {
-    benchs(c, DEFAULT_PARAMETERS_KS_PBS, "DEFAULT_PARAMETERS_KS_PBS");
+    benches(c, DEFAULT_PARAMETERS_KS_PBS, "DEFAULT_PARAMETERS_KS_PBS");
 }
 
 fn bench_low_prob_parameters(c: &mut Criterion) {
-    benchs(
+    benches(
         c,
         PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
         "PARAMETERS_ERROR_PROB_2_POW_MINUS_165",
@@ -99,7 +99,7 @@ fn bench_low_prob_parameters(c: &mut Criterion) {
 }
 
 fn bench_low_prob_parameters_ks_pbs(c: &mut Criterion) {
-    benchs(
+    benches(
         c,
         PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
         "PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS",
@@ -107,5 +107,5 @@ fn bench_low_prob_parameters_ks_pbs(c: &mut Criterion) {
 }
 
 fn bench_tfhe_lib_parameters(c: &mut Criterion) {
-    benchs(c, TFHE_LIB_PARAMETERS, " TFHE_LIB_PARAMETERS");
+    benches(c, TFHE_LIB_PARAMETERS, " TFHE_LIB_PARAMETERS");
 }

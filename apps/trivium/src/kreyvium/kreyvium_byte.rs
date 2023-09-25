@@ -1,5 +1,5 @@
 //! This module implements the Kreyvium stream cipher, using u8 or FheUint8
-//! for the representaion of the inner bits.
+//! for the representation of the inner bits.
 
 use crate::static_deque::{StaticByteDeque, StaticByteDequeInput};
 
@@ -43,7 +43,7 @@ pub struct KreyviumStreamByte<T> {
 }
 
 impl KreyviumStreamByte<u8> {
-    /// Contructor for `KreyviumStreamByte<u8>`: arguments are the secret key and the input vector.
+    /// Constructor for `KreyviumStreamByte<u8>`: arguments are the secret key and the input vector.
     /// Outputs a KreyviumStream object already initialized (1152 steps have been run before
     /// returning)
     pub fn new(key_bytes: [u8; 16], iv_bytes: [u8; 16]) -> KreyviumStreamByte<u8> {
@@ -146,7 +146,7 @@ where
     T: KreyviumByteInput<T> + Send,
     for<'a> &'a T: KreyviumByteInput<T>,
 {
-    /// Internal generic contructor: arguments are already prepared registers, and an optional FHE
+    /// Internal generic constructor: arguments are already prepared registers, and an optional FHE
     /// server key
     fn new_from_registers(
         a_register: [T; 12],

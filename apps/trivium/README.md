@@ -120,7 +120,7 @@ fn main() {
 
 # FHE byte Trivium implementation
 
-The same objects have also been implemented to stream bytes insead of booleans. They can be constructed and used in the same way via the functions `TriviumStreamByte::<u8>::new` and 
+The same objects have also been implemented to stream bytes instead of booleans. They can be constructed and used in the same way via the functions `TriviumStreamByte::<u8>::new` and 
 `TriviumStreamByte::<FheUint8>::new` with the same arguments as before. The `FheUint8` version is significantly slower than the `FheBool` version, because not running 
 with the same cryptographic parameters. Its interest lie in its trans-ciphering capabilities: `TriviumStreamByte<FheUint8>` implements the trait `TransCiphering`, 
 meaning it implements the functions `trans_encrypt_64`. This function takes as input a `FheUint64` and outputs a `FheUint64`, the output being

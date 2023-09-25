@@ -281,7 +281,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     debug_assert!(
         ggsw_out.polynomial_size() == fpksk_output_polynomial_size,
         "The output GGSW ciphertext needs to have the same polynomial size as the fpksks, \
-        got {}, expeceted {}",
+        got {}, expected {}",
         ggsw_out.polynomial_size().0,
         fpksk_output_polynomial_size.0
     );
@@ -289,7 +289,7 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     debug_assert!(
         ggsw_out.glwe_size().to_glwe_dimension() == fpksk_output_glwe_key_dimension,
         "The output GGSW ciphertext needs to have the same GLWE dimension as the fpksks, \
-        got {}, expeceted {}",
+        got {}, expected {}",
         ggsw_out.glwe_size().to_glwe_dimension().0,
         fpksk_output_glwe_key_dimension.0
     );

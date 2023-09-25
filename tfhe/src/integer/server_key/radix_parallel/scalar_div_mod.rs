@@ -235,7 +235,7 @@ fn choose_multiplier<T: Reciprocable>(
     // The formula is m_low == 2**(N+l) / d
     // however N + l may be == to 128, which means doing
     // 2**(N + l) would not be valid, so the formula has been written in a
-    // way that does not overlflow.
+    // way that does not overflow.
     //
     // By writing m_low = (m_low - 2**N) + (2**N)
     let mut m_low = (two_pow_n * ((T::DoublePrecision::ONE << l as usize) - d)) / d;
@@ -441,17 +441,17 @@ impl ServerKey {
             };
         }
 
-        let chosen_mutliplier =
+        let chosen_multiplier =
             choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
 
-        if chosen_mutliplier.l >= numerator_bits {
+        if chosen_multiplier.l >= numerator_bits {
             return self.create_trivial_zero_radix(numerator.blocks.len());
         }
 
         let quotient;
-        if absolute_divisor == (T::Unsigned::ONE << chosen_mutliplier.l as usize) {
+        if absolute_divisor == (T::Unsigned::ONE << chosen_multiplier.l as usize) {
             // Issue q = SRA(n + SRL(SRA(n, l − 1), N − l), l);
-            let l = chosen_mutliplier.l;
+            let l = chosen_multiplier.l;
 
             // SRA(n, l − 1)
             let mut tmp = self.unchecked_scalar_right_shift_parallelized(numerator, l - 1);
@@ -466,7 +466,7 @@ impl ServerKey {
             // SRA(n + SRL(SRA(n, l − 1), N − l), l);
             self.unchecked_scalar_right_shift_assign_parallelized(&mut tmp, l);
             quotient = tmp;
-        } else if chosen_mutliplier.multiplier
+        } else if chosen_multiplier.multiplier
             < (<T::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1))
         {
             // in the condition above works (it makes more values take this branch,
@@ -479,12 +479,12 @@ impl ServerKey {
                 move || {
                     // MULSH(m, n)
                     let mut tmp =
-                        self.signed_scalar_mul_high(numerator, chosen_mutliplier.multiplier);
+                        self.signed_scalar_mul_high(numerator, chosen_multiplier.multiplier);
 
                     // SRA(MULSH(m, n), shpost)
                     self.unchecked_scalar_right_shift_arithmetic_assign_parallelized(
                         &mut tmp,
-                        chosen_mutliplier.shift_post,
+                        chosen_multiplier.shift_post,
                     );
                     tmp
                 },
@@ -509,7 +509,7 @@ impl ServerKey {
                     // The subtraction may overflow.
                     // We then cast the result to a signed type.
                     // Overall, this will work fine due to two's complement representation
-                    let cst = chosen_mutliplier.multiplier
+                    let cst = chosen_multiplier.multiplier
                         - (<T::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
                     let cst = T::DoublePrecision::cast_from(cst);
 
@@ -522,7 +522,7 @@ impl ServerKey {
                     // SRA(n + MULSH(m - 2^N, n), shpost)
                     self.unchecked_scalar_right_shift_assign_parallelized(
                         &mut tmp,
-                        chosen_mutliplier.shift_post,
+                        chosen_multiplier.shift_post,
                     );
 
                     tmp
@@ -603,13 +603,13 @@ impl ServerKey {
 
             q
         } else {
-            let chosen_mutliplier = choose_multiplier(
+            let chosen_multiplier = choose_multiplier(
                 T::Unsigned::cast_from(divisor),
                 numerator_bits - 1,
                 numerator_bits,
             );
 
-            if chosen_mutliplier.l >= numerator_bits {
+            if chosen_multiplier.l >= numerator_bits {
                 // divisor is > numerator
                 // so, in truncating div, q == 0, however in floor_div
                 // * q == 0 || q == -1.
@@ -642,12 +642,12 @@ impl ServerKey {
                 return SignedRadixCiphertext::from(blocks);
             }
 
-            assert!(chosen_mutliplier.l <= (T::BITS - 1) as u32);
-            if divisor == (T::ONE << chosen_mutliplier.l) {
-                self.unchecked_scalar_right_shift_parallelized(numerator, chosen_mutliplier.l)
+            assert!(chosen_multiplier.l <= (T::BITS - 1) as u32);
+            if divisor == (T::ONE << chosen_multiplier.l) {
+                self.unchecked_scalar_right_shift_parallelized(numerator, chosen_multiplier.l)
             } else {
                 assert!(
-                    chosen_mutliplier.multiplier
+                    chosen_multiplier.multiplier
                         < <T::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits
                 );
 
@@ -659,10 +659,10 @@ impl ServerKey {
                 let tmp = self.unchecked_bitxor_parallelized(&xsign, numerator);
                 // Cast to Unsigned
                 let tmp = RadixCiphertext::from(tmp.blocks);
-                let mut tmp = self.scalar_mul_high(&tmp, chosen_mutliplier.multiplier);
+                let mut tmp = self.scalar_mul_high(&tmp, chosen_multiplier.multiplier);
                 self.unchecked_scalar_right_shift_logical_assign_parallelized(
                     &mut tmp,
-                    chosen_mutliplier.shift_post,
+                    chosen_multiplier.shift_post,
                 );
                 // Cast xsign to unsigned
                 let xsign = RadixCiphertext::from(xsign.blocks);

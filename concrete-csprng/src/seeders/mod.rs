@@ -3,7 +3,7 @@
 //! When initializing a generator, one needs to provide a [`Seed`], which is then used as key to the
 //! AES blockcipher. As a consequence, the quality of the outputs of the generator is directly
 //! conditioned by the quality of this seed. This module proposes different mechanisms to deliver
-//! seeds that can accomodate varying scenarios.
+//! seeds that can accommodate varying scenarios.
 
 /// A seed value, used to initialize a generator.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -15,7 +15,7 @@ pub trait Seeder {
     fn seed(&mut self) -> Seed;
 
     /// Check whether the seeder can be used on the current machine. This function may check if some
-    /// required CPU features are available or if some OS features are availble for example.
+    /// required CPU features are available or if some OS features are available for example.
     fn is_available() -> bool
     where
         Self: Sized;

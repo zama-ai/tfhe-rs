@@ -19,7 +19,7 @@ impl ServerKey {
     /// # Requirements
     ///
     /// - The blocks parameter's carry space have at least one more bit than message space
-    /// - The input ciphertext carry buffer is emtpy / clean
+    /// - The input ciphertext carry buffer is empty / clean
     ///
     /// # Output
     ///
@@ -63,11 +63,11 @@ impl ServerKey {
     /// # Requirements
     ///
     /// - The blocks parameter's carry space have at at least (message_bits - 1)
-    /// - The input ciphertext carry buffer is emtpy / clean
+    /// - The input ciphertext carry buffer is empty / clean
     ///
     /// # Output
     ///
-    /// - The carry of the output blocks will be emtpy / clean
+    /// - The carry of the output blocks will be empty / clean
     ///
     /// # Example
     ///
@@ -324,7 +324,7 @@ impl ServerKey {
     ///
     /// This means the returned Vec has size `inner_blocks.len() - 1`,
     /// the block at index `inner_blocks.len() - 1` needs to be handled
-    /// by the caller (arithmethic vs logical right shift).
+    /// by the caller (arithmetic vs logical right shift).
     fn unchecked_scalar_right_shift_inner_blocks_parallelized(
         &self,
         inner_blocks: &[crate::shortint::Ciphertext],
@@ -472,7 +472,7 @@ impl ServerKey {
     /// # Requirements
     ///
     /// - The blocks parameter's carry space have at least one more bit than message space
-    /// - The input ciphertext carry buffer is emtpy / clean
+    /// - The input ciphertext carry buffer is empty / clean
     ///
     /// # Output
     ///
@@ -522,7 +522,7 @@ impl ServerKey {
     /// # Requirements
     ///
     /// - The blocks parameter's carry space have at at least (message_bits - 1)
-    /// - The input ciphertext carry buffer is emtpy / clean
+    /// - The input ciphertext carry buffer is empty / clean
     ///
     /// # Output
     ///

@@ -1,4 +1,4 @@
-# Trival Ciphertext
+# Trivial Ciphertext
 
 Sometimes, the server side needs to initialize a value.
 For example, when computing the sum of a list of ciphertext,

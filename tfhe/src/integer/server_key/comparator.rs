@@ -502,11 +502,11 @@ where {
         if T::IS_SIGNED {
             match self.server_key.is_scalar_out_of_bounds(lhs, rhs) {
                 Some(std::cmp::Ordering::Greater) => {
-                    // Scalar is greater thant the bounds, so ciphertext is smaller
+                    // Scalar is greater than the bounds, so ciphertext is smaller
                     return self.server_key.key.create_trivial(Self::IS_INFERIOR);
                 }
                 Some(std::cmp::Ordering::Less) => {
-                    // Scalar is smaller thant the bounds, so ciphertext is bigger
+                    // Scalar is smaller than the bounds, so ciphertext is bigger
                     return self.server_key.key.create_trivial(Self::IS_SUPERIOR);
                 }
                 Some(std::cmp::Ordering::Equal) => unreachable!("Internal error: invalid value"),

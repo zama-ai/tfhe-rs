@@ -504,7 +504,7 @@ Pattern | Description
 `/^abc$/` | Matches with content that equals exactly `abc` (case sensitive)
 `/^abc$/i` | Matches with content that equals `abc` (case insensitive)
 `/abc/` | Matches with content that contains somewhere `abc`
-`/ab?c/` | Matches with content that contains somewhere `abc` or somwhere `ab`
+`/ab?c/` | Matches with content that contains somewhere `abc` or somewhere `ab`
 `/^ab*c$/` | For example, matches with: `ac`, `abc`, `abbbbc`
 `/^[a-c]b\|cd$/` | Matches with: `ab`, `bb`, `cb`, `cd`
 `/^[a-c]b\|cd$/i` | Matches with: `ab`, `Ab`, `aB`, ..., `cD`, `CD`

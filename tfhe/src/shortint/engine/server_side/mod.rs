@@ -60,7 +60,7 @@ impl ShortintEngine {
             pbs_level,
         );
 
-        // For now optimal threads for m6i.metal accross 1_1, 2_2, 3_3 and 4_4 params
+        // For now optimal threads for m6i.metal across 1_1, 2_2, 3_3 and 4_4 params
         match grouping_factor.0 {
             2 => ThreadCount(5),
             3 => ThreadCount(7),

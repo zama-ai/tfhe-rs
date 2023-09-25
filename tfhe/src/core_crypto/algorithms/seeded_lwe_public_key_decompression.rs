@@ -34,7 +34,7 @@ pub fn decompress_seeded_lwe_public_key<Scalar, InputCont, OutputCont, Gen>(
 }
 
 /// Decompress a [`SeededLwePublicKey`], without consuming it, into a standard
-/// [`LwePublicKey`] using mutliple threads.
+/// [`LwePublicKey`] using multiple threads.
 pub fn par_decompress_seeded_lwe_public_key<Scalar, InputCont, OutputCont, Gen>(
     output_pk: &mut LwePublicKey<OutputCont>,
     input_pk: &SeededLwePublicKey<InputCont>,

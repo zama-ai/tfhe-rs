@@ -243,7 +243,7 @@ impl ServerKey {
     /// than all returned block will encrypt 1
     ///
     /// The returned Vec will have less block than the number of input blocks.
-    /// The returned blocks potentialy needs to be 'reduced' to one block
+    /// The returned blocks potentially needs to be 'reduced' to one block
     /// with eg are_all_comparisons_block_true.
     ///
     /// This function exists because sometimes it is faster to concatenate

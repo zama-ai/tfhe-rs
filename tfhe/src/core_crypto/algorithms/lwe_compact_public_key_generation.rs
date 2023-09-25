@@ -31,7 +31,7 @@ pub fn generate_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>
     assert!(
         lwe_secret_key.lwe_dimension() == output.lwe_dimension(),
         "Mismatched LweDimension between input LweSecretKey {:?} \
-    and ouptut LweCompactPublicKey {:?}",
+    and output LweCompactPublicKey {:?}",
         lwe_secret_key.lwe_dimension(),
         output.lwe_dimension()
     );
@@ -97,7 +97,7 @@ pub fn generate_seeded_lwe_compact_public_key<Scalar, InputKeyCont, OutputKeyCon
     assert!(
         lwe_secret_key.lwe_dimension() == output.lwe_dimension(),
         "Mismatched LweDimension between input LweSecretKey {:?} \
-    and ouptut LweCompactPublicKey {:?}",
+    and output LweCompactPublicKey {:?}",
         lwe_secret_key.lwe_dimension(),
         output.lwe_dimension()
     );

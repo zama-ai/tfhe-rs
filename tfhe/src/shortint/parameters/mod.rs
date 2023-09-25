@@ -49,7 +49,7 @@ pub type CiphertextModulus = CoreCiphertextModulus<u64>;
 ///   the PBS goes from the small key to the large key.
 /// * The `Small` choice means the small LWE key is used to encrypt the input ciphertext.
 ///   Performance is not as good as in the `Big` case but (`public
-///   key`)[`super::public_key::PublicKey`] sizes are much more manageable and shoud always fit in
+///   key`)[`super::public_key::PublicKey`] sizes are much more manageable and should always fit in
 ///   memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
 ///   first followed by a keyswitch, the PBS goes from the small key to the large key and the
 ///   keyswitch goes from the large key to the small key.

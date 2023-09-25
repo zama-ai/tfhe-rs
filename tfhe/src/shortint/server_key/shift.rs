@@ -349,7 +349,7 @@ impl ServerKey {
 
     /// Compute homomorphically a left shift of the bits.
     ///
-    /// This writes the resul in `ct`.
+    /// This writes the result in `ct`.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and

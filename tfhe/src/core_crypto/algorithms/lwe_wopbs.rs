@@ -132,7 +132,7 @@ pub fn generate_circuit_bootstrap_lwe_pfpksk_list<
         PolynomialCount(1),
     );
     // We apply the x -> -x function so instead of putting one in the first coeff of the
-    // polynomial, we put Scalar::MAX == - Sclar::One so that we can use a single function in
+    // polynomial, we put Scalar::MAX == - Scalar::One so that we can use a single function in
     // the loop avoiding branching
     last_polynomial_as_list.get_mut(0)[0] = Scalar::MAX;
 
@@ -269,7 +269,7 @@ pub fn par_generate_circuit_bootstrap_lwe_pfpksk_list<
         PolynomialCount(1),
     );
     // We apply the x -> -x function so instead of putting one in the first coeff of the
-    // polynomial, we put Scalar::MAX == - Sclar::One so that we can use a single function in
+    // polynomial, we put Scalar::MAX == - Scalar::One so that we can use a single function in
     // the loop avoiding branching
     last_polynomial_as_list.get_mut(0)[0] = Scalar::MAX;
 

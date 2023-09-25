@@ -77,7 +77,7 @@ The figure below illustrates this problem in the case of an addition, where an e
 
 ### Programmable BootStrapping (PBS)
 
-The bootstrapping of TFHE has the particularity of being programmable: this means that any function can be homomorphically computed over an encrypted input, while also reducing the noise. These functions are represented by look-up tables. The computation of a PBS is in general either preceded or followed by a keyswitch, which is an operation used to change the encryption key. The output ciphertext is then encrypted with the same key as the input one. To do this, two (public) evaluation keys are required: a boostrapping key and a keyswitching key. These operations are quite complex to describe, more information about these operations (or about TFHE in general) can be found here [TFHE Deep Dive](https://www.zama.ai/post/tfhe-deep-dive-part-1).
+The bootstrapping of TFHE has the particularity of being programmable: this means that any function can be homomorphically computed over an encrypted input, while also reducing the noise. These functions are represented by look-up tables. The computation of a PBS is in general either preceded or followed by a keyswitch, which is an operation used to change the encryption key. The output ciphertext is then encrypted with the same key as the input one. To do this, two (public) evaluation keys are required: a bootstrapping key and a keyswitching key. These operations are quite complex to describe, more information about these operations (or about TFHE in general) can be found here [TFHE Deep Dive](https://www.zama.ai/post/tfhe-deep-dive-part-1).
 
 
 ### Carry.

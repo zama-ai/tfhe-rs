@@ -5,7 +5,7 @@
 use core::ops::{Index, IndexMut};
 
 /// StaticDeque: a struct implementing a deque whose size is known at compile time.
-/// It has 2 members: the static array conatining the data (never empty), and a cursor
+/// It has 2 members: the static array containing the data (never empty), and a cursor
 /// equal to the index of the oldest element (and the next one to be overwritten).
 #[derive(Clone)]
 pub struct StaticDeque<const N: usize, T> {
