@@ -2,7 +2,8 @@ use core::ops::{AddAssign, BitAnd, ShlAssign, ShrAssign};
 use std::ops::{BitOrAssign, Shl, Sub};
 
 use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric};
-use crate::integer::{I256, I512, U256, U512};
+use crate::integer::bigint::static_signed::StaticSignedBigInt;
+use crate::integer::bigint::static_unsigned::StaticUnsignedBigInt;
 
 // These work for signed number as rust uses 2-Complements
 // And Arithmetic shift for signed number (logical for unsigned)
@@ -48,9 +49,21 @@ macro_rules! impl_recomposable_decomposable {
     };
 }
 
-impl_recomposable_decomposable!(
-    u8, u16, u32, u64, u128, U256, U512, i8, i16, i32, i64, i128, I256, I512
-);
+impl_recomposable_decomposable!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128,);
+
+impl<const N: usize> Decomposable for StaticSignedBigInt<N> {}
+impl<const N: usize> Recomposable for StaticSignedBigInt<N> {}
+impl<const N: usize> RecomposableFrom<u64> for StaticSignedBigInt<N> {}
+impl<const N: usize> RecomposableFrom<u8> for StaticSignedBigInt<N> {}
+impl<const N: usize> DecomposableInto<u64> for StaticSignedBigInt<N> {}
+impl<const N: usize> DecomposableInto<u8> for StaticSignedBigInt<N> {}
+
+impl<const N: usize> Decomposable for StaticUnsignedBigInt<N> {}
+impl<const N: usize> Recomposable for StaticUnsignedBigInt<N> {}
+impl<const N: usize> RecomposableFrom<u64> for StaticUnsignedBigInt<N> {}
+impl<const N: usize> RecomposableFrom<u8> for StaticUnsignedBigInt<N> {}
+impl<const N: usize> DecomposableInto<u64> for StaticUnsignedBigInt<N> {}
+impl<const N: usize> DecomposableInto<u8> for StaticUnsignedBigInt<N> {}
 
 #[derive(Copy, Clone)]
 pub struct BlockDecomposer<T> {

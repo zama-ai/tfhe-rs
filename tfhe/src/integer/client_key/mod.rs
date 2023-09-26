@@ -19,6 +19,7 @@ use crate::shortint::{
 use serde::{Deserialize, Serialize};
 pub use utils::radix_decomposition;
 
+use crate::integer::bigint::static_signed::StaticSignedBigInt;
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 
@@ -45,6 +46,8 @@ impl RecomposableSignedInteger for i16 {}
 impl RecomposableSignedInteger for i32 {}
 impl RecomposableSignedInteger for i64 {}
 impl RecomposableSignedInteger for i128 {}
+
+impl<const N: usize> RecomposableSignedInteger for StaticSignedBigInt<N> {}
 
 /// A structure containing the client key, which must be kept secret.
 ///
