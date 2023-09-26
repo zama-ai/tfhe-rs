@@ -6,7 +6,7 @@ pub mod comparator;
 mod crt;
 mod crt_parallel;
 mod radix;
-mod radix_parallel;
+pub(crate) mod radix_parallel;
 
 use crate::integer::client_key::ClientKey;
 use crate::shortint::server_key::MaxDegree;

@@ -20,9 +20,11 @@ mod shift;
 mod sub;
 
 #[cfg(test)]
+pub(crate) mod tests_cases_unsigned;
+#[cfg(test)]
 mod tests_signed;
 #[cfg(test)]
-mod tests_unsigned;
+pub(crate) mod tests_unsigned;
 
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 

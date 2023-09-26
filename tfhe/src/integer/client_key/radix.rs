@@ -104,3 +104,9 @@ impl From<(ClientKey, usize)> for RadixClientKey {
         Self { key, num_blocks }
     }
 }
+
+impl From<RadixClientKey> for ClientKey {
+    fn from(ck: RadixClientKey) -> Self {
+        ck.key
+    }
+}
