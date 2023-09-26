@@ -64,6 +64,50 @@ where
     y.wrapping_rem(Scalar::ONE.shl(log2_modulo))
 }
 
+/// Compute the smallest signed difference between two torus elements
+pub fn torus_modular_diff<T: UnsignedInteger>(
+    first: T,
+    other: T,
+    modulus: CiphertextModulus<T>,
+) -> f64 {
+    if modulus.is_native_modulus() {
+        let bits = T::BITS as i32;
+        // Using the [0; 1[ torus to reason
+        // Example with first = 0.1 and other = 0.9
+        // d0 = first - other = -0.8 = 0.2 mod 1
+        // d1 = other - first = 0.8
+        // d0 < d1 return 0.2
+        // if other and first are inverted we get
+        // d0 = 0.8
+        // d1 = 0.2
+        // d1 <= d0 return -0.2, the minus here can be seen as taking first as a reference
+        // In the first example adding 0.2 to other (0.9 + 0.2 mod 1 = 0.1) gets us to first
+        // In the second example adding -0.2 to other (0.1 - 0.2 mod 1 = 0.9) gets us to first
+        let d0 = first.wrapping_sub(other);
+        let d1 = other.wrapping_sub(first);
+        if d0 < d1 {
+            let d: f64 = d0.cast_into();
+            d / 2_f64.powi(bits)
+        } else {
+            let d: f64 = d1.cast_into();
+            -d / 2_f64.powi(bits)
+        }
+    } else {
+        let custom_modulus = T::cast_from(modulus.get_custom_modulus());
+        let d0 = first.wrapping_sub_custom_mod(other, custom_modulus);
+        let d1 = other.wrapping_sub_custom_mod(first, custom_modulus);
+        if d0 < d1 {
+            let d: f64 = d0.cast_into();
+            let cm_f: f64 = custom_modulus.cast_into();
+            d / cm_f
+        } else {
+            let d: f64 = d1.cast_into();
+            let cm_f: f64 = custom_modulus.cast_into();
+            -d / cm_f
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

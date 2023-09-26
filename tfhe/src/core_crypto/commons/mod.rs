@@ -56,7 +56,7 @@ pub mod traits;
 pub mod test_tools {
     use rand::Rng;
 
-    use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
+    pub use crate::core_crypto::algorithms::misc::torus_modular_diff;
     use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
     use crate::core_crypto::commons::generators::{
         EncryptionRandomGenerator, SecretRandomGenerator,
@@ -75,32 +75,6 @@ pub mod test_tools {
         let d0 = first.wrapping_sub(other);
         let d1 = other.wrapping_sub(first);
         d0.min(d1)
-    }
-
-    pub fn torus_modular_distance<T: UnsignedInteger>(
-        first: T,
-        other: T,
-        modulus: CiphertextModulus<T>,
-    ) -> f64 {
-        if modulus.is_compatible_with_native_modulus() {
-            let bits = if modulus.is_native_modulus() {
-                T::BITS as i32
-            } else {
-                modulus.get_custom_modulus().ilog2() as i32
-            };
-
-            let d0 = first.wrapping_sub(other);
-            let d1 = other.wrapping_sub(first);
-            if d0 < d1 {
-                let d: f64 = d0.cast_into();
-                d / 2_f64.powi(bits)
-            } else {
-                let d: f64 = d1.cast_into();
-                -d / 2_f64.powi(bits)
-            }
-        } else {
-            todo!("Currently unimplemented for non power of 2 moduli")
-        }
     }
 
     pub fn variance(samples: &[f64]) -> Variance {
