@@ -13,6 +13,7 @@ use concrete_security_curves::gaussian::security::minimal_variance_glwe;
 use itertools::iproduct;
 use std::fs::OpenOptions;
 use std::io::Write;
+use tfhe::core_crypto::algorithms::misc::torus_modular_diff;
 use tfhe::core_crypto::prelude::*;
 
 pub const DEBUG: bool = false;
@@ -138,7 +139,7 @@ fn mean(data: &[f64]) -> Option<f64> {
     }
 }
 
-fn std_deviation(data: &[f64], modulus_log2: u32) -> Option<StandardDev> {
+fn std_deviation(data: &[f64]) -> Option<StandardDev> {
     // from https://rust-lang-nursery.github.io/rust-cookbook/science/mathematics/statistics.html
     // replacing the mean by 0. as we theoretically know it
     match (mean(data), data.len()) {
@@ -153,28 +154,26 @@ fn std_deviation(data: &[f64], modulus_log2: u32) -> Option<StandardDev> {
                 .sum::<f64>()
                 / count as f64;
 
-            Some(StandardDev::from_modular_standard_dev(
-                variance.sqrt(),
-                modulus_log2,
-            ))
+            Some(StandardDev::from_standard_dev(variance.sqrt()))
         }
         _ => None,
     }
 }
 
-fn compute_error<Scalar: UnsignedInteger>(
+fn compute_torus_diff<Scalar: UnsignedInteger>(
     errs: &mut [f64],
     output: Vec<Scalar>,
     input: Vec<Scalar>,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
     bit: Scalar,
 ) {
     if bit == Scalar::ONE {
         for (&out, (&inp, err)) in output.iter().zip(input.iter().zip(errs.iter_mut())) {
-            *err = (out.wrapping_sub(inp)).into_signed().cast_into();
+            *err = torus_modular_diff(out, inp, ciphertext_modulus);
         }
     } else if bit == Scalar::ZERO {
         for (&out, err) in output.iter().zip(errs.iter_mut()) {
-            *err = out.into_signed().cast_into();
+            *err = torus_modular_diff(out, Scalar::ZERO, ciphertext_modulus);
         }
     } else {
         panic!("Not a bit: {:?}", bit);
@@ -512,15 +511,16 @@ fn main() {
                         let output_plaintext_vector =
                             outputs.into_iter().flatten().collect::<Vec<_>>();
 
-                        compute_error(
+                        compute_torus_diff(
                             errs,
                             output_plaintext_vector,
                             raw_input_plaintext_vector,
+                            parameters.ciphertext_modulus,
                             parameters.ggsw_encrypted_value,
                         );
                     }
                     let _mean_err = mean(&errors).unwrap();
-                    let std_err = std_deviation(&errors, modulus_log2).unwrap();
+                    let std_err = std_deviation(&errors).unwrap();
                     let mean_runtime_ns =
                         total_runtime_ns / ((total_repetitions * sample_size) as u128);
                     // GGSW is prepared only once per sample
@@ -684,15 +684,16 @@ fn main() {
                         let output_plaintext_vector =
                             outputs.into_iter().flatten().collect::<Vec<_>>();
 
-                        compute_error(
+                        compute_torus_diff(
                             errs,
                             output_plaintext_vector,
                             raw_input_plaintext_vector,
+                            parameters.ciphertext_modulus,
                             parameters.ggsw_encrypted_value,
                         );
                     }
                     let _mean_err = mean(&errors).unwrap();
-                    let std_err = std_deviation(&errors, modulus_log2).unwrap();
+                    let std_err = std_deviation(&errors).unwrap();
                     let mean_runtime_ns =
                         total_runtime_ns / ((total_repetitions * sample_size) as u128);
                     // GGSW is prepared only once per sample

@@ -1,5 +1,7 @@
 use crate::GlweCiphertextGgswCiphertextExternalProductParameters;
 use aligned_vec::CACHELINE_ALIGN;
+use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+use tfhe::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
 use tfhe::core_crypto::fft_impl::fft128::crypto::ggsw::{
     add_external_product_assign, Fourier128GgswCiphertext,
 };
@@ -27,6 +29,8 @@ pub fn classic_pbs_external_product(
     fft: FftView,
     computation_buffers: &mut ComputationBuffers,
 ) -> (u128, u128) {
+    let ciphertext_modulus = parameters.ciphertext_modulus;
+
     let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
         parameters.glwe_dimension,
         parameters.polynomial_size,
@@ -39,7 +43,7 @@ pub fn classic_pbs_external_product(
         parameters.polynomial_size,
         parameters.decomposition_base_log,
         parameters.decomposition_level_count,
-        parameters.ciphertext_modulus,
+        ciphertext_modulus,
     );
 
     encrypt_constant_ggsw_ciphertext(
@@ -81,8 +85,8 @@ pub fn classic_pbs_external_product(
         });
 
         // Sanity check
-        if !parameters.ciphertext_modulus.is_native_modulus() {
-            let modulus: u64 = parameters.ciphertext_modulus.get_custom_modulus() as u64;
+        if !ciphertext_modulus.is_native_modulus() {
+            let modulus: u64 = ciphertext_modulus.get_custom_modulus() as u64;
             assert!(input_plaintext_list.as_ref().iter().all(|x| *x < modulus));
         }
 
@@ -90,7 +94,7 @@ pub fn classic_pbs_external_product(
             0u64,
             parameters.glwe_dimension.to_glwe_size(),
             parameters.polynomial_size,
-            parameters.ciphertext_modulus,
+            ciphertext_modulus,
         );
 
         encrypt_glwe_ciphertext(
@@ -105,7 +109,7 @@ pub fn classic_pbs_external_product(
             0u64,
             parameters.glwe_dimension.to_glwe_size(),
             parameters.polynomial_size,
-            parameters.ciphertext_modulus,
+            ciphertext_modulus,
         );
 
         let start = std::time::Instant::now();
@@ -118,6 +122,21 @@ pub fn classic_pbs_external_product(
             computation_buffers.stack(),
         );
 
+        if !ciphertext_modulus.is_native_modulus() {
+            // When we convert back from the fourier domain, integer values will contain up to 53
+            // MSBs with information. In our representation of power of 2 moduli < native modulus we
+            // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+            // round while keeping the data in the MSBs
+            let signed_decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
+                DecompositionLevelCount(1),
+            );
+            output_glwe_ciphertext
+                .as_mut()
+                .iter_mut()
+                .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+        }
+
         let elapsed = start.elapsed().as_nanos();
         sample_runtime_ns += elapsed;
 
@@ -129,8 +148,8 @@ pub fn classic_pbs_external_product(
         );
 
         // Sanity check
-        if !parameters.ciphertext_modulus.is_native_modulus() {
-            let modulus: u64 = parameters.ciphertext_modulus.get_custom_modulus() as u64;
+        if !ciphertext_modulus.is_native_modulus() {
+            let modulus: u64 = ciphertext_modulus.get_custom_modulus() as u64;
             assert!(output_plaintext_list.as_ref().iter().all(|x| *x < modulus));
         }
 
@@ -153,6 +172,8 @@ pub fn classic_pbs_external_product_u128_split(
     fft: Fft128View,
     computation_buffers: &mut ComputationBuffers,
 ) -> (u128, u128) {
+    let ciphertext_modulus = parameters.ciphertext_modulus;
+
     let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
         parameters.glwe_dimension,
         parameters.polynomial_size,
@@ -165,7 +186,7 @@ pub fn classic_pbs_external_product_u128_split(
         parameters.polynomial_size,
         parameters.decomposition_base_log,
         parameters.decomposition_level_count,
-        parameters.ciphertext_modulus,
+        ciphertext_modulus,
     );
 
     encrypt_constant_ggsw_ciphertext(
@@ -204,8 +225,8 @@ pub fn classic_pbs_external_product_u128_split(
         });
 
         // Sanity check
-        if !parameters.ciphertext_modulus.is_native_modulus() {
-            let modulus = parameters.ciphertext_modulus.get_custom_modulus();
+        if !ciphertext_modulus.is_native_modulus() {
+            let modulus = ciphertext_modulus.get_custom_modulus();
             assert!(input_plaintext_list.as_ref().iter().all(|x| *x < modulus));
         }
 
@@ -213,7 +234,7 @@ pub fn classic_pbs_external_product_u128_split(
             0u128,
             parameters.glwe_dimension.to_glwe_size(),
             parameters.polynomial_size,
-            parameters.ciphertext_modulus,
+            ciphertext_modulus,
         );
 
         encrypt_glwe_ciphertext(
@@ -228,7 +249,7 @@ pub fn classic_pbs_external_product_u128_split(
             0u128,
             parameters.glwe_dimension.to_glwe_size(),
             parameters.polynomial_size,
-            parameters.ciphertext_modulus,
+            ciphertext_modulus,
         );
 
         let stack = computation_buffers.stack();
@@ -319,6 +340,21 @@ pub fn classic_pbs_external_product_u128_split(
             )
             .for_each(|(out, (&lo, &hi))| *out = lo as u128 | ((hi as u128) << 64));
 
+        if !ciphertext_modulus.is_native_modulus() {
+            // When we convert back from the fourier domain, integer values will contain up to 53
+            // MSBs with information. In our representation of power of 2 moduli < native modulus we
+            // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+            // round while keeping the data in the MSBs
+            let signed_decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
+                DecompositionLevelCount(1),
+            );
+            output_glwe_ciphertext
+                .as_mut()
+                .iter_mut()
+                .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+        }
+
         let mut output_plaintext_list = input_plaintext_list.clone();
         decrypt_glwe_ciphertext(
             &glwe_secret_key,
@@ -327,8 +363,8 @@ pub fn classic_pbs_external_product_u128_split(
         );
 
         // Sanity check
-        if !parameters.ciphertext_modulus.is_native_modulus() {
-            let modulus = parameters.ciphertext_modulus.get_custom_modulus();
+        if !ciphertext_modulus.is_native_modulus() {
+            let modulus = ciphertext_modulus.get_custom_modulus();
             assert!(output_plaintext_list.as_ref().iter().all(|x| *x < modulus));
         }
 
@@ -351,6 +387,8 @@ pub fn classic_pbs_external_product_u128(
     fft: Fft128View,
     computation_buffers: &mut ComputationBuffers,
 ) -> (u128, u128) {
+    let ciphertext_modulus = parameters.ciphertext_modulus;
+
     let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
         parameters.glwe_dimension,
         parameters.polynomial_size,
@@ -363,7 +401,7 @@ pub fn classic_pbs_external_product_u128(
         parameters.polynomial_size,
         parameters.decomposition_base_log,
         parameters.decomposition_level_count,
-        parameters.ciphertext_modulus,
+        ciphertext_modulus,
     );
 
     encrypt_constant_ggsw_ciphertext(
@@ -402,8 +440,8 @@ pub fn classic_pbs_external_product_u128(
         });
 
         // Sanity check
-        if !parameters.ciphertext_modulus.is_native_modulus() {
-            let modulus = parameters.ciphertext_modulus.get_custom_modulus();
+        if !ciphertext_modulus.is_native_modulus() {
+            let modulus = ciphertext_modulus.get_custom_modulus();
             assert!(input_plaintext_list.as_ref().iter().all(|x| *x < modulus));
         }
 
@@ -411,7 +449,7 @@ pub fn classic_pbs_external_product_u128(
             0u128,
             parameters.glwe_dimension.to_glwe_size(),
             parameters.polynomial_size,
-            parameters.ciphertext_modulus,
+            ciphertext_modulus,
         );
 
         encrypt_glwe_ciphertext(
@@ -426,7 +464,7 @@ pub fn classic_pbs_external_product_u128(
             0u128,
             parameters.glwe_dimension.to_glwe_size(),
             parameters.polynomial_size,
-            parameters.ciphertext_modulus,
+            ciphertext_modulus,
         );
 
         let start = std::time::Instant::now();
@@ -439,6 +477,21 @@ pub fn classic_pbs_external_product_u128(
             computation_buffers.stack(),
         );
 
+        if !ciphertext_modulus.is_native_modulus() {
+            // When we convert back from the fourier domain, integer values will contain up to 53
+            // MSBs with information. In our representation of power of 2 moduli < native modulus we
+            // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+            // round while keeping the data in the MSBs
+            let signed_decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
+                DecompositionLevelCount(1),
+            );
+            output_glwe_ciphertext
+                .as_mut()
+                .iter_mut()
+                .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+        }
+
         let elapsed = start.elapsed().as_nanos();
         sample_runtime_ns += elapsed;
 
@@ -450,8 +503,8 @@ pub fn classic_pbs_external_product_u128(
         );
 
         // Sanity check
-        if !parameters.ciphertext_modulus.is_native_modulus() {
-            let modulus = parameters.ciphertext_modulus.get_custom_modulus();
+        if !ciphertext_modulus.is_native_modulus() {
+            let modulus = ciphertext_modulus.get_custom_modulus();
             assert!(output_plaintext_list.as_ref().iter().all(|x| *x < modulus));
         }
 
