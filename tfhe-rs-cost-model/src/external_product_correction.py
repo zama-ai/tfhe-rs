@@ -6,6 +6,7 @@ import datetime
 import json
 import pathlib
 import subprocess
+import functools
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -218,29 +219,43 @@ def remove_outlier(bits, x_values, y_values):
     return x_values, y_values
 
 
-def fft_noise(x, a):
+def fft_noise(x, a, log2_q):
     """
     Noise formula for FFTW.
     """
+    # 53 bits of mantissa kept at most
+    bits_lost_per_conversion = max(0, log2_q - 53)
+    bit_lost_roundtrip = 2 * bits_lost_per_conversion
+
     N = x[:, 0]
     k = x[:, 1]
     level = x[:, 2]
     logbase = x[:, 3]
     theoretical_var = x[:, -1]
-    return 2**a * 2**22 * (k + 1) * level * 2.0 ** (2 * logbase) * N**2 + theoretical_var
+    return (
+        2**a * 2**bit_lost_roundtrip * (k + 1) * level * 2.0 ** (2 * logbase) * N**2
+        + theoretical_var
+    )
 
 
-def fft_noise_128(x, a):
+def fft_noise_128(x, a, log2_q):
     """
     Noise formula for f128 fft
     """
+    # 106 bits of mantissa kept at most
+    bits_lost_per_conversion = max(0, log2_q - 106)
+    bit_lost_roundtrip = 2 * bits_lost_per_conversion
+
     N = x[:, 0]
     k = x[:, 1]
     level = x[:, 2]
     logbase = x[:, 3]
     theoretical_var = x[:, -1]
     # we lose 2 * 11 bits of mantissa per conversion 22 * 2 = 44
-    return 2**a * 2**44 * (k + 1) * level * 2.0 ** (2 * logbase) * N**2 + theoretical_var
+    return (
+        2**a * 2**bit_lost_roundtrip * (k + 1) * level * 2.0 ** (2 * logbase) * N**2
+        + theoretical_var
+    )
 
 
 def log_fft_noise_fun(x, a, fft_noise_fun):
@@ -394,6 +409,19 @@ def main():
 
     sampling_args = list(filter(lambda x: x != "--", args.sampling_args))
 
+    bits = 64
+    fft_noise_fun = fft_noise
+    if any(arg in ["ext-prod-u128-split", "ext-prod-u128"] for arg in sampling_args):
+        fft_noise_fun = fft_noise_128
+        bits = 128
+
+    for idx, flag_or_value in enumerate(sampling_args):
+        if flag_or_value in ["-q", "--modulus-log2"]:
+            bits = int(sampling_args[idx + 1])
+            break
+
+    fft_noise_fun = functools.partial(fft_noise_fun, log2_q=bits)
+
     if not args.analysis_only:
         if not build_sampler(rust_toolchain):
             print("Error while building sampler. Exiting")
@@ -424,12 +452,6 @@ def main():
                 exit(1)
 
     result_file = concatenate_result_files(args.dir)
-
-    bits = 64
-    fft_noise_fun = fft_noise
-    if any(arg in ["ext-prod-u128-split", "ext-prod-u128"] for arg in sampling_args):
-        fft_noise_fun = fft_noise_128
-        bits = 128
 
     if args.worst_case_analysis:
         max_a = get_weights(result_file, fft_noise_fun, bits)["a"]
