@@ -70,11 +70,21 @@ pub fn classic_pbs_external_product(
         let mut input_plaintext_list =
             PlaintextList::new(0u64, PlaintextCount(parameters.polynomial_size.0));
         encryption_random_generator.fill_slice_with_random_mask(input_plaintext_list.as_mut());
+        let scaling_to_native_torus = parameters
+            .ciphertext_modulus
+            .get_power_of_two_scaling_to_native_torus();
         // Shift to match the behavior of the previous concrete-core fixtures
-        input_plaintext_list
-            .as_mut()
-            .iter_mut()
-            .for_each(|x| *x <<= <u64 as Numeric>::BITS - parameters.decomposition_base_log.0);
+        // Divide as encryption will encode the power of two in the MSBs
+        input_plaintext_list.as_mut().iter_mut().for_each(|x| {
+            *x = (*x << (<u64 as Numeric>::BITS - parameters.decomposition_base_log.0))
+                / scaling_to_native_torus
+        });
+
+        // Sanity check
+        if !parameters.ciphertext_modulus.is_native_modulus() {
+            let modulus: u64 = parameters.ciphertext_modulus.get_custom_modulus() as u64;
+            assert!(input_plaintext_list.as_ref().iter().all(|x| *x < modulus));
+        }
 
         let mut input_glwe_ciphertext = GlweCiphertext::new(
             0u64,
@@ -117,6 +127,12 @@ pub fn classic_pbs_external_product(
             &output_glwe_ciphertext,
             &mut output_plaintext_list,
         );
+
+        // Sanity check
+        if !parameters.ciphertext_modulus.is_native_modulus() {
+            let modulus: u64 = parameters.ciphertext_modulus.get_custom_modulus() as u64;
+            assert!(output_plaintext_list.as_ref().iter().all(|x| *x < modulus));
+        }
 
         raw_inputs.push(input_plaintext_list.into_container());
         outputs.push(output_plaintext_list.into_container());
@@ -177,11 +193,21 @@ pub fn classic_pbs_external_product_u128_split(
         let mut input_plaintext_list =
             PlaintextList::new(0u128, PlaintextCount(parameters.polynomial_size.0));
         encryption_random_generator.fill_slice_with_random_mask(input_plaintext_list.as_mut());
+        let scaling_to_native_torus = parameters
+            .ciphertext_modulus
+            .get_power_of_two_scaling_to_native_torus();
         // Shift to match the behavior of the previous concrete-core fixtures
-        input_plaintext_list
-            .as_mut()
-            .iter_mut()
-            .for_each(|x| *x <<= <u128 as Numeric>::BITS - parameters.decomposition_base_log.0);
+        // Divide as encryption will encode the power of two in the MSBs
+        input_plaintext_list.as_mut().iter_mut().for_each(|x| {
+            *x = (*x << (<u128 as Numeric>::BITS - parameters.decomposition_base_log.0))
+                / scaling_to_native_torus
+        });
+
+        // Sanity check
+        if !parameters.ciphertext_modulus.is_native_modulus() {
+            let modulus = parameters.ciphertext_modulus.get_custom_modulus();
+            assert!(input_plaintext_list.as_ref().iter().all(|x| *x < modulus));
+        }
 
         let mut input_glwe_ciphertext = GlweCiphertext::new(
             0u128,
@@ -300,6 +326,12 @@ pub fn classic_pbs_external_product_u128_split(
             &mut output_plaintext_list,
         );
 
+        // Sanity check
+        if !parameters.ciphertext_modulus.is_native_modulus() {
+            let modulus = parameters.ciphertext_modulus.get_custom_modulus();
+            assert!(output_plaintext_list.as_ref().iter().all(|x| *x < modulus));
+        }
+
         raw_inputs.push(input_plaintext_list.into_container());
         outputs.push(output_plaintext_list.into_container());
     }
@@ -359,11 +391,21 @@ pub fn classic_pbs_external_product_u128(
         let mut input_plaintext_list =
             PlaintextList::new(0u128, PlaintextCount(parameters.polynomial_size.0));
         encryption_random_generator.fill_slice_with_random_mask(input_plaintext_list.as_mut());
+        let scaling_to_native_torus = parameters
+            .ciphertext_modulus
+            .get_power_of_two_scaling_to_native_torus();
         // Shift to match the behavior of the previous concrete-core fixtures
-        input_plaintext_list
-            .as_mut()
-            .iter_mut()
-            .for_each(|x| *x <<= <u128 as Numeric>::BITS - parameters.decomposition_base_log.0);
+        // Divide as encryption will encode the power of two in the MSBs
+        input_plaintext_list.as_mut().iter_mut().for_each(|x| {
+            *x = (*x << (<u128 as Numeric>::BITS - parameters.decomposition_base_log.0))
+                / scaling_to_native_torus
+        });
+
+        // Sanity check
+        if !parameters.ciphertext_modulus.is_native_modulus() {
+            let modulus = parameters.ciphertext_modulus.get_custom_modulus();
+            assert!(input_plaintext_list.as_ref().iter().all(|x| *x < modulus));
+        }
 
         let mut input_glwe_ciphertext = GlweCiphertext::new(
             0u128,
@@ -406,6 +448,12 @@ pub fn classic_pbs_external_product_u128(
             &output_glwe_ciphertext,
             &mut output_plaintext_list,
         );
+
+        // Sanity check
+        if !parameters.ciphertext_modulus.is_native_modulus() {
+            let modulus = parameters.ciphertext_modulus.get_custom_modulus();
+            assert!(output_plaintext_list.as_ref().iter().all(|x| *x < modulus));
+        }
 
         raw_inputs.push(input_plaintext_list.into_container());
         outputs.push(output_plaintext_list.into_container());

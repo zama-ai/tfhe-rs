@@ -65,6 +65,8 @@ struct Args {
     ], default_value = "")]
     algorithm: String,
     multi_bit_grouping_factor: Option<usize>,
+    #[clap(long, short = 'q')]
+    modulus_log2: Option<u32>,
 }
 
 fn variance_to_stddev(var: Variance) -> StandardDev {
@@ -121,8 +123,8 @@ fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
     let _ = file.write(data_to_save.as_bytes()).unwrap();
 }
 
-fn minimal_variance_for_security<Scalar: Numeric>(k: GlweDimension, size: PolynomialSize) -> f64 {
-    minimal_variance_glwe(k.0 as u64, size.0 as u64, Scalar::BITS as u32, 128)
+fn minimal_variance_for_security(k: GlweDimension, size: PolynomialSize, modulus_log2: u32) -> f64 {
+    minimal_variance_glwe(k.0 as u64, size.0 as u64, modulus_log2, 128)
 }
 
 fn mean(data: &[f64]) -> Option<f64> {
@@ -136,7 +138,7 @@ fn mean(data: &[f64]) -> Option<f64> {
     }
 }
 
-fn std_deviation<Scalar: Numeric>(data: &[f64]) -> Option<StandardDev> {
+fn std_deviation(data: &[f64], modulus_log2: u32) -> Option<StandardDev> {
     // from https://rust-lang-nursery.github.io/rust-cookbook/science/mathematics/statistics.html
     // replacing the mean by 0. as we theoretically know it
     match (mean(data), data.len()) {
@@ -153,7 +155,7 @@ fn std_deviation<Scalar: Numeric>(data: &[f64]) -> Option<StandardDev> {
 
             Some(StandardDev::from_modular_standard_dev(
                 variance.sqrt(),
-                Scalar::BITS as u32,
+                modulus_log2,
             ))
         }
         _ => None,
@@ -212,6 +214,11 @@ fn main() {
     let total_repetitions = args.repetitions;
     let base_sample_size = args.sample_size;
     let algo = args.algorithm;
+
+    if algo.is_empty() {
+        panic!("No algorithm provided")
+    }
+
     let grouping_factor = match algo.as_str() {
         MULTI_BIT_EXT_PROD_ALGO | STD_MULTI_BIT_EXT_PROD_ALGO => Some(LweBskGroupingFactor(
             args.multi_bit_grouping_factor
@@ -220,9 +227,34 @@ fn main() {
         _ => None,
     };
 
-    if algo.is_empty() {
-        panic!("No algorithm provided")
-    }
+    let modulus: u128 = match args.modulus_log2 {
+        Some(modulus_log2) => {
+            if modulus_log2 > 128 {
+                panic!("Got modulus_log2 > 128, this is not supported");
+            }
+
+            match algo.as_str() {
+                EXT_PROD_ALGO | MULTI_BIT_EXT_PROD_ALGO | STD_MULTI_BIT_EXT_PROD_ALGO => {
+                    if modulus_log2 > 64 {
+                        panic!("Got modulus_log2 > 64, for 64 bits scalars");
+                    }
+
+                    1u128 << modulus_log2
+                }
+                EXT_PROD_U128_SPLIT_ALGO | EXT_PROD_U128_ALGO => {
+                    if modulus_log2 == 128 {
+                        // native
+                        0
+                    } else {
+                        1u128 << modulus_log2
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        // Native
+        None => 0,
+    };
 
     // Parameter Grid
     let polynomial_sizes = vec![
@@ -336,12 +368,22 @@ fn main() {
                 let decomposition_base_log = *decomposition_base_log;
                 let decomposition_level_count = *decomposition_level_count;
                 let polynomial_size = *polynomial_size;
+                let ciphertext_modulus = CiphertextModulus::try_new(modulus).unwrap();
+
+                let modulus_log2 = if ciphertext_modulus.is_native_modulus() {
+                    u64::BITS
+                } else if ciphertext_modulus.is_power_of_two() {
+                    ciphertext_modulus.get_custom_modulus().ilog2()
+                } else {
+                    todo!("Non power of 2 moduli are currently not supported")
+                };
 
                 println!("Chunk part: {:?}/{chunk_size:?} done", curr_idx + 1);
                 let sample_size = base_sample_size * max_polynomial_size.0 / polynomial_size.0;
-                let ggsw_noise = Variance::from_variance(minimal_variance_for_security::<u64>(
+                let ggsw_noise = Variance::from_variance(minimal_variance_for_security(
                     glwe_dimension,
                     polynomial_size,
+                    modulus_log2,
                 ));
                 // We measure the noise added to a GLWE ciphertext, here we can choose to have no
                 // input noise
@@ -360,7 +402,7 @@ fn main() {
                     polynomial_size,
                     decomposition_base_log,
                     decomposition_level_count,
-                    ciphertext_modulus: CiphertextModulus::new_native(),
+                    ciphertext_modulus,
                 };
 
                 println!("params: {parameters:?}");
@@ -373,7 +415,7 @@ fn main() {
                 ggsw_noise,
                 decomposition_base_log,
                 decomposition_level_count,
-                u64::BITS,
+                modulus_log2,
             ),
             MULTI_BIT_EXT_PROD_ALGO => noise_estimation::multi_bit_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
                 polynomial_size,
@@ -381,7 +423,7 @@ fn main() {
                 ggsw_noise,
                 decomposition_base_log,
                 decomposition_level_count,
-                u64::BITS,
+                modulus_log2,
                 grouping_factor.unwrap(),
             ),
             STD_MULTI_BIT_EXT_PROD_ALGO => noise_estimation::multi_bit_pbs_estimate_external_product_noise_with_binary_ggsw_and_glwe(
@@ -390,7 +432,7 @@ fn main() {
                 ggsw_noise,
                 decomposition_base_log,
                 decomposition_level_count,
-                u64::BITS,
+                modulus_log2,
                 grouping_factor.unwrap(),
             ),
             _ => unreachable!(),
@@ -478,7 +520,7 @@ fn main() {
                         );
                     }
                     let _mean_err = mean(&errors).unwrap();
-                    let std_err = std_deviation::<u64>(&errors).unwrap();
+                    let std_err = std_deviation(&errors, modulus_log2).unwrap();
                     let mean_runtime_ns =
                         total_runtime_ns / ((total_repetitions * sample_size) as u128);
                     // GGSW is prepared only once per sample
@@ -528,12 +570,22 @@ fn main() {
                 let decomposition_base_log = *decomposition_base_log;
                 let decomposition_level_count = *decomposition_level_count;
                 let polynomial_size = *polynomial_size;
+                let ciphertext_modulus = CiphertextModulus::try_new(modulus).unwrap();
+
+                let modulus_log2 = if ciphertext_modulus.is_native_modulus() {
+                    u128::BITS
+                } else if ciphertext_modulus.is_power_of_two() {
+                    ciphertext_modulus.get_custom_modulus().ilog2()
+                } else {
+                    todo!("Non power of 2 moduli are currently not supported")
+                };
 
                 println!("Chunk part: {:?}/{chunk_size:?} done", curr_idx + 1);
                 let sample_size = base_sample_size * max_polynomial_size.0 / polynomial_size.0;
-                let ggsw_noise = Variance::from_variance(minimal_variance_for_security::<u128>(
+                let ggsw_noise = Variance::from_variance(minimal_variance_for_security(
                     glwe_dimension,
                     polynomial_size,
+                    modulus_log2,
                 ));
                 // We measure the noise added to a GLWE ciphertext, here we can choose to have no
                 // input noise
@@ -552,7 +604,7 @@ fn main() {
                     polynomial_size,
                     decomposition_base_log,
                     decomposition_level_count,
-                    ciphertext_modulus: CiphertextModulus::new_native(),
+                    ciphertext_modulus,
                 };
 
                 println!("params: {parameters:?}");
@@ -565,7 +617,7 @@ fn main() {
                 ggsw_noise,
                 decomposition_base_log,
                 decomposition_level_count,
-                u128::BITS,
+                modulus_log2,
             ),
             _ => unreachable!(),
         };
@@ -640,7 +692,7 @@ fn main() {
                         );
                     }
                     let _mean_err = mean(&errors).unwrap();
-                    let std_err = std_deviation::<u128>(&errors).unwrap();
+                    let std_err = std_deviation(&errors, modulus_log2).unwrap();
                     let mean_runtime_ns =
                         total_runtime_ns / ((total_repetitions * sample_size) as u128);
                     // GGSW is prepared only once per sample
