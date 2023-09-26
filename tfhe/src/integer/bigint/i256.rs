@@ -99,6 +99,21 @@ mod tests {
     }
 
     #[test]
+    fn test_shr() {
+        let input = i128::MIN;
+        let a = I256::from(input);
+        assert_eq!(a >> 1u32, I256::from(input >> 1));
+
+        let a = I256::MIN;
+        // We expect (MSB) 110............0 (LSB)
+        assert_eq!(
+            a >> 1u32,
+            // 3 is '11'
+            I256::from([0, 0, 0, 3 << 62])
+        );
+    }
+
+    #[test]
     fn test_div_rem() {
         let i64_max = I256::from(i64::MAX);
         let (expected_q, expected_r) = (i64::MAX / i64::MAX, i64::MAX % i64::MAX);
