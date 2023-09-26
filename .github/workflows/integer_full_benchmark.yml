@@ -19,6 +19,10 @@ on:
       request_id:
         description: "Slab request ID"
         type: string
+      user_inputs:
+        description: "Type of benchmarks to run"
+        type: string
+        default: "weekly_benchmarks"
 
 env:
   CARGO_TERM_COLOR: always
@@ -26,8 +30,33 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 jobs:
+  prepare-matrix:
+    name: Prepare operations matrix
+    runs-on: ubuntu-latest
+    outputs:
+      op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
+    steps:
+      - name: Weekly benchmarks
+        if: ${{ github.event.inputs.user_inputs == 'weekly_benchmarks' }}
+        run: |
+          echo "OP_FLAVOR=[\"default\", \"default_comp\", \"default_scalar\", \"default_scalar_comp\"]" >> ${GITHUB_ENV}
+
+      - name: Quarterly benchmarks
+        if: ${{ github.event.inputs.user_inputs == 'quarterly_benchmarks' }}
+        run: |
+          echo "OP_FLAVOR=[\"default\", \"default_comp\", \"default_scalar\", \"default_scalar_comp\", \
+          \"smart\", \"smart_comp\", \"smart_scalar\", \"smart_parallelized\", \"smart_parallelized_comp\", \"smart_scalar_parallelized\", \"smart_scalar_parallelized_comp\", \
+          \"unchecked\", \"unchecked_comp\", \"unchecked_scalar\", \"unchecked_scalar_comp\", \
+          \"misc\"]" >> ${GITHUB_ENV}
+
+      -  name: Set operation flavor output
+         id: set_op_flavor
+         run: |
+          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> ${GITHUB_OUTPUT}
+
   integer-benchmarks:
     name: Execute integer benchmarks for all operations flavor
+    needs: prepare-matrix
     runs-on: ${{ github.event.inputs.runner_name }}
     if: ${{ !cancelled() }}
     continue-on-error: true
@@ -35,7 +64,7 @@ jobs:
       max-parallel: 1
       matrix:
         command: [ integer, integer_multi_bit]
-        op_flavor: [ default, default_comp, default_scalar, default_scalar_comp, smart, smart_comp, smart_scalar, smart_parallelized, smart_parallelized_comp, smart_scalar_parallelized, unchecked, unchecked_comp, unchecked_scalar, unchecked_scalar_comp, misc ]
+        op_flavor: ${{ fromJson(needs.prepare-matrix.outputs.op_flavor) }}
     steps:
       - name: Instance configuration used
         run: |
