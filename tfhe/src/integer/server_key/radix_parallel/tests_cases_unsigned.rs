@@ -1,0 +1,2992 @@
+use crate::integer::keycache::KEY_CACHE;
+use crate::integer::{IntegerRadixCiphertext, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::shortint::parameters::*;
+use rand::Rng;
+
+/// Number of loop iteration within randomized tests
+const NB_TEST: usize = 30;
+
+/// Smaller number of loop iteration within randomized test,
+/// meant for test where the function tested is more expensive
+const NB_TEST_SMALLER: usize = 10;
+const NB_CTXT: usize = 4;
+
+/// helper function to do a rotate left when the type used to store
+/// the value is bigger than the actual intended bit size
+fn rotate_left_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
+    // We start with:
+    // [0000000000000|xxxx]
+    // 64           b    0
+    //
+    // rotated will be
+    // [0000000000xx|xx00]
+    // 64           b    0
+    let n = n % actual_bit_size;
+    let mask = 1u64.wrapping_shl(actual_bit_size) - 1;
+    let shifted_mask = mask.wrapping_shl(n) & !mask;
+
+    let rotated = value.rotate_left(n);
+
+    (rotated & mask) | ((rotated & shifted_mask) >> actual_bit_size)
+}
+
+/// helper function to do a rotate right when the type used to store
+/// the value is bigger than the actual intended bit size
+fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
+    // We start with:
+    // [0000000000000|xxxx]
+    // 64           b    0
+    //
+    // mask: [000000000000|mmmm]
+    // shifted_ mask: [mm0000000000|0000]
+    //
+    // rotated will be
+    // [xx0000000000|00xx]
+    // 64           b    0
+    //
+    // To get the 'cycled' bits where they should be,
+    // we get them using a mask then shift
+    let n = n % actual_bit_size;
+    let mask = 1u64.wrapping_shl(actual_bit_size) - 1;
+    // shifted mask only needs the bits that cycled
+    let shifted_mask = mask.rotate_right(n) & !mask;
+
+    let rotated = value.rotate_right(n);
+
+    (rotated & mask) | ((rotated & shifted_mask) >> (u64::BITS - actual_bit_size))
+}
+
+/// This trait is to be implemented by a struct that is capable
+/// of executing a particular function to be tested.
+pub(crate) trait FunctionExecutor<TestInput, TestOutput> {
+    /// Setups the executor
+    ///
+    /// Implementors are expected to be fully functional after this
+    /// function has been called.
+    fn setup(&mut self, cks: &RadixClientKey, sks: ServerKey);
+
+    /// Executes the function
+    ///
+    /// The function receives some inputs and return some output.
+    /// Implementors may have to do more than just calling the function
+    /// that is being tested (for example input/output may need to be converted)
+    ///
+    /// Look at the test case function to know what are the expected inputs and outputs.
+    fn execute(&mut self, input: TestInput) -> TestOutput;
+}
+
+//=============================================================================
+// Unchecked Tests
+//=============================================================================
+
+pub(crate) fn unchecked_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let encrypted_result = executor.execute((&ctxt_0, &ctxt_1));
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+
+        let expected_result = clear_0.wrapping_add(clear_1) % modulus;
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid add result, expected {clear_0} + {clear_1} \
+            to be {expected_result}, but got {decrypted_result}."
+        );
+    }
+}
+
+pub(crate) fn unchecked_add_assign_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, &'a RadixCiphertext), ()>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        executor.execute((&mut ctxt_0, &ctxt_1));
+        let decrypted_result: u64 = cks.decrypt(&ctxt_0);
+
+        let expected_result = clear_0.wrapping_add(clear_1) % modulus;
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid add result, expected {clear_0} + {clear_1} \
+            to be {expected_result}, but got {decrypted_result}."
+        );
+    }
+}
+
+pub(crate) fn unchecked_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let encrypted_result = executor.execute((&ctxt_0, &ctxt_1));
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+
+        let expected_result = clear_0.wrapping_sub(clear_1) % modulus;
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid sub result, expected {clear_0} - {clear_1} \
+            to be {expected_result}, but got {decrypted_result}."
+        );
+    }
+}
+
+pub(crate) fn unchecked_neg_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+
+        let ctxt = cks.encrypt(clear);
+
+        let encrypted_result = executor.execute(&ctxt);
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+
+        let expected_result = clear.wrapping_neg() % modulus;
+        assert_eq!(decrypted_result, expected_result);
+    }
+}
+
+pub(crate) fn unchecked_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let encrypted_result = executor.execute((&ctxt_0, &ctxt_1));
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+
+        let expected_result = clear_0.wrapping_mul(clear_1) % modulus;
+        assert_eq!(decrypted_result, expected_result);
+    }
+}
+
+pub(crate) fn unchecked_block_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a RadixCiphertext, &'a crate::shortint::Ciphertext, usize),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let block_modulus = cks.parameters().message_modulus().0 as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % block_modulus;
+
+        let index = rng.gen_range(0..=(NB_CTXT - 1) as u32);
+        let multiplier = cks.parameters().message_modulus().0.pow(index) as u64;
+        let index = index as usize;
+
+        let ct_zero = cks.encrypt(clear_0);
+        let ct_one = cks.encrypt_one_block(clear_1);
+
+        let ct_res = executor.execute((&ct_zero, &ct_one, index));
+        let dec_res: u64 = cks.decrypt(&ct_res);
+
+        let expected = clear_0.wrapping_mul(clear_1).wrapping_mul(multiplier) % modulus;
+        assert_eq!(expected, dec_res);
+    }
+}
+
+pub(crate) fn unchecked_mul_corner_cases_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let nb_ct =
+        (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
+    let cks = RadixClientKey::from((cks, nb_ct));
+
+    executor.setup(&cks, sks);
+
+    // This example will not pass if the terms reduction is wrong
+    // on the chunk size it uses to reduce the 'terms' resulting
+    // from blockmuls
+    {
+        let clear = 307096569525960547621731375222677666984u128;
+        let scalar = 5207034748027904122u64;
+
+        // Same thing but with scalar encrypted
+        let ct = cks.encrypt(clear);
+        let ct2 = cks.encrypt(scalar);
+        let ct_res = executor.execute((&ct, &ct2));
+        let dec_res: u128 = cks.decrypt(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+    }
+
+    {
+        // Same thing but with scalar encrypted
+        let clear = u128::MAX;
+        let scalar = u128::MAX;
+        let ct = cks.encrypt(clear);
+        let ct2 = cks.encrypt(scalar);
+        let ct_res = executor.execute((&ct, &ct2));
+        let dec_res: u128 = cks.decrypt(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar), dec_res);
+    }
+}
+
+pub(crate) fn unchecked_left_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= shift < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            assert_eq!((clear << clear_shift) % modulus, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let mut nb_bits = modulus.ilog2();
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            // We mimic wrapping_shl manually as we use a bigger type
+            // than the nb_bits we actually simulate in this test
+            assert_eq!(
+                (clear << (clear_shift % nb_bits)) % modulus,
+                decrypted_result
+            );
+        }
+    }
+}
+
+pub(crate) fn unchecked_right_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= shift < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            assert_eq!((clear >> clear_shift) % modulus, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let mut nb_bits = modulus.ilog2();
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            // We mimic wrapping_shr manually as we use a bigger type
+            // than the nb_bits we actually simulate in this test
+            assert_eq!(
+                (clear >> (clear_shift % nb_bits)) % modulus,
+                decrypted_result
+            );
+        }
+    }
+}
+
+pub(crate) fn unchecked_rotate_left_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_left_helper(clear, clear_shift, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_left_helper(clear, clear_shift % nb_bits, true_nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+    }
+}
+
+pub(crate) fn unchecked_rotate_right_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_right_helper(clear, clear_shift, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_right_helper(clear, clear_shift % nb_bits, true_nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+    }
+}
+
+//=============================================================================
+// Unchecked Scalar Tests
+//=============================================================================
+
+pub(crate) fn unchecked_scalar_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        let encrypted_result = executor.execute((&ctxt_0, clear_1));
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+
+        let expected_result = clear_0.wrapping_add(clear_1) % modulus;
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid add result, expected {clear_0} + {clear_1} \
+            to be {expected_result}, but got {decrypted_result}."
+        );
+    }
+}
+
+pub(crate) fn unchecked_scalar_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        let encrypted_result = executor.execute((&ctxt_0, clear_1));
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+
+        let expected_result = clear_0.wrapping_sub(clear_1) % modulus;
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid sub result, expected {clear_0} - {clear_1} \
+            to be {expected_result}, but got {decrypted_result}."
+        );
+    }
+}
+pub(crate) fn unchecked_small_scalar_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let scalar_modulus = cks.parameters().message_modulus().0 as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u64>() % scalar_modulus;
+
+        let ct = cks.encrypt(clear);
+
+        let encrypted_result = executor.execute((&ct, scalar));
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+
+        let expected_result = clear.wrapping_mul(scalar) % modulus;
+
+        assert_eq!(decrypted_result, expected_result);
+    }
+}
+
+pub(crate) fn unchecked_scalar_mul_corner_cases_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let nb_ct =
+        (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
+    let cks = RadixClientKey::from((cks, nb_ct));
+
+    executor.setup(&cks, sks.clone());
+
+    // This example will not pass if the terms reduction is wrong
+    // on the chunk size it uses to reduce the 'terms' resulting
+    // from blockmuls
+    {
+        let clear = 307096569525960547621731375222677666984u128;
+        let scalar = 5207034748027904122u64;
+
+        let ct = cks.encrypt(clear);
+        let ct_res = executor.execute((&ct, scalar));
+        let dec_res: u128 = cks.decrypt(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+
+        let clear = u128::MAX;
+        let scalar = u64::MAX;
+
+        let ct = cks.encrypt(clear);
+        let ct_res = executor.execute((&ct, scalar));
+        let dec_res: u128 = cks.decrypt(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+    }
+
+    // Trying to multiply a ciphertext with a scalar value
+    // bigger than the ciphertext modulus should work
+    {
+        let cks: crate::integer::ClientKey = cks.into();
+        let nb_ct =
+            (8f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
+        let cks = RadixClientKey::from((cks, nb_ct));
+
+        executor.setup(&cks, sks);
+
+        let clear = 123u64;
+        let scalar = 17823812983255694336u64;
+        assert_eq!(scalar % 256, 0);
+
+        let ct = cks.encrypt(clear);
+        let ct_res = executor.execute((&ct, scalar));
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear.wrapping_mul(scalar) % 256, dec_res);
+    }
+}
+
+pub(crate) fn unchecked_scalar_left_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0<= scalar < nb_bits
+        {
+            let scalar = scalar % nb_bits;
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = (clear << u64::from(scalar)) % modulus;
+            assert_eq!(
+                expected, decrypted_result,
+                "Invalid left shift result for {clear} << {scalar}: \
+                expected {}, got {}",
+                expected, decrypted_result
+            );
+        }
+
+        // case when scalar >= nb_bits
+        {
+            let scalar = scalar.saturating_add(nb_bits);
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = (clear << u64::from(scalar % nb_bits)) % modulus;
+            assert_eq!(
+                expected, decrypted_result,
+                "Invalid left shift result for {clear} << {scalar}: \
+                expected {}, got {}",
+                expected, decrypted_result
+            );
+        }
+    }
+
+    let clear = rng.gen::<u64>() % modulus;
+    let ct = cks.encrypt(clear);
+
+    let nb_bits_in_block = cks.parameters().message_modulus().0.ilog2();
+    for scalar in 0..nb_bits_in_block {
+        let encrypted_result = executor.execute((&ct, scalar as u64));
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+        let expected = (clear << u64::from(scalar)) % modulus;
+        assert_eq!(
+            expected, decrypted_result,
+            "Invalid left shift result for {clear} << {scalar}: \
+            expected {}, got {}",
+            expected, decrypted_result
+        );
+    }
+}
+
+pub(crate) fn unchecked_scalar_right_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0<= scalar < nb_bits
+        {
+            let scalar = scalar % nb_bits;
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            assert!(encrypted_result.block_carries_are_empty());
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = clear >> u64::from(scalar);
+            assert_eq!(
+                expected, decrypted_result,
+                "Invalid right shift result for {clear} >> {scalar}: \
+                expected {}, got {}",
+                expected, decrypted_result
+            );
+        }
+
+        // case when scalar >= nb_bits
+        {
+            let scalar = scalar.saturating_add(nb_bits);
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            assert!(encrypted_result.block_carries_are_empty());
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = clear >> u64::from(scalar % nb_bits);
+            assert_eq!(
+                expected, decrypted_result,
+                "Invalid right shift result for {clear} >> {scalar}: \
+                expected {}, got {}",
+                expected, decrypted_result
+            );
+        }
+    }
+
+    let clear = rng.gen::<u64>() % modulus;
+
+    let ct = cks.encrypt(clear);
+    let nb_bits_in_block = cks.parameters().message_modulus().0.ilog2();
+    for scalar in 0..nb_bits_in_block {
+        let encrypted_result = executor.execute((&ct, scalar as u64));
+        assert!(encrypted_result.block_carries_are_empty());
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+        let expected = clear >> u64::from(scalar);
+        assert_eq!(
+            expected, decrypted_result,
+            "Invalid right shift result for {clear} >> {scalar}: \
+            expected {}, got {}",
+            expected, decrypted_result
+        );
+    }
+}
+
+pub(crate) fn unchecked_scalar_rotate_left_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..(NB_TEST / 3).max(1) {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // Force case where n is multiple of block size
+        {
+            let scalar = scalar - (scalar % bits_per_block);
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            assert!(encrypted_result.block_carries_are_empty());
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // Force case where n is not multiple of block size
+        {
+            let rest = scalar % bits_per_block;
+            let scalar = if rest == 0 {
+                scalar + (rng.gen::<u32>() % bits_per_block)
+            } else {
+                scalar
+            };
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            assert!(encrypted_result.block_carries_are_empty());
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // Force case where
+        // The value is non zero
+        // we rotate so that at least one non zero bit, cycle/wraps around
+        {
+            let value = rng.gen_range(1..=u32::MAX);
+            let scalar = value.leading_zeros() + rng.gen_range(1..nb_bits);
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            assert!(encrypted_result.block_carries_are_empty());
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+    }
+}
+
+pub(crate) fn unchecked_scalar_rotate_right_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..(NB_TEST / 3).max(1) {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // Force case where n is multiple of block size
+        {
+            let scalar = scalar - (scalar % bits_per_block);
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            assert!(encrypted_result.block_carries_are_empty());
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // Force case where n is not multiple of block size
+        {
+            let rest = scalar % bits_per_block;
+            let scalar = if rest == 0 {
+                scalar + (rng.gen::<u32>() % bits_per_block)
+            } else {
+                scalar
+            };
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            assert!(encrypted_result.block_carries_are_empty());
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // Force case where
+        // The value is non zero
+        // we rotate so that at least one non zero bit, cycle/wraps around
+        {
+            let value = rng.gen_range(1..=u32::MAX);
+            let scalar = value.trailing_zeros() + rng.gen_range(1..nb_bits);
+            let encrypted_result = executor.execute((&ct, scalar as u64));
+            assert!(encrypted_result.block_carries_are_empty());
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+    }
+}
+
+//=============================================================================
+// Smart Tests
+//=============================================================================
+
+pub(crate) fn smart_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
+
+        clear = (clear_0 + clear_1) % modulus;
+
+        // Add multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = executor.execute((&mut ct_res, &mut ctxt_0));
+            clear = clear.wrapping_add(clear_0) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn smart_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % modulus;
+
+        let ctxt_1 = cks.encrypt(clear1);
+        let mut ctxt_2 = cks.encrypt(clear2);
+
+        let mut res = ctxt_1.clone();
+        let mut clear = clear1;
+
+        // Subtract multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            res = executor.execute((&mut res, &mut ctxt_2));
+            clear = clear.wrapping_sub(clear2) % modulus;
+        }
+        let dec: u64 = cks.decrypt(&res);
+
+        // Check the correctness
+        assert_eq!(clear, dec);
+    }
+}
+
+pub(crate) fn smart_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
+        RadixCiphertext,
+    >,
+{
+    let param: PBSParameters = param.into();
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % modulus;
+
+        let ctxt_1 = cks.encrypt(clear1);
+        let mut ctxt_2 = cks.encrypt(clear2);
+
+        let mut res = ctxt_1.clone();
+        let mut clear = clear1;
+
+        res = executor.execute((&mut res, &mut ctxt_2));
+        for _ in 0..NB_TEST_SMALLER {
+            res = executor.execute((&mut res, &mut ctxt_2));
+            clear = (clear * clear2) % modulus;
+        }
+        let dec: u64 = cks.decrypt(&res);
+
+        clear = (clear * clear2) % modulus;
+
+        // Check the correctness
+        assert_eq!(clear, dec);
+    }
+}
+
+pub(crate) fn smart_block_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (
+            &'a mut RadixCiphertext,
+            &'a mut crate::shortint::Ciphertext,
+            usize,
+        ),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let block_modulus = cks.parameters().message_modulus().0 as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        // Define the cleartexts
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % block_modulus;
+
+        // Encrypt the integers
+        let ctxt_1 = cks.encrypt(clear1);
+        let mut ctxt_2 = cks.encrypt_one_block(clear2);
+
+        let mut res = ctxt_1.clone();
+        let mut clear = clear1;
+
+        let index = rng.gen_range(0..=(NB_CTXT - 1) as u32);
+        let multiplier = cks.parameters().message_modulus().0.pow(index) as u64;
+        let index = index as usize;
+
+        res = executor.execute((&mut res, &mut ctxt_2, index));
+        clear = (clear.wrapping_mul(clear2.wrapping_mul(multiplier))) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            res = executor.execute((&mut res, &mut ctxt_2, index));
+            clear = (clear.wrapping_mul(clear2.wrapping_mul(multiplier))) % modulus;
+        }
+
+        let dec: u64 = cks.decrypt(&res);
+        assert_eq!(clear, dec);
+    }
+}
+
+pub(crate) fn smart_neg_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a mut RadixCiphertext, RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear = rng.gen::<u64>() % modulus;
+
+        let mut ctxt = cks.encrypt(clear);
+
+        let mut ct_res = executor.execute(&mut ctxt);
+        let mut clear_res = clear.wrapping_neg() % modulus;
+        let dec: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_res, dec);
+
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = executor.execute(&mut ct_res);
+            clear_res = clear_res.wrapping_neg() % modulus;
+
+            let dec: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear_res, dec);
+        }
+    }
+}
+
+pub(crate) fn smart_bitand_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
+
+        clear = clear_0 & clear_1;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let mut ctxt_2 = cks.encrypt(clear_2);
+
+            ct_res = executor.execute((&mut ct_res, &mut ctxt_2));
+            clear &= clear_2;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn smart_bitor_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
+
+        clear = (clear_0 | clear_1) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let mut ctxt_2 = cks.encrypt(clear_2);
+
+            ct_res = executor.execute((&mut ct_res, &mut ctxt_2));
+            clear = (clear | clear_2) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn smart_bitxor_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
+
+        clear = (clear_0 ^ clear_1) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let mut ctxt_2 = cks.encrypt(clear_2);
+
+            ct_res = executor.execute((&mut ct_res, &mut ctxt_2));
+            clear = (clear ^ clear_2) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn smart_div_rem_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
+        (RadixCiphertext, RadixCiphertext),
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for i in 0..NB_TEST_SMALLER {
+        println!("i: {i}");
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
+        let clear_2 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        // add to change degree
+        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
+        clear_0 += clear_2;
+        clear_0 %= modulus;
+
+        let (q_res, r_res) = executor.execute((&mut ctxt_0, &mut ctxt_1));
+        let q: u64 = cks.decrypt(&q_res);
+        let r: u64 = cks.decrypt(&r_res);
+
+        assert_eq!(clear_0 / clear_1, q);
+        assert_eq!(clear_0 % clear_1, r);
+    }
+}
+
+pub(crate) fn smart_div_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for i in 0..NB_TEST_SMALLER {
+        println!("i: {i}");
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
+        let clear_2 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        // add to change degree
+        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
+        clear_0 += clear_2;
+        clear_0 %= modulus;
+
+        let q_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
+        let q: u64 = cks.decrypt(&q_res);
+        assert_eq!(clear_0 / clear_1, q);
+    }
+}
+
+pub(crate) fn smart_rem_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for i in 0..NB_TEST_SMALLER {
+        println!("i: {i}");
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
+        let clear_2 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+
+        // add to change degree
+        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
+        clear_0 += clear_2;
+        clear_0 %= modulus;
+
+        let q_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
+        let q: u64 = cks.decrypt(&q_res);
+        assert_eq!(clear_0 % clear_1, q);
+    }
+}
+
+pub(crate) fn smart_if_then_else_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (
+            &'a mut RadixCiphertext,
+            &'a mut RadixCiphertext,
+            &'a mut RadixCiphertext,
+        ),
+        RadixCiphertext,
+    >,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_condition = rng.gen_range(0u64..1);
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+        // cks.encrypt returns a ciphertext which does not look like
+        // (when looking at the degree) it encrypts a boolean value.
+        // So we 'force' having a boolean encrypting ciphertext by using eq (==)
+        let mut ctxt_condition = sks.scalar_eq_parallelized(&cks.encrypt(clear_condition), 1);
+        assert!(ctxt_condition.holds_boolean_value());
+
+        let ct_res = executor.execute((&mut ctxt_condition, &mut ctxt_0, &mut ctxt_1));
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(
+            dec_res,
+            if clear_condition == 1 {
+                clear_0
+            } else {
+                clear_1
+            }
+        );
+
+        let clear_2 = rng.gen::<u64>() % modulus;
+        let clear_3 = rng.gen::<u64>() % modulus;
+
+        let ctxt_2 = cks.encrypt(clear_2);
+        let ctxt_3 = cks.encrypt(clear_3);
+
+        // Add to have non empty carries
+        sks.unchecked_add_assign(&mut ctxt_0, &ctxt_2);
+        sks.unchecked_add_assign(&mut ctxt_1, &ctxt_3);
+        assert!(!ctxt_0.block_carries_are_empty());
+        assert!(!ctxt_1.block_carries_are_empty());
+
+        let ct_res = executor.execute((&mut ctxt_condition, &mut ctxt_0, &mut ctxt_1));
+        assert!(ctxt_0.block_carries_are_empty());
+        assert!(ctxt_1.block_carries_are_empty());
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(
+            dec_res,
+            if clear_condition == 1 {
+                (clear_0 + clear_2) % modulus
+            } else {
+                (clear_1 + clear_3) % modulus
+            }
+        );
+    }
+}
+
+//=============================================================================
+// Smart Scalar Tests
+//=============================================================================
+
+pub(crate) fn smart_scalar_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+
+        let mut ct_res = executor.execute((&mut ctxt_0, clear_1));
+        clear = (clear_0 + clear_1) % modulus;
+
+        // Add multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = executor.execute((&mut ct_res, clear_1));
+            clear = (clear + clear_1) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn smart_scalar_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, u64), RadixCiphertext>,
+{
+    // generate the server-client key set
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+
+        let mut ct_res = executor.execute((&mut ctxt_0, clear_1));
+        clear = (clear_0 - clear_1) % modulus;
+
+        // Sub multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = executor.execute((&mut ct_res, clear_1));
+            clear = (clear - clear_1) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn smart_scalar_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u64>() % modulus;
+
+        let mut ct = cks.encrypt(clear);
+
+        let ct_res = executor.execute((&mut ct, scalar));
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!((clear * scalar) % modulus, dec_res);
+    }
+}
+
+pub(crate) fn smart_scalar_mul_u128_fix_non_reg_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let nb_ct =
+        (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
+    let cks = RadixClientKey::from((cks, nb_ct));
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    let clear = rng.gen::<u128>();
+    let scalar = rng.gen::<u64>();
+
+    let mut ct = cks.encrypt(clear);
+
+    let ct_res = executor.execute((&mut ct, scalar));
+
+    let dec_res: u128 = cks.decrypt(&ct_res);
+    assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+}
+
+pub(crate) fn smart_small_scalar_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let scalar_modulus = cks.parameters().message_modulus().0 as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear_res;
+    for _ in 0..NB_TEST_SMALLER {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u64>() % scalar_modulus;
+
+        let mut ct = cks.encrypt(clear);
+
+        let mut ct_res = executor.execute((&mut ct, scalar));
+
+        clear_res = clear * scalar;
+        for _ in 0..NB_TEST_SMALLER {
+            // scalar multiplication
+            ct_res = executor.execute((&mut ct_res, scalar));
+            clear_res *= scalar;
+        }
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_res % modulus, dec_res);
+    }
+}
+
+//=============================================================================
+// Default Tests
+//=============================================================================
+
+pub(crate) fn default_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct);
+
+        clear = (clear_0 + clear_1) % modulus;
+
+        // Add multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            ct_res = executor.execute((&ct_res, &ctxt_0));
+            assert!(ct_res.block_carries_are_empty());
+            clear = (clear + clear_0) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % modulus;
+
+        let ctxt_1 = cks.encrypt(clear1);
+        let ctxt_2 = cks.encrypt(clear2);
+
+        let mut res = ctxt_1.clone();
+        let mut clear = clear1;
+
+        // Subtract multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            let tmp = executor.execute((&res, &ctxt_2));
+            res = executor.execute((&res, &ctxt_2));
+            assert!(res.block_carries_are_empty());
+            assert_eq!(res, tmp);
+            clear = (clear.wrapping_sub(clear2)) % modulus;
+        }
+        let dec: u64 = cks.decrypt(&res);
+
+        assert_eq!(clear, dec);
+    }
+}
+
+pub(crate) fn default_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % modulus;
+
+        let ctxt_1 = cks.encrypt(clear1);
+        let ctxt_2 = cks.encrypt(clear2);
+
+        let mut res = ctxt_1.clone();
+        let mut clear = clear1;
+
+        res = executor.execute((&res, &ctxt_2));
+        assert!(res.block_carries_are_empty());
+        for _ in 0..NB_TEST_SMALLER {
+            let tmp = executor.execute((&res, &ctxt_2));
+            res = executor.execute((&res, &ctxt_2));
+            assert!(res.block_carries_are_empty());
+            assert_eq!(res, tmp);
+            clear = (clear * clear2) % modulus;
+        }
+        let dec: u64 = cks.decrypt(&res);
+
+        clear = (clear * clear2) % modulus;
+
+        assert_eq!(clear, dec);
+    }
+
+    {
+        // test x * y and y * x
+        // where y encrypts a boolean value
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen_range(0u64..=1);
+
+        let ctxt_1 = cks.encrypt(clear1);
+        let ctxt_2: RadixCiphertext = sks.create_trivial_radix(clear2, ctxt_1.blocks.len());
+        assert!(ctxt_2.holds_boolean_value());
+
+        let res = executor.execute((&ctxt_1, &ctxt_2));
+        let dec: u64 = cks.decrypt(&res);
+        assert_eq!(dec, clear1 * clear2);
+
+        let res = executor.execute((&ctxt_2, &ctxt_1));
+        let dec: u64 = cks.decrypt(&res);
+        assert_eq!(dec, clear1 * clear2);
+    }
+}
+
+pub(crate) fn default_neg_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear = rng.gen::<u64>() % modulus;
+
+        let ctxt = cks.encrypt(clear);
+
+        let ct_res = executor.execute(&ctxt);
+        let tmp = executor.execute(&ctxt);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
+
+        let dec: u64 = cks.decrypt(&ct_res);
+        let clear_result = clear.wrapping_neg() % modulus;
+        assert_eq!(clear_result, dec);
+    }
+}
+
+pub(crate) fn default_bitand_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = clear_0 & clear_1;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let ctxt_2 = cks.encrypt(clear_2);
+
+            let tmp = executor.execute((&ct_res, &ctxt_2));
+            ct_res = executor.execute((&ct_res, &ctxt_2));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear &= clear_2;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_bitor_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = (clear_0 | clear_1) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let ctxt_2 = cks.encrypt(clear_2);
+
+            let tmp = executor.execute((&ct_res, &ctxt_2));
+            ct_res = executor.execute((&ct_res, &ctxt_2));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear |= clear_2;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_bitxor_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = clear_0 ^ clear_1;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let ctxt_2 = cks.encrypt(clear_2);
+
+            let tmp = executor.execute((&ct_res, &ctxt_2));
+            ct_res = executor.execute((&ct_res, &ctxt_2));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear = (clear ^ clear_2) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_bitnot_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+
+        let ctxt = cks.encrypt(clear);
+
+        let tmp = executor.execute(&ctxt);
+        let ct_res = executor.execute(&ctxt);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
+
+        let dec: u64 = cks.decrypt(&ct_res);
+
+        let clear_result = !clear % modulus;
+        assert_eq!(clear_result, dec);
+    }
+}
+
+pub(crate) fn default_div_rem_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a RadixCiphertext, &'a RadixCiphertext),
+        (RadixCiphertext, RadixCiphertext),
+    >,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for _ in 0..NB_TEST_SMALLER {
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
+        let clear_2 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        // add to change degree
+        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
+        clear_0 += clear_2;
+        clear_0 %= modulus;
+
+        let (q_res, r_res) = executor.execute((&ctxt_0, &ctxt_1));
+        let q: u64 = cks.decrypt(&q_res);
+        let r: u64 = cks.decrypt(&r_res);
+
+        assert!(q_res.block_carries_are_empty());
+        assert!(r_res.block_carries_are_empty());
+        assert_eq!(clear_0 / clear_1, q);
+        assert_eq!(clear_0 % clear_1, r);
+
+        let (q2, r2) = executor.execute((&ctxt_0, &ctxt_1));
+        assert_eq!(q2, q_res, "Operation was not deterministic");
+        assert_eq!(r2, r_res, "Operation was not deterministic");
+    }
+}
+
+pub(crate) fn default_div_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for _ in 0..NB_TEST_SMALLER {
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
+        let clear_2 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        // add to change degree
+        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
+        clear_0 += clear_2;
+        clear_0 %= modulus;
+
+        let q_res = executor.execute((&ctxt_0, &ctxt_1));
+        let q: u64 = cks.decrypt(&q_res);
+
+        assert!(q_res.block_carries_are_empty());
+        assert_eq!(clear_0 / clear_1, q);
+
+        // Determinism checks
+        let q2 = executor.execute((&ctxt_0, &ctxt_1));
+        assert_eq!(q2, q_res, "Operation was not deterministic");
+    }
+}
+
+pub(crate) fn default_rem_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for _ in 0..NB_TEST_SMALLER {
+        let mut clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
+        let clear_2 = rng.gen::<u64>() % modulus;
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let ctxt_1 = cks.encrypt(clear_1);
+
+        // add to change degree
+        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_2);
+        clear_0 += clear_2;
+        clear_0 %= modulus;
+
+        let r_res = executor.execute((&ctxt_0, &ctxt_1));
+        let r: u64 = cks.decrypt(&r_res);
+
+        assert!(r_res.block_carries_are_empty());
+        assert_eq!(clear_0 % clear_1, r);
+
+        // Determinism checks
+        let r2 = executor.execute((&ctxt_0, &ctxt_1));
+        assert_eq!(r2, r_res, "Operation was not deterministic");
+    }
+}
+
+pub(crate) fn default_if_then_else_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (
+            &'a RadixCiphertext,
+            &'a RadixCiphertext,
+            &'a RadixCiphertext,
+        ),
+        RadixCiphertext,
+    >,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    for _ in 0..NB_TEST {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_condition = rng.gen_range(0u64..1);
+
+        let mut ctxt_0 = cks.encrypt(clear_0);
+        let mut ctxt_1 = cks.encrypt(clear_1);
+        // cks.encrypt returns a ciphertext which does not look like
+        // (when looking at the degree) it encrypts a boolean value.
+        // So we 'force' having a boolean encrypting ciphertext by using eq (==)
+        let ctxt_condition = sks.scalar_eq_parallelized(&cks.encrypt(clear_condition), 1);
+        assert!(ctxt_condition.holds_boolean_value());
+
+        let ct_res = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        assert!(ct_res.block_carries_are_empty());
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(
+            dec_res,
+            if clear_condition == 1 {
+                clear_0
+            } else {
+                clear_1
+            }
+        );
+
+        let ct_res2 = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        assert_eq!(ct_res, ct_res2, "Operation is not deterministic");
+
+        let clear_2 = rng.gen::<u64>() % modulus;
+        let clear_3 = rng.gen::<u64>() % modulus;
+
+        let ctxt_2 = cks.encrypt(clear_2);
+        let ctxt_3 = cks.encrypt(clear_3);
+
+        // Add to have non empty carries
+        sks.unchecked_add_assign(&mut ctxt_0, &ctxt_2);
+        sks.unchecked_add_assign(&mut ctxt_1, &ctxt_3);
+        assert!(!ctxt_0.block_carries_are_empty());
+        assert!(!ctxt_1.block_carries_are_empty());
+
+        let ct_res = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        assert!(ct_res.block_carries_are_empty());
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(
+            dec_res,
+            if clear_condition == 1 {
+                (clear_0 + clear_2) % modulus
+            } else {
+                (clear_1 + clear_3) % modulus
+            }
+        );
+    }
+}
+
+//=============================================================================
+// Default Scalar Tests
+//=============================================================================
+
+pub(crate) fn default_scalar_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks.clone());
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        let mut ct_res = executor.execute((&ctxt_0, clear_1));
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = (clear_0 + clear_1) % modulus;
+
+        // Add multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            let tmp = executor.execute((&ct_res, clear_1));
+            ct_res = executor.execute((&ct_res, clear_1));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear = clear.wrapping_add(clear_1) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_scalar_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks.clone());
+
+    let mut clear;
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        let mut ct_res = executor.execute((&ctxt_0, clear_1));
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = (clear_0.wrapping_sub(clear_1)) % modulus;
+
+        // Sub multiple times to raise the degree
+        for _ in 0..NB_TEST_SMALLER {
+            let tmp = executor.execute((&ct_res, clear_1));
+            ct_res = executor.execute((&ct_res, clear_1));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear = (clear.wrapping_sub(clear_1)) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_small_scalar_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let scalar_modulus = cks.parameters().message_modulus().0 as u64;
+
+    executor.setup(&cks, sks);
+
+    let mut clear_res;
+    for _ in 0..NB_TEST_SMALLER {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u64>() % scalar_modulus;
+
+        let ct = cks.encrypt(clear);
+
+        let mut ct_res = executor.execute((&ct, scalar));
+        assert!(ct_res.block_carries_are_empty());
+
+        clear_res = clear * scalar;
+        for _ in 0..NB_TEST_SMALLER {
+            // scalar multiplication
+            let tmp = executor.execute((&ct_res, scalar));
+            ct_res = executor.execute((&ct_res, scalar));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(tmp, ct_res);
+            clear_res = clear_res.wrapping_mul(scalar);
+        }
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_res % modulus, dec_res);
+    }
+}
+
+pub(crate) fn default_scalar_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u64>() % modulus;
+
+        let ct = cks.encrypt(clear);
+
+        // scalar mul
+        let ct_res = executor.execute((&ct, scalar));
+        let tmp = executor.execute((&ct, scalar));
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
+
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!((clear * scalar) % modulus, dec_res);
+    }
+}
+
+pub(crate) fn default_default_block_mul_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a RadixCiphertext, &'a crate::shortint::Ciphertext, usize),
+        RadixCiphertext,
+    >,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    //RNG
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let block_modulus = cks.parameters().message_modulus().0 as u64;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        // Define the cleartexts
+        let clear1 = rng.gen::<u64>() % modulus;
+        let clear2 = rng.gen::<u64>() % block_modulus;
+
+        // Encrypt the integers
+        let ctxt_1 = cks.encrypt(clear1);
+        let ctxt_2 = cks.encrypt_one_block(clear2);
+
+        let index = rng.gen_range(0..=(NB_CTXT - 1) as u32);
+        let multiplier = cks.parameters().message_modulus().0.pow(index) as u64;
+        let index = index as usize;
+
+        let mut res = ctxt_1.clone();
+        let mut clear = clear1;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let tmp = executor.execute((&res, &ctxt_2, index));
+            res = executor.execute((&res, &ctxt_2, index));
+            assert!(res.block_carries_are_empty());
+            assert_eq!(res, tmp);
+
+            clear = clear.wrapping_mul(clear2.wrapping_mul(multiplier)) % modulus;
+            let dec: u64 = cks.decrypt(&res);
+            assert_eq!(clear, dec);
+        }
+    }
+}
+
+pub(crate) fn default_scalar_mul_u128_fix_non_reg_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let nb_ct =
+        (128f64 / (cks.parameters().message_modulus().0 as f64).log2().ceil()).ceil() as usize;
+    let cks = RadixClientKey::from((cks, nb_ct));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    executor.setup(&cks, sks);
+
+    let mut rng = rand::thread_rng();
+
+    let clear = rng.gen::<u128>();
+    let scalar = rng.gen::<u64>();
+
+    let ct = cks.encrypt(clear);
+
+    // scalar mul
+    let ct_res = executor.execute((&ct, scalar));
+
+    let dec_res: u128 = cks.decrypt(&ct_res);
+    assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
+}
+
+pub(crate) fn default_scalar_bitand_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        // encryption of an integer
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // Do with a small clear to check the way we avoid
+        // unecesseray work is correct
+        let ct_res = executor.execute((&ctxt_0, 1));
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_0 & 1, dec_res);
+
+        let mut ct_res = executor.execute((&ctxt_0, clear_1));
+        assert!(ct_res.block_carries_are_empty());
+
+        clear = clear_0 & clear_1;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let tmp = executor.execute((&ct_res, clear_2));
+            ct_res = executor.execute((&ct_res, clear_2));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear &= clear_2;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_scalar_bitor_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // Do with a small clear to check the way we avoid
+        // unecesseray work is correct
+        let ct_res = executor.execute((&ctxt_0, 1));
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_0 | 1, dec_res);
+
+        let mut ct_res = executor.execute((&ctxt_0, clear_1));
+        assert!(ct_res.block_carries_are_empty());
+        clear = (clear_0 | clear_1) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let tmp = executor.execute((&ct_res, clear_2));
+            ct_res = executor.execute((&ct_res, clear_2));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear = (clear | clear_2) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_scalar_bitxor_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+
+    let mut clear;
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+
+        let ctxt_0 = cks.encrypt(clear_0);
+
+        // Do with a small clear to check the way we avoid
+        // unecesseray work is correct
+        let ct_res = executor.execute((&ctxt_0, 1));
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear_0 ^ 1, dec_res);
+
+        let mut ct_res = executor.execute((&ctxt_0, clear_1));
+        assert!(ct_res.block_carries_are_empty());
+        clear = (clear_0 ^ clear_1) % modulus;
+
+        for _ in 0..NB_TEST_SMALLER {
+            let clear_2 = rng.gen::<u64>() % modulus;
+
+            let tmp = executor.execute((&ct_res, clear_2));
+            ct_res = executor.execute((&ct_res, clear_2));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            clear = (clear ^ clear_2) % modulus;
+
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_scalar_left_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0<= scalar < nb_bits
+        {
+            let scalar = scalar % nb_bits;
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear.checked_shl(scalar).unwrap_or(0) % modulus, dec_res);
+        }
+
+        // case when scalar >= nb_bits
+        {
+            let scalar = scalar.saturating_add(nb_bits);
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear.wrapping_shl(scalar % nb_bits) % modulus, dec_res);
+        }
+    }
+
+    let clear = rng.gen::<u64>() % modulus;
+    let ct = cks.encrypt(clear);
+
+    let nb_bits_in_block = cks.parameters().message_modulus().0.ilog2();
+    for scalar in 0..nb_bits_in_block {
+        let ct_res = executor.execute((&ct, scalar as u64));
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear.wrapping_shl(scalar % nb_bits) % modulus, dec_res);
+    }
+}
+
+pub(crate) fn default_scalar_right_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+
+    for _ in 0..NB_TEST_SMALLER {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0<= scalar < nb_bits
+        {
+            let scalar = scalar % nb_bits;
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear.wrapping_shr(scalar) % modulus, dec_res);
+        }
+
+        // case when scalar >= nb_bits
+        {
+            let scalar = scalar.saturating_add(nb_bits);
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            assert_eq!(clear.wrapping_shr(scalar % nb_bits) % modulus, dec_res);
+        }
+    }
+
+    let clear = rng.gen::<u64>() % modulus;
+
+    let ct = cks.encrypt(clear);
+    let nb_bits_in_block = cks.parameters().message_modulus().0.ilog2();
+    for scalar in 0..nb_bits_in_block {
+        let ct_res = executor.execute((&ct, scalar as u64));
+        let tmp = executor.execute((&ct, scalar as u64));
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(clear.wrapping_shr(scalar) % modulus, dec_res);
+    }
+}
+
+pub(crate) fn default_scalar_rotate_right_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
+
+    for _ in 0..(NB_TEST / 2).max(1) {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // Force case where n is multiple of block size
+        {
+            let scalar = scalar - (scalar % bits_per_block);
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where n is not multiple of block size
+        {
+            let rest = scalar % bits_per_block;
+            let scalar = if rest == 0 {
+                scalar + (rng.gen::<u32>() % bits_per_block)
+            } else {
+                scalar
+            };
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where
+        // The value is non zero
+        // we rotate so that at least one non zero bit, cycle/wraps around
+        {
+            let value = rng.gen_range(1..=u32::MAX);
+            let scalar = value.trailing_zeros() + rng.gen_range(1..nb_bits);
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_right_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_scalar_rotate_left_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
+    let nb_bits = modulus.ilog2();
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..(NB_TEST / 3).max(1) {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // Force case where n is multiple of block size
+        {
+            let scalar = scalar - (scalar % bits_per_block);
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where n is not multiple of block size
+        {
+            let rest = scalar % bits_per_block;
+            let scalar = if rest == 0 {
+                scalar + (rng.gen::<u32>() % bits_per_block)
+            } else {
+                scalar
+            };
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // Force case where
+        // The value is non zero
+        // we rotate so that at least one non zero bit, cycle/wraps around
+        {
+            let value = rng.gen_range(1..=u32::MAX);
+            let scalar = value.leading_zeros() + rng.gen_range(1..nb_bits);
+            let ct_res = executor.execute((&ct, scalar as u64));
+            let tmp = executor.execute((&ct, scalar as u64));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp);
+            let dec_res: u64 = cks.decrypt(&ct_res);
+            let expected = rotate_left_helper(clear, scalar, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+    }
+}
+
+pub(crate) fn default_scalar_div_rem_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, RadixCiphertext)>
+        + std::panic::UnwindSafe,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    sks.set_deterministic_pbs_execution(true);
+
+    let num_block =
+        (32f64 / (cks.parameters().message_modulus().0 as f64).log(2.0)).ceil() as usize;
+
+    let cks = RadixClientKey::from((cks, num_block));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(num_block as u32) as u64;
+
+    executor.setup(&cks, sks.clone());
+
+    // the scalar is a u32, so the numerator must encrypt at least 32 bits
+    // to take the normal path of execution
+    assert!(modulus >= (1 << u32::BITS));
+
+    // hard-coded tests
+    // 10, 7, 14 are from the paper and should trigger different branches
+    // 16 is a power of two and should trigger the corresponding branch
+    let hard_coded_divisors: [u64; 4] = [10, 7, 14, 16];
+    for divisor in hard_coded_divisors {
+        let clear = rng.gen::<u64>() % modulus;
+        let ct = cks.encrypt(clear);
+
+        let (q, r) = executor.execute((&ct, divisor));
+
+        let q_res: u64 = cks.decrypt(&q);
+        let r_res: u64 = cks.decrypt(&r);
+        assert_eq!(q_res, clear / divisor);
+        assert_eq!(r_res, clear % divisor);
+    }
+
+    for _ in 0..NB_TEST {
+        let clear = rng.gen::<u64>() % modulus;
+        let scalar = rng.gen_range(1u32..=u32::MAX) as u64;
+
+        let ct = cks.encrypt(clear);
+
+        {
+            let (q, r) = executor.execute((&ct, scalar));
+            let (q2, r2) = executor.execute((&ct, scalar));
+            assert!(q.block_carries_are_empty());
+            assert!(r.block_carries_are_empty());
+            assert_eq!(q, q2);
+            assert_eq!(r, r2);
+
+            let q_res: u64 = cks.decrypt(&q);
+            let r_res: u64 = cks.decrypt(&r);
+            assert_eq!(q_res, clear / scalar);
+            assert_eq!(r_res, clear % scalar);
+        }
+
+        {
+            // Test when scalar is trivially bigger than the ct
+            let scalar = rng.gen_range(u32::MAX as u64 + 1..=u64::MAX);
+
+            let (q, r) = executor.execute((&ct, scalar));
+            let (q2, r2) = executor.execute((&ct, scalar));
+            assert!(q.block_carries_are_empty());
+            assert!(r.block_carries_are_empty());
+            assert_eq!(q, q2);
+            assert_eq!(r, r2);
+
+            let q_res: u64 = cks.decrypt(&q);
+            let r_res: u64 = cks.decrypt(&r);
+            assert_eq!(q_res, clear / scalar);
+            assert_eq!(r_res, clear % scalar);
+        }
+    }
+
+    // Do this test last, so we can move the executor into the closure
+    let result = std::panic::catch_unwind(move || {
+        let numerator = sks.create_trivial_radix(1, num_block);
+        executor.execute((&numerator, 0u64));
+    });
+    assert!(result.is_err(), "division by zero should panic");
+}
