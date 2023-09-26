@@ -19,6 +19,14 @@ on:
       request_id:
         description: "Slab request ID"
         type: string
+      # This input is not used in this workflow but still mandatory since a calling workflow could
+      # use it. If a triggering command include a user_inputs field, then the triggered workflow
+      # must include this very input, otherwise the workflow won't be called.
+      # See start_full_benchmarks.yml as example.
+      user_inputs:
+        description: "Type of benchmarks to run"
+        type: string
+        default: "weekly_benchmarks"
 
 env:
   CARGO_TERM_COLOR: always

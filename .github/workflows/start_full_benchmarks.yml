@@ -3,9 +3,21 @@ name: Start full suite benchmarks
 
 on:
   schedule:
-    # Job will be triggered each Saturday at 1a.m.
+    # Weekly benchmarks will be triggered each Saturday at 1a.m.
     - cron: '0 1 * * 6'
+    # Quarterly benchmarks will be triggered right before end of quarter, the 25th of the current month at 4a.m.
+    # These benchmarks are far longer to execute hence the reason to run them only four time a year.
+    - cron: '0 4 25 MAR,JUN,SEP,DEC *'
   workflow_dispatch:
+    inputs:
+      benchmark_type:
+        description: 'Benchmark type'
+        required: true
+        default: 'weekly'
+        type: choice
+        options:
+          - weekly
+          - quarterly
 
 jobs:
   start-benchmarks:
@@ -27,10 +39,20 @@ jobs:
           path: slab
           token: ${{ secrets.CONCRETE_ACTIONS_TOKEN }}
 
+      - name: Set benchmarks type as weekly
+        if: (github.event_name == 'workflow_dispatch' && inputs.benchmark_type == 'weekly') || github.event.schedule == '0 1 * * 6'
+        run: |
+          echo "BENCH_TYPE=weekly_benchmarks" >> "${GITHUB_ENV}"
+
+      - name: Set benchmarks type as quarterly
+        if: (github.event_name == 'workflow_dispatch' && inputs.benchmark_type == 'quarterly') || github.event.schedule == '0 4 25 MAR,JUN,SEP,DEC *'
+        run: |
+          echo "BENCH_TYPE=quarterly_benchmarks" >> "${GITHUB_ENV}"
+
       - name: Start AWS job in Slab
         shell: bash
         run: |
-          echo -n '{"command": "${{ matrix.command }}", "git_ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}' > command.json
+          echo -n '{"command": "${{ matrix.command }}", "git_ref": "${{ github.ref }}", "sha": "${{ github.sha }}", "user_inputs": "${{ env.BENCH_TYPE }}"}' > command.json
           SIGNATURE="$(slab/scripts/hmac_calculator.sh command.json '${{ secrets.JOB_SECRET }}')"
           curl -v -k \
           --fail-with-body \
