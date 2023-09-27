@@ -7,13 +7,14 @@ import json
 import pathlib
 import subprocess
 import functools
+from pathlib import Path
 
 import numpy as np
 from scipy.optimize import curve_fit
 from sklearn.ensemble import IsolationForest
 
 # Command used to run Rust program responsible to perform sampling on external product.
-BASE_COMMAND = 'RUSTFLAGS="-C target-cpu=native" cargo {} {} --release'
+BASE_COMMAND = 'RUSTFLAGS="-C target-cpu=native" cargo {} {} --release --features=nightly-avx512'
 # Leave toolchain empty at first
 BUILD_COMMAND = BASE_COMMAND.format("{}", "build")
 RUN_COMMAND = BASE_COMMAND.format("{}", "run") + " -- --tot {} --id {} {}"
@@ -104,10 +105,11 @@ def concatenate_result_files(dir_):
     Concatenate result files into a single one.
 
     :param pattern: filename pattern as :class:`str`
-    :return: concatenated filename as :class:`pathlib.Path`
+    :return: concatenated filename as :class:`Path`
     """
-    results_filepath = pathlib.Path("concatenated_sampling_results")
-    files = sorted(pathlib.Path(dir_).glob("*.algo_sample_acquistion"))
+    dir_path = Path(dir_)
+    results_filepath = dir_path / "concatenated_sampling_results"
+    files = sorted(Path(dir_).glob("*.algo_sample_acquistion"))
     if results_filepath.exists():
         results_filepath.unlink()
 
@@ -131,7 +133,7 @@ def extract_from_acquisitions(filename):
     """
     Retrieve and parse data from sampling results.
 
-    :param filename: sampling results filename as :class:`pathlib.Path`
+    :param filename: sampling results filename as :class:`Path`
     :return: :class:`tuple` of :class:`numpy.array`
     """
     parameters = []
@@ -174,7 +176,7 @@ def extract_from_acquisitions(filename):
 
 def get_input(filename):
     """
-    :param filename: result filename as :class:`pathlib.Path`
+    :param filename: result filename as :class:`Path`
     :return: :class:`tuple` of X and Y values
     """
     (
@@ -273,7 +275,7 @@ def get_weights(filename, fft_noise_fun, bits):
     """
     Get weights from sampling results.
 
-    :param filename: results filename as :class:`pathlib.Path`
+    :param filename: results filename as :class:`Path`
     :return: :class:`dict` of weights formatted as ``{"a": <float>}``
     """
     x_values, y_values = get_input_without_outlier(filename, bits)
@@ -289,7 +291,7 @@ def write_to_file(filename, obj):
     :param filename: filename to write into as :class:`str`
     :param obj: object to write as JSON
     """
-    filepath = pathlib.Path(filename)
+    filepath = Path(filename)
     try:
         with filepath.open("w", encoding="utf-8") as f:
             json.dump(obj, f)
@@ -420,9 +422,23 @@ def main():
             bits = int(sampling_args[idx + 1])
             break
 
+    sampling_args.extend(["--dir", args.dir])
+
     fft_noise_fun = functools.partial(fft_noise_fun, log2_q=bits)
+    dest_dir = Path(args.dir).resolve()
 
     if not args.analysis_only:
+        # if dest_dir.exists() and dest_dir.glob(args.output_filename):
+        #     user_input = input(
+        #         f"Warning directory {str(dest_dir)} already exists, "
+        #         "proceed and overwrite existing data? [y/N]\n"
+        #     )
+        #     if user_input.lower() != "y":
+        #         print("Aborting.")
+        #         exit(1)
+
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
         if not build_sampler(rust_toolchain):
             print("Error while building sampler. Exiting")
             exit(1)
@@ -452,15 +468,16 @@ def main():
                 exit(1)
 
     result_file = concatenate_result_files(args.dir)
+    output_file = dest_dir / args.output_filename
 
     if args.worst_case_analysis:
         max_a = get_weights(result_file, fft_noise_fun, bits)["a"]
         for _ in range(1000):
             weights = get_weights(result_file, fft_noise_fun, bits)
             max_a = max(max_a, weights["a"])
-        write_to_file(args.output_filename, {"a": max_a})
+        write_to_file(output_file, {"a": max_a})
     else:
-        write_to_file(args.output_filename, get_weights(result_file, fft_noise_fun, bits))
+        write_to_file(output_file, get_weights(result_file, fft_noise_fun, bits))
 
 
 if __name__ == "__main__":

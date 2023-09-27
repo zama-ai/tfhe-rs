@@ -68,27 +68,29 @@ struct Args {
     multi_bit_grouping_factor: Option<usize>,
     #[clap(long, short = 'q')]
     modulus_log2: Option<u32>,
+    #[clap(long, short = 'd', default_value = ".")]
+    dir: String,
 }
 
 fn variance_to_stddev(var: Variance) -> StandardDev {
     StandardDev::from_standard_dev(var.get_standard_dev())
 }
 
-fn get_analysis_output_file(id: usize) -> std::fs::File {
+fn get_analysis_output_file(dir: &str, id: usize) -> std::fs::File {
     match OpenOptions::new()
         .read(true)
         .write(true)
         .append(true)
         .create(true)
-        .open(format!("{id}.algo_sample_acquistion"))
+        .open(format!("{dir}/{id}.algo_sample_acquistion"))
     {
         Err(why) => panic!("{why}"),
         Ok(file) => file,
     }
 }
 
-fn prepare_output_file_header(id: usize) {
-    let mut file = get_analysis_output_file(id);
+fn prepare_output_file_header(dir: &str, id: usize) {
+    let mut file = get_analysis_output_file(dir, id);
     let header =
         "polynomial_size, glwe_dimension, decomposition_level_count, decomposition_base_log, \
     ggsw_encrypted_value, input_variance, output_variance, predicted_variance, mean_runtime_ns, \
@@ -103,6 +105,7 @@ fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
     pred_stddev: StandardDev,
     mean_runtime_ns: u128,
     mean_prep_time_ns: u128,
+    dir: &str,
     id: usize,
 ) {
     let data_to_save = format!(
@@ -119,7 +122,7 @@ fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
         mean_prep_time_ns,
     );
 
-    let mut file = get_analysis_output_file(id);
+    let mut file = get_analysis_output_file(dir, id);
 
     let _ = file.write(data_to_save.as_bytes()).unwrap();
 }
@@ -213,6 +216,7 @@ fn main() {
     let total_repetitions = args.repetitions;
     let base_sample_size = args.sample_size;
     let algo = args.algorithm;
+    let dir = &args.dir;
 
     if algo.is_empty() {
         panic!("No algorithm provided")
@@ -274,10 +278,13 @@ fn main() {
         GlweDimension(5),
     ];
 
+    // TODO manage moduli < 2^53
     let (stepped_levels_cutoff, max_base_log_inclusive, preserved_mantissa) = match algo.as_str() {
         EXT_PROD_U128_ALGO | EXT_PROD_U128_SPLIT_ALGO => (41, 128, 106),
         _ => (21, 64, 53),
     };
+
+    let preserved_mantissa = preserved_mantissa.min(modulus.ilog2()) as usize;
 
     let base_logs: Vec<_> = (1..=max_base_log_inclusive).collect();
     let mut levels = (1..stepped_levels_cutoff).collect::<Vec<_>>();
@@ -312,6 +319,14 @@ fn main() {
         ggsw_scalar_size(k, l, n)
     }
 
+    fn ext_prod_cost(k: GlweDimension, l: DecompositionLevelCount, n: PolynomialSize) -> usize {
+        // Conversions going from integer to float and from float to integer
+        let conversion_cost = 2 * k.to_glwe_size().0 * n.0;
+        // Fwd and back
+        let fft_cost = 2 * k.to_glwe_size().0 * n.0 * n.0.ilog2() as usize;
+        scalar_muls_per_ext_prod(k, l, n) + conversion_cost + fft_cost
+    }
+
     hypercube.sort_by(|a, b| {
         let k_a = a.glwe_dimension;
         let l_a = a.base_level.level;
@@ -321,8 +336,8 @@ fn main() {
         let l_b = b.base_level.level;
         let n_b = b.polynomial_size;
 
-        let muls_a = scalar_muls_per_ext_prod(k_a, l_a, n_a);
-        let muls_b = scalar_muls_per_ext_prod(k_b, l_b, n_b);
+        let muls_a = ext_prod_cost(k_a, l_a, n_a);
+        let muls_b = ext_prod_cost(k_b, l_b, n_b);
 
         muls_a.cmp(&muls_b)
     });
@@ -337,7 +352,7 @@ fn main() {
         (processing elements #{id} + k * {tot})",
     );
 
-    prepare_output_file_header(id);
+    prepare_output_file_header(dir, id);
 
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
@@ -532,6 +547,7 @@ fn main() {
                         variance_to_stddev(noise_prediction),
                         mean_runtime_ns,
                         mean_prep_time_ns,
+                        dir,
                         id,
                     );
 
@@ -544,6 +560,7 @@ fn main() {
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
                         0,
                         0,
+                        dir,
                         id,
                     )
                 }
@@ -705,6 +722,7 @@ fn main() {
                         variance_to_stddev(noise_prediction),
                         mean_runtime_ns,
                         mean_prep_time_ns,
+                        dir,
                         id,
                     );
 
@@ -717,6 +735,7 @@ fn main() {
                         variance_to_stddev(Variance::from_variance(1. / 12.)),
                         0,
                         0,
+                        dir,
                         id,
                     )
                 }
