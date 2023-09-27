@@ -158,7 +158,9 @@ impl ServerKey {
             self.full_extract_message_assign(ctxt_right);
         }
 
-        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
+        // assert broken because of issue
+        // https://github.com/zama-ai/tfhe-rs-internal/issues/256
+        // assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
 
         self.unchecked_crt_sub_assign(ctxt_left, ctxt_right);
     }
