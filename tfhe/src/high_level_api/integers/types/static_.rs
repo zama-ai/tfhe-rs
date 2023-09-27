@@ -14,7 +14,7 @@ use paste::paste;
 
 macro_rules! define_static_integer_parameters {
     (
-        Radix {
+        UnsignedRadix {
             num_bits: $num_bits:literal,
             num_block: $num_block:literal,
         }
@@ -44,6 +44,41 @@ macro_rules! define_static_integer_parameters {
             impl TypeIdentifier for [<FheUint $num_bits Id>] {
                 fn type_variant(&self) -> $crate::high_level_api::errors::Type {
                     $crate::high_level_api::errors::Type::[<FheUint $num_bits>]
+                }
+            }
+        }
+    };
+    (
+        SignedRadix {
+            num_bits: $num_bits:literal,
+            num_block: $num_block:literal,
+        }
+    ) => {
+        paste! {
+            #[doc = concat!("Id for the [FheInt", stringify!($num_bits), "] data type.")]
+            #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
+            pub struct [<FheInt $num_bits Id>];
+
+            #[doc = concat!("Parameters for the [FheUint", stringify!($num_bits), "] data type.")]
+            #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+            pub struct [<FheInt $num_bits Parameters>];
+
+            impl ParameterType for [<FheInt $num_bits Parameters>] {
+                type Id = [<FheInt $num_bits Id>];
+            }
+
+            impl IntegerParameter for [<FheInt $num_bits Parameters>] {
+                type InnerCiphertext = crate::integer::SignedRadixCiphertext;
+                type InnerCompressedCiphertext = crate::integer::ciphertext::CompressedSignedRadixCiphertext;
+
+                fn num_blocks() -> usize {
+                    $num_block
+                }
+            }
+
+            impl TypeIdentifier for [<FheInt $num_bits Id>] {
+                fn type_variant(&self) -> $crate::high_level_api::errors::Type {
+                    $crate::high_level_api::errors::Type::[<FheInt $num_bits>]
                 }
             }
         }
@@ -78,7 +113,7 @@ macro_rules! static_int_type {
             #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<Compact $name List>] = GenericCompactIntegerList<[<$name Parameters>]>;
 
-            impl $crate::high_level_api::keys::RefKeyFromKeyChain for [<FheUint $num_bits Id>] {
+            impl $crate::high_level_api::keys::RefKeyFromKeyChain for [<$name Id>] {
                 type Key = crate::integer::ClientKey;
 
                 fn ref_key(self, keys: &crate::high_level_api::ClientKey)
@@ -91,7 +126,7 @@ macro_rules! static_int_type {
                 }
             }
 
-            impl $crate::high_level_api::global_state::WithGlobalKey for [<FheUint $num_bits Id>] {
+            impl $crate::high_level_api::global_state::WithGlobalKey for [<$name Id>] {
                 type Key = crate::high_level_api::integers::IntegerServerKey;
 
                 fn with_global<R, F>(self, func: F) -> Result<R, $crate::high_level_api::errors::UninitializedServerKey>
@@ -109,7 +144,7 @@ macro_rules! static_int_type {
     // the `Radix` representation
     (
         $(#[$outer:meta])*
-        {
+        Unsigned {
             num_bits: $num_bits:literal,
             parameters: Radix {
                 num_block: $num_block:literal,
@@ -117,7 +152,7 @@ macro_rules! static_int_type {
         }
     ) => {
         define_static_integer_parameters!(
-            Radix {
+            UnsignedRadix {
                 num_bits: $num_bits,
                 num_block: $num_block,
             }
@@ -128,6 +163,35 @@ macro_rules! static_int_type {
                 @impl_types_and_key_traits,
                 $(#[$outer])*
                 [<FheUint $num_bits>] {
+                    num_bits: $num_bits,
+                }
+            );
+        }
+    };
+
+    // Defines a static integer type that uses
+    // the `Radix` representation
+    (
+        $(#[$outer:meta])*
+        Signed {
+            num_bits: $num_bits:literal,
+            parameters: Radix {
+                num_block: $num_block:literal,
+            },
+        }
+    ) => {
+        define_static_integer_parameters!(
+            SignedRadix {
+                num_bits: $num_bits,
+                num_block: $num_block,
+            }
+        );
+
+        ::paste::paste!{
+            static_int_type!(
+                @impl_types_and_key_traits,
+                $(#[$outer])*
+                [<FheInt $num_bits>] {
                     num_bits: $num_bits,
                 }
             );
@@ -171,7 +235,7 @@ where
 }
 
 static_int_type! {
-    {
+    Unsigned {
         num_bits: 8,
         parameters: Radix {
             num_block: 4,
@@ -180,7 +244,7 @@ static_int_type! {
 }
 
 static_int_type! {
-    {
+    Unsigned {
         num_bits: 10,
         parameters: Radix {
             num_block: 5,
@@ -189,7 +253,7 @@ static_int_type! {
 }
 
 static_int_type! {
-    {
+    Unsigned {
         num_bits: 12,
         parameters: Radix {
             num_block: 6,
@@ -198,7 +262,7 @@ static_int_type! {
 }
 
 static_int_type! {
-    {
+    Unsigned {
         num_bits: 14,
         parameters: Radix {
             num_block: 7,
@@ -207,7 +271,7 @@ static_int_type! {
 }
 
 static_int_type! {
-    {
+    Unsigned {
         num_bits: 16,
         parameters: Radix {
             num_block: 8,
@@ -216,7 +280,7 @@ static_int_type! {
 }
 
 static_int_type! {
-    {
+    Unsigned {
         num_bits: 32,
         parameters: Radix {
             num_block: 16,
@@ -225,7 +289,7 @@ static_int_type! {
 }
 
 static_int_type! {
-    {
+    Unsigned {
         num_bits: 64,
         parameters: Radix {
             num_block: 32,
@@ -234,7 +298,7 @@ static_int_type! {
 }
 
 static_int_type! {
-    {
+    Unsigned {
         num_bits: 128,
         parameters: Radix {
             num_block: 64,
@@ -243,7 +307,61 @@ static_int_type! {
 }
 
 static_int_type! {
-    {
+    Unsigned {
+        num_bits: 256,
+        parameters: Radix {
+            num_block: 128,
+        },
+    }
+}
+
+static_int_type! {
+   Signed {
+        num_bits: 8,
+        parameters: Radix {
+            num_block: 4,
+        },
+    }
+}
+
+static_int_type! {
+   Signed {
+        num_bits: 16,
+        parameters: Radix {
+            num_block: 8,
+        },
+    }
+}
+
+static_int_type! {
+   Signed {
+        num_bits: 32,
+        parameters: Radix {
+            num_block: 16,
+        },
+    }
+}
+
+static_int_type! {
+   Signed {
+        num_bits: 64,
+        parameters: Radix {
+            num_block: 32,
+        },
+    }
+}
+
+static_int_type! {
+   Signed {
+        num_bits: 128,
+        parameters: Radix {
+            num_block: 64,
+        },
+    }
+}
+
+static_int_type! {
+   Signed {
         num_bits: 256,
         parameters: Radix {
             num_block: 128,
