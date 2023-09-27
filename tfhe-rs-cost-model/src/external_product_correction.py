@@ -164,13 +164,19 @@ def extract_from_acquisitions(filename):
                 th_output_variance.append(th_output_var)
                 input_variance.append(input_var)
 
-    print(f"There is {len(parameters)} samples ...")
+    num_samples = len(parameters)
+
+    print(f"There is {num_samples} samples ...")
 
     return (
-        np.array(parameters),
-        np.array(exp_output_variance),
-        np.array(th_output_variance),
-        np.array(input_variance),
+        (
+            np.array(parameters),
+            np.array(exp_output_variance),
+            np.array(th_output_variance),
+            np.array(input_variance),
+        )
+        if num_samples != 0
+        else None
     )
 
 
@@ -179,19 +185,26 @@ def get_input(filename):
     :param filename: result filename as :class:`Path`
     :return: :class:`tuple` of X and Y values
     """
+    acquisition_samples = extract_from_acquisitions(filename)
+    if acquisition_samples is None:
+        return None
+
     (
         parameters,
         exp_output_variance,
         _th_output_variance,
         input_variance,
-    ) = extract_from_acquisitions(filename)
+    ) = acquisition_samples
     y_values = np.maximum(0.0, (exp_output_variance - input_variance))
     x_values = parameters
     return x_values, y_values
 
 
 def get_input_without_outlier(filename, bits):
-    return remove_outlier(bits, *get_input(filename))
+    inputs = get_input(filename)
+    if inputs is None:
+        return None
+    return remove_outlier(bits, *inputs)
 
 
 def remove_outlier(bits, x_values, y_values):
@@ -259,7 +272,6 @@ def fft_noise_128(x, a, log2_q):
         + theoretical_var
     )
 
-
 def log_fft_noise_fun(x, a, fft_noise_fun):
     return np.log2(fft_noise_fun(x, a))
 
@@ -278,7 +290,10 @@ def get_weights(filename, fft_noise_fun, bits):
     :param filename: results filename as :class:`Path`
     :return: :class:`dict` of weights formatted as ``{"a": <float>}``
     """
-    x_values, y_values = get_input_without_outlier(filename, bits)
+    inputs_without_outlier = get_input_without_outlier(filename, bits)
+    if inputs_without_outlier is None:
+        return None
+    x_values, y_values = inputs_without_outlier
     weights = train(x_values, y_values, fft_noise_fun)
     test(x_values, y_values, weights, fft_noise_fun)
     return {"a": weights[0]}
@@ -471,13 +486,21 @@ def main():
     output_file = dest_dir / args.output_filename
 
     if args.worst_case_analysis:
-        max_a = get_weights(result_file, fft_noise_fun, bits)["a"]
+        weights = get_weights(result_file, fft_noise_fun, bits)
+        if weights is None:
+            print("Empty weights after outlier removal, exiting")
+            return
+        max_a = weights["a"]
         for _ in range(1000):
             weights = get_weights(result_file, fft_noise_fun, bits)
             max_a = max(max_a, weights["a"])
         write_to_file(output_file, {"a": max_a})
     else:
-        write_to_file(output_file, get_weights(result_file, fft_noise_fun, bits))
+        weights = get_weights(result_file, fft_noise_fun, bits)
+        if weights is None:
+            print("Empty weights after outlier removal, exiting")
+            return
+        write_to_file(output_file, weights)
 
 
 if __name__ == "__main__":

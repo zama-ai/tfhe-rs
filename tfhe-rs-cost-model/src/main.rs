@@ -98,6 +98,7 @@ fn prepare_output_file_header(dir: &str, id: usize) {
     let _ = file.write(header.as_bytes()).unwrap();
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_to_file<Scalar: UnsignedInteger + std::fmt::Display>(
     params: &GlweCiphertextGgswCiphertextExternalProductParameters<Scalar>,
     input_stddev: StandardDev,
