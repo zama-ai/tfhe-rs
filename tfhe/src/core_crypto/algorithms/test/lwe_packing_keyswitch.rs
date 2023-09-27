@@ -1,5 +1,15 @@
 use super::*;
 
+#[cfg(not(feature = "__coverage"))]
+const NB_TESTS: usize = 10;
+#[cfg(not(feature = "__coverage"))]
+// Cut down heavy tests
+const NB_TESTS_LIGHT: usize = 5;
+#[cfg(feature = "__coverage")]
+const NB_TESTS: usize = 1;
+#[cfg(feature = "__coverage")]
+const NB_TESTS_LIGHT: usize = 1;
+
 fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
@@ -14,7 +24,6 @@ fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Tes
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -98,15 +107,13 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send 
 
     let mut rsc = TestResources::new();
 
-    // These tests are pretty heavy, cut down a bit
-    const NB_TESTS: usize = 5;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
-        for _ in 0..NB_TESTS {
+        for _ in 0..NB_TESTS_LIGHT {
             let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
                 lwe_dimension,
                 &mut rsc.secret_random_generator,

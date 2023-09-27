@@ -17,6 +17,16 @@ use concrete_csprng::generators::SoftwareRandomGenerator;
 use concrete_fft::c64;
 use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut, StackReq};
 
+#[cfg(not(feature = "__coverage"))]
+// Tests take about 2-3 seconds on a laptop with this number
+const NB_TESTS: usize = 32;
+#[cfg(not(feature = "__coverage"))]
+const NB_TESTS_LIGHT: usize = 10;
+#[cfg(feature = "__coverage")]
+const NB_TESTS: usize = 1;
+#[cfg(feature = "__coverage")]
+const NB_TESTS_LIGHT: usize = 1;
+
 // Extract all the bits of a LWE
 #[test]
 pub fn test_extract_bits() {
@@ -36,8 +46,6 @@ pub fn test_extract_bits() {
     let ciphertext_modulus = CiphertextModulus::new_native();
 
     let number_of_bits_of_message_including_padding = 5_usize;
-    // Tests take about 2-3 seconds on a laptop with this number
-    let number_of_test_runs = 32;
 
     let mut seeder = new_seeder();
     let seeder = seeder.as_mut();
@@ -114,7 +122,7 @@ pub fn test_extract_bits() {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    for _ in 0..number_of_test_runs {
+    for _ in 0..NB_TESTS {
         // Generate a random plaintext in [0; 2^{number_of_bits_of_message_including_padding}[
         let val = test_tools::random_uint_between(
             0..2u64.pow(number_of_bits_of_message_including_padding as u32),
@@ -257,9 +265,7 @@ fn test_circuit_bootstrapping_binary() {
 
     let delta_log = DeltaLog(60);
 
-    let number_of_test_runs = 32;
-
-    for _ in 0..number_of_test_runs {
+    for _ in 0..NB_TESTS {
         // value is 0 or 1 as CBS works on messages expected to contain 1 bit of information
         let value: u64 = test_tools::random_uint_between(0..2u64);
         // Encryption of an LWE with the value 'message'
@@ -426,9 +432,7 @@ pub fn test_cmux_tree() {
     // Decomposer to manage the rounding after decrypting
     let decomposer = SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
 
-    let number_of_test_runs = 32;
-
-    for _ in 0..number_of_test_runs {
+    for _ in 0..NB_TESTS {
         let mut value =
             test_tools::random_uint_between(0..2u64.pow(number_of_bits_for_payload as u32));
         println!("value: {value}");
@@ -623,9 +627,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     let delta_log = DeltaLog(64 - number_of_values_to_extract.0);
     let delta_lut = DeltaLog(64 - number_of_values_to_extract.0);
 
-    let number_of_test_runs = 10;
-
-    for run_number in 0..number_of_test_runs {
+    for run_number in 0..NB_TESTS_LIGHT {
         let cleartext =
             test_tools::random_uint_between(0..2u64.pow(number_of_bits_in_input_lwe as u32));
 

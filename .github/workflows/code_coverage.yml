@@ -80,6 +80,11 @@ jobs:
         run: |
           make GEN_KEY_CACHE_COVERAGE_ONLY=TRUE gen_key_cache
 
+      - name: Run coverage for core_crypto
+        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+        run: |
+          make test_core_crypto_cov AVX512_SUPPORT=ON
+
       - name: Run coverage for boolean
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
@@ -97,7 +102,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/
           fail_ci_if_error: true
-          files: shortint/cobertura.xml,boolean/cobertura.xml
+          files: shortint/cobertura.xml,boolean/cobertura.xml,core_crypto/cobertura.xml,core_crypto_avx512/cobertura.xml
 
       - name: Slack Notification
         if: ${{ failure() }}

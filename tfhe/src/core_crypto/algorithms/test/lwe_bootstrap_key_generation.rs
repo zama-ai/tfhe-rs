@@ -10,10 +10,15 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::test_tools::new_secret_random_generator;
 use crate::core_crypto::entities::*;
 
+#[cfg(not(feature = "__coverage"))]
+const NB_TESTS: usize = 10;
+#[cfg(feature = "__coverage")]
+const NB_TESTS: usize = 1;
+
 fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
     ciphertext_modulus: CiphertextModulus<T>,
 ) {
-    for _ in 0..10 {
+    for _ in 0..NB_TESTS {
         let lwe_dim =
             LweDimension(crate::core_crypto::commons::test_tools::random_usize_between(5..10));
         let glwe_dim =

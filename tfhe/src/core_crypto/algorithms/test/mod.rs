@@ -236,6 +236,7 @@ where
 }
 
 // Macro to generate tests for all parameter sets
+#[cfg(not(feature = "__coverage"))]
 macro_rules! create_parametrized_test{
     ($name:ident { $($param:ident),* }) => {
         paste! {
@@ -252,6 +253,26 @@ macro_rules! create_parametrized_test{
         {
             TEST_PARAMS_4_BITS_NATIVE_U64,
             TEST_PARAMS_3_BITS_63_U64
+        });
+    };
+}
+
+#[cfg(feature = "__coverage")]
+macro_rules! create_parametrized_test{
+    ($name:ident { $($param:ident),* }) => {
+        paste! {
+            $(
+            #[test]
+            fn [<test_ $name _ $param:lower>]() {
+                $name($param)
+            }
+            )*
+        }
+    };
+     ($name:ident)=> {
+        create_parametrized_test!($name
+        {
+            TEST_PARAMS_4_BITS_NATIVE_U64
         });
     };
 }

@@ -1,5 +1,10 @@
 use super::*;
 
+#[cfg(not(feature = "__coverage"))]
+const NB_TESTS: usize = 10;
+#[cfg(feature = "__coverage")]
+const NB_TESTS: usize = 1;
+
 fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
     ciphertext_modulus: CiphertextModulus<Scalar>,
 ) {
@@ -26,7 +31,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
             ciphertext_modulus,
         );
 
-        for _ in 0..10 {
+        for _ in 0..NB_TESTS {
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
                 input_key_lwe_dimension,
                 &mut rsc.secret_random_generator,
@@ -98,7 +103,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
 
     // Small sizes
     {
-        for _ in 0..10 {
+        for _ in 0..NB_TESTS {
             let decomp_base_log = DecompositionBaseLog(
                 crate::core_crypto::commons::test_tools::random_usize_between(2..5),
             );

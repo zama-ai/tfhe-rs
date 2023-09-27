@@ -1,5 +1,15 @@
 use super::*;
 
+#[cfg(not(feature = "__coverage"))]
+const NB_TESTS: usize = 10;
+#[cfg(not(feature = "__coverage"))]
+// Divided by two compared to other tests, we are running the algorithm twice for determinism
+const NB_TESTS_LIGHT: usize = 5;
+#[cfg(feature = "__coverage")]
+const NB_TESTS: usize = 1;
+#[cfg(feature = "__coverage")]
+const NB_TESTS_LIGHT: usize = 1;
+
 pub struct MultiBitParams<Scalar: UnsignedInteger> {
     pub input_lwe_dimension: LweDimension,
     pub lwe_modular_std_dev: StandardDev,
@@ -43,7 +53,6 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
-    const NB_TESTS: usize = 10;
 
     let accumulator = generate_accumulator(
         polynomial_size,
@@ -175,8 +184,6 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
-    // Divided by two compared to other tests, we are running the algorithm twice for determinism
-    const NB_TESTS: usize = 5;
 
     let accumulator = generate_accumulator(
         polynomial_size,
@@ -238,7 +245,7 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
-        for _ in 0..NB_TESTS {
+        for _ in 0..NB_TESTS_LIGHT {
             let plaintext = Plaintext(msg * delta);
 
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -332,7 +339,6 @@ fn lwe_encrypt_std_multi_bit_pbs_decrypt_custom_mod<
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
-    const NB_TESTS: usize = 10;
 
     let accumulator = generate_accumulator(
         polynomial_size,
@@ -451,8 +457,6 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
-    // Divided by two compared to other tests, we are running the algorithm twice for determinism
-    const NB_TESTS: usize = 5;
 
     let accumulator = generate_accumulator(
         polynomial_size,
@@ -501,7 +505,7 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
-        for _ in 0..NB_TESTS {
+        for _ in 0..NB_TESTS_LIGHT {
             let plaintext = Plaintext(msg * delta);
 
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(

@@ -1,5 +1,10 @@
 use super::*;
 
+#[cfg(not(feature = "__coverage"))]
+const NB_TESTS: usize = 10;
+#[cfg(feature = "__coverage")]
+const NB_TESTS: usize = 1;
+
 fn lwe_encrypt_pbs_decrypt_custom_mod<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize>,
 >(
@@ -27,7 +32,6 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
-    const NB_TESTS: usize = 10;
 
     let accumulator = generate_accumulator(
         polynomial_size,
@@ -194,7 +198,6 @@ fn lwe_encrypt_pbs_f128_decrypt_custom_mod<
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
-    const NB_TESTS: usize = 10;
 
     let accumulator = generate_accumulator(
         polynomial_size,

@@ -6,6 +6,11 @@ use crate::core_crypto::commons::generators::{
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::test_tools;
 
+#[cfg(not(feature = "__coverage"))]
+const NB_TESTS: usize = 10;
+#[cfg(feature = "__coverage")]
+const NB_TESTS: usize = 1;
+
 fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
     ciphertext_modulus: CiphertextModulus<Scalar>,
 ) where
@@ -26,8 +31,6 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
     let main_seed = seeder.seed();
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-
-    const NB_TESTS: usize = 10;
 
     for _ in 0..NB_TESTS {
         // Create the GlweSecretKey
@@ -184,8 +187,6 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Sca
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
-
     let mut msg = Scalar::ONE << decomposition_base_log.0;
 
     while msg != Scalar::ZERO {
@@ -246,8 +247,6 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
-
     let mut msg = Scalar::ONE << decomposition_base_log.0;
 
     while msg != Scalar::ZERO {
@@ -305,8 +304,6 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPar
     let decomposition_level_count = params.pbs_level;
 
     let mut rsc = TestResources::new();
-
-    const NB_TESTS: usize = 10;
 
     let mut msg = Scalar::ONE << decomposition_base_log.0;
 
@@ -370,8 +367,6 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
     let decomposition_level_count = params.pbs_level;
 
     let mut rsc = TestResources::new();
-
-    const NB_TESTS: usize = 10;
 
     let mut msg = Scalar::ONE << decomposition_base_log.0;
 

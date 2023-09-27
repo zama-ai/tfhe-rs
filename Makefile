@@ -308,6 +308,21 @@ test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p tfhe -- core_crypto::; \
 	fi
 
+.PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
+test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain install_tarpaulin
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+		--out xml --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
+		$(COVERAGE_EXCLUDED_FILES) \
+		--features=$(TARGET_ARCH_FEATURE),experimental,__coverage \
+		-p tfhe -- core_crypto::
+	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
+			$(COVERAGE_EXCLUDED_FILES) \
+			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE),__coverage \
+			-p tfhe -- core_crypto::; \
+	fi
+
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
