@@ -44,17 +44,17 @@ pub struct CompactCiphertextList {
 }
 
 impl CompactCiphertextList {
-    pub fn expand_one(&self) -> RadixCiphertext {
+    pub fn expand_one<T: IntegerRadixCiphertext>(&self) -> T {
         let mut blocks = self.ct_list.expand();
         blocks.truncate(self.num_blocks);
-        RadixCiphertext::from(blocks)
+        T::from(blocks)
     }
 
     pub fn ciphertext_count(&self) -> usize {
         self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks
     }
 
-    pub fn expand(&self) -> Vec<RadixCiphertext> {
+    pub fn expand<T: IntegerRadixCiphertext>(&self) -> Vec<T> {
         let mut all_block_iter = self.ct_list.expand().into_iter();
         let num_ct = self.ciphertext_count();
         let mut ciphertexts = Vec::with_capacity(num_ct);
@@ -67,7 +67,7 @@ impl CompactCiphertextList {
             if ct_blocks.len() < self.num_blocks {
                 break;
             }
-            let ct = RadixCiphertext::from(ct_blocks);
+            let ct = T::from(ct_blocks);
             ciphertexts.push(ct);
         }
 
