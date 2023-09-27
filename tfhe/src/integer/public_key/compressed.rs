@@ -2,6 +2,7 @@ use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
+use crate::integer::SignedRadixCiphertext;
 use crate::shortint::parameters::MessageModulus;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -57,6 +58,18 @@ impl CompressedPublicKey {
         message: T,
         num_blocks: usize,
     ) -> RadixCiphertext {
+        self.encrypt_words_radix(
+            message,
+            num_blocks,
+            crate::shortint::CompressedPublicKey::encrypt,
+        )
+    }
+
+    pub fn encrypt_signed_radix<T: DecomposableInto<u64>>(
+        &self,
+        message: T,
+        num_blocks: usize,
+    ) -> SignedRadixCiphertext {
         self.encrypt_words_radix(
             message,
             num_blocks,
