@@ -14,6 +14,7 @@ use super::ServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::encryption::encrypt_words_radix_impl;
+use crate::integer::SignedRadixCiphertext;
 
 #[cfg(test)]
 mod tests;
@@ -383,6 +384,91 @@ where {
         let mut ct_res = ct.clone();
         self.trim_radix_blocks_msb_assign(&mut ct_res, num_blocks);
         ct_res
+    }
+
+    /// Extends the most significant blocks using the sign bit.
+    /// Used to cast [SignedRadixCiphertext]
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    ///
+    /// let msg = -1i8;
+    ///
+    /// let mut ct1 = cks.encrypt_signed(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// sks.extend_radix_with_sign_msb_assign(&mut ct1, 4);
+    /// assert_eq!(ct1.blocks().len(), 8);
+    ///
+    /// // Decrypt
+    /// let res: i16 = cks.decrypt_signed(&ct1);
+    /// assert_eq!(-1, res);
+    /// ```
+    pub fn extend_radix_with_sign_msb_assign(
+        &self,
+        ct: &mut SignedRadixCiphertext,
+        num_blocks: usize,
+    ) {
+        let message_modulus = self.key.message_modulus.0 as u64;
+        let num_bits_in_block = message_modulus.ilog2();
+        let padding_block_creator_lut = self.key.generate_lookup_table(|x| {
+            let x = x % message_modulus;
+            let x_sign_bit = x >> (num_bits_in_block - 1) & 1;
+            // padding is a message full of 1 if sign bit is one
+            // else padding is a zero message
+            (message_modulus - 1) * x_sign_bit
+        });
+        let last_block = ct.blocks.last().expect("Empty input");
+        let padding_block = self
+            .key
+            .apply_lookup_table(last_block, &padding_block_creator_lut);
+
+        let new_lew = num_blocks + ct.blocks.len();
+        ct.blocks.resize(new_lew, padding_block);
+    }
+
+    /// Extends the most significant blocks using the sign bit.
+    /// Used to cast [SignedRadixCiphertext]
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let num_blocks = 4;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    ///
+    /// let msg = -2i8;
+    ///
+    /// let ct1 = cks.encrypt_signed(msg);
+    /// assert_eq!(ct1.blocks().len(), 4);
+    ///
+    /// let ct_res = sks.extend_radix_with_sign_msb(&ct1, 4);
+    /// assert_eq!(ct1.blocks().len(), 8);
+    ///
+    /// // Decrypt
+    /// let res: i16 = cks.decrypt_signed(&ct_res);
+    /// assert_eq!(-2, res);
+    /// ```
+    pub fn extend_radix_with_sign_msb(
+        &self,
+        ct: &SignedRadixCiphertext,
+        num_blocks: usize,
+    ) -> SignedRadixCiphertext {
+        let mut result = ct.clone();
+        self.extend_radix_with_sign_msb_assign(&mut result, num_blocks);
+        result
     }
 
     /// Propagate the carry of the 'index' block to the next one.

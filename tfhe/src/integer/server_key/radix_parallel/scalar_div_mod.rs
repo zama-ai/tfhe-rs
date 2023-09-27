@@ -16,7 +16,7 @@ use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric, SignedNumeric, Un
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::radix::scalar_mul::ScalarMultiplier;
-use crate::integer::{ServerKey, I256, I512, U256, U512};
+use crate::integer::{IntegerCiphertext, ServerKey, I256, I512, U256, U512};
 
 #[inline(always)]
 fn is_even<T>(d: T) -> bool
@@ -298,26 +298,11 @@ impl ServerKey {
         T: ScalarMultiplier + DecomposableInto<u8>,
     {
         let num_blocks = lhs.blocks.len();
-        let mut result = lhs.clone();
-
-        let message_modulus = self.key.message_modulus.0 as u64;
-        let num_bits_in_block = message_modulus.ilog2();
-        let padding_block_creator_lut = self.key.generate_lookup_table(|x| {
-            let x = x % message_modulus;
-            let x_sign_bit = x >> (num_bits_in_block - 1) & 1;
-            // padding is a message full of 1 if sign bit is one
-            // else padding is a zero message
-            (message_modulus - 1) * x_sign_bit
-        });
-
-        let padding_block = self
-            .key
-            .apply_lookup_table(&lhs.blocks[num_blocks - 1], &padding_block_creator_lut);
-        result.blocks.resize(2 * num_blocks, padding_block);
+        let mut result = self.extend_radix_with_sign_msb(lhs, num_blocks);
         self.scalar_mul_assign_parallelized(&mut result, rhs);
-        result.blocks.rotate_left(num_blocks);
-        result.blocks.truncate(num_blocks);
-        result
+        let mut result = RadixCiphertext::from_blocks(result.blocks);
+        self.trim_radix_blocks_lsb_assign(&mut result, num_blocks);
+        SignedRadixCiphertext::from_blocks(result.blocks)
     }
 
     pub fn unchecked_scalar_div_parallelized<T>(
