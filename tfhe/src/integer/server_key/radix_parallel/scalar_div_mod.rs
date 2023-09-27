@@ -550,6 +550,84 @@ impl ServerKey {
         (quotient, remainder)
     }
 
+    pub fn signed_scalar_div_rem_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext)
+    where
+        T: SignedReciprocable + ScalarMultiplier,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        if !numerator.block_carries_are_empty() {
+            let mut tmp = numerator.clone();
+            self.full_propagate_parallelized(&mut tmp);
+            self.unchecked_signed_scalar_div_rem_parallelized(&tmp, divisor)
+        } else {
+            self.unchecked_signed_scalar_div_rem_parallelized(numerator, divisor)
+        }
+    }
+
+    pub fn signed_scalar_div_assign_parallelized<T>(
+        &self,
+        numerator: &mut SignedRadixCiphertext,
+        divisor: T,
+    ) where
+        T: SignedReciprocable,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        if !numerator.block_carries_are_empty() {
+            self.full_propagate_parallelized(numerator)
+        }
+
+        *numerator = self.unchecked_signed_scalar_div_parallelized(numerator, divisor);
+    }
+
+    pub fn signed_scalar_div_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> SignedRadixCiphertext
+    where
+        T: SignedReciprocable,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        let mut result = numerator.clone();
+        self.signed_scalar_div_assign_parallelized(&mut result, divisor);
+        result
+    }
+
+    pub fn signed_scalar_rem_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> SignedRadixCiphertext
+    where
+        T: SignedReciprocable + ScalarMultiplier,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        let mut result = numerator.clone();
+        self.signed_scalar_rem_assign_parallelized(&mut result, divisor);
+        result
+    }
+
+    pub fn signed_scalar_rem_assign_parallelized<T>(
+        &self,
+        numerator: &mut SignedRadixCiphertext,
+        divisor: T,
+    ) where
+        T: SignedReciprocable + ScalarMultiplier,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        if !numerator.block_carries_are_empty() {
+            self.full_propagate_parallelized(numerator)
+        }
+
+        let (_quotient, remainder) =
+            self.unchecked_signed_scalar_div_rem_parallelized(numerator, divisor);
+        *numerator = remainder;
+    }
+
     /// # Note
     /// This division rounds the quotient towards minus infinity
     pub fn unchecked_signed_scalar_div_floor_parallelized<T>(
