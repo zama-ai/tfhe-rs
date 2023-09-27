@@ -531,7 +531,8 @@ impl ServerKey {
     }
 
     /// # Note
-    /// This division rounds (truncates) the quotient towards 0
+    ///
+    /// - This division rounds (truncates) the quotient towards 0
     pub fn unchecked_signed_scalar_div_rem_parallelized<T>(
         &self,
         numerator: &SignedRadixCiphertext,
@@ -548,6 +549,133 @@ impl ServerKey {
         let remainder = self.sub_parallelized(numerator, &tmp);
 
         (quotient, remainder)
+    }
+
+    /// # Note
+    ///
+    /// - This division rounds (truncates) the quotient towards 0
+    /// - If you need both the quotient and remainder use
+    ///   [Self::unchecked_signed_scalar_div_rem_parallelized] instead.
+    pub fn unchecked_signed_scalar_rem_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> SignedRadixCiphertext
+    where
+        T: SignedReciprocable + ScalarMultiplier,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        let (_, remainder) = self.unchecked_signed_scalar_div_rem_parallelized(numerator, divisor);
+
+        remainder
+    }
+
+    /// Computes and returns the quotient and remainder of the division between
+    /// a signed ciphertext and a signed clear value.
+    ///
+    /// # Note
+    ///
+    /// - This division rounds (truncates) the quotient towards 0
+    pub fn signed_scalar_div_rem_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> (SignedRadixCiphertext, SignedRadixCiphertext)
+    where
+        T: SignedReciprocable + ScalarMultiplier,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        if !numerator.block_carries_are_empty() {
+            let mut tmp = numerator.clone();
+            self.full_propagate_parallelized(&mut tmp);
+            self.unchecked_signed_scalar_div_rem_parallelized(&tmp, divisor)
+        } else {
+            self.unchecked_signed_scalar_div_rem_parallelized(numerator, divisor)
+        }
+    }
+
+    /// Computes the quotient of the division between
+    /// a signed ciphertext and a signed clear value and assigns the
+    /// result to the input ciphertext.
+    ///
+    /// # Note
+    ///
+    /// - This division rounds (truncates) the quotient towards 0
+    pub fn signed_scalar_div_assign_parallelized<T>(
+        &self,
+        numerator: &mut SignedRadixCiphertext,
+        divisor: T,
+    ) where
+        T: SignedReciprocable,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        if !numerator.block_carries_are_empty() {
+            self.full_propagate_parallelized(numerator)
+        }
+
+        *numerator = self.unchecked_signed_scalar_div_parallelized(numerator, divisor);
+    }
+
+    /// Computes and returns the quotient of the division between
+    /// a signed ciphertext and a signed clear value.
+    ///
+    /// # Note
+    ///
+    /// - This division rounds (truncates) the quotient towards 0
+    /// - If you need both the quotient and remainder use [Self::signed_scalar_div_rem_parallelized]
+    ///   instead.
+    pub fn signed_scalar_div_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> SignedRadixCiphertext
+    where
+        T: SignedReciprocable,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        let mut result = numerator.clone();
+        self.signed_scalar_div_assign_parallelized(&mut result, divisor);
+        result
+    }
+
+    /// Computes and returns the remainder of the division between
+    /// a signed ciphertext and a signed clear value.
+    ///
+    /// # Note
+    ///
+    /// - If you need both the quotient and remainder use [Self::signed_scalar_div_rem_parallelized]
+    ///   instead.
+    pub fn signed_scalar_rem_parallelized<T>(
+        &self,
+        numerator: &SignedRadixCiphertext,
+        divisor: T,
+    ) -> SignedRadixCiphertext
+    where
+        T: SignedReciprocable + ScalarMultiplier,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        let mut result = numerator.clone();
+        self.signed_scalar_rem_assign_parallelized(&mut result, divisor);
+        result
+    }
+
+    /// Computes the remainder of the division between
+    /// a signed ciphertext and a signed clear value and assigns the
+    /// result to the input ciphertext.
+    pub fn signed_scalar_rem_assign_parallelized<T>(
+        &self,
+        numerator: &mut SignedRadixCiphertext,
+        divisor: T,
+    ) where
+        T: SignedReciprocable + ScalarMultiplier,
+        <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        if !numerator.block_carries_are_empty() {
+            self.full_propagate_parallelized(numerator)
+        }
+
+        let remainder = self.unchecked_signed_scalar_rem_parallelized(numerator, divisor);
+        *numerator = remainder;
     }
 
     /// # Note
