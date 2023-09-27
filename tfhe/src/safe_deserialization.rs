@@ -113,3 +113,185 @@ pub fn safe_deserialize_conformant<T: DeserializeOwned + Named + ParameterSetCon
 
     Ok(deser)
 }
+
+#[cfg(all(test, feature = "shortint"))]
+mod test_shortint {
+    use crate::safe_deserialization::{safe_deserialize_conformant, safe_serialize};
+    use crate::shortint::parameters::{
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    };
+    use crate::shortint::{gen_keys, Ciphertext, PBSParameters};
+
+    #[test]
+    fn safe_desererialization_ct() {
+        let (ck, _sk) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+
+        let msg = 2_u64;
+
+        let ct = ck.encrypt(msg);
+
+        let mut buffer = vec![];
+
+        safe_serialize(&ct, &mut buffer, 1 << 40).unwrap();
+
+        assert!(safe_deserialize_conformant::<Ciphertext>(
+            buffer.as_slice(),
+            1 << 20,
+            &PBSParameters::PBS(PARAM_MESSAGE_3_CARRY_3_KS_PBS).to_shortint_conformance_param(),
+        )
+        .is_err());
+
+        let ct2 = safe_deserialize_conformant(
+            buffer.as_slice(),
+            1 << 20,
+            &PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS).to_shortint_conformance_param(),
+        )
+        .unwrap();
+
+        let dec = ck.decrypt(&ct2);
+        assert_eq!(msg, dec);
+    }
+}
+
+#[cfg(all(test, feature = "integer"))]
+mod test_integer {
+    use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
+    use crate::high_level_api::{generate_keys, ConfigBuilder};
+
+    use crate::prelude::{FheDecrypt, FheTryEncrypt};
+    use crate::safe_deserialization::{safe_deserialize_conformant, safe_serialize};
+    use crate::shortint::parameters::{
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    };
+    use crate::{CompactFheUint8, CompactFheUint8List, CompactPublicKey};
+
+    #[test]
+    fn safe_desererialization_ct() {
+        let config = ConfigBuilder::all_disabled()
+            .enable_default_integers()
+            .build();
+
+        let (client_key, _server_key) = generate_keys(config);
+
+        let public_key = CompactPublicKey::new(&client_key);
+
+        let msg = 27u8;
+
+        let ct = CompactFheUint8::try_encrypt(msg, &public_key).unwrap();
+
+        assert!(ct.is_conformant(&PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()));
+
+        let mut buffer = vec![];
+
+        safe_serialize(&ct, &mut buffer, 1 << 40).unwrap();
+
+        assert!(safe_deserialize_conformant::<CompactFheUint8>(
+            buffer.as_slice(),
+            1 << 20,
+            &PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
+        )
+        .is_err());
+
+        let ct2 = safe_deserialize_conformant::<CompactFheUint8>(
+            buffer.as_slice(),
+            1 << 20,
+            &PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+        )
+        .unwrap();
+
+        let dec: u8 = ct2.expand().decrypt(&client_key);
+        assert_eq!(msg, dec);
+    }
+
+    #[test]
+    fn safe_desererialization_ct_list() {
+        let config = ConfigBuilder::all_disabled()
+            .enable_default_integers()
+            .build();
+
+        let (client_key, _server_key) = generate_keys(config);
+
+        let public_key = CompactPublicKey::new(&client_key);
+
+        let msg = [27u8, 10, 3];
+
+        let ct_list = CompactFheUint8List::try_encrypt(&msg, &public_key).unwrap();
+
+        let mut buffer = vec![];
+
+        safe_serialize(&ct_list, &mut buffer, 1 << 40).unwrap();
+
+        for paremeter_set in [
+            (
+                PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
+                ListSizeConstraint::exact_size(3),
+            ),
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                ListSizeConstraint::exact_size(2),
+            ),
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                ListSizeConstraint::exact_size(4),
+            ),
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                ListSizeConstraint::try_size_in_range(1, 2).unwrap(),
+            ),
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                ListSizeConstraint::try_size_in_range(4, 5).unwrap(),
+            ),
+        ]
+        .iter()
+        {
+            assert!(safe_deserialize_conformant::<CompactFheUint8List>(
+                buffer.as_slice(),
+                1 << 20,
+                paremeter_set,
+            )
+            .is_err());
+        }
+
+        for paremeter_set in [
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                ListSizeConstraint::exact_size(3),
+            ),
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                ListSizeConstraint::try_size_in_range(2, 3).unwrap(),
+            ),
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                ListSizeConstraint::try_size_in_range(3, 4).unwrap(),
+            ),
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                ListSizeConstraint::try_size_in_range(2, 4).unwrap(),
+            ),
+        ]
+        .iter()
+        {
+            assert!(ct_list.is_conformant(paremeter_set));
+        }
+
+        let ct2 = safe_deserialize_conformant::<CompactFheUint8List>(
+            buffer.as_slice(),
+            1 << 20,
+            &(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                ListSizeConstraint::exact_size(3),
+            ),
+        )
+        .unwrap();
+
+        let dec: Vec<u8> = ct2
+            .expand()
+            .iter()
+            .map(|a| a.decrypt(&client_key))
+            .collect();
+
+        assert_eq!(&msg[..], &dec);
+    }
+}

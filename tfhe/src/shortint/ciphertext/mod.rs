@@ -88,6 +88,10 @@ pub struct Ciphertext {
     pub pbs_order: PBSOrder,
 }
 
+impl crate::named::Named for Ciphertext {
+    const NAME: &'static str = "shortint::Ciphertext";
+}
+
 impl ParameterSetConformant for Ciphertext {
     type ParameterSet = CiphertextConformanceParams;
 
