@@ -5,6 +5,7 @@ use crate::high_level_api::integers::types::base::GenericInteger;
 use crate::high_level_api::internal_traits::TypeIdentifier;
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::integer::ciphertext::{CiphertextListConformanceParams, CompactCiphertextList};
+use crate::named::Named;
 use crate::shortint::PBSParameters;
 use crate::CompactPublicKey;
 
@@ -103,6 +104,14 @@ impl<P: IntegerParameter> ParameterSetConformant for GenericCompactInteger<P> {
         };
         self.list.is_conformant(&params)
     }
+}
+
+impl<P: IntegerParameter> Named for GenericCompactInteger<P> {
+    const NAME: &'static str = "high_level_api::GenericCompactInteger";
+}
+
+impl<P: IntegerParameter> Named for GenericCompactIntegerList<P> {
+    const NAME: &'static str = "high_level_api::GenericCompactIntegerList";
 }
 
 impl<P: IntegerParameter> ParameterSetConformant for GenericCompactIntegerList<P> {
