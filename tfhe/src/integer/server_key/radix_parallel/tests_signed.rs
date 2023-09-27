@@ -2047,6 +2047,7 @@ create_parametrized_test!(integer_signed_default_scalar_add);
 create_parametrized_test!(integer_signed_default_scalar_bitand);
 create_parametrized_test!(integer_signed_default_scalar_bitor);
 create_parametrized_test!(integer_signed_default_scalar_bitxor);
+create_parametrized_test!(integer_signed_default_scalar_div_rem);
 
 fn integer_signed_default_scalar_add<P>(param: P)
 where
@@ -2194,5 +2195,57 @@ fn integer_signed_default_scalar_bitxor(param: impl Into<PBSParameters>) {
 
         let expected_result = signed_add_under_modulus(clear_0, clear_2, modulus) ^ clear_1;
         assert_eq!(dec_res, expected_result);
+    }
+}
+
+fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
+
+        let result = std::panic::catch_unwind(|| {
+            let _ = sks.signed_scalar_div_rem_parallelized(&ctxt_0, 0);
+        });
+        assert!(result.is_err(), "Division by zero did not panic");
+    }
+
+    let lhs_values = random_signed_value_under_modulus::<5>(&mut rng, modulus);
+    let rhs_values = random_non_zero_signed_value_under_modulus::<5>(&mut rng, modulus);
+
+    for (mut clear_lhs, clear_rhs) in iproduct!(lhs_values, rhs_values) {
+        let mut ctxt_0 = cks.encrypt_signed_radix(clear_lhs, NB_CTXT);
+
+        // Make the degree non-fresh
+        let offset = random_non_zero_value(&mut rng, modulus);
+        sks.unchecked_scalar_add_assign(&mut ctxt_0, offset);
+        clear_lhs = signed_add_under_modulus(clear_lhs, offset, modulus);
+        assert!(!ctxt_0.block_carries_are_empty());
+
+        let (q_res, r_res) = sks.signed_scalar_div_rem_parallelized(&ctxt_0, clear_rhs);
+        let q: i64 = cks.decrypt_signed_radix(&q_res);
+        let r: i64 = cks.decrypt_signed_radix(&r_res);
+        let expected_q = signed_div_under_modulus(clear_lhs, clear_rhs, modulus);
+        let expected_r = signed_rem_under_modulus(clear_lhs, clear_rhs, modulus);
+        assert_eq!(
+            q, expected_q,
+            "Invalid quotient result for division, for {clear_lhs} / {clear_rhs}, \
+             Expected {expected_q}, got {q}"
+        );
+        assert_eq!(
+            r, expected_r,
+            "Invalid remainder result for division, for {clear_lhs} % {clear_rhs}, \
+             Expected {expected_r}, got {r}"
+        );
+
+        let (q2_res, r2_res) = sks.signed_scalar_div_rem_parallelized(&ctxt_0, clear_rhs);
+        assert_eq!(q2_res, q_res, "Failed determinism check");
+        assert_eq!(r2_res, r_res, "Failed determinism check");
     }
 }
