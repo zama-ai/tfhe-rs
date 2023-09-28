@@ -14,5 +14,8 @@ pub trait EvaluationIntegerKey<ClientKey> {
 
 /// Trait to mark parameters type for integers
 pub trait IntegerParameter: ParameterType {
+    type InnerCiphertext: crate::integer::ciphertext::IntegerRadixCiphertext;
+    type InnerCompressedCiphertext;
+
     fn num_blocks() -> usize;
 }

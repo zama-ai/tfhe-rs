@@ -4,7 +4,6 @@ use std::ops::{
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
-use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::errors::{
     UninitializedClientKey, UninitializedCompressedPublicKey, UninitializedPublicKey,
     UnwrapResultExt,
@@ -12,7 +11,7 @@ use crate::errors::{
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::integers::parameters::IntegerParameter;
 use crate::high_level_api::integers::IntegerServerKey;
-use crate::high_level_api::internal_traits::{DecryptionKey, TypeIdentifier};
+use crate::high_level_api::internal_traits::{DecryptionKey, EncryptionKey, TypeIdentifier};
 use crate::high_level_api::keys::{CompressedPublicKey, RefKeyFromKeyChain};
 use crate::high_level_api::traits::{
     DivRem, FheBootstrap, FheDecrypt, FheEq, FheMax, FheMin, FheOrd, FheTrivialEncrypt,
@@ -95,7 +94,7 @@ impl std::fmt::Display for GenericIntegerBlockError {
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct GenericInteger<P: IntegerParameter> {
-    pub(in crate::high_level_api::integers) ciphertext: RadixCiphertext,
+    pub(in crate::high_level_api::integers) ciphertext: P::InnerCiphertext,
     pub(in crate::high_level_api::integers) id: P::Id,
 }
 
@@ -103,13 +102,17 @@ impl<P> GenericInteger<P>
 where
     P: IntegerParameter,
 {
-    pub(in crate::high_level_api::integers) fn new(ciphertext: RadixCiphertext, id: P::Id) -> Self {
+    pub(in crate::high_level_api::integers) fn new(
+        ciphertext: P::InnerCiphertext,
+        id: P::Id,
+    ) -> Self {
         Self { ciphertext, id }
     }
 
     pub fn cast_from<P2>(other: GenericInteger<P2>) -> Self
     where
-        P2: IntegerParameter,
+        P: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+        P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
         P::Id: Default,
     {
         other.cast_into()
@@ -117,7 +120,8 @@ where
 
     pub fn cast_into<P2>(mut self) -> GenericInteger<P2>
     where
-        P2: IntegerParameter,
+        P: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+        P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
         P2::Id: Default,
     {
         crate::high_level_api::global_state::with_internal_keys(|keys| {
@@ -162,7 +166,7 @@ where
 
 impl<P> TryFrom<RadixCiphertext> for GenericInteger<P>
 where
-    P: IntegerParameter,
+    P: IntegerParameter<InnerCiphertext = RadixCiphertext>,
     P::Id: Default + WithGlobalKey<Key = IntegerServerKey>,
 {
     type Error = GenericIntegerBlockError;
@@ -207,22 +211,22 @@ where
 
 impl<P, T> TryFrom<Vec<T>> for GenericInteger<P>
 where
-    P: IntegerParameter,
+    P: IntegerParameter<InnerCiphertext = RadixCiphertext>,
     P::Id: Default + WithGlobalKey<Key = IntegerServerKey>,
-    RadixCiphertext: From<Vec<T>>,
+    P::InnerCiphertext: From<Vec<T>>,
 {
     type Error = GenericIntegerBlockError;
     fn try_from(blocks: Vec<T>) -> Result<GenericInteger<P>, GenericIntegerBlockError> {
-        GenericInteger::try_from(RadixCiphertext::from(blocks))
+        let ciphertext = P::InnerCiphertext::from(blocks);
+        GenericInteger::try_from(ciphertext)
     }
 }
 
 impl<P, ClearType> FheDecrypt<ClearType> for GenericInteger<P>
 where
-    ClearType: crate::integer::block_decomposition::RecomposableFrom<u64>,
     P: IntegerParameter,
     P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
-    crate::integer::ClientKey: DecryptionKey<RadixCiphertext, ClearType>,
+    crate::integer::ClientKey: DecryptionKey<P::InnerCiphertext, ClearType>,
 {
     fn decrypt(&self, key: &ClientKey) -> ClearType {
         let key = self.id.unwrapped_ref_key(key);
@@ -232,9 +236,9 @@ where
 
 impl<P, T> FheTryEncrypt<T, ClientKey> for GenericInteger<P>
 where
-    T: crate::integer::block_decomposition::DecomposableInto<u64> + UnsignedNumeric,
     P: IntegerParameter,
     P::Id: Default + TypeIdentifier,
+    crate::integer::ClientKey: EncryptionKey<(T, usize), P::InnerCiphertext>,
 {
     type Error = crate::high_level_api::errors::Error;
 
@@ -247,16 +251,19 @@ where
             .as_ref()
             .ok_or(UninitializedClientKey(id.type_variant()))
             .unwrap_display();
-        let ciphertext = integer_client_key.encrypt_radix(value, P::num_blocks());
+        let ciphertext = <crate::integer::ClientKey as EncryptionKey<_, _>>::encrypt(
+            integer_client_key,
+            (value, P::num_blocks()),
+        );
         Ok(Self::new(ciphertext, id))
     }
 }
 
 impl<P, T> FheTryEncrypt<T, PublicKey> for GenericInteger<P>
 where
-    T: crate::integer::block_decomposition::DecomposableInto<u64>,
     P: IntegerParameter,
     P::Id: Default + TypeIdentifier,
+    crate::integer::PublicKey: EncryptionKey<(T, usize), P::InnerCiphertext>,
 {
     type Error = crate::high_level_api::errors::Error;
 
@@ -267,16 +274,19 @@ where
             .as_ref()
             .ok_or(UninitializedPublicKey(id.type_variant()))
             .unwrap_display();
-        let ciphertext = integer_public_key.encrypt_radix(value, P::num_blocks());
+        let ciphertext = <crate::integer::PublicKey as EncryptionKey<_, _>>::encrypt(
+            integer_public_key,
+            (value, P::num_blocks()),
+        );
         Ok(Self::new(ciphertext, id))
     }
 }
 
 impl<P, T> FheTryEncrypt<T, CompressedPublicKey> for GenericInteger<P>
 where
-    T: crate::integer::block_decomposition::DecomposableInto<u64>,
     P: IntegerParameter,
     P::Id: Default + TypeIdentifier,
+    crate::integer::CompressedPublicKey: EncryptionKey<(T, usize), P::InnerCiphertext>,
 {
     type Error = crate::high_level_api::errors::Error;
 
@@ -287,26 +297,35 @@ where
             .as_ref()
             .ok_or(UninitializedCompressedPublicKey(id.type_variant()))
             .unwrap_display();
-        let ciphertext = integer_public_key.encrypt_radix(value, P::num_blocks());
+        let ciphertext = <crate::integer::CompressedPublicKey as EncryptionKey<_, _>>::encrypt(
+            integer_public_key,
+            (value, P::num_blocks()),
+        );
         Ok(Self::new(ciphertext, id))
     }
 }
 
 impl<P, T> FheTryEncrypt<T, CompactPublicKey> for GenericInteger<P>
 where
-    T: Into<U256>,
     P: IntegerParameter,
     P::Id: Default + TypeIdentifier,
+    crate::integer::public_key::CompactPublicKey: EncryptionKey<(T, usize), P::InnerCiphertext>,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let id = P::Id::default();
-        let ciphertext = key
+        let integer_public_key = key
             .integer_key
-            .try_encrypt(value, P::num_blocks())
+            .key
+            .as_ref()
             .ok_or(UninitializedPublicKey(id.type_variant()))
             .unwrap_display();
+        let ciphertext =
+            <crate::integer::public_key::CompactPublicKey as EncryptionKey<_, _>>::encrypt(
+                integer_public_key,
+                (value, P::num_blocks()),
+            );
         Ok(Self::new(ciphertext, id))
     }
 }
@@ -321,7 +340,7 @@ where
 
     fn try_encrypt_trivial(value: T) -> Result<Self, Self::Error> {
         let id = P::Id::default();
-        let ciphertext = id.with_unwrapped_global(|integer_key| {
+        let ciphertext: P::InnerCiphertext = id.with_unwrapped_global(|integer_key| {
             integer_key
                 .pbs_key()
                 .create_trivial_radix(value, P::num_blocks())
@@ -636,7 +655,7 @@ where
 
 impl<P> FheBootstrap for GenericInteger<P>
 where
-    P: IntegerParameter,
+    P: IntegerParameter<InnerCiphertext = RadixCiphertext>,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
     crate::integer::wopbs::WopbsKey:
         crate::high_level_api::integers::server_key::WopbsEvaluationKey<
@@ -664,7 +683,7 @@ where
 
 impl<P> GenericInteger<P>
 where
-    P: IntegerParameter,
+    P: IntegerParameter<InnerCiphertext = RadixCiphertext>,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
     crate::integer::wopbs::WopbsKey:
         crate::high_level_api::integers::server_key::WopbsEvaluationKey<
@@ -745,6 +764,110 @@ where
         )
     }
 }
+
+// Shifts and rotations are special cases where the right hand side
+// is for now, required to be a unsigned integer type.
+// And its contrains are a bit relaxed: rhs does not needs to have the same
+// amount a bits.
+macro_rules! generic_integer_impl_shift_rotate (
+    ($rust_trait_name:ident($rust_trait_method:ident) => $key_method:ident) => {
+
+        // a op b
+        impl<P, P2> $rust_trait_name<GenericInteger<P2>> for GenericInteger<P>
+        where
+            P: IntegerParameter,
+            P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+        {
+            type Output = Self;
+
+            fn $rust_trait_method(self, rhs: GenericInteger<P2>) -> Self::Output {
+                <&Self as $rust_trait_name<&GenericInteger<P2>>>::$rust_trait_method(&self, &rhs)
+            }
+
+        }
+
+        // a op &b
+        impl<P, P2> $rust_trait_name<&GenericInteger<P2>> for GenericInteger<P>
+        where
+            P: IntegerParameter,
+            P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+        {
+            type Output = Self;
+
+            fn $rust_trait_method(self, rhs: &GenericInteger<P2>) -> Self::Output {
+                <&Self as $rust_trait_name<&GenericInteger<P2>>>::$rust_trait_method(&self, rhs)
+            }
+
+        }
+
+        // &a op b
+        impl<P, P2> $rust_trait_name<GenericInteger<P2>> for &GenericInteger<P>
+        where
+            P: IntegerParameter,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+            P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+        {
+            type Output = GenericInteger<P>;
+
+            fn $rust_trait_method(self, rhs: GenericInteger<P2>) -> Self::Output {
+                <Self as $rust_trait_name<&GenericInteger<P2>>>::$rust_trait_method(self, &rhs)
+            }
+        }
+
+        // &a op &b
+        impl<P, P2> $rust_trait_name<&GenericInteger<P2>> for &GenericInteger<P>
+        where
+            P: IntegerParameter,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+            P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+        {
+            type Output = GenericInteger<P>;
+
+            fn $rust_trait_method(self, rhs: &GenericInteger<P2>) -> Self::Output {
+                let ciphertext = self.id.with_unwrapped_global(|integer_key| {
+                    integer_key
+                        .pbs_key()
+                        .$key_method(&self.ciphertext, &rhs.ciphertext)
+                });
+                GenericInteger::<P>::new(ciphertext, self.id)
+            }
+        }
+    }
+);
+
+macro_rules! generic_integer_impl_shift_rotate_assign(
+    ($rust_trait_name:ident($rust_trait_method:ident) => $key_method:ident) => {
+        // a op= b
+        impl<P, P2> $rust_trait_name<GenericInteger<P2>> for GenericInteger<P>
+        where
+            P: IntegerParameter,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+            P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+        {
+            fn $rust_trait_method(&mut self, rhs: GenericInteger<P2>) {
+                <Self as $rust_trait_name<&GenericInteger<P2>>>::$rust_trait_method(self, &rhs)
+            }
+        }
+
+        // a op= &b
+        impl<P, P2> $rust_trait_name<&GenericInteger<P2>> for GenericInteger<P>
+        where
+            P: IntegerParameter,
+            P::Id: WithGlobalKey<Key = IntegerServerKey>,
+            P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+        {
+            fn $rust_trait_method(&mut self, rhs: &GenericInteger<P2>) {
+                self.id.with_unwrapped_global(|integer_key| {
+                    integer_key
+                        .pbs_key()
+                        .$key_method(&mut self.ciphertext, &rhs.ciphertext)
+                })
+            }
+        }
+    }
+);
 
 macro_rules! generic_integer_impl_operation (
     ($rust_trait_name:ident($rust_trait_method:ident) => $key_method:ident) => {
@@ -932,25 +1055,25 @@ generic_integer_impl_operation!(Mul(mul) => mul_parallelized);
 generic_integer_impl_operation!(BitAnd(bitand) => bitand_parallelized);
 generic_integer_impl_operation!(BitOr(bitor) => bitor_parallelized);
 generic_integer_impl_operation!(BitXor(bitxor) => bitxor_parallelized);
-generic_integer_impl_operation!(Shl(shl) => left_shift_parallelized);
-generic_integer_impl_operation!(Shr(shr) => right_shift_parallelized);
-generic_integer_impl_operation!(RotateLeft(rotate_left) => rotate_left_parallelized);
-generic_integer_impl_operation!(RotateRight(rotate_right) => rotate_right_parallelized);
 generic_integer_impl_operation!(Div(div) => div_parallelized);
 generic_integer_impl_operation!(Rem(rem) => rem_parallelized);
-
+generic_integer_impl_shift_rotate!(Shl(shl) => left_shift_parallelized);
+generic_integer_impl_shift_rotate!(Shr(shr) => right_shift_parallelized);
+generic_integer_impl_shift_rotate!(RotateLeft(rotate_left) => rotate_left_parallelized);
+generic_integer_impl_shift_rotate!(RotateRight(rotate_right) => rotate_right_parallelized);
+//
 generic_integer_impl_operation_assign!(AddAssign(add_assign) => add_assign_parallelized);
 generic_integer_impl_operation_assign!(SubAssign(sub_assign) => sub_assign_parallelized);
 generic_integer_impl_operation_assign!(MulAssign(mul_assign) => mul_assign_parallelized);
 generic_integer_impl_operation_assign!(BitAndAssign(bitand_assign) => bitand_assign_parallelized);
 generic_integer_impl_operation_assign!(BitOrAssign(bitor_assign) => bitor_assign_parallelized);
 generic_integer_impl_operation_assign!(BitXorAssign(bitxor_assign) => bitxor_assign_parallelized);
-generic_integer_impl_operation_assign!(ShlAssign(shl_assign) => left_shift_assign_parallelized);
-generic_integer_impl_operation_assign!(ShrAssign(shr_assign) => right_shift_assign_parallelized);
-generic_integer_impl_operation_assign!(RotateLeftAssign(rotate_left_assign) => rotate_left_assign_parallelized);
-generic_integer_impl_operation_assign!(RotateRightAssign(rotate_right_assign) => rotate_right_assign_parallelized);
 generic_integer_impl_operation_assign!(DivAssign(div_assign) => div_assign_parallelized);
 generic_integer_impl_operation_assign!(RemAssign(rem_assign) => rem_assign_parallelized);
+generic_integer_impl_shift_rotate_assign!(ShlAssign(shl_assign) => left_shift_assign_parallelized);
+generic_integer_impl_shift_rotate_assign!(ShrAssign(shr_assign) => right_shift_assign_parallelized);
+generic_integer_impl_shift_rotate_assign!(RotateLeftAssign(rotate_left_assign) => rotate_left_assign_parallelized);
+generic_integer_impl_shift_rotate_assign!(RotateRightAssign(rotate_right_assign) => rotate_right_assign_parallelized);
 
 generic_integer_impl_scalar_operation!(
     rust_trait: Add(add),

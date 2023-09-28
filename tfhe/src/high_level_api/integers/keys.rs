@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
-use crate::integer::ciphertext::{CompactCiphertextList, RadixCiphertext};
+use crate::integer::ciphertext::CompactCiphertextList;
 use crate::integer::public_key::CompactPublicKey;
-use crate::integer::{CompressedCompactPublicKey, U256};
+use crate::integer::CompressedCompactPublicKey;
 use crate::shortint::EncryptionKeyChoice;
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -194,22 +194,6 @@ impl IntegerCompactPublicKey {
         let key = CompactPublicKey::try_new(cks)?;
 
         Some(Self { key: Some(key) })
-    }
-
-    pub(in crate::high_level_api) fn try_encrypt<T>(
-        &self,
-        value: T,
-        num_blocks: usize,
-    ) -> Option<RadixCiphertext>
-    where
-        T: Into<U256>,
-    {
-        let Some(key) = self.key.as_ref() else {
-            return None;
-        };
-        let value = value.into();
-        let ct = key.encrypt_radix(value, num_blocks);
-        Some(ct)
     }
 
     pub(in crate::high_level_api::integers) fn try_encrypt_compact<T>(
