@@ -5,8 +5,8 @@ use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUin
 use crate::integer::U256;
 use crate::{
     CompactFheUint32, CompactFheUint32List, CompactPublicKey, CompressedFheUint16,
-    CompressedFheUint256, CompressedPublicKey, Config, FheUint128, FheUint16, FheUint256,
-    FheUint32, FheUint64,
+    CompressedFheUint256, CompressedPublicKey, Config, FheInt32, FheInt8, FheUint128, FheUint16,
+    FheUint256, FheUint32, FheUint64,
 };
 
 #[test]
@@ -282,7 +282,7 @@ fn test_uint32_bitwise() {
 
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<u32>();
-    let clear_b = rng.gen_range(0u32..32u32);
+    let clear_b = rng.gen::<u32>();
 
     let a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, &cks).unwrap();
@@ -745,9 +745,11 @@ fn test_integer_casting() {
 
     set_server_key(server_key);
 
+    let mut rng = rand::thread_rng();
+    let clear = rng.gen::<u16>();
+
     // Downcasting then Upcasting
     {
-        let clear = 12_837u16;
         let a = FheUint16::encrypt(clear, &client_key);
 
         // Downcasting
@@ -763,7 +765,6 @@ fn test_integer_casting() {
 
     // Upcasting then Downcasting
     {
-        let clear = 12_837u16;
         let a = FheUint16::encrypt(clear, &client_key);
 
         // Upcasting
@@ -779,11 +780,42 @@ fn test_integer_casting() {
 
     // Casting to self, it not useful but is supported
     {
-        let clear = 43_129u16;
         let a = FheUint16::encrypt(clear, &client_key);
         let a = FheUint16::cast_from(a);
         let da: u16 = a.decrypt(&client_key);
         assert_eq!(da, clear);
+    }
+
+    // Downcasting to smaller signed integer then Upcasting back to unsigned
+    {
+        let clear = rng.gen_range((i16::MAX) as u16 + 1..u16::MAX);
+        let a = FheUint16::encrypt(clear, &client_key);
+
+        // Downcasting
+        let a: FheInt8 = a.cast_into();
+        let da: i8 = a.decrypt(&client_key);
+        assert_eq!(da, clear as i8);
+
+        // Upcasting
+        let a: FheUint32 = a.cast_into();
+        let da: u32 = a.decrypt(&client_key);
+        assert_eq!(da, (clear as i8) as u32);
+    }
+
+    // Upcasting to bigger signed integer then downcasting back to unsigned
+    {
+        let clear = rng.gen_range((i16::MAX) as u16 + 1..u16::MAX);
+        let a = FheUint16::encrypt(clear, &client_key);
+
+        // Upcasting
+        let a: FheInt32 = a.cast_into();
+        let da: i32 = a.decrypt(&client_key);
+        assert_eq!(da, clear as i32);
+
+        // Downcasting
+        let a: FheUint16 = a.cast_into();
+        let da: u16 = a.decrypt(&client_key);
+        assert_eq!(da, (clear as i32) as u16);
     }
 }
 

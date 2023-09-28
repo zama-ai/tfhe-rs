@@ -53,6 +53,18 @@ pub enum Type {
     FheUint128,
     #[cfg(feature = "integer")]
     FheUint256,
+    #[cfg(feature = "integer")]
+    FheInt8,
+    #[cfg(feature = "integer")]
+    FheInt16,
+    #[cfg(feature = "integer")]
+    FheInt32,
+    #[cfg(feature = "integer")]
+    FheInt64,
+    #[cfg(feature = "integer")]
+    FheInt128,
+    #[cfg(feature = "integer")]
+    FheInt256,
 }
 
 /// The server key of a given type was not initialized

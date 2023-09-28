@@ -20,8 +20,8 @@ use crate::high_level_api::traits::{
 };
 use crate::high_level_api::{ClientKey, PublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::RadixCiphertext;
-use crate::integer::U256;
+use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
+use crate::integer::{IntegerCiphertext, SignedRadixCiphertext, I256, U256};
 use crate::CompactPublicKey;
 
 /// A Generic FHE unsigned integer
@@ -111,17 +111,15 @@ where
 
     pub fn cast_from<P2>(other: GenericInteger<P2>) -> Self
     where
-        P: IntegerParameter<InnerCiphertext=RadixCiphertext>,
-        P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+        P2: IntegerParameter,
         P::Id: Default,
     {
         other.cast_into()
     }
 
-    pub fn cast_into<P2>(mut self) -> GenericInteger<P2>
+    pub fn cast_into<P2>(self) -> GenericInteger<P2>
     where
-        P: IntegerParameter<InnerCiphertext=RadixCiphertext>,
-        P2: IntegerParameter<InnerCiphertext=RadixCiphertext>,
+        P2: IntegerParameter,
         P2::Id: Default,
     {
         crate::high_level_api::global_state::with_internal_keys(|keys| {
@@ -129,19 +127,57 @@ where
             let current_num_blocks = P::num_blocks();
             let target_num_blocks = P2::num_blocks();
 
-            if target_num_blocks > current_num_blocks {
-                let num_blocks_to_add = target_num_blocks - current_num_blocks;
-                integer_key.extend_radix_with_trivial_zero_blocks_msb_assign(
-                    &mut self.ciphertext,
-                    num_blocks_to_add,
-                );
+            let blocks = if P::InnerCiphertext::IS_SIGNED {
+                if target_num_blocks > current_num_blocks {
+                    let mut ct_as_signed_radix =
+                        SignedRadixCiphertext::from_blocks(self.ciphertext.into_blocks());
+                    let num_blocks_to_add = target_num_blocks - current_num_blocks;
+                    integer_key.extend_radix_with_sign_msb_assign(
+                        &mut ct_as_signed_radix,
+                        num_blocks_to_add,
+                    );
+                    ct_as_signed_radix.blocks
+                } else {
+                    let mut ct_as_unsigned_radix =
+                        RadixCiphertext::from_blocks(self.ciphertext.into_blocks());
+                    let num_blocks_to_remove = current_num_blocks - target_num_blocks;
+                    integer_key.trim_radix_blocks_msb_assign(
+                        &mut ct_as_unsigned_radix,
+                        num_blocks_to_remove,
+                    );
+                    ct_as_unsigned_radix.blocks
+                }
             } else {
-                let num_blocks_to_remove = current_num_blocks - target_num_blocks;
-                integer_key
-                    .trim_radix_blocks_msb_assign(&mut self.ciphertext, num_blocks_to_remove);
-            }
-            GenericInteger::<P2>::new(self.ciphertext, P2::Id::default())
+                let mut ct_as_unsigned_radix =
+                    RadixCiphertext::from_blocks(self.ciphertext.into_blocks());
+                if target_num_blocks > current_num_blocks {
+                    let num_blocks_to_add = target_num_blocks - current_num_blocks;
+                    integer_key.extend_radix_with_trivial_zero_blocks_msb_assign(
+                        &mut ct_as_unsigned_radix,
+                        num_blocks_to_add,
+                    );
+                } else {
+                    let num_blocks_to_remove = current_num_blocks - target_num_blocks;
+                    integer_key.trim_radix_blocks_msb_assign(
+                        &mut ct_as_unsigned_radix,
+                        num_blocks_to_remove,
+                    );
+                }
+                ct_as_unsigned_radix.blocks
+            };
+
+            assert_eq!(blocks.len(), P2::num_blocks());
+            let new_ciphertext = P2::InnerCiphertext::from_blocks(blocks);
+            GenericInteger::<P2>::new(new_ciphertext, P2::Id::default())
         })
+    }
+
+    pub fn abs(&self) -> Self {
+        let ciphertext = crate::high_level_api::global_state::with_internal_keys(|keys| {
+            keys.integer_key.pbs_key().absolute_value(&self.ciphertext)
+        });
+
+        Self::new(ciphertext, self.id)
     }
 }
 
@@ -983,6 +1019,17 @@ generic_integer_impl_scalar_div_rem!(
         (super::FheUint128, u128),
         (super::FheUint256, U256),
 );
+generic_integer_impl_scalar_div_rem!(
+    key_method: signed_scalar_div_rem_parallelized,
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
+);
+
 macro_rules! generic_integer_impl_scalar_operation {
     (
         rust_trait: $rust_trait_name:ident($rust_trait_method:ident),
@@ -1088,6 +1135,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Sub(sub),
@@ -1102,6 +1155,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Mul(mul),
@@ -1116,6 +1175,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: BitAnd(bitand),
@@ -1130,6 +1195,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: BitOr(bitor),
@@ -1144,6 +1215,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: BitXor(bitxor),
@@ -1158,6 +1235,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Shl(shl),
@@ -1172,6 +1255,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u8, u16, u32, u64, u128),
         (super::FheUint128, u8, u16, u32, u64, u128),
         (super::FheUint256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Shr(shr),
@@ -1186,6 +1275,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u8, u16, u32, u64, u128),
         (super::FheUint128, u8, u16, u32, u64, u128),
         (super::FheUint256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: RotateLeft(rotate_left),
@@ -1200,6 +1295,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u8, u16, u32, u64, u128),
         (super::FheUint128, u8, u16, u32, u64, u128),
         (super::FheUint256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: RotateRight(rotate_right),
@@ -1214,6 +1315,12 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint64, u8, u16, u32, u64, u128),
         (super::FheUint128, u8, u16, u32, u64, u128),
         (super::FheUint256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Div(div),
@@ -1243,6 +1350,28 @@ generic_integer_impl_scalar_operation!(
         (super::FheUint128, u128),
         (super::FheUint256, U256),
 );
+generic_integer_impl_scalar_operation!(
+    rust_trait: Div(div),
+    key_method: signed_scalar_div_parallelized,
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
+);
+generic_integer_impl_scalar_operation!(
+    rust_trait: Rem(rem),
+    key_method: signed_scalar_rem_parallelized,
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
+);
 // Scalar assign ops
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: AddAssign(add_assign),
@@ -1257,6 +1386,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: SubAssign(sub_assign),
@@ -1271,6 +1406,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: MulAssign(mul_assign),
@@ -1285,6 +1426,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitAndAssign(bitand_assign),
@@ -1299,6 +1446,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitOrAssign(bitor_assign),
@@ -1313,6 +1466,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitXorAssign(bitxor_assign),
@@ -1327,6 +1486,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: ShlAssign(shl_assign),
@@ -1341,6 +1506,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u8, u16, u32, u64, u128),
         (super::FheUint128, u8, u16, u32, u64, u128),
         (super::FheUint256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: ShrAssign(shr_assign),
@@ -1355,6 +1526,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u8, u16, u32, u64, u128),
         (super::FheUint128, u8, u16, u32, u64, u128),
         (super::FheUint256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RotateLeftAssign(rotate_left_assign),
@@ -1369,6 +1546,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u8, u16, u32, u64, u128),
         (super::FheUint128, u8, u16, u32, u64, u128),
         (super::FheUint256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RotateRightAssign(rotate_right_assign),
@@ -1383,6 +1566,12 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u8, u16, u32, u64, u128),
         (super::FheUint128, u8, u16, u32, u64, u128),
         (super::FheUint256, u8, u16, u32, u64, u128, U256),
+        (super::FheInt8, u8, u16, u32, u64, u128),
+        (super::FheInt16, u8, u16, u32, u64, u128),
+        (super::FheInt32, u8, u16, u32, u64, u128),
+        (super::FheInt64, u8, u16, u32, u64, u128),
+        (super::FheInt128, u8, u16, u32, u64, u128),
+        (super::FheInt256, u8, u16, u32, u64, u128, U256),
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: DivAssign(div_assign),
@@ -1411,6 +1600,28 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheUint64, u64),
         (super::FheUint128, u128),
         (super::FheUint256, U256),
+);
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: DivAssign(div_assign),
+    key_method: signed_scalar_div_assign_parallelized,
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
+);
+generic_integer_impl_scalar_operation_assign!(
+    rust_trait: RemAssign(rem_assign),
+    key_method: signed_scalar_rem_assign_parallelized,
+    fhe_and_scalar_type:
+        (super::FheInt8, i8),
+        (super::FheInt16, i16),
+        (super::FheInt32, i32),
+        (super::FheInt64, i64),
+        (super::FheInt128, i128),
+        (super::FheInt256, I256),
 );
 
 impl<P> Neg for GenericInteger<P>
