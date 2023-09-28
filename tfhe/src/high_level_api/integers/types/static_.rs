@@ -33,6 +33,9 @@ macro_rules! define_static_integer_parameters {
             }
 
             impl IntegerParameter for [<FheUint $num_bits Parameters>] {
+                type InnerCiphertext = crate::integer::RadixCiphertext;
+                type InnerCompressedCiphertext = crate::integer::ciphertext::CompressedRadixCiphertext;
+
                 fn num_blocks() -> usize {
                     $num_block
                 }
