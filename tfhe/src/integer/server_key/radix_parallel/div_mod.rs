@@ -4,6 +4,8 @@ use crate::integer::{IntegerCiphertext, ServerKey};
 
 use super::bit_extractor::BitExtractor;
 
+use rayon::prelude::*;
+
 impl ServerKey {
     //======================================================================
     //                Div Rem
@@ -240,6 +242,15 @@ impl ServerKey {
                 },
             );
         }
+
+        // Even though, the quotient does not have any actual carries,
+        // we use message extract assign to reset its noise.
+        //
+        // The remainder does not need such reset as its the result
+        // of `sub_assign_parallelized` which leaves the blocks fresh.
+        quotient.blocks_mut().par_iter_mut().for_each(|block| {
+            self.key.message_extract_assign(block);
+        });
 
         (quotient, remainder)
     }
