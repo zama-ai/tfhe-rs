@@ -1,10 +1,13 @@
 //! Module with the definition of the Ciphertext.
+use crate::conformance::ParameterSetConformant;
 pub use crate::core_crypto::commons::parameters::PBSOrder;
 use crate::core_crypto::entities::*;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::fmt::Debug;
+
+use super::parameters::{CiphertextConformanceParams, CiphertextListConformanceParams};
 
 /// This tracks the number of operations that has been done.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -85,6 +88,18 @@ pub struct Ciphertext {
     pub pbs_order: PBSOrder,
 }
 
+impl ParameterSetConformant for Ciphertext {
+    type ParameterSet = CiphertextConformanceParams;
+
+    fn is_conformant(&self, param: &CiphertextConformanceParams) -> bool {
+        self.ct.is_conformant(&param.ct_params)
+            && self.message_modulus == param.message_modulus
+            && self.carry_modulus == param.carry_modulus
+            && self.pbs_order == param.pbs_order
+            && self.degree == param.degree
+    }
+}
+
 // Use destructuring to also have a compile error
 // if ever a new member is added to Ciphertext
 // and is not handled here.
@@ -158,6 +173,18 @@ pub struct CompressedCiphertext {
     pub pbs_order: PBSOrder,
 }
 
+impl ParameterSetConformant for CompressedCiphertext {
+    type ParameterSet = CiphertextConformanceParams;
+
+    fn is_conformant(&self, param: &CiphertextConformanceParams) -> bool {
+        self.ct.is_conformant(&param.ct_params)
+            && self.message_modulus == param.message_modulus
+            && self.carry_modulus == param.carry_modulus
+            && self.pbs_order == param.pbs_order
+            && self.degree == param.degree
+    }
+}
+
 impl CompressedCiphertext {
     pub fn decompress(self) -> Ciphertext {
         let CompressedCiphertext {
@@ -191,6 +218,18 @@ pub struct CompactCiphertextList {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub pbs_order: PBSOrder,
+}
+
+impl ParameterSetConformant for CompactCiphertextList {
+    type ParameterSet = CiphertextListConformanceParams;
+
+    fn is_conformant(&self, param: &CiphertextListConformanceParams) -> bool {
+        self.ct_list.is_conformant(&param.ct_list_params)
+            && self.message_modulus == param.message_modulus
+            && self.carry_modulus == param.carry_modulus
+            && self.pbs_order == param.pbs_order
+            && self.degree == param.degree
+    }
 }
 
 impl CompactCiphertextList {

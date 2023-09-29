@@ -1,12 +1,14 @@
 //! Module containing the definition of the [`LweCompactCiphertextList`] a space efficient
 //! encryption of a list of LWE ciphertexts.
 
+use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::core_crypto::algorithms::{
     expand_lwe_compact_ciphertext_list, par_expand_lwe_compact_ciphertext_list,
 };
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::misc::check_content_respects_mod;
 
 /// A [`compact list of LWE ciphertexts`](`LweCompactCiphertextList`) obtained through encryption
 /// with a [`compact LWE public key`](`super::LweCompactPublicKey`).
@@ -249,6 +251,27 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCipherte
     }
 }
 
+// These accessors are used to create invalid objects and test the conformance functions
+// But these functions should not be used in other contexts, hence the `#[cfg(test)]`
+#[cfg(test)]
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCiphertextList<C> {
+    pub fn get_mut_lwe_size(&mut self) -> &mut LweSize {
+        &mut self.lwe_size
+    }
+
+    pub fn get_mut_lwe_ciphertext_count(&mut self) -> &mut LweCiphertextCount {
+        &mut self.lwe_ciphertext_count
+    }
+
+    pub fn get_mut_ciphertext_modulus(&mut self) -> &mut CiphertextModulus<Scalar> {
+        &mut self.ciphertext_modulus
+    }
+
+    pub fn get_mut_container(&mut self) -> &mut C {
+        &mut self.data
+    }
+}
+
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweCompactCiphertextList<C> {
     /// Return a mutable view to the [`LweMaskList`] of a [`LweCompactCiphertextList`].
     pub fn get_mut_mask_list(&mut self) -> LweMaskListMutView<'_, Scalar> {
@@ -301,6 +324,33 @@ pub type LweCompactCiphertextListOwned<Scalar> = LweCompactCiphertextList<Vec<Sc
 pub type LweCompactCiphertextListView<'data, Scalar> = LweCompactCiphertextList<&'data [Scalar]>;
 pub type LweCompactCiphertextListMutView<'data, Scalar> =
     LweCompactCiphertextList<&'data mut [Scalar]>;
+
+/// Structure to store the expected properties of a ciphertext
+/// Can be used on a server to check if client inputs are well formed
+/// before running a computation on them
+pub struct LweCiphertextListParameters<T: UnsignedInteger> {
+    pub lwe_dim: LweDimension,
+    pub lwe_ciphertext_count_constraint: ListSizeConstraint,
+    pub ct_modulus: CiphertextModulus<T>,
+}
+
+impl<T: UnsignedInteger> ParameterSetConformant for LweCompactCiphertextListOwned<T> {
+    type ParameterSet = LweCiphertextListParameters<T>;
+
+    fn is_conformant(&self, param: &LweCiphertextListParameters<T>) -> bool {
+        param
+            .lwe_ciphertext_count_constraint
+            .is_valid(self.lwe_ciphertext_count.0)
+            && self.data.len()
+                == lwe_compact_ciphertext_list_size(
+                    self.lwe_size.to_lwe_dimension(),
+                    self.lwe_ciphertext_count,
+                )
+            && check_content_respects_mod(self, param.ct_modulus)
+            && self.lwe_size == param.lwe_dim.to_lwe_size()
+            && self.ciphertext_modulus == param.ct_modulus
+    }
+}
 
 impl<Scalar: UnsignedInteger> LweCompactCiphertextListOwned<Scalar> {
     /// Allocate memory and create a new owned [`LweCompactCiphertextListOwned`].

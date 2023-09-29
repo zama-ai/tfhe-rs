@@ -108,6 +108,30 @@ pub fn torus_modular_diff<T: UnsignedInteger>(
     }
 }
 
+// Our representation of non native power of 2 moduli puts the information in the MSBs and leaves
+// the LSBs empty, this is what this function is checking
+pub fn check_content_respects_mod<Scalar: UnsignedInteger, Input: AsRef<[Scalar]>>(
+    input: &Input,
+    modulus: CiphertextModulus<Scalar>,
+) -> bool {
+    if modulus.is_native_modulus() {
+        true
+    } else if modulus.is_power_of_two() {
+        // If our modulus is 2^60, the scaling is 2^4 = 00...00010000, minus 1 = 00...00001111
+        // we want the bits under the mask to be 0
+        let power_2_diff_mask = modulus.get_power_of_two_scaling_to_native_torus() - Scalar::ONE;
+        input
+            .as_ref()
+            .iter()
+            .all(|&x| (x & power_2_diff_mask) == Scalar::ZERO)
+    } else {
+        // non native, not power of two
+        let scalar_modulus: Scalar = modulus.get_custom_modulus().cast_into();
+
+        input.as_ref().iter().all(|&x| x < scalar_modulus)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

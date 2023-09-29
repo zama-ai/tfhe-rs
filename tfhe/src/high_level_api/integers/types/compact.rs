@@ -1,9 +1,11 @@
+use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
 use crate::errors::{UninitializedPublicKey, UnwrapResultExt};
 use crate::high_level_api::integers::parameters::IntegerParameter;
 use crate::high_level_api::integers::types::base::GenericInteger;
 use crate::high_level_api::internal_traits::TypeIdentifier;
 use crate::high_level_api::traits::FheTryEncrypt;
-use crate::integer::ciphertext::CompactCiphertextList;
+use crate::integer::ciphertext::{CiphertextListConformanceParams, CompactCiphertextList};
+use crate::shortint::PBSParameters;
 use crate::CompactPublicKey;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
@@ -88,5 +90,32 @@ where
             list: ciphertext,
             id,
         })
+    }
+}
+
+impl<P: IntegerParameter> ParameterSetConformant for GenericCompactInteger<P> {
+    type ParameterSet = PBSParameters;
+    fn is_conformant(&self, pbs_parameters: &PBSParameters) -> bool {
+        let params = CiphertextListConformanceParams {
+            shortint_params: pbs_parameters.to_shortint_conformance_param(),
+            num_blocks_per_integer: P::num_blocks(),
+            num_integers_constraint: ListSizeConstraint::exact_size(1),
+        };
+        self.list.is_conformant(&params)
+    }
+}
+
+impl<P: IntegerParameter> ParameterSetConformant for GenericCompactIntegerList<P> {
+    type ParameterSet = (PBSParameters, ListSizeConstraint);
+    fn is_conformant(
+        &self,
+        (pbs_parameters, number_integers_constraint): &(PBSParameters, ListSizeConstraint),
+    ) -> bool {
+        let params = CiphertextListConformanceParams {
+            shortint_params: pbs_parameters.to_shortint_conformance_param(),
+            num_blocks_per_integer: P::num_blocks(),
+            num_integers_constraint: *number_integers_constraint,
+        };
+        self.list.is_conformant(&params)
     }
 }

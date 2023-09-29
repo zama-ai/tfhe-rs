@@ -1,10 +1,12 @@
 //! Module containing the definition of the [`SeededLweCiphertext`].
 
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, CompressionSeed};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::misc::check_content_respects_mod;
 
 /// A [`seeded GLWE ciphertext`](`SeededLweCiphertext`).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -13,6 +15,18 @@ pub struct SeededLweCiphertext<Scalar: UnsignedInteger> {
     lwe_size: LweSize,
     compression_seed: CompressionSeed,
     ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+
+impl<T: UnsignedInteger> ParameterSetConformant for SeededLweCiphertext<T> {
+    type ParameterSet = LweCiphertextParameters<T>;
+
+    fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<T>) -> bool {
+        check_content_respects_mod::<T, &[T]>(
+            &std::slice::from_ref(self.get_body().data),
+            lwe_ct_parameters.ct_modulus,
+        ) && self.lwe_size == lwe_ct_parameters.lwe_dim.to_lwe_size()
+            && self.ciphertext_modulus() == lwe_ct_parameters.ct_modulus
+    }
 }
 
 impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
