@@ -5,11 +5,13 @@
 //! homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter
 //! sets.
 
+use crate::conformance::ListSizeConstraint;
 pub use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
 pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     GlweDimension, LweBskGroupingFactor, LweDimension, PolynomialSize,
 };
+use crate::core_crypto::prelude::{LweCiphertextListParameters, LweCiphertextParameters};
 use serde::{Deserialize, Serialize};
 
 pub mod key_switching;
@@ -24,6 +26,9 @@ pub use key_switching::ShortintKeySwitchingParameters;
 pub use multi_bit::*;
 pub use parameters_compact_pk::*;
 pub use parameters_wopbs::WopbsParameters;
+
+use super::ciphertext::Degree;
+use super::PBSOrder;
 
 /// The number of bits on which the message will be encoded.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -116,6 +121,47 @@ impl ClassicPBSParameters {
 pub enum PBSParameters {
     PBS(ClassicPBSParameters),
     MultiBitPBS(MultiBitPBSParameters),
+}
+
+/// Structure to store the expected properties of a ciphertext
+/// Can be used on a server to check if client inputs are well formed
+/// before running a computation on them
+pub struct CiphertextConformanceParams {
+    pub ct_params: LweCiphertextParameters<u64>,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub degree: Degree,
+    pub pbs_order: PBSOrder,
+}
+
+/// Structure to store the expected properties of a ciphertext list
+/// Can be used on a server to check if client inputs are well formed
+/// before running a computation on them
+pub struct CiphertextListConformanceParams {
+    pub ct_list_params: LweCiphertextListParameters<u64>,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub degree: Degree,
+    pub pbs_order: PBSOrder,
+}
+
+impl CiphertextConformanceParams {
+    pub fn to_ct_list_conformance_parameters(
+        &self,
+        list_constraint: ListSizeConstraint,
+    ) -> CiphertextListConformanceParams {
+        CiphertextListConformanceParams {
+            ct_list_params: LweCiphertextListParameters {
+                lwe_dim: self.ct_params.lwe_dim,
+                ct_modulus: self.ct_params.ct_modulus,
+                lwe_ciphertext_count_constraint: list_constraint,
+            },
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            degree: self.degree,
+            pbs_order: self.pbs_order,
+        }
+    }
 }
 
 impl From<ClassicPBSParameters> for PBSParameters {
@@ -224,6 +270,60 @@ impl PBSParameters {
 
     pub const fn is_multi_bit_pbs(&self) -> bool {
         matches!(self, Self::MultiBitPBS(_))
+    }
+
+    pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
+        let (pbs_order, expected_dim, message_modulus, ciphertext_modulus, carry_modulus);
+
+        match self {
+            super::PBSParameters::PBS(param) => {
+                (pbs_order, expected_dim) = match param.encryption_key_choice {
+                    EncryptionKeyChoice::Big => (
+                        PBSOrder::KeyswitchBootstrap,
+                        param
+                            .glwe_dimension
+                            .to_equivalent_lwe_dimension(param.polynomial_size),
+                    ),
+                    EncryptionKeyChoice::Small => {
+                        (PBSOrder::BootstrapKeyswitch, param.lwe_dimension)
+                    }
+                };
+
+                message_modulus = param.message_modulus;
+                ciphertext_modulus = param.ciphertext_modulus;
+                carry_modulus = param.carry_modulus
+            }
+            super::PBSParameters::MultiBitPBS(param) => {
+                (pbs_order, expected_dim) = match param.encryption_key_choice {
+                    EncryptionKeyChoice::Big => (
+                        PBSOrder::KeyswitchBootstrap,
+                        param
+                            .glwe_dimension
+                            .to_equivalent_lwe_dimension(param.polynomial_size),
+                    ),
+                    EncryptionKeyChoice::Small => {
+                        (PBSOrder::BootstrapKeyswitch, param.lwe_dimension)
+                    }
+                };
+
+                message_modulus = param.message_modulus;
+                ciphertext_modulus = param.ciphertext_modulus;
+                carry_modulus = param.carry_modulus
+            }
+        };
+
+        let degree = Degree(message_modulus.0 - 1);
+
+        CiphertextConformanceParams {
+            ct_params: LweCiphertextParameters {
+                lwe_dim: expected_dim,
+                ct_modulus: ciphertext_modulus,
+            },
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            degree,
+        }
     }
 }
 

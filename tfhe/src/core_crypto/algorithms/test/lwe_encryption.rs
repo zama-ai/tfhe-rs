@@ -694,8 +694,8 @@ fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPara
                 rsc.seeder.as_mut(),
             );
 
-            assert!(check_scalar_respects_mod(
-                *seeded_ct.get_body().data,
+            assert!(check_content_respects_mod(
+                &std::slice::from_ref(seeded_ct.get_body().data),
                 ciphertext_modulus
             ));
 
@@ -748,8 +748,8 @@ fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 rsc.seeder.as_mut(),
             );
 
-            assert!(check_scalar_respects_mod(
-                *seeded_ct.get_body().data,
+            assert!(check_content_respects_mod(
+                &std::slice::from_ref(seeded_ct.get_body().data),
                 ciphertext_modulus
             ));
 
