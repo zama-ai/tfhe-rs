@@ -197,7 +197,7 @@ clippy_trivium: install_rs_check_toolchain
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,safe-deserialization \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
@@ -376,6 +376,11 @@ test_integer_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit
 
+.PHONY: test_safe_deserialization # Run the tests for safe deserialization
+test_safe_deserialization: install_rs_build_toolchain install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,safe-deserialization -p tfhe -- safe_deserialization::
+
 .PHONY: test_integer # Run all the tests for integer
 test_integer: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
@@ -453,7 +458,7 @@ format_doc_latex:
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
-		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache \
+		--features=$(TARGET_ARCH_FEATURE),experimental,boolean,shortint,integer,internal-keycache,safe-deserialization \
 		-p tfhe
 
 	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
