@@ -482,6 +482,17 @@ impl<'a> FftView<'a> {
         self.backward_with_conv(standard, fourier, convert_add_backward_torus, stack)
     }
 
+    /// Variant of [`Self::add_backward_as_torus`] writing the output of the backward fourier
+    /// transform in the [`FourierPolynomialMutView`] in place.
+    pub fn add_backward_in_place_as_torus<Scalar: UnsignedTorus>(
+        self,
+        standard: PolynomialMutView<'_, Scalar>,
+        fourier: FourierPolynomialMutView<'_>,
+        stack: PodStack<'_>,
+    ) {
+        self.backward_with_conv_in_place(standard, fourier, convert_add_backward_torus, stack)
+    }
+
     fn forward_with_conv<
         'out,
         Scalar: UnsignedTorus,
@@ -523,6 +534,26 @@ impl<'a> FftView<'a> {
 
         let (standard_re, standard_im) = standard.split_at_mut(n / 2);
         conv_fn(standard_re, standard_im, &tmp, self.twisties);
+    }
+
+    fn backward_with_conv_in_place<
+        Scalar: UnsignedTorus,
+        F: Fn(&mut [Scalar], &mut [Scalar], &[c64], TwistiesView<'_>),
+    >(
+        self,
+        mut standard: PolynomialMutView<'_, Scalar>,
+        fourier: FourierPolynomialMutView<'_>,
+        conv_fn: F,
+        stack: PodStack<'_>,
+    ) {
+        let fourier = fourier.data;
+        let standard = standard.as_mut();
+        let n = standard.len();
+        debug_assert_eq!(n, 2 * fourier.len());
+        self.plan.inv(fourier, stack);
+
+        let (standard_re, standard_im) = standard.split_at_mut(n / 2);
+        conv_fn(standard_re, standard_im, fourier, self.twisties);
     }
 }
 

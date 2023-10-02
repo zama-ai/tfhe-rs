@@ -16,7 +16,8 @@ fn abs_diff<Scalar: UnsignedTorus>(a: Scalar, b: Scalar) -> Scalar {
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
-    for size_log in 2..=14 {
+    // SIMD versions need size >= 32 in case of AVX512
+    for size_log in 5..=14 {
         let size = 1_usize << size_log;
 
         let fft = Fft::new(PolynomialSize(size));
@@ -40,8 +41,41 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         );
         let mut stack = PodStack::new(&mut mem);
 
+        // Simple roundtrip
         fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack.rb_mut());
         fft.backward_as_torus(roundtrip.as_mut_view(), fourier.as_view(), stack.rb_mut());
+
+        for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
+            if Scalar::BITS == 32 {
+                assert!(abs_diff(*expected, *actual) == Scalar::ZERO);
+            } else {
+                assert!(abs_diff(*expected, *actual) < (Scalar::ONE << (64 - 50)));
+            }
+        }
+
+        // Simple add roundtrip
+        // Need to zero out the buffer to have a correct result as we will be adding the result
+        roundtrip.as_mut().fill(Scalar::ZERO);
+        fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack.rb_mut());
+        fft.add_backward_as_torus(roundtrip.as_mut_view(), fourier.as_view(), stack.rb_mut());
+
+        for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
+            if Scalar::BITS == 32 {
+                assert!(abs_diff(*expected, *actual) == Scalar::ZERO);
+            } else {
+                assert!(abs_diff(*expected, *actual) < (Scalar::ONE << (64 - 50)));
+            }
+        }
+
+        // Forward, then add backward in place
+        // Need to zero out the buffer to have a correct result as we will be adding the result
+        roundtrip.as_mut().fill(Scalar::ZERO);
+        fft.forward_as_torus(fourier.as_mut_view(), poly.as_view(), stack.rb_mut());
+        fft.add_backward_in_place_as_torus(
+            roundtrip.as_mut_view(),
+            fourier.as_mut_view(),
+            stack.rb_mut(),
+        );
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
@@ -74,6 +108,7 @@ fn test_product<Scalar: UnsignedTorus>() {
     }
 
     let mut generator = new_random_generator();
+    // SIMD versions need size >= 32 in case of AVX512
     for size_log in 5..=14 {
         for _ in 0..100 {
             let size = 1_usize << size_log;
@@ -119,15 +154,63 @@ fn test_product<Scalar: UnsignedTorus>() {
                 *f0 *= *f1;
             }
 
+            convolution_naive(
+                convolution_from_naive.as_mut(),
+                poly0.as_ref(),
+                poly1.as_ref(),
+            );
+
+            // Simple backward
             fft.backward_as_torus(
                 convolution_from_fft.as_mut_view(),
                 fourier0.as_view(),
                 stack.rb_mut(),
             );
-            convolution_naive(
-                convolution_from_naive.as_mut(),
-                poly0.as_ref(),
-                poly1.as_ref(),
+
+            for (expected, actual) in izip!(
+                convolution_from_naive.as_ref().iter(),
+                convolution_from_fft.as_ref().iter()
+            ) {
+                let threshold =
+                    Scalar::ONE << (Scalar::BITS.saturating_sub(52 - integer_magnitude - size_log));
+                let abs_diff = abs_diff(*expected, *actual);
+                assert!(
+                    abs_diff <= threshold,
+                    "abs_diff: {abs_diff}, threshold: {threshold}",
+                );
+            }
+
+            // Simple add backward
+            // Need to zero out the buffer to have a correct result as we will be adding the result
+            convolution_from_fft.as_mut().fill(Scalar::ZERO);
+            fft.add_backward_as_torus(
+                convolution_from_fft.as_mut_view(),
+                fourier0.as_view(),
+                stack.rb_mut(),
+            );
+
+            for (expected, actual) in izip!(
+                convolution_from_naive.as_ref().iter(),
+                convolution_from_fft.as_ref().iter()
+            ) {
+                let threshold =
+                    Scalar::ONE << (Scalar::BITS.saturating_sub(52 - integer_magnitude - size_log));
+                let abs_diff = abs_diff(*expected, *actual);
+                assert!(
+                    abs_diff <= threshold,
+                    "abs_diff: {abs_diff}, threshold: {threshold}",
+                );
+            }
+
+            // In place backward then add to output buffer
+            // Need to zero out the buffer to have a correct result as we will be adding the result
+            // Here fourier0 still contains the proper fourier transform, this call will overwrite
+            // it
+            convolution_from_fft.as_mut().fill(Scalar::ZERO);
+            fft.add_backward_in_place_as_torus(
+                convolution_from_fft.as_mut_view(),
+                fourier0.as_mut_view(),
+                stack.rb_mut(),
             );
 
             for (expected, actual) in izip!(

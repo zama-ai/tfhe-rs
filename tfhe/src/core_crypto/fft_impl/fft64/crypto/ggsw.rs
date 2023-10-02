@@ -1,6 +1,6 @@
 use super::super::math::decomposition::TensorSignedDecompositionLendingIter;
 use super::super::math::fft::{FftView, FourierPolynomialList};
-use super::super::math::polynomial::{FourierPolynomialMutView, FourierPolynomialView};
+use super::super::math::polynomial::FourierPolynomialMutView;
 use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
@@ -588,10 +588,12 @@ pub fn add_external_product_assign<Scalar, InputGlweCont>(
             out.as_mut_polynomial_list().iter_mut(),
             output_fft_buffer
                 .into_chunks(fourier_poly_size)
-                .map(|slice| FourierPolynomialView { data: slice }),
+                .map(|slice| FourierPolynomialMutView { data: slice }),
         )
         .for_each(|(out, fourier)| {
-            fft.add_backward_as_torus(out, fourier, substack0.rb_mut());
+            // The fourier buffer is not re-used afterwards so we can use the in-place version of
+            // the add_backward_as_torus function
+            fft.add_backward_in_place_as_torus(out, fourier, substack0.rb_mut());
         });
     }
 }
