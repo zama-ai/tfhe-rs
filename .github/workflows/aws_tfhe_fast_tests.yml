@@ -110,6 +110,10 @@ jobs:
         run: |
           make test_high_level_api
 
+      - name: Run safe deserialization tests
+        run: |
+          make test_safe_deserialization
+
       - name: Slack Notification
         if: ${{ always() }}
         continue-on-error: true
