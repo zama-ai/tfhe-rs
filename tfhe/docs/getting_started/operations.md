@@ -7,7 +7,7 @@
 
 In the same manner than many programming languages, the number of bits used to represent the data must be chosen when declaring a variable. For instance:
 
-```rust
+```Rust
 
     // let clear_a: u64 = 7;
     let mut a = FheUint64::try_encrypt(clear_a, &keys)?;
@@ -48,18 +48,278 @@ More details, and further examples, are given in the following sections.
 | Cast (into dest type) | `cast_into` | :heavy_check_mark: | :heavy_multiplication_x: |
 | Cast (from src type)  | `cast_from` | :heavy_check_mark: | :heavy_multiplication_x: |
 
-## Boolean Operations
 
-Native homomorphic Booleans support common Boolean operations.
+## Integer
+
+In TFHE-rs, integers are used to encrypt any messages larger than 4 bits. All supported operations are listed below.
+
+### Arithmetic operations.
+
+Homomorphic integer types support arithmetic operations.
 
 The list of supported operations is:
 
-| name                                                          | symbol | type   |
-| ------------------------------------------------------------- | ------ | ------ |
-| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html) | `&`    | Binary |
-| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)   | `\|`   | Binary |
-| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html) | `^`    | Binary |
-| [Not](https://doc.rust-lang.org/std/ops/trait.Not.html)       | `!`    | Unary  |
+| name                                                     | symbol | type   |
+|----------------------------------------------------------|--------|--------|
+| [Neg](https://doc.rust-lang.org/std/ops/trait.Neg.html)  | `-`    | Unary  |
+| [Add](https://doc.rust-lang.org/std/ops/trait.Add.html)  | `+`    | Binary |
+| [Sub](https://doc.rust-lang.org/std/ops/trait.Sub.html)  | `-`    | Binary |
+| [Mul](https://doc.rust-lang.org/std/ops/trait.Mul.html)  | `*`    | Binary |
+| [Div](https://doc.rust-lang.org/std/ops/trait.Div.html)* | `/`    | Binary |
+| [Rem](https://doc.rust-lang.org/std/ops/trait.Rem.html)* | `%`    | Binary |
+
+For division by $$0$$, the convention is to return $$modulus - 1$$. For instance, for FheUint8, the modulus is $$2^8=256$$, so a division by $$0$$ will return an encryption of $$255$$.
+For the remainder operator, the convention is to return the first input without any modification.  For instance, for $$ct1 = FheUint8(63)$$ and $$ct2 = FheUint8(0)$$, then $$ct1 % ct2$$ will return $$FheUint8(63)$$.
+
+
+
+A simple example on how to use these operations:
+
+```rust
+use tfhe::prelude::*;
+use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, FheUint8};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+    let (keys, server_keys) = generate_keys(config);
+    set_server_key(server_keys);
+
+    let clear_a = 15_u64;
+    let clear_b = 27_u64;
+    let clear_c = 43_u64;
+    let clear_d = -87_i64;
+
+    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
+    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
+    let mut c = FheUint8::try_encrypt(clear_c, &keys)?;
+    let mut d = FheInt8::try_encrypt(clear_d, &keys)?;
+
+
+    a = a * &b;     // Clear equivalent computations: 15 * 27 mod 256 = 149
+    b = &b + &c;    // Clear equivalent computations: 27 + 43 mod 256 = 70
+    b = b - 76u8;   // Clear equivalent computations: 70 - 76 mod 256 = 250
+    d = d - 13i8;   // Clear equivalent computations: -87 - 13 = 100 in [-128, 128]
+
+    let dec_a: u8 = a.decrypt(&keys);
+    let dec_b: u8 = b.decrypt(&keys);
+    let dec_d: i8 = d.decrypt(&keys);
+
+    assert_eq!(dec_a, ((clear_a * clear_b) % 256_u64) as u8);
+    assert_eq!(dec_b, (((clear_b  + clear_c).wrapping_sub(76_u64)) % 256_u64) as u8);
+    assert_eq!(dec_d, (clear_d - 13) as i8);
+
+    Ok(())
+}
+```
+
+### Bitwise operations.
+
+Homomorphic integer types support some bitwise operations.
+
+The list of supported operations is:
+
+| name                                                                                 | symbol         | type   |
+|--------------------------------------------------------------------------------------|----------------|--------|
+| [Not](https://doc.rust-lang.org/std/ops/trait.Not.html)                              | `!`            | Unary  |
+| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html)                        | `&`            | Binary |
+| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)                          | `\|`           | Binary |
+| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html)                        | `^`            | Binary |
+| [Shr](https://doc.rust-lang.org/std/ops/trait.Shr.html)                              | `>>`           | Binary |
+| [Shl](https://doc.rust-lang.org/std/ops/trait.Shl.html)                              | `<<`           | Binary |
+| [Rotate Right](https://doc.rust-lang.org/std/primitive.u32.html#method.rotate_right) | `rotate_right` | Binary |
+| [Rotate Left](https://doc.rust-lang.org/std/primitive.u32.html#method.rotate_left)   | `rotate_left`  | Binary |
+
+A simple example on how to use these operations:
+
+```rust
+use tfhe::prelude::*;
+use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+    let (keys, server_keys) = generate_keys(config);
+    set_server_key(server_keys);
+
+    let clear_a = 164;
+    let clear_b = 212;
+
+    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
+    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
+
+    a = a ^ &b;
+    b = b ^ &a;
+    a = a ^ &b;
+
+    let dec_a: u8 = a.decrypt(&keys);
+    let dec_b: u8 = b.decrypt(&keys);
+
+    // We homomorphically swapped values using bitwise operations
+    assert_eq!(dec_a, clear_b);
+    assert_eq!(dec_b, clear_a);
+
+    Ok(())
+}
+```
+
+### Comparisons.
+
+Homomorphic integers support comparison operations. Since Rust does not allow the overloading of these operations, a simple function has been associated to each one.
+
+The list of supported operations is:
+
+| name                                                                        | symbol | type   |
+|-----------------------------------------------------------------------------|--------|--------|
+| [Equal           ](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)  | `eq`   | Binary |
+| [Not Equal       ](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)  | `ne`   | Binary |
+| [Greater Than    ](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `gt`   | Binary |
+| [Greater or Equal](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `ge`   | Binary |
+| [Lower           ](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `lt`   | Binary |
+| [Lower or Equal  ](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `le`   | Binary |
+
+A simple example on how to use these operations:
+
+```rust
+use tfhe::prelude::*;
+use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+    let (keys, server_keys) = generate_keys(config);
+    set_server_key(server_keys);
+
+    let clear_a:i8 = -121;
+    let clear_b:i8 = 87;
+
+    let mut a = FheInt8::try_encrypt(clear_a, &keys)?;
+    let mut b = FheInt8::try_encrypt(clear_b, &keys)?;
+
+    let greater = a.gt(&b);
+    let greater_or_equal = a.ge(&b);
+    let lower = a.lt(&b);
+    let lower_or_equal = a.le(&b);
+    let equal = a.eq(&b);
+
+    let dec_gt : i8 = greater.decrypt(&keys);
+    let dec_ge : i8 = greater_or_equal.decrypt(&keys);
+    let dec_lt : i8 = lower.decrypt(&keys);
+    let dec_le : i8 = lower_or_equal.decrypt(&keys);
+    let dec_eq : i8 = equal.decrypt(&keys);
+
+    // We homomorphically swapped values using bitwise operations
+    assert_eq!(dec_gt, (clear_a > clear_b ) as i8);
+    assert_eq!(dec_ge, (clear_a >= clear_b) as i8);
+    assert_eq!(dec_lt, (clear_a < clear_b ) as i8);
+    assert_eq!(dec_le, (clear_a <= clear_b) as i8);
+    assert_eq!(dec_eq, (clear_a == clear_b) as i8);
+
+    Ok(())
+}
+```
+
+### Min/Max.
+
+Homomorphic integers support the min/max operations.
+
+| name | symbol | type   |
+| ---- | ------ | ------ |
+| Min  | `min`  | Binary |
+| Max  | `max`  | Binary |
+
+A simple example on how to use these operations:
+
+```rust
+use tfhe::prelude::*;
+use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+    let (keys, server_keys) = generate_keys(config);
+    set_server_key(server_keys);
+
+    let clear_a:u8 = 164;
+    let clear_b:u8 = 212;
+
+    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
+    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
+
+    let min = a.min(&b);
+    let max = a.max(&b);
+
+    let dec_min : u8 = min.decrypt(&keys);
+    let dec_max : u8 = max.decrypt(&keys);
+
+    // We homomorphically swapped values using bitwise operations
+    assert_eq!(dec_min, u8::min(clear_a, clear_b));
+    assert_eq!(dec_max, u8::max(clear_a, clear_b));
+
+    Ok(())
+}
+```
+
+### Casting.
+Casting between integer types is possible via the `cast_from` associated function
+or the `cast_into` method.
+
+```rust
+use tfhe::prelude::*;
+use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt16, FheUint8, FheUint32, FheUint16};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ConfigBuilder::all_disabled()
+        .enable_default_integers()
+        .build();
+    let (client_key, server_key) = generate_keys(config);
+
+    // Casting requires server_key to set
+    // (encryptions/decryptions do not need server_key to be set)
+    set_server_key(server_key);
+
+    {
+        let clear = 12_837u16;
+        let a = FheUint16::encrypt(clear, &client_key);
+
+        // Downcasting
+        let a: FheUint8 = a.cast_into();
+        let da: u8 = a.decrypt(&client_key);
+        assert_eq!(da, clear as u8);
+
+        // Upcasting
+        let a: FheUint32 = a.cast_into();
+        let da: u32 = a.decrypt(&client_key);
+        assert_eq!(da, (clear as u8) as u32);
+    }
+
+    {
+        let clear = 12_837u16;
+        let a = FheUint16::encrypt(clear, &client_key);
+
+        // Upcasting
+        let a = FheUint32::cast_from(a);
+        let da: u32 = a.decrypt(&client_key);
+        assert_eq!(da, clear as u32);
+
+        // Downcasting
+        let a = FheUint8::cast_from(a);
+        let da: u8 = a.decrypt(&client_key);
+        assert_eq!(da, (clear as u32) as u8);
+    }
+     
+    {
+        let clear = 12_837i16;
+        let a = FheInt16::encrypt(clear, &client_key);
+
+        // Casting from FheInt16 to FheUint16
+        let a = FheUint16::cast_from(a);
+        let da: u16 = a.decrypt(&client_key);
+        assert_eq!(da, clear as u16);
+    }
+    
+
+    Ok(())
+}
+```
+
+
 
 ## ShortInt Operations
 
@@ -274,256 +534,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Integer
 
-In TFHE-rs, integers are used to encrypt any messages larger than 4 bits. All supported operations are listed below.
 
-### Arithmetic operations.
+## Boolean Operations
 
-Homomorphic integer types support arithmetic operations.
+Native homomorphic Booleans support common Boolean operations.
 
 The list of supported operations is:
 
-| name                                                     | symbol | type   |
-|----------------------------------------------------------|--------|--------|
-| [Neg](https://doc.rust-lang.org/std/ops/trait.Neg.html)  | `-`    | Unary  |
-| [Add](https://doc.rust-lang.org/std/ops/trait.Add.html)  | `+`    | Binary |
-| [Sub](https://doc.rust-lang.org/std/ops/trait.Sub.html)  | `-`    | Binary |
-| [Mul](https://doc.rust-lang.org/std/ops/trait.Mul.html)  | `*`    | Binary |
-| [Div](https://doc.rust-lang.org/std/ops/trait.Div.html)* | `/`    | Binary |
-| [Rem](https://doc.rust-lang.org/std/ops/trait.Rem.html)* | `%`    | Binary |
-
-For division by $$0$$, the convention is to return $$modulus - 1$$. For instance, for FheUint8, the modulus is $$2^8=256$$, so a division by $$0$$ will return an encryption of $$255$$.
-For the remainder operator, the convention is to return the first input without any modification.  For instance, for $$ct1 = FheUint8(63)$$ and $$ct2 = FheUint8(0)$$, then $$ct1 % ct2$$ will return $$FheUint8(63)$$.
-
-
-
-A simple example on how to use these operations:
-
-```rust
-use tfhe::prelude::*;
-use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
-    let (keys, server_keys) = generate_keys(config);
-    set_server_key(server_keys);
-
-    let clear_a = 15_u64;
-    let clear_b = 27_u64;
-    let clear_c = 43_u64;
-
-    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
-    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
-    let mut c = FheUint8::try_encrypt(clear_c, &keys)?;
-
-
-    a = a * &b;  // Clear equivalent computations: 15 * 27 mod 256 = 149
-    b = &b + &c; // Clear equivalent computations: 27 + 43 mod 256 = 70
-    b = b - 76u8;   // Clear equivalent computations: 70 - 76 mod 256 = 250
-
-    let dec_a: u8 = a.decrypt(&keys);
-    let dec_b: u8 = b.decrypt(&keys);
-
-    assert_eq!(dec_a, ((clear_a * clear_b) % 256_u64) as u8);
-    assert_eq!(dec_b, (((clear_b  + clear_c).wrapping_sub(76_u64)) % 256_u64) as u8);
-
-    Ok(())
-}
-```
-
-### Bitwise operations.
-
-Homomorphic integer types support some bitwise operations.
-
-The list of supported operations is:
-
-| name                                                                                 | symbol         | type   |
-|--------------------------------------------------------------------------------------|----------------|--------|
-| [Not](https://doc.rust-lang.org/std/ops/trait.Not.html)                              | `!`            | Unary  |
-| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html)                        | `&`            | Binary |
-| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)                          | `\|`           | Binary |
-| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html)                        | `^`            | Binary |
-| [Shr](https://doc.rust-lang.org/std/ops/trait.Shr.html)                              | `>>`           | Binary |
-| [Shl](https://doc.rust-lang.org/std/ops/trait.Shl.html)                              | `<<`           | Binary |
-| [Rotate Right](https://doc.rust-lang.org/std/primitive.u32.html#method.rotate_right) | `rotate_right` | Binary |
-| [Rotate Left](https://doc.rust-lang.org/std/primitive.u32.html#method.rotate_left)   | `rotate_left`  | Binary |
-
-A simple example on how to use these operations:
-
-```rust
-use tfhe::prelude::*;
-use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
-    let (keys, server_keys) = generate_keys(config);
-    set_server_key(server_keys);
-
-    let clear_a = 164;
-    let clear_b = 212;
-
-    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
-    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
-
-    a = a ^ &b;
-    b = b ^ &a;
-    a = a ^ &b;
-
-    let dec_a: u8 = a.decrypt(&keys);
-    let dec_b: u8 = b.decrypt(&keys);
-
-    // We homomorphically swapped values using bitwise operations
-    assert_eq!(dec_a, clear_b);
-    assert_eq!(dec_b, clear_a);
-
-    Ok(())
-}
-```
-
-### Comparisons.
-
-Homomorphic integers support comparison operations. Since Rust does not allow the overloading of these operations, a simple function has been associated to each one.
-
-The list of supported operations is:
-
-| name                                                                        | symbol | type   |
-|-----------------------------------------------------------------------------|--------|--------|
-| [Equal           ](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)  | `eq`   | Binary |
-| [Not Equal       ](https://doc.rust-lang.org/std/cmp/trait.PartialEq.html)  | `ne`   | Binary |
-| [Greater Than    ](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `gt`   | Binary |
-| [Greater or Equal](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `ge`   | Binary |
-| [Lower           ](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `lt`   | Binary |
-| [Lower or Equal  ](https://doc.rust-lang.org/std/cmp/trait.PartialOrd.html) | `le`   | Binary |
-
-A simple example on how to use these operations:
-
-```rust
-use tfhe::prelude::*;
-use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
-    let (keys, server_keys) = generate_keys(config);
-    set_server_key(server_keys);
-
-    let clear_a:u8 = 164;
-    let clear_b:u8 = 212;
-
-    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
-    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
-
-    let greater = a.gt(&b);
-    let greater_or_equal = a.ge(&b);
-    let lower = a.lt(&b);
-    let lower_or_equal = a.le(&b);
-    let equal = a.eq(&b);
-
-    let dec_gt : u8 = greater.decrypt(&keys);
-    let dec_ge : u8 = greater_or_equal.decrypt(&keys);
-    let dec_lt : u8 = lower.decrypt(&keys);
-    let dec_le : u8 = lower_or_equal.decrypt(&keys);
-    let dec_eq : u8 = equal.decrypt(&keys);
-
-    // We homomorphically swapped values using bitwise operations
-    assert_eq!(dec_gt, (clear_a > clear_b ) as u8);
-    assert_eq!(dec_ge, (clear_a >= clear_b) as u8);
-    assert_eq!(dec_lt, (clear_a < clear_b ) as u8);
-    assert_eq!(dec_le, (clear_a <= clear_b) as u8);
-    assert_eq!(dec_eq, (clear_a == clear_b) as u8);
-
-    Ok(())
-}
-```
-
-### Min/Max.
-
-Homomorphic integers support the min/max operations.
-
-| name | symbol | type   |
-| ---- | ------ | ------ |
-| Min  | `min`  | Binary |
-| Max  | `max`  | Binary |
-
-A simple example on how to use these operations:
-
-```rust
-use tfhe::prelude::*;
-use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
-    let (keys, server_keys) = generate_keys(config);
-    set_server_key(server_keys);
-
-    let clear_a:u8 = 164;
-    let clear_b:u8 = 212;
-
-    let mut a = FheUint8::try_encrypt(clear_a, &keys)?;
-    let mut b = FheUint8::try_encrypt(clear_b, &keys)?;
-
-    let min = a.min(&b);
-    let max = a.max(&b);
-
-    let dec_min : u8 = min.decrypt(&keys);
-    let dec_max : u8 = max.decrypt(&keys);
-
-    // We homomorphically swapped values using bitwise operations
-    assert_eq!(dec_min, u8::min(clear_a, clear_b));
-    assert_eq!(dec_max, u8::max(clear_a, clear_b));
-
-    Ok(())
-}
-```
-
-### Casting.
-Casting between integer types is possible via the `cast_from` associated function
-or the `cast_into` method.
-
-```rust
-use tfhe::prelude::*;
-use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, FheUint32, FheUint16};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
-    let (client_key, server_key) = generate_keys(config);
-
-    // Casting requires server_key to set
-    // (encryptions/decryptions do not need server_key to be set)
-    set_server_key(server_key);
-
-    {
-        let clear = 12_837u16;
-        let a = FheUint16::encrypt(clear, &client_key);
-
-        // Downcasting
-        let a: FheUint8 = a.cast_into();
-        let da: u8 = a.decrypt(&client_key);
-        assert_eq!(da, clear as u8);
-
-        // Upcasting
-        let a: FheUint32 = a.cast_into();
-        let da: u32 = a.decrypt(&client_key);
-        assert_eq!(da, (clear as u8) as u32);
-    }
-
-    {
-        let clear = 12_837u16;
-        let a = FheUint16::encrypt(clear, &client_key);
-
-        // Upcasting
-        let a = FheUint32::cast_from(a);
-        let da: u32 = a.decrypt(&client_key);
-        assert_eq!(da, clear as u32);
-
-        // Downcasting
-        let a = FheUint8::cast_from(a);
-        let da: u8 = a.decrypt(&client_key);
-        assert_eq!(da, (clear as u32) as u8);
-    }
-
-    Ok(())
-}
-```
+| name                                                          | symbol | type   |
+| ------------------------------------------------------------- | ------ | ------ |
+| [BitAnd](https://doc.rust-lang.org/std/ops/trait.BitAnd.html) | `&`    | Binary |
+| [BitOr](https://doc.rust-lang.org/std/ops/trait.BitOr.html)   | `\|`   | Binary |
+| [BitXor](https://doc.rust-lang.org/std/ops/trait.BitXor.html) | `^`    | Binary |
+| [Not](https://doc.rust-lang.org/std/ops/trait.Not.html)       | `!`    | Unary  |
