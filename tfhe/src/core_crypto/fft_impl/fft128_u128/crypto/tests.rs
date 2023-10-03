@@ -224,7 +224,9 @@ fn test_split_pbs() {
 
     let mut lwe_out_non_split = LweCiphertext::new(
         0u128,
-        LweDimension(polynomial_size.0 * glwe_dimension.0).to_lwe_size(),
+        glwe_dimension
+            .to_equivalent_lwe_dimension(polynomial_size)
+            .to_lwe_size(),
         ciphertext_modulus,
     );
 
@@ -264,7 +266,9 @@ fn test_split_pbs() {
 
     let mut lwe_out_split = LweCiphertext::new(
         0u128,
-        LweDimension(polynomial_size.0 * glwe_dimension.0).to_lwe_size(),
+        glwe_dimension
+            .to_equivalent_lwe_dimension(polynomial_size)
+            .to_lwe_size(),
         ciphertext_modulus,
     );
     fourier_bsk.bootstrap_u128(

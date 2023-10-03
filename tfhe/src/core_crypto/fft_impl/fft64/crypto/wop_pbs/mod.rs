@@ -37,7 +37,11 @@ pub fn extract_bits_scratch<Scalar>(
     let pbs_accumulator =
         StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, align)?;
     let lwe_out_pbs_buffer = StackReq::try_new_aligned::<Scalar>(
-        glwe_size.to_glwe_dimension().0 * polynomial_size.0 + 1,
+        glwe_size
+            .to_glwe_dimension()
+            .to_equivalent_lwe_dimension(polynomial_size)
+            .to_lwe_size()
+            .0,
         align,
     )?;
     let lwe_bit_left_shift_buffer = lwe_in_buffer;
@@ -140,7 +144,9 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
         ciphertext_modulus,
     );
 
-    let lwe_size = LweSize(glwe_dimension.0 * polynomial_size.0 + 1);
+    let lwe_size = glwe_dimension
+        .to_equivalent_lwe_dimension(polynomial_size)
+        .to_lwe_size();
     let (mut lwe_out_pbs_buffer_data, mut stack) =
         stack.make_aligned_with(lwe_size.0, align, |_| Scalar::ZERO);
     let mut lwe_out_pbs_buffer = LweCiphertext::from_container(
@@ -794,10 +800,11 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
     let ciphertext_modulus = lwe_out.ciphertext_modulus();
 
     debug_assert!(
-        lwe_out.lwe_size().to_lwe_dimension().0 == polynomial_size.0 * glwe_dimension.0,
-        "Output LWE ciphertext needs to have an LweDimension of {}, got {}",
-        polynomial_size.0 * glwe_dimension.0,
-        lwe_out.lwe_size().to_lwe_dimension().0,
+        lwe_out.lwe_size().to_lwe_dimension()
+            == glwe_dimension.to_equivalent_lwe_dimension(polynomial_size),
+        "Output LWE ciphertext needs to have an LweDimension of {:?}, got {:?}",
+        glwe_dimension.to_equivalent_lwe_dimension(polynomial_size),
+        lwe_out.lwe_size().to_lwe_dimension(),
     );
 
     // Get the base 2 logarithm (rounded down) of the number of polynomials in the list i.e. if

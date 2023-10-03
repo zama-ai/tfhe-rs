@@ -108,6 +108,10 @@ impl GlweDimension {
     pub fn to_glwe_size(&self) -> GlweSize {
         GlweSize(self.0 + 1)
     }
+
+    pub fn to_equivalent_lwe_dimension(self, poly_size: PolynomialSize) -> LweDimension {
+        LweDimension(self.0 * poly_size.0)
+    }
 }
 
 /// The number of coefficients of a polynomial.

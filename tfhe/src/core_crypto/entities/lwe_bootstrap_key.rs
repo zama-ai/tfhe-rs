@@ -184,8 +184,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBootstrapKey<C>
     /// // These methods are specific to the LweBootstrapKey
     /// assert_eq!(bsk.input_lwe_dimension(), input_lwe_dimension);
     /// assert_eq!(
-    ///     bsk.output_lwe_dimension().0,
-    ///     glwe_size.to_glwe_dimension().0 * polynomial_size.0
+    ///     bsk.output_lwe_dimension(),
+    ///     glwe_size
+    ///         .to_glwe_dimension()
+    ///         .to_equivalent_lwe_dimension(polynomial_size)
     /// );
     ///
     /// // Demonstrate how to recover the allocated container
@@ -208,8 +210,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBootstrapKey<C>
     /// assert_eq!(bsk.ciphertext_modulus(), ciphertext_modulus);
     /// assert_eq!(bsk.input_lwe_dimension(), input_lwe_dimension);
     /// assert_eq!(
-    ///     bsk.output_lwe_dimension().0,
-    ///     glwe_size.to_glwe_dimension().0 * polynomial_size.0
+    ///     bsk.output_lwe_dimension(),
+    ///     glwe_size
+    ///         .to_glwe_dimension()
+    ///         .to_equivalent_lwe_dimension(polynomial_size)
     /// );
     /// ```
     pub fn from_container(
@@ -243,7 +247,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBootstrapKey<C>
     ///
     /// See [`LweBootstrapKey::from_container`] for usage.
     pub fn output_lwe_dimension(&self) -> LweDimension {
-        LweDimension(self.glwe_size().to_glwe_dimension().0 * self.polynomial_size().0)
+        self.glwe_size()
+            .to_glwe_dimension()
+            .to_equivalent_lwe_dimension(self.polynomial_size())
     }
 
     /// Consume the entity and return its underlying container.

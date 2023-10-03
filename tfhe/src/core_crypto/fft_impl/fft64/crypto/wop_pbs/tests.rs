@@ -5,7 +5,7 @@ use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretR
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DeltaLog, ExtractedBitsCount, GlweDimension,
-    LweDimension, LweSize, PlaintextCount, PolynomialCount, PolynomialSize,
+    LweDimension, PlaintextCount, PolynomialCount, PolynomialSize,
 };
 use crate::core_crypto::commons::test_tools;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
@@ -639,7 +639,9 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         let message = Plaintext(cleartext << delta_log.0);
         let mut lwe_in = LweCiphertextOwned::new(
             0u64,
-            LweSize(glwe_dimension.0 * polynomial_size.0 + 1),
+            glwe_dimension
+                .to_equivalent_lwe_dimension(polynomial_size)
+                .to_lwe_size(),
             ciphertext_modulus,
         );
         encrypt_lwe_ciphertext(
@@ -722,7 +724,9 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         // We need as many output ciphertexts as we have input luts
         let mut vertical_packing_lwe_list_out = LweCiphertextListOwned::new(
             0u64,
-            LweDimension(polynomial_size.0 * glwe_dimension.0).to_lwe_size(),
+            glwe_dimension
+                .to_equivalent_lwe_dimension(polynomial_size)
+                .to_lwe_size(),
             LweCiphertextCount(number_of_luts_and_output_vp_ciphertexts),
             ciphertext_modulus,
         );
