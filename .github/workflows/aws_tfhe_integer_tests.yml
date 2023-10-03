@@ -71,7 +71,7 @@ jobs:
 
       - name: Run integer tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_integer_ci
+          AVX512_SUPPORT=ON BIG_TESTS_INSTANCE=TRUE make test_integer_ci
 
       - name: Slack Notification
         if: ${{ always() }}

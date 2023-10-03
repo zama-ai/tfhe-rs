@@ -363,18 +363,18 @@ test_shortint_cov: install_rs_check_toolchain install_tarpaulin
 		-p tfhe -- shortint::
 
 .PHONY: test_integer_ci # Run the tests for integer ci
-test_integer_ci: install_rs_build_toolchain install_cargo_nextest
+test_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)"
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)"
 
 .PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
-test_integer_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
+test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)"
 
 .PHONY: test_safe_deserialization # Run the tests for safe deserialization
 test_safe_deserialization: install_rs_build_toolchain install_cargo_nextest

@@ -9,6 +9,7 @@ function usage() {
     echo "--rust-toolchain          The toolchain to run the tests with default: stable"
     echo "--multi-bit               Run multi-bit tests only: default off"
     echo "--cargo-profile           The cargo profile used to build tests"
+    echo "--avx512-support          Set to ON to enable avx512"
     echo
 }
 
@@ -16,6 +17,7 @@ RUST_TOOLCHAIN="+stable"
 multi_bit=""
 not_multi_bit="_multi_bit"
 cargo_profile="release"
+avx512_feature=""
 
 while [ -n "$1" ]
 do
@@ -38,6 +40,13 @@ do
         "--cargo-profile" )
             shift
             cargo_profile="$1"
+            ;;
+
+        "--avx512-support" )
+            shift
+            if [[ "$1" == "ON" ]]; then
+                avx512_feature=nightly-avx512
+            fi
             ;;
 
         *)
@@ -104,7 +113,7 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
         --cargo-profile "${cargo_profile}" \
         --package tfhe \
         --profile ci \
-        --features="${ARCH_FEATURE}",integer,internal-keycache \
+        --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
         --test-threads "${n_threads}" \
         -E "$filter_expression"
 
@@ -112,7 +121,7 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
         cargo "${RUST_TOOLCHAIN}" test \
             --profile "${cargo_profile}" \
             --package tfhe \
-            --features="${ARCH_FEATURE}",integer,internal-keycache \
+            --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
             --doc \
             -- integer::
     fi
@@ -148,7 +157,7 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
         --cargo-profile "${cargo_profile}" \
         --package tfhe \
         --profile ci \
-        --features="${ARCH_FEATURE}",integer,internal-keycache \
+        --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
         --test-threads $num_threads \
         -E "$filter_expression"
 
@@ -156,7 +165,7 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
         cargo "${RUST_TOOLCHAIN}" test \
             --profile "${cargo_profile}" \
             --package tfhe \
-            --features="${ARCH_FEATURE}",integer,internal-keycache \
+            --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
             --doc \
             -- --test-threads="$(${nproc_bin})" integer::
     fi

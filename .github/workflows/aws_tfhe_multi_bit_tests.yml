@@ -75,7 +75,7 @@ jobs:
 
       - name: Run integer multi-bit tests
         run: |
-          make test_integer_multi_bit_ci
+          AVX512_SUPPORT=ON make test_integer_multi_bit_ci
 
       - name: Slack Notification
         if: ${{ always() }}
