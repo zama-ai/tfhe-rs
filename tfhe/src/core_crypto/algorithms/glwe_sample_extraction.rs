@@ -97,13 +97,18 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
 {
-    assert!(
-        input_glwe.glwe_size().to_glwe_dimension().0 * input_glwe.polynomial_size().0
-            == output_lwe.lwe_size().to_lwe_dimension().0,
+    let in_lwe_dim = input_glwe
+        .glwe_size()
+        .to_glwe_dimension()
+        .to_equivalent_lwe_dimension(input_glwe.polynomial_size());
+
+    let out_lwe_dim = output_lwe.lwe_size().to_lwe_dimension();
+
+    assert_eq!(
+        in_lwe_dim, out_lwe_dim,
         "Mismatch between equivalent LweDimension of input ciphertext and output ciphertext. \
         Got {:?} for input and {:?} for output.",
-        LweDimension(input_glwe.glwe_size().to_glwe_dimension().0 * input_glwe.polynomial_size().0),
-        output_lwe.lwe_size().to_lwe_dimension(),
+        in_lwe_dim, out_lwe_dim,
     );
 
     assert_eq!(
@@ -354,13 +359,18 @@ pub fn par_extract_lwe_sample_from_glwe_ciphertext_with_thread_count<
     InputCont: Container<Element = Scalar> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
 {
-    assert!(
-        input_glwe.glwe_size().to_glwe_dimension().0 * input_glwe.polynomial_size().0
-            == output_lwe_list.lwe_size().to_lwe_dimension().0,
+    let in_lwe_dim = input_glwe
+        .glwe_size()
+        .to_glwe_dimension()
+        .to_equivalent_lwe_dimension(input_glwe.polynomial_size());
+
+    let out_lwe_dim = output_lwe_list.lwe_size().to_lwe_dimension();
+
+    assert_eq!(
+        in_lwe_dim, out_lwe_dim,
         "Mismatch between equivalent LweDimension of input ciphertext and output ciphertext. \
         Got {:?} for input and {:?} for output.",
-        LweDimension(input_glwe.glwe_size().to_glwe_dimension().0 * input_glwe.polynomial_size().0),
-        output_lwe_list.lwe_size().to_lwe_dimension(),
+        in_lwe_dim, out_lwe_dim,
     );
 
     assert!(

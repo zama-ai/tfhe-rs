@@ -115,8 +115,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMultiBitBootstr
     ///     LweDimension(input_lwe_dimension.0 / grouping_factor.0)
     /// );
     /// assert_eq!(
-    ///     bsk.output_lwe_dimension().0,
-    ///     glwe_size.to_glwe_dimension().0 * polynomial_size.0
+    ///     bsk.output_lwe_dimension(),
+    ///     glwe_size
+    ///         .to_glwe_dimension()
+    ///         .to_equivalent_lwe_dimension(polynomial_size)
     /// );
     /// assert_eq!(bsk.grouping_factor(), grouping_factor);
     ///
@@ -145,8 +147,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMultiBitBootstr
     ///     LweDimension(input_lwe_dimension.0 / grouping_factor.0)
     /// );
     /// assert_eq!(
-    ///     bsk.output_lwe_dimension().0,
-    ///     glwe_size.to_glwe_dimension().0 * polynomial_size.0
+    ///     bsk.output_lwe_dimension(),
+    ///     glwe_size
+    ///         .to_glwe_dimension()
+    ///         .to_equivalent_lwe_dimension(polynomial_size)
     /// );
     /// assert_eq!(bsk.grouping_factor(), grouping_factor);
     /// ```
@@ -203,7 +207,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMultiBitBootstr
     ///
     /// See [`LweMultiBitBootstrapKey::from_container`] for usage.
     pub fn output_lwe_dimension(&self) -> LweDimension {
-        LweDimension(self.glwe_size().to_glwe_dimension().0 * self.polynomial_size().0)
+        self.glwe_size()
+            .to_glwe_dimension()
+            .to_equivalent_lwe_dimension(self.polynomial_size())
     }
 
     /// Return the [`LweBskGroupingFactor`] of the current [`LweMultiBitBootstrapKey`].

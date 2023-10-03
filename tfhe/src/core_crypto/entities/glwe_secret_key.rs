@@ -153,7 +153,12 @@ where
         polynomial_size: PolynomialSize,
     ) -> GlweSecretKeyOwned<Scalar> {
         GlweSecretKeyOwned::from_container(
-            vec![value; glwe_dimension.0 * polynomial_size.0],
+            vec![
+                value;
+                glwe_dimension
+                    .to_equivalent_lwe_dimension(polynomial_size)
+                    .0
+            ],
             polynomial_size,
         )
     }

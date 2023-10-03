@@ -116,7 +116,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweMask<C> {
     /// let ciphertext_modulus = CiphertextModulus::new_native();
     ///
     /// let glwe_mask = GlweMask::from_container(
-    ///     vec![0u64; glwe_dimension.0 * polynomial_size.0],
+    ///     vec![
+    ///         0u64;
+    ///         glwe_dimension
+    ///             .to_equivalent_lwe_dimension(polynomial_size)
+    ///             .0
+    ///     ],
     ///     polynomial_size,
     ///     ciphertext_modulus,
     /// );
@@ -215,7 +220,9 @@ pub fn glwe_ciphertext_mask_size(
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
 ) -> usize {
-    glwe_dimension.0 * polynomial_size.0
+    glwe_dimension
+        .to_equivalent_lwe_dimension(polynomial_size)
+        .0
 }
 
 /// A [`GLWE ciphertext`](`GlweCiphertext`).
