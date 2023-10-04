@@ -22,7 +22,7 @@ use crate::core_crypto::entities::*;
 use concrete_fft::c64;
 
 pub fn extract_bits_scratch<Scalar>(
-    lwe_dimension: LweDimension,
+    input_lwe_dimension: LweDimension,
     ksk_after_key_size: LweDimension,
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
@@ -30,7 +30,8 @@ pub fn extract_bits_scratch<Scalar>(
 ) -> Result<StackReq, SizeOverflow> {
     let align = CACHELINE_ALIGN;
 
-    let lwe_in_buffer = StackReq::try_new_aligned::<Scalar>(lwe_dimension.to_lwe_size().0, align)?;
+    let lwe_in_buffer =
+        StackReq::try_new_aligned::<Scalar>(input_lwe_dimension.to_lwe_size().0, align)?;
     let lwe_out_ks_buffer =
         StackReq::try_new_aligned::<Scalar>(ksk_after_key_size.to_lwe_size().0, align)?;
     let pbs_accumulator =
