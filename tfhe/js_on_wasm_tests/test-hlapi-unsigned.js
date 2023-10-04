@@ -29,9 +29,9 @@ const U256_MAX = BigInt("1157920892373161954235709850086879078532699846656405640
 const U128_MAX = BigInt("340282366920938463463374607431768211455");
 const U32_MAX = 4294967295;
 
-// This use full to debug test
-// 
-// Note that the test hlapi_panic 
+// This is useful to debug test
+//
+// Note that the test hlapi_panic
 // purposefully creates a panic, to some panic message
 // will be printed and tess will be ok
 init_panic_hook();
@@ -139,7 +139,7 @@ test('hlapi_public_key_encrypt_decrypt_uint32_small', (t) => {
     let encrypted = FheUint32.encrypt_with_public_key(U32_MAX, publicKey);
     let decrypted = encrypted.decrypt(clientKey);
     assert.deepStrictEqual(decrypted, U32_MAX);
-    
+
     let serialized = encrypted.serialize();
     let deserialized = FheUint32.deserialize(serialized);
     let deserialized_decrypted = deserialized.decrypt(clientKey);
@@ -327,9 +327,9 @@ test('hlapi_public_key_encrypt_decrypt_uint256_small', (t) => {
 
 
 //////////////////////////////////////////////////////////////////////////////
-/// 32 bits compact 
+/// 32 bits compact
 //////////////////////////////////////////////////////////////////////////////
-    
+
 function hlapi_compact_public_key_encrypt_decrypt_uint32_single(config) {
     let clientKey = TfheClientKey.generate(config);
     let publicKey = TfheCompactPublicKey.new(clientKey);
@@ -447,7 +447,7 @@ test('hlapi_compact_public_key_encrypt_decrypt_uint32_big_list_compact', (t) => 
 
 
 //////////////////////////////////////////////////////////////////////////////
-/// 256 bits compact 
+/// 256 bits compact
 //////////////////////////////////////////////////////////////////////////////
 
 function hlapi_compact_public_key_encrypt_decrypt_uint256_single(config) {

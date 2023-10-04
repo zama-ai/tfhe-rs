@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsError;
 
 use crate::high_level_api::prelude::*;
-use crate::integer::U256;
+use crate::integer::{I256, U256};
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, into_js_error};
 
 const U128_MAX_AS_STR: &str = "340282366920938463463374607431768211455";
@@ -21,7 +21,7 @@ impl TryFrom<JsValue> for U256 {
     type Error = JsError;
 
     fn try_from(value: JsValue) -> Result<Self, Self::Error> {
-        let low_js = value.clone() & JsValue::bigint_from_str(U128_MAX_AS_STR);
+        let low_js = &value & JsValue::bigint_from_str(U128_MAX_AS_STR);
         let high_js = value >> JsValue::bigint_from_str("128");
 
         // Since we masked the low value it will fit in u128
@@ -32,6 +32,51 @@ impl TryFrom<JsValue> for U256 {
 
         let value = U256::from((low_rs, high_rs));
         Ok(value)
+    }
+}
+
+impl From<I256> for JsValue {
+    fn from(mut value: I256) -> Self {
+        let mut was_neg = false;
+        if value < I256::ZERO {
+            value = -value;
+            was_neg = true;
+        }
+        let shift = JsValue::bigint_from_str("64");
+        let mut result = JsValue::bigint_from_str("0");
+        for v in value.0.iter().rev() {
+            result = result << &shift;
+            result = result | JsValue::from(*v);
+        }
+
+        if was_neg {
+            -result
+        } else {
+            result
+        }
+    }
+}
+
+impl TryFrom<JsValue> for I256 {
+    type Error = JsError;
+
+    fn try_from(mut value: JsValue) -> Result<Self, Self::Error> {
+        let mut was_neg = false;
+        if value.lt(&JsValue::from(0)) {
+            value = -value;
+            was_neg = true;
+        }
+
+        let low_js = &value & JsValue::bigint_from_str(U128_MAX_AS_STR);
+        let high_js =
+            (&value >> JsValue::bigint_from_str("128")) & JsValue::bigint_from_str(U128_MAX_AS_STR);
+
+        // Since we masked the low value it will fit in u128
+        let low_rs = u128::try_from(low_js).unwrap();
+        // Since we masked the low value it will fit in u128
+        let high_rs = u128::try_from(high_js).unwrap();
+        let rs_value = I256::from((low_rs, high_rs));
+        Ok(if was_neg { -rs_value } else { rs_value })
     }
 }
 
@@ -319,7 +364,21 @@ create_wrapper_type_non_native_type!(
         compact_type_name: CompactFheUint256,
         compact_list_type_name: CompactFheUint256List,
         rust_type: U256,
-    }
+    },
+    {
+        type_name: FheInt128,
+        compressed_type_name: CompressedFheInt128,
+        compact_type_name: CompactFheInt128,
+        compact_list_type_name: CompactFheInt128List,
+        rust_type: i128,
+    },
+    {
+        type_name: FheInt256,
+        compressed_type_name: CompressedFheInt256,
+        compact_type_name: CompactFheInt256,
+        compact_list_type_name: CompactFheInt256List,
+        rust_type: I256,
+    },
 );
 
 // We use this macro to define wasm wrapper for
@@ -593,5 +652,33 @@ create_wrapper_type_that_has_native_type!(
         compact_type_name: CompactFheUint64,
         compact_list_type_name: CompactFheUint64List,
         native_type: u64,
+    },
+    {
+        type_name: FheInt8,
+        compressed_type_name: CompressedFheInt8,
+        compact_type_name: CompactFheInt8,
+        compact_list_type_name: CompactFheInt8List,
+        native_type: i8,
+    },
+    {
+        type_name: FheInt16,
+        compressed_type_name: CompressedFheInt16,
+        compact_type_name: CompactFheInt16,
+        compact_list_type_name: CompactFheInt16List,
+        native_type: i16,
+    },
+        {
+        type_name: FheInt32,
+        compressed_type_name: CompressedFheInt32,
+        compact_type_name: CompactFheInt32,
+        compact_list_type_name: CompactFheInt32List,
+        native_type: i32,
+    },
+    {
+        type_name: FheInt64,
+        compressed_type_name: CompressedFheInt64,
+        compact_type_name: CompactFheInt64,
+        compact_list_type_name: CompactFheInt64List,
+        native_type: i64,
     },
 );
