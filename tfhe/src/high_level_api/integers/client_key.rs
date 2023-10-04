@@ -79,6 +79,7 @@ where
         self.encrypt_signed_radix(value.0, value.1)
     }
 }
+
 impl<T> EncryptionKey<(T, usize), CompressedSignedRadixCiphertext> for crate::integer::ClientKey
 where
     T: crate::integer::block_decomposition::DecomposableInto<u64> + SignedNumeric,
@@ -87,6 +88,16 @@ where
         self.encrypt_signed_radix_compressed(value.0, value.1)
     }
 }
+
+impl<T> EncryptionKey<(T, usize), SignedRadixCiphertext> for crate::integer::PublicKey
+where
+    T: crate::integer::block_decomposition::DecomposableInto<u64> + SignedNumeric,
+{
+    fn encrypt(&self, value: (T, usize)) -> SignedRadixCiphertext {
+        self.encrypt_signed_radix(value.0, value.1)
+    }
+}
+
 impl<T> EncryptionKey<(T, usize), SignedRadixCiphertext> for crate::integer::CompressedPublicKey
 where
     T: crate::integer::block_decomposition::DecomposableInto<u64> + SignedNumeric,
@@ -95,6 +106,7 @@ where
         self.encrypt_signed_radix(value.0, value.1)
     }
 }
+
 impl<T> EncryptionKey<(T, usize), SignedRadixCiphertext> for CompactPublicKey
 where
     T: crate::integer::block_decomposition::DecomposableInto<u64> + SignedNumeric,

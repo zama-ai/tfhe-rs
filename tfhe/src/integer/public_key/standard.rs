@@ -1,8 +1,10 @@
+use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
 use crate::integer::public_key::compressed::CompressedPublicKey;
+use crate::integer::SignedRadixCiphertext;
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::PublicKey as ShortintPublicKey;
 
@@ -52,11 +54,17 @@ impl PublicKey {
         self.key.parameters.pbs_parameters().unwrap()
     }
 
-    pub fn encrypt_radix<T: DecomposableInto<u64>>(
-        &self,
-        message: T,
-        num_blocks: usize,
-    ) -> RadixCiphertext {
+    pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
+    where
+        T: DecomposableInto<u64> + UnsignedNumeric,
+    {
+        encrypt_words_radix_impl(&self.key, message, num_blocks, ShortintPublicKey::encrypt)
+    }
+
+    pub fn encrypt_signed_radix<T>(&self, message: T, num_blocks: usize) -> SignedRadixCiphertext
+    where
+        T: DecomposableInto<u64> + SignedNumeric,
+    {
         encrypt_words_radix_impl(&self.key, message, num_blocks, ShortintPublicKey::encrypt)
     }
 
