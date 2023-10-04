@@ -1,5 +1,20 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::{RadixCiphertext, ServerKey};
+use crate::shortint::Ciphertext;
+use rayon::prelude::*;
+use std::cmp::Ordering;
+
+#[repr(u64)]
+#[derive(PartialEq, Eq)]
+enum BorrowGeneration {
+    /// The block does not generate nor propagate a borrow
+    None = 0,
+    /// The block generates a borrow (that will be taken from next block)
+    Generated = 1,
+    /// The block will propagate a borrow if ever
+    /// the preceding blocks borrows from it
+    Propagated = 2,
+}
 
 impl ServerKey {
     /// Computes homomorphically the subtraction between ct_left and ct_right.
@@ -256,5 +271,205 @@ impl ServerKey {
 
         let neg = self.unchecked_neg(rhs);
         self.unchecked_add_assign_parallelized_work_efficient(lhs, &neg);
+    }
+
+    /// Computes the subtraction and returns an indicator of overflow
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    ///
+    /// let msg_1 = 1u8;
+    /// let msg_2 = 255u8;
+    ///
+    /// // Encrypt two messages:
+    /// let ctxt_1 = cks.encrypt(msg_1);
+    /// let ctxt_2 = cks.encrypt(msg_2);
+    ///
+    /// // Compute homomorphically a subtraction
+    /// let (result, overflowed) = sks.unsigned_overflowing_sub_parallelized(&ctxt_1, &ctxt_2);
+    ///
+    /// // Decrypt:
+    /// let decrypted_result: u8 = cks.decrypt(&result);
+    /// let decrypted_overflow = cks.decrypt_one_block(&overflowed) == 1;
+    ///
+    /// let (expected_result, expected_overflow) = msg_1.overflowing_sub(msg_2);
+    /// assert_eq!(expected_result, decrypted_result);
+    /// assert_eq!(expected_overflow, decrypted_overflow);
+    /// ```
+    pub fn unsigned_overflowing_sub_parallelized(
+        &self,
+        ctxt_left: &RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
+    ) -> (RadixCiphertext, Ciphertext) {
+        let mut tmp_lhs;
+        let mut tmp_rhs;
+
+        let (lhs, rhs) = match (
+            ctxt_left.block_carries_are_empty(),
+            ctxt_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ctxt_left, ctxt_right),
+            (true, false) => {
+                tmp_rhs = ctxt_right.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ctxt_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = ctxt_left.clone();
+                self.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, ctxt_right)
+            }
+            (false, false) => {
+                tmp_lhs = ctxt_left.clone();
+                tmp_rhs = ctxt_right.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(&mut tmp_lhs),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_unsigned_overflowing_sub_parallelized(lhs, rhs)
+    }
+
+    pub fn unchecked_unsigned_overflowing_sub_parallelized(
+        &self,
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> (RadixCiphertext, Ciphertext) {
+        assert_eq!(
+            lhs.blocks.len(),
+            rhs.blocks.len(),
+            "Left hand side must must have a number of blocks equal \
+            to the number of blocks of the right hand side: lhs {} blocks, rhs {} blocks",
+            lhs.blocks.len(),
+            rhs.blocks.len()
+        );
+        if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
+            // Here we have to use manual unchecked_sub on shortint blocks
+            // rather than calling integer's unchecked_sub as we need each subtraction
+            // to be independent from other blocks.
+            let ct = lhs
+                .blocks
+                .iter()
+                .zip(rhs.blocks.iter())
+                .map(|(lhs_block, rhs_block)| self.key.unchecked_sub(lhs_block, rhs_block))
+                .collect::<Vec<_>>();
+            let mut ct = RadixCiphertext::from(ct);
+
+            let generates_or_propagates = self.generate_init_borrow_array(&ct);
+            let (input_borrows, mut output_borrow) =
+                self.compute_borrow_propagation_parallelized_low_latency(generates_or_propagates);
+
+            ct.blocks
+                .par_iter_mut()
+                .zip(input_borrows.par_iter())
+                .for_each(|(block, input_borrow)| {
+                    // Do a true lwe subtraction, as unchecked_sub will adds a correcting term
+                    // to avoid overflow (and trashing padding bit). Here we know each
+                    // block in the ciphertext is >= 1, and that input borrow is either 0 or 1
+                    // so no overflow possible.
+                    crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
+                        &mut block.ct,
+                        &input_borrow.ct,
+                    );
+                    self.key.message_extract_assign(block);
+                });
+            assert!(ct.block_carries_are_empty());
+            // we know here that the result is a boolean value
+            // however the lut used has a degree of 2.
+            output_borrow.degree.0 = 1;
+            (ct, output_borrow)
+        } else {
+            self.unsigned_overflowing_sub(lhs, rhs)
+        }
+    }
+
+    pub(super) fn generate_init_borrow_array(&self, sum_ct: &RadixCiphertext) -> Vec<Ciphertext> {
+        let modulus = self.key.message_modulus.0 as u64;
+
+        // This is used for the first pair of blocks
+        // as this pair can either generate or not, but never propagate
+        let lut_does_block_generate_carry = self.key.generate_lookup_table(|x| {
+            if x < modulus {
+                BorrowGeneration::Generated as u64
+            } else {
+                BorrowGeneration::None as u64
+            }
+        });
+
+        let lut_does_block_generate_or_propagate =
+            self.key.generate_lookup_table(|x| match x.cmp(&modulus) {
+                Ordering::Less => BorrowGeneration::Generated as u64,
+                Ordering::Equal => BorrowGeneration::Propagated as u64,
+                Ordering::Greater => BorrowGeneration::None as u64,
+            });
+
+        let mut generates_or_propagates = Vec::with_capacity(sum_ct.blocks.len());
+        sum_ct
+            .blocks
+            .par_iter()
+            .enumerate()
+            .map(|(i, block)| {
+                if i == 0 {
+                    // The first block can only output a borrow
+                    self.key
+                        .apply_lookup_table(block, &lut_does_block_generate_carry)
+                } else {
+                    self.key
+                        .apply_lookup_table(block, &lut_does_block_generate_or_propagate)
+                }
+            })
+            .collect_into_vec(&mut generates_or_propagates);
+
+        generates_or_propagates
+    }
+
+    pub(crate) fn compute_borrow_propagation_parallelized_low_latency(
+        &self,
+        generates_or_propagates: Vec<Ciphertext>,
+    ) -> (Vec<Ciphertext>, Ciphertext) {
+        let lut_borrow_propagation_sum = self
+            .key
+            .generate_lookup_table_bivariate(prefix_sum_borrow_propagation);
+
+        fn prefix_sum_borrow_propagation(msb: u64, lsb: u64) -> u64 {
+            if msb == BorrowGeneration::Propagated as u64 {
+                // We propagate the value of lsb
+                lsb
+            } else {
+                msb
+            }
+        }
+
+        // Type annotations are required, otherwise we get confusing errors
+        // "implementation of `FnOnce` is not general enough"
+        let sum_function = |block_carry: &mut Ciphertext, previous_block_carry: &Ciphertext| {
+            self.key.unchecked_apply_lookup_table_bivariate_assign(
+                block_carry,
+                previous_block_carry,
+                &lut_borrow_propagation_sum,
+            );
+        };
+
+        let num_blocks = generates_or_propagates.len();
+
+        let mut borrows_out =
+            self.compute_prefix_sum_hillis_steele(generates_or_propagates, sum_function);
+        let mut last_block_out_borrow = self.key.create_trivial(0);
+        std::mem::swap(&mut borrows_out[num_blocks - 1], &mut last_block_out_borrow);
+        // The output borrow of block i-1 becomes the input
+        // borrow of block i
+        borrows_out.rotate_right(1);
+        self.key.create_trivial_assign(&mut borrows_out[0], 0);
+        (borrows_out, last_block_out_borrow)
     }
 }

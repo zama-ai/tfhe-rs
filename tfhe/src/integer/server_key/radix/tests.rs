@@ -48,6 +48,7 @@ create_parametrized_test!(integer_unchecked_neg);
 create_parametrized_test!(integer_smart_neg);
 create_parametrized_test!(integer_unchecked_sub);
 create_parametrized_test!(integer_smart_sub);
+create_parametrized_test!(integer_default_overflowing_sub);
 create_parametrized_test!(integer_unchecked_block_mul);
 create_parametrized_test!(integer_smart_block_mul);
 create_parametrized_test!(integer_smart_mul);
@@ -1111,4 +1112,12 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
     let dec_res = cks.decrypt_radix(&ct_res);
 
     assert_eq!((clear_0 * scalar as u128), dec_res);
+}
+
+fn integer_default_overflowing_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub);
+    default_overflowing_sub_test(param, executor);
 }
