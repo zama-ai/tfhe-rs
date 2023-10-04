@@ -105,8 +105,7 @@ impl ServerKey {
 
             ctxt.blocks_mut()[start_index..].swap_with_slice(&mut message_blocks);
             let carries = T::from_blocks(carry_blocks);
-            self.unchecked_add_assign_parallelized(ctxt, &carries);
-            self.propagate_single_carry_parallelized_low_latency(ctxt)
+            self.unchecked_add_assign_parallelized_low_latency(ctxt, &carries);
         } else {
             let len = ctxt.blocks().len();
             for i in start_index..len {

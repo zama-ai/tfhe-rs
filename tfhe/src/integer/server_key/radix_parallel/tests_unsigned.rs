@@ -209,6 +209,7 @@ create_parametrized_test!(integer_smart_neg);
 create_parametrized_test!(integer_default_neg);
 create_parametrized_test!(integer_smart_sub);
 create_parametrized_test!(integer_default_sub);
+create_parametrized_test!(integer_default_overflowing_sub);
 create_parametrized_test!(integer_default_sub_work_efficient {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -695,6 +696,14 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
     default_sub_test(param, executor);
+}
+
+fn integer_default_overflowing_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
+    default_overflowing_sub_test(param, executor);
 }
 
 // Smaller test for this one

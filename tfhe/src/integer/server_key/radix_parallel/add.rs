@@ -321,8 +321,9 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let generates_or_propagates = self.generate_init_carry_array(ct);
-        let input_carries =
+        let (input_carries, _) =
             self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
+
         ct.blocks_mut()
             .par_iter_mut()
             .zip(input_carries.par_iter())
@@ -339,16 +340,44 @@ impl ServerKey {
     /// Requires the blocks to have at least 4 bits
     pub(crate) fn compute_carry_propagation_parallelized_low_latency(
         &self,
+        generates_or_propagates: Vec<Ciphertext>,
+    ) -> (Vec<Ciphertext>, Ciphertext) {
+        let lut_carry_propagation_sum = self
+            .key
+            .generate_lookup_table_bivariate(prefix_sum_carry_propagation);
+        // Type annotations are required, otherwise we get confusing errors
+        // "implementation of `FnOnce` is not general enough"
+        let sum_function = |block_carry: &mut Ciphertext, previous_block_carry: &Ciphertext| {
+            self.key.unchecked_apply_lookup_table_bivariate_assign(
+                block_carry,
+                previous_block_carry,
+                &lut_carry_propagation_sum,
+            );
+        };
+
+        let num_blocks = generates_or_propagates.len();
+        let mut carries_out =
+            self.compute_prefix_sum_hillis_steele(generates_or_propagates, sum_function);
+        let mut last_block_out_carry = self.key.create_trivial(0);
+        std::mem::swap(&mut carries_out[num_blocks - 1], &mut last_block_out_carry);
+        // The output carry of block i-1 becomes the input
+        // carry of block i
+        carries_out.rotate_right(1);
+        (carries_out, last_block_out_carry)
+    }
+
+    pub(crate) fn compute_prefix_sum_hillis_steele<F>(
+        &self,
         mut generates_or_propagates: Vec<Ciphertext>,
-    ) -> Vec<Ciphertext> {
+        sum_function: F,
+    ) -> Vec<Ciphertext>
+    where
+        F: for<'a, 'b> Fn(&'a mut Ciphertext, &'b Ciphertext) + Sync,
+    {
         debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 4));
 
         let num_blocks = generates_or_propagates.len();
         let num_steps = generates_or_propagates.len().ilog2() as usize;
-
-        let lut_carry_propagation_sum = self
-            .key
-            .generate_lookup_table_bivariate(prefix_sum_carry_propagation);
 
         let mut space = 1;
         let mut step_output = generates_or_propagates.clone();
@@ -358,11 +387,7 @@ impl ServerKey {
                 .enumerate()
                 .for_each(|(i, block)| {
                     let prev_block_carry = &generates_or_propagates[i];
-                    self.key.unchecked_apply_lookup_table_bivariate_assign(
-                        block,
-                        prev_block_carry,
-                        &lut_carry_propagation_sum,
-                    )
+                    sum_function(block, prev_block_carry);
                 });
             for i in space..num_blocks {
                 generates_or_propagates[i].clone_from(&step_output[i]);
@@ -371,12 +396,7 @@ impl ServerKey {
             space *= 2;
         }
 
-        // The output carry of block i-1 becomes the input
-        // carry of block i
-        let mut carry_out = generates_or_propagates;
-        carry_out.rotate_right(1);
-        self.key.create_trivial_assign(&mut carry_out[0], 0);
-        carry_out
+        generates_or_propagates
     }
 
     /// This add_assign two numbers
@@ -507,7 +527,7 @@ impl ServerKey {
     {
         let modulus = self.key.message_modulus.0 as u64;
 
-        // This used for the first pair of blocks
+        // This is used for the first pair of blocks
         // as this pair can either generate or not, but never propagate
         let lut_does_block_generate_carry = self.key.generate_lookup_table(|x| {
             if x >= modulus {

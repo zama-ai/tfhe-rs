@@ -2,7 +2,8 @@ use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
-use crate::integer::ServerKey;
+use crate::integer::{RadixCiphertext, ServerKey};
+use crate::shortint::Ciphertext;
 
 impl ServerKey {
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
@@ -322,5 +323,121 @@ impl ServerKey {
         }
 
         self.unchecked_sub_assign(ctxt_left, ctxt_right);
+    }
+
+    /// Computes the subtraction and returns an indicator of overflow
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    ///
+    /// let msg_1 = 1u8;
+    /// let msg_2 = 2u8;
+    ///
+    /// // Encrypt two messages:
+    /// let ctxt_1 = cks.encrypt(msg_1);
+    /// let ctxt_2 = cks.encrypt(msg_2);
+    ///
+    /// // Compute homomorphically a subtraction
+    /// let (result, overflowed) = sks.unsigned_overflowing_sub(&ctxt_1, &ctxt_2);
+    ///
+    /// // Decrypt:
+    /// let decrypted_result: u8 = cks.decrypt(&result);
+    /// let decrypted_overflow = cks.decrypt_one_block(&overflowed) == 1;
+    ///
+    /// let (expected_result, expected_overflow) = msg_1.overflowing_sub(msg_2);
+    /// assert_eq!(expected_result, decrypted_result);
+    /// assert_eq!(expected_overflow, decrypted_overflow);
+    /// ```
+    pub fn unsigned_overflowing_sub(
+        &self,
+        ctxt_left: &RadixCiphertext,
+        ctxt_right: &RadixCiphertext,
+    ) -> (RadixCiphertext, Ciphertext) {
+        let mut tmp_lhs;
+        let mut tmp_rhs;
+
+        let (lhs, rhs) = match (
+            ctxt_left.block_carries_are_empty(),
+            ctxt_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ctxt_left, ctxt_right),
+            (true, false) => {
+                tmp_rhs = ctxt_right.clone();
+                self.full_propagate(&mut tmp_rhs);
+                (ctxt_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = ctxt_left.clone();
+                self.full_propagate(&mut tmp_lhs);
+                (&tmp_lhs, ctxt_right)
+            }
+            (false, false) => {
+                tmp_lhs = ctxt_left.clone();
+                tmp_rhs = ctxt_right.clone();
+                rayon::join(
+                    || self.full_propagate(&mut tmp_lhs),
+                    || self.full_propagate(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_unsigned_overflowing_sub(lhs, rhs)
+    }
+
+    pub fn unchecked_unsigned_overflowing_sub(
+        &self,
+        lhs: &RadixCiphertext,
+        rhs: &RadixCiphertext,
+    ) -> (RadixCiphertext, Ciphertext) {
+        assert_eq!(
+            lhs.blocks.len(),
+            rhs.blocks.len(),
+            "Left hand side must must have a number of blocks equal \
+            to the number of blocks of the right hand side: lhs {} blocks, rhs {} blocks",
+            lhs.blocks.len(),
+            rhs.blocks.len()
+        );
+        let modulus = self.key.message_modulus.0 as u64;
+
+        // If the block does not have a carry after the subtraction, it means it needs to
+        // borrow from the next block
+        let compute_borrow_lut = self
+            .key
+            .generate_lookup_table(|x| if x < modulus { 1 } else { 0 });
+
+        let mut borrow = self.key.create_trivial(0);
+        let mut new_blocks = Vec::with_capacity(lhs.blocks.len());
+        for (lhs_b, rhs_b) in lhs.blocks.iter().zip(rhs.blocks.iter()) {
+            let mut result_block = self.key.unchecked_sub(lhs_b, rhs_b);
+            // Here unchecked_sub_assign does not give correct result, we don't want
+            // the correcting term to be used
+            // -> This is ok as the value returned by unchecked_sub is in range 1..(message_mod * 2)
+            crate::core_crypto::algorithms::lwe_ciphertext_sub_assign(
+                &mut result_block.ct,
+                &borrow.ct,
+            );
+            let (msg, new_borrow) = rayon::join(
+                || self.key.message_extract(&result_block),
+                || {
+                    self.key
+                        .apply_lookup_table(&result_block, &compute_borrow_lut)
+                },
+            );
+            result_block = msg;
+            borrow = new_borrow;
+            new_blocks.push(result_block);
+        }
+
+        // borrow of last block indicates overflow
+        let overflowed = borrow;
+        (RadixCiphertext::from(new_blocks), overflowed)
     }
 }
