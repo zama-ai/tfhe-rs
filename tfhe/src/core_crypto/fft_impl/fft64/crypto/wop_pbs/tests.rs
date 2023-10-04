@@ -23,7 +23,7 @@ pub fn test_extract_bits() {
     // Define settings for an insecure toy example
     let polynomial_size = PolynomialSize(1024);
     let glwe_dimension = GlweDimension(1);
-    let lwe_dimension = LweDimension(585);
+    let small_lwe_dimension = LweDimension(585);
 
     let level_bsk = DecompositionLevelCount(2);
     let base_log_bsk = DecompositionBaseLog(10);
@@ -53,7 +53,7 @@ pub fn test_extract_bits() {
         &mut secret_generator,
     );
     let lwe_small_sk: LweSecretKeyOwned<u64> =
-        allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+        allocate_and_generate_new_binary_lwe_secret_key(small_lwe_dimension, &mut secret_generator);
 
     let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
         &lwe_small_sk,
@@ -66,7 +66,7 @@ pub fn test_extract_bits() {
     );
 
     let mut fourier_bsk = FourierLweBootstrapKey::new(
-        lwe_dimension,
+        small_lwe_dimension,
         glwe_dimension.to_glwe_size(),
         polynomial_size,
         base_log_bsk,
@@ -88,11 +88,13 @@ pub fn test_extract_bits() {
             &mut encryption_generator,
         );
 
+    let input_lwe_dimension = lwe_big_sk.lwe_dimension();
+
     let req = || {
         StackReq::try_any_of([
             fill_with_forward_fourier_scratch(fft)?,
             extract_bits_scratch::<u64>(
-                lwe_dimension,
+                input_lwe_dimension,
                 ksk_lwe_big_to_small.output_key_lwe_dimension(),
                 glwe_dimension.to_glwe_size(),
                 polynomial_size,
@@ -185,7 +187,7 @@ fn test_circuit_bootstrapping_binary() {
     // Define settings for an insecure toy example
     let polynomial_size = PolynomialSize(512);
     let glwe_dimension = GlweDimension(2);
-    let lwe_dimension = LweDimension(10);
+    let small_lwe_dimension = LweDimension(10);
 
     let level_bsk = DecompositionLevelCount(2);
     let base_log_bsk = DecompositionBaseLog(15);
@@ -214,7 +216,7 @@ fn test_circuit_bootstrapping_binary() {
         &mut secret_generator,
     );
     let lwe_sk: LweSecretKeyOwned<u64> =
-        allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+        allocate_and_generate_new_binary_lwe_secret_key(small_lwe_dimension, &mut secret_generator);
 
     // Allocation and generation of the bootstrap key in standard domain:
     let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
@@ -228,7 +230,7 @@ fn test_circuit_bootstrapping_binary() {
     );
 
     let mut fourier_bsk = FourierLweBootstrapKey::new(
-        lwe_dimension,
+        small_lwe_dimension,
         glwe_dimension.to_glwe_size(),
         polynomial_size,
         base_log_bsk,
@@ -265,7 +267,7 @@ fn test_circuit_bootstrapping_binary() {
         // Encryption of an LWE with the value 'message'
         let message = Plaintext((value) << delta_log.0);
         let mut lwe_in =
-            LweCiphertextOwned::new(0u64, lwe_dimension.to_lwe_size(), ciphertext_modulus);
+            LweCiphertextOwned::new(0u64, small_lwe_dimension.to_lwe_size(), ciphertext_modulus);
         encrypt_lwe_ciphertext(
             &lwe_sk,
             &mut lwe_in,
@@ -521,7 +523,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     // define settings
     let polynomial_size = PolynomialSize(1024);
     let glwe_dimension = GlweDimension(1);
-    let lwe_dimension = LweDimension(481);
+    let small_lwe_dimension = LweDimension(481);
 
     let level_bsk = DecompositionLevelCount(9);
     let base_log_bsk = DecompositionBaseLog(4);
@@ -560,9 +562,11 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         &mut secret_generator,
     );
     let lwe_small_sk: LweSecretKeyOwned<u64> =
-        allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+        allocate_and_generate_new_binary_lwe_secret_key(small_lwe_dimension, &mut secret_generator);
 
     let lwe_big_sk = glwe_sk.clone().into_lwe_secret_key();
+
+    let input_lwe_dimension = lwe_big_sk.lwe_dimension();
 
     // allocation and generation of the key in coef domain:
     let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
@@ -577,7 +581,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
 
     // allocation for the bootstrapping key
     let mut fourier_bsk = FourierLweBootstrapKey::new(
-        lwe_dimension,
+        small_lwe_dimension,
         glwe_dimension.to_glwe_size(),
         polynomial_size,
         base_log_bsk,
@@ -655,7 +659,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
 
         let mut mem = GlobalPodBuffer::new(
             extract_bits_scratch::<u64>(
-                lwe_dimension,
+                input_lwe_dimension,
                 ksk_lwe_big_to_small.output_key_lwe_dimension(),
                 fourier_bsk.glwe_size(),
                 polynomial_size,
