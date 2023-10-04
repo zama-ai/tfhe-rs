@@ -159,69 +159,70 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(c: &mu
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
     for (name, params) in benchmark_parameters::<Scalar>().iter() {
-        // Create the LweSecretKey
-        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            params.lwe_dimension.unwrap(),
-            &mut secret_generator,
-        );
-        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension.unwrap(),
-                params.polynomial_size.unwrap(),
-                &mut secret_generator,
-            );
-        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
-
-        // Create the empty bootstrapping key in the Fourier domain
-        let fourier_bsk = FourierLweBootstrapKey::new(
-            params.lwe_dimension.unwrap(),
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            params.pbs_base_log.unwrap(),
-            params.pbs_level.unwrap(),
-        );
-
-        // Allocate a new LweCiphertext and encrypt our plaintext
-        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
-            &input_lwe_secret_key,
-            Plaintext(Scalar::ZERO),
-            params.lwe_modular_std_dev.unwrap(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-            &mut encryption_generator,
-        );
-
-        let accumulator = GlweCiphertext::new(
-            Scalar::ZERO,
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-        );
-
-        // Allocate the LweCiphertext to store the result of the PBS
-        let mut out_pbs_ct = LweCiphertext::new(
-            Scalar::ZERO,
-            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-        );
-
-        let mut buffers = ComputationBuffers::new();
-
-        let fft = Fft::new(fourier_bsk.polynomial_size());
-        let fft = fft.as_view();
-
-        buffers.resize(
-            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
-                fourier_bsk.glwe_size(),
-                fourier_bsk.polynomial_size(),
-                fft,
-            )
-            .unwrap()
-            .unaligned_bytes_required(),
-        );
-
         let id = format!("{bench_name}_{name}");
         {
             bench_group.bench_function(&id, |b| {
+                // Create the LweSecretKey
+                let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+                    params.lwe_dimension.unwrap(),
+                    &mut secret_generator,
+                );
+                let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+                    allocate_and_generate_new_binary_glwe_secret_key(
+                        params.glwe_dimension.unwrap(),
+                        params.polynomial_size.unwrap(),
+                        &mut secret_generator,
+                    );
+                let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+                // Create the empty bootstrapping key in the Fourier domain
+                let fourier_bsk = FourierLweBootstrapKey::new(
+                    params.lwe_dimension.unwrap(),
+                    params.glwe_dimension.unwrap().to_glwe_size(),
+                    params.polynomial_size.unwrap(),
+                    params.pbs_base_log.unwrap(),
+                    params.pbs_level.unwrap(),
+                );
+
+                // Allocate a new LweCiphertext and encrypt our plaintext
+                let lwe_ciphertext_in: LweCiphertextOwned<Scalar> =
+                    allocate_and_encrypt_new_lwe_ciphertext(
+                        &input_lwe_secret_key,
+                        Plaintext(Scalar::ZERO),
+                        params.lwe_modular_std_dev.unwrap(),
+                        tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+                        &mut encryption_generator,
+                    );
+
+                let accumulator = GlweCiphertext::new(
+                    Scalar::ZERO,
+                    params.glwe_dimension.unwrap().to_glwe_size(),
+                    params.polynomial_size.unwrap(),
+                    tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+                );
+
+                // Allocate the LweCiphertext to store the result of the PBS
+                let mut out_pbs_ct = LweCiphertext::new(
+                    Scalar::ZERO,
+                    output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                    tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+                );
+
+                let mut buffers = ComputationBuffers::new();
+
+                let fft = Fft::new(fourier_bsk.polynomial_size());
+                let fft = fft.as_view();
+
+                buffers.resize(
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                        fourier_bsk.glwe_size(),
+                        fourier_bsk.polynomial_size(),
+                        fft,
+                    )
+                    .unwrap()
+                    .unaligned_bytes_required(),
+                );
+
                 b.iter(|| {
                     programmable_bootstrap_lwe_ciphertext_mem_optimized(
                         &lwe_ciphertext_in,
@@ -266,53 +267,53 @@ fn multi_bit_pbs<
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
     for (name, params, grouping_factor) in multi_bit_benchmark_parameters::<Scalar>().iter() {
-        // Create the LweSecretKey
-        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            params.lwe_dimension.unwrap(),
-            &mut secret_generator,
-        );
-        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension.unwrap(),
-                params.polynomial_size.unwrap(),
-                &mut secret_generator,
-            );
-        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
-
-        let multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
-            params.lwe_dimension.unwrap(),
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            params.pbs_base_log.unwrap(),
-            params.pbs_level.unwrap(),
-            *grouping_factor,
-        );
-
-        // Allocate a new LweCiphertext and encrypt our plaintext
-        let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
-            &input_lwe_secret_key,
-            Plaintext(Scalar::ZERO),
-            params.lwe_modular_std_dev.unwrap(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-            &mut encryption_generator,
-        );
-
-        let accumulator = GlweCiphertext::new(
-            Scalar::ZERO,
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-        );
-
-        // Allocate the LweCiphertext to store the result of the PBS
-        let mut out_pbs_ct = LweCiphertext::new(
-            Scalar::ZERO,
-            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-        );
-
         let id = format!("{bench_name}_{name}_parallelized");
         bench_group.bench_function(&id, |b| {
+            // Create the LweSecretKey
+            let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+                params.lwe_dimension.unwrap(),
+                &mut secret_generator,
+            );
+            let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+                allocate_and_generate_new_binary_glwe_secret_key(
+                    params.glwe_dimension.unwrap(),
+                    params.polynomial_size.unwrap(),
+                    &mut secret_generator,
+                );
+            let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+            let multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
+                params.lwe_dimension.unwrap(),
+                params.glwe_dimension.unwrap().to_glwe_size(),
+                params.polynomial_size.unwrap(),
+                params.pbs_base_log.unwrap(),
+                params.pbs_level.unwrap(),
+                *grouping_factor,
+            );
+
+            // Allocate a new LweCiphertext and encrypt our plaintext
+            let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
+                &input_lwe_secret_key,
+                Plaintext(Scalar::ZERO),
+                params.lwe_modular_std_dev.unwrap(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+                &mut encryption_generator,
+            );
+
+            let accumulator = GlweCiphertext::new(
+                Scalar::ZERO,
+                params.glwe_dimension.unwrap().to_glwe_size(),
+                params.polynomial_size.unwrap(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+
+            // Allocate the LweCiphertext to store the result of the PBS
+            let mut out_pbs_ct = LweCiphertext::new(
+                Scalar::ZERO,
+                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+
             b.iter(|| {
                 multi_bit_programmable_bootstrap_lwe_ciphertext(
                     &lwe_ciphertext_in,
@@ -355,53 +356,53 @@ fn multi_bit_deterministic_pbs<
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
     for (name, params, grouping_factor) in multi_bit_benchmark_parameters::<Scalar>().iter() {
-        // Create the LweSecretKey
-        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            params.lwe_dimension.unwrap(),
-            &mut secret_generator,
-        );
-        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension.unwrap(),
-                params.polynomial_size.unwrap(),
-                &mut secret_generator,
-            );
-        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
-
-        let multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
-            params.lwe_dimension.unwrap(),
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            params.pbs_base_log.unwrap(),
-            params.pbs_level.unwrap(),
-            *grouping_factor,
-        );
-
-        // Allocate a new LweCiphertext and encrypt our plaintext
-        let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
-            &input_lwe_secret_key,
-            Plaintext(Scalar::ZERO),
-            params.lwe_modular_std_dev.unwrap(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-            &mut encryption_generator,
-        );
-
-        let accumulator = GlweCiphertext::new(
-            Scalar::ZERO,
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-        );
-
-        // Allocate the LweCiphertext to store the result of the PBS
-        let mut out_pbs_ct = LweCiphertext::new(
-            Scalar::ZERO,
-            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-        );
-
         let id = format!("{bench_name}_{name}_parallelized");
         bench_group.bench_function(&id, |b| {
+            // Create the LweSecretKey
+            let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+                params.lwe_dimension.unwrap(),
+                &mut secret_generator,
+            );
+            let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+                allocate_and_generate_new_binary_glwe_secret_key(
+                    params.glwe_dimension.unwrap(),
+                    params.polynomial_size.unwrap(),
+                    &mut secret_generator,
+                );
+            let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+            let multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
+                params.lwe_dimension.unwrap(),
+                params.glwe_dimension.unwrap().to_glwe_size(),
+                params.polynomial_size.unwrap(),
+                params.pbs_base_log.unwrap(),
+                params.pbs_level.unwrap(),
+                *grouping_factor,
+            );
+
+            // Allocate a new LweCiphertext and encrypt our plaintext
+            let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
+                &input_lwe_secret_key,
+                Plaintext(Scalar::ZERO),
+                params.lwe_modular_std_dev.unwrap(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+                &mut encryption_generator,
+            );
+
+            let accumulator = GlweCiphertext::new(
+                Scalar::ZERO,
+                params.glwe_dimension.unwrap().to_glwe_size(),
+                params.polynomial_size.unwrap(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+
+            // Allocate the LweCiphertext to store the result of the PBS
+            let mut out_pbs_ct = LweCiphertext::new(
+                Scalar::ZERO,
+                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            );
+
             b.iter(|| {
                 multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
                     &lwe_ciphertext_in,
@@ -442,46 +443,51 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
     for (name, params) in throughput_benchmark_parameters::<Scalar>().iter() {
-        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            params.lwe_dimension.unwrap(),
-            &mut secret_generator,
-        );
+        for chunk_size in [1, 16, 32, 64, 128, 256, 512] {
+            let id = format!("{bench_name}_{name}_{chunk_size}chunk");
+            {
+                bench_group.bench_function(&id, |b| {
+                    let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+                        params.lwe_dimension.unwrap(),
+                        &mut secret_generator,
+                    );
 
-        let glwe_secret_key = GlweSecretKey::new_empty_key(
-            Scalar::ZERO,
-            params.glwe_dimension.unwrap(),
-            params.polynomial_size.unwrap(),
-        );
-        let big_lwe_sk = glwe_secret_key.into_lwe_secret_key();
-        let big_lwe_dimension = big_lwe_sk.lwe_dimension();
+                    let glwe_secret_key = GlweSecretKey::new_empty_key(
+                        Scalar::ZERO,
+                        params.glwe_dimension.unwrap(),
+                        params.polynomial_size.unwrap(),
+                    );
+                    let big_lwe_sk = glwe_secret_key.into_lwe_secret_key();
+                    let big_lwe_dimension = big_lwe_sk.lwe_dimension();
 
-        const NUM_CTS: usize = 512;
-        let lwe_vec: Vec<_> = (0..NUM_CTS)
-            .map(|_| {
-                allocate_and_encrypt_new_lwe_ciphertext(
-                    &input_lwe_secret_key,
-                    Plaintext(Scalar::ZERO),
-                    params.lwe_modular_std_dev.unwrap(),
-                    tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
-                    &mut encryption_generator,
-                )
-            })
-            .collect();
+                    const NUM_CTS: usize = 512;
+                    let lwe_vec: Vec<_> = (0..NUM_CTS)
+                        .map(|_| {
+                            allocate_and_encrypt_new_lwe_ciphertext(
+                                &input_lwe_secret_key,
+                                Plaintext(Scalar::ZERO),
+                                params.lwe_modular_std_dev.unwrap(),
+                                tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+                                &mut encryption_generator,
+                            )
+                        })
+                        .collect();
 
-        let mut output_lwe_list = LweCiphertextList::new(
-            Scalar::ZERO,
-            big_lwe_dimension.to_lwe_size(),
-            LweCiphertextCount(NUM_CTS),
-            params.ciphertext_modulus.unwrap(),
-        );
+                    let mut output_lwe_list = LweCiphertextList::new(
+                        Scalar::ZERO,
+                        big_lwe_dimension.to_lwe_size(),
+                        LweCiphertextCount(NUM_CTS),
+                        params.ciphertext_modulus.unwrap(),
+                    );
 
-        let fft = Fft::new(params.polynomial_size.unwrap());
-        let fft = fft.as_view();
+                    let fft = Fft::new(params.polynomial_size.unwrap());
+                    let fft = fft.as_view();
 
-        let mut vec_buffers: Vec<_> = (0..NUM_CTS)
-            .map(|_| {
-                let mut buffers = ComputationBuffers::new();
-                buffers.resize(
+                    let mut vec_buffers: Vec<_> =
+                        (0..NUM_CTS)
+                            .map(|_| {
+                                let mut buffers = ComputationBuffers::new();
+                                buffers.resize(
                     programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
                         params.glwe_dimension.unwrap().to_glwe_size(),
                         params.polynomial_size.unwrap(),
@@ -490,29 +496,25 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
                     .unwrap()
                     .unaligned_bytes_required(),
                 );
-                buffers
-            })
-            .collect();
+                                buffers
+                            })
+                            .collect();
 
-        let glwe = GlweCiphertext::new(
-            Scalar::ONE << 60,
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            params.ciphertext_modulus.unwrap(),
-        );
+                    let glwe = GlweCiphertext::new(
+                        Scalar::ONE << 60,
+                        params.glwe_dimension.unwrap().to_glwe_size(),
+                        params.polynomial_size.unwrap(),
+                        params.ciphertext_modulus.unwrap(),
+                    );
 
-        let fbsk = FourierLweBootstrapKey::new(
-            params.lwe_dimension.unwrap(),
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            params.pbs_base_log.unwrap(),
-            params.pbs_level.unwrap(),
-        );
+                    let fbsk = FourierLweBootstrapKey::new(
+                        params.lwe_dimension.unwrap(),
+                        params.glwe_dimension.unwrap().to_glwe_size(),
+                        params.polynomial_size.unwrap(),
+                        params.pbs_base_log.unwrap(),
+                        params.pbs_level.unwrap(),
+                    );
 
-        for chunk_size in [1, 16, 32, 64, 128, 256, 512] {
-            let id = format!("{bench_name}_{name}_{chunk_size}chunk");
-            {
-                bench_group.bench_function(&id, |b| {
                     b.iter(|| {
                         lwe_vec
                             .par_iter()
