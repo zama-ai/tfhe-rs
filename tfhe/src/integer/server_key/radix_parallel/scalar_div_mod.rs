@@ -689,7 +689,7 @@ impl ServerKey {
         T: SignedReciprocable,
         <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        assert_ne!(divisor, T::ZERO, "Cannot devide by zero");
+        assert_ne!(divisor, T::ZERO, "Cannot divide by zero");
 
         let numerator_bits = self.key.message_modulus.0.ilog2() * numerator.blocks.len() as u32;
 

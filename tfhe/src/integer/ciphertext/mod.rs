@@ -177,7 +177,7 @@ pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send + From<Vec<Cip
         self.blocks().iter().all(|block| block.carry_is_empty())
     }
 
-    /// Returns wether the ciphertext _seems_ like it holds/encrypts
+    /// Returns whether the ciphertext _seems_ like it holds/encrypts
     /// a boolean (0 or 1) value.
     ///
     /// Since it uses degree to do so, it will not

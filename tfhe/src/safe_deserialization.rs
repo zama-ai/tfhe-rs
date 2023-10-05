@@ -221,7 +221,7 @@ mod test_integer {
 
         safe_serialize(&ct_list, &mut buffer, 1 << 40).unwrap();
 
-        for paremeter_set in [
+        for parameter_set in [
             (
                 PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
                 ListSizeConstraint::exact_size(3),
@@ -248,12 +248,12 @@ mod test_integer {
             assert!(safe_deserialize_conformant::<CompactFheUint8List>(
                 buffer.as_slice(),
                 1 << 20,
-                paremeter_set,
+                parameter_set,
             )
             .is_err());
         }
 
-        for paremeter_set in [
+        for parameter_set in [
             (
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
                 ListSizeConstraint::exact_size(3),
@@ -273,7 +273,7 @@ mod test_integer {
         ]
         .iter()
         {
-            assert!(ct_list.is_conformant(paremeter_set));
+            assert!(ct_list.is_conformant(parameter_set));
         }
 
         let ct2 = safe_deserialize_conformant::<CompactFheUint8List>(

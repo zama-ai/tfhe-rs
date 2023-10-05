@@ -809,7 +809,7 @@ where
 
 // Shifts and rotations are special cases where the right hand side
 // is for now, required to be a unsigned integer type.
-// And its contrains are a bit relaxed: rhs does not needs to have the same
+// And its constraints are a bit relaxed: rhs does not needs to have the same
 // amount a bits.
 macro_rules! generic_integer_impl_shift_rotate (
     ($rust_trait_name:ident($rust_trait_method:ident) => $key_method:ident) => {

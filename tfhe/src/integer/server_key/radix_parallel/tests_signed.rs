@@ -175,10 +175,10 @@ fn rotate_left_helper(value: i64, n: u32, actual_bit_size: u32) -> i64 {
     // If the sign bit after rotation is one,
     // then all bits above it needs to be one
     let new_sign_bit = (tmp >> (actual_bit_size - 1)) & 1;
-    let mut padd = -new_sign_bit;
-    padd <<= actual_bit_size; // only bits above actual_bit_size should be set
+    let mut pad = -new_sign_bit;
+    pad <<= actual_bit_size; // only bits above actual_bit_size should be set
 
-    padd | tmp
+    pad | tmp
 }
 
 /// helper function to do a rotate right when the type used to store
@@ -213,10 +213,10 @@ fn rotate_right_helper(value: i64, n: u32, actual_bit_size: u32) -> i64 {
     // If the sign bit after rotation is one,
     // then all bits above it needs to be one
     let new_sign_bit = (tmp >> (actual_bit_size - 1)) & 1;
-    let mut padd = -new_sign_bit;
-    padd <<= actual_bit_size; // only bits above actual_bit_size should be set
+    let mut pad = -new_sign_bit;
+    pad <<= actual_bit_size; // only bits above actual_bit_size should be set
 
-    padd | tmp
+    pad | tmp
 }
 
 /// Returns an array filled with random values such that:
@@ -1833,7 +1833,7 @@ fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
         assert_eq!(r, signed_rem_under_modulus(clear_0, d, modulus));
     }
 
-    // 3 / -3 taks the second branch in the if else if series
+    // 3 / -3 takes the second branch in the if else if series
     for d in [3, -3] {
         {
             let neg_clear_0 = rng.gen_range(-modulus..=0);
