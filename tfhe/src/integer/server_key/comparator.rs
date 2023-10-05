@@ -717,7 +717,7 @@ where {
         //   from the ciphertext that can represent the scalar value
         //
         // - The other part is to compare the ciphertext blocks not considered for the sign
-        //   computation with zero, and create a signle sign block from that.
+        //   computation with zero, and create a single sign block from that.
         //
         // The smaller the scalar value is comparaed to the ciphertext num bits encrypted,
         // the more the comparisons with zeros we have to do,

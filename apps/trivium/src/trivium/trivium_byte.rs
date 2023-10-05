@@ -31,7 +31,7 @@ impl TriviumByteInput<FheUint8> for &FheUint8 {}
 /// representation of bits (u8 or FheUint8). To be able to compute FHE operations, it also owns
 /// an Option for a ServerKey.
 /// Since the original Trivium registers' sizes are not a multiple of 8, these registers (which
-/// store byte-like objects) have a size that is the eigth of the closest multiple of 8 above the
+/// store byte-like objects) have a size that is the eighth of the closest multiple of 8 above the
 /// originals' sizes.
 pub struct TriviumStreamByte<T> {
     a_byte: StaticByteDeque<12, T>,

@@ -57,7 +57,7 @@ impl AsRef<crate::integer::ServerKey> for ServerKey {
 // serde has a `rc` feature to allow deriving on Arc and Rc types
 // but activating it in our lib would mean also activate it for all the dependency stack,
 // so tfhe-rs users would have this feature enabled on our behalf and we don't want that
-// so whe implement the serialization / deseriazation ourselves.
+// so we implement the serialization / deseriazation ourselves.
 //
 // In the case of our ServerKey, this is fine, we expect programs to only
 // serialize and deserialize the same server key only once.

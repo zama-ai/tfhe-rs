@@ -434,8 +434,8 @@ where {
             .key
             .apply_lookup_table(last_block, &padding_block_creator_lut);
 
-        let new_lew = num_blocks + ct.blocks.len();
-        ct.blocks.resize(new_lew, padding_block);
+        let new_len = num_blocks + ct.blocks.len();
+        ct.blocks.resize(new_len, padding_block);
     }
 
     /// Extends the most significant blocks using the sign bit.

@@ -164,7 +164,7 @@ impl ServerKey {
             // if there is only 1 bit in the msg part, it means shift_within block is 0
             // thus only rotations is required.
 
-            // We still need to padd with the value of the sign bit.
+            // We still need to pad with the value of the sign bit.
             // And here since a block only has 1 bit of message
             // we can optimize things by not doing the pbs to extract this sign bit
             let sign_bit = ct.blocks()[num_blocks - rotations - 1].clone();
@@ -176,7 +176,7 @@ impl ServerKey {
 
         let message_modulus = self.key.message_modulus.0 as u64;
 
-        // In the artithemtic shift case we have to padd with the value of the sign bit.
+        // In the artithemtic shift case we have to pad with the value of the sign bit.
         //
         // This creates the need for a different shifting lut than in the logical shift case
         // and also we need another PBS to create the padding block.
@@ -199,7 +199,7 @@ impl ServerKey {
             });
             let last_block = &ct.blocks()[num_blocks - rotations - 1];
 
-            let padd_block_creator_lut = self.key.generate_lookup_table(|x| {
+            let pad_block_creator_lut = self.key.generate_lookup_table(|x| {
                 let x = x % message_modulus;
                 let x_sign_bit = x >> (num_bits_in_block - 1) & 1;
                 // padding is a message full of 1 if sign bit is one
@@ -211,7 +211,7 @@ impl ServerKey {
                 || self.key.apply_lookup_table(last_block, &last_block_lut),
                 || {
                     self.key
-                        .apply_lookup_table(last_block, &padd_block_creator_lut)
+                        .apply_lookup_table(last_block, &pad_block_creator_lut)
                 },
             )
         };
