@@ -27,6 +27,7 @@ macro_rules! impl_try_encrypt_with_client_key_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
+                    let value = <$input_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(value);
                     let client_key = $crate::c_api::utils::get_ref_checked(client_key).unwrap();
 
                     let inner = <$wrapped_type>::try_encrypt(value, &client_key.0).unwrap();
@@ -48,6 +49,8 @@ macro_rules! impl_try_encrypt_with_public_key_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
+                    let value = <$input_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(value);
+
                     let public_key = $crate::c_api::utils::get_ref_checked(public_key).unwrap();
 
                     let inner = <$wrapped_type>::try_encrypt(value, &public_key.0).unwrap();
@@ -69,6 +72,8 @@ macro_rules! impl_try_encrypt_with_compact_public_key_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
+                    let value = <$input_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(value);
+
                     let public_key = $crate::c_api::utils::get_ref_checked(public_key).unwrap();
 
                     let inner = <$wrapped_type>::try_encrypt(value, &public_key.0).unwrap();
@@ -91,6 +96,7 @@ macro_rules! impl_try_encrypt_list_with_compact_public_key_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
+
                     let public_key = $crate::c_api::utils::get_ref_checked(public_key).unwrap();
                     let slc = ::std::slice::from_raw_parts(input, input_len);
                     let inner = <$wrapped_type>::try_encrypt(slc, &public_key.0).unwrap();
@@ -111,6 +117,7 @@ macro_rules! impl_try_encrypt_trivial_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
+                    let value = <$input_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(value);
 
                     let inner = <$wrapped_type>::try_encrypt_trivial(value).unwrap();
 
@@ -207,14 +214,27 @@ macro_rules! impl_serialize_deserialize_on_type {
 }
 
 macro_rules! impl_binary_fn_on_type {
-    ($wrapper_type:ty => $($binary_fn_name:ident),* $(,)?) => {
-        $(
-            ::paste::paste! {
+    // More general binary fn case,
+    // where the type of the left-hand side can be different
+    // than the type of the right-hand side.
+    //
+    // The result type is the one of the left-hand side.
+    //
+    // In practice, this is used for shifts on signed type,
+    // where lhs is a signed type and rhs is an unsigned type
+     (
+        lhs_type: $lhs_type:ty,
+        rhs_type: $rhs_type:ty,
+        binary_fn_names: $($binary_fn_name:ident),*
+        $(,)?
+    ) => {
+         $( // unroll binary_fn_names
+           ::paste::paste! {
                 #[no_mangle]
-                pub unsafe extern "C" fn [<$wrapper_type:snake _ $binary_fn_name>](
-                    lhs: *const $wrapper_type,
-                    rhs: *const $wrapper_type,
-                    result: *mut *mut $wrapper_type,
+                pub unsafe extern "C" fn [<$lhs_type:snake _ $binary_fn_name>](
+                    lhs: *const $lhs_type,
+                    rhs: *const $rhs_type,
+                    result: *mut *mut $lhs_type,
                 ) -> ::std::os::raw::c_int {
                     $crate::c_api::utils::catch_panic(|| {
                         let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
@@ -222,11 +242,21 @@ macro_rules! impl_binary_fn_on_type {
 
                         let inner = (&lhs.0).$binary_fn_name(&rhs.0);
 
-                        *result = Box::into_raw(Box::new($wrapper_type(inner)));
+                        *result = Box::into_raw(Box::new($lhs_type(inner)));
                     })
                 }
             }
-        )*
+         )*
+
+    };
+
+    // Usual binary fn case, where lhs, rhs and result are all of the same type
+    ($wrapper_type:ty => $($binary_fn_name:ident),* $(,)?) => {
+        impl_binary_fn_on_type!(
+          lhs_type: $wrapper_type,
+            rhs_type: $wrapper_type,
+            binary_fn_names: $($binary_fn_name),*
+        );
     };
 }
 
@@ -254,13 +284,24 @@ macro_rules! impl_unary_fn_on_type {
 
 #[cfg(feature = "integer")]
 macro_rules! impl_binary_assign_fn_on_type {
-    ($wrapper_type:ty => $($binary_assign_fn_name:ident),* $(,)?) => {
+    // More general binary fn case,
+    // where the type of the left-hand side can be different
+    // than the type of the right-hand side.
+    //
+    // In practice, this is used for shifts on signed type,
+    // where lhs is a signed type and rhs is an unsigned type
+    (
+        lhs_type: $lhs_type:ty,
+        rhs_type: $rhs_type:ty,
+        binary_fn_names: $($binary_assign_fn_name:ident),*
+        $(,)?
+    ) => {
         $(
            ::paste::paste! {
                 #[no_mangle]
-                pub unsafe extern "C" fn [<$wrapper_type:snake _ $binary_assign_fn_name>](
-                    lhs: *mut $wrapper_type,
-                    rhs: *const $wrapper_type,
+                pub unsafe extern "C" fn [<$lhs_type:snake _ $binary_assign_fn_name>](
+                    lhs: *mut $lhs_type,
+                    rhs: *const $rhs_type,
                 ) -> ::std::os::raw::c_int {
                     $crate::c_api::utils::catch_panic(|| {
                         let lhs = $crate::c_api::utils::get_mut_checked(lhs).unwrap();
@@ -271,6 +312,13 @@ macro_rules! impl_binary_assign_fn_on_type {
                 }
             }
         )*
+    };
+    ($wrapper_type:ty => $($binary_assign_fn_name:ident),* $(,)?) => {
+         impl_binary_assign_fn_on_type!(
+            lhs_type: $wrapper_type,
+            rhs_type: $wrapper_type,
+            binary_fn_names: $($binary_assign_fn_name),*
+        );
     };
 }
 
@@ -300,10 +348,15 @@ macro_rules! impl_to_rust_scalar_type(
     }
 );
 
+impl_to_rust_scalar_type!(bool);
 impl_to_rust_scalar_type!(u8);
 impl_to_rust_scalar_type!(u16);
 impl_to_rust_scalar_type!(u32);
 impl_to_rust_scalar_type!(u64);
+impl_to_rust_scalar_type!(i8);
+impl_to_rust_scalar_type!(i16);
+impl_to_rust_scalar_type!(i32);
+impl_to_rust_scalar_type!(i64);
 
 impl ToRustScalarType for crate::c_api::high_level_api::u128::U128 {
     type RustScalarType = u128;
@@ -313,11 +366,27 @@ impl ToRustScalarType for crate::c_api::high_level_api::u128::U128 {
     }
 }
 
+impl ToRustScalarType for crate::c_api::high_level_api::i128::I128 {
+    type RustScalarType = i128;
+
+    fn to_rust_scalar_type(self) -> Self::RustScalarType {
+        i128::from(self)
+    }
+}
+
 impl ToRustScalarType for crate::c_api::high_level_api::u256::U256 {
     type RustScalarType = crate::integer::U256;
 
     fn to_rust_scalar_type(self) -> Self::RustScalarType {
         crate::integer::U256::from(self)
+    }
+}
+
+impl ToRustScalarType for crate::c_api::high_level_api::i256::I256 {
+    type RustScalarType = crate::integer::I256;
+
+    fn to_rust_scalar_type(self) -> Self::RustScalarType {
+        crate::integer::I256::from(self)
     }
 }
 
