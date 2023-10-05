@@ -4,6 +4,10 @@ mod utils;
 pub mod booleans;
 pub mod config;
 #[cfg(feature = "integer")]
+pub mod i128;
+#[cfg(feature = "integer")]
+pub mod i256;
+#[cfg(feature = "integer")]
 pub mod integers;
 pub mod keys;
 #[cfg(feature = "integer")]

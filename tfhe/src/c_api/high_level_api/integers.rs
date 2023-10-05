@@ -1,10 +1,12 @@
-use crate::c_api::high_level_api::keys::{ClientKey, CompactPublicKey, PublicKey};
+use crate::c_api::high_level_api::keys::{ClientKey, CompactPublicKey};
 use crate::high_level_api::prelude::*;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
+use crate::c_api::high_level_api::i128::I128;
+use crate::c_api::high_level_api::i256::I256;
 use crate::c_api::high_level_api::u128::U128;
 use crate::c_api::high_level_api::u256::U256;
 use crate::c_api::utils::*;
@@ -12,10 +14,17 @@ use std::os::raw::c_int;
 
 /// Implement C functions for all the operations supported by a integer type,
 /// which should also be accessible from C API
+///
+/// We require the shift amount to be an unsigned type,
+/// so to be able to use that macro for signed integers (which have a signed clear type)
+/// we also accept an additional clear_shift_type
 macro_rules! impl_operations_for_integer_type {
     (
         name: $name:ident,
-        clear_scalar_type: $clear_scalar_type:ty
+        fhe_unsigned_type: $fhe_unsigned_type:ty,
+        clear_scalar_type: $clear_scalar_type:ty,
+        clear_shift_type: $clear_shift_type:ty
+        $(,)?
     ) => {
         impl_binary_fn_on_type!($name =>
             add,
@@ -24,8 +33,6 @@ macro_rules! impl_operations_for_integer_type {
             bitand,
             bitor,
             bitxor,
-            shl,
-            shr,
             eq,
             ne,
             ge,
@@ -37,6 +44,15 @@ macro_rules! impl_operations_for_integer_type {
             div,
             rem,
         );
+
+        // handle shift separately as they require
+        // rhs to be an unsigned type
+        impl_binary_fn_on_type!(
+            lhs_type: $name,
+            rhs_type: $fhe_unsigned_type,
+            binary_fn_names: shl, shr, rotate_right, rotate_left,
+        );
+
         impl_binary_assign_fn_on_type!($name =>
             add_assign,
             sub_assign,
@@ -44,11 +60,18 @@ macro_rules! impl_operations_for_integer_type {
             bitand_assign,
             bitor_assign,
             bitxor_assign,
-            shl_assign,
-            shr_assign,
             div_assign,
             rem_assign,
         );
+
+        // handle shift separately as they require
+        // rhs to be an unsigned type
+        impl_binary_assign_fn_on_type!(
+            lhs_type: $name,
+            rhs_type: $fhe_unsigned_type,
+            binary_fn_names: shl_assign, shr_assign, rotate_right_assign, rotate_left_assign,
+        );
+
         impl_scalar_binary_fn_on_type!($name, $clear_scalar_type =>
             add,
             sub,
@@ -56,8 +79,6 @@ macro_rules! impl_operations_for_integer_type {
             bitand,
             bitor,
             bitxor,
-            shl,
-            shr,
             eq,
             ne,
             ge,
@@ -66,8 +87,6 @@ macro_rules! impl_operations_for_integer_type {
             lt,
             min,
             max,
-            rotate_right,
-            rotate_left,
             div,
             rem,
         );
@@ -78,12 +97,23 @@ macro_rules! impl_operations_for_integer_type {
             bitand_assign,
             bitor_assign,
             bitxor_assign,
+            div_assign,
+            rem_assign,
+        );
+
+        // handle shift separately as they require
+        // rhs to be an unsigned type
+        impl_scalar_binary_fn_on_type!($name, $clear_shift_type =>
+            shl,
+            shr,
+            rotate_right,
+            rotate_left,
+        );
+        impl_scalar_binary_assign_fn_on_type!($name, $clear_shift_type =>
             shl_assign,
             shr_assign,
             rotate_right_assign,
             rotate_left_assign,
-            div_assign,
-            rem_assign,
         );
 
         impl_unary_fn_on_type!($name => neg, not);
@@ -162,15 +192,24 @@ macro_rules! impl_operations_for_integer_type {
 ///
 /// It also implements binary operations for this wrapper type
 macro_rules! create_integer_wrapper_type {
+
     (
         name: $name:ident,
-        clear_scalar_type: $clear_scalar_type:ty
+        fhe_unsigned_type: $fhe_unsigned_type:ty,
+        clear_scalar_type: $clear_scalar_type:ty,
+        clear_shift_type: $clear_shift_type:ty
+        $(,)?
     ) => {
         pub struct $name($crate::high_level_api::$name);
 
         impl_destroy_on_type!($name);
 
-        impl_operations_for_integer_type!(name: $name, clear_scalar_type: $clear_scalar_type);
+        impl_operations_for_integer_type!(
+            name: $name,
+            fhe_unsigned_type: $fhe_unsigned_type,
+            clear_scalar_type: $clear_scalar_type,
+            clear_shift_type: $clear_shift_type,
+        );
 
         impl_serialize_deserialize_on_type!($name);
 
@@ -243,6 +282,20 @@ macro_rules! create_integer_wrapper_type {
             }
         }
     };
+
+    // This entry point is meant for unsigned types
+    (
+        name: $name:ident,
+        clear_scalar_type: $clear_scalar_type:ty
+    ) => {
+        create_integer_wrapper_type!(
+            name: $name,
+            fhe_unsigned_type: $name,
+            clear_scalar_type: $clear_scalar_type,
+            clear_shift_type: $clear_scalar_type,
+        );
+    };
+
 }
 
 create_integer_wrapper_type!(name: FheUint8, clear_scalar_type: u8);
@@ -311,89 +364,98 @@ impl_try_encrypt_with_compact_public_key_on_type!(FheUint64{crate::high_level_ap
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint64{crate::high_level_api::CompressedFheUint64}, u64);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheUint64List{crate::high_level_api::CompactFheUint64List}, u64);
 
-#[no_mangle]
-pub unsafe extern "C" fn fhe_uint128_try_encrypt_trivial_u128(
-    value: U128,
-    result: *mut *mut FheUint128,
-) -> c_int {
-    catch_panic(|| {
-        let value = u128::from(value);
+impl_try_encrypt_trivial_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
+impl_try_encrypt_with_client_key_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
+impl_try_encrypt_with_public_key_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
+impl_try_encrypt_with_compact_public_key_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
+impl_try_encrypt_with_client_key_on_type!(CompressedFheUint128{crate::high_level_api::CompressedFheUint128}, U128);
 
-        let inner = <crate::high_level_api::FheUint128>::try_encrypt_trivial(value).unwrap();
+impl_try_encrypt_trivial_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
+impl_try_encrypt_with_client_key_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
+impl_try_encrypt_with_public_key_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
+impl_try_encrypt_with_compact_public_key_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
+impl_try_encrypt_with_client_key_on_type!(CompressedFheUint256{crate::high_level_api::CompressedFheUint256}, U256);
 
-        *result = Box::into_raw(Box::new(FheUint128(inner)));
-    })
-}
+create_integer_wrapper_type!(
+    name: FheInt8,
+    fhe_unsigned_type: FheUint8,
+    clear_scalar_type: i8,
+    clear_shift_type: u8,
+);
+create_integer_wrapper_type!(
+    name: FheInt16,
+    fhe_unsigned_type: FheUint16,
+    clear_scalar_type: i16,
+    clear_shift_type: u16,
+);
+create_integer_wrapper_type!(
+    name: FheInt32,
+    fhe_unsigned_type: FheUint32,
+    clear_scalar_type: i32,
+    clear_shift_type: u32,
+);
+create_integer_wrapper_type!(
+    name: FheInt64,
+    fhe_unsigned_type: FheUint64,
+    clear_scalar_type: i64,
+    clear_shift_type: u64,
+);
+create_integer_wrapper_type!(
+    name: FheInt128,
+    fhe_unsigned_type: FheUint128,
+    clear_scalar_type: I128,
+    clear_shift_type: U128,
+);
+create_integer_wrapper_type!(
+    name: FheInt256,
+    fhe_unsigned_type: FheUint256,
+    clear_scalar_type: I256,
+    clear_shift_type: U256,
+);
 
-#[no_mangle]
-pub unsafe extern "C" fn fhe_uint128_try_encrypt_with_client_key_u128(
-    value: U128,
-    client_key: *const ClientKey,
-    result: *mut *mut FheUint128,
-) -> c_int {
-    catch_panic(|| {
-        let client_key = get_ref_checked(client_key).unwrap();
+impl_decrypt_on_type!(FheInt8, i8);
+impl_try_encrypt_trivial_on_type!(FheInt8{crate::high_level_api::FheInt8}, i8);
+impl_try_encrypt_with_client_key_on_type!(FheInt8{crate::high_level_api::FheInt8}, i8);
+impl_try_encrypt_with_public_key_on_type!(FheInt8{crate::high_level_api::FheInt8}, i8);
+impl_try_encrypt_with_compact_public_key_on_type!(FheInt8{crate::high_level_api::FheInt8}, i8);
+impl_try_encrypt_with_client_key_on_type!(CompressedFheInt8{crate::high_level_api::CompressedFheInt8}, i8);
+impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheInt8List{crate::high_level_api::CompactFheInt8List}, i8);
 
-        let value = u128::from(value);
+impl_decrypt_on_type!(FheInt16, i16);
+impl_try_encrypt_trivial_on_type!(FheInt16{crate::high_level_api::FheInt16}, i16);
+impl_try_encrypt_with_client_key_on_type!(FheInt16{crate::high_level_api::FheInt16}, i16);
+impl_try_encrypt_with_public_key_on_type!(FheInt16{crate::high_level_api::FheInt16}, i16);
+impl_try_encrypt_with_compact_public_key_on_type!(FheInt16{crate::high_level_api::FheInt16}, i16);
+impl_try_encrypt_with_client_key_on_type!(CompressedFheInt16{crate::high_level_api::CompressedFheInt16}, i16);
+impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheInt16List{crate::high_level_api::CompactFheInt16List}, i16);
 
-        let inner = <crate::high_level_api::FheUint128>::try_encrypt(value, &client_key.0).unwrap();
+impl_decrypt_on_type!(FheInt32, i32);
+impl_try_encrypt_trivial_on_type!(FheInt32{crate::high_level_api::FheInt32}, i32);
+impl_try_encrypt_with_client_key_on_type!(FheInt32{crate::high_level_api::FheInt32}, i32);
+impl_try_encrypt_with_public_key_on_type!(FheInt32{crate::high_level_api::FheInt32}, i32);
+impl_try_encrypt_with_compact_public_key_on_type!(FheInt32{crate::high_level_api::FheInt32}, i32);
+impl_try_encrypt_with_client_key_on_type!(CompressedFheInt32{crate::high_level_api::CompressedFheInt32}, i32);
+impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheInt32List{crate::high_level_api::CompactFheInt32List}, i32);
 
-        *result = Box::into_raw(Box::new(FheUint128(inner)));
-    })
-}
+impl_decrypt_on_type!(FheInt64, i64);
+impl_try_encrypt_trivial_on_type!(FheInt64{crate::high_level_api::FheInt64}, i64);
+impl_try_encrypt_with_client_key_on_type!(FheInt64{crate::high_level_api::FheInt64}, i64);
+impl_try_encrypt_with_public_key_on_type!(FheInt64{crate::high_level_api::FheInt64}, i64);
+impl_try_encrypt_with_compact_public_key_on_type!(FheInt64{crate::high_level_api::FheInt64}, i64);
+impl_try_encrypt_with_client_key_on_type!(CompressedFheInt64{crate::high_level_api::CompressedFheInt64}, i64);
+impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheInt64List{crate::high_level_api::CompactFheInt64List}, i64);
 
-#[no_mangle]
-pub unsafe extern "C" fn compressed_fhe_uint128_try_encrypt_with_client_key_u128(
-    value: U128,
-    client_key: *const ClientKey,
-    result: *mut *mut CompressedFheUint128,
-) -> c_int {
-    catch_panic(|| {
-        let client_key = get_ref_checked(client_key).unwrap();
+impl_try_encrypt_trivial_on_type!(FheInt128{crate::high_level_api::FheInt128}, I128);
+impl_try_encrypt_with_client_key_on_type!(FheInt128{crate::high_level_api::FheInt128}, I128);
+impl_try_encrypt_with_public_key_on_type!(FheInt128{crate::high_level_api::FheInt128}, I128);
+impl_try_encrypt_with_compact_public_key_on_type!(FheInt128{crate::high_level_api::FheInt128}, I128);
+impl_try_encrypt_with_client_key_on_type!(CompressedFheInt128{crate::high_level_api::CompressedFheInt128}, I128);
 
-        let value = u128::from(value);
-
-        let inner =
-            <crate::high_level_api::CompressedFheUint128>::try_encrypt(value, &client_key.0)
-                .unwrap();
-
-        *result = Box::into_raw(Box::new(CompressedFheUint128(inner)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn fhe_uint128_try_encrypt_with_public_key_u128(
-    value: U128,
-    public_key: *const PublicKey,
-    result: *mut *mut FheUint128,
-) -> c_int {
-    catch_panic(|| {
-        let public_key = get_ref_checked(public_key).unwrap();
-
-        let value = u128::from(value);
-
-        let inner = <crate::high_level_api::FheUint128>::try_encrypt(value, &public_key.0).unwrap();
-
-        *result = Box::into_raw(Box::new(FheUint128(inner)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn fhe_uint128_try_encrypt_with_compact_public_key_u128(
-    value: U128,
-    public_key: *const CompactPublicKey,
-    result: *mut *mut FheUint128,
-) -> c_int {
-    catch_panic(|| {
-        let public_key = get_ref_checked(public_key).unwrap();
-
-        let value = u128::from(value);
-
-        let inner = <crate::high_level_api::FheUint128>::try_encrypt(value, &public_key.0).unwrap();
-
-        *result = Box::into_raw(Box::new(FheUint128(inner)));
-    })
-}
+impl_try_encrypt_trivial_on_type!(FheInt256{crate::high_level_api::FheInt256}, I256);
+impl_try_encrypt_with_client_key_on_type!(FheInt256{crate::high_level_api::FheInt256}, I256);
+impl_try_encrypt_with_public_key_on_type!(FheInt256{crate::high_level_api::FheInt256}, I256);
+impl_try_encrypt_with_compact_public_key_on_type!(FheInt256{crate::high_level_api::FheInt256}, I256);
+impl_try_encrypt_with_client_key_on_type!(CompressedFheInt256{crate::high_level_api::CompressedFheInt256}, I256);
 
 #[no_mangle]
 pub unsafe extern "C" fn compact_fhe_uint256_list_try_encrypt_with_compact_public_key_u128(
@@ -428,85 +490,6 @@ pub unsafe extern "C" fn fhe_uint128_decrypt(
         let inner: u128 = encrypted_value.0.decrypt(&client_key.0);
 
         *result = U128::from(inner);
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn fhe_uint256_try_encrypt_trivial_u256(
-    value: U256,
-    result: *mut *mut FheUint256,
-) -> c_int {
-    catch_panic(|| {
-        let value = crate::integer::U256::from(value);
-        let inner = <crate::high_level_api::FheUint256>::try_encrypt_trivial(value).unwrap();
-
-        *result = Box::into_raw(Box::new(FheUint256(inner)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn fhe_uint256_try_encrypt_with_client_key_u256(
-    value: U256,
-    client_key: *const ClientKey,
-    result: *mut *mut FheUint256,
-) -> c_int {
-    catch_panic(|| {
-        let client_key = get_ref_checked(client_key).unwrap();
-
-        let value = crate::integer::U256::from(value);
-        let inner = <crate::high_level_api::FheUint256>::try_encrypt(value, &client_key.0).unwrap();
-
-        *result = Box::into_raw(Box::new(FheUint256(inner)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn compressed_fhe_uint256_try_encrypt_with_client_key_u256(
-    value: U256,
-    client_key: *const ClientKey,
-    result: *mut *mut CompressedFheUint256,
-) -> c_int {
-    catch_panic(|| {
-        let client_key = get_ref_checked(client_key).unwrap();
-
-        let value = crate::integer::U256::from(value);
-        let inner =
-            <crate::high_level_api::CompressedFheUint256>::try_encrypt(value, &client_key.0)
-                .unwrap();
-
-        *result = Box::into_raw(Box::new(CompressedFheUint256(inner)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn fhe_uint256_try_encrypt_with_public_key_u256(
-    value: U256,
-    public_key: *const PublicKey,
-    result: *mut *mut FheUint256,
-) -> c_int {
-    catch_panic(|| {
-        let public_key = get_ref_checked(public_key).unwrap();
-
-        let value = crate::integer::U256::from(value);
-        let inner = <crate::high_level_api::FheUint256>::try_encrypt(value, &public_key.0).unwrap();
-
-        *result = Box::into_raw(Box::new(FheUint256(inner)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn fhe_uint256_try_encrypt_with_compact_public_key_u256(
-    value: U256,
-    public_key: *const CompactPublicKey,
-    result: *mut *mut FheUint256,
-) -> c_int {
-    catch_panic(|| {
-        let public_key = get_ref_checked(public_key).unwrap();
-
-        let value = crate::integer::U256::from(value);
-        let inner = <crate::high_level_api::FheUint256>::try_encrypt(value, &public_key.0).unwrap();
-
-        *result = Box::into_raw(Box::new(FheUint256(inner)));
     })
 }
 
@@ -549,6 +532,80 @@ pub unsafe extern "C" fn fhe_uint256_decrypt(
     })
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn compact_fhe_int128_list_try_encrypt_with_compact_public_key_i128(
+    input: *const I128,
+    input_len: usize,
+    public_key: *const CompactPublicKey,
+    result: *mut *mut CompactFheInt128List,
+) -> c_int {
+    catch_panic(|| {
+        let public_key = get_ref_checked(public_key).unwrap();
+
+        let slc = ::std::slice::from_raw_parts(input, input_len);
+        let values = slc.iter().copied().map(i128::from).collect::<Vec<_>>();
+        let inner =
+            <crate::high_level_api::CompactFheInt128List>::try_encrypt(&values, &public_key.0)
+                .unwrap();
+
+        *result = Box::into_raw(Box::new(CompactFheInt128List(inner)));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn fhe_int128_decrypt(
+    encrypted_value: *const FheInt128,
+    client_key: *const ClientKey,
+    result: *mut I128,
+) -> c_int {
+    catch_panic(|| {
+        let client_key = get_ref_checked(client_key).unwrap();
+        let encrypted_value = get_ref_checked(encrypted_value).unwrap();
+
+        let inner: i128 = encrypted_value.0.decrypt(&client_key.0);
+        *result = I128::from(inner);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn compact_fhe_int256_list_try_encrypt_with_compact_public_key_i256(
+    input: *const I256,
+    input_len: usize,
+    public_key: *const CompactPublicKey,
+    result: *mut *mut CompactFheInt256List,
+) -> c_int {
+    catch_panic(|| {
+        let public_key = get_ref_checked(public_key).unwrap();
+
+        let slc = ::std::slice::from_raw_parts(input, input_len);
+        let values = slc
+            .iter()
+            .copied()
+            .map(crate::integer::I256::from)
+            .collect::<Vec<_>>();
+        let inner =
+            <crate::high_level_api::CompactFheInt256List>::try_encrypt(&values, &public_key.0)
+                .unwrap();
+
+        *result = Box::into_raw(Box::new(CompactFheInt256List(inner)));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn fhe_int256_decrypt(
+    encrypted_value: *const FheInt256,
+    client_key: *const ClientKey,
+    result: *mut I256,
+) -> c_int {
+    catch_panic(|| {
+        let client_key = get_ref_checked(client_key).unwrap();
+        let encrypted_value = get_ref_checked(encrypted_value).unwrap();
+
+        let inner: crate::integer::I256 = encrypted_value.0.decrypt(&client_key.0);
+        *result = I256::from(inner);
+    })
+}
+
 macro_rules! define_casting_operation(
     ($from:ty => $($to:ty),*) => {
         $(
@@ -570,12 +627,34 @@ macro_rules! define_casting_operation(
     }
 );
 
-define_casting_operation!(FheUint8 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
-define_casting_operation!(FheUint10 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
-define_casting_operation!(FheUint12 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
-define_casting_operation!(FheUint14 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
-define_casting_operation!(FheUint16 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
-define_casting_operation!(FheUint32 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
-define_casting_operation!(FheUint64 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
-define_casting_operation!(FheUint128 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
-define_casting_operation!(FheUint256 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256);
+define_casting_operation!(FheUint8 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheUint10 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheUint12 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheUint14 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheUint16 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheUint32 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheUint64 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheUint128 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheUint256 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+
+define_casting_operation!(FheInt8 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheInt16 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheInt32 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheInt64 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheInt128 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
+define_casting_operation!(FheInt256 => FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256);
