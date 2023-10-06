@@ -1,8 +1,13 @@
 #![allow(clippy::excessive_precision)]
+use crate::conformance::ListSizeConstraint;
+use crate::shortint::PBSParameters;
 pub use crate::shortint::{CiphertextModulus, ClassicPBSParameters, WopbsParameters};
 
 pub use crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS;
-use crate::shortint::parameters::{CarryModulus, EncryptionKeyChoice, MessageModulus};
+use crate::shortint::parameters::{
+    CarryModulus, CiphertextConformanceParams, CiphertextListConformanceParams,
+    EncryptionKeyChoice, MessageModulus,
+};
 pub use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DispersionParameter, GlweDimension,
     LweDimension, PolynomialSize, StandardDev,
@@ -117,3 +122,53 @@ pub const PARAM_MESSAGE_1_CARRY_1_KS_PBS_32_BITS: WopbsParameters = WopbsParamet
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
 };
+
+pub struct RadixCiphertextConformanceParams {
+    pub shortint_params: CiphertextConformanceParams,
+    pub num_blocks_per_integer: usize,
+}
+
+/// Structure to store the expected properties of a ciphertext
+/// Can be used on a server to check if client inputs are well formed
+/// before running a computation on them
+impl RadixCiphertextConformanceParams {
+    pub fn to_ct_list_conformance_parameters(
+        &self,
+        list_constraint: ListSizeConstraint,
+    ) -> RadixCompactCiphertextListConformanceParams {
+        RadixCompactCiphertextListConformanceParams {
+            shortint_params: self.shortint_params,
+            num_blocks_per_integer: self.num_blocks_per_integer,
+            num_integers_constraint: list_constraint,
+        }
+    }
+
+    pub fn from_pbs_parameters<P: Into<PBSParameters>>(
+        params: P,
+        num_blocks_per_integer: usize,
+    ) -> RadixCiphertextConformanceParams {
+        let params: PBSParameters = params.into();
+        RadixCiphertextConformanceParams {
+            shortint_params: params.to_shortint_conformance_param(),
+            num_blocks_per_integer,
+        }
+    }
+}
+
+/// Structure to store the expected properties of a ciphertext list
+/// Can be used on a server to check if client inputs are well formed
+/// before running a computation on them
+pub struct RadixCompactCiphertextListConformanceParams {
+    pub shortint_params: CiphertextConformanceParams,
+    pub num_blocks_per_integer: usize,
+    pub num_integers_constraint: ListSizeConstraint,
+}
+
+impl RadixCompactCiphertextListConformanceParams {
+    pub fn to_shortint_ct_list_conformance_parameters(&self) -> CiphertextListConformanceParams {
+        self.shortint_params.to_ct_list_conformance_parameters(
+            self.num_integers_constraint
+                .multiply_group_size(self.num_blocks_per_integer),
+        )
+    }
+}

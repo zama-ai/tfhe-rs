@@ -1,12 +1,16 @@
 //! #Warning experimental
 
+use super::CiphertextConformanceParams;
 pub use crate::core_crypto::commons::dispersion::{DispersionParameter, StandardDev};
 pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
+use crate::core_crypto::prelude::LweCiphertextParameters;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, EncryptionKeyChoice, LweBskGroupingFactor, MessageModulus,
 };
+use crate::shortint::PBSOrder;
 use serde::{Deserialize, Serialize};
 
 /// A structure defining the set of cryptographic parameters for homomorphic integer circuit
@@ -43,6 +47,34 @@ impl MultiBitPBSParameters {
         Self {
             deterministic_execution: false,
             ..self
+        }
+    }
+
+    pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
+        let (pbs_order, expected_dim) = match self.encryption_key_choice {
+            EncryptionKeyChoice::Big => (
+                PBSOrder::KeyswitchBootstrap,
+                self.glwe_dimension
+                    .to_equivalent_lwe_dimension(self.polynomial_size),
+            ),
+            EncryptionKeyChoice::Small => (PBSOrder::BootstrapKeyswitch, self.lwe_dimension),
+        };
+
+        let message_modulus = self.message_modulus;
+        let ciphertext_modulus = self.ciphertext_modulus;
+        let carry_modulus = self.carry_modulus;
+
+        let degree = Degree(message_modulus.0 - 1);
+
+        CiphertextConformanceParams {
+            ct_params: LweCiphertextParameters {
+                lwe_dim: expected_dim,
+                ct_modulus: ciphertext_modulus,
+            },
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            degree,
         }
     }
 }

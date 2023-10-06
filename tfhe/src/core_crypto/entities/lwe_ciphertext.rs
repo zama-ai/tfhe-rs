@@ -693,6 +693,7 @@ pub type LweCiphertextMutView<'data, Scalar> = LweCiphertext<&'data mut [Scalar]
 /// Structure to store the expected properties of a ciphertext
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
+#[derive(Copy, Clone)]
 pub struct LweCiphertextParameters<T: UnsignedInteger> {
     pub lwe_dim: LweDimension,
     pub ct_modulus: CiphertextModulus<T>,

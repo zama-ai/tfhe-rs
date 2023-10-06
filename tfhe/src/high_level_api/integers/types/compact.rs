@@ -4,9 +4,11 @@ use crate::high_level_api::integers::parameters::IntegerParameter;
 use crate::high_level_api::integers::types::base::GenericInteger;
 use crate::high_level_api::internal_traits::TypeIdentifier;
 use crate::high_level_api::traits::FheTryEncrypt;
-use crate::integer::ciphertext::{CiphertextListConformanceParams, CompactCiphertextList};
+use crate::integer::ciphertext::CompactCiphertextList;
+use crate::integer::parameters::{
+    RadixCiphertextConformanceParams, RadixCompactCiphertextListConformanceParams,
+};
 use crate::named::Named;
-use crate::shortint::PBSParameters;
 use crate::CompactPublicKey;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
@@ -95,13 +97,11 @@ where
 }
 
 impl<P: IntegerParameter> ParameterSetConformant for GenericCompactInteger<P> {
-    type ParameterSet = PBSParameters;
-    fn is_conformant(&self, pbs_parameters: &PBSParameters) -> bool {
-        let params = CiphertextListConformanceParams {
-            shortint_params: pbs_parameters.to_shortint_conformance_param(),
-            num_blocks_per_integer: P::num_blocks(),
-            num_integers_constraint: ListSizeConstraint::exact_size(1),
-        };
+    type ParameterSet = RadixCiphertextConformanceParams;
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        let lsc = ListSizeConstraint::exact_size(1);
+
+        let params = params.to_ct_list_conformance_parameters(lsc);
         self.list.is_conformant(&params)
     }
 }
@@ -115,17 +115,9 @@ impl<P: IntegerParameter> Named for GenericCompactIntegerList<P> {
 }
 
 impl<P: IntegerParameter> ParameterSetConformant for GenericCompactIntegerList<P> {
-    type ParameterSet = (PBSParameters, ListSizeConstraint);
-    fn is_conformant(
-        &self,
-        (pbs_parameters, number_integers_constraint): &(PBSParameters, ListSizeConstraint),
-    ) -> bool {
-        let params = CiphertextListConformanceParams {
-            shortint_params: pbs_parameters.to_shortint_conformance_param(),
-            num_blocks_per_integer: P::num_blocks(),
-            num_integers_constraint: *number_integers_constraint,
-        };
-        self.list.is_conformant(&params)
+    type ParameterSet = RadixCompactCiphertextListConformanceParams;
+    fn is_conformant(&self, params: &RadixCompactCiphertextListConformanceParams) -> bool {
+        self.list.is_conformant(params)
     }
 }
 
@@ -169,7 +161,12 @@ mod test {
 
         let ct = CompactFheUint8::try_encrypt(0, &public_key).unwrap();
 
-        assert!(ct.is_conformant(&PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()));
+        assert!(
+            ct.is_conformant(&RadixCiphertextConformanceParams::from_pbs_parameters(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                4
+            ))
+        );
 
         let breaker_lists = vec![
             change_parameters(&|ct: &mut Ct| &mut ct.list.num_blocks),
@@ -188,7 +185,12 @@ mod test {
 
                 breaker(&mut ct_clone);
 
-                assert!(!ct_clone.is_conformant(&PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()));
+                assert!(!ct_clone.is_conformant(
+                    &RadixCiphertextConformanceParams::from_pbs_parameters(
+                        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                        4
+                    )
+                ));
             }
         }
 
@@ -213,7 +215,12 @@ mod test {
 
             breaker(&mut ct_clone);
 
-            assert!(!ct_clone.is_conformant(&PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()));
+            assert!(!ct_clone.is_conformant(
+                &RadixCiphertextConformanceParams::from_pbs_parameters(
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    4
+                )
+            ));
         }
     }
 
@@ -231,10 +238,11 @@ mod test {
 
         let ct = Ct::try_encrypt(&[0, 1], &public_key).unwrap();
 
-        let params = (
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
-            ListSizeConstraint::exact_size(2),
-        );
+        let params = RadixCiphertextConformanceParams::from_pbs_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            4,
+        )
+        .to_ct_list_conformance_parameters(ListSizeConstraint::exact_size(2));
 
         assert!(ct.is_conformant(&params));
 
@@ -298,7 +306,12 @@ mod test {
 
         let ct = CompactFheUint8::try_encrypt(0, &public_key).unwrap();
 
-        assert!(ct.is_conformant(&PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()));
+        assert!(
+            ct.is_conformant(&RadixCiphertextConformanceParams::from_pbs_parameters(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                4
+            ))
+        );
 
         let mut rng = thread_rng();
 
@@ -312,7 +325,12 @@ mod test {
                 .get_mut_container()
                 .fill_with(|| rng.gen::<u64>());
 
-            assert!(ct_clone.is_conformant(&PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()));
+            assert!(ct_clone.is_conformant(
+                &RadixCiphertextConformanceParams::from_pbs_parameters(
+                    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+                    4
+                )
+            ));
 
             let mut ct_clone_expanded = ct_clone.expand();
 
@@ -334,10 +352,11 @@ mod test {
 
         let ct = CompactFheUint8List::try_encrypt(&[0, 1], &public_key).unwrap();
 
-        let params = (
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
-            ListSizeConstraint::exact_size(2),
-        );
+        let params = RadixCiphertextConformanceParams::from_pbs_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            4,
+        )
+        .to_ct_list_conformance_parameters(ListSizeConstraint::exact_size(2));
 
         assert!(ct.is_conformant(&params));
 

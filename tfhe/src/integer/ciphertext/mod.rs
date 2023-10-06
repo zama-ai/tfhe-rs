@@ -1,6 +1,6 @@
 //! This module implements the ciphertext structures.
-use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
-use crate::shortint::parameters::CiphertextConformanceParams;
+use super::parameters::RadixCompactCiphertextListConformanceParams;
+use crate::conformance::ParameterSetConformant;
 use crate::shortint::{Ciphertext, CompressedCiphertext};
 use serde::{Deserialize, Serialize};
 
@@ -45,32 +45,14 @@ pub struct CompactCiphertextList {
     pub(crate) num_blocks: usize,
 }
 
-/// Structure to store the expected properties of a ciphertext list
-/// Can be used on a server to check if client inputs are well formed
-/// before running a computation on them
-pub struct CiphertextListConformanceParams {
-    pub shortint_params: CiphertextConformanceParams,
-    pub num_blocks_per_integer: usize,
-    pub num_integers_constraint: ListSizeConstraint,
-}
-
 impl ParameterSetConformant for CompactCiphertextList {
-    type ParameterSet = CiphertextListConformanceParams;
+    type ParameterSet = RadixCompactCiphertextListConformanceParams;
 
-    fn is_conformant(&self, params: &CiphertextListConformanceParams) -> bool {
-        let CiphertextListConformanceParams {
-            shortint_params,
-            num_blocks_per_integer,
-            num_integers_constraint,
-        } = params;
-
-        let num_blocks_constraint =
-            num_integers_constraint.multiply_group_size(*num_blocks_per_integer);
-
-        self.num_blocks == *num_blocks_per_integer
-            && self.ct_list.is_conformant(
-                &shortint_params.to_ct_list_conformance_parameters(num_blocks_constraint),
-            )
+    fn is_conformant(&self, params: &RadixCompactCiphertextListConformanceParams) -> bool {
+        self.num_blocks == params.num_blocks_per_integer
+            && self
+                .ct_list
+                .is_conformant(&params.to_shortint_ct_list_conformance_parameters())
     }
 }
 
