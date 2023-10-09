@@ -389,7 +389,7 @@ impl ServerKey {
             output_borrow.degree.0 = 1;
             (ct, output_borrow)
         } else {
-            self.unsigned_overflowing_sub(lhs, rhs)
+            self.unchecked_unsigned_overflowing_sub(lhs, rhs)
         }
     }
 

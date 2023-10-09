@@ -845,17 +845,26 @@ where {
         T: IntegerRadixCiphertext,
     {
         let sign = self.unchecked_compare_parallelized(lhs, rhs);
+        let do_clean_message = true;
         match selector {
             MinMaxSelector::Max => self
                 .server_key
-                .unchecked_programmable_if_then_else_parallelized(&sign, lhs, rhs, |sign| {
-                    sign == Self::IS_SUPERIOR
-                }),
+                .unchecked_programmable_if_then_else_parallelized(
+                    &sign,
+                    lhs,
+                    rhs,
+                    |sign| sign == Self::IS_SUPERIOR,
+                    do_clean_message,
+                ),
             MinMaxSelector::Min => self
                 .server_key
-                .unchecked_programmable_if_then_else_parallelized(&sign, lhs, rhs, |sign| {
-                    sign == Self::IS_INFERIOR
-                }),
+                .unchecked_programmable_if_then_else_parallelized(
+                    &sign,
+                    lhs,
+                    rhs,
+                    |sign| sign == Self::IS_INFERIOR,
+                    do_clean_message,
+                ),
         }
     }
 
@@ -873,17 +882,26 @@ where {
         let rhs = self
             .server_key
             .create_trivial_radix(rhs, lhs.blocks().len());
+        let do_clean_message = true;
         match selector {
             MinMaxSelector::Max => self
                 .server_key
-                .unchecked_programmable_if_then_else_parallelized(&sign, lhs, &rhs, |sign| {
-                    sign == Self::IS_SUPERIOR
-                }),
+                .unchecked_programmable_if_then_else_parallelized(
+                    &sign,
+                    lhs,
+                    &rhs,
+                    |sign| sign == Self::IS_SUPERIOR,
+                    do_clean_message,
+                ),
             MinMaxSelector::Min => self
                 .server_key
-                .unchecked_programmable_if_then_else_parallelized(&sign, lhs, &rhs, |sign| {
-                    sign == Self::IS_INFERIOR
-                }),
+                .unchecked_programmable_if_then_else_parallelized(
+                    &sign,
+                    lhs,
+                    &rhs,
+                    |sign| sign == Self::IS_INFERIOR,
+                    do_clean_message,
+                ),
         }
     }
 

@@ -18,11 +18,13 @@ impl ServerKey {
         );
 
         let condition_block = &condition.blocks()[0];
+        let do_clean_message = true;
         self.unchecked_programmable_if_then_else_parallelized(
             condition_block,
             true_ct,
             false_ct,
             |x| x == 1,
+            do_clean_message,
         )
     }
 
@@ -145,12 +147,21 @@ impl ServerKey {
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
     }
 
+    /// if do clean message is false, the resulting ciphertext won't be cleaned (message_extract)
+    /// meaning that yes, the resulting ciphertext's encrypted message is within 0..msg_msg
+    /// but its degree is the same as after adding to ciphertext
+    ///
+    /// TLDR: do_clean_message should be false only if you plan on doing your own PBS
+    /// soon after. (may need to force degree yourself not to trigger asserts)
+    // Note: do_clean_message is needed until degree is used for both
+    // message range and noise management.
     pub(crate) fn unchecked_programmable_if_then_else_parallelized<T, F>(
         &self,
         condition_block: &crate::shortint::Ciphertext,
         true_ct: &T,
         false_ct: &T,
         predicate: F,
+        do_clean_message: bool,
     ) -> T
     where
         T: IntegerRadixCiphertext,
@@ -175,14 +186,28 @@ impl ServerKey {
         );
         // If the condition was true, true_ct will have kept its value and false_ct will be 0
         // If the condition was false, true_ct will be 0 and false_ct will have kept its value
-        true_ct
-            .blocks_mut()
-            .par_iter_mut()
-            .zip(false_ct.blocks().par_iter())
-            .for_each(|(lhs_block, rhs_block)| {
-                self.key.unchecked_add_assign(lhs_block, rhs_block);
-                self.key.message_extract_assign(lhs_block)
-            });
+        //
+        // If we don't need to clean ciphertext, then we have no PBS to do, so no
+        // need to use multi-threading
+        if do_clean_message {
+            true_ct
+                .blocks_mut()
+                .par_iter_mut()
+                .zip(false_ct.blocks().par_iter())
+                .for_each(|(lhs_block, rhs_block)| {
+                    self.key.unchecked_add_assign(lhs_block, rhs_block);
+                    self.key.message_extract_assign(lhs_block)
+                });
+        } else {
+            true_ct
+                .blocks_mut()
+                .iter_mut()
+                .zip(false_ct.blocks().iter())
+                .for_each(|(lhs_block, rhs_block)| {
+                    self.key.unchecked_add_assign(lhs_block, rhs_block);
+                });
+        }
+
         true_ct
     }
 
