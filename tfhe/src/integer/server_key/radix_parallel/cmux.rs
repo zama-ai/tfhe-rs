@@ -12,11 +12,6 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        assert!(
-            condition.holds_boolean_value(),
-            "The condition ciphertext does not encrypt a boolean (0 or 1) value"
-        );
-
         let condition_block = &condition.blocks()[0];
         self.unchecked_programmable_if_then_else_parallelized(
             condition_block,
