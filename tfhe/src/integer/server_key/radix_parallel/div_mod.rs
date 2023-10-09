@@ -2,8 +2,7 @@ use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext, Signed
 use crate::integer::server_key::comparator::ZeroComparisonType;
 use crate::integer::{IntegerCiphertext, ServerKey};
 
-use super::bit_extractor::BitExtractor;
-
+use crate::shortint::MessageModulus;
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -73,6 +72,7 @@ impl ServerKey {
                     &quotient_minus_one,
                     &quotient,
                     |x| x == 2,
+                    true,
                 )
             },
             || {
@@ -81,6 +81,7 @@ impl ServerKey {
                     &remainder_plus_divisor,
                     &remainder,
                     |x| x == 2,
+                    true,
                 )
             },
         );
@@ -113,146 +114,381 @@ impl ServerKey {
         //     Q(i) := 1
         //   end
         // end
+        assert_eq!(
+            numerator.blocks.len(),
+            divisor.blocks.len(),
+            "numerator and divisor must have same number of blocks \
+            numerator: {} blocks, divisor: {} blocks",
+            numerator.blocks.len(),
+            divisor.blocks.len(),
+        );
+        assert!(
+            self.key.message_modulus.0.is_power_of_two(),
+            "The message modulus ({}) needs to be a power of two",
+            self.key.message_modulus.0
+        );
+        assert!(
+            numerator.block_carries_are_empty(),
+            "The numerator must have its carries empty"
+        );
+        assert!(
+            divisor.block_carries_are_empty(),
+            "The numerator must have its carries empty"
+        );
+        assert!(numerator
+            .blocks()
+            .iter()
+            .all(|block| block.message_modulus == self.key.message_modulus
+                && block.carry_modulus == self.key.carry_modulus));
+        assert!(divisor
+            .blocks()
+            .iter()
+            .all(|block| block.message_modulus == self.key.message_modulus
+                && block.carry_modulus == self.key.carry_modulus));
+
         let num_blocks = numerator.blocks.len();
-        let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
-        let total_bits = num_bits_in_block * num_blocks as u64;
+        let num_bits_in_message = self.key.message_modulus.0.ilog2() as u64;
+        let total_bits = num_bits_in_message * num_blocks as u64;
 
         let mut quotient: RadixCiphertext = self.create_trivial_zero_radix(num_blocks);
-        let mut remainder: RadixCiphertext = self.create_trivial_zero_radix(num_blocks);
+        let mut remainder1: RadixCiphertext = self.create_trivial_zero_radix(num_blocks);
+        let mut remainder2: RadixCiphertext = self.create_trivial_zero_radix(num_blocks);
 
-        let merge_two_cmp_lut = self
-            .key
-            .generate_lookup_table_bivariate(|x, y| u64::from(x == 1 && y == 1));
+        let mut numerator_block_stack = numerator.blocks.clone();
 
-        let bit_extractor = BitExtractor::new(self, num_bits_in_block as usize);
-        let numerator_bits = bit_extractor.extract_all_bits(&numerator.blocks);
+        // The overflow flag is computed by combining 2 separate values,
+        // this vec will contain the lut that merges these two flags.
+        //
+        // Normally only one lut should be needed, and that lut would output a block
+        // encrypting 0 or 1.
+        // However, since the resulting block would then be left shifted and added to
+        // another existing noisy block, we create many LUTs that shift the boolean value
+        // to the correct position, to reduce noise growth
+        let merge_overflow_flags_luts = (0..num_bits_in_message)
+            .map(|bit_position_in_block| {
+                self.key.generate_lookup_table_bivariate(|x, y| {
+                    u64::from(x == 0 && y == 0) << bit_position_in_block
+                })
+            })
+            .collect::<Vec<_>>();
 
         for i in (0..=total_bits as usize - 1).rev() {
-            let block_of_bit = i / num_bits_in_block as usize;
-            let pos_in_block = i % num_bits_in_block as usize;
+            let block_of_bit = i / num_bits_in_message as usize;
+            let pos_in_block = i % num_bits_in_message as usize;
 
-            // i goes from (total_bits - 1 to 0)
-            // msb_bit_set goes from 0 to total_bits - 1
+            // i goes from [total_bits - 1 to 0]
+            // msb_bit_set goes from [0 to total_bits - 1]
             let msb_bit_set = total_bits as usize - 1 - i;
-            let first_trivial_block = (msb_bit_set / num_bits_in_block as usize) + 1;
+
+            let last_non_trivial_block = msb_bit_set / num_bits_in_message as usize;
+            // Index to the first block of the remainder that is fully trivial 0
+            // and all blocks after it are also trivial zeros
+            // This number is in range 1..=num_bocks -1
+            let first_trivial_block = last_non_trivial_block + 1;
 
             // All blocks starting from the first_trivial_block are known to be trivial
             // So we can avoid work.
-            // Note that, these are always non-empty
-            let mut interesting_remainder =
-                RadixCiphertext::from(remainder.blocks[..first_trivial_block].to_vec());
+            // Note that, these are always non-emtpy (i.e there is always at least one non trivial
+            // block)
+            let mut interesting_remainder1 =
+                RadixCiphertext::from(remainder1.blocks[..=last_non_trivial_block].to_vec());
+            let mut interesting_remainder2 =
+                RadixCiphertext::from(remainder2.blocks[..=last_non_trivial_block].to_vec());
             let mut interesting_divisor =
-                RadixCiphertext::from(divisor.blocks[..first_trivial_block].to_vec());
-
-            self.unchecked_scalar_left_shift_assign_parallelized(&mut interesting_remainder, 1);
-            self.key
-                .unchecked_add_assign(&mut interesting_remainder.blocks[0], &numerator_bits[i]);
-
-            // For comparisons, trivial are dealt with differently
-            let (non_trivial_blocks_are_ge, trivial_blocks_are_zero) = rayon::join(
-                || {
-                    // Do a true >= comparison for non trivial blocks
-                    self.unchecked_ge_parallelized(&interesting_remainder, &interesting_divisor)
-                },
-                || {
-                    // Do a comparison (==) with 0 for trivial blocks
-                    let trivial_blocks = &divisor.blocks[first_trivial_block..];
-                    if trivial_blocks.is_empty() {
-                        self.key.create_trivial(1)
-                    } else {
-                        let tmp = self
-                            .compare_blocks_with_zero(trivial_blocks, ZeroComparisonType::Equality);
-                        self.are_all_comparisons_block_true(tmp)
-                    }
-                },
+                RadixCiphertext::from(divisor.blocks[..=last_non_trivial_block].to_vec());
+            let mut divisor_ms_blocks = RadixCiphertext::from(
+                divisor.blocks[((msb_bit_set + 1) / num_bits_in_message as usize)..].to_vec(),
             );
 
-            // We need to 'merge' the two comparisons results
-            // from being in two blocks into one,
-            // to be able to use that merged block as a 'control' block
-            // to zero out (or not) 'interesting_divisor'.
+            // We split the divisor at a block position, when in reality the split should be at a
+            // bit position meaning that potentially (depending on msb_bit_set) the
+            // split versions share some bits they should not. So we do one PBS on the
+            // last block of the interesting_divisor, and first block of divisor_ms_blocks
+            // to trim out bits which should not be there
+
+            let mut trim_last_interesting_divisor_bits = || {
+                if ((msb_bit_set + 1) % num_bits_in_message as usize) == 0 {
+                    return;
+                }
+                // The last block of the interesting part of the remainder
+                // can contain bits which we should not account for
+                // we have to zero them out.
+
+                // Where the msb is set in the block
+                let pos_in_block = msb_bit_set as u64 % num_bits_in_message;
+
+                // e.g 2 bits in message:
+                // if pos_in_block is 0, then we want to keep only first bit (right shift mask
+                // by 1) if pos_in_block is 1, then we want to keep the two
+                // bits (right shift mask by 0)
+                let shift_amount = num_bits_in_message - (pos_in_block + 1);
+                // Create mask of 1s on the message part, 0s in the carries
+                let full_message_mask = self.key.message_modulus.0 as u64 - 1;
+                // Shift the mask so that we will only keep bits we should
+                let shifted_mask = full_message_mask >> shift_amount;
+
+                let masking_lut = self.key.generate_lookup_table(|x| x & shifted_mask);
+                self.key.apply_lookup_table_assign(
+                    interesting_divisor.blocks.last_mut().unwrap(),
+                    &masking_lut,
+                );
+            };
+
+            let mut trim_first_divisor_ms_bits = || {
+                if divisor_ms_blocks.blocks.is_empty()
+                    || ((msb_bit_set + 1) % num_bits_in_message as usize) == 0
+                {
+                    return;
+                }
+                // As above, we need to zero out some bits, but here its in the
+                // first block of most significant blocks of the divisor.
+                // The block has the same value as the last block of interesting_divisor.
+                // Here we will zero out the bits that the trim_last_interesting_divisor_bits
+                // above wanted to keep.
+
+                // Where the msb is set in the block
+                let pos_in_block = msb_bit_set as u64 % num_bits_in_message;
+
+                // e.g 2 bits in message:
+                // if pos_in_block is 0, then we want to discard the first bit (left shift mask
+                // by 1) if pos_in_block is 1, then we want to discard the
+                // two bits (left shift mask by 2) let shift_amount =
+                // num_bits_in_message - pos_in_block as u64;
+                let shift_amount = pos_in_block + 1;
+                let full_message_mask = self.key.message_modulus.0 as u64 - 1;
+                let shifted_mask = full_message_mask << shift_amount;
+                // Keep the mask within the range of message bits, so that
+                // the estimated degree of the output is < msg_modulus
+                let shifted_mask = shifted_mask & full_message_mask;
+
+                let masking_lut = self.key.generate_lookup_table(|x| x & shifted_mask);
+                self.key.apply_lookup_table_assign(
+                    divisor_ms_blocks.blocks.first_mut().unwrap(),
+                    &masking_lut,
+                );
+            };
+
+            // This does
+            //  R := R << 1; R(0) := N(i)
             //
-            // If parameters have enough message space,
-            // the merge can be done using an addition,
-            // otherwise we have to use a bivariate PBS.
+            // We could to that by left shifting, R by one, then unchecked_add the correct numerator
+            // bit.
             //
-            // This has an impact as merging using addition means
-            // the merge result is in [0, 1, 2], while merging
-            // using bivariate PBS gives a result in [0, 1].
-            //
-            // is_remainder_greater_or_eq_than_divisor will be Some(block)
-            // where block encrypts a boolean value
-            // if the merge is done with PBS, None otherwise.
-            //
-            // Towards the end of the loop, we need
-            // is_remainder_greater_or_eq_than_divisor to actually be Some(block),
-            // the PBS merge will then happen at this point.
-            // Delaying this PBS merge, is done because it creates noticeable
-            // performance improvement.
-            // When the PBS is done later (rather than right now), it will
-            // be done in parallel with another PBS based operation meaning the
-            // latency of this function won't be impacted (compared to doing it right now).
-            let mut is_remainder_greater_or_eq_than_divisor;
-            if self.key.message_modulus.0 < 3 {
-                let merged_cmp = self.key.unchecked_apply_lookup_table_bivariate(
-                    &trivial_blocks_are_zero,
-                    &non_trivial_blocks_are_ge.blocks[0],
-                    &merge_two_cmp_lut,
+            // However to keep the remainder clean (noise wise), what we do is that we put the
+            // remainder block from which we need to extract the bit, as the LSB of the
+            // Remainder, so that left shifting will pull the bit we need.
+            let mut left_shift_interesting_remainder1 = || {
+                let numerator_block = numerator_block_stack
+                    .pop()
+                    .expect("internal error: empty numerator block stack in div");
+                // prepend block and then shift
+                interesting_remainder1.blocks.insert(0, numerator_block);
+                self.unchecked_scalar_left_shift_assign_parallelized(
+                    &mut interesting_remainder1,
+                    1,
                 );
 
-                self.zero_out_if_condition_is_false(&mut interesting_divisor, &merged_cmp);
-                is_remainder_greater_or_eq_than_divisor = Some(merged_cmp)
-            } else {
-                let summed_cmp = self.key.unchecked_add(
-                    &trivial_blocks_are_zero,
-                    &non_trivial_blocks_are_ge.blocks[0],
+                // Extract the block we prepended, and see if it should be dropped
+                // or added back for processing
+                interesting_remainder1.blocks.rotate_left(1);
+                // This unwrap is unreachable, as we are removing the block we added earlier
+                let numerator_block = interesting_remainder1.blocks.pop().unwrap();
+                if pos_in_block != 0 {
+                    // We have not yet extracted all the bits from this numerator
+                    // so we put it back on the front so that it gets taken next iteration
+                    numerator_block_stack.push(numerator_block);
+                }
+            };
+
+            let mut left_shift_interesting_remainder2 = || {
+                self.unchecked_scalar_left_shift_assign_parallelized(
+                    &mut interesting_remainder2,
+                    1,
                 );
-                self.zero_out_if(&mut interesting_divisor, &summed_cmp, |summed_cmp| {
-                    summed_cmp != 2 // summed_cmp != 2 => remainder < divisor
+            };
+
+            let tasks: [&mut (dyn FnMut() + Send + Sync); 4] = [
+                &mut trim_last_interesting_divisor_bits,
+                &mut trim_first_divisor_ms_bits,
+                &mut left_shift_interesting_remainder1,
+                &mut left_shift_interesting_remainder2,
+            ];
+            tasks.into_par_iter().for_each(|task| task());
+
+            // if interesting_remainder1 != 0 -> interesting_remainder2 == 0
+            // if interesting_remainder1 == 0 -> interesting_remainder2 != 0
+            // In practice interesting_remainder1 contains the numerator bit,
+            // but in that position, interesting_remainder2 always has a 0
+            let mut merged_interesting_remainder = interesting_remainder1;
+            self.unchecked_add_assign(&mut merged_interesting_remainder, &interesting_remainder2);
+
+            let do_overflowing_sub = || {
+                self.unchecked_unsigned_overflowing_sub_parallelized(
+                    &merged_interesting_remainder,
+                    &interesting_divisor,
+                )
+            };
+
+            let check_divisor_upper_blocks = || {
+                // Do a comparison (==) with 0 for trivial blocks
+                let trivial_blocks = &divisor_ms_blocks.blocks;
+                if trivial_blocks.is_empty() {
+                    self.key.create_trivial(0)
+                } else {
+                    // We could call unchecked_scalar_ne_parallelized
+                    // But we are in the special case where scalar == 0
+                    // So we can skip some stuff
+                    let tmp = self
+                        .compare_blocks_with_zero(trivial_blocks, ZeroComparisonType::Difference);
+                    self.is_at_least_one_comparisons_block_true(tmp)
+                }
+            };
+
+            // Creates a cleaned version (noise wise) of the merged remainder
+            // so that it can be safely used in bivariate PBSes
+            let create_clean_version_of_merged_remainder = || {
+                RadixCiphertext::from_blocks(
+                    merged_interesting_remainder
+                        .blocks
+                        .par_iter()
+                        .map(|b| self.key.message_extract(b))
+                        .collect(),
+                )
+            };
+
+            // Use nested join as its easier when we need to return values
+            let (
+                (mut new_remainder, subtraction_overflowed),
+                (at_least_one_upper_block_is_non_zero, mut cleaned_merged_interesting_remainder),
+            ) = rayon::join(do_overflowing_sub, || {
+                let (r1, r2) = rayon::join(
+                    check_divisor_upper_blocks,
+                    create_clean_version_of_merged_remainder,
+                );
+
+                (r1, r2)
+            });
+            // explicit drop, so that we do not use it by mistake
+            drop(merged_interesting_remainder);
+
+            let overflow_sum = self.key.unchecked_add(
+                &subtraction_overflowed,
+                &at_least_one_upper_block_is_non_zero,
+            );
+            // Give name to closures to improve readability
+            let overflow_happened = |overflow_sum: u64| overflow_sum != 0;
+            let overflow_did_not_happen = |overflow_sum: u64| !overflow_happened(overflow_sum);
+
+            // Here, we will do what zero_out_if does, but to stay within noise constraints,
+            // we do it by hand so that we apply the factor (shift) to the correct block
+            assert!(overflow_sum.degree.0 <= 2); // at_least_one_upper_block_is_non_zero maybe be a trivial 0
+            let factor = MessageModulus(overflow_sum.degree.0 + 1);
+            let mut conditionally_zero_out_merged_interesting_remainder = || {
+                let zero_out_if_overflow_did_not_happen =
+                    self.key.generate_lookup_table_bivariate_with_factor(
+                        |block, overflow_sum| {
+                            if overflow_did_not_happen(overflow_sum) {
+                                0
+                            } else {
+                                block
+                            }
+                        },
+                        factor,
+                    );
+                cleaned_merged_interesting_remainder
+                    .blocks_mut()
+                    .par_iter_mut()
+                    .for_each(|block| {
+                        self.key.unchecked_apply_lookup_table_bivariate_assign(
+                            block,
+                            &overflow_sum,
+                            &zero_out_if_overflow_did_not_happen,
+                        );
+                    });
+            };
+
+            let mut conditionally_zero_out_merged_new_remainder = || {
+                let zero_out_if_overflow_happened =
+                    self.key.generate_lookup_table_bivariate_with_factor(
+                        |block, overflow_sum| {
+                            if overflow_happened(overflow_sum) {
+                                0
+                            } else {
+                                block
+                            }
+                        },
+                        factor,
+                    );
+                new_remainder.blocks_mut().par_iter_mut().for_each(|block| {
+                    self.key.unchecked_apply_lookup_table_bivariate_assign(
+                        block,
+                        &overflow_sum,
+                        &zero_out_if_overflow_happened,
+                    );
                 });
-                is_remainder_greater_or_eq_than_divisor = None;
-            }
+            };
 
-            rayon::join(
-                || {
-                    self.sub_assign_parallelized(&mut interesting_remainder, &interesting_divisor);
-                    // Copy back into the real remainder
-                    remainder.blocks[..first_trivial_block]
-                        .iter_mut()
-                        .zip(interesting_remainder.blocks.iter())
-                        .for_each(|(remainder_block, new_value)| {
-                            remainder_block.clone_from(new_value);
-                        });
-                },
-                || {
-                    // This is the place where we merge the two cmp blocks
-                    // if it was not done earlier.
-                    let merged_cmp =
-                        is_remainder_greater_or_eq_than_divisor.get_or_insert_with(|| {
-                            self.key.unchecked_apply_lookup_table_bivariate(
-                                &trivial_blocks_are_zero,
-                                &non_trivial_blocks_are_ge.blocks[0],
-                                &merge_two_cmp_lut,
-                            )
-                        });
-                    self.key
-                        .unchecked_scalar_left_shift_assign(merged_cmp, pos_in_block as u8);
-                    self.key
-                        .unchecked_add_assign(&mut quotient.blocks[block_of_bit], merged_cmp);
-                },
+            let mut set_quotient_bit = || {
+                let did_not_overflow = self.key.unchecked_apply_lookup_table_bivariate(
+                    &subtraction_overflowed,
+                    &at_least_one_upper_block_is_non_zero,
+                    &merge_overflow_flags_luts[pos_in_block],
+                );
+
+                self.key
+                    .unchecked_add_assign(&mut quotient.blocks[block_of_bit], &did_not_overflow);
+            };
+
+            let tasks: [&mut (dyn FnMut() + Send + Sync); 3] = [
+                &mut conditionally_zero_out_merged_interesting_remainder,
+                &mut conditionally_zero_out_merged_new_remainder,
+                &mut set_quotient_bit,
+            ];
+            tasks.into_par_iter().for_each(|task| task());
+
+            assert_eq!(
+                remainder1.blocks[..first_trivial_block].len(),
+                cleaned_merged_interesting_remainder.blocks.len()
             );
+            assert_eq!(
+                remainder2.blocks[..first_trivial_block].len(),
+                new_remainder.blocks.len()
+            );
+            remainder1.blocks[..first_trivial_block]
+                .iter_mut()
+                .zip(cleaned_merged_interesting_remainder.blocks.iter())
+                .for_each(|(remainder_block, new_value)| {
+                    remainder_block.clone_from(new_value);
+                });
+            remainder2.blocks[..first_trivial_block]
+                .iter_mut()
+                .zip(new_remainder.blocks.iter())
+                .for_each(|(remainder_block, new_value)| {
+                    remainder_block.clone_from(new_value);
+                });
         }
 
-        // Even though, the quotient does not have any actual carries,
-        // we use message extract assign to reset its noise.
-        //
-        // The remainder does not need such reset as its the result
-        // of `sub_assign_parallelized` which leaves the blocks fresh.
-        quotient.blocks_mut().par_iter_mut().for_each(|block| {
-            self.key.message_extract_assign(block);
-        });
+        // Clean the quotient and remainder
+        // as even though they have no carries, they are not at nominal noise level
+        rayon::join(
+            || {
+                remainder1
+                    .blocks_mut()
+                    .par_iter_mut()
+                    .zip(remainder2.blocks.par_iter())
+                    .for_each(|(r1_block, r2_block)| {
+                        self.key.unchecked_add_assign(r1_block, r2_block);
+                        self.key.message_extract_assign(r1_block);
+                    });
+            },
+            || {
+                quotient.blocks_mut().par_iter_mut().for_each(|block| {
+                    self.key.message_extract_assign(block);
+                });
+            },
+        );
 
-        (quotient, remainder)
+        (quotient, remainder1)
     }
 
     fn signed_unchecked_div_rem_parallelized(
@@ -306,6 +542,7 @@ impl ServerKey {
                     &negated_quotient,
                     &quotient,
                     |x| x == 1,
+                    true,
                 );
                 SignedRadixCiphertext::from_blocks(quotient.into_blocks())
             },
@@ -320,6 +557,7 @@ impl ServerKey {
                     &negated_remainder,
                     &remainder,
                     |sign_block| (sign_block >> sign_bit_pos) == 1,
+                    true,
                 );
                 SignedRadixCiphertext::from_blocks(remainder.into_blocks())
             },
