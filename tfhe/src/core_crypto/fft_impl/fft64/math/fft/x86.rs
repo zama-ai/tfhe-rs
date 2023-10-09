@@ -61,6 +61,9 @@ pub fn mm256_cvtpd_epi64(simd: V3, x: __m256d) -> __m256i {
     let mantissa_lshift = avx2._mm256_slli_epi64::<11>(mantissa);
 
     // shift to the right and apply the exponent bias
+    // If biased_exp == 0 then we have 0 or a subnormal value which should return 0, here we will
+    // shift to the right by 1086 which will return 0 as we are shifting in 0s from the left, so
+    // subnormals are already covered
     let mantissa_shift = avx2._mm256_srlv_epi64(
         mantissa_lshift,
         avx2._mm256_sub_epi64(avx._mm256_set1_epi64x(1086), biased_exp),
@@ -73,18 +76,8 @@ pub fn mm256_cvtpd_epi64(simd: V3, x: __m256d) -> __m256i {
 
     // if the biased exponent is all zeros, we have a subnormal value (or zero)
 
-    // if it is not subnormal, we keep our results
-    let value_if_non_subnormal =
-        avx2._mm256_blendv_epi8(value_if_positive, value_if_negative, sign_is_negative_mask);
-
-    // if it is subnormal, the conversion to i64 (rounding towards zero) returns zero
-    let value_if_subnormal = avx._mm256_setzero_si256();
-
-    // compare the biased exponent to a zero value
-    let is_subnormal = avx2._mm256_cmpeq_epi64(biased_exp, avx._mm256_setzero_si256());
-
-    // choose the result depending on subnormalness
-    avx2._mm256_blendv_epi8(value_if_non_subnormal, value_if_subnormal, is_subnormal)
+    // Select the value based on the sign mask
+    avx2._mm256_blendv_epi8(value_if_positive, value_if_negative, sign_is_negative_mask)
 }
 
 /// Convert a vector of f64 values to a vector of i64 values.
@@ -120,10 +113,13 @@ pub fn mm512_cvtpd_epi64(simd: V4, x: __m512d) -> __m512i {
     // the left by the maximum amount, then shift it to the right by our value plus the offset we
     // just shifted by
     //
-    // the 53rd bit is set to 1, so we shift to the left by 10 so the 63rd (last) bit is set.
+    // the 53rd bit is set to 1, so we shift to the left by 11 so the 63rd (last) bit is set.
     let mantissa_lshift = avx._mm512_slli_epi64::<11>(mantissa);
 
     // shift to the right and apply the exponent bias
+    // If biased_exp == 0 then we have 0 or a subnormal value which should return 0, here we will
+    // shift to the right by 1086 which will return 0 as we are shifting in 0s from the left, so
+    // subnormals are already covered
     let mantissa_shift = avx._mm512_srlv_epi64(
         mantissa_lshift,
         avx._mm512_sub_epi64(avx._mm512_set1_epi64(1086), biased_exp),
@@ -134,20 +130,8 @@ pub fn mm512_cvtpd_epi64(simd: V4, x: __m512d) -> __m512i {
     // otherwise, we negate it
     let value_if_negative = avx._mm512_sub_epi64(avx._mm512_setzero_si512(), value_if_positive);
 
-    // if the biased exponent is all zeros, we have a subnormal value (or zero)
-
-    // if it is not subnormal, we keep our results
-    let value_if_non_subnormal =
-        avx._mm512_mask_blend_epi64(sign_is_negative_mask, value_if_positive, value_if_negative);
-
-    // if it is subnormal, the conversion to i64 (rounding towards zero) returns zero
-    let value_if_subnormal = avx._mm512_setzero_si512();
-
-    // compare the biased exponent to a zero value
-    let is_subnormal = avx._mm512_cmpeq_epi64_mask(biased_exp, avx._mm512_setzero_si512());
-
-    // choose the result depending on subnormalness
-    avx._mm512_mask_blend_epi64(is_subnormal, value_if_non_subnormal, value_if_subnormal)
+    // Select the value based on the sign mask
+    avx._mm512_mask_blend_epi64(sign_is_negative_mask, value_if_positive, value_if_negative)
 }
 
 /// Convert a vector of i64 values to a vector of f64 values. Not sure how it works.
@@ -1102,8 +1086,8 @@ mod tests {
                 [
                     -(2.0_f64.powi(63)),
                     -(2.0_f64.powi(63)),
-                    -(2.0_f64.powi(63)),
-                    -(2.0_f64.powi(63)),
+                    (2.0_f64.powi(63)),
+                    (2.0_f64.powi(63)),
                 ],
                 [0.0, -0.0, 37.1242161_f64, -37.1242161_f64],
                 [0.1, -0.1, 1.0, -1.0],
@@ -1122,9 +1106,58 @@ mod tests {
                     0.1 * -(2.0_f64.powi(63)),
                 ],
             ] {
-                let target = v.map(|x| x as i64);
+                let target = v.map(|x| {
+                    if x == 2.0f64.powi(63) {
+                        // This is the proper representation in 2's complement, 2^63 gets folded
+                        // onto -2^63
+                        -(2i64.pow(63))
+                    } else {
+                        x as i64
+                    }
+                });
 
-                let computed: [i64; 4] = { pulp::cast(mm256_cvtpd_epi64(simd, pulp::cast(v))) };
+                let computed: [i64; 4] = pulp::cast(mm256_cvtpd_epi64(simd, pulp::cast(v)));
+                assert_eq!(target, computed);
+            }
+        }
+        #[cfg(feature = "nightly-avx512")]
+        if let Some(simd) = V4::try_new() {
+            for v in [
+                [
+                    -(2.0_f64.powi(63)),
+                    -(2.0_f64.powi(63)),
+                    (2.0_f64.powi(63)),
+                    (2.0_f64.powi(63)),
+                ],
+                [0.0, -0.0, 37.1242161_f64, -37.1242161_f64],
+                [0.1, -0.1, 1.0, -1.0],
+                [0.9, -0.9, 2.0, -2.0],
+                [2.0, -2.0, 1e-310, -1e-310],
+                [
+                    2.0_f64.powi(62),
+                    -(2.0_f64.powi(62)),
+                    1.1 * 2.0_f64.powi(62),
+                    1.1 * -(2.0_f64.powi(62)),
+                ],
+                [
+                    0.9 * 2.0_f64.powi(63),
+                    -(0.9 * 2.0_f64.powi(63)),
+                    0.1 * 2.0_f64.powi(63),
+                    0.1 * -(2.0_f64.powi(63)),
+                ],
+            ] {
+                let target = v.map(|x| {
+                    if x == 2.0f64.powi(63) {
+                        // This is the proper representation in 2's complement, 2^63 gets folded
+                        // onto -2^63
+                        -(2i64.pow(63))
+                    } else {
+                        x as i64
+                    }
+                });
+
+                let computed: [i64; 4] =
+                    pulp::cast_lossy(mm512_cvtpd_epi64(simd, pulp::cast([v, v])));
                 assert_eq!(target, computed);
             }
         }
