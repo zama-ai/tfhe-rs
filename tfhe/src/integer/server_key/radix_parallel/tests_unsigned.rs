@@ -238,6 +238,17 @@ create_parametrized_test!(integer_unchecked_add);
 create_parametrized_test!(integer_unchecked_mul);
 
 create_parametrized_test!(integer_unchecked_add_assign);
+create_parametrized_test!(integer_full_propagate {
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+});
 
 /// The function executor for cpu server key
 ///
@@ -273,6 +284,21 @@ where
     }
 
     fn execute(&mut self, input: &'a RadixCiphertext) -> RadixCiphertext {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input)
+    }
+}
+
+/// Unary assign fn
+impl<'a, F> FunctionExecutor<&'a mut RadixCiphertext, ()> for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, &'a mut RadixCiphertext),
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: ServerKey) {
+        self.sks = Some(sks)
+    }
+
+    fn execute(&mut self, input: &'a mut RadixCiphertext) {
         let sks = self.sks.as_ref().expect("setup was not properly called");
         (self.func)(sks, input)
     }
@@ -1075,4 +1101,12 @@ where
     server_key.extend_radix_with_trivial_zero_blocks_msb_assign(&mut ct_3, NB_CTXT);
     let output: u64 = client_key.decrypt(&ct_3);
     assert_eq!(output, (msg2 + msg1) % (modulus));
+}
+
+fn integer_full_propagate<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate_parallelized);
+    full_propagate_test(param, executor);
 }
