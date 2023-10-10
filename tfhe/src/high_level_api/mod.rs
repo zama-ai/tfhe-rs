@@ -50,6 +50,12 @@ pub use crate::high_level_api::shortints::{
     CompressedFheUint2, CompressedFheUint3, CompressedFheUint4, FheUint2, FheUint2Parameters,
     FheUint3, FheUint3Parameters, FheUint4, FheUint4Parameters,
 };
+#[cfg(feature = "integer")]
+#[cfg(feature = "safe-deserialization")]
+pub use integers::safe_serialize::{
+    safe_deserialize_conformant, safe_deserialize_conformant_compact_integer, safe_serialize,
+};
+
 #[macro_use]
 mod details;
 #[macro_use]

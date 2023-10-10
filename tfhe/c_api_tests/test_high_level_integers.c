@@ -64,6 +64,67 @@ int uint8_public_key(const ClientKey *client_key, const PublicKey *public_key) {
   return ok;
 }
 
+int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *server_key) {
+  int ok;
+  CompactFheUint8 *lhs = NULL;
+  CompactFheUint8 *deserialized_lhs = NULL;
+  CompactFheUint8 *result = NULL;
+  Buffer value_buffer = {.pointer = NULL, .length = 0};
+  Buffer cks_buffer = {.pointer = NULL, .length = 0};
+  BufferView deser_view = {.pointer = NULL, .length = 0};
+  ClientKey *deserialized_client_key = NULL;
+
+  const uint64_t max_serialization_size = UINT64_C(1) << UINT64_C(20);
+
+  uint8_t lhs_clear = 123;
+
+  ok = client_key_serialize(client_key, &cks_buffer);
+  assert(ok == 0);
+
+  deser_view.pointer = cks_buffer.pointer;
+  deser_view.length = cks_buffer.length;
+  ok = client_key_deserialize(deser_view, &deserialized_client_key);
+  assert(ok == 0);
+
+  struct CompactPublicKey *public_key;
+
+  ok = compact_public_key_new(deserialized_client_key, &public_key);
+  assert(ok == 0);
+
+  ok = compact_fhe_uint8_try_encrypt_with_compact_public_key_u8(lhs_clear, public_key, &lhs);
+  assert(ok == 0);
+
+  ok = compact_fhe_uint8_safe_serialize(lhs, &value_buffer, max_serialization_size);
+  assert(ok == 0);
+
+  deser_view.pointer = value_buffer.pointer;
+  deser_view.length = value_buffer.length;
+  ok = compact_fhe_uint8_safe_deserialize_conformant(deser_view, max_serialization_size, server_key,
+                                                     &deserialized_lhs);
+  assert(ok == 0);
+
+  FheUint8 *expanded = NULL;
+
+  ok = compact_fhe_uint8_expand(deserialized_lhs, &expanded);
+  assert(ok == 0);
+
+  uint8_t clear;
+  ok = fhe_uint8_decrypt(expanded, deserialized_client_key, &clear);
+  assert(ok == 0);
+
+  assert(clear == lhs_clear);
+
+  if (value_buffer.pointer != NULL) {
+    destroy_buffer(&value_buffer);
+  }
+  compact_fhe_uint8_destroy(lhs);
+  compact_fhe_uint8_destroy(deserialized_lhs);
+  compact_fhe_uint8_destroy(result);
+  fhe_uint8_destroy(expanded);
+
+  return ok;
+}
+
 int uint8_serialization(const ClientKey *client_key) {
   int ok;
   FheUint8 *lhs = NULL;
@@ -158,6 +219,8 @@ int main(void) {
     ok = public_key_new(client_key, &public_key);
     assert(ok == 0);
     ok = uint8_serialization(client_key);
+    assert(ok == 0);
+    ok = uint8_safe_serialization(client_key, server_key);
     assert(ok == 0);
     ok = uint8_compressed(client_key);
     assert(ok == 0);

@@ -261,6 +261,71 @@ macro_rules! impl_serialize_deserialize_on_type {
     };
 }
 
+macro_rules! impl_safe_serialize_on_type {
+    ($wrapper_type:ty) => {
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$wrapper_type:snake _safe_serialize>](
+                sself: *const $wrapper_type,
+                result: *mut crate::c_api::buffer::Buffer,
+                serialized_size_limit: u64,
+            ) -> ::std::os::raw::c_int {
+                crate::c_api::utils::catch_panic(|| {
+                    crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+
+                    let mut buffer = vec![];
+
+                    let sself = crate::c_api::utils::get_ref_checked(sself).unwrap();
+
+                    crate::high_level_api::safe_serialize(&sself.0, &mut buffer, serialized_size_limit)
+                        .unwrap();
+
+                    *result = buffer.into();
+                })
+            }
+        }
+    };
+}
+
+macro_rules! impl_safe_deserialize_conformant_compact_integer {
+    ($wrapper_type:ty) => {
+        ::paste::paste! {
+            #[no_mangle]
+            pub unsafe extern "C" fn [<$wrapper_type:snake _safe_deserialize_conformant>](
+                buffer_view: crate::c_api::buffer::BufferView,
+                serialized_size_limit: u64,
+                server_key: *const crate::c_api::high_level_api::keys::ServerKey,
+                result: *mut *mut $wrapper_type,
+            ) -> ::std::os::raw::c_int {
+                crate::c_api::utils::catch_panic(|| {
+                    crate::c_api::utils::check_ptr_is_non_null_and_aligned(result).unwrap();
+
+                    let sk = crate::c_api::utils::get_ref_checked(server_key).unwrap();
+
+                    let buffer_view: &[u8] = buffer_view.into();
+
+                    // First fill the result with a null ptr so that if we fail and the return code is not
+                    // checked, then any access to the result pointer will segfault (mimics malloc on failure)
+                    *result = std::ptr::null_mut();
+
+                    let object: $wrapper_type = $wrapper_type(
+                        crate::high_level_api::safe_deserialize_conformant_compact_integer(
+                            buffer_view,
+                            serialized_size_limit,
+                            &sk.0,
+                        )
+                        .unwrap(),
+                    );
+
+                    let heap_allocated_object = Box::new(object);
+
+                    *result = Box::into_raw(heap_allocated_object);
+                })
+            }
+        }
+    };
+}
+
 macro_rules! impl_binary_fn_on_type {
     // More general binary fn case,
     // where the type of the left-hand side can be different

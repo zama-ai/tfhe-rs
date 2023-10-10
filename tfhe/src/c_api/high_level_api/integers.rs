@@ -239,6 +239,35 @@ macro_rules! create_integer_wrapper_type {
             }
         }
 
+
+        // The compact version of the ciphertext type
+        ::paste::paste! {
+            pub struct [<Compact $name>]($crate::high_level_api::[<Compact $name>]);
+
+            impl_destroy_on_type!([<Compact $name>]);
+
+            impl_clone_on_type!([<Compact $name>]);
+
+            impl_serialize_deserialize_on_type!([<Compact $name>]);
+
+            impl_safe_serialize_on_type!([<Compact $name>]);
+
+            impl_safe_deserialize_conformant_compact_integer!([<Compact $name>]);
+
+            #[no_mangle]
+            pub unsafe extern "C" fn [<compact_ $name:snake _expand>](
+                sself: *const [<Compact $name>],
+                output: *mut *mut $name,
+            ) -> ::std::os::raw::c_int {
+                $crate::c_api::utils::catch_panic(|| {
+                    check_ptr_is_non_null_and_aligned(output).unwrap();
+                    let list = $crate::c_api::utils::get_ref_checked(sself).unwrap();
+                    let expanded = list.0.expand();
+
+                    *output = Box::into_raw(Box::new($name(expanded)));
+                })
+            }
+        }
         // The compact list version of the ciphertext type
         ::paste::paste! {
             pub struct [<Compact $name List>]($crate::high_level_api::[<Compact $name List>]);
@@ -313,6 +342,7 @@ impl_try_encrypt_trivial_on_type!(FheUint8{crate::high_level_api::FheUint8}, u8)
 impl_try_encrypt_with_client_key_on_type!(FheUint8{crate::high_level_api::FheUint8}, u8);
 impl_try_encrypt_with_public_key_on_type!(FheUint8{crate::high_level_api::FheUint8}, u8);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint8{crate::high_level_api::FheUint8}, u8);
+impl_try_encrypt_with_compact_public_key_on_type!(CompactFheUint8{crate::high_level_api::CompactFheUint8}, u8);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint8{crate::high_level_api::CompressedFheUint8}, u8);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheUint8List{crate::high_level_api::CompactFheUint8List}, u8);
 
@@ -321,6 +351,7 @@ impl_try_encrypt_trivial_on_type!(FheUint10{crate::high_level_api::FheUint10}, u
 impl_try_encrypt_with_client_key_on_type!(FheUint10{crate::high_level_api::FheUint10}, u16);
 impl_try_encrypt_with_public_key_on_type!(FheUint10{crate::high_level_api::FheUint10}, u16);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint10{crate::high_level_api::FheUint10}, u16);
+impl_try_encrypt_with_compact_public_key_on_type!(CompactFheUint10{crate::high_level_api::CompactFheUint10}, u16);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint10{crate::high_level_api::CompressedFheUint10}, u16);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheUint10List{crate::high_level_api::CompactFheUint10List}, u16);
 
@@ -329,6 +360,7 @@ impl_try_encrypt_trivial_on_type!(FheUint12{crate::high_level_api::FheUint12}, u
 impl_try_encrypt_with_client_key_on_type!(FheUint12{crate::high_level_api::FheUint12}, u16);
 impl_try_encrypt_with_public_key_on_type!(FheUint12{crate::high_level_api::FheUint12}, u16);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint12{crate::high_level_api::FheUint12}, u16);
+impl_try_encrypt_with_compact_public_key_on_type!(CompactFheUint12{crate::high_level_api::CompactFheUint12}, u16);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint12{crate::high_level_api::CompressedFheUint12}, u16);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheUint12List{crate::high_level_api::CompactFheUint12List}, u16);
 
@@ -337,6 +369,7 @@ impl_try_encrypt_trivial_on_type!(FheUint14{crate::high_level_api::FheUint14}, u
 impl_try_encrypt_with_client_key_on_type!(FheUint14{crate::high_level_api::FheUint14}, u16);
 impl_try_encrypt_with_public_key_on_type!(FheUint14{crate::high_level_api::FheUint14}, u16);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint14{crate::high_level_api::FheUint14}, u16);
+impl_try_encrypt_with_compact_public_key_on_type!(CompactFheUint14{crate::high_level_api::CompactFheUint14}, u16);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint14{crate::high_level_api::CompressedFheUint14}, u16);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheUint14List{crate::high_level_api::CompactFheUint14List}, u16);
 
@@ -345,6 +378,7 @@ impl_try_encrypt_trivial_on_type!(FheUint16{crate::high_level_api::FheUint16}, u
 impl_try_encrypt_with_client_key_on_type!(FheUint16{crate::high_level_api::FheUint16}, u16);
 impl_try_encrypt_with_public_key_on_type!(FheUint16{crate::high_level_api::FheUint16}, u16);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint16{crate::high_level_api::FheUint16}, u16);
+impl_try_encrypt_with_compact_public_key_on_type!(CompactFheUint16{crate::high_level_api::CompactFheUint16}, u16);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint16{crate::high_level_api::CompressedFheUint16}, u16);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheUint16List{crate::high_level_api::CompactFheUint16List}, u16);
 
@@ -352,6 +386,7 @@ impl_decrypt_on_type!(FheUint32, u32);
 impl_try_encrypt_trivial_on_type!(FheUint32{crate::high_level_api::FheUint32}, u32);
 impl_try_encrypt_with_client_key_on_type!(FheUint32{crate::high_level_api::FheUint32}, u32);
 impl_try_encrypt_with_public_key_on_type!(FheUint32{crate::high_level_api::FheUint32}, u32);
+impl_try_encrypt_with_compact_public_key_on_type!(CompactFheUint32{crate::high_level_api::CompactFheUint32}, u32);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint32{crate::high_level_api::FheUint32}, u32);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint32{crate::high_level_api::CompressedFheUint32}, u32);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheUint32List{crate::high_level_api::CompactFheUint32List}, u32);
@@ -361,6 +396,7 @@ impl_try_encrypt_trivial_on_type!(FheUint64{crate::high_level_api::FheUint64}, u
 impl_try_encrypt_with_client_key_on_type!(FheUint64{crate::high_level_api::FheUint64}, u64);
 impl_try_encrypt_with_public_key_on_type!(FheUint64{crate::high_level_api::FheUint64}, u64);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint64{crate::high_level_api::FheUint64}, u64);
+impl_try_encrypt_with_compact_public_key_on_type!(CompactFheUint64{crate::high_level_api::CompactFheUint64}, u64);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint64{crate::high_level_api::CompressedFheUint64}, u64);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheUint64List{crate::high_level_api::CompactFheUint64List}, u64);
 
@@ -369,6 +405,7 @@ impl_try_encrypt_trivial_on_type!(FheUint128{crate::high_level_api::FheUint128},
 impl_try_encrypt_with_client_key_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
 impl_try_encrypt_with_public_key_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
+impl_try_encrypt_with_compact_public_key_on_type!(CompactFheUint128{crate::high_level_api::CompactFheUint128}, U128);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint128{crate::high_level_api::CompressedFheUint128}, U128);
 
 impl_decrypt_on_type!(FheUint256, U256);
@@ -376,6 +413,7 @@ impl_try_encrypt_trivial_on_type!(FheUint256{crate::high_level_api::FheUint256},
 impl_try_encrypt_with_client_key_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
 impl_try_encrypt_with_public_key_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
+impl_try_encrypt_with_compact_public_key_on_type!(CompactFheUint256{crate::high_level_api::CompactFheUint256}, U256);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint256{crate::high_level_api::CompressedFheUint256}, U256);
 
 create_integer_wrapper_type!(
