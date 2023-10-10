@@ -21,6 +21,8 @@ pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
 #[cfg(test)]
 mod tests;
 
+use super::parameters::CiphertextConformanceParams;
+use super::PBSOrder;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
@@ -34,8 +36,6 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, CiphertextModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
-
-use super::PBSOrder;
 
 /// Maximum value that the degree can reach.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -256,6 +256,28 @@ pub struct ServerKey {
     // Modulus use for computations on the ciphertext
     pub ciphertext_modulus: CiphertextModulus,
     pub pbs_order: PBSOrder,
+}
+
+impl ServerKey {
+    pub fn conformance_params(&self) -> CiphertextConformanceParams {
+        let lwe_dim = match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => self.key_switching_key.input_key_lwe_dimension(),
+            PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_dimension(),
+        };
+
+        let ct_params = LweCiphertextParameters {
+            lwe_dim,
+            ct_modulus: self.ciphertext_modulus,
+        };
+
+        CiphertextConformanceParams {
+            ct_params,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            degree: Degree(self.message_modulus.0 - 1),
+            pbs_order: self.pbs_order,
+        }
+    }
 }
 
 /// Returns whether it is possible to pack lhs and rhs into a unique
