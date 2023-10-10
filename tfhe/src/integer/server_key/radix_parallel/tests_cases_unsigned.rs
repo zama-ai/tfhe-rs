@@ -2345,6 +2345,51 @@ where
             }
         );
     }
+
+    // Some test with trivial ciphertext as input
+    let one = sks.create_trivial_radix(1, NB_CTXT);
+    let two = sks.create_trivial_radix(2, NB_CTXT);
+    {
+        // Condition is false
+        let condition: RadixCiphertext = sks.create_trivial_zero_radix(NB_CTXT);
+        assert!(condition.blocks.iter().all(|b| b.degree.0 == 0));
+
+        let result = executor.execute((&condition, &one, &two));
+        assert!(result.block_carries_are_empty());
+        assert_eq!(cks.decrypt::<u64>(&result), 2);
+
+        let result = executor.execute((&condition, &one, &one));
+        assert!(result.block_carries_are_empty());
+        assert_eq!(cks.decrypt::<u64>(&result), 1);
+
+        let result = executor.execute((&condition, &two, &one));
+        assert!(result.block_carries_are_empty());
+        assert_eq!(cks.decrypt::<u64>(&result), 1);
+
+        let result = executor.execute((&condition, &two, &two));
+        assert!(result.block_carries_are_empty());
+        assert_eq!(cks.decrypt::<u64>(&result), 2);
+    }
+    {
+        // Condition is true
+        let condition: RadixCiphertext = sks.create_trivial_radix(1, NB_CTXT);
+
+        let result = executor.execute((&condition, &one, &two));
+        assert!(result.block_carries_are_empty());
+        assert_eq!(cks.decrypt::<u64>(&result), 1);
+
+        let result = executor.execute((&condition, &one, &one));
+        assert!(result.block_carries_are_empty());
+        assert_eq!(cks.decrypt::<u64>(&result), 1);
+
+        let result = executor.execute((&condition, &two, &one));
+        assert!(result.block_carries_are_empty());
+        assert_eq!(cks.decrypt::<u64>(&result), 2);
+
+        let result = executor.execute((&condition, &two, &two));
+        assert!(result.block_carries_are_empty());
+        assert_eq!(cks.decrypt::<u64>(&result), 2);
+    }
 }
 
 //=============================================================================
