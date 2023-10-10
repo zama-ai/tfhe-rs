@@ -97,13 +97,21 @@ impl ServerKey {
         let decomposer =
             BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
 
-        ct.blocks()
-            .iter()
-            .zip(decomposer)
-            .all(|(ciphertext_block, scalar_block)| {
-                self.key
-                    .is_scalar_add_possible(ciphertext_block, scalar_block)
-            })
+        // Assumes message_modulus and carry_modulus matches between pairs of block
+        let mut preceding_block_carry = 0;
+        for (left_block, scalar_block_value) in ct.blocks().iter().zip(decomposer) {
+            let degree_after_add = left_block.degree.0 + scalar_block_value as usize;
+
+            // Also need to take into account preceding_carry
+            if (degree_after_add + preceding_block_carry)
+                >= (left_block.message_modulus.0 * left_block.carry_modulus.0)
+            {
+                // We would exceed the block 'capacity'
+                return false;
+            }
+            preceding_block_carry = degree_after_add / left_block.message_modulus.0;
+        }
+        true
     }
 
     /// Computes homomorphically an addition between a scalar and a ciphertext.
