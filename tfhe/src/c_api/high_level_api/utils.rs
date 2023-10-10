@@ -1,3 +1,48 @@
+/// The C Standard only define integers from u8 to u64.
+/// So to support u128 and u256 we had to create our own C friendly
+/// data types.
+///
+/// This trait exists to be able to easily write wrapper function
+/// by allowing to generically go from a C API scalar type to a rust one
+pub(in crate::c_api::high_level_api) trait CApiIntegerType:
+    From<Self::RustEquivalent>
+{
+    type RustEquivalent: From<Self>;
+
+    fn to_rust(self) -> Self::RustEquivalent {
+        Self::RustEquivalent::from(self)
+    }
+}
+
+macro_rules! impl_c_api_integer_type(
+    // For when the C Integer type is _not_ the same as the Rust Integer type
+    ($c_type:ty => $rust_type:ty) => {
+        impl CApiIntegerType for $c_type {
+            type RustEquivalent = $rust_type;
+        }
+    };
+    // For when the C Integer type is the same as Rust Integer type
+    ($type:ty) => {
+        impl CApiIntegerType for $type {
+            type RustEquivalent = $type;
+        }
+    };
+);
+
+impl_c_api_integer_type!(bool);
+impl_c_api_integer_type!(u8);
+impl_c_api_integer_type!(u16);
+impl_c_api_integer_type!(u32);
+impl_c_api_integer_type!(u64);
+impl_c_api_integer_type!(i8);
+impl_c_api_integer_type!(i16);
+impl_c_api_integer_type!(i32);
+impl_c_api_integer_type!(i64);
+impl_c_api_integer_type!(crate::c_api::high_level_api::u128::U128 => u128);
+impl_c_api_integer_type!(crate::c_api::high_level_api::i128::I128 => i128);
+impl_c_api_integer_type!(crate::c_api::high_level_api::u256::U256 => crate::integer::U256);
+impl_c_api_integer_type!(crate::c_api::high_level_api::i256::I256 => crate::integer::I256);
+
 macro_rules! impl_destroy_on_type {
     ($wrapper_type:ty) => {
         ::paste::paste! {
@@ -27,7 +72,7 @@ macro_rules! impl_try_encrypt_with_client_key_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
-                    let value = <$input_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(value);
+                    let value = <$input_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::to_rust(value);
                     let client_key = $crate::c_api::utils::get_ref_checked(client_key).unwrap();
 
                     let inner = <$wrapped_type>::try_encrypt(value, &client_key.0).unwrap();
@@ -49,7 +94,7 @@ macro_rules! impl_try_encrypt_with_public_key_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
-                    let value = <$input_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(value);
+                    let value = <$input_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::to_rust(value);
 
                     let public_key = $crate::c_api::utils::get_ref_checked(public_key).unwrap();
 
@@ -72,7 +117,7 @@ macro_rules! impl_try_encrypt_with_compact_public_key_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
-                    let value = <$input_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(value);
+                    let value = <$input_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::to_rust(value);
 
                     let public_key = $crate::c_api::utils::get_ref_checked(public_key).unwrap();
 
@@ -96,7 +141,6 @@ macro_rules! impl_try_encrypt_list_with_compact_public_key_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
-
                     let public_key = $crate::c_api::utils::get_ref_checked(public_key).unwrap();
                     let slc = ::std::slice::from_raw_parts(input, input_len);
                     let inner = <$wrapped_type>::try_encrypt(slc, &public_key.0).unwrap();
@@ -117,7 +161,7 @@ macro_rules! impl_try_encrypt_trivial_on_type {
                 result: *mut *mut $wrapper_type,
             ) -> ::std::os::raw::c_int {
                 $crate::c_api::utils::catch_panic(|| {
-                    let value = <$input_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(value);
+                    let value = <$input_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::to_rust(value);
 
                     let inner = <$wrapped_type>::try_encrypt_trivial(value).unwrap();
 
@@ -140,7 +184,11 @@ macro_rules! impl_decrypt_on_type {
                     let client_key = $crate::c_api::utils::get_ref_checked(client_key).unwrap();
                     let encrypted_value = $crate::c_api::utils::get_ref_checked(encrypted_value).unwrap();
 
-                    *result = encrypted_value.0.decrypt(&client_key.0);
+                    type RustScalarType_ = <$output_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::RustEquivalent;
+
+                    let rust_clear: RustScalarType_ = encrypted_value.0.decrypt(&client_key.0);
+
+                    *result = <$output_type>::from(rust_clear);
                 })
             }
         }
@@ -322,74 +370,6 @@ macro_rules! impl_binary_assign_fn_on_type {
     };
 }
 
-/// The C Standard only define integers from u8 to u64.
-/// So to support u128 and u256 we had to create our own C friendly
-/// data types.
-///
-/// This trait exists to be able to easily write wrapper function
-/// by allowing to generically go from a C API scalar type to a rust one
-pub(in crate::c_api::high_level_api) trait ToRustScalarType {
-    type RustScalarType;
-
-    fn to_rust_scalar_type(self) -> Self::RustScalarType;
-}
-
-/// Implements the trait for when the C API type is the same
-/// as the Rust API type (eg u64)
-macro_rules! impl_to_rust_scalar_type(
-    ($type:ty) => {
-        impl ToRustScalarType for $type {
-            type RustScalarType = $type;
-
-            fn to_rust_scalar_type(self) -> Self::RustScalarType {
-                self
-            }
-        }
-    }
-);
-
-impl_to_rust_scalar_type!(bool);
-impl_to_rust_scalar_type!(u8);
-impl_to_rust_scalar_type!(u16);
-impl_to_rust_scalar_type!(u32);
-impl_to_rust_scalar_type!(u64);
-impl_to_rust_scalar_type!(i8);
-impl_to_rust_scalar_type!(i16);
-impl_to_rust_scalar_type!(i32);
-impl_to_rust_scalar_type!(i64);
-
-impl ToRustScalarType for crate::c_api::high_level_api::u128::U128 {
-    type RustScalarType = u128;
-
-    fn to_rust_scalar_type(self) -> Self::RustScalarType {
-        u128::from(self)
-    }
-}
-
-impl ToRustScalarType for crate::c_api::high_level_api::i128::I128 {
-    type RustScalarType = i128;
-
-    fn to_rust_scalar_type(self) -> Self::RustScalarType {
-        i128::from(self)
-    }
-}
-
-impl ToRustScalarType for crate::c_api::high_level_api::u256::U256 {
-    type RustScalarType = crate::integer::U256;
-
-    fn to_rust_scalar_type(self) -> Self::RustScalarType {
-        crate::integer::U256::from(self)
-    }
-}
-
-impl ToRustScalarType for crate::c_api::high_level_api::i256::I256 {
-    type RustScalarType = crate::integer::I256;
-
-    fn to_rust_scalar_type(self) -> Self::RustScalarType {
-        crate::integer::I256::from(self)
-    }
-}
-
 #[cfg(feature = "integer")]
 macro_rules! impl_scalar_binary_fn_on_type {
     ($wrapper_type:ty, $scalar_type:ty => $($binary_fn_name:ident),* $(,)?) => {
@@ -403,7 +383,7 @@ macro_rules! impl_scalar_binary_fn_on_type {
                 ) -> c_int {
                     $crate::c_api::utils::catch_panic(|| {
                         let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
-                        let rhs = <$scalar_type as $crate::c_api::high_level_api::utils::ToRustScalarType>::to_rust_scalar_type(rhs);
+                        let rhs = <$scalar_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::to_rust(rhs);
 
                         let inner = (&lhs.0).$binary_fn_name(rhs);
 
@@ -427,8 +407,8 @@ macro_rules! impl_scalar_binary_assign_fn_on_type {
                 ) -> c_int {
                     $crate::c_api::utils::catch_panic(|| {
                         let lhs = $crate::c_api::utils::get_mut_checked(lhs).unwrap();
-                        let rhs = <$scalar_type as $crate::c_api::high_level_api::utils::ToRustScalarType
-                            >::to_rust_scalar_type(rhs);
+                        let rhs = <$scalar_type as $crate::c_api::high_level_api::utils::CApiIntegerType
+                            >::to_rust(rhs);
 
                         lhs.0.$binary_assign_fn_name(rhs);
                     })
