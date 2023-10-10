@@ -1,16 +1,8 @@
 use dyn_stack::{GlobalPodBuffer, ReborrowMut};
 
 use super::*;
-use crate::core_crypto::commons::test_tools::new_random_generator;
+use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
 use aligned_vec::avec;
-
-fn abs_diff<Scalar: UnsignedTorus>(a: Scalar, b: Scalar) -> Scalar {
-    if a > b {
-        a - b
-    } else {
-        b - a
-    }
-}
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
@@ -55,7 +47,7 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
             if Scalar::BITS <= 64 {
                 assert_eq!(*expected, *actual);
             } else {
-                let abs_diff = abs_diff(*expected, *actual);
+                let abs_diff = modular_distance(*expected, *actual);
                 let threshold = Scalar::ONE << (128 - 100);
                 assert!(
                     abs_diff < threshold,
@@ -176,7 +168,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             ) {
                 let threshold = Scalar::ONE
                     << (Scalar::BITS.saturating_sub(100 - integer_magnitude - size_log));
-                let abs_diff = abs_diff(*expected, *actual);
+                let abs_diff = modular_distance(*expected, *actual);
                 assert!(
                     abs_diff <= threshold,
                     "abs_diff: {abs_diff}, threshold: {threshold}",
