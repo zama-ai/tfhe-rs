@@ -2,17 +2,9 @@ use dyn_stack::{GlobalPodBuffer, ReborrowMut};
 
 use super::super::polynomial::FourierPolynomial;
 use super::*;
-use crate::core_crypto::commons::test_tools::new_random_generator;
+use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
 use crate::core_crypto::entities::Polynomial;
 use aligned_vec::avec;
-
-fn abs_diff<Scalar: UnsignedTorus>(a: Scalar, b: Scalar) -> Scalar {
-    if a > b {
-        a - b
-    } else {
-        b - a
-    }
-}
 
 fn test_roundtrip<Scalar: UnsignedTorus>() {
     let mut generator = new_random_generator();
@@ -47,9 +39,9 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
-                assert!(abs_diff(*expected, *actual) == Scalar::ZERO);
+                assert!(modular_distance(*expected, *actual) == Scalar::ZERO);
             } else {
-                assert!(abs_diff(*expected, *actual) < (Scalar::ONE << (64 - 50)));
+                assert!(modular_distance(*expected, *actual) < (Scalar::ONE << (64 - 50)));
             }
         }
 
@@ -61,9 +53,9 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
-                assert!(abs_diff(*expected, *actual) == Scalar::ZERO);
+                assert!(modular_distance(*expected, *actual) == Scalar::ZERO);
             } else {
-                assert!(abs_diff(*expected, *actual) < (Scalar::ONE << (64 - 50)));
+                assert!(modular_distance(*expected, *actual) < (Scalar::ONE << (64 - 50)));
             }
         }
 
@@ -79,9 +71,9 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
 
         for (expected, actual) in izip!(poly.as_ref().iter(), roundtrip.as_ref().iter()) {
             if Scalar::BITS == 32 {
-                assert!(abs_diff(*expected, *actual) == Scalar::ZERO);
+                assert!(modular_distance(*expected, *actual) == Scalar::ZERO);
             } else {
-                assert!(abs_diff(*expected, *actual) < (Scalar::ONE << (64 - 50)));
+                assert!(modular_distance(*expected, *actual) < (Scalar::ONE << (64 - 50)));
             }
         }
     }
@@ -173,7 +165,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             ) {
                 let threshold =
                     Scalar::ONE << (Scalar::BITS.saturating_sub(52 - integer_magnitude - size_log));
-                let abs_diff = abs_diff(*expected, *actual);
+                let abs_diff = modular_distance(*expected, *actual);
                 assert!(
                     abs_diff <= threshold,
                     "abs_diff: {abs_diff}, threshold: {threshold}",
@@ -195,7 +187,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             ) {
                 let threshold =
                     Scalar::ONE << (Scalar::BITS.saturating_sub(52 - integer_magnitude - size_log));
-                let abs_diff = abs_diff(*expected, *actual);
+                let abs_diff = modular_distance(*expected, *actual);
                 assert!(
                     abs_diff <= threshold,
                     "abs_diff: {abs_diff}, threshold: {threshold}",
@@ -219,7 +211,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             ) {
                 let threshold =
                     Scalar::ONE << (Scalar::BITS.saturating_sub(52 - integer_magnitude - size_log));
-                let abs_diff = abs_diff(*expected, *actual);
+                let abs_diff = modular_distance(*expected, *actual);
                 assert!(
                     abs_diff <= threshold,
                     "abs_diff: {abs_diff}, threshold: {threshold}",
