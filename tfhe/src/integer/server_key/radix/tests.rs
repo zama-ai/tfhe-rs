@@ -60,6 +60,13 @@ create_parametrized_test!(integer_unchecked_scalar_sub);
 create_parametrized_test!(integer_unchecked_scalar_add);
 
 create_parametrized_test!(integer_unchecked_scalar_decomposition_overflow);
+create_parametrized_test!(integer_full_propagate {
+    PARAM_MESSAGE_1_CARRY_1_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS
+});
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param);
@@ -1120,4 +1127,12 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub);
     default_overflowing_sub_test(param, executor);
+}
+
+fn integer_full_propagate<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate);
+    full_propagate_test(param, executor);
 }
