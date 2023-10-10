@@ -224,7 +224,12 @@ impl ServerKey {
         assert!(condition_block.degree.0 < condition_block.message_modulus.0);
 
         if condition_block.degree.0 == 0 {
-            return self.create_trivial_zero_assign_radix(ct);
+            // The block 'encrypts'  0, and only 0
+            if predicate(0u64) {
+                self.create_trivial_zero_assign_radix(ct);
+            }
+            // else, condition is false, don't do anything
+            return;
         }
 
         let lut =
