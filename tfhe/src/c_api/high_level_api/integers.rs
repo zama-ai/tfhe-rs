@@ -1,4 +1,4 @@
-use crate::c_api::high_level_api::keys::{ClientKey, CompactPublicKey};
+use crate::c_api::high_level_api::keys::CompactPublicKey;
 use crate::high_level_api::prelude::*;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -134,8 +134,8 @@ macro_rules! impl_operations_for_integer_type {
             ) -> c_int {
                 $crate::c_api::utils::catch_panic(|| {
                     let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
-                    let rhs = <$clear_scalar_type as $crate::c_api::high_level_api::utils::ToRustScalarType
-                        >::to_rust_scalar_type(rhs);
+                    let rhs = <$clear_scalar_type as $crate::c_api::high_level_api::utils::CApiIntegerType
+                        >::to_rust(rhs);
 
                     let (q, r) = (&lhs.0).div_rem(rhs);
 
@@ -364,12 +364,14 @@ impl_try_encrypt_with_compact_public_key_on_type!(FheUint64{crate::high_level_ap
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint64{crate::high_level_api::CompressedFheUint64}, u64);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheUint64List{crate::high_level_api::CompactFheUint64List}, u64);
 
+impl_decrypt_on_type!(FheUint128, U128);
 impl_try_encrypt_trivial_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
 impl_try_encrypt_with_client_key_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
 impl_try_encrypt_with_public_key_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
 impl_try_encrypt_with_compact_public_key_on_type!(FheUint128{crate::high_level_api::FheUint128}, U128);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheUint128{crate::high_level_api::CompressedFheUint128}, U128);
 
+impl_decrypt_on_type!(FheUint256, U256);
 impl_try_encrypt_trivial_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
 impl_try_encrypt_with_client_key_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
 impl_try_encrypt_with_public_key_on_type!(FheUint256{crate::high_level_api::FheUint256}, U256);
@@ -445,12 +447,14 @@ impl_try_encrypt_with_compact_public_key_on_type!(FheInt64{crate::high_level_api
 impl_try_encrypt_with_client_key_on_type!(CompressedFheInt64{crate::high_level_api::CompressedFheInt64}, i64);
 impl_try_encrypt_list_with_compact_public_key_on_type!(CompactFheInt64List{crate::high_level_api::CompactFheInt64List}, i64);
 
+impl_decrypt_on_type!(FheInt128, I128);
 impl_try_encrypt_trivial_on_type!(FheInt128{crate::high_level_api::FheInt128}, I128);
 impl_try_encrypt_with_client_key_on_type!(FheInt128{crate::high_level_api::FheInt128}, I128);
 impl_try_encrypt_with_public_key_on_type!(FheInt128{crate::high_level_api::FheInt128}, I128);
 impl_try_encrypt_with_compact_public_key_on_type!(FheInt128{crate::high_level_api::FheInt128}, I128);
 impl_try_encrypt_with_client_key_on_type!(CompressedFheInt128{crate::high_level_api::CompressedFheInt128}, I128);
 
+impl_decrypt_on_type!(FheInt256, I256);
 impl_try_encrypt_trivial_on_type!(FheInt256{crate::high_level_api::FheInt256}, I256);
 impl_try_encrypt_with_client_key_on_type!(FheInt256{crate::high_level_api::FheInt256}, I256);
 impl_try_encrypt_with_public_key_on_type!(FheInt256{crate::high_level_api::FheInt256}, I256);
@@ -474,22 +478,6 @@ pub unsafe extern "C" fn compact_fhe_uint256_list_try_encrypt_with_compact_publi
                 .unwrap();
 
         *result = Box::into_raw(Box::new(CompactFheUint256List(inner)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn fhe_uint128_decrypt(
-    encrypted_value: *const FheUint128,
-    client_key: *const ClientKey,
-    result: *mut U128,
-) -> c_int {
-    catch_panic(|| {
-        let client_key = get_ref_checked(client_key).unwrap();
-        let encrypted_value = get_ref_checked(encrypted_value).unwrap();
-
-        let inner: u128 = encrypted_value.0.decrypt(&client_key.0);
-
-        *result = U128::from(inner);
     })
 }
 
@@ -518,21 +506,6 @@ pub unsafe extern "C" fn compact_fhe_uint256_list_try_encrypt_with_compact_publi
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn fhe_uint256_decrypt(
-    encrypted_value: *const FheUint256,
-    client_key: *const ClientKey,
-    result: *mut U256,
-) -> c_int {
-    catch_panic(|| {
-        let client_key = get_ref_checked(client_key).unwrap();
-        let encrypted_value = get_ref_checked(encrypted_value).unwrap();
-
-        let inner: crate::integer::U256 = encrypted_value.0.decrypt(&client_key.0);
-        *result = U256::from(inner);
-    })
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn compact_fhe_int128_list_try_encrypt_with_compact_public_key_i128(
     input: *const I128,
     input_len: usize,
@@ -549,21 +522,6 @@ pub unsafe extern "C" fn compact_fhe_int128_list_try_encrypt_with_compact_public
                 .unwrap();
 
         *result = Box::into_raw(Box::new(CompactFheInt128List(inner)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn fhe_int128_decrypt(
-    encrypted_value: *const FheInt128,
-    client_key: *const ClientKey,
-    result: *mut I128,
-) -> c_int {
-    catch_panic(|| {
-        let client_key = get_ref_checked(client_key).unwrap();
-        let encrypted_value = get_ref_checked(encrypted_value).unwrap();
-
-        let inner: i128 = encrypted_value.0.decrypt(&client_key.0);
-        *result = I128::from(inner);
     })
 }
 
@@ -588,21 +546,6 @@ pub unsafe extern "C" fn compact_fhe_int256_list_try_encrypt_with_compact_public
                 .unwrap();
 
         *result = Box::into_raw(Box::new(CompactFheInt256List(inner)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn fhe_int256_decrypt(
-    encrypted_value: *const FheInt256,
-    client_key: *const ClientKey,
-    result: *mut I256,
-) -> c_int {
-    catch_panic(|| {
-        let client_key = get_ref_checked(client_key).unwrap();
-        let encrypted_value = get_ref_checked(encrypted_value).unwrap();
-
-        let inner: crate::integer::I256 = encrypted_value.0.decrypt(&client_key.0);
-        *result = I256::from(inner);
     })
 }
 
