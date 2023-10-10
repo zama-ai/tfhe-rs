@@ -501,11 +501,17 @@ impl ShortintParameterSet {
         }
     }
 
-    pub const fn encryption_key_choice(&self) -> EncryptionKeyChoice {
+    pub fn encryption_key_choice(&self) -> EncryptionKeyChoice {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.encryption_key_choice(),
             ShortintParameterSetInner::WopbsOnly(params) => params.encryption_key_choice,
-            ShortintParameterSetInner::PBSAndWopbs(params, _) => params.encryption_key_choice(),
+            ShortintParameterSetInner::PBSAndWopbs(pbs_params, wop_pbs_params) => {
+                assert_eq!(
+                    pbs_params.encryption_key_choice(),
+                    wop_pbs_params.encryption_key_choice
+                );
+                pbs_params.encryption_key_choice()
+            }
         }
     }
 
