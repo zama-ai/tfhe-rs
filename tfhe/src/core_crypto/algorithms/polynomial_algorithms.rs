@@ -105,6 +105,45 @@ pub fn polynomial_wrapping_add_multisum_assign<Scalar, OutputCont, InputCont1, I
     }
 }
 
+fn polynomial_wrapping_add_mul_assign_schoolbook<Scalar, OutputCont, InputCont1, InputCont2>(
+    output: &mut Polynomial<OutputCont>,
+    lhs: &Polynomial<InputCont1>,
+    rhs: &Polynomial<InputCont2>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont1: Container<Element = Scalar>,
+    InputCont2: Container<Element = Scalar>,
+{
+    fn implementation<Scalar: UnsignedInteger>(
+        mut output: Polynomial<&mut [Scalar]>,
+        lhs: Polynomial<&[Scalar]>,
+        rhs: Polynomial<&[Scalar]>,
+    ) {
+        let polynomial_size = output.polynomial_size();
+        let degree = output.degree();
+
+        for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
+            for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
+                let target_degree = lhs_degree + rhs_degree;
+                if target_degree <= degree {
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient =
+                        (*output_coefficient).wrapping_add(lhs_coeff.wrapping_mul(rhs_coeff));
+                } else {
+                    let target_degree = target_degree % polynomial_size.0;
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient =
+                        (*output_coefficient).wrapping_sub(lhs_coeff.wrapping_mul(rhs_coeff));
+                }
+            }
+        }
+    }
+    implementation(output.as_mut_view(), lhs.as_view(), rhs.as_view());
+}
+
 /// Add the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
 /// output polynomial.
 ///
@@ -155,24 +194,7 @@ pub fn polynomial_wrapping_add_mul_assign<Scalar, OutputCont, InputCont1, InputC
         polynomial_karatsuba_wrapping_mul(&mut tmp, lhs, rhs);
         polynomial_wrapping_add_assign(output, &tmp);
     } else {
-        let degree = output.degree();
-        for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
-            for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
-                let target_degree = lhs_degree + rhs_degree;
-                if target_degree <= degree {
-                    let output_coefficient = &mut output.as_mut()[target_degree];
-
-                    *output_coefficient =
-                        (*output_coefficient).wrapping_add(lhs_coeff.wrapping_mul(rhs_coeff));
-                } else {
-                    let target_degree = target_degree % polynomial_size.0;
-                    let output_coefficient = &mut output.as_mut()[target_degree];
-
-                    *output_coefficient =
-                        (*output_coefficient).wrapping_sub(lhs_coeff.wrapping_mul(rhs_coeff));
-                }
-            }
-        }
+        polynomial_wrapping_add_mul_assign_schoolbook(output, lhs, rhs);
     }
 }
 
@@ -509,6 +531,45 @@ pub fn polynomial_wrapping_sub_multisum_assign<Scalar, OutputCont, InputCont1, I
     }
 }
 
+fn polynomial_wrapping_sub_mul_assign_schoolbook<Scalar, OutputCont, InputCont1, InputCont2>(
+    output: &mut Polynomial<OutputCont>,
+    lhs: &Polynomial<InputCont1>,
+    rhs: &Polynomial<InputCont2>,
+) where
+    Scalar: UnsignedInteger,
+    OutputCont: ContainerMut<Element = Scalar>,
+    InputCont1: Container<Element = Scalar>,
+    InputCont2: Container<Element = Scalar>,
+{
+    fn implementation<Scalar: UnsignedInteger>(
+        mut output: Polynomial<&mut [Scalar]>,
+        lhs: Polynomial<&[Scalar]>,
+        rhs: Polynomial<&[Scalar]>,
+    ) {
+        let polynomial_size = output.polynomial_size();
+        let degree = output.degree();
+
+        for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
+            for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
+                let target_degree = lhs_degree + rhs_degree;
+                if target_degree <= degree {
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient =
+                        (*output_coefficient).wrapping_sub(lhs_coeff.wrapping_mul(rhs_coeff));
+                } else {
+                    let target_degree = target_degree % polynomial_size.0;
+                    let output_coefficient = &mut output.as_mut()[target_degree];
+
+                    *output_coefficient =
+                        (*output_coefficient).wrapping_add(lhs_coeff.wrapping_mul(rhs_coeff));
+                }
+            }
+        }
+    }
+    implementation(output.as_mut_view(), lhs.as_view(), rhs.as_view());
+}
+
 /// Subtract the result of the product between two polynomials, reduced modulo $(X^{N}+1)$, to the
 /// output polynomial.
 ///
@@ -559,24 +620,7 @@ pub fn polynomial_wrapping_sub_mul_assign<Scalar, OutputCont, InputCont1, InputC
         polynomial_karatsuba_wrapping_mul(&mut tmp, lhs, rhs);
         polynomial_wrapping_sub_assign(output, &tmp);
     } else {
-        let degree = output.degree();
-        for (lhs_degree, &lhs_coeff) in lhs.iter().enumerate() {
-            for (rhs_degree, &rhs_coeff) in rhs.iter().enumerate() {
-                let target_degree = lhs_degree + rhs_degree;
-                if target_degree <= degree {
-                    let output_coefficient = &mut output.as_mut()[target_degree];
-
-                    *output_coefficient =
-                        (*output_coefficient).wrapping_sub(lhs_coeff.wrapping_mul(rhs_coeff));
-                } else {
-                    let target_degree = target_degree % polynomial_size.0;
-                    let output_coefficient = &mut output.as_mut()[target_degree];
-
-                    *output_coefficient =
-                        (*output_coefficient).wrapping_add(lhs_coeff.wrapping_mul(rhs_coeff));
-                }
-            }
-        }
+        polynomial_wrapping_sub_mul_assign_schoolbook(output, lhs, rhs);
     }
 }
 
@@ -797,7 +841,7 @@ mod test {
     /// for random polynomial multiplication
     fn test_multiply_karatsuba<T: UnsignedTorus>() {
         // 50 times the test
-        for _i in 0..50 {
+        for _ in 0..50 {
             // random source
             let mut rng = rand::thread_rng();
 
@@ -820,13 +864,79 @@ mod test {
             let mut ka_mul = Polynomial::new(T::ZERO, polynomial_size);
 
             // compute the schoolbook
-            polynomial_wrapping_mul(&mut sb_mul, &poly_1, &poly_2);
+            polynomial_wrapping_add_mul_assign_schoolbook(&mut sb_mul, &poly_1, &poly_2);
 
             // compute the karatsuba
             polynomial_karatsuba_wrapping_mul(&mut ka_mul, &poly_1, &poly_2);
 
             // test
             assert_eq!(&sb_mul, &ka_mul);
+        }
+    }
+
+    /// test if we have the same result when using schoolbook or ntt/karatsuba
+    /// for random polynomial multiplication
+    fn test_add_mul<T: UnsignedTorus>() {
+        for polynomial_log in 4..=12 {
+            for _ in 0..10 {
+                let polynomial_size = PolynomialSize(1 << polynomial_log);
+                let mut generator = new_random_generator();
+
+                // generate two random Torus polynomials
+                let mut poly_1 = Polynomial::new(T::ZERO, polynomial_size);
+                generator.fill_slice_with_random_uniform::<T>(poly_1.as_mut());
+                let poly_1 = poly_1;
+
+                let mut poly_2 = Polynomial::new(T::ZERO, polynomial_size);
+                generator.fill_slice_with_random_uniform::<T>(poly_2.as_mut());
+                let poly_2 = poly_2;
+
+                // copy this polynomial
+                let mut sb_mul = Polynomial::new(T::ZERO, polynomial_size);
+                let mut ka_mul = Polynomial::new(T::ZERO, polynomial_size);
+
+                // compute the schoolbook
+                polynomial_wrapping_add_mul_assign_schoolbook(&mut sb_mul, &poly_1, &poly_2);
+
+                // compute the ntt/karatsuba
+                polynomial_wrapping_add_mul_assign(&mut ka_mul, &poly_1, &poly_2);
+
+                // test
+                assert_eq!(&sb_mul, &ka_mul);
+            }
+        }
+    }
+
+    /// test if we have the same result when using schoolbook or ntt/karatsuba
+    /// for random polynomial multiplication
+    fn test_sub_mul<T: UnsignedTorus>() {
+        for polynomial_log in 4..=12 {
+            for _ in 0..10 {
+                let polynomial_size = PolynomialSize(1 << polynomial_log);
+                let mut generator = new_random_generator();
+
+                // generate two random Torus polynomials
+                let mut poly_1 = Polynomial::new(T::ZERO, polynomial_size);
+                generator.fill_slice_with_random_uniform::<T>(poly_1.as_mut());
+                let poly_1 = poly_1;
+
+                let mut poly_2 = Polynomial::new(T::ZERO, polynomial_size);
+                generator.fill_slice_with_random_uniform::<T>(poly_2.as_mut());
+                let poly_2 = poly_2;
+
+                // copy this polynomial
+                let mut sb_mul = Polynomial::new(T::ZERO, polynomial_size);
+                let mut ka_mul = Polynomial::new(T::ZERO, polynomial_size);
+
+                // compute the schoolbook
+                polynomial_wrapping_sub_mul_assign_schoolbook(&mut sb_mul, &poly_1, &poly_2);
+
+                // compute the ntt/karatsuba
+                polynomial_wrapping_sub_mul_assign(&mut ka_mul, &poly_1, &poly_2);
+
+                // test
+                assert_eq!(&sb_mul, &ka_mul);
+            }
         }
     }
 
@@ -848,5 +958,25 @@ mod test {
     #[test]
     pub fn test_multiply_karatsuba_u64() {
         test_multiply_karatsuba::<u64>()
+    }
+
+    #[test]
+    pub fn test_add_mul_u32() {
+        test_add_mul::<u32>()
+    }
+
+    #[test]
+    pub fn test_add_mul_u64() {
+        test_add_mul::<u64>()
+    }
+
+    #[test]
+    pub fn test_sub_mul_u32() {
+        test_sub_mul::<u32>()
+    }
+
+    #[test]
+    pub fn test_sub_mul_u64() {
+        test_sub_mul::<u64>()
     }
 }
