@@ -28,7 +28,12 @@ impl ServerKey {
     /// ```
     pub fn unchecked_crt_mul_assign(&self, ct_left: &mut CrtCiphertext, ct_right: &CrtCiphertext) {
         for (ct_left, ct_right) in ct_left.blocks.iter_mut().zip(ct_right.blocks.iter()) {
-            self.key.unchecked_mul_lsb_assign(ct_left, ct_right);
+            if ct_left.message_modulus.0 <= ct_left.carry_modulus.0 {
+                self.key.unchecked_mul_lsb_assign(ct_left, ct_right);
+            } else {
+                self.key
+                    .unchecked_mul_lsb_small_carry_assign(ct_left, ct_right);
+            }
         }
     }
 

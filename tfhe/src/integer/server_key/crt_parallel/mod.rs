@@ -5,6 +5,8 @@ mod scalar_add_crt;
 mod scalar_mul_crt;
 mod scalar_sub_crt;
 mod sub_crt;
+#[cfg(test)]
+mod tests;
 
 use crate::integer::ciphertext::CrtCiphertext;
 use crate::integer::ServerKey;
@@ -87,7 +89,7 @@ impl ServerKey {
 
         ct1.blocks
             .par_iter_mut()
-            .zip(&lookup_tables)
+            .zip(lookup_tables.par_iter())
             .for_each(|(block, acc)| {
                 self.key.apply_lookup_table_assign(block, acc);
             });

@@ -38,9 +38,14 @@ impl ServerKey {
         ct_left
             .blocks
             .par_iter_mut()
-            .zip(&ct_right.blocks)
+            .zip(ct_right.blocks.par_iter())
             .for_each(|(ct_left, ct_right)| {
-                self.key.unchecked_mul_lsb_assign(ct_left, ct_right);
+                if ct_left.message_modulus.0 <= ct_left.carry_modulus.0 {
+                    self.key.unchecked_mul_lsb_assign(ct_left, ct_right);
+                } else {
+                    self.key
+                        .unchecked_mul_lsb_small_carry_assign(ct_left, ct_right);
+                }
             });
     }
 
@@ -91,7 +96,7 @@ impl ServerKey {
         ct_left
             .blocks
             .par_iter_mut()
-            .zip(&mut ct_right.blocks)
+            .zip(ct_right.blocks.par_iter_mut())
             .for_each(|(block_left, block_right)| {
                 self.key.smart_mul_lsb_assign(block_left, block_right);
             });
