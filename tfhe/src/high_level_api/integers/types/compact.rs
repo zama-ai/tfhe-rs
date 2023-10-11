@@ -169,7 +169,7 @@ mod test {
         );
 
         let breaker_lists = vec![
-            change_parameters(&|ct: &mut Ct| &mut ct.list.num_blocks),
+            change_parameters(&|ct: &mut Ct| &mut ct.list.num_blocks_per_integer),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.message_modulus.0),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.carry_modulus.0),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.degree.0),
@@ -247,7 +247,7 @@ mod test {
         assert!(ct.is_conformant(&params));
 
         let breaker_lists = vec![
-            change_parameters(&|ct: &mut Ct| &mut ct.list.num_blocks),
+            change_parameters(&|ct: &mut Ct| &mut ct.list.num_blocks_per_integer),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.message_modulus.0),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.carry_modulus.0),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.degree.0),

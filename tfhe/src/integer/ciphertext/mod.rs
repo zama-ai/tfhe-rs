@@ -42,14 +42,14 @@ pub struct CompactCiphertextList {
     // Keep track of the num_blocks, as we allow
     // storing many integer that have the same num_blocks
     // into ct_list
-    pub(crate) num_blocks: usize,
+    pub(crate) num_blocks_per_integer: usize,
 }
 
 impl ParameterSetConformant for CompactCiphertextList {
     type ParameterSet = RadixCompactCiphertextListConformanceParams;
 
     fn is_conformant(&self, params: &RadixCompactCiphertextListConformanceParams) -> bool {
-        self.num_blocks == params.num_blocks_per_integer
+        self.num_blocks_per_integer == params.num_blocks_per_integer
             && self
                 .ct_list
                 .is_conformant(&params.to_shortint_ct_list_conformance_parameters())
@@ -59,12 +59,12 @@ impl ParameterSetConformant for CompactCiphertextList {
 impl CompactCiphertextList {
     pub fn expand_one<T: IntegerRadixCiphertext>(&self) -> T {
         let mut blocks = self.ct_list.expand();
-        blocks.truncate(self.num_blocks);
+        blocks.truncate(self.num_blocks_per_integer);
         T::from(blocks)
     }
 
     pub fn ciphertext_count(&self) -> usize {
-        self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks
+        self.ct_list.ct_list.lwe_ciphertext_count().0 / self.num_blocks_per_integer
     }
 
     pub fn expand<T: IntegerRadixCiphertext>(&self) -> Vec<T> {
@@ -75,9 +75,9 @@ impl CompactCiphertextList {
         for _ in 0..num_ct {
             let ct_blocks = all_block_iter
                 .by_ref()
-                .take(self.num_blocks)
+                .take(self.num_blocks_per_integer)
                 .collect::<Vec<_>>();
-            if ct_blocks.len() < self.num_blocks {
+            if ct_blocks.len() < self.num_blocks_per_integer {
                 break;
             }
             let ct = T::from(ct_blocks);

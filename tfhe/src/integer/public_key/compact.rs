@@ -53,18 +53,18 @@ impl CompactPublicKey {
     pub fn encrypt_radix_compact<T: DecomposableInto<u64>>(
         &self,
         message: T,
-        num_blocks: usize,
+        num_blocks_per_integer: usize,
     ) -> CompactCiphertextList {
         let clear_block_iter = create_clear_radix_block_iterator(
             message,
             self.key.parameters.message_modulus(),
-            num_blocks,
+            num_blocks_per_integer,
         );
 
         let ct_list = self.key.encrypt_iter(clear_block_iter);
         CompactCiphertextList {
             ct_list,
-            num_blocks,
+            num_blocks_per_integer,
         }
     }
 
@@ -79,7 +79,7 @@ impl CompactPublicKey {
     pub fn encrypt_iter_radix_compact<T: DecomposableInto<u64>>(
         &self,
         mut message_iter: impl Iterator<Item = T>,
-        num_blocks: usize,
+        num_blocks_per_integer: usize,
     ) -> CompactCiphertextList {
         let mut iterator_chain;
         match (message_iter.next(), message_iter.next()) {
@@ -87,18 +87,18 @@ impl CompactPublicKey {
             (None, Some(_)) => unreachable!(),
             (Some(first_message), None) => {
                 // Cannot form a chain
-                return self.encrypt_radix_compact(first_message, num_blocks);
+                return self.encrypt_radix_compact(first_message, num_blocks_per_integer);
             }
             (Some(first_message), Some(second_message)) => {
                 let first_iter = create_clear_radix_block_iterator(
                     first_message,
                     self.key.parameters.message_modulus(),
-                    num_blocks,
+                    num_blocks_per_integer,
                 );
                 let second_iter = create_clear_radix_block_iterator(
                     second_message,
                     self.key.parameters.message_modulus(),
-                    num_blocks,
+                    num_blocks_per_integer,
                 );
 
                 iterator_chain =
@@ -110,7 +110,7 @@ impl CompactPublicKey {
             let other_iter = create_clear_radix_block_iterator(
                 message,
                 self.key.parameters.message_modulus(),
-                num_blocks,
+                num_blocks_per_integer,
             );
 
             iterator_chain = Box::new(iterator_chain.chain(other_iter));
@@ -119,7 +119,7 @@ impl CompactPublicKey {
         let ct_list = self.key.encrypt_iter(iterator_chain);
         CompactCiphertextList {
             ct_list,
-            num_blocks,
+            num_blocks_per_integer,
         }
     }
 
