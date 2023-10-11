@@ -39,7 +39,7 @@ impl ServerKey {
         ct_left
             .blocks
             .par_iter_mut()
-            .zip(&ct_right.blocks)
+            .zip(ct_right.blocks.par_iter())
             .for_each(|(ct_left, ct_right)| {
                 self.key.unchecked_add_assign(ct_left, ct_right);
             });
