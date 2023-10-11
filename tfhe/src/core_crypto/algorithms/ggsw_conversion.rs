@@ -3,14 +3,14 @@
 //! like the Fourier domain.
 
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
+use crate::core_crypto::commons::math::fft64::{Fft, FftView};
 use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::entities::fourier_ggsw_ciphertext::FourierGgswCiphertextMutView;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
-    fill_with_forward_fourier_scratch, FourierGgswCiphertext,
-};
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::core_crypto::prelude::fourier_polynomial::FourierPolynomialMutView;
 use concrete_fft::c64;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
 /// Convert a [`GGSW ciphertext`](`GgswCiphertext`) with standard coefficients to the Fourier
 /// domain.
@@ -57,14 +57,33 @@ pub fn convert_standard_ggsw_ciphertext_to_fourier_mem_optimized<Scalar, InputCo
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = c64>,
 {
-    output_ggsw
-        .as_mut_view()
-        .fill_with_forward_fourier(input_ggsw.as_view(), fft, stack);
+    fn implementation<Scalar: UnsignedTorus>(
+        coef_ggsw: GgswCiphertextView<'_, Scalar>,
+        fourier_ggsw: FourierGgswCiphertextMutView<'_>,
+        fft: FftView<'_>,
+        mut stack: PodStack<'_>,
+    ) {
+        debug_assert_eq!(coef_ggsw.polynomial_size(), fourier_ggsw.polynomial_size());
+        let fourier_poly_size = coef_ggsw.polynomial_size().to_fourier_polynomial_size().0;
+
+        for (fourier_poly, coef_poly) in izip!(
+            fourier_ggsw.data().into_chunks(fourier_poly_size),
+            coef_ggsw.as_polynomial_list().iter()
+        ) {
+            fft.forward_as_torus(
+                FourierPolynomialMutView::from_container(fourier_poly),
+                coef_poly,
+                stack.rb_mut(),
+            );
+        }
+    }
+
+    implementation(input_ggsw.as_view(), output_ggsw.as_mut_view(), fft, stack);
 }
 
 /// Return the required memory for [`convert_standard_ggsw_ciphertext_to_fourier_mem_optimized`].
 pub fn convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    fill_with_forward_fourier_scratch(fft)
+    fft.forward_scratch()
 }

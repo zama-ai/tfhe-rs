@@ -2,26 +2,26 @@
 //! bootstrap`](`LweBootstrapKey#programmable-bootstrapping`).
 
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::math::decomposition::{
+    SignedDecomposer, TensorSignedDecompositionLendingIter,
+};
+use crate::core_crypto::commons::math::fft64::{update_with_fmadd, Fft, FftView};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::entities::fourier_lwe_bootstrap_key::FourierLweBootstrapKey;
+use crate::core_crypto::entities::fourier_polynomial::FourierPolynomialMutView;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::{
     bootstrap_scratch as bootstrap_scratch_f128, Fourier128LweBootstrapKey,
 };
 use crate::core_crypto::fft_impl::fft128::math::fft::{Fft128, Fft128View};
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
-    bootstrap_scratch, FourierLweBootstrapKey,
-};
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
-    add_external_product_assign as impl_add_external_product_assign,
-    add_external_product_assign_scratch as impl_add_external_product_assign_scratch, cmux,
-    cmux_scratch, FourierGgswCiphertext,
-};
-use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::blind_rotate_assign_scratch;
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use aligned_vec::CACHELINE_ALIGN;
 use concrete_fft::c64;
-use dyn_stack::{PodStack, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+
+use super::ggsw_conversion::convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement;
 
 /// Perform a blind rotation given an input [`LWE ciphertext`](`LweCiphertext`), modifying a look-up
 /// table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
@@ -293,7 +293,20 @@ pub fn blind_rotate_assign_mem_optimized_requirement<Scalar>(
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    blind_rotate_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)
+    StackReq::try_any_of([
+        // tmp_poly allocation
+        StackReq::try_new_aligned::<Scalar>(polynomial_size.0, CACHELINE_ALIGN)?,
+        StackReq::try_all_of([
+            // ct1 allocation
+            StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
+            // external product
+            add_external_product_assign_mem_optimized_requirement::<Scalar>(
+                glwe_size,
+                polynomial_size,
+                fft,
+            )?,
+        ])?,
+    ])
 }
 
 /// Compute the external product of `ggsw` and `glwe`, and add the result to `out`.
@@ -484,31 +497,160 @@ pub fn add_external_product_assign_mem_optimized<Scalar, OutputGlweCont, InputGl
     GgswCont: Container<Element = c64>,
     InputGlweCont: Container<Element = Scalar>,
 {
-    assert_eq!(out.ciphertext_modulus(), glwe.ciphertext_modulus());
-    let ciphertext_modulus = out.ciphertext_modulus();
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
+    fn implementation<Scalar: UnsignedTorus>(
+        mut out: GlweCiphertextMutView<'_, Scalar>,
+        ggsw: FourierGgswCiphertext<&[c64]>,
+        glwe: GlweCiphertext<&[Scalar]>,
+        fft: FftView<'_>,
+        stack: PodStack<'_>,
+    ) {
+        assert_eq!(out.ciphertext_modulus(), glwe.ciphertext_modulus());
+        let ciphertext_modulus = out.ciphertext_modulus();
+        assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
-    impl_add_external_product_assign(
+        // we check that the polynomial sizes match
+        assert_eq!(ggsw.polynomial_size(), glwe.polynomial_size());
+        assert_eq!(ggsw.polynomial_size(), out.polynomial_size());
+        // we check that the glwe sizes match
+        assert_eq!(ggsw.glwe_size(), glwe.glwe_size());
+        assert_eq!(ggsw.glwe_size(), out.glwe_size());
+
+        let align = CACHELINE_ALIGN;
+        let fourier_poly_size = ggsw.polynomial_size().to_fourier_polynomial_size().0;
+
+        // we round the input mask and body
+        let decomposer = SignedDecomposer::<Scalar>::new(
+            ggsw.decomposition_base_log(),
+            ggsw.decomposition_level_count(),
+        );
+
+        let (mut output_fft_buffer, mut substack0) =
+            stack.make_aligned_raw::<c64>(fourier_poly_size * ggsw.glwe_size().0, align);
+        // output_fft_buffer is initially uninitialized, considered to be implicitly zero, to avoid
+        // the cost of filling it up with zeros. `is_output_uninit` is set to `false` once
+        // it has been fully initialized for the first time.
+        let output_fft_buffer = &mut *output_fft_buffer;
+        let mut is_output_uninit = true;
+
+        {
+            // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
+            // DOMAIN In this section, we perform the external product in the fourier
+            // domain, and accumulate the result in the output_fft_buffer variable.
+            let glwe_len = glwe.as_ref().len();
+            let (mut states, mut substack1) = substack0
+                .rb_mut()
+                .make_aligned_raw::<Scalar>(glwe_len, CACHELINE_ALIGN);
+            let mut decomposition = TensorSignedDecompositionLendingIter::new(
+                glwe.as_ref()
+                    .iter()
+                    .map(|s| decomposer.closest_representable(*s)),
+                DecompositionBaseLog(decomposer.base_log),
+                DecompositionLevelCount(decomposer.level_count),
+                &mut states,
+            );
+
+            // We loop through the levels (we reverse to match the order of the decomposition
+            // iterator.)
+            ggsw.into_levels().rev().for_each(|ggsw_decomp_matrix| {
+                // We retrieve the decomposition of this level.
+                let (mut glwe_decomp_term, mut substack2) = substack1
+                    .rb_mut()
+                    .make_aligned_raw::<Scalar>(glwe_len, CACHELINE_ALIGN);
+                let glwe_level = decomposition
+                    .fill_next_term(&mut glwe_decomp_term)
+                    .unwrap()
+                    .0;
+                let glwe_decomp_term = GlweCiphertextView::from_container(
+                    &*glwe_decomp_term,
+                    ggsw.polynomial_size(),
+                    out.ciphertext_modulus(),
+                );
+                debug_assert_eq!(ggsw_decomp_matrix.decomposition_level(), glwe_level);
+
+                // For each level we have to add the result of the vector-matrix product between the
+                // decomposition of the glwe, and the ggsw level matrix to the output. To do so, we
+                // iteratively add to the output, the product between every line of the matrix, and
+                // the corresponding (scalar) polynomial in the glwe decomposition:
+                //
+                //                ggsw_mat                        ggsw_mat
+                //   glwe_dec   | - - - - | <        glwe_dec   | - - - - |
+                //  | - - - | x | - - - - |         | - - - | x | - - - - | <
+                //    ^         | - - - - |             ^       | - - - - |
+                //
+                //        t = 1                           t = 2                     ...
+
+                izip!(
+                    ggsw_decomp_matrix.into_rows(),
+                    glwe_decomp_term.as_polynomial_list().iter()
+                )
+                .for_each(|(ggsw_row, glwe_poly)| {
+                    let (mut fourier, substack3) = substack2
+                        .rb_mut()
+                        .make_aligned_raw::<c64>(fourier_poly_size, align);
+                    // We perform the forward fft transform for the glwe polynomial
+                    fft.forward_as_integer(
+                        FourierPolynomialMutView::from_container(&mut fourier),
+                        glwe_poly,
+                        substack3,
+                    );
+                    // Now we loop through the polynomials of the output, and add the
+                    // corresponding product of polynomials.
+
+                    update_with_fmadd(
+                        output_fft_buffer,
+                        ggsw_row.data(),
+                        &fourier,
+                        is_output_uninit,
+                        fourier_poly_size,
+                    );
+
+                    // we initialized `output_fft_buffer, so we can set this to false
+                    is_output_uninit = false;
+                });
+            });
+        }
+
+        // --------------------------------------------  TRANSFORMATION OF RESULT TO STANDARD DOMAIN
+        // In this section, we bring the result from the fourier domain, back to the standard
+        // domain, and add it to the output.
+        //
+        // We iterate over the polynomials in the output.
+        if !is_output_uninit {
+            izip!(
+                out.as_mut_polynomial_list().iter_mut(),
+                output_fft_buffer
+                    .into_chunks(fourier_poly_size)
+                    .map(FourierPolynomialMutView::from_container),
+            )
+            .for_each(|(out, fourier)| {
+                // The fourier buffer is not re-used afterwards so we can use the in-place version
+                // of the add_backward_as_torus function
+                fft.add_backward_in_place_as_torus(out, fourier, substack0.rb_mut());
+            });
+        }
+
+        if !ciphertext_modulus.is_native_modulus() {
+            // When we convert back from the fourier domain, integer values will contain up to 53
+            // MSBs with information. In our representation of power of 2 moduli < native modulus we
+            // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
+            // round while keeping the data in the MSBs
+            let signed_decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
+                DecompositionLevelCount(1),
+            );
+            out.as_mut()
+                .iter_mut()
+                .for_each(|x| *x = signed_decomposer.closest_representable(*x));
+        }
+    }
+
+    implementation(
         out.as_mut_view(),
         ggsw.as_view(),
         glwe.as_view(),
         fft,
         stack,
     );
-
-    if !ciphertext_modulus.is_native_modulus() {
-        // When we convert back from the fourier domain, integer values will contain up to 53
-        // MSBs with information. In our representation of power of 2 moduli < native modulus we
-        // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
-        // round while keeping the data in the MSBs
-        let signed_decomposer = SignedDecomposer::new(
-            DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
-            DecompositionLevelCount(1),
-        );
-        out.as_mut()
-            .iter_mut()
-            .for_each(|x| *x = signed_decomposer.closest_representable(*x));
-    }
 }
 
 /// Return the required memory for [`add_external_product_assign_mem_optimized`].
@@ -517,7 +659,22 @@ pub fn add_external_product_assign_mem_optimized_requirement<Scalar>(
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    impl_add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)
+    let align = CACHELINE_ALIGN;
+    let standard_scratch =
+        StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, align)?;
+    let fourier_polynomial_size = polynomial_size.to_fourier_polynomial_size().0;
+    let fourier_scratch =
+        StackReq::try_new_aligned::<c64>(glwe_size.0 * fourier_polynomial_size, align)?;
+    let fourier_scratch_single = StackReq::try_new_aligned::<c64>(fourier_polynomial_size, align)?;
+
+    let substack3 = fft.forward_scratch()?;
+    let substack2 = substack3.try_and(fourier_scratch_single)?;
+    let substack1 = substack2.try_and(standard_scratch)?;
+    let substack0 = StackReq::try_any_of([
+        substack1.try_and(standard_scratch)?,
+        fft.backward_scratch()?,
+    ])?;
+    substack0.try_and(fourier_scratch)
 }
 
 /// Compute a cmux on the input `ct0` and `ct1` using `ggsw` as selector.
@@ -774,31 +931,13 @@ pub fn cmux_assign_mem_optimized<Scalar, Cont0, Cont1, GgswCont>(
     Cont1: ContainerMut<Element = Scalar>,
     GgswCont: Container<Element = c64>,
 {
-    assert_eq!(ct0.ciphertext_modulus(), ct1.ciphertext_modulus());
     let ciphertext_modulus = ct0.ciphertext_modulus();
+    assert_eq!(ct0.ciphertext_modulus(), ct1.ciphertext_modulus());
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
-    cmux(
-        ct0.as_mut_view(),
-        ct1.as_mut_view(),
-        ggsw.as_view(),
-        fft,
-        stack,
-    );
-
-    if !ciphertext_modulus.is_native_modulus() {
-        // When we convert back from the fourier domain, integer values will contain up to 53
-        // MSBs with information. In our representation of power of 2 moduli < native modulus we
-        // fill the MSBs and leave the LSBs empty, this usage of the signed decomposer allows to
-        // round while keeping the data in the MSBs
-        let signed_decomposer = SignedDecomposer::new(
-            DecompositionBaseLog(ciphertext_modulus.get_custom_modulus().ilog2() as usize),
-            DecompositionLevelCount(1),
-        );
-        ct0.as_mut()
-            .iter_mut()
-            .for_each(|x| *x = signed_decomposer.closest_representable(*x));
-    }
+    izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
+        *c1 = c1.wrapping_sub(*c0);
+    });
+    add_external_product_assign_mem_optimized(ct0, ggsw, ct1, fft, stack);
 }
 
 /// Return the required memory for [`cmux_assign_mem_optimized`].
@@ -807,7 +946,7 @@ pub fn cmux_assign_mem_optimized_requirement<Scalar>(
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    cmux_scratch::<Scalar>(glwe_size, polynomial_size, fft)
+    add_external_product_assign_mem_optimized_requirement::<Scalar>(glwe_size, polynomial_size, fft)
 }
 
 /// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
@@ -1116,7 +1255,11 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Scalar>(
     polynomial_size: PolynomialSize,
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft)
+    blind_rotate_assign_mem_optimized_requirement::<Scalar>(glwe_size, polynomial_size, fft)?
+        .try_and(StackReq::try_new_aligned::<Scalar>(
+            glwe_size.0 * polynomial_size.0,
+            CACHELINE_ALIGN,
+        )?)
 }
 
 /// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
@@ -1405,4 +1548,102 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement<Scal
     fft: Fft128View<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     bootstrap_scratch_f128::<Scalar>(glwe_size, polynomial_size, fft)
+}
+
+impl<Scalar> FourierBootstrapKey<Scalar> for FourierLweBootstrapKeyOwned
+where
+    Scalar: UnsignedTorus + CastInto<usize>,
+{
+    type Fft = Fft;
+
+    fn new_fft(polynomial_size: PolynomialSize) -> Self::Fft {
+        Fft::new(polynomial_size)
+    }
+
+    fn new(
+        input_lwe_dimension: LweDimension,
+        polynomial_size: PolynomialSize,
+        glwe_size: GlweSize,
+        decomposition_base_log: DecompositionBaseLog,
+        decomposition_level_count: DecompositionLevelCount,
+    ) -> Self {
+        Self::new(
+            input_lwe_dimension,
+            glwe_size,
+            polynomial_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        )
+    }
+
+    fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> Result<StackReq, SizeOverflow> {
+        convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft.as_view())
+    }
+
+    fn fill_with_forward_fourier<ContBsk>(
+        &mut self,
+        coef_bsk: &LweBootstrapKey<ContBsk>,
+        fft: &Self::Fft,
+        stack: PodStack<'_>,
+    ) where
+        ContBsk: Container<Element = Scalar>,
+    {
+        self.as_mut_view()
+            .fill_with_forward_fourier(coef_bsk.as_view(), fft.as_view(), stack);
+    }
+
+    fn bootstrap_scratch(
+        glwe_size: GlweSize,
+        polynomial_size: PolynomialSize,
+        fft: &Self::Fft,
+    ) -> Result<StackReq, SizeOverflow> {
+        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+            glwe_size,
+            polynomial_size,
+            fft.as_view(),
+        )
+    }
+
+    fn bootstrap<ContLweOut, ContLweIn, ContAcc>(
+        &self,
+        lwe_out: &mut LweCiphertext<ContLweOut>,
+        lwe_in: &LweCiphertext<ContLweIn>,
+        accumulator: &GlweCiphertext<ContAcc>,
+        fft: &Self::Fft,
+        stack: PodStack<'_>,
+    ) where
+        ContLweOut: ContainerMut<Element = Scalar>,
+        ContLweIn: Container<Element = Scalar>,
+        ContAcc: Container<Element = Scalar>,
+    {
+        self.as_view().bootstrap(
+            lwe_out.as_mut_view(),
+            lwe_in.as_view(),
+            accumulator.as_view(),
+            fft.as_view(),
+            stack,
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core_crypto::fft_impl::common::tests::test_bootstrap_generic;
+    use crate::core_crypto::prelude::*;
+
+    #[test]
+    fn test_bootstrap_u64() {
+        test_bootstrap_generic::<u64, FourierLweBootstrapKeyOwned>(
+            StandardDev(0.000007069849454709433),
+            StandardDev(0.00000000000000029403601535432533),
+        );
+    }
+
+    #[test]
+    fn test_bootstrap_u32() {
+        test_bootstrap_generic::<u32, FourierLweBootstrapKeyOwned>(
+            StandardDev(0.000007069849454709433),
+            StandardDev(0.00000000000000029403601535432533),
+        );
+    }
 }

@@ -3,19 +3,17 @@ use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::dispersion::{LogStandardDev, StandardDev};
 use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::math::fft64::Fft;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DeltaLog, ExtractedBitsCount, GlweDimension,
     LweDimension, PlaintextCount, PolynomialCount, PolynomialSize,
 };
 use crate::core_crypto::commons::test_tools;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
-    fill_with_forward_fourier_scratch, FourierLweBootstrapKey,
-};
-use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::seeders::new_seeder;
 use concrete_csprng::generators::SoftwareRandomGenerator;
 use concrete_fft::c64;
-use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut, StackReq};
+use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 
 // Extract all the bits of a LWE
 #[test]
@@ -90,19 +88,14 @@ pub fn test_extract_bits() {
 
     let input_lwe_dimension = lwe_big_sk.lwe_dimension();
 
-    let req = || {
-        StackReq::try_any_of([
-            fill_with_forward_fourier_scratch(fft)?,
-            extract_bits_scratch::<u64>(
-                input_lwe_dimension,
-                ksk_lwe_big_to_small.output_key_lwe_dimension(),
-                glwe_dimension.to_glwe_size(),
-                polynomial_size,
-                fft,
-            )?,
-        ])
-    };
-    let req = req().unwrap();
+    let req = extract_bits_scratch::<u64>(
+        input_lwe_dimension,
+        ksk_lwe_big_to_small.output_key_lwe_dimension(),
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        fft,
+    )
+    .unwrap();
     let mut mem = GlobalPodBuffer::new(req);
     let mut stack = PodStack::new(&mut mem);
 
@@ -481,11 +474,7 @@ pub fn test_cmux_tree() {
                 &mut encryption_generator,
             );
 
-            let mut mem = GlobalPodBuffer::new(fill_with_forward_fourier_scratch(fft).unwrap());
-            let stack = PodStack::new(&mut mem);
-            fourier_ggsw
-                .as_mut_view()
-                .fill_with_forward_fourier(ggsw.as_view(), fft, stack);
+            convert_standard_ggsw_ciphertext_to_fourier(&ggsw, &mut fourier_ggsw);
         }
 
         let mut result_cmux_tree =

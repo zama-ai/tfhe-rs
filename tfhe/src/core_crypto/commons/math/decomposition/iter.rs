@@ -4,6 +4,7 @@ use crate::core_crypto::commons::math::decomposition::{
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
+use crate::core_crypto::commons::utils::izip;
 
 /// An iterator that yields the terms of the signed decomposition of an integer.
 ///
@@ -27,6 +28,20 @@ where
     // ...0001111
     mod_b_mask: T,
     // A flag which store whether the iterator is a fresh one (for the recompose method)
+    fresh: bool,
+}
+
+pub struct TensorSignedDecompositionLendingIter<'buffer, Scalar: UnsignedInteger> {
+    // The base log of the decomposition
+    base_log: usize,
+    // The current level
+    current_level: usize,
+    // A mask which allows to compute the mod B of a value. For B=2^4, this guy is of the form:
+    // ...0001111
+    mod_b_mask: Scalar,
+    // The internal states of each decomposition
+    states: &'buffer mut [Scalar],
+    // A flag which stores whether the iterator is a fresh one (for the recompose method).
     fresh: bool,
 }
 
@@ -113,6 +128,63 @@ where
             DecompositionLevel(self.current_level + 1),
             DecompositionBaseLog(self.base_log),
             output,
+        ))
+    }
+}
+
+impl<'buffer, Scalar: UnsignedInteger> TensorSignedDecompositionLendingIter<'buffer, Scalar> {
+    #[inline]
+    pub(crate) fn new(
+        input: impl Iterator<Item = Scalar>,
+        base_log: DecompositionBaseLog,
+        level: DecompositionLevelCount,
+        states: &'buffer mut [Scalar],
+    ) -> Self {
+        let shift = Scalar::BITS - base_log.0 * level.0;
+
+        izip!(&mut *states, input).for_each(|(dst, i)| *dst = i >> shift);
+        TensorSignedDecompositionLendingIter {
+            base_log: base_log.0,
+            current_level: level.0,
+            mod_b_mask: (Scalar::ONE << base_log.0) - Scalar::ONE,
+            states,
+            fresh: true,
+        }
+    }
+
+    // inlining this improves perf of external product by about 25%, even in LTO builds
+    #[inline]
+    pub fn fill_next_term(
+        &mut self,
+        next_term: &mut [Scalar],
+    ) -> Option<(DecompositionLevel, DecompositionBaseLog)> {
+        // The iterator is not fresh anymore.
+        self.fresh = false;
+        // We check if the decomposition is over
+        if self.current_level == 0 {
+            return None;
+        }
+        let current_level = self.current_level;
+        let base_log = self.base_log;
+        let mod_b_mask = self.mod_b_mask;
+        self.current_level -= 1;
+
+        #[inline]
+        fn implementation<Scalar: UnsignedInteger>(
+            next_term: &mut [Scalar],
+            states: &mut [Scalar],
+            base_log: usize,
+            mod_b_mask: Scalar,
+        ) {
+            izip!(next_term, states)
+                .for_each(|(term, state)| *term = decompose_one_level(base_log, state, mod_b_mask));
+        }
+
+        implementation(next_term, self.states, base_log, mod_b_mask);
+
+        Some((
+            DecompositionLevel(current_level),
+            DecompositionBaseLog(self.base_log),
         ))
     }
 }

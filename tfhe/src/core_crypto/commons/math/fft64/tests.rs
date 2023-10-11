@@ -1,8 +1,8 @@
 use dyn_stack::{GlobalPodBuffer, ReborrowMut};
 
-use super::super::polynomial::FourierPolynomial;
 use super::*;
 use crate::core_crypto::commons::test_tools::new_random_generator;
+use crate::core_crypto::entities::fourier_polynomial::FourierPolynomial;
 use crate::core_crypto::entities::Polynomial;
 use aligned_vec::avec;
 
@@ -26,9 +26,8 @@ fn test_roundtrip<Scalar: UnsignedTorus>() {
         let mut poly = Polynomial::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
         let mut roundtrip =
             Polynomial::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
-        let mut fourier = FourierPolynomial {
-            data: avec![c64::default(); size / 2].into_boxed_slice(),
-        };
+        let mut fourier =
+            FourierPolynomial::from_container(avec![c64::default(); size / 2].into_boxed_slice());
 
         for x in poly.as_mut().iter_mut() {
             *x = generator.random_uniform();
@@ -126,12 +125,12 @@ fn test_product<Scalar: UnsignedTorus>() {
             let mut convolution_from_naive =
                 Polynomial::from_container(avec![Scalar::ZERO; size].into_boxed_slice());
 
-            let mut fourier0 = FourierPolynomial {
-                data: avec![c64::default(); size / 2].into_boxed_slice(),
-            };
-            let mut fourier1 = FourierPolynomial {
-                data: avec![c64::default(); size / 2 ].into_boxed_slice(),
-            };
+            let mut fourier0 = FourierPolynomial::from_container(
+                avec![c64::default(); size / 2].into_boxed_slice(),
+            );
+            let mut fourier1 = FourierPolynomial::from_container(
+                avec![c64::default(); size / 2 ].into_boxed_slice(),
+            );
 
             let integer_magnitude = 16;
             for (x, y) in izip!(poly0.as_mut().iter_mut(), poly1.as_mut().iter_mut()) {
@@ -150,7 +149,7 @@ fn test_product<Scalar: UnsignedTorus>() {
             fft.forward_as_torus(fourier0.as_mut_view(), poly0.as_view(), stack.rb_mut());
             fft.forward_as_integer(fourier1.as_mut_view(), poly1.as_view(), stack.rb_mut());
 
-            for (f0, f1) in izip!(&mut *fourier0.data, &*fourier1.data) {
+            for (f0, f1) in izip!(fourier0.as_mut(), fourier1.as_ref()) {
                 *f0 *= *f1;
             }
 
