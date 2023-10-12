@@ -4,6 +4,7 @@ use std::ops::{
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
+use crate::conformance::ParameterSetConformant;
 use crate::errors::{
     UninitializedClientKey, UninitializedCompressedPublicKey, UninitializedPublicKey,
     UnwrapResultExt,
@@ -21,7 +22,9 @@ use crate::high_level_api::traits::{
 use crate::high_level_api::{ClientKey, PublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
+use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::{IntegerCiphertext, SignedRadixCiphertext, I256, U256};
+use crate::named::Named;
 use crate::CompactPublicKey;
 
 /// A Generic FHE unsigned integer
@@ -96,6 +99,20 @@ impl std::fmt::Display for GenericIntegerBlockError {
 pub struct GenericInteger<P: IntegerParameter> {
     pub(in crate::high_level_api::integers) ciphertext: P::InnerCiphertext,
     pub(in crate::high_level_api::integers) id: P::Id,
+}
+
+impl<P: IntegerParameter> ParameterSetConformant for GenericInteger<P>
+where
+    P::InnerCiphertext: ParameterSetConformant<ParameterSet = RadixCiphertextConformanceParams>,
+{
+    type ParameterSet = RadixCiphertextConformanceParams;
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.ciphertext.is_conformant(params)
+    }
+}
+
+impl<P: IntegerParameter> Named for GenericInteger<P> {
+    const NAME: &'static str = "high_level_api::GenericInteger";
 }
 
 impl<P> GenericInteger<P>

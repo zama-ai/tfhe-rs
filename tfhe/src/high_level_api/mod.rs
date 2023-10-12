@@ -53,7 +53,9 @@ pub use crate::high_level_api::shortints::{
 #[cfg(feature = "integer")]
 #[cfg(feature = "safe-deserialization")]
 pub use integers::safe_serialize::{
-    safe_deserialize_conformant, safe_deserialize_conformant_compact_integer, safe_serialize,
+    safe_deserialize_conformant, safe_deserialize_conformant_compact_integer,
+    safe_deserialize_conformant_compressed_integer, safe_deserialize_conformant_integer,
+    safe_serialize,
 };
 
 #[macro_use]

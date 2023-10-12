@@ -1,9 +1,12 @@
+use crate::conformance::ParameterSetConformant;
 use crate::errors::{UninitializedClientKey, UnwrapResultExt};
 use crate::high_level_api::integers::parameters::IntegerParameter;
 use crate::high_level_api::integers::types::base::GenericInteger;
 use crate::high_level_api::internal_traits::{EncryptionKey, TypeIdentifier};
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::high_level_api::ClientKey;
+use crate::integer::parameters::RadixCiphertextConformanceParams;
+use crate::named::Named;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct CompressedGenericInteger<P>
@@ -12,6 +15,21 @@ where
 {
     pub(in crate::high_level_api::integers) ciphertext: P::InnerCompressedCiphertext,
     pub(in crate::high_level_api::integers) id: P::Id,
+}
+
+impl<P: IntegerParameter> ParameterSetConformant for CompressedGenericInteger<P>
+where
+    P::InnerCompressedCiphertext:
+        ParameterSetConformant<ParameterSet = RadixCiphertextConformanceParams>,
+{
+    type ParameterSet = RadixCiphertextConformanceParams;
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.ciphertext.is_conformant(params)
+    }
+}
+
+impl<P: IntegerParameter> Named for CompressedGenericInteger<P> {
+    const NAME: &'static str = "high_level_api::CompressedGenericInteger";
 }
 
 impl<P> CompressedGenericInteger<P>
