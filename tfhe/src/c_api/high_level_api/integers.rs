@@ -215,6 +215,11 @@ macro_rules! create_integer_wrapper_type {
 
         impl_clone_on_type!($name);
 
+        impl_safe_serialize_on_type!($name);
+
+        impl_safe_deserialize_conformant_integer!($name, crate::high_level_api::safe_deserialize_conformant_integer);
+
+
         // The compressed version of the ciphertext type
         ::paste::paste! {
             pub struct [<Compressed $name>]($crate::high_level_api::[<Compressed $name>]);
@@ -224,6 +229,11 @@ macro_rules! create_integer_wrapper_type {
             impl_clone_on_type!([<Compressed $name>]);
 
             impl_serialize_deserialize_on_type!([<Compressed $name>]);
+
+            impl_safe_serialize_on_type!([<Compressed $name>]);
+
+            impl_safe_deserialize_conformant_integer!([<Compressed $name>], crate::high_level_api::safe_deserialize_conformant_compressed_integer);
+
 
             #[no_mangle]
             pub unsafe extern "C" fn [<compressed_ $name:snake _decompress>](
@@ -252,7 +262,7 @@ macro_rules! create_integer_wrapper_type {
 
             impl_safe_serialize_on_type!([<Compact $name>]);
 
-            impl_safe_deserialize_conformant_compact_integer!([<Compact $name>]);
+            impl_safe_deserialize_conformant_integer!([<Compact $name>], crate::high_level_api::safe_deserialize_conformant_compact_integer);
 
             #[no_mangle]
             pub unsafe extern "C" fn [<compact_ $name:snake _expand>](

@@ -1,5 +1,7 @@
 //! This module implements the ciphertext structures.
-use super::parameters::RadixCompactCiphertextListConformanceParams;
+use super::parameters::{
+    RadixCiphertextConformanceParams, RadixCompactCiphertextListConformanceParams,
+};
 use crate::conformance::ParameterSetConformant;
 use crate::shortint::{Ciphertext, CompressedCiphertext};
 use serde::{Deserialize, Serialize};
@@ -21,8 +23,32 @@ impl<Block> From<Vec<Block>> for BaseRadixCiphertext<Block> {
 // Type alias to save some typing in implementation parts
 pub type RadixCiphertext = BaseRadixCiphertext<Ciphertext>;
 
+impl ParameterSetConformant for RadixCiphertext {
+    type ParameterSet = RadixCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.blocks.len() == params.num_blocks_per_integer
+            && self
+                .blocks
+                .iter()
+                .all(|block| block.is_conformant(&params.shortint_params))
+    }
+}
+
 /// Structure containing a **compressed** ciphertext in radix decomposition.
 pub type CompressedRadixCiphertext = BaseRadixCiphertext<CompressedCiphertext>;
+
+impl ParameterSetConformant for CompressedRadixCiphertext {
+    type ParameterSet = RadixCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.blocks.len() == params.num_blocks_per_integer
+            && self
+                .blocks
+                .iter()
+                .all(|block| block.is_conformant(&params.shortint_params))
+    }
+}
 
 impl From<CompressedRadixCiphertext> for RadixCiphertext {
     fn from(compressed: CompressedRadixCiphertext) -> Self {
@@ -119,9 +145,33 @@ impl<Block> From<Vec<Block>> for BaseSignedRadixCiphertext<Block> {
 // Type alias to save some typing in implementation parts
 pub type SignedRadixCiphertext = BaseSignedRadixCiphertext<Ciphertext>;
 
+impl ParameterSetConformant for SignedRadixCiphertext {
+    type ParameterSet = RadixCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.blocks.len() == params.num_blocks_per_integer
+            && self
+                .blocks
+                .iter()
+                .all(|block| block.is_conformant(&params.shortint_params))
+    }
+}
+
 /// Structure containing a **compressed** ciphertext in radix decomposition
 /// holding a signed valued
 pub type CompressedSignedRadixCiphertext = BaseSignedRadixCiphertext<CompressedCiphertext>;
+
+impl ParameterSetConformant for CompressedSignedRadixCiphertext {
+    type ParameterSet = RadixCiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
+        self.blocks.len() == params.num_blocks_per_integer
+            && self
+                .blocks
+                .iter()
+                .all(|block| block.is_conformant(&params.shortint_params))
+    }
+}
 
 impl SignedRadixCiphertext {
     pub fn block_carries_are_empty(&self) -> bool {

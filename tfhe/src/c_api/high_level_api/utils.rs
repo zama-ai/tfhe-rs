@@ -287,8 +287,8 @@ macro_rules! impl_safe_serialize_on_type {
     };
 }
 
-macro_rules! impl_safe_deserialize_conformant_compact_integer {
-    ($wrapper_type:ty) => {
+macro_rules! impl_safe_deserialize_conformant_integer {
+    ($wrapper_type:ty, $function_name:path) => {
         ::paste::paste! {
             #[no_mangle]
             pub unsafe extern "C" fn [<$wrapper_type:snake _safe_deserialize_conformant>](
@@ -309,7 +309,7 @@ macro_rules! impl_safe_deserialize_conformant_compact_integer {
                     *result = std::ptr::null_mut();
 
                     let object: $wrapper_type = $wrapper_type(
-                        crate::high_level_api::safe_deserialize_conformant_compact_integer(
+                        $function_name(
                             buffer_view,
                             serialized_size_limit,
                             &sk.0,
