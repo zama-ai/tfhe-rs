@@ -75,6 +75,9 @@ pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
 pub use public_key::{CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 
+/// Unless you know what you are doing you are likely looking for [`gen_keys_radix`] or
+/// [`gen_keys_crt`].
+///
 /// Generate a couple of client and server keys with given parameters
 ///
 /// * the client key is used to encrypt and decrypt and has to be kept secret;
