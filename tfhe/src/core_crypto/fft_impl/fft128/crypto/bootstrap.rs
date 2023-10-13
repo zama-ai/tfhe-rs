@@ -14,7 +14,7 @@ use crate::core_crypto::commons::traits::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
+use crate::core_crypto::fft_impl::common::{fast_pbs_modulus_switch, FourierBootstrapKey};
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use core::any::TypeId;
@@ -266,7 +266,7 @@ where
             let lut_poly_size = lut.polynomial_size();
             let ciphertext_modulus = lut.ciphertext_modulus();
             assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-            let monomial_degree = pbs_modulus_switch(
+            let monomial_degree = fast_pbs_modulus_switch(
                 *lwe_body,
                 lut_poly_size,
                 ModulusSwitchOffset(0),
@@ -303,7 +303,7 @@ where
                     for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
                         polynomial_wrapping_monic_monomial_mul_assign(
                             &mut poly,
-                            MonomialDegree(pbs_modulus_switch(
+                            MonomialDegree(fast_pbs_modulus_switch(
                                 *lwe_mask_element,
                                 lut_poly_size,
                                 ModulusSwitchOffset(0),

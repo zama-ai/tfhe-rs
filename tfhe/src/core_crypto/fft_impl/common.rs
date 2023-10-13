@@ -12,9 +12,18 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// This function switches modulus for a single coefficient of a ciphertext,
 /// only in the context of a PBS
 ///
-/// offset: the number of msb discarded
-/// lut_count_log: the right padding
-pub fn pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
+/// - offset: the number of msb discarded
+/// - lut_count_log: the right padding
+///
+/// # Note
+///
+/// If you are switching to a modulus of $2N$ then this function may return the value $2N$ while a
+/// "true" modulus switch would return $0$ in that case. It turns out that this is not affecting
+/// other parts of the code relying on the modulus switch (as a rotation by $2N$ is effectively the
+/// same as rotation by $0$ for polynomials of size $N$ in the ring $X^N+1$) but it could be
+/// problematic for code requiring an output in the expected $[0; 2N[$ range. Also this saves a few
+/// instructions which can add up when this is being called hundreds or thousands of times per PBS.
+pub fn fast_pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
     input: Scalar,
     poly_size: PolynomialSize,
     offset: ModulusSwitchOffset,
