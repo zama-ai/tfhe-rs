@@ -103,6 +103,7 @@ __wasm_api = [
     "getrandom",
     "getrandom/js",
     "dep:bincode",
+    "safe-deserialization",
 ]
 boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]

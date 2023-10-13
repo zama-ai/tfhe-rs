@@ -181,6 +181,24 @@ macro_rules! create_wrapper_type_non_native_type(
                         .map_err(into_js_error)
                 })
             }
+
+            #[wasm_bindgen]
+            pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
+                let mut buffer = vec![];
+                catch_panic_result(|| crate::safe_deserialization::safe_serialize(&self.0, &mut buffer, serialized_size_limit)
+                    .map_err(into_js_error))?;
+
+                Ok(buffer)
+            }
+
+            #[wasm_bindgen]
+            pub fn safe_deserialize(buffer: &[u8], serialized_size_limit: u64) -> Result<$type_name, JsError> {
+                catch_panic_result(|| {
+                    crate::safe_deserialization::safe_deserialize(buffer, serialized_size_limit)
+                        .map($type_name)
+                        .map_err(into_js_error)
+                })
+            }
         }
 
         #[wasm_bindgen]
@@ -224,6 +242,24 @@ macro_rules! create_wrapper_type_non_native_type(
                         .map_err(into_js_error)
                 })
             }
+
+            #[wasm_bindgen]
+            pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
+                let mut buffer = vec![];
+                catch_panic_result(|| crate::safe_deserialization::safe_serialize(&self.0, &mut buffer, serialized_size_limit)
+                    .map_err(into_js_error))?;
+
+                Ok(buffer)
+            }
+
+            #[wasm_bindgen]
+            pub fn safe_deserialize(buffer: &[u8], serialized_size_limit: u64) -> Result<$compressed_type_name, JsError> {
+                catch_panic_result(|| {
+                    crate::safe_deserialization::safe_deserialize(buffer, serialized_size_limit)
+                        .map($compressed_type_name)
+                        .map_err(into_js_error)
+                })
+            }
         }
 
         #[wasm_bindgen]
@@ -263,6 +299,24 @@ macro_rules! create_wrapper_type_non_native_type(
             pub fn deserialize(buffer: &[u8]) -> Result<$compact_type_name, JsError> {
                 catch_panic_result(|| {
                     bincode::deserialize(buffer)
+                        .map($compact_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
+                let mut buffer = vec![];
+                catch_panic_result(|| crate::safe_deserialization::safe_serialize(&self.0, &mut buffer, serialized_size_limit)
+                    .map_err(into_js_error))?;
+
+                Ok(buffer)
+            }
+
+            #[wasm_bindgen]
+            pub fn safe_deserialize(buffer: &[u8], serialized_size_limit: u64) -> Result<$compact_type_name, JsError> {
+                catch_panic_result(|| {
+                    crate::safe_deserialization::safe_deserialize(buffer, serialized_size_limit)
                         .map($compact_type_name)
                         .map_err(into_js_error)
                 })
@@ -469,6 +523,24 @@ macro_rules! create_wrapper_type_that_has_native_type(
                         .map_err(into_js_error)
                 })
             }
+
+            #[wasm_bindgen]
+            pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
+                let mut buffer = vec![];
+                catch_panic_result(|| crate::safe_deserialization::safe_serialize(&self.0, &mut buffer, serialized_size_limit)
+                    .map_err(into_js_error))?;
+
+                Ok(buffer)
+            }
+
+            #[wasm_bindgen]
+            pub fn safe_deserialize(buffer: &[u8], serialized_size_limit: u64) -> Result<$type_name, JsError> {
+                catch_panic_result(|| {
+                    crate::safe_deserialization::safe_deserialize(buffer, serialized_size_limit)
+                        .map(Self)
+                        .map_err(into_js_error)
+                })
+            }
         }
         #[wasm_bindgen]
         pub struct $compressed_type_name(pub(crate) crate::high_level_api::$compressed_type_name);
@@ -505,6 +577,24 @@ macro_rules! create_wrapper_type_that_has_native_type(
             pub fn deserialize(buffer: &[u8]) -> Result<$compressed_type_name, JsError> {
                 catch_panic_result(|| {
                     bincode::deserialize(buffer)
+                        .map($compressed_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
+                let mut buffer = vec![];
+                catch_panic_result(|| crate::safe_deserialization::safe_serialize(&self.0, &mut buffer, serialized_size_limit)
+                    .map_err(into_js_error))?;
+
+                Ok(buffer)
+            }
+
+            #[wasm_bindgen]
+            pub fn safe_deserialize(buffer: &[u8], serialized_size_limit: u64) -> Result<$compressed_type_name, JsError> {
+                catch_panic_result(|| {
+                    crate::safe_deserialization::safe_deserialize(buffer, serialized_size_limit)
                         .map($compressed_type_name)
                         .map_err(into_js_error)
                 })
@@ -546,6 +636,24 @@ macro_rules! create_wrapper_type_that_has_native_type(
             pub fn deserialize(buffer: &[u8]) -> Result<$compact_type_name, JsError> {
                 catch_panic_result(|| {
                     bincode::deserialize(buffer)
+                        .map($compact_type_name)
+                        .map_err(into_js_error)
+                })
+            }
+
+            #[wasm_bindgen]
+            pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
+                let mut buffer = vec![];
+                catch_panic_result(|| crate::safe_deserialization::safe_serialize(&self.0, &mut buffer, serialized_size_limit)
+                    .map_err(into_js_error))?;
+
+                Ok(buffer)
+            }
+
+            #[wasm_bindgen]
+            pub fn safe_deserialize(buffer: &[u8], serialized_size_limit: u64) -> Result<$compact_type_name, JsError> {
+                catch_panic_result(|| {
+                    crate::safe_deserialization::safe_deserialize(buffer, serialized_size_limit)
                         .map($compact_type_name)
                         .map_err(into_js_error)
                 })

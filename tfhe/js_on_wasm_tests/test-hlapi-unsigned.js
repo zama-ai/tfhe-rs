@@ -108,6 +108,11 @@ test('hlapi_client_key_encrypt_decrypt_uint8_big', (t) => {
     let deserialized = FheUint8.deserialize(serialized);
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, clear);
+
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint8.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, clear);
 });
 
 test('hlapi_compressed_public_client_uint8_big', (t) => {
@@ -125,6 +130,13 @@ test('hlapi_compressed_public_client_uint8_big', (t) => {
 
     let decrypted = decompressed.decrypt(clientKey);
     assert.deepStrictEqual(decrypted, clear);
+
+    let compressed_safe_serialized = compressed_encrypted.safe_serialize(BigInt(10000000));
+    let compressed_safe_deserialized = CompressedFheUint8.safe_deserialize(compressed_safe_serialized, BigInt(10000000));
+    let safe_decompressed = compressed_safe_deserialized.decompress()
+
+    let safe_decrypted = safe_decompressed.decrypt(clientKey);
+    assert.deepStrictEqual(safe_decrypted, clear);
 });
 
 test('hlapi_public_key_encrypt_decrypt_uint32_small', (t) => {
@@ -144,6 +156,11 @@ test('hlapi_public_key_encrypt_decrypt_uint32_small', (t) => {
     let deserialized = FheUint32.deserialize(serialized);
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U32_MAX);
+
+    let safe_serialized = encrypted.safe_serialize(BigInt(1000000));
+    let safe_deserialized = FheUint32.safe_deserialize(safe_serialized, BigInt(1000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U32_MAX);
 });
 
 test('hlapi_decompress_public_key_then_encrypt_decrypt_uint32_small', (t) => {
@@ -174,6 +191,11 @@ test('hlapi_decompress_public_key_then_encrypt_decrypt_uint32_small', (t) => {
     let deserialized = FheUint32.deserialize(serialized);
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U32_MAX);
+
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint32.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U32_MAX);
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint128_big', (t) => {
@@ -193,6 +215,11 @@ test('hlapi_client_key_encrypt_decrypt_uint128_big', (t) => {
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U128_MAX);
 
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint128.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U128_MAX);
+
     // Compressed
     let compressed_encrypted = CompressedFheUint128.encrypt_with_client_key(U128_MAX, clientKey);
     let compressed_serialized = compressed_encrypted.serialize();
@@ -201,6 +228,13 @@ test('hlapi_client_key_encrypt_decrypt_uint128_big', (t) => {
 
     decrypted = decompressed.decrypt(clientKey);
     assert.deepStrictEqual(decrypted, U128_MAX);
+
+    let compressed_safe_serialized = compressed_encrypted.safe_serialize(BigInt(10000000));
+    let compressed_safe_deserialized = CompressedFheUint128.safe_deserialize(compressed_safe_serialized, BigInt(10000000));
+    let safe_decompressed = compressed_safe_deserialized.decompress()
+
+    safe_decrypted = safe_decompressed.decrypt(clientKey);
+    assert.deepStrictEqual(safe_decrypted, U128_MAX);
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint128_small', (t) => {
@@ -220,6 +254,11 @@ test('hlapi_client_key_encrypt_decrypt_uint128_small', (t) => {
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U128_MAX);
 
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint128.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U128_MAX);
+
     // Compressed
     let compressed_encrypted = CompressedFheUint128.encrypt_with_client_key(U128_MAX, clientKey);
     let compressed_serialized = compressed_encrypted.serialize();
@@ -228,6 +267,13 @@ test('hlapi_client_key_encrypt_decrypt_uint128_small', (t) => {
 
     decrypted = decompressed.decrypt(clientKey);
     assert.deepStrictEqual(decrypted, U128_MAX);
+
+    let compressed_safe_serialized = compressed_encrypted.safe_serialize(BigInt(10000000));
+    let compressed_safe_deserialized = CompressedFheUint128.safe_deserialize(compressed_safe_serialized, BigInt(10000000));
+    let safe_decompressed = compressed_safe_deserialized.decompress()
+
+    safe_decrypted = safe_decompressed.decrypt(clientKey);
+    assert.deepStrictEqual(safe_decrypted, U128_MAX);
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint256_big', (t) => {
@@ -247,6 +293,11 @@ test('hlapi_client_key_encrypt_decrypt_uint256_big', (t) => {
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
 
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint256.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U256_MAX);
+
     // Compressed
     let compressed_encrypted = CompressedFheUint256.encrypt_with_client_key(U256_MAX, clientKey);
     let compressed_serialized = compressed_encrypted.serialize();
@@ -255,6 +306,13 @@ test('hlapi_client_key_encrypt_decrypt_uint256_big', (t) => {
 
     decrypted = decompressed.decrypt(clientKey);
     assert.deepStrictEqual(decrypted, U256_MAX);
+
+    let compressed_safe_serialized = compressed_encrypted.safe_serialize(BigInt(10000000));
+    let compressed_safe_deserialized = CompressedFheUint256.safe_deserialize(compressed_safe_serialized, BigInt(10000000));
+    let safe_decompressed = compressed_safe_deserialized.decompress()
+
+    safe_decrypted = safe_decompressed.decrypt(clientKey);
+    assert.deepStrictEqual(safe_decrypted, U256_MAX);
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint256_small', (t) => {
@@ -274,6 +332,11 @@ test('hlapi_client_key_encrypt_decrypt_uint256_small', (t) => {
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
 
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint256.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U256_MAX);
+
     // Compressed
     let compressed_encrypted = CompressedFheUint256.encrypt_with_client_key(U256_MAX, clientKey);
     let compressed_serialized = compressed_encrypted.serialize();
@@ -282,6 +345,13 @@ test('hlapi_client_key_encrypt_decrypt_uint256_small', (t) => {
 
     decrypted = decompressed.decrypt(clientKey);
     assert.deepStrictEqual(decrypted, U256_MAX);
+
+    let compressed_safe_serialized = compressed_encrypted.safe_serialize(BigInt(10000000));
+    let compressed_safe_deserialized = CompressedFheUint256.safe_deserialize(compressed_safe_serialized, BigInt(10000000));
+    let safe_decompressed = compressed_safe_deserialized.decompress()
+
+    safe_decrypted = safe_decompressed.decrypt(clientKey);
+    assert.deepStrictEqual(safe_decrypted, U256_MAX);
 });
 
 test('hlapi_decompress_public_key_then_encrypt_decrypt_uint256_small', (t) => {
@@ -303,6 +373,11 @@ test('hlapi_decompress_public_key_then_encrypt_decrypt_uint256_small', (t) => {
     let deserialized = FheUint256.deserialize(serialized);
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
+
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint256.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U256_MAX);
 });
 
 test('hlapi_public_key_encrypt_decrypt_uint256_small', (t) => {
@@ -322,6 +397,11 @@ test('hlapi_public_key_encrypt_decrypt_uint256_small', (t) => {
     let deserialized = FheUint256.deserialize(serialized);
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
+
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint256.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U256_MAX);
 });
 
 
@@ -342,6 +422,11 @@ function hlapi_compact_public_key_encrypt_decrypt_uint32_single(config) {
     let deserialized = FheUint32.deserialize(serialized);
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U32_MAX);
+
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint32.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U32_MAX);
 }
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint32_big_single', (t) => {
@@ -375,6 +460,11 @@ function hlapi_compact_public_key_encrypt_decrypt_uint32_single_compact(config) 
     let deserialized = CompactFheUint32.deserialize(serialized);
     let deserialized_decrypted = deserialized.expand().decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U32_MAX);
+
+    let safe_serialized = compact_encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = CompactFheUint32.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.expand().decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U32_MAX);
 }
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint32_small_single_compact', (t) => {
@@ -408,8 +498,7 @@ function hlapi_compact_public_key_encrypt_decrypt_uint32_list_compact(config) {
 
         assert.deepStrictEqual(encrypted_list.length, values.length);
 
-        for (let i = 0; i < values.length; i++)
-        {
+        for (let i = 0; i < values.length; i++) {
             let decrypted = encrypted_list[i].decrypt(clientKey);
             assert.deepStrictEqual(decrypted, values[i]);
         }
@@ -420,8 +509,7 @@ function hlapi_compact_public_key_encrypt_decrypt_uint32_list_compact(config) {
     let encrypted_list = deserialized_list.expand();
     assert.deepStrictEqual(encrypted_list.length, values.length);
 
-    for (let i = 0; i < values.length; i++)
-    {
+    for (let i = 0; i < values.length; i++) {
         let decrypted = encrypted_list[i].decrypt(clientKey);
         assert.deepStrictEqual(decrypted, values[i]);
     }
@@ -462,6 +550,11 @@ function hlapi_compact_public_key_encrypt_decrypt_uint256_single(config) {
     let deserialized = FheUint256.deserialize(serialized);
     let deserialized_decrypted = deserialized.decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
+
+    let safe_serialized = encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = FheUint256.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U256_MAX);
 }
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint256_big_single', (t) => {
@@ -495,6 +588,11 @@ function hlapi_compact_public_key_encrypt_decrypt_uint256_single_compact(config)
     let deserialized = CompactFheUint256.deserialize(serialized);
     let deserialized_decrypted = deserialized.expand().decrypt(clientKey);
     assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
+
+    let safe_serialized = compact_encrypted.safe_serialize(BigInt(10000000));
+    let safe_deserialized = CompactFheUint256.safe_deserialize(safe_serialized, BigInt(10000000));
+    let safe_deserialized_decrypted = safe_deserialized.expand().decrypt(clientKey);
+    assert.deepStrictEqual(safe_deserialized_decrypted, U256_MAX);
 }
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint256_small_single_compact', (t) => {
@@ -528,8 +626,7 @@ function hlapi_compact_public_key_encrypt_decrypt_uint256_list_compact(config) {
 
         assert.deepStrictEqual(encrypted_list.length, values.length);
 
-        for (let i = 0; i < values.length; i++)
-        {
+        for (let i = 0; i < values.length; i++) {
             let decrypted = encrypted_list[i].decrypt(clientKey);
             assert.deepStrictEqual(decrypted, values[i]);
         }
@@ -540,8 +637,7 @@ function hlapi_compact_public_key_encrypt_decrypt_uint256_list_compact(config) {
     let encrypted_list = deserialized_list.expand();
     assert.deepStrictEqual(encrypted_list.length, values.length);
 
-    for (let i = 0; i < values.length; i++)
-    {
+    for (let i = 0; i < values.length; i++) {
         let decrypted = encrypted_list[i].decrypt(clientKey);
         assert.deepStrictEqual(decrypted, values[i]);
     }
