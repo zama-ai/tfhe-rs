@@ -132,6 +132,40 @@ pub fn check_content_respects_mod<Scalar: UnsignedInteger, Input: AsRef<[Scalar]
     }
 }
 
+/// This function converts an unsigned integer to a float value but does so selecting the truncated
+/// value of the input integer, meaning it will not try to round to the closest representable
+/// integer by the floating point type, it will always select the closest representable integer by
+/// the given floating point type that is inferior to the input integer.
+///
+/// This is used to get an approximation of an integer modulus in the float domain that is
+/// guaranteed to not be greater than the integer value.
+pub fn convert_unsigned_integer_to_float_truncate<Scalar, Float>(input: Scalar) -> Float
+where
+    Scalar: UnsignedInteger + CastInto<Float>,
+    Float: FloatingPoint,
+{
+    let float_mantissa_bits = Float::MANTISSA_DIGITS;
+
+    // Reasoning with f64
+    // An f64 being able to represent all values from 0 to 2^53 without approximation we have a fast
+    // path here
+    if Scalar::BITS <= float_mantissa_bits || input <= (Scalar::ONE << float_mantissa_bits) {
+        input.cast_into()
+    } else {
+        // 0 indexed
+        // Here as input > 2^53 leading zeros is always less than Scalar::BITS - 1, this does not
+        // underflow
+        // The formula is Scalar::BITS - 1 - leading_zeros which also happens to be the ilog2 of the
+        // value
+        let first_most_significant_non_zero_bit_position = input.ilog2() as usize;
+        let last_representable_bit =
+            first_most_significant_non_zero_bit_position - float_mantissa_bits;
+        let mask_zeroing_unrepresentable_bits =
+            !((Scalar::ONE << (last_representable_bit + 1)) - Scalar::ONE);
+        (input & mask_zeroing_unrepresentable_bits).cast_into()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -175,6 +209,62 @@ mod test {
 
             let ceiled = divide_ceil(num_u64, denom_u64);
             assert_eq!(expected_ceiled_u64, ceiled);
+        }
+    }
+
+    #[test]
+    fn test_convert_integer_truncate_u64_f64() {
+        let check_value = |value, exact_match: bool| {
+            let value_trunc_f64: f64 = convert_unsigned_integer_to_float_truncate(value);
+            let roundtrip_value = value_trunc_f64 as u64;
+
+            if exact_match {
+                assert_eq!(roundtrip_value, value);
+            } else {
+                assert!(
+                    roundtrip_value <= value,
+                    "expected roundtrip_value={roundtrip_value} <= value={value}\n\
+                    roundtrip_value={roundtrip_value:064b}, value={value:064b}"
+                );
+
+                let max_expected_diff =
+                    1 << (value.ceil_ilog2().saturating_sub(f64::MANTISSA_DIGITS));
+                let abs_diff = roundtrip_value.abs_diff(value);
+                assert!(
+                    abs_diff < max_expected_diff,
+                    "expected abs_diff={abs_diff} < max_expected_diff={max_expected_diff}"
+                );
+            }
+        };
+
+        {
+            let values_and_exact_match = [
+                (((1u128 << 64) - (1 << 32) + 1) as u64, false),
+                (((1u128 << 64) - (1 << 32)) as u64, true),
+                (((1u128 << 64) - (1 << 32) + (1 << 12) - 1) as u64, false),
+                (1 << 53, true),
+                ((1 << 53) - 1, true),
+                ((1 << 53) + 1, false),
+                (1 << 32, true),
+                (1, true),
+                (0, true),
+            ];
+
+            for (value, exact_match) in values_and_exact_match {
+                check_value(value, exact_match);
+            }
+        }
+        {
+            use rand::Rng;
+            let mut rng = rand::thread_rng();
+
+            for _ in 0..1_000_000_000 {
+                let value: u64 = rng.gen();
+                // This is an easy case where we expect the values to match exactly, to cover other
+                // cases we would be re coding the algorithms here.
+                let exact_match = value <= (1 << 53);
+                check_value(value, exact_match);
+            }
         }
     }
 }

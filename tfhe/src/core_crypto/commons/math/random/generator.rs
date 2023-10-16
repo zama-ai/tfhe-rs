@@ -1,9 +1,10 @@
+use crate::core_crypto::algorithms::misc::convert_unsigned_integer_to_float_truncate;
 use crate::core_crypto::commons::math::random::{
     Gaussian, RandomGenerable, Uniform, UniformBinary, UniformLsb, UniformMsb, UniformTernary,
     UniformWithZeros,
 };
 use crate::core_crypto::commons::math::torus::{UnsignedInteger, UnsignedTorus};
-use crate::core_crypto::commons::numeric::{CastFrom, CastInto, FloatingPoint};
+use crate::core_crypto::commons::numeric::{CastInto, FloatingPoint};
 use crate::core_crypto::commons::parameters::CiphertextModulus;
 use concrete_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 use rayon::prelude::*;
@@ -209,16 +210,16 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         output: &mut [Scalar],
         custom_modulus: CiphertextModulus<Scalar>,
     ) where
-        Scalar: UnsignedInteger + RandomGenerable<Uniform>,
+        Scalar: UnsignedInteger + RandomGenerable<Uniform, CustomModulus = Scalar>,
     {
-        assert!(custom_modulus.is_compatible_with_native_modulus());
-        self.fill_slice_with_random_uniform(output);
-
-        if !custom_modulus.is_native_modulus() {
-            output.as_mut().iter_mut().for_each(|x| {
-                *x = (*x).wrapping_rem(custom_modulus.get_custom_modulus().cast_into())
-            });
+        if custom_modulus.is_native_modulus() {
+            self.fill_slice_with_random_uniform(output);
+            return;
         }
+
+        // This needs to be our Scalar in the RandomGenerable implementation
+        let custom_modulus_scalar: Scalar = custom_modulus.get_custom_modulus().cast_into();
+        Scalar::fill_slice_custom_mod(self, Uniform, output, custom_modulus_scalar);
     }
 
     /// Generate a random uniform binary value.
@@ -424,8 +425,8 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         std: Float,
         custom_modulus: CiphertextModulus<Scalar>,
     ) where
-        Float: FloatingPoint + CastFrom<u128>,
-        Scalar: UnsignedInteger,
+        Float: FloatingPoint,
+        Scalar: UnsignedTorus + CastInto<Float>,
         (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Float>,
     {
         if custom_modulus.is_native_modulus() {
@@ -433,7 +434,18 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
             return;
         }
 
-        let custom_modulus_float: Float = custom_modulus.get_custom_modulus().cast_into();
+        let custom_modulus_as_scalar: Scalar = custom_modulus.get_custom_modulus().cast_into();
+        // Here we convert the custom modulus to f64 but rounding down to the closest representable
+        // value by f64. This allows to make sure that the value that is outputed is in the correct
+        // range with respect to our modulus.
+        // The max error for a u64 is 2047, i.e. max(diff(floor(u64 as f64) as u64, u64)) <= 2047
+        // This small error should be acceptable for values produced by the gaussian generation as
+        // they have to be related to the modulus itself, 2048 / 2^63 = 2^-52, basically the f64
+        // relative error is the max relative error you can get. This is valid for other moduli >=
+        // 2^53 with a max absolute error as low as 1 e.g. for 2^64 - 2^32 + 1, which rounds down to
+        // 2^64 - 2^32 in the float domain.
+        let custom_modulus_float: Float =
+            convert_unsigned_integer_to_float_truncate(custom_modulus_as_scalar);
         output.chunks_mut(2).for_each(|s| {
             let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
                 self,
@@ -508,8 +520,8 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         std: Float,
         custom_modulus: CiphertextModulus<Scalar>,
     ) where
-        Scalar: UnsignedTorus,
-        Float: FloatingPoint + CastFrom<u128>,
+        Float: FloatingPoint,
+        Scalar: UnsignedTorus + CastInto<Float>,
         (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Float>,
     {
         if custom_modulus.is_native_modulus() {
@@ -517,7 +529,18 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
             return;
         }
 
-        let custom_modulus_float: Float = custom_modulus.get_custom_modulus().cast_into();
+        let custom_modulus_as_scalar: Scalar = custom_modulus.get_custom_modulus().cast_into();
+        // Here we convert the custom modulus to f64 but rounding down to the closest representable
+        // value by f64. This allows to make sure that the value that is outputed is in the correct
+        // range with respect to our modulus.
+        // The max error for a u64 is 2047, i.e. max(diff(floor(u64 as f64) as u64, u64)) <= 2047
+        // This small error should be acceptable for values produced by the gaussian generation as
+        // they have to be related to the modulus itself, 2048 / 2^64 = 2^-53, basically the f64
+        // relative error is the max relative error you can get. This is valid for other moduli >=
+        // 2^53 with a max absolute error as low as 1 e.g. for 2^64 - 2^32 + 1, which rounds down to
+        // 2^64 - 2^32 in the float domain.
+        let custom_modulus_float: Float =
+            convert_unsigned_integer_to_float_truncate(custom_modulus_as_scalar);
         output.chunks_mut(2).for_each(|s| {
             let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
                 self,

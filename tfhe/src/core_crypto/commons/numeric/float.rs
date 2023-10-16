@@ -18,6 +18,9 @@ pub trait FloatingPoint:
     + Sub<Self, Output = Self>
     + SubAssign<Self>
 {
+    /// Number of significant digits in base 2.
+    const MANTISSA_DIGITS: usize;
+
     /// Raise a float to an integer power.
     #[must_use]
     fn powi(self, power: i32) -> Self;
@@ -65,6 +68,7 @@ macro_rules! implement {
             const MAX: Self = <$Type>::MAX;
         }
         impl FloatingPoint for $Type {
+            const MANTISSA_DIGITS: usize = $Type::MANTISSA_DIGITS as usize;
             #[inline]
             fn powi(self, power: i32) -> Self {
                 self.powi(power)

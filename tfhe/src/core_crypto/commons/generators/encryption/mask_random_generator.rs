@@ -54,7 +54,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         output: &mut [Scalar],
         ciphertext_modulus: CiphertextModulus<Scalar>,
     ) where
-        Scalar: UnsignedInteger + RandomGenerable<Uniform>,
+        Scalar: UnsignedInteger + RandomGenerable<Uniform, CustomModulus = Scalar>,
     {
         self.gen
             .fill_slice_with_random_uniform_custom_mod(output, ciphertext_modulus);

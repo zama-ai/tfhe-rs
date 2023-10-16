@@ -148,7 +148,11 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
                     }
                 }
             };
-            Ok(res.canonicalize())
+            let canonicalized_result = res.canonicalize();
+            if Scalar::BITS > 64 && !canonicalized_result.is_compatible_with_native_modulus() {
+                return Err("Non power of 2 moduli are not supported for types wider than u64");
+            }
+            Ok(canonicalized_result)
         }
     }
 
@@ -182,13 +186,16 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         res.canonicalize()
     }
 
+    /// # Panic
+    /// Panics if the stored modulus is not a power of 2.
+    #[track_caller]
     pub fn get_power_of_two_scaling_to_native_torus(&self) -> Scalar {
         match self.inner {
             CiphertextModulusInner::Native => Scalar::ONE,
             CiphertextModulusInner::Custom(modulus) => {
                 assert!(
                     modulus.is_power_of_two(),
-                    "Cannot get scaling for non power of two modulus {modulus:}"
+                    "Cannot get scaling for non power of two modulus {modulus}"
                 );
                 Scalar::ONE.wrapping_shl(Scalar::BITS as u32 - modulus.ilog2())
             }
