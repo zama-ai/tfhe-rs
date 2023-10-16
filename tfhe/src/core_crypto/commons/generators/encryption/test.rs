@@ -1,5 +1,6 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::{StandardDev, Variance};
+use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension,
     PolynomialSize,
@@ -87,7 +88,11 @@ fn noise_gen_native_u128() {
 fn noise_gen_custom_mod<Scalar: UnsignedTorus>(ciphertext_modulus: CiphertextModulus<Scalar>) {
     let mut gen = new_encryption_random_generator();
 
-    let bits = (Scalar::BITS / 2) as i32;
+    let bits = if ciphertext_modulus.is_native_modulus() {
+        Scalar::BITS as i32 / 2
+    } else {
+        ciphertext_modulus.get_custom_modulus().ilog2() as i32 / 2
+    };
 
     for _ in 0..1000 {
         let mut retries = 100;
@@ -288,7 +293,11 @@ fn noise_gen_slice_custom_mod<Scalar: UnsignedTorus>(
 ) {
     let mut gen = new_encryption_random_generator();
 
-    let bits = (Scalar::BITS / 2) as i32;
+    let bits = if ciphertext_modulus.is_native_modulus() {
+        Scalar::BITS as i32 / 2
+    } else {
+        ciphertext_modulus.get_custom_modulus().ilog2() as i32 / 2
+    };
 
     let mut vec = vec![Scalar::ZERO; 1000];
     let mut retries = 100;
@@ -358,7 +367,11 @@ fn test_normal_random_encryption_custom_mod<Scalar: UnsignedTorus>(
                 .iter()
                 .copied()
                 .map(|x| {
-                    let torus = x.into_torus();
+                    let torus = if ciphertext_modulus.is_native_modulus() {
+                        x.into_torus()
+                    } else {
+                        x.into_torus_custom_mod(ciphertext_modulus.get_custom_modulus().cast_into())
+                    };
                     // The upper half of the torus corresponds to the negative domain when
                     // mapping unsigned integer back to float (MSB or
                     // sign bit is set)
@@ -395,6 +408,13 @@ fn test_normal_random_encryption_custom_mod_u32() {
 fn test_normal_random_encryption_custom_mod_u64() {
     test_normal_random_encryption_custom_mod::<u64>(
         CiphertextModulus::try_new_power_of_2(63).unwrap(),
+    );
+}
+
+#[test]
+fn test_normal_random_encryption_custom_mod_solinas_u64() {
+    test_normal_random_encryption_custom_mod::<u64>(
+        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     );
 }
 
@@ -440,7 +460,11 @@ fn test_normal_random_encryption_add_assign_custom_mod<Scalar: UnsignedTorus>(
                 .iter()
                 .copied()
                 .map(|x| {
-                    let torus = x.into_torus();
+                    let torus = if ciphertext_modulus.is_native_modulus() {
+                        x.into_torus()
+                    } else {
+                        x.into_torus_custom_mod(ciphertext_modulus.get_custom_modulus().cast_into())
+                    };
                     // The upper half of the torus corresponds to the negative domain when
                     // mapping unsigned integer back to float (MSB or
                     // sign bit is set)
@@ -477,6 +501,13 @@ fn test_normal_random_encryption_add_assign_custom_mod_u32() {
 fn test_normal_random_encryption_add_assign_custom_mod_u64() {
     test_normal_random_encryption_add_assign_custom_mod::<u64>(
         CiphertextModulus::try_new_power_of_2(63).unwrap(),
+    );
+}
+
+#[test]
+fn test_normal_random_encryption_add_assign_custom_mod_solinas_u64() {
+    test_normal_random_encryption_add_assign_custom_mod::<u64>(
+        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
     );
 }
 
@@ -549,6 +580,10 @@ fn mask_gen_slice_custom_mod<Scalar: UnsignedTorus>(ciphertext_modulus: Cipherte
     }
     assert!(retries != 0);
     assert!(vec.iter().all(|&x| x != Scalar::ZERO));
+    if !ciphertext_modulus.is_native_modulus() {
+        let modulus_as_scalar: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+        assert!(vec.iter().all(|&x| x < modulus_as_scalar));
+    }
 }
 
 #[test]
@@ -559,6 +594,18 @@ fn mask_gen_slice_custom_mod_u32() {
 #[test]
 fn mask_gen_slice_custom_mod_u64() {
     mask_gen_slice_custom_mod::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap());
+}
+
+#[test]
+fn mask_gen_slice_custom_mod_solinas_u64() {
+    mask_gen_slice_custom_mod::<u64>(
+        CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    );
+}
+
+#[test]
+fn mask_gen_slice_custom_mod_16_bits_u64() {
+    mask_gen_slice_custom_mod::<u64>(CiphertextModulus::try_new(1 << 16).unwrap());
 }
 
 #[test]

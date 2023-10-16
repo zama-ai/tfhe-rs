@@ -27,6 +27,8 @@ where
 {
     /// Consume `self` and returns its closest floating point representation.
     fn into_torus(self) -> F;
+    /// Consume `self` and returns its closest floating point representation for a given modulus.
+    fn into_torus_custom_mod(self, custom_modulus: Self) -> F;
 }
 
 /// A trait that converts a torus element in floating point representation into the closest torus
@@ -39,6 +41,12 @@ where
     /// Consume `input` and returns its closest unsigned integer representation.
     fn from_torus(input: F) -> Self;
     /// Consume `input` and returns its closest unsigned integer representation for a given modulus.
+    ///
+    /// It is the caller's reponsibility to provide a custom_modulus that is a safe approximation of
+    /// the integer modulus they want to use in the floating point domain.
+    ///
+    /// If the approximate floating point modulus is too big then some values will be out of the
+    /// proper range for the given integer modulus.
     fn from_torus_custom_modulus(input: F, custom_modulus: F) -> Self;
 }
 
@@ -53,6 +61,12 @@ macro_rules! implement {
             fn into_torus(self) -> F {
                 let self_f: F = self.cast_into();
                 return self_f * (F::TWO.powi(-(<Self as Numeric>::BITS as i32)));
+            }
+            #[inline]
+            fn into_torus_custom_mod(self, custom_modulus: Self) -> F {
+                let self_f: F = self.cast_into();
+                let custom_modulus_f: F = custom_modulus.cast_into();
+                return self_f / custom_modulus_f;
             }
         }
         impl<F> FromTorus<F> for $Type
@@ -69,12 +83,26 @@ macro_rules! implement {
                 return signed.cast_into();
             }
             #[inline]
+            // WARNING from documentation reproduced here
+            // It is the caller's reponsibility to provide a custom_modulus that is a safe
+            // approximation of the integer modulus they want to use in the floating point
+            // domain.
+            //
+            // If the approximate floating point modulus is too big then some values will be out of
+            // the proper range for the given integer modulus.
             fn from_torus_custom_modulus(input: F, custom_modulus: F) -> Self {
+                // This is in [-0.5, 0.5[
                 let mut fract = input - F::round(input);
+                // Scale to the modulus
                 fract *= custom_modulus;
-                fract = F::round(fract);
-                let signed: Self::Signed = fract.cast_into();
-                return signed.cast_into();
+                // This allows to map the negative part of the [-0.5, 0.5[ torus to the upper part
+                // of the [0, 1[ torus in a single operation.
+                // Also this is better done here to avoid epsilon issues as input can be very very
+                // small (i.e. if input is very small adding 1.0 to input to map it to the positive
+                // values would always produce 1.0, and therefore a noise of 0.0 if this value is
+                // used for noise generation, big yikes)
+                fract = F::round(fract).rem_euclid(custom_modulus);
+                return fract.cast_into();
             }
         }
     };
