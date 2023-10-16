@@ -2,6 +2,8 @@ use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{RadixCiphertext, ServerKey};
 use crate::shortint::Ciphertext;
 
+use crate::core_crypto::commons::numeric::UnsignedInteger;
+use crate::core_crypto::prelude::misc::divide_ceil;
 use rayon::prelude::*;
 
 #[repr(u64)]
@@ -35,6 +37,40 @@ fn prefix_sum_carry_propagation(msb: u64, lsb: u64) -> u64 {
     } else {
         msb
     }
+}
+
+fn should_hillis_steele_propagation_be_faster(num_blocks: usize, num_threads: usize) -> bool {
+    // Measures have shown that using a parallelized algorithm degrades
+    // the latency of a PBS, so we take that into account.
+    // (This factor is a bit pessimistic).
+    const PARALLEL_LATENCY_PENALTY: usize = 2;
+    // However that penalty only kicks in when certain level of
+    // parallelism is used
+    let penalty_threshold = num_threads / 2;
+
+    // The unit of latency is a PBS
+    let compute_latency_of_one_layer = |num_blocks: usize, num_threads: usize| -> usize {
+        let latency = divide_ceil(num_blocks, num_threads);
+        if num_blocks >= penalty_threshold {
+            latency * PARALLEL_LATENCY_PENALTY
+        } else {
+            latency
+        }
+    };
+
+    // Estimate the latency of the parallelized algorithm
+    let mut parallel_expected_latency = 2 * compute_latency_of_one_layer(num_blocks, num_threads);
+    let max_depth = num_blocks.ceil_ilog2();
+    let mut space = 1;
+    for _ in 0..max_depth {
+        let num_block_at_iter = num_blocks - space;
+        let iter_latency = compute_latency_of_one_layer(num_block_at_iter, num_threads);
+        parallel_expected_latency += iter_latency;
+        space *= 2;
+    }
+
+    // the other algorithm has num_blocks latency
+    parallel_expected_latency < num_blocks
 }
 
 impl ServerKey {
@@ -254,21 +290,7 @@ impl ServerKey {
             return false;
         }
 
-        // The fully parallelized way introduces more work
-        // and so is slower for low number of blocks
-        const MIN_NUM_BLOCKS: usize = 6;
-        let has_enough_blocks = ct.blocks().len() >= MIN_NUM_BLOCKS;
-        if !has_enough_blocks {
-            return false;
-        }
-
-        // Use rayon to get that number as the implementation uses rayon for parallelism
-        let has_enough_threads = rayon::current_num_threads() >= ct.blocks().len();
-        if !has_enough_threads {
-            return false;
-        }
-
-        true
+        should_hillis_steele_propagation_be_faster(ct.blocks().len(), rayon::current_num_threads())
     }
 
     /// This add_assign two numbers
@@ -377,11 +399,11 @@ impl ServerKey {
         debug_assert!(self.key.message_modulus.0 * self.key.carry_modulus.0 >= (1 << 4));
 
         let num_blocks = generates_or_propagates.len();
-        let num_steps = generates_or_propagates.len().ilog2() as usize;
+        let num_steps = generates_or_propagates.len().ceil_ilog2() as usize;
 
         let mut space = 1;
         let mut step_output = generates_or_propagates.clone();
-        for _ in 0..=num_steps {
+        for _ in 0..num_steps {
             step_output[space..num_blocks]
                 .par_iter_mut()
                 .enumerate()
@@ -903,5 +925,60 @@ impl ServerKey {
         assert!(result.block_carries_are_empty());
 
         Some(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_hillis_steele_propagation_be_faster;
+
+    #[test]
+    fn test_hillis_steele_choice_128_threads() {
+        // m6i.metal like number of threads
+        const NUM_THREADS: usize = 128;
+        // 16, 32, 64, 128, 256 512 bits
+        for num_blocks in [8, 16, 32, 64, 128, 256] {
+            assert!(
+                should_hillis_steele_propagation_be_faster(num_blocks, NUM_THREADS),
+                "Expected hillis and steele to be chosen for {num_blocks} blocks and {NUM_THREADS} threads"
+            );
+        }
+        // 8 bits
+        assert!(!should_hillis_steele_propagation_be_faster(4, NUM_THREADS),);
+    }
+
+    #[test]
+    fn test_hillis_steele_choice_12_threads() {
+        const NUM_THREADS: usize = 12;
+        // 8, 16, 32, 64, 128, 256, 512 bits
+        for num_blocks in [4, 8, 16, 32, 64, 128, 256] {
+            assert!(
+                !should_hillis_steele_propagation_be_faster(num_blocks, NUM_THREADS),
+                "Expected hillis and steele to *not* be chosen for {num_blocks} blocks and {NUM_THREADS} threads"
+            );
+        }
+    }
+
+    #[test]
+    fn test_hillis_steele_choice_8_threads() {
+        const NUM_THREADS: usize = 8;
+        // 8, 16, 32, 64, 128, 256, 512 bits
+        for num_blocks in [4, 8, 16, 32, 64, 128, 256] {
+            assert!(
+                !should_hillis_steele_propagation_be_faster(num_blocks, NUM_THREADS),
+                "Expected hillis and steele to *not* be chosen for {num_blocks} blocks and {NUM_THREADS} threads"
+            );
+        }
+    }
+    #[test]
+    fn test_hillis_steele_choice_4_threads() {
+        const NUM_THREADS: usize = 4;
+        // 8, 16, 32, 64, 128, 256, 512 bits
+        for num_blocks in [4, 8, 16, 32, 64, 128, 256] {
+            assert!(
+                !should_hillis_steele_propagation_be_faster(num_blocks, NUM_THREADS),
+                "Expected hillis and steele to *not* be chosen for {num_blocks} blocks and {NUM_THREADS} threads"
+            );
+        }
     }
 }

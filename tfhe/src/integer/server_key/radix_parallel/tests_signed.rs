@@ -899,8 +899,18 @@ fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
         let (q_res, r_res) = sks.unchecked_div_rem_parallelized(&ctxt_0, &ctxt_1);
         let q: i64 = cks.decrypt_signed_radix(&q_res);
         let r: i64 = cks.decrypt_signed_radix(&r_res);
-        assert_eq!(q, signed_div_under_modulus(clear_0, clear_1, modulus));
-        assert_eq!(r, clear_0 % clear_1);
+        let expected_q = signed_div_under_modulus(clear_0, clear_1, modulus);
+        assert_eq!(
+            q, expected_q,
+            "Invalid division result, for {clear_0} / {clear_1} \
+            expected quotient: {expected_q} got: {q}"
+        );
+        let expected_r = signed_rem_under_modulus(clear_0, clear_1, modulus);
+        assert_eq!(
+            r, expected_r,
+            "Invalid remainder result, for {clear_0} % {clear_1} \
+            expected quotient: {expected_r} got: {r}"
+        );
     }
 }
 
