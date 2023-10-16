@@ -23,6 +23,13 @@ impl ServerKey {
         )
     }
 
+    pub fn unchecked_cmux<T>(&self, condition: &T, true_ct: &T, false_ct: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
+    }
+
     /// FHE "if then else" selection.
     ///
     /// Returns a new ciphertext that encrypts the same value
@@ -83,6 +90,16 @@ impl ServerKey {
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
     }
 
+    /// Encrypted CMUX.
+    ///
+    /// It is another name for [Self::if_then_else_parallelized]
+    pub fn cmux_parallelized<T>(&self, condition: &T, true_ct: &T, false_ct: &T) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        self.if_then_else_parallelized(condition, true_ct, false_ct)
+    }
+
     /// FHE "if then else" selection.
     ///
     /// Returns a new ciphertext that encrypts the same value
@@ -140,6 +157,21 @@ impl ServerKey {
 
         let [condition, true_ct, false_ct] = ct_refs;
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
+    }
+
+    /// Encrypted CMUX.
+    ///
+    /// It is another name for [Self::smart_if_then_else_parallelized]
+    pub fn smart_cmux_parallelized<T>(
+        &self,
+        condition: &mut T,
+        true_ct: &mut T,
+        false_ct: &mut T,
+    ) -> T
+    where
+        T: IntegerRadixCiphertext,
+    {
+        self.smart_if_then_else_parallelized(condition, true_ct, false_ct)
     }
 
     /// if do clean message is false, the resulting ciphertext won't be cleaned (message_extract)

@@ -183,6 +183,16 @@ macro_rules! impl_operations_for_integer_type {
                     *result = Box::into_raw(Box::new($name(r)));
                 })
             }
+
+             // map cmux to if_then_else
+             pub unsafe extern "C" fn [<$name:snake _cmux>](
+                condition_ct: *const $name,
+                then_ct: *const $name,
+                else_ct: *const $name,
+                result: *mut *mut $name,
+            ) -> c_int {
+                [<$name:snake _if_then_else>](condition_ct, then_ct, else_ct, result)
+            }
         }
     };
 }

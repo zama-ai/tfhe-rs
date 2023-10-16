@@ -209,6 +209,14 @@ where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
+    /// Conditional selection.
+    ///
+    /// The output value returned depends on the value of `self`.
+    ///
+    /// `self` has to encrypt 0 or 1.
+    ///
+    /// - if `self` is true (1), the output will have the value of `ct_then`
+    /// - if `self` is false (0), the output will have the value of `ct_else`
     pub fn if_then_else(&self, ct_then: &Self, ct_else: &Self) -> GenericInteger<P> {
         let ct_condition = self;
         let new_ct = ct_condition.id.with_unwrapped_global(|integer_key| {
@@ -220,6 +228,13 @@ where
         });
 
         GenericInteger::new(new_ct, ct_condition.id)
+    }
+
+    /// Conditional selection.
+    ///
+    /// cmux is another name for (if_then_else)[Self::if_then_else]
+    pub fn cmux(&self, ct_then: &Self, ct_else: &Self) -> GenericInteger<P> {
+        self.if_then_else(ct_then, ct_else)
     }
 }
 
