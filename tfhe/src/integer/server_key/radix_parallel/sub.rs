@@ -361,7 +361,21 @@ impl ServerKey {
                 .blocks
                 .iter()
                 .zip(rhs.blocks.iter())
-                .map(|(lhs_block, rhs_block)| self.key.unchecked_sub(lhs_block, rhs_block))
+                .map(|(lhs_block, rhs_block)| {
+                    let (mut result_block, correction) = self
+                        .key
+                        .unchecked_sub_with_correcting_term(lhs_block, rhs_block);
+                    if correction == 0 {
+                        // When rhs_block is a trivial zero, the correcting term added is 0
+                        // However we rely on that correcting term to be added regardless
+                        assert_eq!(rhs_block.degree.0, 0);
+                        self.key.unchecked_scalar_add_assign(
+                            &mut result_block,
+                            self.key.message_modulus.0 as u8,
+                        );
+                    }
+                    result_block
+                })
                 .collect::<Vec<_>>();
             let mut ct = RadixCiphertext::from(ct);
 
