@@ -1822,6 +1822,40 @@ where
             );
         }
     }
+
+    // Test with trivial inputs, as it was bugged at some point
+    for _ in 0..4 {
+        // Reduce maximum value of random number such that at least the last block is a trivial 0
+        // (This is how the reproducing case was found)
+        let clear_0 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0 as u64);
+        let clear_1 = rng.gen::<u64>() % (modulus / sks.key.message_modulus.0 as u64);
+
+        let a: RadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+        let b: RadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
+
+        assert_eq!(a.blocks[NB_CTXT - 1].degree.0, 0);
+        assert_eq!(b.blocks[NB_CTXT - 1].degree.0, 0);
+
+        let (encrypted_result, encrypted_overflow) =
+            sks.unchecked_unsigned_overflowing_sub_parallelized(&a, &b);
+
+        let (expected_result, expected_overflowed) =
+            overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_one_block(&encrypted_overflow) == 1;
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+    }
 }
 
 pub(crate) fn default_sub_test<P, T>(param: P, mut executor: T)
