@@ -17,6 +17,8 @@ RUST_TOOLCHAIN="+stable"
 multi_bit=""
 not_multi_bit="_multi_bit"
 cargo_profile="release"
+# TODO: revert to release once the bug is properly fixed/identified
+cargo_profile_doctests="release_lto_off"
 avx512_feature=""
 
 while [ -n "$1" ]
@@ -119,7 +121,7 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
 
     if [[ "${multi_bit}" == "" ]]; then
         cargo "${RUST_TOOLCHAIN}" test \
-            --profile "${cargo_profile}" \
+            --profile "${cargo_profile_doctests}" \
             --package tfhe \
             --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
             --doc \
@@ -163,7 +165,7 @@ and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs
 
     if [[ "${multi_bit}" == "" ]]; then
         cargo "${RUST_TOOLCHAIN}" test \
-            --profile "${cargo_profile}" \
+            --profile "${cargo_profile_doctests}" \
             --package tfhe \
             --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
             --doc \
