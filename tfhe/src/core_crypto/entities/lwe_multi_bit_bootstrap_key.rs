@@ -3,7 +3,6 @@
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
 

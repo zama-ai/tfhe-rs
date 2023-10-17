@@ -4,6 +4,10 @@
 //! associated to the object, e.g., `get_mask` for the entity `LweCiphertext`.
 
 pub mod cleartext;
+pub mod fourier_ggsw_ciphertext;
+pub mod fourier_lwe_bootstrap_key;
+pub mod fourier_polynomial;
+pub mod fourier_polynomial_list;
 pub mod ggsw_ciphertext;
 pub mod ggsw_ciphertext_list;
 pub mod glwe_ciphertext;
@@ -45,14 +49,11 @@ pub use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::{
 pub use crate::core_crypto::fft_impl::fft128::crypto::ggsw::{
     Fourier128GgswCiphertext, Fourier128GgswLevelMatrix, Fourier128GgswLevelRow,
 };
-pub use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
-    FourierLweBootstrapKey, FourierLweBootstrapKeyOwned,
-};
-pub use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
-    FourierGgswCiphertext, FourierGgswCiphertextList, FourierGgswLevelMatrix, FourierGgswLevelRow,
-};
-pub use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomial;
 pub use cleartext::*;
+pub use fourier_ggsw_ciphertext::*;
+pub use fourier_lwe_bootstrap_key::*;
+pub use fourier_polynomial::*;
+pub use fourier_polynomial_list::*;
 pub use ggsw_ciphertext::*;
 pub use ggsw_ciphertext_list::*;
 pub use glwe_ciphertext::*;

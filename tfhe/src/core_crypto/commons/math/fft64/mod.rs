@@ -1,9 +1,13 @@
-use super::polynomial::{FourierPolynomialMutView, FourierPolynomialView};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::CastInto;
-use crate::core_crypto::commons::parameters::{PolynomialCount, PolynomialSize};
-use crate::core_crypto::commons::traits::{Container, ContainerMut, IntoContainerOwned};
+use crate::core_crypto::commons::parameters::PolynomialSize;
+use crate::core_crypto::commons::traits::container::Split;
+use crate::core_crypto::commons::traits::{Container, IntoContainerOwned};
 use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::entities::fourier_polynomial::{
+    FourierPolynomialMutView, FourierPolynomialView,
+};
+use crate::core_crypto::entities::fourier_polynomial_list::FourierPolynomialList;
 use crate::core_crypto::entities::*;
 use aligned_vec::{avec, ABox};
 use concrete_fft::c64;
@@ -20,6 +24,9 @@ use std::time::Duration;
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
 mod x86;
+
+#[cfg(test)]
+mod tests;
 
 /// Twisting factors from the paper:
 /// [Fast and Error-Free Negacyclic Integer Convolution using Extended Fourier Transform][paper]
@@ -375,13 +382,13 @@ impl<'a> FftView<'a> {
     ///
     /// Panics if `standard` and `self` have differing polynomial sizes, or if `fourier` doesn't
     /// have size equal to that amount divided by two.
-    pub fn forward_as_torus<'out, Scalar: UnsignedTorus>(
+    pub fn forward_as_torus<Scalar: UnsignedTorus>(
         self,
-        fourier: FourierPolynomialMutView<'out>,
+        fourier: FourierPolynomialMutView<'_>,
         standard: PolynomialView<'_, Scalar>,
         stack: PodStack<'_>,
-    ) -> FourierPolynomialMutView<'out> {
-        self.forward_with_conv(fourier, standard, convert_forward_torus, stack)
+    ) {
+        self.forward_with_conv(fourier, standard, convert_forward_torus, stack);
     }
 
     /// Perform a negacyclic real FFT of `standard`, viewed as integers, and stores the result in
@@ -395,23 +402,23 @@ impl<'a> FftView<'a> {
     ///
     /// Panics if `standard` and `self` have differing polynomial sizes, or if `fourier` doesn't
     /// have size equal to that amount divided by two.
-    pub fn forward_as_integer<'out, Scalar: UnsignedTorus>(
+    pub fn forward_as_integer<Scalar: UnsignedTorus>(
         self,
-        fourier: FourierPolynomialMutView<'out>,
+        fourier: FourierPolynomialMutView<'_>,
         standard: PolynomialView<'_, Scalar>,
         stack: PodStack<'_>,
-    ) -> FourierPolynomialMutView<'out> {
-        self.forward_with_conv(fourier, standard, convert_forward_integer, stack)
+    ) {
+        self.forward_with_conv(fourier, standard, convert_forward_integer, stack);
     }
 
     #[must_use]
     pub fn incomplete_monomial_forward_as_integer(
         self,
-        fourier: FourierPolynomialMutView<'_>,
+        mut fourier: FourierPolynomialMutView<'_>,
         degree: usize,
     ) -> c64 {
         let n = self.polynomial_size().0;
-        let fourier = fourier.data;
+        let fourier = fourier.as_mut();
 
         let negate = (degree / n) % 2 == 1;
         let degree = degree % n;
@@ -494,24 +501,22 @@ impl<'a> FftView<'a> {
     }
 
     fn forward_with_conv<
-        'out,
         Scalar: UnsignedTorus,
         F: Fn(&mut [c64], &[Scalar], &[Scalar], TwistiesView<'_>),
     >(
         self,
-        fourier: FourierPolynomialMutView<'out>,
+        mut fourier: FourierPolynomialMutView<'_>,
         standard: PolynomialView<'_, Scalar>,
         conv_fn: F,
         stack: PodStack<'_>,
-    ) -> FourierPolynomialMutView<'out> {
-        let fourier = fourier.data;
+    ) {
+        let fourier = fourier.as_mut();
         let standard = standard.as_ref();
         let n = standard.len();
         debug_assert_eq!(n, 2 * fourier.len());
         let (standard_re, standard_im) = standard.split_at(n / 2);
         conv_fn(fourier, standard_re, standard_im, self.twisties);
         self.plan.fwd(fourier, stack);
-        FourierPolynomialMutView { data: fourier }
     }
 
     fn backward_with_conv<
@@ -524,7 +529,7 @@ impl<'a> FftView<'a> {
         conv_fn: F,
         stack: PodStack<'_>,
     ) {
-        let fourier = fourier.data;
+        let fourier = fourier.as_ref();
         let standard = standard.as_mut();
         let n = standard.len();
         debug_assert_eq!(n, 2 * fourier.len());
@@ -542,11 +547,11 @@ impl<'a> FftView<'a> {
     >(
         self,
         mut standard: PolynomialMutView<'_, Scalar>,
-        fourier: FourierPolynomialMutView<'_>,
+        mut fourier: FourierPolynomialMutView<'_>,
         conv_fn: F,
         stack: PodStack<'_>,
     ) {
-        let fourier = fourier.data;
+        let fourier = fourier.as_mut();
         let standard = standard.as_mut();
         let n = standard.len();
         debug_assert_eq!(n, 2 * fourier.len());
@@ -557,34 +562,6 @@ impl<'a> FftView<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct FourierPolynomialList<C: Container<Element = c64>> {
-    pub data: C,
-    pub polynomial_size: PolynomialSize,
-}
-
-impl<C: Container<Element = c64>> FourierPolynomialList<C> {
-    pub fn polynomial_count(&self) -> PolynomialCount {
-        PolynomialCount(
-            self.data.container_len() / self.polynomial_size.to_fourier_polynomial_size().0,
-        )
-    }
-}
-
-impl<C: ContainerMut<Element = c64>> FourierPolynomialList<C> {
-    pub fn iter_mut(
-        &mut self,
-    ) -> impl DoubleEndedIterator<Item = FourierPolynomial<&'_ mut [c64]>> {
-        assert!(
-            self.data.container_len() % self.polynomial_size.to_fourier_polynomial_size().0 == 0
-        );
-        self.data
-            .as_mut()
-            .chunks_exact_mut(self.polynomial_size.to_fourier_polynomial_size().0)
-            .map(move |slice| FourierPolynomial { data: slice })
-    }
-}
-
 impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         fn serialize_impl<S: serde::Serializer>(
@@ -592,8 +569,6 @@ impl<C: Container<Element = c64>> serde::Serialize for FourierPolynomialList<C> 
             polynomial_size: PolynomialSize,
             serializer: S,
         ) -> Result<S::Ok, S::Error> {
-            use crate::core_crypto::commons::traits::Split;
-
             pub struct SingleFourierPolynomial<'a> {
                 fft: FftView<'a>,
                 buf: &'a [c64],
@@ -654,8 +629,6 @@ impl<'de, C: IntoContainerOwned<Element = c64>> serde::Deserialize<'de>
                 self,
                 mut seq: A,
             ) -> Result<Self::Value, A::Error> {
-                use crate::core_crypto::commons::traits::Split;
-
                 let str = "sequence of two fields and Fourier polynomials";
                 let polynomial_size = match seq.next_element::<PolynomialSize>()? {
                     Some(polynomial_size) => polynomial_size,
@@ -738,16 +711,15 @@ pub fn par_convert_polynomials_list_to_fourier<Scalar: UnsignedTorus>(
             1
         };
 
+    let stack_len = fft
+        .forward_scratch()
+        .and_then(|req| req.try_unaligned_bytes_required())
+        .unwrap();
+
     dest.par_chunks_mut(chunk_size * f_polynomial_size)
         .zip_eq(origin.par_chunks(chunk_size * polynomial_size.0))
         .for_each(|(fourier_poly_chunk, standard_poly_chunk)| {
-            let stack_len = fft
-                .forward_scratch()
-                .unwrap()
-                .try_unaligned_bytes_required()
-                .unwrap();
             let mut stack = vec![0; stack_len];
-
             let mut stack = PodStack::new(&mut stack);
 
             for (fourier_poly, standard_poly) in izip!(
@@ -755,7 +727,7 @@ pub fn par_convert_polynomials_list_to_fourier<Scalar: UnsignedTorus>(
                 standard_poly_chunk.chunks_exact(polynomial_size.0)
             ) {
                 fft.forward_as_torus(
-                    FourierPolynomialMutView { data: fourier_poly },
+                    FourierPolynomialMutView::from_container(fourier_poly),
                     PolynomialView::from_container(standard_poly),
                     stack.rb_mut(),
                 );
@@ -763,5 +735,143 @@ pub fn par_convert_polynomials_list_to_fourier<Scalar: UnsignedTorus>(
         });
 }
 
-#[cfg(test)]
-mod tests;
+#[cfg_attr(__profiling, inline(never))]
+pub(crate) fn update_with_fmadd(
+    output_fft_buffer: &mut [c64],
+    lhs_polynomial_list: &[c64],
+    fourier: &[c64],
+    is_output_uninit: bool,
+    fourier_poly_size: usize,
+) {
+    struct Impl<'a> {
+        output_fft_buffer: &'a mut [c64],
+        lhs_polynomial_list: &'a [c64],
+        fourier: &'a [c64],
+        is_output_uninit: bool,
+        fourier_poly_size: usize,
+    }
+
+    impl pulp::WithSimd for Impl<'_> {
+        type Output = ();
+
+        #[inline(always)]
+        fn with_simd<S: pulp::Simd>(self, simd: S) -> Self::Output {
+            // Introducing a function boundary here means that the slices
+            // get `noalias` markers, possibly allowing better optimizations from LLVM.
+            //
+            // see:
+            // https://github.com/rust-lang/rust/blob/56e1aaadb31542b32953292001be2312810e88fd/library/core/src/slice/mod.rs#L960-L966
+            #[inline(always)]
+            fn implementation<S: pulp::Simd>(
+                simd: S,
+                output_fft_buffer: &mut [c64],
+                lhs_polynomial_list: &[c64],
+                fourier: &[c64],
+                is_output_uninit: bool,
+                fourier_poly_size: usize,
+            ) {
+                let rhs = S::c64s_as_simd(fourier).0;
+
+                if is_output_uninit {
+                    for (output_fourier, ggsw_poly) in izip!(
+                        output_fft_buffer.into_chunks(fourier_poly_size),
+                        lhs_polynomial_list.into_chunks(fourier_poly_size)
+                    ) {
+                        let out = S::c64s_as_mut_simd(output_fourier).0;
+                        let lhs = S::c64s_as_simd(ggsw_poly).0;
+
+                        for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
+                            *out = simd.c64s_mul(lhs, rhs);
+                        }
+                    }
+                } else {
+                    for (output_fourier, ggsw_poly) in izip!(
+                        output_fft_buffer.into_chunks(fourier_poly_size),
+                        lhs_polynomial_list.into_chunks(fourier_poly_size)
+                    ) {
+                        let out = S::c64s_as_mut_simd(output_fourier).0;
+                        let lhs = S::c64s_as_simd(ggsw_poly).0;
+
+                        for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
+                            *out = simd.c64s_mul_adde(lhs, rhs, *out);
+                        }
+                    }
+                }
+            }
+
+            implementation(
+                simd,
+                self.output_fft_buffer,
+                self.lhs_polynomial_list,
+                self.fourier,
+                self.is_output_uninit,
+                self.fourier_poly_size,
+            )
+        }
+    }
+
+    pulp::Arch::new().dispatch(Impl {
+        output_fft_buffer,
+        lhs_polynomial_list,
+        fourier,
+        is_output_uninit,
+        fourier_poly_size,
+    })
+}
+
+pub(crate) fn update_with_fmadd_factor(
+    output_fft_buffer: &mut [c64],
+    lhs_polynomial_list: &[c64],
+    fourier: &[c64],
+    factor: c64,
+    is_output_uninit: bool,
+    fourier_poly_size: usize,
+) {
+    struct Impl<'a> {
+        output_fft_buffer: &'a mut [c64],
+        lhs_polynomial_list: &'a [c64],
+        fourier: &'a [c64],
+        factor: c64,
+        is_output_uninit: bool,
+        fourier_poly_size: usize,
+    }
+
+    impl pulp::WithSimd for Impl<'_> {
+        type Output = ();
+
+        #[inline(always)]
+        fn with_simd<S: pulp::Simd>(self, simd: S) -> Self::Output {
+            let factor = simd.c64s_splat(self.factor);
+
+            for (output_fourier, ggsw_poly) in izip!(
+                self.output_fft_buffer.into_chunks(self.fourier_poly_size),
+                self.lhs_polynomial_list.into_chunks(self.fourier_poly_size)
+            ) {
+                let out = S::c64s_as_mut_simd(output_fourier).0;
+                let lhs = S::c64s_as_simd(ggsw_poly).0;
+                let rhs = S::c64s_as_simd(self.fourier).0;
+
+                if self.is_output_uninit {
+                    for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
+                        // NOTE: factor * (lhs * rhs) is more efficient than (lhs * rhs) * factor
+                        *out = simd.c64s_mul(factor, simd.c64s_mul(lhs, rhs));
+                    }
+                } else {
+                    for (out, &lhs, &rhs) in izip!(out, lhs, rhs) {
+                        // NOTE: see above
+                        *out = simd.c64s_mul_adde(factor, simd.c64s_mul(lhs, rhs), *out);
+                    }
+                }
+            }
+        }
+    }
+
+    pulp::Arch::new().dispatch(Impl {
+        output_fft_buffer,
+        lhs_polynomial_list,
+        fourier,
+        factor,
+        is_output_uninit,
+        fourier_poly_size,
+    })
+}

@@ -3,14 +3,12 @@
 //! like the Fourier domain.
 
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
+use crate::core_crypto::commons::math::fft64::{Fft, FftView};
 use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::entities::fourier_lwe_bootstrap_key::FourierLweBootstrapKey;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKey;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
-    fill_with_forward_fourier_scratch, FourierLweBootstrapKey,
-};
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use concrete_fft::c64;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
@@ -154,7 +152,7 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_fourier<Scalar, InputCont, Outp
 pub fn convert_standard_lwe_bootstrap_key_to_fourier_mem_optimized_requirement(
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
-    fill_with_forward_fourier_scratch(fft)
+    fft.forward_scratch()
 }
 
 /// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the Fourier

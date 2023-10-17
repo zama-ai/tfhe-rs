@@ -1,10 +1,9 @@
 //! # WARNING: this module is experimental.
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::math::fft64::Fft;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
-use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::server_key::{MaxDegree, ShortintBootstrappingKey};

@@ -3,11 +3,11 @@
 //! representations/numerical domains like the Fourier domain.
 
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::math::fft::{
+use crate::core_crypto::commons::math::fft64::{
     par_convert_polynomials_list_to_fourier, Fft, FftView,
 };
+use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::entities::*;
 use concrete_fft::c64;
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
 
@@ -56,7 +56,7 @@ pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized<
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = c64>,
 {
-    let mut output_bsk_as_polynomial_list = output_bsk.as_mut_polynomial_list();
+    let output_bsk_as_polynomial_list = output_bsk.as_mut_polynomial_list();
     let input_bsk_as_polynomial_list = input_bsk.as_polynomial_list();
 
     assert_eq!(
@@ -65,7 +65,7 @@ pub fn convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_mem_optimized<
     );
 
     for (fourier_poly, coef_poly) in output_bsk_as_polynomial_list
-        .iter_mut()
+        .into_polynomial_iter()
         .zip(input_bsk_as_polynomial_list.iter())
     {
         // SAFETY: forward_as_torus doesn't write any uninitialized values into its output

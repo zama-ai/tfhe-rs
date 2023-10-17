@@ -1,25 +1,29 @@
-use super::super::math::fft::{Fft, FftView, FourierPolynomialList};
-use super::ggsw::*;
-use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
-use crate::core_crypto::algorithms::polynomial_algorithms::*;
-use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::CastInto;
+use super::fourier_ggsw_ciphertext::FourierGgswCiphertext;
+use super::fourier_polynomial_list::FourierPolynomialList;
+use super::lwe_bootstrap_key::LweBootstrapKey;
+use crate::core_crypto::algorithms::ggsw_conversion::convert_standard_ggsw_ciphertext_to_fourier_mem_optimized;
+use crate::core_crypto::commons::math::fft64::{par_convert_polynomials_list_to_fourier, FftView};
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LutCountLog, LweDimension,
-    ModulusSwitchOffset, MonomialDegree, PolynomialSize,
+    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
 };
-use crate::core_crypto::commons::traits::{
-    Container, ContiguousEntityContainer, ContiguousEntityContainerMut, IntoContainerOwned, Split,
+use crate::core_crypto::commons::traits::contiguous_entity_container::{
+    ContiguousEntityContainer, ContiguousEntityContainerMut,
 };
+use crate::core_crypto::commons::traits::{Container, ContainerMut, Split};
 use crate::core_crypto::commons::utils::izip;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
-use crate::core_crypto::fft_impl::fft64::math::fft::par_convert_polynomials_list_to_fourier;
-use crate::core_crypto::prelude::ContainerMut;
+use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
+use crate::core_crypto::prelude::polynomial_algorithms::{
+    polynomial_wrapping_monic_monomial_div, polynomial_wrapping_monic_monomial_mul_and_subtract,
+};
+use crate::core_crypto::prelude::{
+    add_external_product_assign_mem_optimized, extract_lwe_sample_from_glwe_ciphertext, CastInto,
+    GlweCiphertextMutView, GlweCiphertextView, IntoContainerOwned, LutCountLog,
+    LweCiphertextMutView, LweCiphertextView, ModulusSwitchOffset, MonomialDegree, Polynomial,
+    SignedDecomposer, UnsignedTorus,
+};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use concrete_fft::c64;
-use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
+use dyn_stack::{PodStack, ReborrowMut};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(bound(deserialize = "C: IntoContainerOwned"))]
@@ -33,6 +37,7 @@ pub struct FourierLweBootstrapKey<C: Container<Element = c64>> {
 
 pub type FourierLweBootstrapKeyView<'a> = FourierLweBootstrapKey<&'a [c64]>;
 pub type FourierLweBootstrapKeyMutView<'a> = FourierLweBootstrapKey<&'a mut [c64]>;
+pub type FourierLweBootstrapKeyOwned = FourierLweBootstrapKey<ABox<[c64]>>;
 
 impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     pub fn from_container(
@@ -103,7 +108,9 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     }
 
     pub fn output_lwe_dimension(&self) -> LweDimension {
-        LweDimension((self.glwe_size.0 - 1) * self.polynomial_size().0)
+        self.glwe_size
+            .to_glwe_dimension()
+            .to_equivalent_lwe_dimension(self.polynomial_size())
     }
 
     pub fn data(self) -> C {
@@ -125,7 +132,7 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
 
     pub fn as_mut_view(&mut self) -> FourierLweBootstrapKeyMutView<'_>
     where
-        C: AsMut<[c64]>,
+        C: ContainerMut<Element = c64>,
     {
         FourierLweBootstrapKeyMutView {
             fourier: FourierPolynomialList {
@@ -140,9 +147,7 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     }
 }
 
-pub type FourierLweBootstrapKeyOwned = FourierLweBootstrapKey<ABox<[c64]>>;
-
-impl FourierLweBootstrapKey<ABox<[c64]>> {
+impl FourierLweBootstrapKeyOwned {
     pub fn new(
         input_lwe_dimension: LweDimension,
         glwe_size: GlweSize,
@@ -171,11 +176,6 @@ impl FourierLweBootstrapKey<ABox<[c64]>> {
     }
 }
 
-/// Return the required memory for [`FourierLweBootstrapKeyMutView::fill_with_forward_fourier`].
-pub fn fill_with_forward_fourier_scratch(fft: FftView<'_>) -> Result<StackReq, SizeOverflow> {
-    fft.forward_scratch()
-}
-
 impl<'a> FourierLweBootstrapKeyMutView<'a> {
     /// Fill a bootstrapping key with the Fourier transform of a bootstrapping key in the standard
     /// domain.
@@ -185,10 +185,15 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
         fft: FftView<'_>,
         mut stack: PodStack<'_>,
     ) {
-        for (fourier_ggsw, standard_ggsw) in
+        for (mut fourier_ggsw, standard_ggsw) in
             izip!(self.as_mut_view().into_ggsw_iter(), coef_bsk.iter())
         {
-            fourier_ggsw.fill_with_forward_fourier(standard_ggsw, fft, stack.rb_mut());
+            convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
+                &standard_ggsw,
+                &mut fourier_ggsw,
+                fft,
+                stack.rb_mut(),
+            );
         }
     }
     /// Fill a bootstrapping key with the Fourier transform of a bootstrapping key in the standard
@@ -198,7 +203,7 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
         coef_bsk: LweBootstrapKey<&'_ [Scalar]>,
         fft: FftView<'_>,
     ) {
-        let polynomial_size = self.fourier.polynomial_size;
+        let polynomial_size = self.polynomial_size();
         par_convert_polynomials_list_to_fourier(
             self.data(),
             coef_bsk.into_container(),
@@ -206,35 +211,6 @@ impl<'a> FourierLweBootstrapKeyMutView<'a> {
             fft,
         );
     }
-}
-
-/// Return the required memory for [`FourierLweBootstrapKeyView::blind_rotate_assign`].
-pub fn blind_rotate_scratch<Scalar>(
-    glwe_size: GlweSize,
-    polynomial_size: PolynomialSize,
-    fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    StackReq::try_any_of([
-        // tmp_poly allocation
-        StackReq::try_new_aligned::<Scalar>(polynomial_size.0, CACHELINE_ALIGN)?,
-        StackReq::try_all_of([
-            // ct1 allocation
-            StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
-            // external product
-            add_external_product_assign_scratch::<Scalar>(glwe_size, polynomial_size, fft)?,
-        ])?,
-    ])
-}
-
-/// Return the required memory for [`FourierLweBootstrapKeyView::bootstrap`].
-pub fn bootstrap_scratch<Scalar>(
-    glwe_size: GlweSize,
-    polynomial_size: PolynomialSize,
-    fft: FftView<'_>,
-) -> Result<StackReq, SizeOverflow> {
-    blind_rotate_scratch::<Scalar>(glwe_size, polynomial_size, fft)?.try_and(
-        StackReq::try_new_aligned::<Scalar>(glwe_size.0 * polynomial_size.0, CACHELINE_ALIGN)?,
-    )
 }
 
 impl<'a> FourierLweBootstrapKeyView<'a> {
@@ -303,12 +279,11 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
                     );
                 }
 
-                // as_mut_view is required to keep borrow rules consistent
                 // second step of cmux
-                add_external_product_assign(
-                    ct0.as_mut_view(),
-                    bootstrap_key_ggsw,
-                    ct1.as_mut_view(),
+                add_external_product_assign_mem_optimized(
+                    &mut ct0,
+                    &bootstrap_key_ggsw,
+                    &ct1,
                     fft,
                     stack.rb_mut(),
                 );
@@ -361,77 +336,5 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
             &mut lwe_out,
             MonomialDegree(0),
         );
-    }
-}
-
-impl<Scalar> FourierBootstrapKey<Scalar> for FourierLweBootstrapKeyOwned
-where
-    Scalar: UnsignedTorus + CastInto<usize>,
-{
-    type Fft = Fft;
-
-    fn new_fft(polynomial_size: PolynomialSize) -> Self::Fft {
-        Fft::new(polynomial_size)
-    }
-
-    fn new(
-        input_lwe_dimension: LweDimension,
-        polynomial_size: PolynomialSize,
-        glwe_size: GlweSize,
-        decomposition_base_log: DecompositionBaseLog,
-        decomposition_level_count: DecompositionLevelCount,
-    ) -> Self {
-        Self::new(
-            input_lwe_dimension,
-            glwe_size,
-            polynomial_size,
-            decomposition_base_log,
-            decomposition_level_count,
-        )
-    }
-
-    fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> Result<StackReq, SizeOverflow> {
-        fill_with_forward_fourier_scratch(fft.as_view())
-    }
-
-    fn fill_with_forward_fourier<ContBsk>(
-        &mut self,
-        coef_bsk: &LweBootstrapKey<ContBsk>,
-        fft: &Self::Fft,
-        stack: PodStack<'_>,
-    ) where
-        ContBsk: Container<Element = Scalar>,
-    {
-        self.as_mut_view()
-            .fill_with_forward_fourier(coef_bsk.as_view(), fft.as_view(), stack);
-    }
-
-    fn bootstrap_scratch(
-        glwe_size: GlweSize,
-        polynomial_size: PolynomialSize,
-        fft: &Self::Fft,
-    ) -> Result<StackReq, SizeOverflow> {
-        bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft.as_view())
-    }
-
-    fn bootstrap<ContLweOut, ContLweIn, ContAcc>(
-        &self,
-        lwe_out: &mut LweCiphertext<ContLweOut>,
-        lwe_in: &LweCiphertext<ContLweIn>,
-        accumulator: &GlweCiphertext<ContAcc>,
-        fft: &Self::Fft,
-        stack: PodStack<'_>,
-    ) where
-        ContLweOut: ContainerMut<Element = Scalar>,
-        ContLweIn: Container<Element = Scalar>,
-        ContAcc: Container<Element = Scalar>,
-    {
-        self.as_view().bootstrap(
-            lwe_out.as_mut_view(),
-            lwe_in.as_view(),
-            accumulator.as_view(),
-            fft.as_view(),
-            stack,
-        )
     }
 }

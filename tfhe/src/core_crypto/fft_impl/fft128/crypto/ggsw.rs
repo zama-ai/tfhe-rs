@@ -1,5 +1,7 @@
 use super::super::math::fft::Fft128View;
-use crate::core_crypto::commons::math::decomposition::{DecompositionLevel, SignedDecomposer};
+use crate::core_crypto::commons::math::decomposition::{
+    DecompositionLevel, SignedDecomposer, TensorSignedDecompositionLendingIter,
+};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, PolynomialSize,
@@ -9,7 +11,6 @@ use crate::core_crypto::commons::traits::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::CACHELINE_ALIGN;
 use concrete_fft::fft128::f128;
@@ -412,21 +413,30 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
             // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
             // DOMAIN In this section, we perform the external product in the fourier
             // domain, and accumulate the result in the output_fft_buffer variable.
-            let (mut decomposition, mut substack1) = TensorSignedDecompositionLendingIter::new(
+            let glwe_len = glwe.as_ref().len();
+            let (mut states, mut substack1) = substack0
+                .rb_mut()
+                .make_aligned_raw::<Scalar>(glwe_len, CACHELINE_ALIGN);
+            let mut decomposition = TensorSignedDecompositionLendingIter::new(
                 glwe.as_ref()
                     .iter()
                     .map(|s| decomposer.closest_representable(*s)),
                 DecompositionBaseLog(decomposer.base_log),
                 DecompositionLevelCount(decomposer.level_count),
-                substack0.rb_mut(),
+                &mut states,
             );
 
             // We loop through the levels (we reverse to match the order of the decomposition
             // iterator.)
             for ggsw_decomp_matrix in ggsw.into_levels().rev() {
                 // We retrieve the decomposition of this level.
-                let (glwe_level, glwe_decomp_term, mut substack2) =
-                    collect_next_term(&mut decomposition, &mut substack1, align);
+                let (mut glwe_decomp_term, mut substack2) = substack1
+                    .rb_mut()
+                    .make_aligned_raw::<Scalar>(glwe_len, CACHELINE_ALIGN);
+                let glwe_level = decomposition
+                    .fill_next_term(&mut glwe_decomp_term)
+                    .unwrap()
+                    .0;
                 let glwe_decomp_term = GlweCiphertextView::from_container(
                     &*glwe_decomp_term,
                     ggsw.polynomial_size(),
@@ -523,20 +533,6 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
         fft,
         stack,
     )
-}
-
-fn collect_next_term<'a, Scalar: UnsignedTorus>(
-    decomposition: &mut TensorSignedDecompositionLendingIter<'_, Scalar>,
-    substack1: &'a mut PodStack,
-    align: usize,
-) -> (
-    DecompositionLevel,
-    dyn_stack::DynArray<'a, Scalar>,
-    PodStack<'a>,
-) {
-    let (glwe_level, _, glwe_decomp_term) = decomposition.next_term().unwrap();
-    let (glwe_decomp_term, substack2) = substack1.rb_mut().collect_aligned(align, glwe_decomp_term);
-    (glwe_level, glwe_decomp_term, substack2)
 }
 
 /// # Note

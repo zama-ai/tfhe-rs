@@ -3,14 +3,16 @@ use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::math::fft64::{update_with_fmadd_factor, Fft, FftView};
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
-use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
-    add_external_product_assign, add_external_product_assign_scratch, update_with_fmadd_factor,
+use crate::core_crypto::prelude::{
+    add_external_product_assign_mem_optimized,
+    add_external_product_assign_mem_optimized_requirement,
+    convert_standard_ggsw_ciphertext_to_fourier_mem_optimized,
 };
-use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use concrete_fft::c64;
 use std::sync::{mpsc, Condvar, Mutex};
 use std::thread;
@@ -75,7 +77,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<
         update_with_fmadd_factor(
             multi_bit_fourier_ggsw,
             fourier_ggsw.as_view().data(),
-            fourier_a_monomial.as_view().data,
+            fourier_a_monomial.as_ref(),
             factor,
             false,
             polynomial_size.to_fourier_polynomial_size().0,
@@ -475,7 +477,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
         let mut buffers = ComputationBuffers::new();
 
         buffers.resize(
-            add_external_product_assign_scratch::<Scalar>(
+            add_external_product_assign_mem_optimized_requirement::<Scalar>(
                 multi_bit_bsk.glwe_size(),
                 multi_bit_bsk.polynomial_size(),
                 fft,
@@ -504,10 +506,10 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
             assert!(*ready);
 
             let multi_bit_fourier_ggsw = multi_bit_fourier_ggsw.lock().unwrap();
-            add_external_product_assign(
-                dst_ct,
-                multi_bit_fourier_ggsw.as_view(),
-                src_ct,
+            add_external_product_assign_mem_optimized(
+                &mut dst_ct,
+                &multi_bit_fourier_ggsw,
+                &src_ct,
                 fft,
                 buffers.stack(),
             );
@@ -714,7 +716,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
                     update_with_fmadd_factor(
                         multi_bit_fourier_ggsw,
                         fourier_ggsw.as_view().data(),
-                        fourier_a_monomial.as_view().data,
+                        fourier_a_monomial.as_ref(),
                         factor,
                         false,
                         lut_poly_size.to_fourier_polynomial_size().0,
@@ -751,7 +753,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
         let fft = fft.as_view();
 
         buffers.resize(
-            add_external_product_assign_scratch::<Scalar>(
+            add_external_product_assign_mem_optimized_requirement::<Scalar>(
                 multi_bit_bsk.glwe_size(),
                 multi_bit_bsk.polynomial_size(),
                 fft,
@@ -785,10 +787,10 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
 
             let multi_bit_fourier_ggsw = multi_bit_fourier_ggsw.lock().unwrap();
 
-            add_external_product_assign(
-                dst_ct,
-                multi_bit_fourier_ggsw.as_view(),
-                src_ct,
+            add_external_product_assign_mem_optimized(
+                &mut dst_ct,
+                &multi_bit_fourier_ggsw,
+                &src_ct,
                 fft,
                 buffers.stack(),
             );
@@ -1456,8 +1458,9 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
                     lwe_mask_elements,
                 );
 
-                fourier_ggsw_buffer.as_mut_view().fill_with_forward_fourier(
-                    std_ggsw_buffer.as_view(),
+                convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
+                    &std_ggsw_buffer,
+                    &mut fourier_ggsw_buffer,
                     fft,
                     buffers.stack(),
                 );
@@ -1493,7 +1496,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
         let mut buffers = ComputationBuffers::new();
 
         buffers.resize(
-            add_external_product_assign_scratch::<Scalar>(
+            add_external_product_assign_mem_optimized_requirement::<Scalar>(
                 multi_bit_bsk.glwe_size(),
                 multi_bit_bsk.polynomial_size(),
                 fft,
@@ -1522,10 +1525,10 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
             assert!(*ready);
 
             let multi_bit_fourier_ggsw = multi_bit_fourier_ggsw.lock().unwrap();
-            add_external_product_assign(
-                dst_ct,
-                multi_bit_fourier_ggsw.as_view(),
-                src_ct,
+            add_external_product_assign_mem_optimized(
+                &mut dst_ct,
+                &multi_bit_fourier_ggsw,
+                &src_ct,
                 fft,
                 buffers.stack(),
             );
@@ -1728,8 +1731,9 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
                     lwe_mask_elements,
                 );
 
-                fourier_ggsw_buffer.as_mut_view().fill_with_forward_fourier(
-                    std_ggsw_buffer.as_view(),
+                convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
+                    &std_ggsw_buffer,
+                    &mut fourier_ggsw_buffer,
                     fft,
                     buffers.stack(),
                 );
@@ -1761,7 +1765,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
         let mut buffers = ComputationBuffers::new();
 
         buffers.resize(
-            add_external_product_assign_scratch::<Scalar>(
+            add_external_product_assign_mem_optimized_requirement::<Scalar>(
                 multi_bit_bsk.glwe_size(),
                 multi_bit_bsk.polynomial_size(),
                 fft,
@@ -1795,10 +1799,10 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
 
             let multi_bit_fourier_ggsw = multi_bit_fourier_ggsw.lock().unwrap();
 
-            add_external_product_assign(
-                dst_ct,
-                multi_bit_fourier_ggsw.as_view(),
-                src_ct,
+            add_external_product_assign_mem_optimized(
+                &mut dst_ct,
+                &multi_bit_fourier_ggsw,
+                &src_ct,
                 fft,
                 buffers.stack(),
             );
