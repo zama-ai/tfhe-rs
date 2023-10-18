@@ -493,7 +493,8 @@ test_web_js_api_parallel: build_web_js_api_parallel
 .PHONY: ci_test_web_js_api_parallel # Run tests for the web wasm api
 ci_test_web_js_api_parallel: build_web_js_api_parallel
 	source ~/.nvm/nvm.sh && \
-	nvm use node && \
+	nvm install 20 && \
+	nvm use 20 && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests test-ci
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
