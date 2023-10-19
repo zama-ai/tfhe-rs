@@ -46,12 +46,8 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_multi_bit_bootstrapping_ke
     lwe_multi_bit_level_count: usize,
     lwe_multi_bit_grouping_factor: usize,
     glwe_encryption_std_dev: f64,
-    seed_low_bytes: u64,
-    seed_high_bytes: u64,
 ) -> c_int {
     catch_panic(|| {
-        use crate::core_crypto::commons::generators::DeterministicSeeder;
-        use crate::core_crypto::commons::math::random::Seed;
         use crate::core_crypto::prelude::*;
 
         let input_lwe_sk_slice = std::slice::from_raw_parts(input_lwe_sk_ptr, input_lwe_sk_dim);
@@ -66,17 +62,10 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_multi_bit_bootstrapping_ke
         let output_glwe_sk =
             GlweSecretKey::from_container(output_glwe_sk_slice, output_glwe_sk_poly_size);
 
-        let seed_low_bytes: u128 = seed_low_bytes.into();
-        let seed_high_bytes: u128 = seed_high_bytes.into();
-        let seed = (seed_high_bytes << 64) | seed_low_bytes;
-
-        let mut deterministic_seeder =
-            DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(seed));
+        let mut seeder = new_seeder();
+        let seeder = seeder.as_mut();
         let mut encryption_random_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(
-                deterministic_seeder.seed(),
-                &mut deterministic_seeder,
-            );
+            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
 
         let lwe_multi_bit_base_log = DecompositionBaseLog(lwe_multi_bit_base_log);
         let lwe_multi_bit_level_count = DecompositionLevelCount(lwe_multi_bit_level_count);
