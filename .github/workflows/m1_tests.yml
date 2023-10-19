@@ -110,10 +110,9 @@ jobs:
         run: |
           make test_shortint_multi_bit_ci
 
-      # # These multi bit integer tests are too slow on M1 with low core count and low RAM
-      # - name: Run integer multi bit tests
-      #   run: |
-      #     make test_integer_multi_bit_ci
+      - name: Run integer multi bit tests
+        run: |
+          make test_integer_multi_bit_ci
 
   remove_label:
     name: Remove m1_test label
