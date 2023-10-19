@@ -8,7 +8,7 @@ Here is an example using the `bincode` serialization library, which serializes t
 binary format:
 
 ```rust
-use std::fs::File;
+use std::fs::{File, create_dir_all};
 use std::io::{Write, Read};
 use tfhe::boolean::prelude::*;
 
@@ -20,8 +20,14 @@ fn main() {
     let encoded_server_key: Vec<u8> = bincode::serialize(&server_key).unwrap();
     let encoded_client_key: Vec<u8> = bincode::serialize(&client_key).unwrap();
 
-    let server_key_file = "/tmp/ser_example_server_key.bin";
-    let client_key_file = "/tmp/ser_example_client_key.bin";
+// Create a tmp dir with the current user name to avoid cluttering the /tmp dir
+    let user = std::env::var("USER").unwrap_or_else(|_| "unknown_user".to_string());
+    let tmp_dir_for_user = &format!("/tmp/{user}");
+
+    create_dir_all(tmp_dir_for_user).unwrap();
+
+    let server_key_file = &format!("{tmp_dir_for_user}/ser_example_server_key.bin");
+    let client_key_file = &format!("{tmp_dir_for_user}/ser_example_client_key.bin");
 
 // We write the keys to files:
     let mut file = File::create(server_key_file)

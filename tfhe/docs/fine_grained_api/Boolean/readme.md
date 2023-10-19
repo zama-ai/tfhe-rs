@@ -35,7 +35,7 @@ fn main() {
 Note that both the `client_key` and `server_key` implement the `Serialize` and `Deserialize` traits. This way you can use any compatible serializer to store/send the data. To store the `server_key` in a binary file, you can use the `bincode` library:
 
 ```rust
-use std::fs::File;
+use std::fs::{File, create_dir_all};
 use std::io::{Write, Read};
 use tfhe::boolean::prelude::*;
 
@@ -49,7 +49,13 @@ fn main() {
 // We serialize the server key to bytes, and store them in a file:
     let encoded: Vec<u8> = bincode::serialize(&server_key).unwrap();
 
-    let server_key_file = "/tmp/tutorial_server_key.bin";
+// Create a tmp dir with the current user name to avoid cluttering the /tmp dir
+    let user = std::env::var("USER").unwrap_or_else(|_| "unknown_user".to_string());
+    let tmp_dir_for_user = &format!("/tmp/{user}");
+
+    create_dir_all(tmp_dir_for_user).unwrap();
+
+    let server_key_file = &format!("{tmp_dir_for_user}/tutorial_server_key.bin");
 
 // We write the server key to a file:
     let mut file = File::create(server_key_file)
