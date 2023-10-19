@@ -11,6 +11,7 @@ RUN sed -i 's|^deb http://archive.ubuntu.com/ubuntu/|deb http://mirror.ubuntu.ik
 ENV CARGO_TARGET_DIR=/root/tfhe-rs-target
 
 ARG RUST_TOOLCHAIN="stable"
+ARG NODE_VERSION
 
 WORKDIR /tfhe-wasm-tests
 
@@ -34,6 +35,6 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > install-rustup.s
     chmod +x install-node.sh && \
     ./install-node.sh && \
     . "$HOME/.nvm/nvm.sh" && \
-    bash -i -c 'nvm install 20 && nvm use 20'
+    bash -i -c 'nvm install ${NODE_VERSION} && nvm use ${NODE_VERSION}'
 
 WORKDIR /tfhe-wasm-tests/tfhe-rs/
