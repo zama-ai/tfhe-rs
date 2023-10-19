@@ -16,6 +16,7 @@ PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
+NODE_VERSION=20
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -99,7 +100,7 @@ install_wasm_pack: install_rs_build_toolchain
 install_node:
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | $(SHELL)
 	source ~/.bashrc
-	$(SHELL) -i -c 'nvm install node' || \
+	$(SHELL) -i -c 'nvm install $(NODE_VERSION)' || \
 	( echo "Unable to install node, unknown error." && exit 1 )
 
 .PHONY: install_dieharder # Install dieharder for apt distributions or macOS
@@ -469,7 +470,7 @@ check_compile_tests:
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
 build_nodejs_test_docker:
 	DOCKER_BUILDKIT=1 docker build --build-arg RUST_TOOLCHAIN="$(RS_BUILD_TOOLCHAIN)" \
-		-f docker/Dockerfile.wasm_tests -t tfhe-wasm-tests .
+		-f docker/Dockerfile.wasm_tests --build-arg NODE_VERSION=$(NODE_VERSION) -t tfhe-wasm-tests .
 
 .PHONY: test_nodejs_wasm_api_in_docker # Run tests for the nodejs on wasm API in a docker container
 test_nodejs_wasm_api_in_docker: build_nodejs_test_docker
@@ -493,8 +494,8 @@ test_web_js_api_parallel: build_web_js_api_parallel
 .PHONY: ci_test_web_js_api_parallel # Run tests for the web wasm api
 ci_test_web_js_api_parallel: build_web_js_api_parallel
 	source ~/.nvm/nvm.sh && \
-	nvm install 20 && \
-	nvm use 20 && \
+	nvm install $(NODE_VERSION) && \
+	nvm use $(NODE_VERSION) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests test-ci
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
