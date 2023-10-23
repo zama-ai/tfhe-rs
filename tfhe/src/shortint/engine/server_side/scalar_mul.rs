@@ -21,10 +21,12 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
+        ct.set_noise_level(ct.noise_level() * scalar as usize);
+        ct.degree = Degree(ct.degree.0 * scalar as usize);
+
         match scalar {
             0 => {
                 trivially_encrypt_lwe_ciphertext(&mut ct.ct, Plaintext(0));
-                ct.degree = Degree(0);
             }
             1 => {
                 // Multiplication by one is the identidy
@@ -33,8 +35,6 @@ impl ShortintEngine {
                 let scalar = u64::from(scalar);
                 let cleartext_scalar = Cleartext(scalar);
                 lwe_ciphertext_cleartext_mul_assign(&mut ct.ct, cleartext_scalar);
-
-                ct.degree = Degree(ct.degree.0 * scalar as usize);
             }
         }
 
