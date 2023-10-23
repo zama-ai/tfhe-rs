@@ -227,6 +227,14 @@ impl Ciphertext {
     pub fn carry_is_empty(&self) -> bool {
         self.degree.0 < self.message_modulus.0
     }
+
+    pub fn noise_level(&self) -> NoiseLevel {
+        self.noise_level
+    }
+
+    pub fn set_noise_level(&mut self, noise_level: NoiseLevel) {
+        self.noise_level = noise_level
+    }
 }
 
 /// A structure representing a compressed shortint ciphertext.

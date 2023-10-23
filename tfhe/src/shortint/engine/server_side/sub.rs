@@ -49,6 +49,7 @@ impl ShortintEngine {
 
         lwe_ciphertext_add_assign(&mut ct_left.ct, &neg_right.ct);
 
+        ct_left.set_noise_level(ct_left.noise_level() + ct_right.noise_level());
         ct_left.degree = Degree(ct_left.degree.0 + z as usize);
 
         Ok(z)

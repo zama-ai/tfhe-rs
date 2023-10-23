@@ -1,0 +1,292 @@
+use crate::shortint::ciphertext::NoiseLevel;
+use crate::shortint::keycache::KEY_CACHE;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+use crate::shortint::{Ciphertext, ServerKey};
+
+fn test_ct_unary_op_noise_level_propagation(sk: &ServerKey, ct: &Ciphertext) {
+    let test_fn = |op: &dyn Fn(&ServerKey, &Ciphertext) -> Ciphertext,
+                   predicate: &dyn Fn(NoiseLevel) -> NoiseLevel| {
+        assert!(op(sk, ct).noise_level() == predicate(ct.noise_level()));
+    };
+
+    test_fn(&ServerKey::unchecked_neg, &|ct_noise| ct_noise);
+    test_fn(
+        &|sk, ct| ServerKey::unchecked_neg_with_correcting_term(sk, ct).0,
+        &|ct_noise| ct_noise,
+    );
+
+    let acc = sk.generate_lookup_table(|_| 0);
+
+    test_fn(
+        &|sk, ct| ServerKey::apply_lookup_table(sk, ct, &acc),
+        &|_| NoiseLevel::NOMINAL,
+    );
+}
+
+fn test_ct_unary_op_assign_noise_level_propagation(sk: &ServerKey, ct: &Ciphertext) {
+    let test_fn = |op: &dyn Fn(&ServerKey, &mut Ciphertext),
+                   predicate: &dyn Fn(NoiseLevel) -> NoiseLevel| {
+        let mut clone = ct.clone();
+        op(sk, &mut clone);
+        assert!(clone.noise_level() == predicate(ct.noise_level()));
+    };
+
+    test_fn(&ServerKey::unchecked_neg_assign, &|ct_noise| ct_noise);
+    test_fn(
+        &|sk, ct| {
+            ServerKey::unchecked_neg_assign_with_correcting_term(sk, ct);
+        },
+        &|ct_noise| ct_noise,
+    );
+
+    let acc = sk.generate_lookup_table(|_| 0);
+
+    test_fn(
+        &|sk, ct| ServerKey::apply_lookup_table_assign(sk, ct, &acc),
+        &|_| NoiseLevel::NOMINAL,
+    );
+}
+
+fn test_ct_binary_op_noise_level_propagation(sk: &ServerKey, ct1: &Ciphertext, ct2: &Ciphertext) {
+    let test_fn = |op: &dyn Fn(&ServerKey, &Ciphertext, &Ciphertext) -> Ciphertext,
+                   predicate: &dyn Fn(NoiseLevel, NoiseLevel) -> NoiseLevel| {
+        assert!(op(sk, ct1, ct2).noise_level() == predicate(ct1.noise_level(), ct2.noise_level()));
+    };
+
+    test_fn(&ServerKey::unchecked_add, &|ct1_noise, ct2_noise| {
+        ct1_noise + ct2_noise
+    });
+    test_fn(&ServerKey::unchecked_sub, &|ct1_noise, ct2_noise| {
+        ct1_noise + ct2_noise
+    });
+    test_fn(
+        &|sk, ct1, ct2| ServerKey::unchecked_sub_with_correcting_term(sk, ct1, ct2).0,
+        &|ct1_noise, ct2_noise| ct1_noise + ct2_noise,
+    );
+
+    let any_trivially_encrypted = ct1.degree.0 == 0 || ct2.degree.0 == 0;
+    test_fn(&ServerKey::unchecked_mul_lsb, &|_, _| {
+        if any_trivially_encrypted {
+            NoiseLevel::ZERO
+        } else {
+            NoiseLevel::NOMINAL
+        }
+    });
+    test_fn(&ServerKey::unchecked_mul_msb, &|_, _| {
+        if any_trivially_encrypted {
+            NoiseLevel::ZERO
+        } else {
+            NoiseLevel::NOMINAL
+        }
+    });
+
+    test_fn(&ServerKey::unchecked_div, &|_, _| NoiseLevel::NOMINAL);
+    test_fn(&ServerKey::unchecked_bitand, &|_, _| NoiseLevel::NOMINAL);
+    test_fn(&ServerKey::unchecked_bitor, &|_, _| NoiseLevel::NOMINAL);
+    test_fn(&ServerKey::unchecked_bitxor, &|_, _| NoiseLevel::NOMINAL);
+    test_fn(&ServerKey::unchecked_equal, &|_, _| NoiseLevel::NOMINAL);
+    test_fn(&ServerKey::unchecked_mul_lsb_small_carry, &|_, _| {
+        NoiseLevel::NOMINAL * 2
+    });
+    test_fn(&ServerKey::unchecked_greater, &|_, _| NoiseLevel::NOMINAL);
+    test_fn(&ServerKey::unchecked_greater_or_equal, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    test_fn(&ServerKey::unchecked_less, &|_, _| NoiseLevel::NOMINAL);
+    test_fn(&ServerKey::unchecked_less_or_equal, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    test_fn(&ServerKey::unchecked_not_equal, &|_, _| NoiseLevel::NOMINAL);
+    test_fn(
+        &|sk, ct1, ct2| ServerKey::unchecked_evaluate_bivariate_function(sk, ct1, ct2, |_, _| 0),
+        &|_, _| NoiseLevel::NOMINAL,
+    );
+}
+
+fn test_ct_binary_op_assign_noise_level_propagation(
+    sk: &ServerKey,
+    ct1: &Ciphertext,
+    ct2: &Ciphertext,
+) {
+    let test_fn = |op: &dyn Fn(&ServerKey, &mut Ciphertext, &Ciphertext),
+                   predicate: &dyn Fn(NoiseLevel, NoiseLevel) -> NoiseLevel| {
+        let mut clone = ct1.clone();
+        op(sk, &mut clone, ct2);
+        assert!(clone.noise_level() == predicate(ct1.noise_level(), ct2.noise_level()));
+    };
+
+    test_fn(&ServerKey::unchecked_add_assign, &|ct1_noise, ct2_noise| {
+        ct1_noise + ct2_noise
+    });
+    test_fn(&ServerKey::unchecked_sub_assign, &|ct1_noise, ct2_noise| {
+        ct1_noise + ct2_noise
+    });
+    test_fn(
+        &|sk, ct1, ct2| {
+            ServerKey::unchecked_sub_with_correcting_term_assign(sk, ct1, ct2);
+        },
+        &|ct1_noise, ct2_noise| ct1_noise + ct2_noise,
+    );
+
+    let any_trivially_encrypted = ct1.degree.0 == 0 || ct2.degree.0 == 0;
+    test_fn(&ServerKey::unchecked_mul_lsb_assign, &|_, _| {
+        if any_trivially_encrypted {
+            NoiseLevel::ZERO
+        } else {
+            NoiseLevel::NOMINAL
+        }
+    });
+    test_fn(&ServerKey::unchecked_mul_msb_assign, &|_, _| {
+        if any_trivially_encrypted {
+            NoiseLevel::ZERO
+        } else {
+            NoiseLevel::NOMINAL
+        }
+    });
+
+    test_fn(&ServerKey::unchecked_div_assign, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    test_fn(&ServerKey::unchecked_bitand_assign, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    test_fn(&ServerKey::unchecked_bitor_assign, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    test_fn(&ServerKey::unchecked_bitxor_assign, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+
+    test_fn(&ServerKey::unchecked_mul_lsb_small_carry_assign, &|_, _| {
+        NoiseLevel::NOMINAL * 2
+    });
+    test_fn(
+        &|sk, ct1, ct2| {
+            ServerKey::unchecked_evaluate_bivariate_function_assign(sk, ct1, ct2, |_, _| 0)
+        },
+        &|_, _| NoiseLevel::NOMINAL,
+    );
+}
+
+fn test_ct_scalar_op_noise_level_propagation(sk: &ServerKey, ct: &Ciphertext, scalar: u8) {
+    let test_fn = |op: &dyn Fn(&ServerKey, &Ciphertext, u8) -> Ciphertext,
+                   predicate: &dyn Fn(NoiseLevel, u8) -> NoiseLevel| {
+        assert!(op(sk, ct, scalar).noise_level() == predicate(ct.noise_level(), scalar));
+    };
+
+    test_fn(&ServerKey::unchecked_scalar_add, &|ct_noise, _| ct_noise);
+    test_fn(&ServerKey::unchecked_scalar_sub, &|ct_noise, _| ct_noise);
+    test_fn(&ServerKey::unchecked_scalar_mul, &|ct_noise, scalar| {
+        ct_noise * scalar as usize
+    });
+    if scalar != 0 {
+        test_fn(&ServerKey::unchecked_scalar_div, &|_, _| {
+            NoiseLevel::NOMINAL
+        });
+        test_fn(&ServerKey::unchecked_scalar_mod, &|_, _| {
+            NoiseLevel::NOMINAL
+        });
+    }
+    test_fn(&ServerKey::unchecked_scalar_bitand, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    test_fn(&ServerKey::unchecked_scalar_bitor, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    test_fn(&ServerKey::unchecked_scalar_bitxor, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    if scalar < 8 {
+        test_fn(
+            &ServerKey::unchecked_scalar_left_shift,
+            &|ct_noise, scalar| ct_noise * (1 << scalar as usize),
+        );
+    }
+    test_fn(&ServerKey::unchecked_scalar_right_shift, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+}
+
+fn test_ct_scalar_op_assign_noise_level_propagation(sk: &ServerKey, ct: &Ciphertext, scalar: u8) {
+    let test_fn = |op: &dyn Fn(&ServerKey, &mut Ciphertext, u8),
+                   predicate: &dyn Fn(NoiseLevel, u8) -> NoiseLevel| {
+        let mut clone = ct.clone();
+        op(sk, &mut clone, scalar);
+        assert!(clone.noise_level() == predicate(ct.noise_level(), scalar));
+    };
+
+    test_fn(&ServerKey::unchecked_scalar_add_assign, &|ct_noise, _| {
+        ct_noise
+    });
+    test_fn(&ServerKey::unchecked_scalar_sub_assign, &|ct_noise, _| {
+        ct_noise
+    });
+    test_fn(
+        &ServerKey::unchecked_scalar_mul_assign,
+        &|ct_noise, scalar| ct_noise * scalar as usize,
+    );
+    if scalar != 0 {
+        test_fn(&ServerKey::unchecked_scalar_div_assign, &|_, _| {
+            NoiseLevel::NOMINAL
+        });
+        test_fn(&ServerKey::unchecked_scalar_mod_assign, &|_, _| {
+            NoiseLevel::NOMINAL
+        });
+    }
+    test_fn(&ServerKey::unchecked_scalar_bitand_assign, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    test_fn(&ServerKey::unchecked_scalar_bitor_assign, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    test_fn(&ServerKey::unchecked_scalar_bitxor_assign, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+    if scalar < 8 {
+        test_fn(
+            &ServerKey::unchecked_scalar_left_shift_assign,
+            &|ct_noise, scalar| ct_noise * (1 << scalar as usize),
+        );
+    }
+    test_fn(&ServerKey::unchecked_scalar_right_shift_assign, &|_, _| {
+        NoiseLevel::NOMINAL
+    });
+}
+
+#[test]
+fn test_noise_level_propagation() {
+    let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+
+    let keys = KEY_CACHE.get_from_param(params);
+    let (ck, sk) = (keys.client_key(), keys.server_key());
+
+    let modulus: u64 = params.message_modulus.0 as u64;
+
+    for _ in 0..10 {
+        let trivial0 = sk.create_trivial(0);
+
+        let trivial = sk.create_trivial(rand::random::<u64>() % modulus);
+
+        let ct1 = ck.encrypt(rand::random::<u64>() % modulus);
+        let ct2 = sk.unchecked_add(&ct1, &ct1);
+
+        for ct in [&trivial0, &trivial, &ct1, &ct2] {
+            test_ct_unary_op_noise_level_propagation(sk, ct);
+            test_ct_unary_op_assign_noise_level_propagation(sk, ct);
+        }
+
+        for ct1 in [&trivial0, &trivial, &ct1, &ct2] {
+            for ct2 in [&trivial0, &trivial, &ct1, &ct2] {
+                test_ct_binary_op_noise_level_propagation(sk, ct1, ct2);
+                test_ct_binary_op_assign_noise_level_propagation(sk, ct1, ct2);
+            }
+        }
+
+        for ct in [&trivial0, &trivial, &ct1, &ct2] {
+            for scalar in 0..params.carry_modulus.0 * params.message_modulus.0 {
+                test_ct_scalar_op_noise_level_propagation(sk, ct, scalar as u8);
+                test_ct_scalar_op_assign_noise_level_propagation(sk, ct, scalar as u8);
+            }
+        }
+    }
+}
