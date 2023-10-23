@@ -13,6 +13,46 @@ use super::parameters::{CiphertextConformanceParams, CiphertextListConformancePa
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct Degree(pub usize);
 
+/// This tracks the amount of noise in a ciphertext.
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct NoiseLevel(usize);
+
+impl NoiseLevel {
+    pub const NOMINAL: Self = Self(1);
+    pub const ZERO: Self = Self(0);
+}
+
+impl std::ops::Add for NoiseLevel {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self {
+        self += rhs;
+        self
+    }
+}
+
+impl std::ops::AddAssign for NoiseLevel {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+
+impl std::ops::MulAssign<usize> for NoiseLevel {
+    fn mul_assign(&mut self, rhs: usize) {
+        self.0 *= rhs
+    }
+}
+
+impl std::ops::Mul<usize> for NoiseLevel {
+    type Output = Self;
+
+    fn mul(mut self, rhs: usize) -> Self::Output {
+        self *= rhs;
+
+        self
+    }
+}
+
 impl Degree {
     pub(crate) fn after_bitxor(&self, other: Degree) -> Degree {
         let max = cmp::max(self.0, other.0);
@@ -83,6 +123,7 @@ impl Degree {
 pub struct Ciphertext {
     pub ct: LweCiphertextOwned<u64>,
     pub degree: Degree,
+    noise_level: NoiseLevel,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub pbs_order: PBSOrder,
@@ -101,6 +142,7 @@ impl ParameterSetConformant for Ciphertext {
             && self.carry_modulus == param.carry_modulus
             && self.pbs_order == param.pbs_order
             && self.degree == param.degree
+            && self.noise_level == param.noise_level
     }
 }
 
@@ -117,6 +159,7 @@ impl Clone for Ciphertext {
             message_modulus: src_message_modulus,
             carry_modulus: src_carry_modulus,
             pbs_order: src_pbs_order,
+            noise_level: src_noise_level,
         } = self;
 
         Self {
@@ -125,6 +168,7 @@ impl Clone for Ciphertext {
             message_modulus: *src_message_modulus,
             carry_modulus: *src_carry_modulus,
             pbs_order: *src_pbs_order,
+            noise_level: *src_noise_level,
         }
     }
 
@@ -135,6 +179,7 @@ impl Clone for Ciphertext {
             message_modulus: dst_message_modulus,
             carry_modulus: dst_carry_modulus,
             pbs_order: dst_pbs_order,
+            noise_level: dst_noise_level,
         } = self;
 
         let Ciphertext {
@@ -143,6 +188,7 @@ impl Clone for Ciphertext {
             message_modulus: src_message_modulus,
             carry_modulus: src_carry_modulus,
             pbs_order: src_pbs_order,
+            noise_level: src_noise_level,
         } = source;
 
         if dst_ct.ciphertext_modulus() != src_ct.ciphertext_modulus()
@@ -156,10 +202,28 @@ impl Clone for Ciphertext {
         *dst_message_modulus = *src_message_modulus;
         *dst_carry_modulus = *src_carry_modulus;
         *dst_pbs_order = *src_pbs_order;
+        *dst_noise_level = *src_noise_level;
     }
 }
 
 impl Ciphertext {
+    pub fn new(
+        ct: LweCiphertextOwned<u64>,
+        degree: Degree,
+        noise_level: NoiseLevel,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        pbs_order: PBSOrder,
+    ) -> Ciphertext {
+        Ciphertext {
+            ct,
+            degree,
+            noise_level,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+        }
+    }
     pub fn carry_is_empty(&self) -> bool {
         self.degree.0 < self.message_modulus.0
     }
@@ -175,6 +239,7 @@ pub struct CompressedCiphertext {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub pbs_order: PBSOrder,
+    pub noise_level: NoiseLevel,
 }
 
 impl ParameterSetConformant for CompressedCiphertext {
@@ -186,6 +251,7 @@ impl ParameterSetConformant for CompressedCiphertext {
             && self.carry_modulus == param.carry_modulus
             && self.pbs_order == param.pbs_order
             && self.degree == param.degree
+            && self.noise_level == param.noise_level
     }
 }
 
@@ -197,6 +263,7 @@ impl CompressedCiphertext {
             message_modulus,
             carry_modulus,
             pbs_order,
+            noise_level,
         } = self;
 
         Ciphertext {
@@ -205,6 +272,7 @@ impl CompressedCiphertext {
             message_modulus,
             carry_modulus,
             pbs_order,
+            noise_level,
         }
     }
 }
@@ -222,6 +290,7 @@ pub struct CompactCiphertextList {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub pbs_order: PBSOrder,
+    pub noise_level: NoiseLevel,
 }
 
 impl ParameterSetConformant for CompactCiphertextList {
@@ -233,6 +302,7 @@ impl ParameterSetConformant for CompactCiphertextList {
             && self.carry_modulus == param.carry_modulus
             && self.pbs_order == param.pbs_order
             && self.degree == param.degree
+            && self.noise_level == param.noise_level
     }
 }
 
@@ -273,6 +343,7 @@ impl CompactCiphertextList {
                     message_modulus: self.message_modulus,
                     carry_modulus: self.carry_modulus,
                     pbs_order: self.pbs_order,
+                    noise_level: self.noise_level,
                 }
             })
             .collect::<Vec<_>>()
@@ -303,6 +374,7 @@ mod tests {
             message_modulus: MessageModulus(1),
             carry_modulus: CarryModulus(1),
             pbs_order: PBSOrder::KeyswitchBootstrap,
+            noise_level: NoiseLevel::NOMINAL,
         };
 
         let c2 = Ciphertext {
@@ -314,6 +386,7 @@ mod tests {
             message_modulus: MessageModulus(2),
             carry_modulus: CarryModulus(2),
             pbs_order: PBSOrder::BootstrapKeyswitch,
+            noise_level: NoiseLevel::NOMINAL,
         };
 
         assert_ne!(c1, c2);
@@ -333,6 +406,7 @@ mod tests {
             message_modulus: MessageModulus(1),
             carry_modulus: CarryModulus(1),
             pbs_order: PBSOrder::KeyswitchBootstrap,
+            noise_level: NoiseLevel::NOMINAL,
         };
 
         let c2 = Ciphertext {
@@ -344,6 +418,7 @@ mod tests {
             message_modulus: MessageModulus(2),
             carry_modulus: CarryModulus(2),
             pbs_order: PBSOrder::BootstrapKeyswitch,
+            noise_level: NoiseLevel::NOMINAL,
         };
 
         assert_ne!(c1, c2);
@@ -363,6 +438,7 @@ mod tests {
             message_modulus: MessageModulus(1),
             carry_modulus: CarryModulus(1),
             pbs_order: PBSOrder::KeyswitchBootstrap,
+            noise_level: NoiseLevel::NOMINAL,
         };
 
         let c2 = Ciphertext {
@@ -374,6 +450,7 @@ mod tests {
             message_modulus: MessageModulus(2),
             carry_modulus: CarryModulus(2),
             pbs_order: PBSOrder::BootstrapKeyswitch,
+            noise_level: NoiseLevel::NOMINAL,
         };
 
         assert_ne!(c1, c2);

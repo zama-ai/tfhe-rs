@@ -8,7 +8,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::EngineResult;
 use crate::shortint::parameters::{MessageModulus, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{
@@ -766,13 +766,14 @@ impl ShortintEngine {
 
         let degree = Degree(modular_value);
 
-        Ok(Ciphertext {
+        Ok(Ciphertext::new(
             ct,
             degree,
-            message_modulus: server_key.message_modulus,
-            carry_modulus: server_key.carry_modulus,
-            pbs_order: server_key.pbs_order,
-        })
+            NoiseLevel::ZERO,
+            server_key.message_modulus,
+            server_key.carry_modulus,
+            server_key.pbs_order,
+        ))
     }
 
     pub(crate) fn create_trivial_assign(

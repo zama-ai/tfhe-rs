@@ -3,7 +3,7 @@ use super::{EngineResult, ShortintEngine};
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::entities::*;
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{
     Ciphertext, ClientKey, CompressedCiphertext, PBSOrder, ShortintParameterSet,
@@ -117,13 +117,14 @@ impl ShortintEngine {
             * client_key.parameters.carry_modulus().0)
             / message_modulus.0;
 
-        Ok(Ciphertext {
+        Ok(Ciphertext::new(
             ct,
-            degree: Degree(message_modulus.0 - 1),
+            Degree(message_modulus.0 - 1),
+            NoiseLevel::NOMINAL,
             message_modulus,
-            carry_modulus: CarryModulus(carry_modulus),
-            pbs_order: params_op_order,
-        })
+            CarryModulus(carry_modulus),
+            params_op_order,
+        ))
     }
 
     pub(crate) fn encrypt_with_message_and_carry_modulus(
@@ -162,13 +163,14 @@ impl ShortintEngine {
             message_modulus,
         );
 
-        Ok(Ciphertext {
+        Ok(Ciphertext::new(
             ct,
-            degree: Degree(message_modulus.0 - 1),
+            Degree(message_modulus.0 - 1),
+            NoiseLevel::NOMINAL,
             message_modulus,
             carry_modulus,
-            pbs_order: params_op_order,
-        })
+            params_op_order,
+        ))
     }
 
     pub(crate) fn encrypt_with_message_modulus_compressed(
@@ -222,6 +224,7 @@ impl ShortintEngine {
             message_modulus,
             carry_modulus: CarryModulus(carry_modulus),
             pbs_order: params_op_order,
+            noise_level: NoiseLevel::NOMINAL,
         })
     }
 
@@ -258,16 +261,17 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
-        Ok(Ciphertext {
+        Ok(Ciphertext::new(
             ct,
-            degree: Degree(
+            Degree(
                 client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0
                     - 1,
             ),
-            message_modulus: client_key.parameters.message_modulus(),
-            carry_modulus: client_key.parameters.carry_modulus(),
-            pbs_order: params_op_order,
-        })
+            NoiseLevel::NOMINAL,
+            client_key.parameters.message_modulus(),
+            client_key.parameters.carry_modulus(),
+            params_op_order,
+        ))
     }
 
     pub(crate) fn decrypt_message_and_carry(
@@ -339,13 +343,14 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
-        Ok(Ciphertext {
+        Ok(Ciphertext::new(
             ct,
-            degree: Degree(client_key.parameters.message_modulus().0 - 1),
-            message_modulus: client_key.parameters.message_modulus(),
-            carry_modulus: client_key.parameters.carry_modulus(),
-            pbs_order: params_op_order,
-        })
+            Degree(client_key.parameters.message_modulus().0 - 1),
+            NoiseLevel::NOMINAL,
+            client_key.parameters.message_modulus(),
+            client_key.parameters.carry_modulus(),
+            params_op_order,
+        ))
     }
 
     pub(crate) fn encrypt_without_padding_compressed(
@@ -390,6 +395,7 @@ impl ShortintEngine {
             message_modulus: client_key.parameters.message_modulus(),
             carry_modulus: client_key.parameters.carry_modulus(),
             pbs_order: params_op_order,
+            noise_level: NoiseLevel::NOMINAL,
         })
     }
 
@@ -464,13 +470,14 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
-        Ok(Ciphertext {
+        Ok(Ciphertext::new(
             ct,
-            degree: Degree(message_modulus as usize - 1),
-            message_modulus: MessageModulus(message_modulus as usize),
-            carry_modulus: CarryModulus(carry_modulus),
-            pbs_order: params_op_order,
-        })
+            Degree(message_modulus as usize - 1),
+            NoiseLevel::NOMINAL,
+            MessageModulus(message_modulus as usize),
+            CarryModulus(carry_modulus),
+            params_op_order,
+        ))
     }
 
     pub(crate) fn encrypt_native_crt_compressed(
@@ -512,6 +519,7 @@ impl ShortintEngine {
             message_modulus: MessageModulus(message_modulus as usize),
             carry_modulus: CarryModulus(carry_modulus),
             pbs_order: params_op_order,
+            noise_level: NoiseLevel::NOMINAL,
         })
     }
 

@@ -8,7 +8,7 @@ use crate::core_crypto::prelude::{
 
 use crate::core_crypto::prelude::encrypt_lwe_ciphertext_with_compact_public_key;
 
-use crate::shortint::ciphertext::{CompactCiphertextList, Degree};
+use crate::shortint::ciphertext::{CompactCiphertextList, Degree, NoiseLevel};
 use crate::shortint::{Ciphertext, ClientKey, PBSOrder, ShortintParameterSet};
 
 use crate::shortint::engine::ShortintEngine;
@@ -115,13 +115,14 @@ impl CompactPublicKey {
         });
 
         let message_modulus = self.parameters.message_modulus();
-        Ciphertext {
-            ct: encrypted_ct,
-            degree: Degree(message_modulus.0 - 1),
+        Ciphertext::new(
+            encrypted_ct,
+            Degree(message_modulus.0 - 1),
+            NoiseLevel::NOMINAL,
             message_modulus,
-            carry_modulus: self.parameters.carry_modulus(),
-            pbs_order: self.pbs_order,
-        }
+            self.parameters.carry_modulus(),
+            self.pbs_order,
+        )
     }
 
     pub fn encrypt_slice(&self, messages: &[u64]) -> CompactCiphertextList {
@@ -182,6 +183,7 @@ impl CompactPublicKey {
             message_modulus,
             carry_modulus: self.parameters.carry_modulus(),
             pbs_order: self.pbs_order,
+            noise_level: NoiseLevel::NOMINAL,
         }
     }
 

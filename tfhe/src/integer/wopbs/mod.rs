@@ -11,7 +11,7 @@ pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCoun
 use crate::core_crypto::prelude::*;
 use crate::integer::client_key::utils::i_crt;
 use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, ServerKey};
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::wopbs::WopbsLUTBase;
 use crate::shortint::WopbsParameters;
 use rayon::prelude::*;
@@ -320,13 +320,14 @@ impl WopbsKey {
 
         let mut ct_vec_out = vec![];
         for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out) {
-            ct_vec_out.push(crate::shortint::Ciphertext {
-                ct: block_out,
-                degree: Degree(block.message_modulus.0 - 1),
-                message_modulus: block.message_modulus,
-                carry_modulus: block.carry_modulus,
-                pbs_order: block.pbs_order,
-            });
+            ct_vec_out.push(crate::shortint::Ciphertext::new(
+                block_out,
+                Degree(block.message_modulus.0 - 1),
+                NoiseLevel::NOMINAL,
+                block.message_modulus,
+                block.carry_modulus,
+                block.pbs_order,
+            ));
         }
         T::from_blocks(ct_vec_out)
     }
@@ -406,13 +407,14 @@ impl WopbsKey {
 
         let mut ct_vec_out = vec![];
         for (block, block_out) in ct_in.blocks().iter().zip(vec_ct_out) {
-            ct_vec_out.push(crate::shortint::Ciphertext {
-                ct: block_out,
-                degree: Degree(block.message_modulus.0 - 1),
-                message_modulus: block.message_modulus,
-                carry_modulus: block.carry_modulus,
-                pbs_order: block.pbs_order,
-            });
+            ct_vec_out.push(crate::shortint::Ciphertext::new(
+                block_out,
+                Degree(block.message_modulus.0 - 1),
+                NoiseLevel::NOMINAL,
+                block.message_modulus,
+                block.carry_modulus,
+                block.pbs_order,
+            ));
         }
         T::from_blocks(ct_vec_out)
     }
@@ -1111,13 +1113,14 @@ impl WopbsKey {
 
         let mut ct_vec_out = Vec::with_capacity(vec_ct_in.len());
         for (block, block_out) in vec_ct_in[0].blocks().iter().zip(vec_ct_out) {
-            ct_vec_out.push(crate::shortint::Ciphertext {
-                ct: block_out,
-                degree: Degree(block.message_modulus.0 - 1),
-                message_modulus: block.message_modulus,
-                carry_modulus: block.carry_modulus,
-                pbs_order: block.pbs_order,
-            });
+            ct_vec_out.push(crate::shortint::Ciphertext::new(
+                block_out,
+                Degree(block.message_modulus.0 - 1),
+                NoiseLevel::NOMINAL,
+                block.message_modulus,
+                block.carry_modulus,
+                block.pbs_order,
+            ));
         }
         T::from_blocks(ct_vec_out)
     }

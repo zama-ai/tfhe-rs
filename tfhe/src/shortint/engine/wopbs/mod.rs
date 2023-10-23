@@ -5,7 +5,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::server_key::{MaxDegree, ShortintBootstrappingKey};
 use crate::shortint::wopbs::{WopbsKey, WopbsLUTBase};
@@ -362,13 +362,14 @@ impl ShortintEngine {
         );
 
         let sks = &wopbs_key.wopbs_server_key;
-        let ct_out = Ciphertext {
-            ct: ciphertext,
-            degree: Degree(sks.message_modulus.0 - 1),
-            message_modulus: sks.message_modulus,
-            carry_modulus: sks.carry_modulus,
-            pbs_order: ct_in.pbs_order,
-        };
+        let ct_out = Ciphertext::new(
+            ciphertext,
+            Degree(sks.message_modulus.0 - 1),
+            NoiseLevel::NOMINAL,
+            sks.message_modulus,
+            sks.carry_modulus,
+            ct_in.pbs_order,
+        );
 
         Ok(ct_out)
     }
@@ -428,13 +429,14 @@ impl ShortintEngine {
 
         // The identity lut wrongly sets the max degree in the ciphertext, when in reality the
         // degree of the ciphertext has no changed, we manage this case manually here
-        Ok(Ciphertext {
-            ct: buffer_lwe_after_ks,
-            degree: ct_in.degree,
-            message_modulus: ct_clean.message_modulus,
-            carry_modulus: ct_clean.carry_modulus,
-            pbs_order: ct_in.pbs_order,
-        })
+        Ok(Ciphertext::new(
+            buffer_lwe_after_ks,
+            ct_in.degree,
+            NoiseLevel::NOMINAL,
+            ct_clean.message_modulus,
+            ct_clean.carry_modulus,
+            ct_in.pbs_order,
+        ))
     }
 
     pub(crate) fn keyswitch_to_pbs_params(
@@ -492,13 +494,14 @@ impl ShortintEngine {
             }
         };
 
-        Ok(Ciphertext {
-            ct: ct_out,
-            degree: ct_in.degree,
-            message_modulus: ct_in.message_modulus,
-            carry_modulus: ct_in.carry_modulus,
-            pbs_order: ct_in.pbs_order,
-        })
+        Ok(Ciphertext::new(
+            ct_out,
+            ct_in.degree,
+            NoiseLevel::NOMINAL,
+            ct_in.message_modulus,
+            ct_in.carry_modulus,
+            ct_in.pbs_order,
+        ))
     }
 
     pub(crate) fn wopbs(

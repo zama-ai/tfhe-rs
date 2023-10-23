@@ -3,7 +3,7 @@ use super::{EngineResult, ShortintEngine};
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{Ciphertext, ClientKey, CompressedPublicKey, PublicKey};
 
@@ -177,13 +177,14 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext {
-            ct: encrypted_ct,
-            degree: Degree(message_modulus.0 - 1),
+        Ok(Ciphertext::new(
+            encrypted_ct,
+            Degree(message_modulus.0 - 1),
+            NoiseLevel::NOMINAL,
             message_modulus,
-            carry_modulus: CarryModulus(carry_modulus),
-            pbs_order: public_key.pbs_order,
-        })
+            CarryModulus(carry_modulus),
+            public_key.pbs_order,
+        ))
     }
 
     pub(crate) fn encrypt_with_message_modulus_and_compressed_public_key(
@@ -225,13 +226,14 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext {
-            ct: encrypted_ct,
-            degree: Degree(message_modulus.0 - 1),
+        Ok(Ciphertext::new(
+            encrypted_ct,
+            Degree(message_modulus.0 - 1),
+            NoiseLevel::NOMINAL,
             message_modulus,
-            carry_modulus: CarryModulus(carry_modulus),
-            pbs_order: public_key.pbs_order,
-        })
+            CarryModulus(carry_modulus),
+            public_key.pbs_order,
+        ))
     }
 
     pub(crate) fn encrypt_without_padding_with_public_key(
@@ -264,13 +266,14 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext {
-            ct: encrypted_ct,
-            degree: Degree(public_key.parameters.message_modulus().0 - 1),
-            message_modulus: public_key.parameters.message_modulus(),
-            carry_modulus: public_key.parameters.carry_modulus(),
-            pbs_order: public_key.pbs_order,
-        })
+        Ok(Ciphertext::new(
+            encrypted_ct,
+            Degree(public_key.parameters.message_modulus().0 - 1),
+            NoiseLevel::NOMINAL,
+            public_key.parameters.message_modulus(),
+            public_key.parameters.carry_modulus(),
+            public_key.pbs_order,
+        ))
     }
 
     pub(crate) fn encrypt_without_padding_with_compressed_public_key(
@@ -303,13 +306,14 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext {
-            ct: encrypted_ct,
-            degree: Degree(public_key.parameters.message_modulus().0 - 1),
-            message_modulus: public_key.parameters.message_modulus(),
-            carry_modulus: public_key.parameters.carry_modulus(),
-            pbs_order: public_key.pbs_order,
-        })
+        Ok(Ciphertext::new(
+            encrypted_ct,
+            Degree(public_key.parameters.message_modulus().0 - 1),
+            NoiseLevel::NOMINAL,
+            public_key.parameters.message_modulus(),
+            public_key.parameters.carry_modulus(),
+            public_key.pbs_order,
+        ))
     }
 
     pub(crate) fn encrypt_native_crt_with_public_key(
@@ -339,13 +343,14 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext {
-            ct: encrypted_ct,
-            degree: Degree(message_modulus as usize - 1),
-            message_modulus: MessageModulus(message_modulus as usize),
-            carry_modulus: CarryModulus(carry_modulus),
-            pbs_order: public_key.pbs_order,
-        })
+        Ok(Ciphertext::new(
+            encrypted_ct,
+            Degree(message_modulus as usize - 1),
+            NoiseLevel::NOMINAL,
+            MessageModulus(message_modulus as usize),
+            CarryModulus(carry_modulus),
+            public_key.pbs_order,
+        ))
     }
 
     pub(crate) fn encrypt_native_crt_with_compressed_public_key(
@@ -375,13 +380,14 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext {
-            ct: encrypted_ct,
-            degree: Degree(message_modulus as usize - 1),
-            message_modulus: MessageModulus(message_modulus as usize),
-            carry_modulus: CarryModulus(carry_modulus),
-            pbs_order: public_key.pbs_order,
-        })
+        Ok(Ciphertext::new(
+            encrypted_ct,
+            Degree(message_modulus as usize - 1),
+            NoiseLevel::NOMINAL,
+            MessageModulus(message_modulus as usize),
+            CarryModulus(carry_modulus),
+            public_key.pbs_order,
+        ))
     }
 
     pub(crate) fn unchecked_encrypt_with_public_key(
@@ -410,16 +416,17 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext {
-            ct: encrypted_ct,
-            degree: Degree(
+        Ok(Ciphertext::new(
+            encrypted_ct,
+            Degree(
                 public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0
                     - 1,
             ),
-            message_modulus: public_key.parameters.message_modulus(),
-            carry_modulus: public_key.parameters.carry_modulus(),
-            pbs_order: public_key.pbs_order,
-        })
+            NoiseLevel::NOMINAL,
+            public_key.parameters.message_modulus(),
+            public_key.parameters.carry_modulus(),
+            public_key.pbs_order,
+        ))
     }
 
     pub(crate) fn unchecked_encrypt_with_compressed_public_key(
@@ -448,15 +455,16 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext {
-            ct: encrypted_ct,
-            degree: Degree(
+        Ok(Ciphertext::new(
+            encrypted_ct,
+            Degree(
                 public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0
                     - 1,
             ),
-            message_modulus: public_key.parameters.message_modulus(),
-            carry_modulus: public_key.parameters.carry_modulus(),
-            pbs_order: public_key.pbs_order,
-        })
+            NoiseLevel::NOMINAL,
+            public_key.parameters.message_modulus(),
+            public_key.parameters.carry_modulus(),
+            public_key.pbs_order,
+        ))
     }
 }
