@@ -20,7 +20,10 @@ def main(args):
             bench_function_id = bench_data["function_id"]
 
             split = bench_function_id.split("::")
-            (_, function_name, parameter_set, bits) = split
+            if split.len() == 5:  # Signed integers
+                (_, _, function_name, parameter_set, bits) = split
+            else:  # Unsigned integers
+                (_, function_name, parameter_set, bits) = split
 
             if "_scalar_" in bits:
                 (bits, scalar) = bits.split("_bits_scalar_")

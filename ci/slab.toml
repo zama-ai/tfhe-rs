@@ -43,6 +43,11 @@ workflow = "integer_full_benchmark.yml"
 profile = "bench"
 check_run_name = "Integer CPU AWS Benchmarks Full Suite"
 
+[command.signed_integer_full_bench]
+workflow = "signed_integer_full_benchmark.yml"
+profile = "bench"
+check_run_name = "Signed Integer CPU AWS Benchmarks Full Suite"
+
 [command.integer_bench]
 workflow = "integer_benchmark.yml"
 profile = "bench"
@@ -52,6 +57,16 @@ check_run_name = "Integer CPU AWS Benchmarks"
 workflow = "integer_multi_bit_benchmark.yml"
 profile = "bench"
 check_run_name = "Integer multi bit CPU AWS Benchmarks"
+
+[command.signed_integer_bench]
+workflow = "signed_integer_benchmark.yml"
+profile = "bench"
+check_run_name = "Signed integer CPU AWS Benchmarks"
+
+[command.signed_integer_multi_bit_bench]
+workflow = "signed_integer_multi_bit_benchmark.yml"
+profile = "bench"
+check_run_name = "Signed integer multi bit CPU AWS Benchmarks"
 
 [command.shortint_full_bench]
 workflow = "shortint_full_benchmark.yml"
