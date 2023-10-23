@@ -21,6 +21,7 @@ pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
 #[cfg(test)]
 mod tests;
 
+use super::ciphertext::NoiseLevel;
 use super::parameters::CiphertextConformanceParams;
 use super::PBSOrder;
 use crate::core_crypto::algorithms::*;
@@ -276,6 +277,7 @@ impl ServerKey {
             carry_modulus: self.carry_modulus,
             degree: Degree(self.message_modulus.0 - 1),
             pbs_order: self.pbs_order,
+            noise_level: NoiseLevel::NOMINAL,
         }
     }
 }

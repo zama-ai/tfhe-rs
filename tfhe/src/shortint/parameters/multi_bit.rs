@@ -6,7 +6,7 @@ pub use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use crate::core_crypto::prelude::LweCiphertextParameters;
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, EncryptionKeyChoice, LweBskGroupingFactor, MessageModulus,
 };
@@ -66,6 +66,8 @@ impl MultiBitPBSParameters {
 
         let degree = Degree(message_modulus.0 - 1);
 
+        let noise_level = NoiseLevel::NOMINAL;
+
         CiphertextConformanceParams {
             ct_params: LweCiphertextParameters {
                 lwe_dim: expected_dim,
@@ -75,6 +77,7 @@ impl MultiBitPBSParameters {
             carry_modulus,
             pbs_order,
             degree,
+            noise_level,
         }
     }
 }

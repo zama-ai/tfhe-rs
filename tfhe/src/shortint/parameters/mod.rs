@@ -27,7 +27,7 @@ pub use multi_bit::*;
 pub use parameters_compact_pk::*;
 pub use parameters_wopbs::WopbsParameters;
 
-use super::ciphertext::Degree;
+use super::ciphertext::{Degree, NoiseLevel};
 use super::PBSOrder;
 
 /// The number of bits on which the message will be encoded.
@@ -132,6 +132,8 @@ impl ClassicPBSParameters {
 
         let degree = Degree(message_modulus.0 - 1);
 
+        let noise_level = NoiseLevel::NOMINAL;
+
         CiphertextConformanceParams {
             ct_params: LweCiphertextParameters {
                 lwe_dim: expected_dim,
@@ -141,6 +143,7 @@ impl ClassicPBSParameters {
             carry_modulus,
             pbs_order,
             degree,
+            noise_level,
         }
     }
 }
@@ -160,6 +163,7 @@ pub struct CiphertextConformanceParams {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
+    pub noise_level: NoiseLevel,
     pub pbs_order: PBSOrder,
 }
 
@@ -171,6 +175,7 @@ pub struct CiphertextListConformanceParams {
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub degree: Degree,
+    pub noise_level: NoiseLevel,
     pub pbs_order: PBSOrder,
 }
 
@@ -189,6 +194,7 @@ impl CiphertextConformanceParams {
             carry_modulus: self.carry_modulus,
             degree: self.degree,
             pbs_order: self.pbs_order,
+            noise_level: self.noise_level,
         }
     }
 }
