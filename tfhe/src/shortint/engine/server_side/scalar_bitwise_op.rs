@@ -19,10 +19,8 @@ impl ShortintEngine {
         lhs: &mut Ciphertext,
         rhs: u8,
     ) -> EngineResult<()> {
-        let lut = self.generate_lookup_table(server_key, |x| {
-            let x = x % lhs.message_modulus.0 as u64;
-            (x & rhs as u64) % lhs.message_modulus.0 as u64
-        })?;
+        let lut =
+            self.generate_msg_lookup_table(server_key, |x| x & rhs as u64, lhs.message_modulus)?;
         self.apply_lookup_table_assign(server_key, lhs, &lut)?;
         Ok(())
     }
@@ -67,10 +65,8 @@ impl ShortintEngine {
         lhs: &mut Ciphertext,
         rhs: u8,
     ) -> EngineResult<()> {
-        let lut = self.generate_lookup_table(server_key, |x| {
-            let x = x % lhs.message_modulus.0 as u64;
-            (x ^ rhs as u64) % lhs.message_modulus.0 as u64
-        })?;
+        let lut =
+            self.generate_msg_lookup_table(server_key, |x| x ^ rhs as u64, lhs.message_modulus)?;
         self.apply_lookup_table_assign(server_key, lhs, &lut)?;
         Ok(())
     }
@@ -115,10 +111,8 @@ impl ShortintEngine {
         lhs: &mut Ciphertext,
         rhs: u8,
     ) -> EngineResult<()> {
-        let lut = self.generate_lookup_table(server_key, |x| {
-            let x = x % lhs.message_modulus.0 as u64;
-            (x | rhs as u64) % lhs.message_modulus.0 as u64
-        })?;
+        let lut =
+            self.generate_msg_lookup_table(server_key, |x| x | rhs as u64, lhs.message_modulus)?;
         self.apply_lookup_table_assign(server_key, lhs, &lut)?;
         Ok(())
     }

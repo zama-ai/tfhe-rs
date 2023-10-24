@@ -414,7 +414,7 @@ where
         let ctxt_0 = cks.encrypt(clear_0);
 
         //define the lookup_table as identity
-        let acc = sks.generate_lookup_table(|n| n % modulus);
+        let acc = sks.generate_msg_lookup_table(|n| n, cks.parameters.message_modulus());
         // add the two ciphertexts
         let ct_res = sks.apply_lookup_table(&ctxt_0, &acc);
 
