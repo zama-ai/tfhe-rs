@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::rc::Rc;
-use tfhe::integer::{RadixCiphertext, ServerKey};
+use tfhe::integer::{IntegerCiphertext, RadixCiphertext, ServerKey};
 
 use crate::parser::u8_to_char;
 
@@ -72,7 +72,12 @@ impl Execution {
 
                 let mut ct_a = a.0.clone();
                 let mut ct_b = b.0.clone();
-                (exec.sk.smart_eq(&mut ct_a, &mut ct_b), ctx.clone())
+                (
+                    exec.sk
+                        .smart_eq(&mut ct_a, &mut ct_b)
+                        .into_radix(ct_a.blocks().len(), &exec.sk),
+                    ctx.clone(),
+                )
             }),
         )
     }
@@ -89,7 +94,12 @@ impl Execution {
 
                 let mut ct_a = a.0.clone();
                 let mut ct_b = b.0.clone();
-                (exec.sk.smart_gt(&mut ct_a, &mut ct_b), ctx.clone())
+                (
+                    exec.sk
+                        .smart_gt(&mut ct_a, &mut ct_b)
+                        .into_radix(ct_a.blocks().len(), &exec.sk),
+                    ctx.clone(),
+                )
             }),
         )
     }
@@ -106,7 +116,12 @@ impl Execution {
 
                 let mut ct_a = a.0.clone();
                 let mut ct_b = b.0.clone();
-                (exec.sk.smart_le(&mut ct_a, &mut ct_b), ctx.clone())
+                (
+                    exec.sk
+                        .smart_le(&mut ct_a, &mut ct_b)
+                        .into_radix(ct_a.blocks().len(), &exec.sk),
+                    ctx.clone(),
+                )
             }),
         )
     }

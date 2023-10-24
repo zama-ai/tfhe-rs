@@ -38,7 +38,7 @@ impl ServerKey {
         let (quotient, remainder) = self.unchecked_div_rem_parallelized(numerator, divisor);
 
         let (remainder_is_not_zero, remainder_and_divisor_signs_disagrees) = rayon::join(
-            || self.unchecked_scalar_ne_parallelized(&remainder, 0).blocks[0].clone(),
+            || self.unchecked_scalar_ne_parallelized(&remainder, 0),
             || {
                 let sign_bit_pos = self.key.message_modulus.0.ilog2() - 1;
                 let compare_sign_bits = |x, y| {
@@ -56,7 +56,7 @@ impl ServerKey {
         );
 
         let condition = self.key.unchecked_add(
-            &remainder_is_not_zero,
+            &remainder_is_not_zero.0,
             &remainder_and_divisor_signs_disagrees,
         );
 

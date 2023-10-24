@@ -524,7 +524,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
                 let clear_1 = gen_random_u256(&mut rng);
                 let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
-                let cond = sks.create_trivial_radix(rng.gen_bool(0.5) as u64, num_block);
+                let cond = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
 
                 (cond, ct_0, ct_1)
             };

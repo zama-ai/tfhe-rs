@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 pub use utils::radix_decomposition;
 
 use crate::integer::bigint::static_signed::StaticSignedBigInt;
+use crate::integer::ciphertext::boolean_value::BooleanBlock;
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 
@@ -425,11 +426,56 @@ impl ClientKey {
         self.key.encrypt(message)
     }
 
+    /// Encrypts a bool to a [BooleanBlock]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use tfhe::integer::{gen_keys, BooleanBlock};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let a = cks.encrypt_bool(false);
+    /// let dec = cks.decrypt_bool(&a);
+    /// assert_eq!(dec, false);
+    ///
+    /// let a = a.into_radix(size, &sks);
+    /// let dec: u64 = cks.decrypt_radix(&a);
+    /// assert_eq!(dec, 0);
+    /// ```
+    pub fn encrypt_bool(&self, msg: bool) -> BooleanBlock {
+        BooleanBlock::new_unchecked(self.encrypt_one_block(u64::from(msg)))
+    }
+
     /// Decrypts one block.
     ///
     /// This takes a shortint ciphertext as input.
     pub fn decrypt_one_block(&self, ct: &Ciphertext) -> u64 {
         self.key.decrypt(ct)
+    }
+
+    /// Decrypts a ciphertext marked as holding a boolean value to a bool
+    ///
+    /// Treats 0 as false and the rest as true
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use tfhe::integer::{BooleanBlock, ClientKey};
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let a = cks.encrypt_one_block(1u64);
+    /// let wrapped = BooleanBlock::new_unchecked(a);
+    /// let dec = cks.decrypt_bool(&wrapped);
+    /// assert_eq!(dec, true);
+    /// ```
+    pub fn decrypt_bool(&self, ct: &BooleanBlock) -> bool {
+        self.decrypt_one_block(&ct.0) != 0
     }
 
     /// Encrypts an integer using crt representation

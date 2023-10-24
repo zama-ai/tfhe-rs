@@ -1,4 +1,6 @@
 //! This module implements the ciphertext structures.
+pub mod boolean_value;
+
 use super::parameters::{
     RadixCiphertextConformanceParams, RadixCompactCiphertextListConformanceParams,
 };
@@ -191,15 +193,17 @@ impl From<CompressedSignedRadixCiphertext> for SignedRadixCiphertext {
 }
 
 pub trait IntegerCiphertext: Clone {
-    fn from_blocks(blocks: Vec<Ciphertext>) -> Self;
     fn blocks(&self) -> &[Ciphertext];
-    fn blocks_mut(&mut self) -> &mut [Ciphertext];
     fn moduli(&self) -> Vec<u64> {
         self.blocks()
             .iter()
             .map(|x| x.message_modulus.0 as u64)
             .collect()
     }
+
+    fn from_blocks(blocks: Vec<Ciphertext>) -> Self;
+
+    fn blocks_mut(&mut self) -> &mut [Ciphertext];
 }
 
 pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send + From<Vec<Ciphertext>> {
@@ -222,13 +226,14 @@ pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send + From<Vec<Cip
 }
 
 impl IntegerCiphertext for RadixCiphertext {
+    fn blocks(&self) -> &[Ciphertext] {
+        &self.blocks
+    }
+
     fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
         Self::from(blocks)
     }
 
-    fn blocks(&self) -> &[Ciphertext] {
-        &self.blocks
-    }
     fn blocks_mut(&mut self) -> &mut [Ciphertext] {
         &mut self.blocks
     }
@@ -243,12 +248,14 @@ impl IntegerRadixCiphertext for RadixCiphertext {
 }
 
 impl IntegerCiphertext for SignedRadixCiphertext {
-    fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
-        Self::from(blocks)
-    }
     fn blocks(&self) -> &[Ciphertext] {
         &self.blocks
     }
+
+    fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
+        Self::from(blocks)
+    }
+
     fn blocks_mut(&mut self) -> &mut [Ciphertext] {
         &mut self.blocks
     }
@@ -263,13 +270,15 @@ impl IntegerRadixCiphertext for SignedRadixCiphertext {
 }
 
 impl IntegerCiphertext for CrtCiphertext {
+    fn blocks(&self) -> &[Ciphertext] {
+        &self.blocks
+    }
+
     fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
         let moduli = blocks.iter().map(|x| x.message_modulus.0 as u64).collect();
         Self { blocks, moduli }
     }
-    fn blocks(&self) -> &[Ciphertext] {
-        &self.blocks
-    }
+
     fn blocks_mut(&mut self) -> &mut [Ciphertext] {
         &mut self.blocks
     }

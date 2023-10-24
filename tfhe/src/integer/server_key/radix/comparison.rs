@@ -1,4 +1,5 @@
 use super::ServerKey;
+use crate::integer::ciphertext::boolean_value::BooleanBlock;
 
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::comparator::Comparator;
@@ -30,13 +31,14 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_eq(&ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 == msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 == msg2);
     /// ```
-    pub fn unchecked_eq<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_eq<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
+        assert_eq!(lhs.blocks().len(), rhs.blocks().len());
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
@@ -82,15 +84,20 @@ impl ServerKey {
                 .collect::<Vec<_>>();
         }
 
-        block_comparisons.resize_with(lhs.blocks().len(), || self.key.create_trivial(0));
-
-        T::from_blocks(block_comparisons)
+        let result = block_comparisons
+            .into_iter()
+            .next()
+            // if block_comparisons is empty then both lhs and rhs were empty
+            // so they are equal
+            .unwrap_or_else(|| self.key.create_trivial(1));
+        BooleanBlock::new_unchecked(result)
     }
 
-    pub fn unchecked_ne<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_ne<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
+        assert_eq!(lhs.blocks().len(), rhs.blocks().len());
         // Even though the corresponding function
         // may already exist in self.key
         // we generate our own lut to do less allocations
@@ -125,9 +132,13 @@ impl ServerKey {
                 .collect::<Vec<_>>();
         }
 
-        block_comparisons.resize_with(lhs.blocks().len(), || self.key.create_trivial(0));
-
-        T::from_blocks(block_comparisons)
+        let result = block_comparisons
+            .into_iter()
+            .next()
+            // if block_comparisons is empty then both lhs and rhs were empty
+            // so they are equal (i.e not different)
+            .unwrap_or_else(|| self.key.create_trivial(0));
+        BooleanBlock::new_unchecked(result)
     }
 
     /// Compares if lhs is strictly greater than rhs
@@ -156,10 +167,10 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_gt(&ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 > msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 > msg2);
     /// ```
-    pub fn unchecked_gt<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_gt<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -192,10 +203,10 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_ge(&ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 >= msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 >= msg2);
     /// ```
-    pub fn unchecked_ge<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_ge<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -228,10 +239,10 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_lt(&ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 < msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 < msg2);
     /// ```
-    pub fn unchecked_lt<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_lt<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -264,10 +275,10 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_le(&ct1, &ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 < msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 < msg2);
     /// ```
-    pub fn unchecked_le<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_le<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -368,10 +379,10 @@ impl ServerKey {
     /// let ct_res = sks.smart_eq(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 == msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 == msg2);
     /// ```
-    pub fn smart_eq<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_eq<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -384,7 +395,7 @@ impl ServerKey {
         self.unchecked_eq(lhs, rhs)
     }
 
-    pub fn smart_ne<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_ne<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -421,10 +432,10 @@ impl ServerKey {
     /// let ct_res = sks.smart_gt(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 > msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 > msg2);
     /// ```
-    pub fn smart_gt<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_gt<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -455,10 +466,10 @@ impl ServerKey {
     /// let ct_res = sks.smart_gt(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 >= msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 >= msg2);
     /// ```
-    pub fn smart_ge<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_ge<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -489,10 +500,10 @@ impl ServerKey {
     /// let ct_res = sks.smart_lt(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 < msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 < msg2);
     /// ```
-    pub fn smart_lt<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_lt<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -523,10 +534,10 @@ impl ServerKey {
     /// let ct_res = sks.smart_le(&mut ct1, &mut ct2);
     ///
     /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, u64::from(msg1 <= msg2));
+    /// let dec_result = cks.decrypt_bool(&ct_res);
+    /// assert_eq!(dec_result, msg1 <= msg2);
     /// ```
-    pub fn smart_le<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_le<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {

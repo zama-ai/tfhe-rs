@@ -4,9 +4,9 @@ use crate::shortint::ClassicPBSParameters;
 use rand;
 use rand::prelude::*;
 
-/// Function to test an "unchecked" compartor function.
+/// Function to test an "unchecked" server key function.
 ///
-/// This calls the `unchecked_comparator_method` with fresh ciphertexts
+/// This calls the `unchecked_server_key_method` with fresh ciphertexts
 /// and compares that it gives the same results as the `clear_fn`.
 fn test_unchecked_function<UncheckedFn, ClearF>(
     param: ClassicPBSParameters,
@@ -48,15 +48,15 @@ fn test_unchecked_function<UncheckedFn, ClearF>(
     }
 }
 
-/// Function to test a "smart" comparator function.
+/// Function to test a "smart" server_key function.
 ///
-/// This calls the `smart_comparator_method` with non-fresh ciphertexts,
+/// This calls the `smart_server_key_method` with non-fresh ciphertexts,
 /// that is ciphertexts that have non-zero carries, and compares that the result is
 /// the same as the one of`clear_fn`.
 fn test_smart_function<SmartFn, ClearF>(
     param: ClassicPBSParameters,
     num_test: usize,
-    smart_comparator_method: SmartFn,
+    smart_server_key_method: SmartFn,
     clear_fn: ClearF,
 ) where
     SmartFn: for<'a> Fn(
@@ -103,7 +103,7 @@ fn test_smart_function<SmartFn, ClearF>(
 
         assert!(!ct_0.block_carries_are_empty());
         assert!(!ct_1.block_carries_are_empty());
-        let encrypted_result = smart_comparator_method(&sks, &mut ct_0, &mut ct_1);
+        let encrypted_result = smart_server_key_method(&sks, &mut ct_0, &mut ct_1);
         assert!(ct_0.block_carries_are_empty());
         assert!(ct_1.block_carries_are_empty());
 
@@ -123,9 +123,9 @@ fn test_smart_function<SmartFn, ClearF>(
     }
 }
 
-/// Function to test a "default" comparator function.
+/// Function to test a "default" server_key function.
 ///
-/// This calls the `comparator_method` with non-fresh ciphertexts,
+/// This calls the `server_key_method` with non-fresh ciphertexts,
 /// that is ciphertexts that have non-zero carries, and compares that the result is
 /// the same as the one of`clear_fn`.
 fn test_default_function<SmartFn, ClearF>(
@@ -197,7 +197,7 @@ fn test_unchecked_min_256_bits(params: crate::shortint::ClassicPBSParameters, nu
     test_unchecked_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.unchecked_min(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_min(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -206,7 +206,7 @@ fn test_unchecked_max_256_bits(params: crate::shortint::ClassicPBSParameters, nu
     test_unchecked_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.unchecked_max(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_max(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -218,7 +218,7 @@ fn test_unchecked_min_parallelized_256_bits(
     test_unchecked_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.unchecked_min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -230,7 +230,7 @@ fn test_unchecked_max_parallelized_256_bits(
     test_unchecked_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.unchecked_max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -239,7 +239,7 @@ fn test_min_parallelized_256_bits(params: crate::shortint::ClassicPBSParameters,
     test_default_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -248,7 +248,7 @@ fn test_max_parallelized_256_bits(params: crate::shortint::ClassicPBSParameters,
     test_default_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -272,7 +272,10 @@ macro_rules! define_comparison_test_functions {
                 test_unchecked_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<unchecked_ $comparison_name>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<unchecked_ $comparison_name>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
                 )
             }
@@ -282,7 +285,10 @@ macro_rules! define_comparison_test_functions {
                 test_unchecked_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<unchecked_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<unchecked_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
                 )
             }
@@ -292,7 +298,10 @@ macro_rules! define_comparison_test_functions {
                 test_smart_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<smart_ $comparison_name>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<smart_ $comparison_name>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
                 )
             }
@@ -302,7 +311,10 @@ macro_rules! define_comparison_test_functions {
                 test_smart_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<smart_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<smart_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
                 )
             }
@@ -312,7 +324,10 @@ macro_rules! define_comparison_test_functions {
                 test_default_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<$comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<$comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
                 )
             }
@@ -534,7 +549,7 @@ fn test_parallelized_256_bits_param_message_4_carry_4_ks_pbs() {
 
 /// Function to test an "unchecked" compartor function.
 ///
-/// This calls the `unchecked_comparator_method` with fresh ciphertexts
+/// This calls the `unchecked_server_key_method` with fresh ciphertexts
 /// and compares that it gives the same results as the `clear_fn`.
 fn test_signed_unchecked_function<UncheckedFn, ClearF>(
     param: ClassicPBSParameters,
@@ -598,9 +613,9 @@ fn test_signed_unchecked_function<UncheckedFn, ClearF>(
     }
 }
 
-/// Function to test a "smart" comparator function for signed inputs
+/// Function to test a "smart" server_key function for signed inputs
 ///
-/// This calls the `smart_comparator_method` with non-fresh ciphertexts,
+/// This calls the `smart_server_key_method` with non-fresh ciphertexts,
 /// that is ciphertexts that have non-zero carries, and compares that the result is
 /// the same as the one of`clear_fn`.
 fn test_signed_smart_function<SmartFn, ClearF>(
@@ -673,9 +688,9 @@ fn test_signed_smart_function<SmartFn, ClearF>(
     }
 }
 
-/// Function to test a "default" comparator function for signed inputs.
+/// Function to test a "default" server_key function for signed inputs.
 ///
-/// This calls the `comparator_method` with non-fresh ciphertexts,
+/// This calls the `server_key_method` with non-fresh ciphertexts,
 /// that is ciphertexts that have non-zero carries, and compares that the result is
 /// the same as the one of`clear_fn`.
 fn test_signed_default_function<SmartFn, ClearF>(
@@ -753,7 +768,7 @@ fn integer_signed_unchecked_min_parallelized_128_bits(
     test_signed_unchecked_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.unchecked_min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -764,7 +779,7 @@ fn integer_signed_unchecked_max_parallelized_128_bits(
     test_signed_unchecked_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.unchecked_max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -773,7 +788,7 @@ fn integer_signed_smart_min_parallelized_128_bits(params: crate::shortint::Class
     test_signed_smart_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.smart_min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.smart_min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -782,7 +797,7 @@ fn integer_signed_smart_max_parallelized_128_bits(params: crate::shortint::Class
     test_signed_smart_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.smart_max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.smart_max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -791,7 +806,7 @@ fn integer_signed_min_parallelized_128_bits(params: crate::shortint::ClassicPBSP
     test_signed_default_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -800,7 +815,7 @@ fn integer_signed_max_parallelized_128_bits(params: crate::shortint::ClassicPBSP
     test_signed_default_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -826,7 +841,10 @@ macro_rules! define_signed_comparison_test_functions {
                 test_signed_unchecked_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<unchecked_ $comparison_name>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<unchecked_ $comparison_name>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| i128::from(<i128>::$comparison_name(&lhs, &rhs) as i128),
                 )
             }
@@ -836,7 +854,10 @@ macro_rules! define_signed_comparison_test_functions {
                 test_signed_unchecked_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<unchecked_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<unchecked_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| i128::from(<i128>::$comparison_name(&lhs, &rhs) as i128),
                 )
             }
@@ -846,7 +867,10 @@ macro_rules! define_signed_comparison_test_functions {
                 test_signed_smart_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<smart_ $comparison_name>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<smart_ $comparison_name>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| i128::from(<i128>::$comparison_name(&lhs, &rhs) as i128),
                 )
             }
@@ -856,7 +880,10 @@ macro_rules! define_signed_comparison_test_functions {
                 test_signed_smart_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<smart_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<smart_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| i128::from(<i128>::$comparison_name(&lhs, &rhs) as i128),
                 )
             }
@@ -866,12 +893,15 @@ macro_rules! define_signed_comparison_test_functions {
                 test_signed_default_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<$comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<$comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| i128::from(<i128>::$comparison_name(&lhs, &rhs) as i128),
                 )
             }
 
-            // Then call our create_parametrized_test macro onto or specialialized fns
+            // Then call our create_parametrized_test macro onto or specialized fns
 
             create_parametrized_test!([<integer_signed_unchecked_ $comparison_name _128_bits>]
             {
@@ -976,7 +1006,7 @@ create_parametrized_test!(integer_signed_min_parallelized_128_bits {
 
 /// Function to test an "unchecked_scalar" compartor function.
 ///
-/// This calls the `unchecked_scalar_comparator_method` with fresh ciphertexts
+/// This calls the `unchecked_scalar_server_key_method` with fresh ciphertexts
 /// and compares that it gives the same results as the `clear_fn`.
 fn test_unchecked_scalar_function<UncheckedFn, ClearF>(
     param: ClassicPBSParameters,
@@ -1016,7 +1046,7 @@ fn test_unchecked_scalar_function<UncheckedFn, ClearF>(
     }
 }
 
-/// Function to test a "smart_scalar" comparator function.
+/// Function to test a "smart_scalar" server_key function.
 fn test_smart_scalar_function<SmartFn, ClearF>(
     param: ClassicPBSParameters,
     num_test: usize,
@@ -1067,7 +1097,7 @@ fn test_smart_scalar_function<SmartFn, ClearF>(
     }
 }
 
-/// Function to test a "default_scalar" comparator function.
+/// Function to test a "default_scalar" server_key function.
 fn test_default_scalar_function<SmartFn, ClearF>(
     param: ClassicPBSParameters,
     num_test: usize,
@@ -1137,7 +1167,10 @@ macro_rules! define_scalar_comparison_test_functions {
                 test_unchecked_scalar_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<unchecked_scalar_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<unchecked_scalar_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
                 )
             }
@@ -1147,7 +1180,10 @@ macro_rules! define_scalar_comparison_test_functions {
                 test_smart_scalar_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<smart_scalar_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<smart_scalar_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
                 )
             }
@@ -1157,7 +1193,10 @@ macro_rules! define_scalar_comparison_test_functions {
                 test_default_scalar_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<scalar_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<scalar_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| U256::from(<U256>::$comparison_name(&lhs, &rhs) as u128),
                 )
             }
@@ -1206,7 +1245,7 @@ fn test_unchecked_scalar_min_parallelized_256_bits(
     test_unchecked_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.unchecked_min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -1218,7 +1257,7 @@ fn test_unchecked_scalar_max_parallelized_256_bits(
     test_unchecked_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.unchecked_max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -1230,7 +1269,7 @@ fn test_scalar_min_parallelized_256_bits(
     test_default_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -1242,7 +1281,7 @@ fn test_scalar_max_parallelized_256_bits(
     test_default_function(
         params,
         num_tests,
-        |comparator, lhs, rhs| comparator.max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -1355,85 +1394,67 @@ fn test_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
         // >=
         {
             let result = sks.unchecked_scalar_ge_parallelized(&a, smaller_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(
-                decrypted,
-                U256::from(U256::from(clear_a) >= U256::from(smaller_clear))
-            );
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) >= U256::from(smaller_clear));
 
             let result = sks.unchecked_scalar_ge_parallelized(&a, bigger_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) >= bigger_clear));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) >= bigger_clear);
         }
 
         // >
         {
             let result = sks.unchecked_scalar_gt_parallelized(&a, smaller_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(
-                decrypted,
-                U256::from(U256::from(clear_a) > U256::from(smaller_clear))
-            );
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) > U256::from(smaller_clear));
 
             let result = sks.unchecked_scalar_gt_parallelized(&a, bigger_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) > bigger_clear));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) > bigger_clear);
         }
 
         // <=
         {
             let result = sks.unchecked_scalar_le_parallelized(&a, smaller_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(
-                decrypted,
-                U256::from(U256::from(clear_a) <= U256::from(smaller_clear))
-            );
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) <= U256::from(smaller_clear));
 
             let result = sks.unchecked_scalar_le_parallelized(&a, bigger_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) <= bigger_clear));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) <= bigger_clear);
         }
 
         // <
         {
             let result = sks.unchecked_scalar_lt_parallelized(&a, smaller_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(
-                decrypted,
-                U256::from(U256::from(clear_a) < U256::from(smaller_clear))
-            );
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) < U256::from(smaller_clear));
 
             let result = sks.unchecked_scalar_lt_parallelized(&a, bigger_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) < bigger_clear));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) < bigger_clear);
         }
 
         // ==
         {
             let result = sks.unchecked_scalar_eq_parallelized(&a, smaller_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(
-                decrypted,
-                U256::from(U256::from(clear_a) == U256::from(smaller_clear))
-            );
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) == U256::from(smaller_clear));
 
             let result = sks.unchecked_scalar_eq_parallelized(&a, bigger_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) == bigger_clear));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) == bigger_clear);
         }
 
         // !=
         {
             let result = sks.unchecked_scalar_ne_parallelized(&a, smaller_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(
-                decrypted,
-                U256::from(U256::from(clear_a) != U256::from(smaller_clear))
-            );
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) != U256::from(smaller_clear));
 
             let result = sks.unchecked_scalar_ne_parallelized(&a, bigger_clear);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) != bigger_clear));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) != bigger_clear);
         }
 
         // Here the goal is to test, the branching
@@ -1442,22 +1463,22 @@ fn test_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
         // We are forcing one of the two branches to work on empty slices
         {
             let result = sks.unchecked_scalar_lt_parallelized(&a, U256::ZERO);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) < U256::ZERO));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) < U256::ZERO);
 
             let result = sks.unchecked_scalar_lt_parallelized(&a, U256::MAX);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) < U256::MAX));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) < U256::MAX);
 
             // == (as it does not share same code)
             let result = sks.unchecked_scalar_eq_parallelized(&a, U256::ZERO);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) == U256::ZERO));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) == U256::ZERO);
 
             // != (as it does not share same code)
             let result = sks.unchecked_scalar_ne_parallelized(&a, U256::MAX);
-            let decrypted: U256 = cks.decrypt_radix(&result);
-            assert_eq!(decrypted, U256::from(U256::from(clear_a) != U256::MAX));
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, U256::from(clear_a) != U256::MAX);
         }
     }
 }
@@ -1538,7 +1559,7 @@ create_parametrized_test!(integer_is_scalar_out_of_bounds {
 
 /// Function to test an "unchecked_scalar" compartor function.
 ///
-/// This calls the `unchecked_scalar_comparator_method` with fresh ciphertexts
+/// This calls the `unchecked_scalar_server_key_method` with fresh ciphertexts
 /// and compares that it gives the same results as the `clear_fn`.
 fn test_signed_unchecked_scalar_function<UncheckedFn, ClearF>(
     param: ClassicPBSParameters,
@@ -1579,7 +1600,7 @@ fn test_signed_unchecked_scalar_function<UncheckedFn, ClearF>(
     }
 }
 
-/// Function to test a "smart_scalar" comparator function.
+/// Function to test a "smart_scalar" server_key function.
 fn test_signed_smart_scalar_function<SmartFn, ClearF>(
     param: ClassicPBSParameters,
     num_test: usize,
@@ -1631,7 +1652,7 @@ fn test_signed_smart_scalar_function<SmartFn, ClearF>(
     }
 }
 
-/// Function to test a "default_scalar" comparator function.
+/// Function to test a "default_scalar" server_key function.
 fn test_signed_default_scalar_function<SmartFn, ClearF>(
     param: ClassicPBSParameters,
     num_test: usize,
@@ -1701,7 +1722,10 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 test_signed_unchecked_scalar_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<unchecked_scalar_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<unchecked_scalar_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| i128::from(<i128>::$comparison_name(&lhs, &rhs)),
                 )
             }
@@ -1711,7 +1735,10 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 test_signed_smart_scalar_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<smart_scalar_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<smart_scalar_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| i128::from(<i128>::$comparison_name(&lhs, &rhs)),
                 )
             }
@@ -1721,7 +1748,10 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 test_signed_default_scalar_function(
                     params,
                     num_tests,
-                    |comparator, lhs, rhs| comparator.[<scalar_ $comparison_name _parallelized>](lhs, rhs),
+                    |server_key, lhs, rhs| {
+                        server_key.[<scalar_ $comparison_name _parallelized>](lhs, rhs)
+                        .into_radix(lhs.blocks.len(), server_key)
+                    },
                     |lhs, rhs| i128::from(<i128>::$comparison_name(&lhs, &rhs)),
                 )
             }
@@ -1769,7 +1799,7 @@ fn integer_signed_unchecked_scalar_min_parallelized_128_bits(
     test_signed_unchecked_scalar_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.unchecked_scalar_min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_scalar_min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -1780,7 +1810,7 @@ fn integer_signed_unchecked_scalar_max_parallelized_128_bits(
     test_signed_unchecked_scalar_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.unchecked_scalar_max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.unchecked_scalar_max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -1791,7 +1821,7 @@ fn integer_signed_smart_scalar_min_parallelized_128_bits(
     test_signed_smart_scalar_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.smart_scalar_min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.smart_scalar_min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -1802,7 +1832,7 @@ fn integer_signed_smart_scalar_max_parallelized_128_bits(
     test_signed_smart_scalar_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.smart_scalar_max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.smart_scalar_max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }
@@ -1811,7 +1841,7 @@ fn integer_signed_scalar_min_parallelized_128_bits(params: crate::shortint::Clas
     test_signed_default_scalar_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.scalar_min_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.scalar_min_parallelized(lhs, rhs),
         std::cmp::min,
     )
 }
@@ -1820,7 +1850,7 @@ fn integer_signed_scalar_max_parallelized_128_bits(params: crate::shortint::Clas
     test_signed_default_scalar_function(
         params,
         2,
-        |comparator, lhs, rhs| comparator.scalar_max_parallelized(lhs, rhs),
+        |server_key, lhs, rhs| server_key.scalar_max_parallelized(lhs, rhs),
         std::cmp::max,
     )
 }

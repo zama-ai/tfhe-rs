@@ -67,6 +67,7 @@ pub use bigint::i256::I256;
 pub use bigint::i512::I512;
 pub use bigint::u256::U256;
 pub use bigint::u512::U512;
+pub use ciphertext::boolean_value::BooleanBlock;
 pub use ciphertext::{
     CrtCiphertext, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext,
     SignedRadixCiphertext,

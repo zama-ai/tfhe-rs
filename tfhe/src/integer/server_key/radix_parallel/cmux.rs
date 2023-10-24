@@ -1,3 +1,4 @@
+use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 use rayon::prelude::*;
@@ -5,14 +6,14 @@ use rayon::prelude::*;
 impl ServerKey {
     pub fn unchecked_if_then_else_parallelized<T>(
         &self,
-        condition: &T,
+        condition: &BooleanBlock,
         true_ct: &T,
         false_ct: &T,
     ) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        let condition_block = &condition.blocks()[0];
+        let condition_block = &condition.0;
         let do_clean_message = true;
         self.unchecked_programmable_if_then_else_parallelized(
             condition_block,
@@ -23,7 +24,7 @@ impl ServerKey {
         )
     }
 
-    pub fn unchecked_cmux<T>(&self, condition: &T, true_ct: &T, false_ct: &T) -> T
+    pub fn unchecked_cmux<T>(&self, condition: &BooleanBlock, true_ct: &T, false_ct: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
@@ -68,12 +69,17 @@ impl ServerKey {
     /// assert_ne!(ct_a, ct_res);
     /// assert_ne!(ct_b, ct_res);
     /// ```
-    pub fn if_then_else_parallelized<T>(&self, condition: &T, true_ct: &T, false_ct: &T) -> T
+    pub fn if_then_else_parallelized<T>(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &T,
+        false_ct: &T,
+    ) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        let mut ct_clones = [None, None, None];
-        let mut ct_refs = [condition, true_ct, false_ct];
+        let mut ct_clones = [None, None];
+        let mut ct_refs = [true_ct, false_ct];
 
         ct_refs
             .par_iter_mut()
@@ -86,14 +92,14 @@ impl ServerKey {
                 }
             });
 
-        let [condition, true_ct, false_ct] = ct_refs;
+        let [true_ct, false_ct] = ct_refs;
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
     }
 
     /// Encrypted CMUX.
     ///
     /// It is another name for [Self::if_then_else_parallelized]
-    pub fn cmux_parallelized<T>(&self, condition: &T, true_ct: &T, false_ct: &T) -> T
+    pub fn cmux_parallelized<T>(&self, condition: &BooleanBlock, true_ct: &T, false_ct: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
@@ -140,14 +146,17 @@ impl ServerKey {
     /// ```
     pub fn smart_if_then_else_parallelized<T>(
         &self,
-        condition: &mut T,
+        condition: &mut BooleanBlock,
         true_ct: &mut T,
         false_ct: &mut T,
     ) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        let mut ct_refs = [condition, true_ct, false_ct];
+        if !condition.0.carry_is_empty() {
+            self.key.message_extract_assign(&mut condition.0);
+        }
+        let mut ct_refs = [true_ct, false_ct];
 
         ct_refs.par_iter_mut().for_each(|ct_ref| {
             if !ct_ref.block_carries_are_empty() {
@@ -155,7 +164,7 @@ impl ServerKey {
             }
         });
 
-        let [condition, true_ct, false_ct] = ct_refs;
+        let [true_ct, false_ct] = ct_refs;
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
     }
 
@@ -164,7 +173,7 @@ impl ServerKey {
     /// It is another name for [Self::smart_if_then_else_parallelized]
     pub fn smart_cmux_parallelized<T>(
         &self,
-        condition: &mut T,
+        condition: &mut BooleanBlock,
         true_ct: &mut T,
         false_ct: &mut T,
     ) -> T
