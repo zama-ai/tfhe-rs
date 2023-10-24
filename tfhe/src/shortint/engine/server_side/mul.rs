@@ -96,12 +96,11 @@ impl ShortintEngine {
         ct1: &Ciphertext,
         ct2: &Ciphertext,
     ) -> EngineResult<Ciphertext> {
-        //ct1 + ct2
-        let mut ct_tmp_left = self.unchecked_add(ct1, ct2)?;
+        // ct1 + ct2
+        let mut ct_add = self.unchecked_add(ct1, ct2)?;
 
-        //ct1-ct2
-        let (mut ct_tmp_right, z) =
-            self.unchecked_sub_with_correcting_term(server_key, ct1, ct2)?;
+        // ct1 - ct2
+        let (mut ct_sub, z) = self.unchecked_sub_with_correcting_term(server_key, ct1, ct2)?;
 
         //Modulus of the msg in the msg bits
         let modulus = ct1.message_modulus.0 as u64;
@@ -112,11 +111,11 @@ impl ShortintEngine {
             (((x.wrapping_sub(z)).wrapping_mul(x.wrapping_sub(z))) / 4) % modulus
         })?;
 
-        self.apply_lookup_table_assign(server_key, &mut ct_tmp_left, &acc_add)?;
-        self.apply_lookup_table_assign(server_key, &mut ct_tmp_right, &acc_sub)?;
+        self.apply_lookup_table_assign(server_key, &mut ct_add, &acc_add)?;
+        self.apply_lookup_table_assign(server_key, &mut ct_sub, &acc_sub)?;
 
         //Last subtraction might fill one bit of carry
-        self.unchecked_sub(server_key, &ct_tmp_left, &ct_tmp_right)
+        self.unchecked_sub(server_key, &ct_add, &ct_sub)
     }
 
     pub(crate) fn unchecked_mul_lsb_small_carry_modulus_assign(

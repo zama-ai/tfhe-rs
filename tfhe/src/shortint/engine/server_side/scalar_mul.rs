@@ -75,4 +75,21 @@ impl ShortintEngine {
         }
         Ok(())
     }
+
+    pub(crate) fn unchecked_scalar_mul_lsb_small_carry_modulus_assign(
+        &mut self,
+        server_key: &ServerKey,
+        ct1: &mut Ciphertext,
+        scalar: u8,
+    ) -> EngineResult<()> {
+        // Modulus of the msg in the msg bits
+        let modulus = ct1.message_modulus.0 as u64;
+
+        let acc_mul =
+            self.generate_lookup_table(server_key, |x| (x.wrapping_mul(scalar as u64)) % modulus)?;
+
+        self.apply_lookup_table_assign(server_key, ct1, &acc_mul)?;
+
+        Ok(())
+    }
 }

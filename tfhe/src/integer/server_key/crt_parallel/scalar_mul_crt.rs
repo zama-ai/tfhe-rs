@@ -52,8 +52,13 @@ impl ServerKey {
             .par_iter_mut()
             .zip(ctxt.moduli.par_iter())
             .for_each(|(ct_i, mod_i)| {
-                self.key
-                    .unchecked_scalar_mul_assign(ct_i, (scalar % mod_i) as u8);
+                let scalar_i = (scalar % mod_i) as u8;
+                if ct_i.degree.0 * (scalar_i as usize) < self.key.max_degree.0 {
+                    self.key.unchecked_scalar_mul_assign(ct_i, scalar_i);
+                } else {
+                    self.key
+                        .unchecked_scalar_mul_lsb_small_carry_modulus_assign(ct_i, scalar_i);
+                }
             });
     }
 

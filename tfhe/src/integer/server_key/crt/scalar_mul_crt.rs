@@ -41,8 +41,13 @@ impl ServerKey {
 
     pub fn unchecked_crt_scalar_mul_assign(&self, ctxt: &mut CrtCiphertext, scalar: u64) {
         for (ct_i, mod_i) in ctxt.blocks.iter_mut().zip(ctxt.moduli.iter()) {
-            self.key
-                .unchecked_scalar_mul_assign(ct_i, (scalar % mod_i) as u8);
+            let scalar_i = (scalar % mod_i) as u8;
+            if ct_i.degree.0 * (scalar_i as usize) < self.key.max_degree.0 {
+                self.key.unchecked_scalar_mul_assign(ct_i, scalar_i);
+            } else {
+                self.key
+                    .unchecked_scalar_mul_lsb_small_carry_modulus_assign(ct_i, scalar_i);
+            }
         }
     }
 

@@ -162,7 +162,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_sub(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_sub(ct, scalar).unwrap()
+            engine.unchecked_scalar_sub(self, ct, scalar).unwrap()
         })
     }
 
@@ -205,7 +205,9 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_sub_assign(ct, scalar).unwrap()
+            engine
+                .unchecked_scalar_sub_assign(self, ct, scalar)
+                .unwrap()
         })
     }
 
