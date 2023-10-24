@@ -170,7 +170,7 @@ mod test {
             for _ in 0..5 {
                 res_ct = evaluation_key.smart_add_parallelized(&mut res_ct, &mut ct);
             }
-            let res = client_key.decrypt::<u128>(&res_ct);
+            let res: u128 = client_key.decrypt(&res_ct);
             assert_eq!(modulus - 6, res);
         }
     }

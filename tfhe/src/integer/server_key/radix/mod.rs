@@ -14,7 +14,7 @@ use super::ServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::encryption::encrypt_words_radix_impl;
-use crate::integer::SignedRadixCiphertext;
+use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 
 #[cfg(test)]
 mod tests;
@@ -58,6 +58,10 @@ impl ServerKey {
         }
 
         T::from_blocks(vec_res)
+    }
+
+    pub fn create_trivial_boolean_block(&self, value: bool) -> BooleanBlock {
+        BooleanBlock::new_unchecked(self.key.create_trivial(u64::from(value)))
     }
 
     /// Create a trivial radix ciphertext

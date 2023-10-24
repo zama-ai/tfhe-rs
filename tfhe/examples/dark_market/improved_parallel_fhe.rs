@@ -3,7 +3,7 @@ use std::time::Instant;
 use rayon::prelude::*;
 
 use tfhe::integer::ciphertext::RadixCiphertext;
-use tfhe::integer::ServerKey;
+use tfhe::integer::{IntegerCiphertext, ServerKey};
 
 use crate::NUMBER_OF_BLOCKS;
 
@@ -70,10 +70,12 @@ fn fill_orders(
                 );
 
                 // total_orders > prefix_sum
-                let mut cond = server_key.smart_gt_parallelized(
-                    &mut total_orders.clone(),
-                    &mut previous_prefix_sum.clone(),
-                );
+                let mut cond = server_key
+                    .smart_gt_parallelized(
+                        &mut total_orders.clone(),
+                        &mut previous_prefix_sum.clone(),
+                    )
+                    .into_radix(diff.blocks().len(), server_key);
 
                 // (total_orders - previous_prefix_sum) * (total_orders > previous_prefix_sum)
                 // = (total_orders - previous_prefix_sum).max(0)

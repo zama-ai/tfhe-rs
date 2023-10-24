@@ -17,6 +17,7 @@ use crate::high_level_api::traits::{
 };
 use crate::high_level_api::{ClientKey, PublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::{IntegerCiphertext, SignedRadixCiphertext, I256, U256};
@@ -203,7 +204,8 @@ where
         let ct_condition = self;
         let new_ct = ct_condition.id.with_unwrapped_global(|integer_key| {
             integer_key.pbs_key().if_then_else_parallelized(
-                &ct_condition.ciphertext,
+                &BooleanBlock::try_new(&ct_condition.ciphertext)
+                    .expect("if_then_else requires a boolean value"),
                 &ct_then.ciphertext,
                 &ct_else.ciphertext,
             )
@@ -482,18 +484,20 @@ where
 
     fn eq(&self, rhs: Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn ne(&self, rhs: Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -509,18 +513,20 @@ where
 
     fn eq(&self, rhs: &Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn ne(&self, rhs: &Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -537,18 +543,20 @@ where
 
     fn eq(&self, rhs: Clear) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .scalar_eq_parallelized(&self.ciphertext, rhs)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn ne(&self, rhs: Clear) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .scalar_ne_parallelized(&self.ciphertext, rhs)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -564,36 +572,40 @@ where
 
     fn lt(&self, rhs: Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn le(&self, rhs: Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .le_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn gt(&self, rhs: Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn ge(&self, rhs: Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -609,36 +621,40 @@ where
 
     fn lt(&self, rhs: &Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn le(&self, rhs: &Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .le_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn gt(&self, rhs: &Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn ge(&self, rhs: &Self) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -655,36 +671,40 @@ where
 
     fn lt(&self, rhs: Clear) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .scalar_lt_parallelized(&self.ciphertext, rhs)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn le(&self, rhs: Clear) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .scalar_le_parallelized(&self.ciphertext, rhs)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn gt(&self, rhs: Clear) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .scalar_gt_parallelized(&self.ciphertext, rhs)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
 
     fn ge(&self, rhs: Clear) -> Self::Output {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
-            integer_key
-                .pbs_key()
+            let pbs_key = integer_key.pbs_key();
+            pbs_key
                 .scalar_ge_parallelized(&self.ciphertext, rhs)
+                .into_radix(P::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }

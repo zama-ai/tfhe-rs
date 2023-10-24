@@ -272,7 +272,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                 let ct_1 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
 
-                let cond = sks.create_trivial_radix(rng.gen_bool(0.5) as u64, num_block);
+                let cond = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
 
                 (cond, ct_0, ct_1)
             };

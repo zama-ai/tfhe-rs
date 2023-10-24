@@ -3,10 +3,11 @@ use super::ServerKey;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::comparator::Comparator;
 
+use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use rayon::prelude::*;
 
 impl ServerKey {
-    pub fn unchecked_eq_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_eq_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -28,14 +29,10 @@ impl ServerKey {
 
         let is_equal_result = self.are_all_comparisons_block_true(block_comparisons);
 
-        let mut blocks = Vec::with_capacity(lhs.blocks().len());
-        blocks.push(is_equal_result);
-        blocks.resize_with(lhs.blocks().len(), || self.key.create_trivial(0));
-
-        T::from_blocks(blocks)
+        BooleanBlock::new_unchecked(is_equal_result)
     }
 
-    pub fn unchecked_ne_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_ne_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -77,33 +74,36 @@ impl ServerKey {
             std::mem::swap(&mut block_comparisons_2, &mut block_comparisons);
         }
 
-        block_comparisons.resize_with(lhs.blocks().len(), || self.key.create_trivial(0));
-
-        T::from_blocks(block_comparisons)
+        BooleanBlock::new_unchecked(
+            block_comparisons
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| self.key.create_trivial(0)),
+        )
     }
 
-    pub fn unchecked_gt_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_gt_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).unchecked_gt_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).unchecked_ge_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).unchecked_lt_parallelized(lhs, rhs)
     }
 
-    pub fn unchecked_le_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn unchecked_le_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -124,7 +124,7 @@ impl ServerKey {
         Comparator::new(self).unchecked_min_parallelized(lhs, rhs)
     }
 
-    pub fn smart_eq_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_eq_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -143,7 +143,7 @@ impl ServerKey {
         self.unchecked_eq_parallelized(lhs, rhs)
     }
 
-    pub fn smart_ne_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_ne_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -162,28 +162,28 @@ impl ServerKey {
         self.unchecked_ne_parallelized(lhs, rhs)
     }
 
-    pub fn smart_gt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_gt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).smart_gt_parallelized(lhs, rhs)
     }
 
-    pub fn smart_ge_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_ge_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).smart_ge_parallelized(lhs, rhs)
     }
 
-    pub fn smart_lt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_lt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).smart_lt_parallelized(lhs, rhs)
     }
 
-    pub fn smart_le_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
+    pub fn smart_le_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -204,7 +204,7 @@ impl ServerKey {
         Comparator::new(self).smart_min_parallelized(lhs, rhs)
     }
 
-    pub fn eq_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn eq_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -236,7 +236,7 @@ impl ServerKey {
         self.unchecked_eq_parallelized(lhs, rhs)
     }
 
-    pub fn ne_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn ne_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
@@ -268,28 +268,28 @@ impl ServerKey {
         self.unchecked_ne_parallelized(lhs, rhs)
     }
 
-    pub fn gt_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn gt_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).gt_parallelized(lhs, rhs)
     }
 
-    pub fn ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).ge_parallelized(lhs, rhs)
     }
 
-    pub fn lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).lt_parallelized(lhs, rhs)
     }
 
-    pub fn le_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
+    pub fn le_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
