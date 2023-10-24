@@ -167,8 +167,7 @@ impl ServerKey {
         &self,
         ct: &RadixCiphertext,
         num_blocks: usize,
-    ) -> RadixCiphertext
-where {
+    ) -> RadixCiphertext {
         let mut ct_res = ct.clone();
         self.extend_radix_with_trivial_zero_blocks_lsb_assign(&mut ct_res, num_blocks);
         ct_res
@@ -240,8 +239,7 @@ where {
         &self,
         ct: &RadixCiphertext,
         num_blocks: usize,
-    ) -> RadixCiphertext
-where {
+    ) -> RadixCiphertext {
         let mut ct_res = ct.clone();
         self.extend_radix_with_trivial_zero_blocks_msb_assign(&mut ct_res, num_blocks);
         ct_res
@@ -308,8 +306,7 @@ where {
         &self,
         ct: &RadixCiphertext,
         num_blocks: usize,
-    ) -> RadixCiphertext
-where {
+    ) -> RadixCiphertext {
         let mut ct_res = ct.clone();
         self.trim_radix_blocks_lsb_assign(&mut ct_res, num_blocks);
         ct_res
@@ -379,8 +376,7 @@ where {
         &self,
         ct: &RadixCiphertext,
         num_blocks: usize,
-    ) -> RadixCiphertext
-where {
+    ) -> RadixCiphertext {
         let mut ct_res = ct.clone();
         self.trim_radix_blocks_msb_assign(&mut ct_res, num_blocks);
         ct_res
