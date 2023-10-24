@@ -54,8 +54,7 @@ impl ServerKey {
             .zip(ct.moduli.par_iter())
             .for_each(|(ct_i, mod_i)| {
                 let neg_scalar = (mod_i - scalar % mod_i) % mod_i;
-                self.key
-                    .unchecked_scalar_add_assign_crt(ct_i, neg_scalar as u8);
+                self.key.unchecked_scalar_add_assign(ct_i, neg_scalar as u8);
             });
     }
 
