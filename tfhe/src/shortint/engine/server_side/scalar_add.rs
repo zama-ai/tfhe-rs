@@ -52,13 +52,16 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
         scalar: u8,
     ) -> EngineResult<()> {
-        let modulus = server_key.message_modulus.0 as u64;
         // Direct scalar computation is possible
         if server_key.is_scalar_add_possible(ct, scalar) {
             self.unchecked_scalar_add_assign(server_key, ct, scalar)?;
         } else {
             // If the scalar is too large, PBS is used to compute the scalar mul
-            let acc = self.generate_lookup_table(server_key, |x| (scalar as u64 + x) % modulus)?;
+            let acc = self.generate_msg_lookup_table(
+                server_key,
+                |x| scalar as u64 + x,
+                server_key.message_modulus,
+            )?;
             self.apply_lookup_table_assign(server_key, ct, &acc)?;
             ct.degree = Degree(server_key.message_modulus.0 - 1);
         }

@@ -143,8 +143,7 @@ impl ServerKey {
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn scalar_right_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
-        let modulus = self.message_modulus.0 as u64;
-        let acc = self.generate_lookup_table(|x| (x >> shift) % modulus);
+        let acc = self.generate_msg_lookup_table(|x| x >> shift, self.message_modulus);
         self.apply_lookup_table_assign(ct, &acc);
     }
 

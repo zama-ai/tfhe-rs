@@ -368,7 +368,6 @@ impl ServerKey {
     ///
     /// // Generate the lookup table for the function f: x -> x*x mod 4
     /// let f = |x: u64| x.pow(2) % 4;
-    ///
     /// let acc = sks.generate_lookup_table(f);
     /// let ct_res = sks.apply_lookup_table(&ct, &acc);
     ///
@@ -382,6 +381,41 @@ impl ServerKey {
     {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.generate_lookup_table(self, f).unwrap()
+        })
+    }
+
+    /// Given a function as input, constructs the lookup table working on the message bits
+    /// Carry bits are ignored
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let msg = 3;
+    ///
+    /// let ct = cks.encrypt(msg);
+    ///
+    /// // Generate the lookup table on message for the function f: x -> x*x
+    /// let f = |x: u64| x.pow(2);
+    ///
+    /// let acc = sks.generate_msg_lookup_table(f, ct.message_modulus);
+    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
+    ///
+    /// let dec = cks.decrypt(&ct_res);
+    /// // 3^2 mod 4 = 1
+    /// assert_eq!(dec, f(msg) % 4);
+    /// ```
+    pub fn generate_msg_lookup_table<F>(&self, f: F, modulus: MessageModulus) -> LookupTableOwned
+    where
+        F: Fn(u64) -> u64,
+    {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.generate_msg_lookup_table(self, f, modulus).unwrap()
         })
     }
 

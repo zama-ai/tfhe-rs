@@ -1,4 +1,3 @@
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::{Ciphertext, ServerKey};
 
@@ -25,23 +24,15 @@ impl ShortintEngine {
             self.create_trivial_assign(server_key, ct_left, 0)?;
             return Ok(());
         }
-        let modulus = (ct_right.degree.0 + 1) as u64;
-
-        //message 1 is shifted to the carry bits
-        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
-
-        //message 2 is placed in the message bits
-        self.unchecked_add_assign(ct_left, ct_right)?;
 
         //Modulus of the msg in the msg bits
         let res_modulus = ct_left.message_modulus.0 as u64;
-
-        let lookup_table = self.generate_lookup_table(server_key, |x| {
-            ((x / modulus) * (x % modulus)) % res_modulus
-        })?;
-
-        self.apply_lookup_table_assign(server_key, ct_left, &lookup_table)?;
-        ct_left.degree = Degree(ct_left.message_modulus.0 - 1);
+        self.unchecked_evaluate_bivariate_function_assign(
+            server_key,
+            ct_left,
+            ct_right,
+            |x, y| (x * y) % res_modulus,
+        )?;
         Ok(())
     }
 
@@ -68,25 +59,15 @@ impl ShortintEngine {
             self.create_trivial_assign(server_key, ct_left, 0)?;
             return Ok(());
         }
-        let modulus = (ct_right.degree.0 + 1) as u64;
-        let deg = (ct_left.degree.0 * ct_right.degree.0) / ct_right.message_modulus.0;
-
-        // Message 1 is shifted to the carry bits
-        self.unchecked_scalar_mul_assign(ct_left, modulus as u8)?;
-
-        // Message 2 is placed in the message bits
-        self.unchecked_add_assign(ct_left, ct_right)?;
 
         // Modulus of the msg in the msg bits
         let res_modulus = server_key.message_modulus.0 as u64;
-
-        let lookup_table = self.generate_lookup_table(server_key, |x| {
-            ((x / modulus) * (x % modulus)) / res_modulus
-        })?;
-
-        self.apply_lookup_table_assign(server_key, ct_left, &lookup_table)?;
-
-        ct_left.degree = Degree(deg);
+        self.unchecked_evaluate_bivariate_function_assign(
+            server_key,
+            ct_left,
+            ct_right,
+            |x, y| (x * y) / res_modulus,
+        )?;
         Ok(())
     }
 
