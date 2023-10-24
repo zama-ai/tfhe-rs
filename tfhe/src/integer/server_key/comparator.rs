@@ -253,8 +253,7 @@ impl<'a> Comparator<'a> {
     fn reduce_signs_parallelized(
         &self,
         mut sign_blocks: Vec<crate::shortint::Ciphertext>,
-    ) -> crate::shortint::Ciphertext
-where {
+    ) -> crate::shortint::Ciphertext {
         let mut sign_blocks_2 = Vec::with_capacity(sign_blocks.len() / 2);
         while sign_blocks.len() != 1 {
             sign_blocks
