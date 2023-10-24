@@ -207,6 +207,59 @@ impl ServerKey {
         })
     }
 
+    /// Multiply one ciphertext with a scalar in the case the carry space cannot fit the product
+    /// applying the message space modulus in the process.
+    ///
+    /// This is a bootstrapped operation.
+    ///
+    /// # Example
+    ///
+    ///```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::{
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_PBS_KS,
+    /// };
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let clear_1 = 1;
+    /// let clear_2 = 2;
+    ///
+    /// // Encrypt two messages
+    /// let mut ct_1 = cks.encrypt(clear_1);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// sks.unchecked_scalar_mul_lsb_small_carry_modulus_assign(&mut ct_1, clear_2 as u8);
+    ///
+    /// // Decrypt
+    /// let res = cks.decrypt(&ct_1);
+    /// assert_eq!(clear_2 * clear_1, res);
+    ///
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
+    ///
+    /// // Encrypt two messages
+    /// let mut ct_1 = cks.encrypt(clear_1);
+    ///
+    /// // Compute homomorphically a multiplication
+    /// sks.unchecked_scalar_mul_lsb_small_carry_modulus_assign(&mut ct_1, clear_2 as u8);
+    ///
+    /// // Decrypt
+    /// let res = cks.decrypt(&ct_1);
+    /// assert_eq!(clear_2 * clear_1, res);
+    /// ```
+    pub fn unchecked_scalar_mul_lsb_small_carry_modulus_assign(
+        &self,
+        ct: &mut Ciphertext,
+        scalar: u8,
+    ) {
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine
+                .unchecked_scalar_mul_lsb_small_carry_modulus_assign(self, ct, scalar)
+                .unwrap()
+        })
+    }
+
     /// Verify if the ciphertext can be multiplied by a scalar.
     ///
     /// # Example
