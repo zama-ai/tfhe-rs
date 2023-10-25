@@ -366,14 +366,14 @@ impl ServerKey {
     ///
     /// let ct = cks.encrypt(msg);
     ///
-    /// // Generate the lookup table for the function f: x -> x^2 mod 2^2
-    /// let f = |x| x ^ 2 % 4;
+    /// // Generate the lookup table for the function f: x -> x*x mod 4
+    /// let f = |x: u64| x.pow(2) % 4;
     ///
     /// let acc = sks.generate_lookup_table(f);
     /// let ct_res = sks.apply_lookup_table(&ct, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
-    /// // 3^2 mod 4 = 1
+    /// // 3**2 mod 4 = 1
     /// assert_eq!(dec, f(msg));
     /// ```
     pub fn generate_lookup_table<F>(&self, f: F) -> LookupTableOwned
@@ -447,17 +447,17 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let msg: u64 = 3;
+    /// let msg2: u64 = 2;
     /// let ct1 = cks.encrypt(msg);
-    /// let ct2 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg2);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// // Generate the lookup table for the function f: x -> x^3 mod 2^2
+    /// // Generate the lookup table for the function f: x, y -> (x * y * x) mod 4
     /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
     /// let ct_res = sks.unchecked_apply_lookup_table_bivariate(&ct1, &ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
-    /// // 3^3 mod 4 = 3
-    /// assert_eq!(dec, (msg * msg * msg) % modulus);
+    /// assert_eq!(dec, (msg * msg2 * msg) % modulus);
     /// ```
     pub fn unchecked_apply_lookup_table_bivariate(
         &self,
@@ -497,17 +497,17 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
     /// let msg: u64 = 3;
+    /// let msg2: u64 = 2;
     /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
+    /// let mut ct2 = cks.encrypt(msg2);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// // Generate the lookup table for the function f: x -> x^3 mod 2^2
+    /// // Generate the lookup table for the function f: x, y -> (x * y * x) mod 4
     /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
     /// let ct_res = sks.smart_apply_lookup_table_bivariate(&mut ct1, &mut ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
-    /// // 3^3 mod 4 = 3
-    /// assert_eq!(dec, (msg * msg * msg) % modulus);
+    /// assert_eq!(dec, (msg * msg2 * msg) % modulus);
     /// ```
     pub fn smart_apply_lookup_table_bivariate(
         &self,
@@ -550,12 +550,12 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// // Generate the lookup table for the function f: x -> x^3 mod 2^2
+    /// // Generate the lookup table for the function f: x -> x*x*x mod 4
     /// let acc = sks.generate_lookup_table(|x| x * x * x % modulus);
     /// let ct_res = sks.apply_lookup_table(&ct, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
-    /// // 3^3 mod 4 = 3
+    /// // (3*3*3) mod 4 = 3
     /// assert_eq!(dec, (msg * msg * msg) % modulus);
     /// ```
     pub fn apply_lookup_table(&self, ct_in: &Ciphertext, acc: &LookupTableOwned) -> Ciphertext {
