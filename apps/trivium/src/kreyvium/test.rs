@@ -170,7 +170,7 @@ fn kreyvium_test_4() {
 
 #[test]
 fn kreyvium_test_fhe_long() {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let config = ConfigBuilder::default().build();
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
@@ -217,9 +217,7 @@ use tfhe::shortint::prelude::*;
 
 #[test]
 fn kreyvium_test_shortint_long() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
@@ -302,9 +300,8 @@ fn kreyvium_test_clear_byte() {
 
 #[test]
 fn kreyvium_test_byte_long() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .enable_function_evaluation_integers()
+    let config = ConfigBuilder::default()
+        .enable_function_evaluation()
         .build();
     let (client_key, server_key) = generate_keys(config);
 
@@ -342,9 +339,8 @@ fn kreyvium_test_byte_long() {
 
 #[test]
 fn kreyvium_test_fhe_byte_transciphering_long() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .enable_function_evaluation_integers()
+    let config = ConfigBuilder::default()
+        .enable_function_evaluation()
         .build();
     let (client_key, server_key) = generate_keys(config);
 

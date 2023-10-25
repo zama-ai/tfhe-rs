@@ -5,11 +5,8 @@ mod public;
 mod server;
 
 use crate::high_level_api::config::Config;
-pub use client::{ClientKey, RefKeyFromKeyChain};
-pub use public::{
-    CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
-    RefKeyFromCompressedPublicKeyChain, RefKeyFromPublicKeyChain,
-};
+pub use client::ClientKey;
+pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
 pub use server::{CompressedServerKey, ServerKey};
 
 /// Generates keys using the provided config.
@@ -17,15 +14,10 @@ pub use server::{CompressedServerKey, ServerKey};
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "integer")]
-/// # {
 /// use tfhe::{generate_keys, ConfigBuilder};
 ///
-/// let config = ConfigBuilder::all_disabled()
-///     .enable_default_integers()
-///     .build();
+/// let config = ConfigBuilder::default().build();
 /// let (client_key, server_key) = generate_keys(config);
-/// # }
 /// ```
 pub fn generate_keys<C: Into<Config>>(config: C) -> (ClientKey, ServerKey) {
     let client_kc = ClientKey::generate(config);

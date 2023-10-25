@@ -167,9 +167,7 @@ mod test_integer {
 
     #[test]
     fn safe_desererialization_ct() {
-        let config = ConfigBuilder::all_disabled()
-            .enable_default_integers()
-            .build();
+        let config = ConfigBuilder::default().build();
 
         let (client_key, _server_key) = generate_keys(config);
 
@@ -218,9 +216,7 @@ mod test_integer {
 
     #[test]
     fn safe_desererialization_ct_list() {
-        let config = ConfigBuilder::all_disabled()
-            .enable_default_integers()
-            .build();
+        let config = ConfigBuilder::default().build();
 
         let (client_key, _server_key) = generate_keys(config);
 

@@ -131,8 +131,7 @@ impl FheAsciiString {
 }
 
 fn main() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
+    let config = ConfigBuilder::default()
         .build();
 
     let (client_key, server_key) = generate_keys(config);

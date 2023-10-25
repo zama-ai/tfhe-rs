@@ -113,27 +113,14 @@ macro_rules! static_int_type {
             #[cfg_attr(all(doc, not(doctest)), cfg(feature = "integer"))]
             pub type [<Compact $name List>] = GenericCompactIntegerList<[<$name Parameters>]>;
 
-            impl $crate::high_level_api::keys::RefKeyFromKeyChain for [<$name Id>] {
-                type Key = crate::integer::ClientKey;
-
-                fn ref_key(self, keys: &crate::high_level_api::ClientKey)
-                    -> Result<&Self::Key, $crate::high_level_api::errors::UninitializedClientKey> {
-                    keys
-                        .integer_key
-                        .key
-                        .as_ref()
-                        .ok_or($crate::high_level_api::errors::UninitializedClientKey(self.type_variant()))
-                }
-            }
-
             impl $crate::high_level_api::global_state::WithGlobalKey for [<$name Id>] {
                 type Key = crate::high_level_api::integers::IntegerServerKey;
 
-                fn with_global<R, F>(self, func: F) -> Result<R, $crate::high_level_api::errors::UninitializedServerKey>
+                fn with_unwrapped_global<R, F>(self, func: F) -> R
                 where
                     F: FnOnce(&Self::Key) -> R {
                     $crate::high_level_api::global_state::with_internal_keys(|keys| {
-                            Ok(func(&keys.integer_key))
+                            func(&keys.integer_key)
                         })
                     }
             }

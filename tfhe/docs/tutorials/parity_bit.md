@@ -15,13 +15,11 @@ This function returns a Boolean that will be either `true` or `false` so that th
 
 ### Non-generic version.
 
-To use Booleans, the `booleans` feature in our Cargo.toml must be enabled:
-
 ```toml
 # Cargo.toml
 
 # Default configuration for x86 Unix machines:
-tfhe = { version = "0.4.0", features = ["boolean", "x86_64-unix"]}
+tfhe = { version = "0.4.0", features = ["integer", "x86_64-unix"]}
 ```
 
 Other configurations can be found [here](../getting_started/installation.md).
@@ -129,7 +127,7 @@ fn check_parity_bit_validity(bits: &[bool], mode: ParityMode, parity_bit: bool) 
 }
 
 fn main() {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let config = ConfigBuilder::default().build();
 
     let (client_key, server_key) = generate_keys(config);
 
@@ -347,7 +345,7 @@ fn check_parity_bit_validity(bits: &[bool], mode: ParityMode, parity_bit: bool) 
 }
 
 fn main() {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let config = ConfigBuilder::default().build();
 
     let ( client_key, server_key) = generate_keys(config);
 

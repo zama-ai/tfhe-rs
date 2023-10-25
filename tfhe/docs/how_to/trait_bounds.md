@@ -68,8 +68,7 @@ pub fn ex4<FheType, ClearType>(a: FheType, b: FheType, pt: ClearType) -> FheType
 }
 
 fn main() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
+    let config = ConfigBuilder::default()
         .build();
 
     let (client_key, server_keys) = generate_keys(config);

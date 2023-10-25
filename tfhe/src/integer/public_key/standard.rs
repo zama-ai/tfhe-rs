@@ -10,7 +10,7 @@ use crate::shortint::PublicKey as ShortintPublicKey;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PublicKey {
-    key: ShortintPublicKey,
+    pub(crate) key: ShortintPublicKey,
 }
 
 impl PublicKey {

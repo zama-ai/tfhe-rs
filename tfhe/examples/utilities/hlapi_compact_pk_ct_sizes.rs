@@ -40,8 +40,8 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
     {
         let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
-        let config = ConfigBuilder::all_disabled()
-            .enable_custom_integers(params, None)
+        let config = ConfigBuilder::default()
+            .use_custom_parameters(params, None)
             .build();
         let (client_key, _) = generate_keys(config);
         let test_name = format!("hlapi_sizes_{}_cpk", params.name());
@@ -99,8 +99,8 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
     {
         let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS;
-        let config = ConfigBuilder::all_disabled()
-            .enable_custom_integers(params, None)
+        let config = ConfigBuilder::default()
+            .use_custom_parameters(params, None)
             .build();
         let (client_key, _) = generate_keys(config);
         let test_name = format!("hlapi_sizes_{}_cpk", params.name());
@@ -159,8 +159,8 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     // 256 bits
     {
         let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS;
-        let config = ConfigBuilder::all_disabled()
-            .enable_custom_integers(params, None)
+        let config = ConfigBuilder::default()
+            .use_custom_parameters(params, None)
             .build();
         let (client_key, _) = generate_keys(config);
 
@@ -208,8 +208,8 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
     {
         let params = PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS;
-        let config = ConfigBuilder::all_disabled()
-            .enable_custom_integers(params, None)
+        let config = ConfigBuilder::default()
+            .use_custom_parameters(params, None)
             .build();
         let (client_key, _) = generate_keys(config);
 

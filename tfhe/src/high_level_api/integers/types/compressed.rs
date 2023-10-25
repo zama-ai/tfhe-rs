@@ -1,5 +1,4 @@
 use crate::conformance::ParameterSetConformant;
-use crate::errors::{UninitializedClientKey, UnwrapResultExt};
 use crate::high_level_api::integers::parameters::IntegerParameter;
 use crate::high_level_api::integers::types::base::GenericInteger;
 use crate::high_level_api::internal_traits::{EncryptionKey, TypeIdentifier};
@@ -79,12 +78,7 @@ where
 
     fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
         let id = P::Id::default();
-        let integer_client_key = key
-            .integer_key
-            .key
-            .as_ref()
-            .ok_or(UninitializedClientKey(id.type_variant()))
-            .unwrap_display();
+        let integer_client_key = &key.key.key;
         let inner = <crate::integer::ClientKey as EncryptionKey<_, _>>::encrypt(
             integer_client_key,
             (value, P::num_blocks()),

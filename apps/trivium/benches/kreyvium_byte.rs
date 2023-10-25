@@ -6,9 +6,8 @@ use tfhe_trivium::{KreyviumStreamByte, TransCiphering};
 use criterion::Criterion;
 
 pub fn kreyvium_byte_gen(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .enable_function_evaluation_integers()
+    let config = ConfigBuilder::default()
+        .enable_function_evaluation()
         .build();
     let (client_key, server_key) = generate_keys(config);
 
@@ -36,9 +35,8 @@ pub fn kreyvium_byte_gen(c: &mut Criterion) {
 }
 
 pub fn kreyvium_byte_trans(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .enable_function_evaluation_integers()
+    let config = ConfigBuilder::default()
+        .enable_function_evaluation()
         .build();
     let (client_key, server_key) = generate_keys(config);
 
@@ -67,9 +65,8 @@ pub fn kreyvium_byte_trans(c: &mut Criterion) {
 }
 
 pub fn kreyvium_byte_warmup(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .enable_function_evaluation_integers()
+    let config = ConfigBuilder::default()
+        .enable_function_evaluation()
         .build();
     let (client_key, server_key) = generate_keys(config);
 

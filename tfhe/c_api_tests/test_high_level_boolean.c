@@ -102,8 +102,7 @@ int main(void) {
   ConfigBuilder *builder;
   Config *config;
 
-  config_builder_all_disabled(&builder);
-  config_builder_enable_default_bool(&builder);
+  config_builder_default(&builder);
   config_builder_build(builder, &config);
 
   ClientKey *client_key = NULL;

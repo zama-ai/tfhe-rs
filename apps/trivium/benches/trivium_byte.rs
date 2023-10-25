@@ -6,9 +6,7 @@ use tfhe_trivium::{TransCiphering, TriviumStreamByte};
 use criterion::Criterion;
 
 pub fn trivium_byte_gen(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
@@ -35,9 +33,7 @@ pub fn trivium_byte_gen(c: &mut Criterion) {
 }
 
 pub fn trivium_byte_trans(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
@@ -65,9 +61,7 @@ pub fn trivium_byte_trans(c: &mut Criterion) {
 }
 
 pub fn trivium_byte_warmup(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB".to_string();
