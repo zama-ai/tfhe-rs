@@ -335,9 +335,11 @@ impl ServerKey {
             "Blocks must have at least 3 bits"
         );
 
-        let bit_extractor = BitExtractor::new(self, message_bits_per_block as usize);
         let (bits, shift_bits) = rayon::join(
-            || bit_extractor.extract_all_bits(ct.blocks()),
+            || {
+                let bit_extractor = BitExtractor::new(self, message_bits_per_block as usize);
+                bit_extractor.extract_all_bits(ct.blocks())
+            },
             || {
                 let mut max_num_bits_that_tell_shift = total_nb_bits.ilog2() as u64;
                 // This effectively means, that if the block parameters
@@ -348,6 +350,12 @@ impl ServerKey {
                 if !total_nb_bits.is_power_of_two() {
                     max_num_bits_that_tell_shift += 1;
                 }
+
+                // Extracts bits and put them in the bit index 2 (=> bit number 3)
+                // so that it is already aligned to the correct position of the cmux input
+                // and we reduce noise growth
+                let bit_extractor =
+                    BitExtractor::with_final_offset(self, message_bits_per_block as usize, 2);
                 bit_extractor.extract_n_bits(&shift.blocks, max_num_bits_that_tell_shift as usize)
             },
         );
@@ -388,12 +396,13 @@ impl ServerKey {
 
         let mut input_bits_a = bits;
         let mut input_bits_b = input_bits_a.clone();
+        // Buffer used to hold inputs for a bitwise cmux gate, simulated using a PBS
         let mut mux_inputs = input_bits_a.clone();
 
         for (d, shift_bit) in shift_bits.iter().enumerate() {
             for i in 0..total_nb_bits as usize {
                 input_bits_b[i].clone_from(&input_bits_a[i]);
-                mux_inputs[i].clone_from(shift_bit);
+                self.key.create_trivial_assign(&mut mux_inputs[i], 0);
             }
 
             match operation {
@@ -428,10 +437,11 @@ impl ServerKey {
                     // pack bits into one block so that we have
                     // control_bit|b|a
 
-                    self.key.unchecked_scalar_mul_assign(mux_gate_input, 2);
                     self.key.unchecked_add_assign(mux_gate_input, b);
                     self.key.unchecked_scalar_mul_assign(mux_gate_input, 2);
                     self.key.unchecked_add_assign(mux_gate_input, &*a);
+                    // The shift bit is already properly aligned/positioned
+                    self.key.unchecked_add_assign(mux_gate_input, shift_bit);
 
                     // we have
                     //
