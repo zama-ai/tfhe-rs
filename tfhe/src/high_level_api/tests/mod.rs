@@ -1,10 +1,6 @@
-mod test_fhe_number_ops;
-
 use crate::high_level_api::prelude::*;
 #[cfg(feature = "boolean")]
 use crate::high_level_api::FheBool;
-#[cfg(feature = "shortint")]
-use crate::high_level_api::FheUint2;
 #[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 use crate::high_level_api::{generate_keys, ClientKey, ConfigBuilder, PublicKey};
 #[cfg(feature = "integer")]
@@ -42,21 +38,6 @@ fn test_boolean_public_key() {
         false, &pks, &cks,
     );
     assert_that_public_key_encryption_is_decrypted_by_client_key::<FheBool, bool>(true, &pks, &cks);
-}
-
-#[cfg(feature = "shortint")]
-#[test]
-fn test_shortint_public_key() {
-    let config = ConfigBuilder::all_disabled().enable_default_uint2().build();
-
-    let (cks, _sks) = generate_keys(config);
-
-    let pks = PublicKey::new(&cks);
-
-    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint2, u8>(0, &pks, &cks);
-    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint2, u8>(1, &pks, &cks);
-    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint2, u8>(2, &pks, &cks);
-    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint2, u8>(3, &pks, &cks);
 }
 
 #[cfg(feature = "integer")]
@@ -138,10 +119,6 @@ fn test_with_seed() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "integer")]
     {
         builder = builder.enable_default_integers();
-    }
-    #[cfg(feature = "shortint")]
-    {
-        builder = builder.enable_default_uint2();
     }
     #[cfg(feature = "boolean")]
     {

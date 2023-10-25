@@ -45,11 +45,6 @@ expand_pub_use_fhe_type!(
         FheUint256, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256
     };
 );
-#[cfg(feature = "shortint")]
-pub use crate::high_level_api::shortints::{
-    CompressedFheUint2, CompressedFheUint3, CompressedFheUint4, FheUint2, FheUint2Parameters,
-    FheUint3, FheUint3Parameters, FheUint4, FheUint4Parameters,
-};
 #[cfg(feature = "integer")]
 #[cfg(feature = "safe-deserialization")]
 pub use integers::safe_serialize::{
@@ -75,7 +70,4 @@ pub mod errors;
 mod integers;
 /// The tfhe prelude.
 pub mod prelude;
-#[cfg(feature = "shortint")]
-mod shortints;
-
 pub mod parameters {}

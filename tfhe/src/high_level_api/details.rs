@@ -1,4 +1,4 @@
-#[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
+#[cfg(feature = "boolean")]
 macro_rules! define_key_structs {
     (
         $base_struct_name:ident {

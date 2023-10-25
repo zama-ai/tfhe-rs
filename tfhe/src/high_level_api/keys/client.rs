@@ -10,8 +10,6 @@ use crate::high_level_api::config::Config;
 use crate::high_level_api::errors::{UninitializedClientKey, UnwrapResultExt};
 #[cfg(feature = "integer")]
 use crate::high_level_api::integers::IntegerClientKey;
-#[cfg(feature = "shortint")]
-use crate::high_level_api::shortints::ShortIntClientKey;
 
 use super::{CompressedServerKey, ServerKey};
 
@@ -25,8 +23,6 @@ use super::{CompressedServerKey, ServerKey};
 pub struct ClientKey {
     #[cfg(feature = "boolean")]
     pub(crate) boolean_key: BooleanClientKey,
-    #[cfg(feature = "shortint")]
-    pub(crate) shortint_key: ShortIntClientKey,
     #[cfg(feature = "integer")]
     pub(crate) integer_key: IntegerClientKey,
 }
@@ -39,8 +35,6 @@ impl ClientKey {
         ClientKey {
             #[cfg(feature = "boolean")]
             boolean_key: BooleanClientKey::from(config.boolean_config),
-            #[cfg(feature = "shortint")]
-            shortint_key: ShortIntClientKey::from(config.shortint_config),
             #[cfg(feature = "integer")]
             integer_key: IntegerClientKey::from(config.integer_config),
         }
@@ -52,8 +46,6 @@ impl ClientKey {
         ClientKey {
             #[cfg(feature = "boolean")]
             boolean_key: BooleanClientKey::with_seed(config.boolean_config, seed),
-            #[cfg(feature = "shortint")]
-            shortint_key: ShortIntClientKey::with_seed(config.shortint_config, seed),
             #[cfg(feature = "integer")]
             integer_key: IntegerClientKey::with_seed(config.integer_config, seed),
         }
@@ -112,7 +104,7 @@ pub trait RefKeyFromKeyChain: Sized {
 /// - The identifier (or identifier chain) that points to the member in the `ClientKey` that holds
 ///   the key for which the trait is implemented.
 /// - Type Variant used to identify the type at runtime (see `error.rs`)
-#[cfg(any(feature = "integer", feature = "shortint", feature = "boolean"))]
+#[cfg(feature = "boolean")]
 macro_rules! impl_ref_key_from_keychain {
     (
         for $implementor:ty {
