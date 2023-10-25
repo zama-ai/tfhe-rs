@@ -1,5 +1,4 @@
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
-use crate::errors::{UninitializedPublicKey, UnwrapResultExt};
 use crate::high_level_api::integers::parameters::IntegerParameter;
 use crate::high_level_api::integers::types::base::GenericInteger;
 use crate::high_level_api::internal_traits::TypeIdentifier;
@@ -62,11 +61,7 @@ where
 
     fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let id = P::Id::default();
-        let ciphertext = key
-            .integer_key
-            .try_encrypt_compact(&[value], P::num_blocks())
-            .ok_or(UninitializedPublicKey(id.type_variant()))
-            .unwrap_display();
+        let ciphertext = key.key.try_encrypt_compact(&[value], P::num_blocks());
         Ok(Self {
             list: ciphertext,
             id,
@@ -84,11 +79,7 @@ where
 
     fn try_encrypt(values: &'a [T], key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let id = P::Id::default();
-        let ciphertext = key
-            .integer_key
-            .try_encrypt_compact(values, P::num_blocks())
-            .ok_or(UninitializedPublicKey(id.type_variant()))
-            .unwrap_display();
+        let ciphertext = key.key.try_encrypt_compact(values, P::num_blocks());
         Ok(Self {
             list: ciphertext,
             id,
@@ -151,9 +142,7 @@ mod test {
     fn test_invalid_generic_compact_integer() {
         type Ct = CompactFheUint8;
 
-        let config = ConfigBuilder::all_disabled()
-            .enable_default_integers()
-            .build();
+        let config = ConfigBuilder::default().build();
 
         let (client_key, _server_key) = generate_keys(config);
 
@@ -228,9 +217,7 @@ mod test {
     fn test_invalid_generic_compact_integer_list() {
         type Ct = CompactFheUint8List;
 
-        let config = ConfigBuilder::all_disabled()
-            .enable_default_integers()
-            .build();
+        let config = ConfigBuilder::default().build();
 
         let (client_key, _server_key) = generate_keys(config);
 
@@ -294,9 +281,7 @@ mod test {
 
     #[test]
     fn test_valid_generic_compact_integer() {
-        let config = ConfigBuilder::all_disabled()
-            .enable_default_integers()
-            .build();
+        let config = ConfigBuilder::default().build();
 
         let (client_key, server_key) = generate_keys(config);
 
@@ -340,9 +325,7 @@ mod test {
 
     #[test]
     fn test_valid_generic_compact_integer_list() {
-        let config = ConfigBuilder::all_disabled()
-            .enable_default_integers()
-            .build();
+        let config = ConfigBuilder::default().build();
 
         let (client_key, server_key) = generate_keys(config);
 

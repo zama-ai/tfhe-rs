@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert').strict;
-const { performance } = require('perf_hooks');
+const {performance} = require('perf_hooks');
 const {
     init_panic_hook,
     ShortintParametersName,
@@ -40,7 +40,7 @@ init_panic_hook();
 // but we try to use them, so an error should be returned
 // as the underlying panic should have been trapped
 test('hlapi_panic', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
+    let config = TfheConfigBuilder.default()
         .build();
 
     let clientKey = TfheClientKey.generate(config);
@@ -58,8 +58,7 @@ test('hlapi_panic', (t) => {
 });
 
 test('hlapi_key_gen_big', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers()
+    let config = TfheConfigBuilder.default()
         .build();
 
 
@@ -77,10 +76,8 @@ test('hlapi_key_gen_big', (t) => {
 });
 
 test('hlapi_key_gen_small', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers_small()
+    let config = TfheConfigBuilder.default_with_small_encryption()
         .build();
-
 
     let clientKey = TfheClientKey.generate(config);
     let compressedServerKey = TfheCompressedServerKey.new(clientKey);
@@ -92,8 +89,7 @@ test('hlapi_key_gen_small', (t) => {
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint8_big', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers()
+    let config = TfheConfigBuilder.default()
         .build();
 
 
@@ -116,8 +112,7 @@ test('hlapi_client_key_encrypt_decrypt_uint8_big', (t) => {
 });
 
 test('hlapi_compressed_public_client_uint8_big', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers()
+    let config = TfheConfigBuilder.default()
         .build();
 
     let clientKey = TfheClientKey.generate(config);
@@ -140,9 +135,7 @@ test('hlapi_compressed_public_client_uint8_big', (t) => {
 });
 
 test('hlapi_public_key_encrypt_decrypt_uint32_small', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers_small()
-        .build();
+    let config = TfheConfigBuilder.default_with_small_encryption().build();
 
 
     let clientKey = TfheClientKey.generate(config);
@@ -164,9 +157,7 @@ test('hlapi_public_key_encrypt_decrypt_uint32_small', (t) => {
 });
 
 test('hlapi_decompress_public_key_then_encrypt_decrypt_uint32_small', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers_small()
-        .build();
+    let config = TfheConfigBuilder.default_with_small_encryption().build();
 
 
     let clientKey = TfheClientKey.generate(config);
@@ -199,8 +190,7 @@ test('hlapi_decompress_public_key_then_encrypt_decrypt_uint32_small', (t) => {
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint128_big', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers()
+    let config = TfheConfigBuilder.default()
         .build();
 
 
@@ -238,9 +228,7 @@ test('hlapi_client_key_encrypt_decrypt_uint128_big', (t) => {
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint128_small', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers_small()
-        .build();
+    let config = TfheConfigBuilder.default_with_small_encryption().build();
 
 
     let clientKey = TfheClientKey.generate(config);
@@ -277,8 +265,7 @@ test('hlapi_client_key_encrypt_decrypt_uint128_small', (t) => {
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint256_big', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers()
+    let config = TfheConfigBuilder.default()
         .build();
 
 
@@ -316,9 +303,7 @@ test('hlapi_client_key_encrypt_decrypt_uint256_big', (t) => {
 });
 
 test('hlapi_client_key_encrypt_decrypt_uint256_small', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers_small()
-        .build();
+    let config = TfheConfigBuilder.default_with_small_encryption().build();
 
 
     let clientKey = TfheClientKey.generate(config);
@@ -355,9 +340,7 @@ test('hlapi_client_key_encrypt_decrypt_uint256_small', (t) => {
 });
 
 test('hlapi_decompress_public_key_then_encrypt_decrypt_uint256_small', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers_small()
-        .build();
+    let config = TfheConfigBuilder.default_with_small_encryption().build();
 
 
     let clientKey = TfheClientKey.generate(config);
@@ -381,10 +364,7 @@ test('hlapi_decompress_public_key_then_encrypt_decrypt_uint256_small', (t) => {
 });
 
 test('hlapi_public_key_encrypt_decrypt_uint256_small', (t) => {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers_small()
-        .build();
-
+    let config = TfheConfigBuilder.default_with_small_encryption().build();
 
     let clientKey = TfheClientKey.generate(config);
     let publicKey = TfhePublicKey.new(clientKey);
@@ -403,7 +383,6 @@ test('hlapi_public_key_encrypt_decrypt_uint256_small', (t) => {
     let safe_deserialized_decrypted = safe_deserialized.decrypt(clientKey);
     assert.deepStrictEqual(safe_deserialized_decrypted, U256_MAX);
 });
-
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -431,8 +410,8 @@ function hlapi_compact_public_key_encrypt_decrypt_uint32_single(config) {
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint32_big_single', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint32_single(config);
@@ -440,8 +419,8 @@ test('hlapi_compact_public_key_encrypt_decrypt_uint32_big_single', (t) => {
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint32_small_single', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint32_single(config);
@@ -469,8 +448,8 @@ function hlapi_compact_public_key_encrypt_decrypt_uint32_single_compact(config) 
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint32_small_single_compact', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint32_single_compact(config);
@@ -478,8 +457,8 @@ test('hlapi_compact_public_key_encrypt_decrypt_uint32_small_single_compact', (t)
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint32_big_single_compact', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint32_single_compact(config);
@@ -517,8 +496,8 @@ function hlapi_compact_public_key_encrypt_decrypt_uint32_list_compact(config) {
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint32_small_list_compact', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint32_list_compact(config);
@@ -526,8 +505,8 @@ test('hlapi_compact_public_key_encrypt_decrypt_uint32_small_list_compact', (t) =
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint32_big_list_compact', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint32_list_compact(config);
@@ -559,8 +538,8 @@ function hlapi_compact_public_key_encrypt_decrypt_uint256_single(config) {
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint256_big_single', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint256_single(config);
@@ -568,8 +547,8 @@ test('hlapi_compact_public_key_encrypt_decrypt_uint256_big_single', (t) => {
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint256_small_single', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint256_single(config);
@@ -597,8 +576,8 @@ function hlapi_compact_public_key_encrypt_decrypt_uint256_single_compact(config)
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint256_small_single_compact', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint256_single_compact(config);
@@ -606,8 +585,8 @@ test('hlapi_compact_public_key_encrypt_decrypt_uint256_small_single_compact', (t
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint256_big_single_compact', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint256_single_compact(config);
@@ -645,8 +624,8 @@ function hlapi_compact_public_key_encrypt_decrypt_uint256_list_compact(config) {
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint256_small_list_compact', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint256_list_compact(config);
@@ -654,8 +633,8 @@ test('hlapi_compact_public_key_encrypt_decrypt_uint256_small_list_compact', (t) 
 
 test('hlapi_compact_public_key_encrypt_decrypt_uint256_big_list_compact', (t) => {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
 
     hlapi_compact_public_key_encrypt_decrypt_uint256_list_compact(config);

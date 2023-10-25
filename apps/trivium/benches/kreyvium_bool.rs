@@ -6,7 +6,7 @@ use tfhe_trivium::KreyviumStream;
 use criterion::Criterion;
 
 pub fn kreyvium_bool_gen(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let config = ConfigBuilder::default().build();
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();
@@ -41,7 +41,7 @@ pub fn kreyvium_bool_gen(c: &mut Criterion) {
 }
 
 pub fn kreyvium_bool_warmup(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let config = ConfigBuilder::default().build();
     let (client_key, server_key) = generate_keys(config);
 
     let key_string = "0053A6F94C9FF24598EB000000000000".to_string();

@@ -203,9 +203,7 @@ int main(void) {
     ConfigBuilder *builder;
     Config *config;
 
-    ok = config_builder_all_disabled(&builder);
-    assert(ok == 0);
-    ok = config_builder_enable_default_integers(&builder);
+    ok = config_builder_default(&builder);
     assert(ok == 0);
     ok = config_builder_build(builder, &config);
     assert(ok == 0);
@@ -242,9 +240,7 @@ int main(void) {
     ConfigBuilder *builder;
     Config *config;
 
-    ok = config_builder_all_disabled(&builder);
-    assert(ok == 0);
-    ok = config_builder_enable_default_integers_small(&builder);
+    ok = config_builder_default_with_small_encryption(&builder);
     assert(ok == 0);
     ok = config_builder_build(builder, &config);
     assert(ok == 0);

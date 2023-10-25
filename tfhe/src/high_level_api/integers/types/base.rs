@@ -5,15 +5,11 @@ use std::ops::{
 };
 
 use crate::conformance::ParameterSetConformant;
-use crate::errors::{
-    UninitializedClientKey, UninitializedCompressedPublicKey, UninitializedPublicKey,
-    UnwrapResultExt,
-};
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::integers::parameters::IntegerParameter;
 use crate::high_level_api::integers::IntegerServerKey;
 use crate::high_level_api::internal_traits::{DecryptionKey, EncryptionKey, TypeIdentifier};
-use crate::high_level_api::keys::{CompressedPublicKey, RefKeyFromKeyChain};
+use crate::high_level_api::keys::CompressedPublicKey;
 use crate::high_level_api::traits::{
     DivRem, FheBootstrap, FheDecrypt, FheEq, FheMax, FheMin, FheOrd, FheTrivialEncrypt,
     FheTryEncrypt, FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight,
@@ -26,35 +22,6 @@ use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::{IntegerCiphertext, SignedRadixCiphertext, I256, U256};
 use crate::named::Named;
 use crate::CompactPublicKey;
-
-/// A Generic FHE unsigned integer
-///
-/// Contrary to *shortints*, these integers can in theory by parametrized to
-/// represent integers of any number of bits (eg: 16, 24, 32, 64).
-///
-/// However, in practice going above 16 bits may not be ideal as the
-/// computations would not scale and become very expensive.
-///
-/// Integers works by combining together multiple shortints
-/// with one of the available representation.
-///
-/// This struct is generic over some parameters, as its the parameters
-/// that controls how many bit they represent.
-/// You will need to use one of this type specialization (e.g., [FheUint8], [FheUint12],
-/// [FheUint16]).
-///
-/// Its the type that overloads the operators (`+`, `-`, `*`),
-/// since the `GenericInteger` type is not `Copy` the operators are also overloaded
-/// to work with references.
-///
-///
-/// To be able to use this type, the cargo feature `integers` must be enabled,
-/// and your config should also enable the type with either default parameters or custom ones.
-///
-///
-/// [FheUint8]: crate::high_level_api::FheUint8
-/// [FheUint12]: crate::high_level_api::FheUint12
-/// [FheUint16]: crate::high_level_api::FheUint16
 
 #[derive(Debug)]
 pub enum GenericIntegerBlockError {
@@ -94,6 +61,21 @@ impl std::fmt::Display for GenericIntegerBlockError {
     }
 }
 
+/// A Generic FHE unsigned integer
+///
+/// This struct is generic over some parameters, as its the parameters
+/// that controls how many bit they represent.
+///
+/// You will need to use one of this type specialization (e.g., [FheUint8], [FheUint12],
+/// [FheUint16]).
+///
+/// Its the type that overloads the operators (`+`, `-`, `*`),
+/// since the `GenericInteger` type is not `Copy` the operators are also overloaded
+/// to work with references.
+///
+/// [FheUint8]: crate::high_level_api::FheUint8
+/// [FheUint12]: crate::high_level_api::FheUint12
+/// [FheUint16]: crate::high_level_api::FheUint16
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct GenericInteger<P: IntegerParameter> {
@@ -299,11 +281,10 @@ where
 impl<P, ClearType> FheDecrypt<ClearType> for GenericInteger<P>
 where
     P: IntegerParameter,
-    P::Id: RefKeyFromKeyChain<Key = crate::integer::ClientKey>,
     crate::integer::ClientKey: DecryptionKey<P::InnerCiphertext, ClearType>,
 {
     fn decrypt(&self, key: &ClientKey) -> ClearType {
-        let key = self.id.unwrapped_ref_key(key);
+        let key = &key.key.key;
         key.decrypt(&self.ciphertext)
     }
 }
@@ -319,12 +300,7 @@ where
     fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
         let id = P::Id::default();
 
-        let integer_client_key = key
-            .integer_key
-            .key
-            .as_ref()
-            .ok_or(UninitializedClientKey(id.type_variant()))
-            .unwrap_display();
+        let integer_client_key = &key.key.key;
         let ciphertext = <crate::integer::ClientKey as EncryptionKey<_, _>>::encrypt(
             integer_client_key,
             (value, P::num_blocks()),
@@ -343,11 +319,7 @@ where
 
     fn try_encrypt(value: T, key: &PublicKey) -> Result<Self, Self::Error> {
         let id = P::Id::default();
-        let integer_public_key = key
-            .base_integer_key
-            .as_ref()
-            .ok_or(UninitializedPublicKey(id.type_variant()))
-            .unwrap_display();
+        let integer_public_key = &key.key;
         let ciphertext = <crate::integer::PublicKey as EncryptionKey<_, _>>::encrypt(
             integer_public_key,
             (value, P::num_blocks()),
@@ -366,11 +338,7 @@ where
 
     fn try_encrypt(value: T, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let id = P::Id::default();
-        let integer_public_key = key
-            .base_integer_key
-            .as_ref()
-            .ok_or(UninitializedCompressedPublicKey(id.type_variant()))
-            .unwrap_display();
+        let integer_public_key = &key.key;
         let ciphertext = <crate::integer::CompressedPublicKey as EncryptionKey<_, _>>::encrypt(
             integer_public_key,
             (value, P::num_blocks()),
@@ -389,12 +357,7 @@ where
 
     fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
         let id = P::Id::default();
-        let integer_public_key = key
-            .integer_key
-            .key
-            .as_ref()
-            .ok_or(UninitializedPublicKey(id.type_variant()))
-            .unwrap_display();
+        let integer_public_key = &key.key.key;
         let ciphertext =
             <crate::integer::public_key::CompactPublicKey as EncryptionKey<_, _>>::encrypt(
                 integer_public_key,

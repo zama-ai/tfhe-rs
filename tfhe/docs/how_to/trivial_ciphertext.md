@@ -11,9 +11,7 @@ the server can do a *trivial encryption*
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 
-let config = ConfigBuilder::all_disabled()
-    .enable_default_integers()
-    .build();
+let config = ConfigBuilder::default().build();
 let (client_key, sks) = generate_keys(config);
 
 set_server_key(sks);
@@ -38,9 +36,7 @@ value if the ciphertext/clear-value operation (often called scalar operation) yo
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32};
 
-let config = ConfigBuilder::all_disabled()
-    .enable_default_integers()
-    .build();
+let config = ConfigBuilder::default().build();
 let (client_key, sks) = generate_keys(config);
 
 set_server_key(sks);

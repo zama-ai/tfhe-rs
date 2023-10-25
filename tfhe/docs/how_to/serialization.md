@@ -26,9 +26,7 @@ use tfhe::{ConfigBuilder, ServerKey, generate_keys, set_server_key, FheUint8};
 use tfhe::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
 
     let ( client_key, server_key) = generate_keys(config);
 

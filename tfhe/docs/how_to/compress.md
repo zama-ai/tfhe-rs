@@ -13,9 +13,7 @@ use tfhe::prelude::*;
 use tfhe::{ConfigBuilder, generate_keys, set_server_key, CompressedFheUint16};
 
 fn main() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (client_key, _) = generate_keys(config);
 
     let clear = 12_837u16;
@@ -48,9 +46,7 @@ use tfhe::{
 };
 
 fn main() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
 
     let cks = ClientKey::generate(config);
     let compressed_sks = CompressedServerKey::new(&cks);
@@ -92,9 +88,7 @@ use tfhe::prelude::*;
 use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, CompressedPublicKey};
 
 fn main() {
-   let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (client_key, _) = generate_keys(config);
 
     let compressed_public_key = CompressedPublicKey::new(&client_key);
@@ -122,8 +116,8 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, CompressedCompactPublicKey, ConfigBuilder, FheUint8};
 
 fn main() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_custom_integers(
+    let config = ConfigBuilder::default()
+        .use_custom_parameters(
             tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
             None,
         )

@@ -12,9 +12,7 @@ use tfhe::prelude::*;
 use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, PublicKey};
 
 fn main() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (client_key, _) = generate_keys(config);
 
     let public_key = PublicKey::new(&client_key);
@@ -34,8 +32,8 @@ use tfhe::prelude::*;
 use tfhe::{ConfigBuilder, generate_keys, set_server_key, FheUint8, CompactPublicKey};
 
 fn main() {
-     let config = ConfigBuilder::all_disabled()
-        .enable_custom_integers(
+     let config = ConfigBuilder::default()
+        .use_custom_parameters(
             tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS,
             None,
         )

@@ -78,7 +78,7 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, FheUint8};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+    let config = ConfigBuilder::default().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
 
@@ -134,7 +134,7 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+    let config = ConfigBuilder::default().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
 
@@ -188,7 +188,7 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+    let config = ConfigBuilder::default().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
 
@@ -236,7 +236,7 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled().enable_default_integers().build();
+    let config = ConfigBuilder::default().build();
     let (keys, server_keys) = generate_keys(config);
     set_server_key(server_keys);
 
@@ -274,9 +274,7 @@ use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt32};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
    // Basic configuration to use homomorphic integers
-   let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
 
 	// Key generation
 	let (client_key, server_keys) = generate_keys(config);
@@ -321,9 +319,7 @@ use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt16, FheUint8, FheUint32, FheUint16};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (client_key, server_key) = generate_keys(config);
 
     // Casting requires server_key to set

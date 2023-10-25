@@ -1,17 +1,11 @@
 use crate::high_level_api::prelude::*;
-#[cfg(feature = "boolean")]
-use crate::high_level_api::FheBool;
-#[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
-use crate::high_level_api::{generate_keys, ClientKey, ConfigBuilder, PublicKey};
-#[cfg(feature = "integer")]
-use crate::high_level_api::{FheUint256, FheUint8};
-#[cfg(feature = "integer")]
+use crate::high_level_api::{
+    generate_keys, ClientKey, ConfigBuilder, FheBool, FheUint256, FheUint8, PublicKey,
+};
 use crate::integer::U256;
 use crate::{CompactPublicKey, CompressedPublicKey, CompressedServerKey};
-#[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 use std::fmt::Debug;
 
-#[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
 fn assert_that_public_key_encryption_is_decrypted_by_client_key<FheType, ClearType>(
     clear: ClearType,
     pks: &PublicKey,
@@ -25,10 +19,9 @@ fn assert_that_public_key_encryption_is_decrypted_by_client_key<FheType, ClearTy
     assert_eq!(clear, decrypted);
 }
 
-#[cfg(feature = "boolean")]
 #[test]
 fn test_boolean_public_key() {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let config = ConfigBuilder::default().build();
 
     let (cks, _sks) = generate_keys(config);
 
@@ -40,12 +33,9 @@ fn test_boolean_public_key() {
     assert_that_public_key_encryption_is_decrypted_by_client_key::<FheBool, bool>(true, &pks, &cks);
 }
 
-#[cfg(feature = "integer")]
 #[test]
 fn test_integer_public_key() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
 
     let (cks, _sks) = generate_keys(config);
 
@@ -54,12 +44,9 @@ fn test_integer_public_key() {
     assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint8, u8>(235, &pks, &cks);
 }
 
-#[cfg(feature = "integer")]
 #[test]
 fn test_small_uint8() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers_small()
-        .build();
+    let config = ConfigBuilder::default().build();
 
     let (cks, _sks) = generate_keys(config);
 
@@ -68,12 +55,9 @@ fn test_small_uint8() {
     assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint8, u8>(235, &pks, &cks);
 }
 
-#[cfg(feature = "integer")]
 #[test]
 fn test_small_uint256() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers_small()
-        .build();
+    let config = ConfigBuilder::default().build();
 
     let (cks, _sks) = generate_keys(config);
 
@@ -87,14 +71,11 @@ fn test_small_uint256() {
     );
 }
 
-#[cfg(feature = "integer")]
 #[test]
 fn test_server_key_decompression() -> Result<(), Box<dyn std::error::Error>> {
     use crate::set_server_key;
 
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
 
     let cks = ClientKey::generate(config);
     let compressed_sks = CompressedServerKey::new(&cks);
@@ -115,15 +96,7 @@ fn test_server_key_decompression() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn test_with_seed() -> Result<(), Box<dyn std::error::Error>> {
     use crate::Seed;
-    let mut builder = ConfigBuilder::all_disabled();
-    #[cfg(feature = "integer")]
-    {
-        builder = builder.enable_default_integers();
-    }
-    #[cfg(feature = "boolean")]
-    {
-        builder = builder.enable_default_bool();
-    }
+    let builder = ConfigBuilder::default();
     let config = builder.build();
 
     let cks1 = ClientKey::generate_with_seed(config.clone(), Seed(125));
@@ -143,23 +116,20 @@ fn test_with_seed() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[cfg(feature = "integer")]
 #[test]
 #[should_panic]
 fn test_compressed_server_key_creation_panic_if_function_eval() {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .enable_function_evaluation_integers()
+    let config = ConfigBuilder::default()
+        .enable_function_evaluation()
         .build();
 
     let cks = ClientKey::generate(config);
     let _ = CompressedServerKey::new(&cks);
 }
 
-#[cfg(feature = "boolean")]
 #[test]
 fn test_with_context() {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let config = ConfigBuilder::default().build();
 
     let (cks, sks) = generate_keys(config);
 
@@ -175,7 +145,7 @@ fn test_with_context() {
 /// the deserialize and serialize traits are implemented
 #[test]
 fn test_serialize_deserialize_are_implemented() {
-    let config = ConfigBuilder::all_disabled().build();
+    let config = ConfigBuilder::default().build();
 
     fn can_be_deserialized<T: serde::de::DeserializeOwned + serde::Serialize>(object: &T) {
         let data = bincode::serialize(object).unwrap();

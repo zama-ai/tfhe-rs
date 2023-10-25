@@ -10,13 +10,13 @@ use crate::shortint::EncryptionKeyChoice;
 
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IntegerConfig {
-    pub(crate) block_parameters: Option<crate::shortint::PBSParameters>,
+    pub(crate) block_parameters: crate::shortint::PBSParameters,
     pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
 }
 
 impl IntegerConfig {
     pub(crate) fn new(
-        block_parameters: Option<crate::shortint::PBSParameters>,
+        block_parameters: crate::shortint::PBSParameters,
         wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
     ) -> Self {
         Self {
@@ -25,38 +25,22 @@ impl IntegerConfig {
         }
     }
 
-    pub(in crate::high_level_api) fn all_default() -> Self {
-        Self::default_big()
-    }
-
-    pub(in crate::high_level_api) fn all_none() -> Self {
-        Self::new(None, None)
-    }
-
     pub(in crate::high_level_api) fn default_big() -> Self {
         Self {
-            block_parameters: Some(
-                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
-            ),
+            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
             wopbs_block_parameters: None,
         }
     }
 
     pub(in crate::high_level_api) fn default_small() -> Self {
         Self {
-            block_parameters: Some(
-                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS.into(),
-            ),
+            block_parameters: crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_PBS_KS.into(),
             wopbs_block_parameters: None,
         }
     }
 
     pub fn enable_wopbs(&mut self) {
-        let block_parameter = self
-            .block_parameters
-            .get_or_insert(crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS.into());
-
-        let wopbs_block_parameters = match block_parameter.encryption_key_choice() {
+        let wopbs_block_parameters = match self.block_parameters.encryption_key_choice() {
             EncryptionKeyChoice::Big => crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
             _ => panic!("WOPBS only support KS_PBS parameters")
         };
@@ -67,19 +51,17 @@ impl IntegerConfig {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IntegerClientKey {
-    pub(crate) key: Option<crate::integer::ClientKey>,
+    pub(crate) key: crate::integer::ClientKey,
     pub(crate) wopbs_block_parameters: Option<crate::shortint::WopbsParameters>,
 }
 
 impl IntegerClientKey {
     pub(crate) fn with_seed(config: IntegerConfig, seed: Seed) -> Self {
-        let key = config.block_parameters.map(|params| {
-            let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
-            let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
-                .new_client_key(params.into())
-                .unwrap();
-            crate::integer::ClientKey::from(cks)
-        });
+        let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
+        let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
+            .new_client_key(config.block_parameters.into())
+            .unwrap();
+        let key = crate::integer::ClientKey::from(cks);
         Self {
             key,
             wopbs_block_parameters: config.wopbs_block_parameters,
@@ -87,20 +69,14 @@ impl IntegerClientKey {
     }
 
     #[cfg(feature = "__wasm_api")]
-    pub(crate) fn block_parameters(&self) -> Option<crate::shortint::parameters::PBSParameters> {
-        self.key.as_ref().map(|key| key.parameters())
+    pub(crate) fn block_parameters(&self) -> crate::shortint::parameters::PBSParameters {
+        self.key.parameters()
     }
 }
 
 impl From<IntegerConfig> for IntegerClientKey {
     fn from(config: IntegerConfig) -> Self {
-        let key = match config.block_parameters {
-            Some(params) => {
-                let cks = crate::integer::ClientKey::new(params);
-                Some(cks)
-            }
-            None => None,
-        };
+        let key = crate::integer::ClientKey::new(config.block_parameters);
         Self {
             key,
             wopbs_block_parameters: config.wopbs_block_parameters,
@@ -108,17 +84,15 @@ impl From<IntegerConfig> for IntegerClientKey {
     }
 }
 
-#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct IntegerServerKey {
-    pub(crate) key: Option<crate::integer::ServerKey>,
+    pub(crate) key: crate::integer::ServerKey,
     pub(crate) wopbs_key: Option<crate::integer::wopbs::WopbsKey>,
 }
 
 impl IntegerServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
-        let Some(cks) = &client_key.key else {
-            return Self::default();
-        };
+        let cks = &client_key.key;
         assert_eq!(
             cks.parameters().message_modulus().0,
             4,
@@ -132,28 +106,24 @@ impl IntegerServerKey {
                 crate::integer::wopbs::WopbsKey::new_wopbs_key(cks, &base_integer_key, wopbs_params)
             });
         Self {
-            key: Some(base_integer_key),
+            key: base_integer_key,
             wopbs_key,
         }
     }
 
-    pub(in crate::high_level_api::integers) fn pbs_key(&self) -> &crate::integer::ServerKey {
-        self.key
-            .as_ref()
-            .expect("Integer ServerKey is not initialized")
+    pub(in crate::high_level_api) fn pbs_key(&self) -> &crate::integer::ServerKey {
+        &self.key
     }
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct IntegerCompressedServerKey {
-    pub(crate) key: Option<crate::integer::CompressedServerKey>,
+    pub(crate) key: crate::integer::CompressedServerKey,
 }
 
 impl IntegerCompressedServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
-        let Some(integer_key) = &client_key.key else {
-            return Self { key: None };
-        };
+        let integer_key = &client_key.key;
         if client_key.wopbs_block_parameters.is_some() {
             panic!(
                 "The configuration used to create the ClientKey \
@@ -165,12 +135,12 @@ impl IntegerCompressedServerKey {
             );
         }
         let key = crate::integer::CompressedServerKey::new(integer_key);
-        Self { key: Some(key) }
+        Self { key }
     }
 
     pub(in crate::high_level_api) fn decompress(self) -> IntegerServerKey {
         IntegerServerKey {
-            key: self.key.map(crate::integer::ServerKey::from),
+            key: crate::integer::ServerKey::from(self.key),
             wopbs_key: None,
         }
     }
@@ -178,7 +148,7 @@ impl IntegerCompressedServerKey {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(in crate::high_level_api) struct IntegerCompactPublicKey {
-    pub(in crate::high_level_api) key: Option<CompactPublicKey>,
+    pub(in crate::high_level_api) key: CompactPublicKey,
 }
 
 impl IntegerCompactPublicKey {
@@ -187,50 +157,42 @@ impl IntegerCompactPublicKey {
     }
 
     pub(in crate::high_level_api) fn try_new(client_key: &IntegerClientKey) -> Option<Self> {
-        let Some(cks) = client_key.key.as_ref() else {
-            return Some(Self { key: None });
-        };
+        let cks = &client_key.key;
 
         let key = CompactPublicKey::try_new(cks)?;
 
-        Some(Self { key: Some(key) })
+        Some(Self { key })
     }
 
     pub(in crate::high_level_api::integers) fn try_encrypt_compact<T>(
         &self,
         values: &[T],
         num_blocks: usize,
-    ) -> Option<CompactCiphertextList>
+    ) -> CompactCiphertextList
     where
         T: crate::integer::block_decomposition::DecomposableInto<u64>,
     {
-        let Some(key) = self.key.as_ref() else {
-            return None;
-        };
-        let ct = key.encrypt_slice_radix_compact(values, num_blocks);
-        Some(ct)
+        self.key.encrypt_slice_radix_compact(values, num_blocks)
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(in crate::high_level_api) struct IntegerCompressedCompactPublicKey {
-    pub(in crate::high_level_api) key: Option<CompressedCompactPublicKey>,
+    pub(in crate::high_level_api) key: CompressedCompactPublicKey,
 }
 
 impl IntegerCompressedCompactPublicKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
-        let Some(cks) = client_key.key.as_ref() else {
-            return Self { key: None };
-        };
+        let cks = &client_key.key;
 
         let key = CompressedCompactPublicKey::new(cks);
 
-        Self { key: Some(key) }
+        Self { key }
     }
 
     pub(in crate::high_level_api) fn decompress(self) -> IntegerCompactPublicKey {
         IntegerCompactPublicKey {
-            key: self.key.map(CompressedCompactPublicKey::decompress),
+            key: CompressedCompactPublicKey::decompress(self.key),
         }
     }
 }

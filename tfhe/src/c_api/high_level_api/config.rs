@@ -8,13 +8,37 @@ impl_destroy_on_type!(ConfigBuilder);
 impl_destroy_on_type!(Config);
 
 #[no_mangle]
-pub unsafe extern "C" fn config_builder_all_disabled(result: *mut *mut ConfigBuilder) -> c_int {
+pub unsafe extern "C" fn config_builder_default(result: *mut *mut ConfigBuilder) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
-        let inner_builder = crate::high_level_api::ConfigBuilder::all_disabled();
+        let inner_builder = crate::high_level_api::ConfigBuilder::default();
 
         *result = Box::into_raw(Box::new(ConfigBuilder(inner_builder)));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn config_builder_default_with_small_encryption(
+    builder: *mut *mut ConfigBuilder,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(builder).unwrap();
+
+        let inner_builder = crate::high_level_api::ConfigBuilder::default_with_small_encryption();
+        *builder = Box::into_raw(Box::new(ConfigBuilder(inner_builder)));
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn config_builder_default_with_big_encryption(
+    builder: *mut *mut ConfigBuilder,
+) -> c_int {
+    catch_panic(|| {
+        check_ptr_is_non_null_and_aligned(builder).unwrap();
+
+        let inner_builder = crate::high_level_api::ConfigBuilder::default_with_big_encryption();
+        *builder = Box::into_raw(Box::new(ConfigBuilder(inner_builder)));
     })
 }
 
@@ -32,61 +56,22 @@ pub unsafe extern "C" fn config_builder_clone(
     })
 }
 
-macro_rules! define_enable_default_fn(
-    ($type_name:ident) => {
-        ::paste::paste!{
-            #[no_mangle]
-            pub unsafe extern "C" fn [<config_builder_enable_default_ $type_name>](
-                builder: *mut *mut ConfigBuilder,
-            ) -> ::std::os::raw::c_int {
-                catch_panic(|| {
-                    check_ptr_is_non_null_and_aligned(builder).unwrap();
-
-                    let inner = Box::from_raw(*builder).0.[<enable_default_ $type_name>]();
-                    *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
-                })
-            }
-        }
-    };
-    ($type_name:ident @small) => {
-        ::paste::paste!{
-            #[no_mangle]
-            pub unsafe extern "C" fn [<config_builder_enable_default_ $type_name _small>](
-                builder: *mut *mut ConfigBuilder,
-            ) -> ::std::os::raw::c_int {
-                catch_panic(|| {
-                    check_ptr_is_non_null_and_aligned(builder).unwrap();
-
-                    let inner = Box::from_raw(*builder).0.[<enable_default_ $type_name _small>]();
-                    *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
-                })
-            }
-        }
-    }
-);
-
-#[cfg(feature = "boolean")]
-define_enable_default_fn!(bool);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(integers);
-#[cfg(feature = "integer")]
-define_enable_default_fn!(integers @small);
-
 #[no_mangle]
-pub unsafe extern "C" fn config_builder_enable_custom_integers(
+pub unsafe extern "C" fn config_builder_use_custom_parameters(
     builder: *mut *mut ConfigBuilder,
     shortint_block_parameters: crate::c_api::shortint::parameters::ShortintPBSParameters,
-) -> ::std::os::raw::c_int {
+) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(builder).unwrap();
 
         let params: crate::shortint::ClassicPBSParameters = shortint_block_parameters.into();
         let inner = Box::from_raw(*builder)
             .0
-            .enable_custom_integers(params, None);
+            .use_custom_parameters(params, None);
         *builder = Box::into_raw(Box::new(ConfigBuilder(inner)));
     })
 }
+
 /// Takes ownership of the builder
 #[no_mangle]
 pub unsafe extern "C" fn config_builder_build(

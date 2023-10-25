@@ -11,26 +11,26 @@ pub struct TfheConfigBuilder(pub(crate) hlapi::ConfigBuilder);
 #[wasm_bindgen]
 impl TfheConfigBuilder {
     #[wasm_bindgen]
-    pub fn all_disabled() -> Self {
-        Self(hlapi::ConfigBuilder::all_disabled())
+    pub fn default() -> Self {
+        Self(hlapi::ConfigBuilder::default())
     }
 
     #[wasm_bindgen]
-    pub fn enable_default_integers(self) -> Self {
-        Self(self.0.enable_default_integers())
+    pub fn default_with_small_encryption() -> Self {
+        Self(hlapi::ConfigBuilder::default_with_small_encryption())
     }
 
     #[wasm_bindgen]
-    pub fn enable_default_integers_small(self) -> Self {
-        Self(self.0.enable_default_integers_small())
+    pub fn default_with_big_encryption() -> Self {
+        Self(hlapi::ConfigBuilder::default_with_big_encryption())
     }
 
     #[wasm_bindgen]
-    pub fn enable_custom_integers(
+    pub fn use_custom_parameters(
         self,
         block_parameters: crate::js_on_wasm_api::shortint::ShortintParameters,
     ) -> Self {
-        Self(self.0.enable_custom_integers(block_parameters.0, None))
+        Self(self.0.use_custom_parameters(block_parameters.0, None))
     }
 
     #[wasm_bindgen]

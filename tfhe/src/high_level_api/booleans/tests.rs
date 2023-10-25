@@ -1,4 +1,4 @@
-// Without this, clippy will conplain about equal expressions to `ffalse & ffalse`
+// Without this, clippy will complain about equal expressions to `ffalse & ffalse`
 // However since we overloaded these operators, we want to test them to see
 // if they are correct
 #![allow(clippy::eq_op)]
@@ -8,23 +8,11 @@ use std::ops::{BitAnd, BitOr, BitXor, Not};
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{
     generate_keys, set_server_key, ClientKey, CompressedFheBool, ConfigBuilder, FheBool,
-    FheBoolParameters,
 };
 use crate::CompressedPublicKey;
 
 fn setup_static_default() -> ClientKey {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
-
-    let (my_keys, server_keys) = generate_keys(config);
-
-    set_server_key(server_keys);
-    my_keys
-}
-
-fn setup_static_tfhe() -> ClientKey {
-    let config = ConfigBuilder::all_disabled()
-        .enable_custom_bool(FheBoolParameters::tfhe_lib())
-        .build();
+    let config = ConfigBuilder::default().build();
 
     let (my_keys, server_keys) = generate_keys(config);
 
@@ -71,47 +59,6 @@ fn test_not_truth_table_static_default() {
 
     not_truth_table(&ttrue, &ffalse, &keys);
 }
-
-#[test]
-fn test_xor_truth_table_static_tfhe() {
-    let keys = setup_static_tfhe();
-
-    let ttrue = FheBool::encrypt(true, &keys);
-    let ffalse = FheBool::encrypt(false, &keys);
-
-    xor_truth_table(&ttrue, &ffalse, &keys);
-}
-
-#[test]
-fn test_and_truth_table_static_tfhe() {
-    let keys = setup_static_tfhe();
-
-    let ttrue = FheBool::encrypt(true, &keys);
-    let ffalse = FheBool::encrypt(false, &keys);
-
-    and_truth_table(&ttrue, &ffalse, &keys);
-}
-
-#[test]
-fn test_or_truth_table_static_tfhe() {
-    let keys = setup_static_tfhe();
-
-    let ttrue = FheBool::encrypt(true, &keys);
-    let ffalse = FheBool::encrypt(false, &keys);
-
-    or_truth_table(&ttrue, &ffalse, &keys);
-}
-
-#[test]
-fn test_not_truth_table_static_tfhe() {
-    let keys = setup_static_tfhe();
-
-    let ttrue = FheBool::encrypt(true, &keys);
-    let ffalse = FheBool::encrypt(false, &keys);
-
-    not_truth_table(&ttrue, &ffalse, &keys);
-}
-
 fn xor_truth_table<'a, BoolType>(ttrue: &'a BoolType, ffalse: &'a BoolType, key: &ClientKey)
 where
     &'a BoolType: BitXor<&'a BoolType, Output = BoolType>,
@@ -205,7 +152,7 @@ fn test_trivial_bool() {
 
 #[test]
 fn test_compressed_public_key_encrypt() {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let config = ConfigBuilder::default().build();
     let (client_key, _) = generate_keys(config);
 
     let public_key = CompressedPublicKey::new(&client_key);
@@ -217,7 +164,7 @@ fn test_compressed_public_key_encrypt() {
 
 #[test]
 fn test_decompressed_public_key_encrypt() {
-    let config = ConfigBuilder::all_disabled().enable_default_bool().build();
+    let config = ConfigBuilder::default().build();
     let (client_key, _) = generate_keys(config);
 
     let compressed_public_key = CompressedPublicKey::new(&client_key);

@@ -70,9 +70,7 @@ use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32, FheUint8};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Basic configuration to use homomorphic integers
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
 
     // Key generation
     let (client_key, server_keys) = generate_keys(config);

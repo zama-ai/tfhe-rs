@@ -8,9 +8,7 @@ use tfhe_trivium::{KreyviumStreamShortint, TransCiphering};
 use criterion::Criterion;
 
 pub fn kreyvium_shortint_warmup(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
@@ -60,9 +58,7 @@ pub fn kreyvium_shortint_warmup(c: &mut Criterion) {
 }
 
 pub fn kreyvium_shortint_gen(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();
@@ -107,9 +103,7 @@ pub fn kreyvium_shortint_gen(c: &mut Criterion) {
 }
 
 pub fn kreyvium_shortint_trans(c: &mut Criterion) {
-    let config = ConfigBuilder::all_disabled()
-        .enable_default_integers()
-        .build();
+    let config = ConfigBuilder::default().build();
     let (hl_client_key, hl_server_key) = generate_keys(config);
     let underlying_ck: tfhe::shortint::ClientKey = (*hl_client_key.as_ref()).clone().into();
     let underlying_sk: tfhe::shortint::ServerKey = (*hl_server_key.as_ref()).clone().into();

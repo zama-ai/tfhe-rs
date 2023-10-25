@@ -46,9 +46,7 @@ function append_param_name(bench_results, params_name) {
 }
 
 async function compressedPublicKeyTest() {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers_small()
-        .build();
+    let config = TfheConfigBuilder.default_with_small_encryption().build();
 
     console.time('ClientKey Gen')
     let clientKey = TfheClientKey.generate(config);
@@ -77,8 +75,8 @@ async function compressedPublicKeyTest() {
 }
 
 async function publicKeyTest() {
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_default_integers_small()
+    let config = TfheConfigBuilder.default()
+        .use_small_encryption()
         .build();
 
     console.time('ClientKey Gen')
@@ -148,16 +146,16 @@ async function compactPublicKeyTest32BitOnConfig(config) {
 
 async function compactPublicKeyTest32BitBig() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     await compactPublicKeyTest32BitOnConfig(config)
 }
 
 async function compactPublicKeyTest32BitSmall() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     await compactPublicKeyTest32BitOnConfig(config)
 }
@@ -220,8 +218,8 @@ async function compactPublicKeyBench32BitOnConfig(config) {
 
 async function compactPublicKeyBench32BitBig() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     return append_param_name(
         await compactPublicKeyBench32BitOnConfig(config),
@@ -231,8 +229,8 @@ async function compactPublicKeyBench32BitBig() {
 
 async function compactPublicKeyBench32BitSmall() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     return append_param_name(
         await compactPublicKeyBench32BitOnConfig(config),
@@ -286,16 +284,16 @@ async function compactPublicKeyTest256BitOnConfig(config) {
 
 async function compactPublicKeyTest256BitBig() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     await compactPublicKeyTest256BitOnConfig(config)
 }
 
 async function compactPublicKeyTest256BitSmall() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     await compactPublicKeyTest256BitOnConfig(config)
 }
@@ -351,16 +349,16 @@ async function compressedCompactPublicKeyTest256BitOnConfig(config) {
 
 async function compressedCompactPublicKeyTest256BitBig() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     await compressedCompactPublicKeyTest256BitOnConfig(config)
 }
 
 async function compressedCompactPublicKeyTest256BitSmall() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     await compressedCompactPublicKeyTest256BitOnConfig(config)
 }
@@ -423,8 +421,8 @@ async function compactPublicKeyBench256BitOnConfig(config) {
 
 async function compactPublicKeyBench256BitBig() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     return append_param_name(
         await compactPublicKeyBench256BitOnConfig(config),
@@ -434,8 +432,8 @@ async function compactPublicKeyBench256BitBig() {
 
 async function compactPublicKeyBench256BitSmall() {
     const block_params = new ShortintParameters(ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
-    let config = TfheConfigBuilder.all_disabled()
-        .enable_custom_integers(block_params)
+    let config = TfheConfigBuilder.default()
+        .use_custom_parameters(block_params)
         .build();
     return append_param_name(
         await compactPublicKeyBench256BitOnConfig(config),

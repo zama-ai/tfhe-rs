@@ -82,15 +82,8 @@ impl TfhePublicKey {
     #[wasm_bindgen]
     pub fn new(client_key: &TfheClientKey) -> Result<TfhePublicKey, JsError> {
         catch_panic_result(|| {
-            let uses_big_params = client_key
-                .0
-                .integer_key
-                .block_parameters()
-                .map(|key| {
-                    key.encryption_key_choice()
-                        == crate::shortint::parameters::EncryptionKeyChoice::Big
-                })
-                .unwrap_or(false);
+            let uses_big_params = client_key.0.key.block_parameters().encryption_key_choice()
+                == crate::shortint::parameters::EncryptionKeyChoice::Big;
             if uses_big_params {
                 return Err(JsError::new(
                     "PublicKey using big parameters not compatible wasm",

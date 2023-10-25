@@ -238,8 +238,8 @@ int main(void) {
     ConfigBuilder *builder;
     Config *config;
 
-    config_builder_all_disabled(&builder);
-    config_builder_enable_custom_integers(&builder,
+    config_builder_default(&builder);
+    config_builder_use_custom_parameters(&builder,
                                           SHORTINT_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS);
     config_builder_build(builder, &config);
 
@@ -266,8 +266,8 @@ int main(void) {
     ConfigBuilder *builder;
     Config *config;
 
-    config_builder_all_disabled(&builder);
-    config_builder_enable_custom_integers(&builder,
+    config_builder_default(&builder);
+    config_builder_use_custom_parameters(&builder,
                                           SHORTINT_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS);
     config_builder_build(builder, &config);
 

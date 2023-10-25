@@ -52,13 +52,20 @@ pub unsafe extern "C" fn set_server_key(server_key: *const ServerKey) -> c_int {
 }
 
 /// result can be null
+///
+/// `result` may be set to null if no previous server key was set
 #[no_mangle]
 pub unsafe extern "C" fn unset_server_key(result: *mut *mut ServerKey) -> c_int {
     catch_panic(|| {
         let previous_key = crate::high_level_api::unset_server_key();
 
         if !result.is_null() {
-            *result = Box::into_raw(Box::new(ServerKey(previous_key)))
+            match previous_key {
+                None => {
+                    *result = std::ptr::null_mut();
+                }
+                Some(key) => *result = Box::into_raw(Box::new(ServerKey(key))),
+            }
         }
     })
 }
