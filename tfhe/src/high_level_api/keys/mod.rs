@@ -17,11 +17,13 @@ pub use server::{CompressedServerKey, ServerKey};
 /// # Example
 ///
 /// ```
-/// # #[cfg(feature = "shortint")]
+/// # #[cfg(feature = "integer")]
 /// # {
 /// use tfhe::{generate_keys, ConfigBuilder};
 ///
-/// let config = ConfigBuilder::all_disabled().enable_default_uint3().build();
+/// let config = ConfigBuilder::all_disabled()
+///     .enable_default_integers()
+///     .build();
 /// let (client_key, server_key) = generate_keys(config);
 /// # }
 /// ```

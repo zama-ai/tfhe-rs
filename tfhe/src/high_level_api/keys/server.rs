@@ -2,10 +2,8 @@
 use crate::high_level_api::booleans::{BooleanCompressedServerKey, BooleanServerKey};
 #[cfg(feature = "integer")]
 use crate::high_level_api::integers::{IntegerCompressedServerKey, IntegerServerKey};
-#[cfg(feature = "shortint")]
-use crate::high_level_api::shortints::{ShortIntCompressedServerKey, ShortIntServerKey};
 
-#[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
+#[cfg(any(feature = "boolean", feature = "integer"))]
 use std::sync::Arc;
 
 use super::ClientKey;
@@ -24,8 +22,6 @@ use super::ClientKey;
 pub struct ServerKey {
     #[cfg(feature = "boolean")]
     pub(crate) boolean_key: Arc<BooleanServerKey>,
-    #[cfg(feature = "shortint")]
-    pub(crate) shortint_key: Arc<ShortIntServerKey>,
     #[cfg(feature = "integer")]
     pub(crate) integer_key: Arc<IntegerServerKey>,
 }
@@ -35,8 +31,6 @@ impl ServerKey {
         Self {
             #[cfg(feature = "boolean")]
             boolean_key: Arc::new(BooleanServerKey::new(&keys.boolean_key)),
-            #[cfg(feature = "shortint")]
-            shortint_key: Arc::new(ShortIntServerKey::new(&keys.shortint_key)),
             #[cfg(feature = "integer")]
             integer_key: Arc::new(IntegerServerKey::new(&keys.integer_key)),
         }
@@ -67,8 +61,6 @@ impl AsRef<crate::integer::ServerKey> for ServerKey {
 struct SerializableServerKey<'a> {
     #[cfg(feature = "boolean")]
     pub(crate) boolean_key: &'a BooleanServerKey,
-    #[cfg(feature = "shortint")]
-    pub(crate) shortint_key: &'a ShortIntServerKey,
     #[cfg(feature = "integer")]
     pub(crate) integer_key: &'a IntegerServerKey,
 }
@@ -81,8 +73,6 @@ impl serde::Serialize for ServerKey {
         SerializableServerKey {
             #[cfg(feature = "boolean")]
             boolean_key: &self.boolean_key,
-            #[cfg(feature = "shortint")]
-            shortint_key: &self.shortint_key,
             #[cfg(feature = "integer")]
             integer_key: &self.integer_key,
         }
@@ -94,8 +84,6 @@ impl serde::Serialize for ServerKey {
 struct DeserializableServerKey {
     #[cfg(feature = "boolean")]
     pub(crate) boolean_key: BooleanServerKey,
-    #[cfg(feature = "shortint")]
-    pub(crate) shortint_key: ShortIntServerKey,
     #[cfg(feature = "integer")]
     pub(crate) integer_key: IntegerServerKey,
 }
@@ -108,8 +96,6 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
         DeserializableServerKey::deserialize(deserializer).map(|deserialized| Self {
             #[cfg(feature = "boolean")]
             boolean_key: Arc::new(deserialized.boolean_key),
-            #[cfg(feature = "shortint")]
-            shortint_key: Arc::new(deserialized.shortint_key),
             #[cfg(feature = "integer")]
             integer_key: Arc::new(deserialized.integer_key),
         })
@@ -120,8 +106,6 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
 pub struct CompressedServerKey {
     #[cfg(feature = "boolean")]
     pub(crate) boolean_key: BooleanCompressedServerKey,
-    #[cfg(feature = "shortint")]
-    pub(crate) shortint_key: ShortIntCompressedServerKey,
     #[cfg(feature = "integer")]
     pub(crate) integer_key: IntegerCompressedServerKey,
 }
@@ -131,8 +115,6 @@ impl CompressedServerKey {
         Self {
             #[cfg(feature = "boolean")]
             boolean_key: BooleanCompressedServerKey::new(&keys.boolean_key),
-            #[cfg(feature = "shortint")]
-            shortint_key: ShortIntCompressedServerKey::new(&keys.shortint_key),
             #[cfg(feature = "integer")]
             integer_key: IntegerCompressedServerKey::new(&keys.integer_key),
         }
@@ -142,8 +124,6 @@ impl CompressedServerKey {
         ServerKey {
             #[cfg(feature = "boolean")]
             boolean_key: Arc::new(self.boolean_key.decompress()),
-            #[cfg(feature = "shortint")]
-            shortint_key: Arc::new(self.shortint_key.decompress()),
             #[cfg(feature = "integer")]
             integer_key: Arc::new(self.integer_key.decompress()),
         }

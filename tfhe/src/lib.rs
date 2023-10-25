@@ -53,10 +53,10 @@ pub use js_on_wasm_api::*;
 mod test_user_docs;
 
 /// cbindgen:ignore
-#[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
+#[cfg(any(feature = "boolean", feature = "integer"))]
 pub(crate) mod high_level_api;
 
-#[cfg(any(feature = "boolean", feature = "shortint", feature = "integer"))]
+#[cfg(any(feature = "boolean", feature = "integer"))]
 pub use high_level_api::*;
 
 /// cbindgen:ignore

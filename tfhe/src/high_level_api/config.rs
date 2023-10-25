@@ -2,16 +2,12 @@
 use crate::high_level_api::booleans::{BooleanConfig, FheBoolParameters};
 #[cfg(feature = "integer")]
 use crate::high_level_api::integers::IntegerConfig;
-#[cfg(feature = "shortint")]
-use crate::high_level_api::shortints::ShortIntConfig;
 
 /// The config type
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     #[cfg(feature = "boolean")]
     pub(crate) boolean_config: BooleanConfig,
-    #[cfg(feature = "shortint")]
-    pub(crate) shortint_config: ShortIntConfig,
     #[cfg(feature = "integer")]
     pub(crate) integer_config: IntegerConfig,
 }
@@ -49,8 +45,6 @@ impl ConfigBuilder {
             config: Config {
                 #[cfg(feature = "boolean")]
                 boolean_config: BooleanConfig::all_default(),
-                #[cfg(feature = "shortint")]
-                shortint_config: ShortIntConfig::all_default(),
                 #[cfg(feature = "integer")]
                 integer_config: IntegerConfig::all_default(),
             },
@@ -63,8 +57,6 @@ impl ConfigBuilder {
             config: Config {
                 #[cfg(feature = "boolean")]
                 boolean_config: BooleanConfig::all_none(),
-                #[cfg(feature = "shortint")]
-                shortint_config: ShortIntConfig::all_none(),
                 #[cfg(feature = "integer")]
                 integer_config: IntegerConfig::all_none(),
             },
@@ -86,24 +78,6 @@ impl ConfigBuilder {
     #[cfg(feature = "boolean")]
     pub fn disable_bool(mut self) -> Self {
         self.config.boolean_config.bool_params = None;
-        self
-    }
-
-    #[cfg(feature = "shortint")]
-    pub fn enable_default_uint2(mut self) -> Self {
-        self.config.shortint_config.uint2_params = Some(Default::default());
-        self
-    }
-
-    #[cfg(feature = "shortint")]
-    pub fn enable_default_uint3(mut self) -> Self {
-        self.config.shortint_config.uint3_params = Some(Default::default());
-        self
-    }
-
-    #[cfg(feature = "shortint")]
-    pub fn enable_default_uint4(mut self) -> Self {
-        self.config.shortint_config.uint4_params = Some(Default::default());
         self
     }
 

@@ -101,7 +101,7 @@ where
 /// - The identifier (or identifier chain) that points to the member in the `ServerKey` that holds
 ///   the key for which the trait is implemented.
 /// - Type Variant used to identify the type at runtime (see `error.rs`)
-#[cfg(any(feature = "integer", feature = "shortint", feature = "boolean"))]
+#[cfg(feature = "boolean")]
 macro_rules! impl_with_global_key {
     (
         for $implementor:ty {
