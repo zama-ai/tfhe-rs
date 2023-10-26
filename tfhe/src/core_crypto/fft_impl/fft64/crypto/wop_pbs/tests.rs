@@ -767,12 +767,11 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
         let decoded_message = decomposer.closest_representable(decrypted_message.0) >> delta_log.0;
 
         // print information if the result is wrong
-        if decoded_message != cleartext {
-            panic!(
-                "decoded_message ({decoded_message:?}) != cleartext ({cleartext:?})\n\
+        assert!(
+            decoded_message == cleartext,
+            "decoded_message ({decoded_message:?}) != cleartext ({cleartext:?})\n\
                 decrypted_message: {decrypted_message:?}, decoded_message: {decoded_message:?}",
-            );
-        }
+        );
         println!("{decoded_message:?}");
     }
 }

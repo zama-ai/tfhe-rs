@@ -2500,7 +2500,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    executor.setup(&cks, sks.clone());
+    executor.setup(&cks, sks);
 
     let mut clear;
 
@@ -2546,7 +2546,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    executor.setup(&cks, sks.clone());
+    executor.setup(&cks, sks);
 
     let mut clear;
 

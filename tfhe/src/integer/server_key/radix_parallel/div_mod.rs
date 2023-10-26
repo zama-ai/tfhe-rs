@@ -172,7 +172,7 @@ impl ServerKey {
             })
             .collect::<Vec<_>>();
 
-        for i in (0..=total_bits as usize - 1).rev() {
+        for i in (0..total_bits as usize).rev() {
             let block_of_bit = i / num_bits_in_message as usize;
             let pos_in_block = i % num_bits_in_message as usize;
 
