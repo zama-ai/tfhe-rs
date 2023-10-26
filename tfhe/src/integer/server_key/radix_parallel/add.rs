@@ -831,8 +831,7 @@ impl ServerKey {
                             .iter()
                             .rev()
                             .position(|block| block.degree.0 != 0)
-                            .map(|pos| num_blocks - pos - 1)
-                            .unwrap_or(num_blocks - 1);
+                            .map_or(num_blocks - 1, |pos| num_blocks - pos - 1);
                         last_block_where_addition_happened =
                             last_block_where_addition_happened.max(last_block_to_add);
                         for (ct_left_i, ct_right_i) in s.blocks_mut()

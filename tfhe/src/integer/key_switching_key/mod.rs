@@ -31,9 +31,7 @@ impl KeySwitchingKey {
             ),
         };
 
-        if ret.key.cast_rshift != 0 {
-            panic!("Attempt to build a KeySwitchingKey between integer key pairs with different message modulus and carry");
-        }
+        assert!(ret.key.cast_rshift == 0, "Attempt to build a KeySwitchingKey between integer key pairs with different message modulus and carry");
 
         ret
     }

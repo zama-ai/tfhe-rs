@@ -67,9 +67,9 @@ where
         distribution: D,
         slice: &mut [Self],
     ) {
-        slice.iter_mut().for_each(|s| {
+        for s in slice.iter_mut() {
             *s = Self::generate_one(generator, distribution);
-        });
+        }
     }
 }
 

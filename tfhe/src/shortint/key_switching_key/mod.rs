@@ -63,9 +63,10 @@ impl KeySwitchingKey {
             key_pair_1.0.parameters.carry_modulus().0 * key_pair_1.0.parameters.message_modulus().0;
         let full_message_modulus_2 =
             key_pair_2.0.parameters.carry_modulus().0 * key_pair_2.0.parameters.message_modulus().0;
-        if !full_message_modulus_1.is_power_of_two() || !full_message_modulus_2.is_power_of_two() {
-            panic!("Cannot create casting key if the full messages moduli are not a power of 2");
-        }
+        assert!(
+            full_message_modulus_1.is_power_of_two() && full_message_modulus_2.is_power_of_two(),
+            "Cannot create casting key if the full messages moduli are not a power of 2"
+        );
 
         let nb_bits_1: i8 = full_message_modulus_1.ilog2().try_into().unwrap();
         let nb_bits_2: i8 = full_message_modulus_2.ilog2().try_into().unwrap();

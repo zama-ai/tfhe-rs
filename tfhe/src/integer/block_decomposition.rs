@@ -65,7 +65,7 @@ impl<const N: usize> RecomposableFrom<u8> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u64> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u8> for StaticUnsignedBigInt<N> {}
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct BlockDecomposer<T> {
     data: T,
     bit_mask: T,
@@ -124,7 +124,7 @@ where
             return None;
         }
 
-        if self.limit.map(|limit| limit == self.data).unwrap_or(false) {
+        if self.limit.is_some_and(|limit| limit == self.data) {
             return None;
         }
 

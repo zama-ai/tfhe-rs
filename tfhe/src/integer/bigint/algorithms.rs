@@ -111,7 +111,7 @@ where
         match cmp {
             std::cmp::Ordering::Less => std::cmp::Ordering::Greater,
             std::cmp::Ordering::Greater => std::cmp::Ordering::Less,
-            _ => unreachable!(),
+            std::cmp::Ordering::Equal => unreachable!(),
         }
     } else {
         cmp

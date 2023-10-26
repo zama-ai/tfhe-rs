@@ -80,8 +80,9 @@ impl ServerKey {
                 // blocks  after lhs's last block
                 let is_scalar_obviously_bigger = scalar_blocks
                     .get(ct.blocks().len()..)
-                    .map(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0))
-                    .unwrap_or(false);
+                    .is_some_and(|sub_slice| {
+                        sub_slice.iter().any(|&scalar_block| scalar_block != 0)
+                    });
                 if is_scalar_obviously_bigger {
                     return Some(std::cmp::Ordering::Greater);
                 }
@@ -370,7 +371,7 @@ impl ServerKey {
 
         if T::IS_SIGNED {
             match self.is_scalar_out_of_bounds(lhs, rhs) {
-                Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Less) => {
+                Some(std::cmp::Ordering::Greater | std::cmp::Ordering::Less) => {
                     // Scalar is not within bounds so it cannot be equal
                     return self.create_trivial_radix(0, lhs.blocks().len());
                 }
@@ -395,7 +396,7 @@ impl ServerKey {
         let max_value = total_modulus - 1;
 
         assert!(carry_modulus >= message_modulus);
-        assert!(max_value <= u8::MAX as usize);
+        assert!(u8::try_from(max_value).is_ok());
 
         let num_blocks = lhs.blocks().len();
         let num_blocks_halved = (num_blocks / 2) + (num_blocks % 2);
@@ -411,8 +412,7 @@ impl ServerKey {
         // then lhs != rhs
         let is_scalar_obviously_bigger = scalar_blocks
             .get(num_blocks_halved..) // We may have less scalar blocks
-            .map(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0))
-            .unwrap_or(false);
+            .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
         if is_scalar_obviously_bigger {
             return self.create_trivial_zero_radix(num_blocks);
         }
@@ -472,7 +472,7 @@ impl ServerKey {
 
         if T::IS_SIGNED {
             match self.is_scalar_out_of_bounds(lhs, rhs) {
-                Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Less) => {
+                Some(std::cmp::Ordering::Greater | std::cmp::Ordering::Less) => {
                     // Scalar is not within bounds so its not equal
                     return self.create_trivial_radix(1, lhs.blocks().len());
                 }
@@ -494,7 +494,7 @@ impl ServerKey {
         let max_value = total_modulus - 1;
 
         assert!(carry_modulus >= message_modulus);
-        assert!(max_value <= u8::MAX as usize);
+        assert!(u8::try_from(max_value).is_ok());
 
         let num_blocks = lhs.blocks().len();
         let num_blocks_halved = (num_blocks / 2) + (num_blocks % 2);
@@ -510,8 +510,7 @@ impl ServerKey {
         // then lhs != rhs
         let is_scalar_obviously_bigger = scalar_blocks
             .get(num_blocks_halved..) // We may have less scalar blocks
-            .map(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0))
-            .unwrap_or(false);
+            .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
         if is_scalar_obviously_bigger {
             return self.create_trivial_radix(1, num_blocks);
         }

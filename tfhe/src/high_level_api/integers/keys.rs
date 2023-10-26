@@ -42,7 +42,7 @@ impl IntegerConfig {
     pub fn enable_wopbs(&mut self) {
         let wopbs_block_parameters = match self.block_parameters.encryption_key_choice() {
             EncryptionKeyChoice::Big => crate::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            _ => panic!("WOPBS only support KS_PBS parameters")
+            EncryptionKeyChoice::Small=> panic!("WOPBS only support KS_PBS parameters")
         };
 
         self.wopbs_block_parameters = Some(wopbs_block_parameters);
@@ -124,16 +124,15 @@ pub struct IntegerCompressedServerKey {
 impl IntegerCompressedServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
         let integer_key = &client_key.key;
-        if client_key.wopbs_block_parameters.is_some() {
-            panic!(
-                "The configuration used to create the ClientKey \
+        assert!(
+            client_key.wopbs_block_parameters.is_none(),
+            "The configuration used to create the ClientKey \
                    had function evaluation on integers enabled.
                    This feature requires an additional key that is not
                    compressible. Thus, It is not possible
                    to create a CompressedServerKey.
                    "
-            );
-        }
+        );
         let key = crate::integer::CompressedServerKey::new(integer_key);
         Self { key }
     }

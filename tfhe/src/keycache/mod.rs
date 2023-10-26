@@ -166,13 +166,12 @@ pub mod utils {
                 // we check if we can load the key from persistent storage
                 let persistent_storage = &self.persistent_storage;
                 let maybe_key = persistent_storage.load(param);
-                match maybe_key {
-                    Some(key) => key,
-                    None => {
-                        let key = K::from(param);
-                        persistent_storage.store(param, &key);
-                        key
-                    }
+                if let Some(key) = maybe_key {
+                    key
+                } else {
+                    let key = K::from(param);
+                    persistent_storage.store(param, &key);
+                    key
                 }
             };
 
@@ -194,24 +193,23 @@ pub mod utils {
                 }
             };
 
-            match try_load_from_memory_and_init() {
-                Ok(result) => f(&result),
-                Err(()) => {
-                    {
-                        // we only hold a write lock for a short duration to push the lazily
-                        // evaluated key without actually evaluating the key
-                        let mut memory_storage = self.memory_storage.write().unwrap();
-                        if !memory_storage.iter().any(|(p, _)| *p == param) {
-                            memory_storage.push((
-                                param,
-                                SharedKey {
-                                    inner: Arc::new(OnceLock::new()),
-                                },
-                            ));
-                        }
+            if let Ok(result) = try_load_from_memory_and_init() {
+                f(&result)
+            } else {
+                {
+                    // we only hold a write lock for a short duration to push the lazily
+                    // evaluated key without actually evaluating the key
+                    let mut memory_storage = self.memory_storage.write().unwrap();
+                    if !memory_storage.iter().any(|(p, _)| *p == param) {
+                        memory_storage.push((
+                            param,
+                            SharedKey {
+                                inner: Arc::new(OnceLock::new()),
+                            },
+                        ));
                     }
-                    f(&try_load_from_memory_and_init().ok().unwrap())
                 }
+                f(&try_load_from_memory_and_init().ok().unwrap())
             }
         }
     }

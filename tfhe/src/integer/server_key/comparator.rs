@@ -693,8 +693,7 @@ impl<'a> Comparator<'a> {
         // blocks  after lhs's last block
         let is_scalar_obviously_bigger = scalar_blocks
             .get(lhs_blocks.len()..)
-            .map(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0))
-            .unwrap_or(false);
+            .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
         if is_scalar_obviously_bigger {
             return self.server_key.key.create_trivial(Self::IS_INFERIOR);
         }

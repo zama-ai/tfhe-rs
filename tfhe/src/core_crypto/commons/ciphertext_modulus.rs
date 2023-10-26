@@ -106,26 +106,23 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         if exponent > Scalar::BITS {
             Err("Modulus is bigger than the maximum value of the associated Scalar type")
         } else {
-            let res = match 1u128.checked_shl(exponent as u32) {
-                Some(modulus) => {
-                    let non_zero_modulus = match NonZeroU128::new(modulus) {
-                        Some(val) => val,
-                        None => {
-                            panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
-                        }
-                    };
-                    Self {
-                        inner: CiphertextModulusInner::Custom(non_zero_modulus),
-                        _scalar: PhantomData,
+            let res = if let Some(modulus) = 1u128.checked_shl(exponent as u32) {
+                let non_zero_modulus = match NonZeroU128::new(modulus) {
+                    Some(val) => val,
+                    None => {
+                        panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
                     }
+                };
+                Self {
+                    inner: CiphertextModulusInner::Custom(non_zero_modulus),
+                    _scalar: PhantomData,
                 }
-                None => {
-                    assert!(exponent == 128);
-                    assert!(Scalar::BITS == 128);
-                    Self {
-                        inner: CiphertextModulusInner::Native,
-                        _scalar: PhantomData,
-                    }
+            } else {
+                assert!(exponent == 128);
+                assert!(Scalar::BITS == 128);
+                Self {
+                    inner: CiphertextModulusInner::Native,
+                    _scalar: PhantomData,
                 }
             };
             Ok(res.canonicalize())
