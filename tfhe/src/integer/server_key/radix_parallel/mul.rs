@@ -361,6 +361,7 @@ impl ServerKey {
                 let mut result = self.blockshift(lhs, i);
                 result.blocks_mut()[i..]
                     .par_iter_mut()
+                    .filter(|block| block.degree.0 != 0)
                     .for_each(|lhs_block| {
                         self.key.unchecked_apply_lookup_table_bivariate_assign(
                             lhs_block,
@@ -383,6 +384,7 @@ impl ServerKey {
                         let mut result = self.blockshift(lhs, i + 1);
                         result.blocks_mut()[i + 1..]
                             .par_iter_mut()
+                            .filter(|block| block.degree.0 != 0)
                             .for_each(|lhs_block| {
                                 self.key.unchecked_apply_lookup_table_bivariate_assign(
                                     lhs_block,
