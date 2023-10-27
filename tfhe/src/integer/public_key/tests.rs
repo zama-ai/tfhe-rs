@@ -1,6 +1,6 @@
 use rand::Rng;
 
-use crate::integer::{gen_keys, CompressedPublicKey, PublicKey};
+use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey};
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
 
@@ -30,7 +30,7 @@ create_parametrized_test!(small_radix_encrypt_decrypt_compact_128_bits_list {
 /// Test that the public key can encrypt a 128 bit number
 /// in radix decomposition, and that the client key can decrypt it
 fn big_radix_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param);
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let public_key = PublicKey::new(&cks);
 
     // RNG
@@ -50,7 +50,7 @@ fn big_radix_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
 }
 
 fn radix_encrypt_decrypt_compressed_128_bits(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param);
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let public_key = CompressedPublicKey::new(&cks);
 
     // RNG
@@ -78,7 +78,7 @@ fn small_radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameter
 }
 
 fn radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
-    let (cks, _) = gen_keys(params);
+    let (cks, _) = gen_keys(params, IntegerKeyKind::Radix);
     let pk = crate::integer::public_key::CompactPublicKey::new(&cks);
 
     let mut rng = rand::thread_rng();

@@ -53,8 +53,16 @@ impl CrtClientKey {
         self.key.encrypt_crt(message, self.moduli.clone())
     }
 
+    pub fn encrypt_native_crt(&self, message: u64) -> CrtCiphertext {
+        self.key.encrypt_native_crt(message, self.moduli.clone())
+    }
+
     pub fn decrypt(&self, ciphertext: &CrtCiphertext) -> u64 {
         self.key.decrypt_crt(ciphertext)
+    }
+
+    pub fn decrypt_native_crt(&self, ciphertext: &CrtCiphertext) -> u64 {
+        self.key.decrypt_native_crt(ciphertext)
     }
 
     /// Returns the parameters used by the client key.

@@ -12,7 +12,7 @@ use rand::prelude::*;
 use rand::Rng;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
-use tfhe::integer::{RadixCiphertext, ServerKey};
+use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey};
 use tfhe::keycache::NamedParam;
 
 use tfhe::integer::U256;
@@ -118,7 +118,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_two_values = || {
                 let clear_0 = gen_random_u256(&mut rng);
@@ -186,7 +186,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_two_values = || {
                 let clear_0 = gen_random_u256(&mut rng);
@@ -243,7 +243,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_one_value = || {
                 let clear_0 = gen_random_u256(&mut rng);
@@ -308,7 +308,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_one_value = || {
                 let clear_0 = gen_random_u256(&mut rng);
@@ -362,7 +362,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_one_value = || {
                 let clear_0 = gen_random_u256(&mut rng);
@@ -435,7 +435,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_one_value = || {
                 let clear_0 = gen_random_u256(&mut rng);
@@ -515,7 +515,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_tree_values = || {
                 let clear_0 = gen_random_u256(&mut rng);

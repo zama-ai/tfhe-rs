@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use tfhe::integer::ciphertext::RadixCiphertext;
 use tfhe::integer::keycache::IntegerKeyCache;
-use tfhe::integer::ServerKey;
+use tfhe::integer::{IntegerKeyKind, ServerKey};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 mod fhe;
@@ -73,7 +73,8 @@ fn test_volume_match_fhe(
 ) {
     println!("Generating keys...");
     let time = Instant::now();
-    let (client_key, server_key) = IntegerKeyCache.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    let (client_key, server_key) =
+        IntegerKeyCache.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
     println!("Keys generated in {:?}", time.elapsed());
 
     println!("Running test cases for the FHE implementation");

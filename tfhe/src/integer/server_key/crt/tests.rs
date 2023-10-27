@@ -1,4 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::IntegerKeyKind;
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
 use rand::Rng;
@@ -33,14 +34,14 @@ fn make_basis(message_modulus: usize) -> Vec<u64> {
 
 #[test]
 fn integer_unchecked_crt_add_32_bits() {
-    let params = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
+    let param = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
-    let (cks, sks) = KEY_CACHE.get_from_params(params);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
@@ -66,14 +67,14 @@ fn integer_unchecked_crt_add_32_bits() {
 
 #[test]
 fn integer_unchecked_crt_mul_32_bits() {
-    let params = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
+    let param = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
-    let (cks, sks) = KEY_CACHE.get_from_params(params);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
@@ -99,14 +100,14 @@ fn integer_unchecked_crt_mul_32_bits() {
 
 #[test]
 fn integer_unchecked_crt_neg_32_bits() {
-    let params = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
+    let param = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
-    let (cks, sks) = KEY_CACHE.get_from_params(params);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
@@ -127,14 +128,14 @@ fn integer_unchecked_crt_neg_32_bits() {
 
 #[test]
 fn integer_unchecked_crt_sub_32_bits() {
-    let params = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
+    let param = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
-    let (cks, sks) = KEY_CACHE.get_from_params(params);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
@@ -160,14 +161,14 @@ fn integer_unchecked_crt_sub_32_bits() {
 
 #[test]
 fn integer_unchecked_crt_scalar_add_32_bits() {
-    let params = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
+    let param = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
-    let (cks, sks) = KEY_CACHE.get_from_params(params);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
@@ -192,14 +193,14 @@ fn integer_unchecked_crt_scalar_add_32_bits() {
 
 #[test]
 fn integer_unchecked_crt_scalar_mul_32_bits() {
-    let params = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
+    let param = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
-    let (cks, sks) = KEY_CACHE.get_from_params(params);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
@@ -224,14 +225,14 @@ fn integer_unchecked_crt_scalar_mul_32_bits() {
 
 #[test]
 fn integer_unchecked_crt_scalar_sub_32_bits() {
-    let params = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
+    let param = PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
-    let (cks, sks) = KEY_CACHE.get_from_params(params);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TEST {
@@ -256,7 +257,7 @@ fn integer_unchecked_crt_scalar_sub_32_bits() {
 
 fn integer_unchecked_crt_mul(param: ClassicPBSParameters) {
     // generate the server-client key set
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -289,7 +290,7 @@ fn integer_smart_crt_add(param: ClassicPBSParameters) {
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -316,7 +317,7 @@ fn integer_smart_crt_add(param: ClassicPBSParameters) {
 
 fn integer_smart_crt_mul(param: ClassicPBSParameters) {
     // generate the server-client key set
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
@@ -351,7 +352,7 @@ fn integer_smart_crt_neg(param: ClassicPBSParameters) {
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -381,7 +382,7 @@ fn integer_smart_crt_scalar_add(param: ClassicPBSParameters) {
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -409,7 +410,7 @@ fn integer_smart_crt_scalar_mul(param: ClassicPBSParameters) {
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -437,7 +438,7 @@ fn integer_smart_crt_scalar_sub(param: ClassicPBSParameters) {
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -468,7 +469,7 @@ fn integer_smart_crt_sub(param: ClassicPBSParameters) {
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
     //RNG
     let mut rng = rand::thread_rng();

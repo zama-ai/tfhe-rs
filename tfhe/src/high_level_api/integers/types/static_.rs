@@ -178,12 +178,15 @@ where
         #[cfg(feature = "internal-keycache")]
         {
             KEY_CACHE
-                .get_from_params(client_key.as_ref().parameters())
+                .get_from_params(
+                    client_key.as_ref().parameters(),
+                    crate::integer::IntegerKeyKind::Radix,
+                )
                 .1
         }
         #[cfg(not(feature = "internal-keycache"))]
         {
-            Self::new(client_key)
+            Self::new_radix_server_key(client_key)
         }
     }
 

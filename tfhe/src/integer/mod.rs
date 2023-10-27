@@ -20,14 +20,14 @@
 //! //4 blocks for the radix decomposition
 //! let number_of_blocks = 4;
 //! // Modulus = (2^2)*4 = 2^8 (from the parameters chosen and the number of blocks
-//! let modulus = 1 << 8;
+//! let modulus = 1u64 << 8;
 //!
 //! // Generation of the client/server keys, using the default parameters:
 //! let (mut client_key, mut server_key) =
 //!     gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, number_of_blocks);
 //!
-//! let msg1 = 153;
-//! let msg2 = 125;
+//! let msg1 = 153u64;
+//! let msg2 = 125u64;
 //!
 //! // Encryption of two messages using the client key:
 //! let ct_1 = client_key.encrypt(msg1);
@@ -37,7 +37,7 @@
 //! let ct_3 = server_key.unchecked_add(&ct_1, &ct_2);
 //!
 //! // Decryption of the ciphertext using the client key:
-//! let output = client_key.decrypt(&ct_3);
+//! let output: u64 = client_key.decrypt(&ct_3);
 //! assert_eq!(output, (msg1 + msg2) % modulus);
 //! ```
 //!
@@ -76,6 +76,14 @@ pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
 pub use public_key::{CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 
+/// Enum to indicate which kind of computations the [`ServerKey`] will be performing, this changes
+/// the parameterization of the key to manage carries in the Radix case.
+#[derive(Clone, Copy, Debug)]
+pub enum IntegerKeyKind {
+    Radix,
+    CRT,
+}
+
 /// Unless you know what you are doing you are likely looking for [`gen_keys_radix`] or
 /// [`gen_keys_crt`].
 ///
@@ -84,15 +92,7 @@ pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 /// * the client key is used to encrypt and decrypt and has to be kept secret;
 /// * the server key is used to perform homomorphic operations on the server side and it is meant to
 ///   be published (the client sends it to the server).
-///
-/// ```rust
-/// use tfhe::integer::gen_keys;
-/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-///
-/// // generate the client key and the server key:
-/// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-/// ```
-pub fn gen_keys<P>(parameters_set: P) -> (ClientKey, ServerKey)
+pub(crate) fn gen_keys<P>(parameters_set: P, key_kind: IntegerKeyKind) -> (ClientKey, ServerKey)
 where
     P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
     <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
@@ -133,7 +133,10 @@ where
 
     let gen_keys_inner = |parameters_set| {
         let cks = ClientKey::new(parameters_set);
-        let sks = ServerKey::new(&cks);
+        let sks = match key_kind {
+            IntegerKeyKind::Radix => ServerKey::new_radix_server_key(&cks),
+            IntegerKeyKind::CRT => ServerKey::new_crt_server_key(&cks),
+        };
 
         (cks, sks)
     };
@@ -145,7 +148,8 @@ where
             // Keycache is broken for the wopbs only case, so generate keys instead
             gen_keys_inner(shortint_parameters_set)
         } else {
-            keycache::KEY_CACHE.get_from_params(shortint_parameters_set.pbs_parameters().unwrap())
+            keycache::KEY_CACHE
+                .get_from_params(shortint_parameters_set.pbs_parameters().unwrap(), key_kind)
         }
     }
     #[cfg(all(not(test), not(feature = "internal-keycache")))]
@@ -154,9 +158,7 @@ where
     }
 }
 
-/// Generate a couple of client and server keys with given parameters
-///
-/// Contrary to [gen_keys], this returns a [RadixClientKey]
+/// Generate a couple of client and server keys with given parameters.
 ///
 /// ```rust
 /// use tfhe::integer::gen_keys_radix;
@@ -171,14 +173,12 @@ where
     P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
     <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
 {
-    let (cks, sks) = gen_keys(parameters_set);
+    let (cks, sks) = gen_keys(parameters_set, IntegerKeyKind::Radix);
 
     (RadixClientKey::from((cks, num_blocks)), sks)
 }
 
-/// Generate a couple of client and server keys with given parameters
-///
-/// Contrary to [gen_keys], this returns a [CrtClientKey]
+/// Generate a couple of client and server keys with given parameters.
 ///
 /// ```rust
 /// use tfhe::integer::gen_keys_crt;
@@ -188,11 +188,12 @@ where
 /// let basis = vec![2, 3, 5];
 /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis);
 /// ```
-pub fn gen_keys_crt(
-    parameters_set: crate::shortint::parameters::ClassicPBSParameters,
-    basis: Vec<u64>,
-) -> (CrtClientKey, ServerKey) {
-    let (cks, sks) = gen_keys(parameters_set);
+pub fn gen_keys_crt<P>(parameters_set: P, basis: Vec<u64>) -> (CrtClientKey, ServerKey)
+where
+    P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
+    <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
+{
+    let (cks, sks) = gen_keys(parameters_set, IntegerKeyKind::CRT);
 
     (CrtClientKey::from((cks, basis)), sks)
 }
