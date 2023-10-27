@@ -11,21 +11,21 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::integer::gen_keys;
+    /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    /// let basis = vec![2, 3, 5];
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
     ///
     /// let clear = 14_u64;
-    /// let basis = vec![2, 3, 5];
     ///
-    /// let mut ctxt = cks.encrypt_crt(clear, basis.clone());
+    /// let mut ctxt = cks.encrypt(clear);
     ///
     /// sks.unchecked_crt_neg_assign_parallelized(&mut ctxt);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt_crt(&ctxt);
+    /// let res = cks.decrypt(&ctxt);
     /// assert_eq!(16, res);
     /// ```
     pub fn unchecked_crt_neg_parallelized(&self, ctxt: &CrtCiphertext) -> CrtCiphertext {
@@ -51,21 +51,21 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::integer::gen_keys;
+    /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    /// let basis = vec![2, 3, 5];
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
     ///
     /// let clear = 14_u64;
-    /// let basis = vec![2, 3, 5];
     ///
-    /// let mut ctxt = cks.encrypt_crt(clear, basis.clone());
+    /// let mut ctxt = cks.encrypt(clear);
     ///
     /// sks.smart_crt_neg_assign_parallelized(&mut ctxt);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt_crt(&ctxt);
+    /// let res = cks.decrypt(&ctxt);
     /// assert_eq!(16, res);
     /// ```
     pub fn smart_crt_neg_assign_parallelized(&self, ctxt: &mut CrtCiphertext) {

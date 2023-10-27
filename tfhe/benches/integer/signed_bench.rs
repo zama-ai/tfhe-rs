@@ -10,7 +10,7 @@ use rand::prelude::*;
 use rand::Rng;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
-use tfhe::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
+use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
 use tfhe::keycache::NamedParam;
 
 use tfhe::shortint::parameters::{
@@ -114,7 +114,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_two_values = || {
                 let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -167,7 +167,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_two_values = || {
                 let clear_1 = rng.gen_range(0u128..bit_size as u128);
@@ -223,7 +223,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_one_value =
                 || cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -266,7 +266,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_tree_values = || {
                 let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -691,7 +691,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param);
+            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
             let encrypt_one_value = || {
                 let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);

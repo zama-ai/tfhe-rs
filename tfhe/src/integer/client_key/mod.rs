@@ -80,6 +80,12 @@ impl AsRef<Self> for ClientKey {
     }
 }
 
+impl AsRef<ShortintClientKey> for ClientKey {
+    fn as_ref(&self) -> &ShortintClientKey {
+        &self.key
+    }
+}
+
 impl ClientKey {
     /// Creates a Client Key.
     ///
@@ -431,19 +437,19 @@ impl ClientKey {
     /// # Example
     ///
     /// ```
-    /// use tfhe::integer::{gen_keys, BooleanBlock};
+    /// use tfhe::integer::{gen_keys_radix, BooleanBlock};
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // We have 4 * 2 = 8 bits of message
     /// let size = 4;
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, size);
     ///
     /// let a = cks.encrypt_bool(false);
     /// let dec = cks.decrypt_bool(&a);
     /// assert_eq!(dec, false);
     ///
     /// let a = a.into_radix(size, &sks);
-    /// let dec: u64 = cks.decrypt_radix(&a);
+    /// let dec: u64 = cks.decrypt(&a);
     /// assert_eq!(dec, 0);
     /// ```
     pub fn encrypt_bool(&self, msg: bool) -> BooleanBlock {

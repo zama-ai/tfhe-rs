@@ -27,7 +27,8 @@
 //! homomorphically.
 //!
 //! ```rust
-//! use tfhe::shortint::{gen_keys, Parameters};
+//! use tfhe::shortint::gen_keys;
+//! use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 //!
 //! // We generate a set of client/server keys, using the default parameters:
 //! let (mut client_key, mut server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);

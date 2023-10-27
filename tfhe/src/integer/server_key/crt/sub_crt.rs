@@ -10,24 +10,24 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::integer::gen_keys;
+    /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 5;
-    /// let basis = vec![2, 3, 5];
-    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
-    /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
-    /// let mut ctxt_2 = cks.encrypt_crt(clear_2, basis.clone());
+    /// let mut ctxt_1 = cks.encrypt(clear_1);
+    /// let mut ctxt_2 = cks.encrypt(clear_2);
     ///
     /// let ctxt = sks.unchecked_crt_sub(&mut ctxt_1, &mut ctxt_2);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt_crt(&ctxt);
+    /// let res = cks.decrypt(&ctxt);
     /// assert_eq!((clear_1 - clear_2) % modulus, res);
     /// ```
     pub fn unchecked_crt_sub(
@@ -49,24 +49,24 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::integer::gen_keys;
+    /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 5;
-    /// let basis = vec![2, 3, 5];
-    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
-    /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
-    /// let mut ctxt_2 = cks.encrypt_crt(clear_2, basis.clone());
+    /// let mut ctxt_1 = cks.encrypt(clear_1);
+    /// let mut ctxt_2 = cks.encrypt(clear_2);
     ///
     /// let ctxt = sks.unchecked_crt_sub(&mut ctxt_1, &mut ctxt_2);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt_crt(&ctxt);
+    /// let res = cks.decrypt(&ctxt);
     /// assert_eq!((clear_1 - clear_2) % modulus, res);
     /// ```
     pub fn unchecked_crt_sub_assign(
@@ -83,24 +83,24 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::integer::gen_keys;
+    /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 5;
-    /// let basis = vec![2, 3, 5];
-    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
-    /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
-    /// let mut ctxt_2 = cks.encrypt_crt(clear_2, basis.clone());
+    /// let mut ctxt_1 = cks.encrypt(clear_1);
+    /// let mut ctxt_2 = cks.encrypt(clear_2);
     ///
     /// let ctxt = sks.smart_crt_sub(&mut ctxt_1, &mut ctxt_2);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt_crt(&ctxt);
+    /// let res = cks.decrypt(&ctxt);
     /// assert_eq!((clear_1 - clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_sub(
@@ -127,24 +127,24 @@ impl ServerKey {
     /// # Example
     ///
     ///```rust
-    /// use tfhe::integer::gen_keys;
+    /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+    /// let basis = vec![2, 3, 5];
+    /// let modulus: u64 = basis.iter().product();
+    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS, basis);
     ///
     /// let clear_1 = 14;
     /// let clear_2 = 5;
-    /// let basis = vec![2, 3, 5];
-    /// let modulus: u64 = basis.iter().product();
     /// // Encrypt two messages
-    /// let mut ctxt_1 = cks.encrypt_crt(clear_1, basis.clone());
-    /// let mut ctxt_2 = cks.encrypt_crt(clear_2, basis.clone());
+    /// let mut ctxt_1 = cks.encrypt(clear_1);
+    /// let mut ctxt_2 = cks.encrypt(clear_2);
     ///
     /// sks.smart_crt_sub_assign(&mut ctxt_1, &mut ctxt_2);
     ///
     /// // Decrypt
-    /// let res = cks.decrypt_crt(&ctxt_1);
+    /// let res = cks.decrypt(&ctxt_1);
     /// assert_eq!((clear_1 - clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_sub_assign(
@@ -158,9 +158,7 @@ impl ServerKey {
             self.full_extract_message_assign(ctxt_right);
         }
 
-        // assert broken because of issue
-        // https://github.com/zama-ai/tfhe-rs-internal/issues/256
-        // assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
+        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
 
         self.unchecked_crt_sub_assign(ctxt_left, ctxt_right);
     }

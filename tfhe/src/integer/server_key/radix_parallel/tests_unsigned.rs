@@ -1,5 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
 use paste::paste;
 use rand::Rng;
@@ -574,7 +574,7 @@ fn integer_smart_add_sequence_multi_thread<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     //RNG
@@ -613,7 +613,7 @@ fn integer_smart_add_sequence_single_thread<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     //RNG
@@ -843,7 +843,7 @@ fn integer_default_add_sequence_multi_thread<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -887,7 +887,7 @@ fn integer_default_add_sequence_single_thread<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1048,7 +1048,8 @@ where
 #[test]
 fn test_non_regression_clone_from() {
     // Issue: https://github.com/zama-ai/tfhe-rs/issues/410
-    let (client_key, server_key) = KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2);
+    let (client_key, server_key) =
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2, IntegerKeyKind::Radix);
     const NUM_BLOCK: usize = 4;
     let a: u8 = 248;
     let b: u8 = 249;

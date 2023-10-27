@@ -1,5 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{RadixClientKey, ServerKey, SignedRadixCiphertext};
+use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
 use crate::shortint::parameters::*;
 use itertools::{iproduct, izip};
 use paste::paste;
@@ -318,7 +318,7 @@ create_parametrized_test!(integer_signed_encrypt_decrypt);
 create_parametrized_test!(integer_signed_encrypt_decrypt_128_bits);
 
 fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
-    let (cks, _) = KEY_CACHE.get_from_params(param);
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
     let num_block =
@@ -335,7 +335,7 @@ fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -460,7 +460,7 @@ create_parametrized_test!(integer_signed_unchecked_div_rem_floor {
 create_parametrized_test!(integer_signed_unchecked_absolute_value);
 
 fn integer_signed_unchecked_add(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -498,7 +498,7 @@ fn integer_signed_unchecked_add(param: impl Into<PBSParameters>) {
 // but test the non parallel version here anyway
 // as it is used in other parallel ops (e.g: sub)
 fn integer_signed_unchecked_neg(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -539,7 +539,7 @@ fn integer_signed_unchecked_neg(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_sub(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -582,7 +582,7 @@ where
         &'a SignedRadixCiphertext,
     ) -> (SignedRadixCiphertext, crate::shortint::Ciphertext),
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -677,7 +677,7 @@ where
 }
 
 fn integer_signed_unchecked_mul(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -695,7 +695,7 @@ fn integer_signed_unchecked_mul(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_bitand(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -713,7 +713,7 @@ fn integer_signed_unchecked_bitand(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_bitor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -731,7 +731,7 @@ fn integer_signed_unchecked_bitor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -749,7 +749,7 @@ fn integer_signed_unchecked_bitxor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -791,7 +791,7 @@ fn integer_signed_unchecked_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
@@ -842,7 +842,7 @@ fn integer_signed_unchecked_right_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
@@ -894,7 +894,7 @@ fn integer_signed_unchecked_rotate_left<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
@@ -945,7 +945,7 @@ fn integer_signed_unchecked_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
@@ -992,7 +992,7 @@ where
 }
 
 fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -1045,7 +1045,7 @@ fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_div_rem_floor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -1135,7 +1135,7 @@ create_parametrized_test!(integer_signed_smart_neg);
 create_parametrized_test!(integer_signed_smart_absolute_value);
 
 fn integer_signed_smart_add(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -1172,7 +1172,7 @@ fn integer_signed_smart_neg<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
@@ -1201,7 +1201,7 @@ where
 }
 
 fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -1293,7 +1293,7 @@ fn integer_signed_default_add<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1338,7 +1338,7 @@ fn integer_signed_default_neg<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1386,7 +1386,7 @@ fn integer_signed_default_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1430,7 +1430,7 @@ fn integer_signed_default_overflowing_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1547,7 +1547,7 @@ fn integer_signed_default_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1588,7 +1588,7 @@ where
 }
 
 fn integer_signed_default_bitnot(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -1611,7 +1611,7 @@ fn integer_signed_default_bitnot(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_bitand(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -1655,7 +1655,7 @@ fn integer_signed_default_bitand(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_bitor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -1699,7 +1699,7 @@ fn integer_signed_default_bitor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -1743,7 +1743,7 @@ fn integer_signed_default_bitxor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -1780,7 +1780,7 @@ fn integer_signed_default_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1863,7 +1863,7 @@ fn integer_signed_default_right_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1946,7 +1946,7 @@ fn integer_signed_default_rotate_left<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -2032,7 +2032,7 @@ fn integer_signed_default_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -2130,7 +2130,7 @@ create_parametrized_test!(integer_signed_unchecked_scalar_div_rem);
 create_parametrized_test!(integer_signed_unchecked_scalar_div_rem_floor);
 
 fn integer_signed_unchecked_scalar_add(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2166,7 +2166,7 @@ fn integer_signed_unchecked_scalar_add(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_sub(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2202,7 +2202,7 @@ fn integer_signed_unchecked_scalar_sub(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_mul(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2222,7 +2222,7 @@ fn integer_signed_unchecked_scalar_mul(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_bitand(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2242,7 +2242,7 @@ fn integer_signed_unchecked_scalar_bitand(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_bitor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2262,7 +2262,7 @@ fn integer_signed_unchecked_scalar_bitor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2282,7 +2282,7 @@ fn integer_signed_unchecked_scalar_bitxor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_rotate_left(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2318,7 +2318,7 @@ fn integer_signed_unchecked_scalar_rotate_left(param: impl Into<PBSParameters>) 
 }
 
 fn integer_signed_unchecked_scalar_rotate_right(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2354,7 +2354,7 @@ fn integer_signed_unchecked_scalar_rotate_right(param: impl Into<PBSParameters>)
 }
 
 fn integer_signed_unchecked_scalar_left_shift(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2390,7 +2390,7 @@ fn integer_signed_unchecked_scalar_left_shift(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_right_shift(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2426,7 +2426,7 @@ fn integer_signed_unchecked_scalar_right_shift(param: impl Into<PBSParameters>) 
 }
 
 fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2571,7 +2571,7 @@ fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2695,7 +2695,7 @@ fn integer_signed_default_scalar_add<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -2733,7 +2733,7 @@ where
 }
 
 fn integer_signed_default_scalar_bitand(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -2769,7 +2769,7 @@ fn integer_signed_default_scalar_bitand(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_scalar_bitor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -2805,7 +2805,7 @@ fn integer_signed_default_scalar_bitor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_scalar_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -2841,7 +2841,7 @@ fn integer_signed_default_scalar_bitxor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -2896,7 +2896,7 @@ fn integer_signed_default_scalar_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -2958,7 +2958,7 @@ fn integer_signed_default_scalar_right_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -3020,7 +3020,7 @@ fn integer_signed_default_scalar_rotate_left<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -3084,7 +3084,7 @@ fn integer_signed_default_scalar_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);

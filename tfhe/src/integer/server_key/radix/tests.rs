@@ -1,5 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{ServerKey, U256};
+use crate::integer::{IntegerKeyKind, ServerKey, U256};
 use crate::shortint::parameters::*;
 use crate::shortint::ClassicPBSParameters;
 use rand::Rng;
@@ -69,7 +69,7 @@ create_parametrized_test!(integer_full_propagate {
 });
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param);
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -87,7 +87,7 @@ fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
 }
 
 fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param);
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
@@ -103,7 +103,7 @@ fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
 }
 
 fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
     {
@@ -155,7 +155,7 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters)
 }
 
 fn integer_encrypt_decrypt_256_bits_specific_values(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param);
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
     {
@@ -179,7 +179,7 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: ClassicPBSParameters)
 }
 
 fn integer_encrypt_decrypt_256_bits(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param);
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     // RNG
     let mut rng = rand::thread_rng();
@@ -203,7 +203,7 @@ fn integer_encrypt_decrypt_256_bits(param: ClassicPBSParameters) {
 }
 
 fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
@@ -241,7 +241,7 @@ fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_add(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -262,7 +262,7 @@ fn integer_unchecked_add(param: ClassicPBSParameters) {
 }
 
 fn integer_smart_add(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -294,7 +294,7 @@ fn integer_smart_add(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_bitand(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -325,7 +325,7 @@ fn integer_unchecked_bitand(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_bitor(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -356,7 +356,7 @@ fn integer_unchecked_bitor(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_bitxor(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -387,7 +387,7 @@ fn integer_unchecked_bitxor(param: ClassicPBSParameters) {
 }
 
 fn integer_smart_bitand(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -432,7 +432,7 @@ fn integer_smart_bitand(param: ClassicPBSParameters) {
 }
 
 fn integer_smart_bitor(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -477,7 +477,7 @@ fn integer_smart_bitor(param: ClassicPBSParameters) {
 }
 
 fn integer_smart_bitxor(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -522,7 +522,7 @@ fn integer_smart_bitxor(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -552,7 +552,7 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
 }
 
 fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -589,7 +589,7 @@ fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
 }
 
 fn integer_blockshift(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -620,7 +620,7 @@ fn integer_blockshift(param: ClassicPBSParameters) {
 }
 
 fn integer_blockshift_right(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -651,7 +651,7 @@ fn integer_blockshift_right(param: ClassicPBSParameters) {
 }
 
 fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -679,7 +679,7 @@ fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_scalar_left_shift(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -713,7 +713,7 @@ fn integer_unchecked_scalar_left_shift(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_scalar_right_shift(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -756,7 +756,7 @@ where
 }
 
 fn integer_smart_neg(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -792,7 +792,7 @@ where
 }
 
 fn integer_smart_sub(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -826,7 +826,7 @@ fn integer_smart_sub(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_block_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -859,7 +859,7 @@ fn integer_unchecked_block_mul(param: ClassicPBSParameters) {
 }
 
 fn integer_smart_block_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -896,7 +896,7 @@ fn integer_smart_block_mul(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -925,7 +925,7 @@ fn integer_unchecked_mul(param: ClassicPBSParameters) {
 }
 
 fn integer_smart_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     //RNG
     let mut rng = rand::thread_rng();
@@ -971,7 +971,7 @@ where
 
 fn integer_smart_scalar_add(param: ClassicPBSParameters) {
     // generate the server-client key set
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
@@ -1020,7 +1020,7 @@ where
 
 fn integer_smart_scalar_sub(param: ClassicPBSParameters) {
     // generate the server-client key set
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32) as u64;
@@ -1069,7 +1069,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
 
     let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     // Check addition
     // --------------
@@ -1109,7 +1109,7 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
 
     let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let scalar = rng.gen::<u64>();
     let clear_0 = rng.gen::<u128>();

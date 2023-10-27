@@ -93,6 +93,7 @@ impl From<CompressedPublicKey> for PublicKey {
 #[cfg(test)]
 mod tests {
     use crate::integer::keycache::KEY_CACHE;
+    use crate::integer::IntegerKeyKind;
     use crate::shortint::parameters::*;
     use crate::shortint::ClassicPBSParameters;
 
@@ -101,7 +102,7 @@ mod tests {
     });
 
     fn integer_public_key_decompression_small(param: ClassicPBSParameters) {
-        let (cks, sks) = KEY_CACHE.get_from_params(param);
+        let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
         let compressed_pk = crate::integer::CompressedPublicKey::new(&cks);
         let pk = crate::integer::PublicKey::from(compressed_pk);

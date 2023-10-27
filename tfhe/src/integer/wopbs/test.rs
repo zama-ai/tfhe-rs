@@ -1,8 +1,8 @@
 #![allow(unused)]
 
-use crate::integer::gen_keys;
 use crate::integer::parameters::*;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
+use crate::integer::{gen_keys, IntegerKeyKind};
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::parameters_wopbs_message_carry::*;
 use crate::shortint::parameters::{ClassicPBSParameters, *};
@@ -58,7 +58,7 @@ pub fn wopbs_native_crt() {
 
     let params = crate::shortint::parameters::parameters_wopbs::PARAM_4_BITS_5_BLOCKS;
 
-    let (cks, sks) = gen_keys(params);
+    let (cks, sks) = gen_keys(params, IntegerKeyKind::Radix);
     let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
 
     let mut msg_space = 1;
@@ -108,7 +108,7 @@ pub fn wopbs_native_crt_bivariate() {
 
     let params = (pbs_params, wopbs_params);
 
-    let (cks, sks) = gen_keys(params.0);
+    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space = 1;
@@ -143,7 +143,7 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let nb_block = basis.len();
 
-    let (cks, sks) = gen_keys(params.0);
+    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space = 1;
@@ -186,7 +186,7 @@ pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let nb_block = 2;
 
-    let (cks, sks) = gen_keys(params.0);
+    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = params.0.message_modulus.0 as u64;
@@ -223,7 +223,7 @@ pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let nb_block = 2;
 
-    let (cks, sks) = gen_keys(params.0);
+    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = params.0.message_modulus.0 as u64;
@@ -266,7 +266,7 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
     let basis = make_basis(params.1.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = gen_keys(params.0);
+    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = 1;

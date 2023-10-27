@@ -61,6 +61,14 @@ impl RadixClientKey {
         self.key.encrypt_radix(message, self.num_blocks)
     }
 
+    pub fn encrypt_without_padding<T: DecomposableInto<u64> + UnsignedNumeric>(
+        &self,
+        message: T,
+    ) -> RadixCiphertext {
+        self.key
+            .encrypt_radix_without_padding(message, self.num_blocks)
+    }
+
     pub fn encrypt_signed<T: DecomposableInto<u64> + SignedNumeric>(
         &self,
         message: T,
@@ -77,6 +85,13 @@ impl RadixClientKey {
         T: RecomposableFrom<u64> + UnsignedNumeric,
     {
         self.key.decrypt_radix(ciphertext)
+    }
+
+    pub fn decrypt_without_padding<T>(&self, ctxt: &RadixCiphertext) -> T
+    where
+        T: RecomposableFrom<u64> + UnsignedNumeric,
+    {
+        self.key.decrypt_radix_without_padding(ctxt)
     }
 
     pub fn decrypt_signed<T>(&self, ciphertext: &SignedRadixCiphertext) -> T

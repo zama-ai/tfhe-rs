@@ -97,7 +97,7 @@ impl IntegerServerKey {
             4,
             "This API only supports integers with 2 bits per block (MessageModulus(4))",
         );
-        let base_integer_key = crate::integer::ServerKey::new(cks);
+        let base_integer_key = crate::integer::ServerKey::new_radix_server_key(cks);
         let wopbs_key = client_key
             .wopbs_block_parameters
             .as_ref()
@@ -132,7 +132,7 @@ impl IntegerCompressedServerKey {
                    to create a CompressedServerKey.
                    "
         );
-        let key = crate::integer::CompressedServerKey::new(integer_key);
+        let key = crate::integer::CompressedServerKey::new_radix_compressed_server_key(integer_key);
         Self { key }
     }
 
