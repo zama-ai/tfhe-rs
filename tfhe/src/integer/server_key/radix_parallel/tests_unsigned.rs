@@ -3,6 +3,7 @@ use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
 use paste::paste;
 use rand::Rng;
+use std::sync::Arc;
 
 use super::tests_cases_unsigned::*;
 
@@ -255,7 +256,7 @@ create_parametrized_test!(integer_full_propagate {
 /// It will mainly simply forward call to a server key method
 pub(crate) struct CpuFunctionExecutor<F> {
     /// The server key is set later, when the test cast calls setup
-    sks: Option<ServerKey>,
+    sks: Option<Arc<ServerKey>>,
     /// The server key function which will be called
     func: F,
 }
@@ -279,7 +280,7 @@ impl<'a, F> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext> for CpuFuncti
 where
     F: Fn(&ServerKey, &RadixCiphertext) -> RadixCiphertext,
 {
-    fn setup(&mut self, _cks: &RadixClientKey, sks: ServerKey) {
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.sks = Some(sks)
     }
 
@@ -294,7 +295,7 @@ impl<'a, F> FunctionExecutor<&'a mut RadixCiphertext, ()> for CpuFunctionExecuto
 where
     F: Fn(&ServerKey, &'a mut RadixCiphertext),
 {
-    fn setup(&mut self, _cks: &RadixClientKey, sks: ServerKey) {
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.sks = Some(sks)
     }
 
@@ -308,7 +309,7 @@ impl<'a, F> FunctionExecutor<&'a mut RadixCiphertext, RadixCiphertext> for CpuFu
 where
     F: Fn(&ServerKey, &mut RadixCiphertext) -> RadixCiphertext,
 {
-    fn setup(&mut self, _cks: &RadixClientKey, sks: ServerKey) {
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.sks = Some(sks)
     }
 
@@ -323,7 +324,7 @@ impl<F, I1, I2, O> FunctionExecutor<(I1, I2), O> for CpuFunctionExecutor<F>
 where
     F: Fn(&ServerKey, I1, I2) -> O,
 {
-    fn setup(&mut self, _cks: &RadixClientKey, sks: ServerKey) {
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.sks = Some(sks)
     }
 
@@ -338,7 +339,7 @@ impl<F, I1, I2, I3, O> FunctionExecutor<(I1, I2, I3), O> for CpuFunctionExecutor
 where
     F: Fn(&ServerKey, I1, I2, I3) -> O,
 {
-    fn setup(&mut self, _cks: &RadixClientKey, sks: ServerKey) {
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
         self.sks = Some(sks)
     }
 
