@@ -47,6 +47,19 @@
 #![allow(clippy::ptr_as_ptr)] // 2
 #![allow(clippy::unsafe_derive_deserialize)] // 1
 #![allow(clippy::cast_possible_wrap)] // 1
+// Nursery lints
+#![warn(clippy::nursery)]
+// The following lints have been temporarily allowed
+// They are expected to be fixed progressively
+#![allow(clippy::use_self)] // 550
+#![allow(clippy::missing_const_for_fn)] // 243
+#![allow(clippy::redundant_pub_crate)] // 116
+#![allow(clippy::suboptimal_flops)] // 43
+#![allow(clippy::significant_drop_tightening)] // 10
+#![allow(clippy::cognitive_complexity)] // 6
+#![allow(clippy::iter_with_drain)] // 2
+#![allow(clippy::iter_without_into_iter)] // 1
+#![allow(clippy::large_stack_frames)] // 1
 #![cfg_attr(feature = "__wasm_api", allow(dead_code))]
 #![cfg_attr(feature = "nightly-avx512", feature(stdsimd, avx512_target_feature))]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_auto_cfg))]

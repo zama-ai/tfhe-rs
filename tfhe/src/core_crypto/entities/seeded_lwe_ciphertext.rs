@@ -9,7 +9,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::misc::check_content_respects_mod;
 
 /// A [`seeded GLWE ciphertext`](`SeededLweCiphertext`).
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SeededLweCiphertext<Scalar: UnsignedInteger> {
     data: Scalar,
     lwe_size: LweSize,

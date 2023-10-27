@@ -37,11 +37,12 @@ impl TryFrom<JsValue> for U256 {
 
 impl From<I256> for JsValue {
     fn from(mut value: I256) -> Self {
-        let mut was_neg = false;
-        if value < I256::ZERO {
+        let was_neg = if value < I256::ZERO {
             value = -value;
-            was_neg = true;
-        }
+            true
+        } else {
+            false
+        };
         let shift = JsValue::bigint_from_str("64");
         let mut result = JsValue::bigint_from_str("0");
         for v in value.0.iter().rev() {
@@ -61,11 +62,12 @@ impl TryFrom<JsValue> for I256 {
     type Error = JsError;
 
     fn try_from(mut value: JsValue) -> Result<Self, Self::Error> {
-        let mut was_neg = false;
-        if value.lt(&JsValue::from(0)) {
+        let was_neg = if value.lt(&JsValue::from(0)) {
             value = -value;
-            was_neg = true;
-        }
+            true
+        } else {
+            false
+        };
 
         let low_js = &value & JsValue::bigint_from_str(U128_MAX_AS_STR);
         let high_js =

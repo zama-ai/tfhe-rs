@@ -455,6 +455,8 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
             }
         };
 
+        // false positive as the mapping function has side effects (thread spawning)
+        #[allow(clippy::needless_collect)]
         let threads: Vec<_> = (0..thread_count.0)
             .map(|id| {
                 let tx = tx.clone();
@@ -731,6 +733,8 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
             }
         };
 
+        // false positive as the mapping function has side effects (thread spawning)
+        #[allow(clippy::needless_collect)]
         let threads: Vec<_> = (0..thread_count.0)
             .map(|idx| s.spawn(move || produce_multi_bit_fourier_ggsw(idx)))
             .collect();
@@ -1473,6 +1477,8 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
             }
         };
 
+        // false positive as the mapping function has side effects (thread spawning)
+        #[allow(clippy::needless_collect)]
         let threads: Vec<_> = (0..thread_count.0)
             .map(|id| {
                 let tx = tx.clone();
@@ -1744,6 +1750,8 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
             }
         };
 
+        // false positive as the mapping function has side effects (thread spawning)
+        #[allow(clippy::needless_collect)]
         let threads: Vec<_> = (0..thread_count.0)
             .map(|id| s.spawn(move || produce_multi_bit_fourier_ggsw(id)))
             .collect();

@@ -81,10 +81,12 @@ impl<'de, Scalar: UnsignedInteger> serde::Deserialize<'de> for CiphertextModulus
             }
         } else {
             CiphertextModulus {
-                inner: CiphertextModulusInner::Custom(NonZeroU128::new(thing.modulus).ok_or(
-                    serde::de::Error::custom(
-                        "Got zero modulus for CiphertextModulusInner::Custom variant",
-                    ),
+                inner: CiphertextModulusInner::Custom(NonZeroU128::new(thing.modulus).ok_or_else(
+                    || {
+                        serde::de::Error::custom(
+                            "Got zero modulus for CiphertextModulusInner::Custom variant",
+                        )
+                    },
                 )?),
                 _scalar: PhantomData,
             }

@@ -290,6 +290,8 @@ impl<'a> Comparator<'a> {
     {
         assert_eq!(lhs.blocks().len(), rhs.blocks().len());
 
+        // false positive as compare_blocks does not mean the same in both branches
+        #[allow(clippy::branches_sharing_code)]
         let compare_blocks_fn = if lhs.blocks()[0].carry_modulus.0
             < lhs.blocks()[0].message_modulus.0
         {
@@ -388,6 +390,8 @@ impl<'a> Comparator<'a> {
 
         let num_block = lhs.blocks().len();
 
+        // false positive as compare_blocks does not mean the same in both branches
+        #[allow(clippy::branches_sharing_code)]
         let compare_blocks_fn =
             if lhs.blocks()[0].carry_modulus.0 < lhs.blocks()[0].message_modulus.0 {
                 /// Compares blocks in parallel

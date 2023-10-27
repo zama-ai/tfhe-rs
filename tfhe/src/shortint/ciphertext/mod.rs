@@ -291,7 +291,7 @@ impl From<CompressedCiphertext> for Ciphertext {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactCiphertextList {
     pub ct_list: LweCompactCiphertextListOwned<u64>,
     pub degree: Degree,

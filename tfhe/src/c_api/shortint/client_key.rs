@@ -20,7 +20,7 @@ pub unsafe extern "C" fn shortint_gen_client_key(
         *result_client_key = std::ptr::null_mut();
 
         let shortint_parameters: crate::shortint::parameters::ClassicPBSParameters =
-            shortint_parameters.into();
+            shortint_parameters.try_into().unwrap();
 
         let client_key = shortint::client_key::ClientKey::new(shortint_parameters);
 

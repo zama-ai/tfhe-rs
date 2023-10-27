@@ -32,7 +32,7 @@ pub unsafe extern "C" fn shortint_gen_keys_with_parameters(
         *result_server_key = std::ptr::null_mut();
 
         let shortint_parameters: crate::shortint::parameters::ClassicPBSParameters =
-            shortint_parameters.into();
+            shortint_parameters.try_into().unwrap();
 
         let client_key = shortint::client_key::ClientKey::new(shortint_parameters);
         let server_key = shortint::server_key::ServerKey::new(&client_key);

@@ -340,8 +340,8 @@ impl ServerKey {
 
         let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
 
-        let mut shift_pre = 0;
-        if chosen_multiplier.multiplier >= (T::DoublePrecision::ONE << numerator_bits as usize)
+        let shift_pre = if chosen_multiplier.multiplier
+            >= (T::DoublePrecision::ONE << numerator_bits as usize)
             && is_even(divisor)
         {
             let divisor = T::DoublePrecision::cast_from(divisor);
@@ -355,8 +355,10 @@ impl ServerKey {
             assert!(numerator_bits > e && e <= T::BITS as u32);
             let divisor_odd: T = divisor_odd.cast_into(); // cast to lower precision
             chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
-            shift_pre = e as u64;
-        }
+            e as u64
+        } else {
+            0
+        };
 
         if chosen_multiplier.multiplier >= (T::DoublePrecision::ONE << numerator_bits as usize) {
             assert!(shift_pre == 0);

@@ -60,19 +60,13 @@ impl<'data, T: Numeric> CreateFrom<&'data mut [T]> for PlaintextRefMut<'data, T>
     }
 }
 
-impl<T: Numeric> From<PlaintextRef<'_, T>> for Plaintext<T>
-where
-    T: Copy,
-{
+impl<T: Numeric + Copy> From<PlaintextRef<'_, T>> for Plaintext<T> {
     fn from(plaintext_ref: PlaintextRef<T>) -> Plaintext<T> {
         Plaintext(*plaintext_ref.0)
     }
 }
 
-impl<T: Numeric> From<PlaintextRefMut<'_, T>> for Plaintext<T>
-where
-    T: Copy,
-{
+impl<T: Numeric + Copy> From<PlaintextRefMut<'_, T>> for Plaintext<T> {
     fn from(plaintext_ref: PlaintextRefMut<T>) -> Plaintext<T> {
         Plaintext(*plaintext_ref.0)
     }
