@@ -1089,6 +1089,7 @@ where
 
     let mut ct_3 = server_key.unchecked_add_parallelized(&ct_1, &ct_2);
     let output: u64 = client_key.decrypt(&ct_3);
+    // Seems to be a false positive
     #[allow(clippy::suspicious_operation_groupings)]
     {
         assert_eq!(output, (msg2 + msg1) % (modulus * modulus));

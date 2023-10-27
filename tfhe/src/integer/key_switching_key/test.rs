@@ -68,7 +68,9 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(
+    expected = "Attempt to build a KeySwitchingKey between integer key pairs with different message modulus and carry"
+)]
 fn gen_multi_keys_test_crtinteger_to_crtinteger_fail() {
     let basis = vec![2, 3, 5, 7, 11];
 

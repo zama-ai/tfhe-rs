@@ -320,17 +320,14 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Gen>(
         body.as_mut().copy_from_slice(sk_poly.as_ref());
 
         slice_wrapping_scalar_mul_assign(body.as_mut(), factor);
-
-        encrypt_glwe_ciphertext_assign(glwe_secret_key, row_as_glwe, noise_parameters, generator);
     } else {
         // The last row needs a slightly different treatment
         let mut body = row_as_glwe.get_mut_body();
 
         body.as_mut().fill(Scalar::ZERO);
         body.as_mut()[0] = factor.wrapping_neg();
-
-        encrypt_glwe_ciphertext_assign(glwe_secret_key, row_as_glwe, noise_parameters, generator);
     }
+    encrypt_glwe_ciphertext_assign(glwe_secret_key, row_as_glwe, noise_parameters, generator);
 }
 
 /// Convenience function to share the core logic of the seeded GGSW encryption between all
@@ -717,27 +714,19 @@ fn encrypt_constant_seeded_ggsw_level_matrix_row<Scalar, KeyCont, OutputCont, Ge
         body.as_mut().copy_from_slice(sk_poly.as_ref());
 
         slice_wrapping_scalar_mul_assign(body.as_mut(), factor);
-
-        encrypt_seeded_glwe_ciphertext_assign_with_existing_generator(
-            glwe_secret_key,
-            row_as_glwe,
-            noise_parameters,
-            generator,
-        );
     } else {
         // The last row needs a slightly different treatment
         let mut body = row_as_glwe.get_mut_body();
 
         body.as_mut().fill(Scalar::ZERO);
         body.as_mut()[0] = factor.wrapping_neg();
-
-        encrypt_seeded_glwe_ciphertext_assign_with_existing_generator(
-            glwe_secret_key,
-            row_as_glwe,
-            noise_parameters,
-            generator,
-        );
     }
+    encrypt_seeded_glwe_ciphertext_assign_with_existing_generator(
+        glwe_secret_key,
+        row_as_glwe,
+        noise_parameters,
+        generator,
+    );
 }
 
 /// Decrypt a [`GGSW ciphertext`](`GgswCiphertext`) only yielding the plaintext from the constant

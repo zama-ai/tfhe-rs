@@ -3,7 +3,7 @@ use crate::shortint::parameters::{DecompositionBaseLog, DecompositionLevelCount}
 use serde::{Deserialize, Serialize};
 
 /// A set of cryptographic parameters for homomorphic Shortint key switching.
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShortintKeySwitchingParameters {
     pub ks_base_log: DecompositionBaseLog,
     pub ks_level: DecompositionLevelCount,

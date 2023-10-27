@@ -534,10 +534,11 @@ impl WopbsKey {
             total_bit += b;
         }
 
-        let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
-        }
+        let lut_size = if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
+            self.wopbs_key.param.polynomial_size.0
+        } else {
+            1 << total_bit
+        };
         let mut lut =
             IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(ct.blocks().len()));
 
@@ -663,10 +664,11 @@ impl WopbsKey {
             total_bit += b;
             bit.push(b);
         }
-        let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
-        }
+        let lut_size = if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
+            self.wopbs_key.param.polynomial_size.0
+        } else {
+            1 << total_bit
+        };
         let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
         for value in 0..modulus {
@@ -716,7 +718,6 @@ impl WopbsKey {
     where
         F: Fn(u64) -> u64,
     {
-        let mut bit = vec![];
         let mut total_bit = 0;
         let mut modulus = 1;
         let basis = ct.moduli();
@@ -725,12 +726,12 @@ impl WopbsKey {
             modulus *= i;
             let b = f64::log2((deg.degree.0 + 1) as f64).ceil() as u64;
             total_bit += b;
-            bit.push(b);
         }
-        let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
-        }
+        let lut_size = if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
+            self.wopbs_key.param.polynomial_size.0
+        } else {
+            1 << total_bit
+        };
         let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
         for i in 0..(1 << total_bit) {
@@ -812,10 +813,11 @@ impl WopbsKey {
 
         let total_bit: u64 = nb_bit_to_extract.iter().sum();
 
-        let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
-        }
+        let lut_size = if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
+            self.wopbs_key.param.polynomial_size.0
+        } else {
+            1 << total_bit
+        };
         let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
         let basis = ct1.moduli()[0];
 
@@ -884,7 +886,6 @@ impl WopbsKey {
     where
         F: Fn(u64, u64) -> u64,
     {
-        let mut bit = vec![];
         let mut nb_bit_to_extract = [0; 2];
         let mut modulus = 1;
 
@@ -896,16 +897,16 @@ impl WopbsKey {
                 modulus *= i;
                 let b = f64::log2((deg.degree.0 + 1) as f64).ceil() as u64;
                 nb_bit_to_extract[ct_num] += b;
-                bit.push(b);
             }
         }
 
         let total_bit: u64 = nb_bit_to_extract.iter().sum();
 
-        let mut lut_size = 1 << total_bit;
-        if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
-        }
+        let lut_size = if 1 << total_bit < self.wopbs_key.param.polynomial_size.0 as u64 {
+            self.wopbs_key.param.polynomial_size.0
+        } else {
+            1 << total_bit
+        };
         let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
         let delta: u64 = (1 << 63)
@@ -980,10 +981,11 @@ impl WopbsKey {
             total_bit += b;
             bit.push(b);
         }
-        let mut lut_size = 1 << (2 * total_bit);
-        if 1 << (2 * total_bit) < self.wopbs_key.param.polynomial_size.0 as u64 {
-            lut_size = self.wopbs_key.param.polynomial_size.0;
-        }
+        let lut_size = if 1 << (2 * total_bit) < self.wopbs_key.param.polynomial_size.0 as u64 {
+            self.wopbs_key.param.polynomial_size.0
+        } else {
+            1 << (2 * total_bit)
+        };
         let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(basis.len()));
 
         for value in 0..1 << (2 * total_bit) {

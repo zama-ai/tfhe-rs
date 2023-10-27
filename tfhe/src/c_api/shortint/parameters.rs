@@ -47,9 +47,11 @@ pub struct ShortintPBSParameters {
     pub encryption_key_choice: ShortintEncryptionKeyChoice,
 }
 
-impl From<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
-    fn from(c_params: ShortintPBSParameters) -> Self {
-        Self {
+impl TryFrom<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
+    type Error = &'static str;
+
+    fn try_from(c_params: ShortintPBSParameters) -> Result<Self, Self::Error> {
+        Ok(Self {
             lwe_dimension: LweDimension(c_params.lwe_dimension),
             glwe_dimension: GlweDimension(c_params.glwe_dimension),
             polynomial_size: PolynomialSize(c_params.polynomial_size),
@@ -63,10 +65,9 @@ impl From<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
             carry_modulus: crate::shortint::parameters::CarryModulus(c_params.carry_modulus),
             ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
                 c_params.modulus_power_of_2_exponent,
-            )
-            .unwrap(),
+            )?,
             encryption_key_choice: c_params.encryption_key_choice.into(),
-        }
+        })
     }
 }
 
@@ -149,7 +150,7 @@ macro_rules! expose_as_shortint_pbs_parameters(
                 {
                     let rust_params = crate::shortint::parameters::$param_name;
                     let c_params = ShortintPBSParameters::from(rust_params);
-                    let rust_params_from_c = crate::shortint::parameters::ClassicPBSParameters::from(c_params);
+                    let rust_params_from_c = crate::shortint::parameters::ClassicPBSParameters::try_from(c_params).unwrap();
                     assert_eq!(rust_params, rust_params_from_c);
                 }
             )*

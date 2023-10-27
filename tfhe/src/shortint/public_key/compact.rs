@@ -1,3 +1,5 @@
+use std::iter::once;
+
 use serde::{Deserialize, Serialize};
 
 use crate::core_crypto::prelude::{
@@ -86,7 +88,7 @@ impl CompactPublicKey {
     }
 
     pub fn encrypt(&self, message: u64) -> Ciphertext {
-        let plain = to_plaintext_iterator([message].iter().copied(), &self.parameters)
+        let plain = to_plaintext_iterator(once(message), &self.parameters)
             .next()
             .unwrap();
 

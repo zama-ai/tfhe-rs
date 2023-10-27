@@ -294,7 +294,7 @@ fn ciphertexts_can_be_packed_without_exceeding_space(
     final_degree < lhs.carry_modulus.0 * lhs.message_modulus.0
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
 pub struct LookupTable<C: Container<Element = u64>> {
     pub acc: GlweCiphertext<C>,

@@ -91,7 +91,7 @@ impl BooleanParameters {
 }
 
 /// A set of cryptographic parameters for homomorphic Boolean key switching.
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BooleanKeySwitchingParameters {
     pub ks_base_log: DecompositionBaseLog,
     pub ks_level: DecompositionLevelCount,

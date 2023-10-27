@@ -358,6 +358,8 @@ where
             fft: Fft128View<'_>,
             stack: PodStack<'_>,
         ) {
+            // We type check dynamically with TypeId
+            #[allow(clippy::transmute_undefined_repr)]
             if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
                 let mut lwe_out: LweCiphertext<&mut [u128]> = unsafe { transmute(lwe_out) };
                 let lwe_in: LweCiphertext<&[u128]> = unsafe { transmute(lwe_in) };
