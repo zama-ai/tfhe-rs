@@ -322,6 +322,7 @@ impl<'a> Comparator<'a> {
                 rhs_blocks: &[crate::shortint::Ciphertext],
                 out_comparisons: &mut Vec<crate::shortint::Ciphertext>,
             ) {
+                let identity = comparator.server_key.key.generate_lookup_table(|x| x);
                 let mut lhs_chunks_iter = lhs_blocks.chunks_exact(2);
                 let mut rhs_chunks_iter = rhs_blocks.chunks_exact(2);
                 out_comparisons.reserve(lhs_chunks_iter.len() + lhs_chunks_iter.remainder().len());
@@ -329,7 +330,15 @@ impl<'a> Comparator<'a> {
                 for (lhs_chunk, rhs_chunk) in lhs_chunks_iter.by_ref().zip(rhs_chunks_iter.by_ref())
                 {
                     let mut packed_lhs = comparator.pack_block_chunk(lhs_chunk);
-                    let packed_rhs = comparator.pack_block_chunk(rhs_chunk);
+                    let mut packed_rhs = comparator.pack_block_chunk(rhs_chunk);
+                    comparator
+                        .server_key
+                        .key
+                        .apply_lookup_table_assign(&mut packed_lhs, &identity);
+                    comparator
+                        .server_key
+                        .key
+                        .apply_lookup_table_assign(&mut packed_rhs, &identity);
                     comparator.compare_block_assign(&mut packed_lhs, &packed_rhs);
                     out_comparisons.push(packed_lhs);
                 }
@@ -338,6 +347,10 @@ impl<'a> Comparator<'a> {
                     (lhs_chunks_iter.remainder(), rhs_chunks_iter.remainder())
                 {
                     let mut last_lhs_block = last_lhs_block.clone();
+                    comparator
+                        .server_key
+                        .key
+                        .apply_lookup_table_assign(&mut last_lhs_block, &identity);
                     comparator.compare_block_assign(&mut last_lhs_block, last_rhs_block);
                     out_comparisons.push(last_lhs_block);
                 }
@@ -425,13 +438,29 @@ impl<'a> Comparator<'a> {
                     rhs_blocks: &[crate::shortint::Ciphertext],
                     out_comparisons: &mut Vec<crate::shortint::Ciphertext>,
                 ) {
+                    // After packing we have to clean the noise
+                    let identity = comparator.server_key.key.generate_lookup_table(|x| x);
                     lhs_blocks
                         .par_chunks(2)
                         .zip(rhs_blocks.par_chunks(2))
                         .map(|(lhs_chunk, rhs_chunk)| {
                             let (mut packed_lhs, packed_rhs) = rayon::join(
-                                || comparator.pack_block_chunk(lhs_chunk),
-                                || comparator.pack_block_chunk(rhs_chunk),
+                                || {
+                                    let mut block = comparator.pack_block_chunk(lhs_chunk);
+                                    comparator
+                                        .server_key
+                                        .key
+                                        .apply_lookup_table_assign(&mut block, &identity);
+                                    block
+                                },
+                                || {
+                                    let mut block = comparator.pack_block_chunk(rhs_chunk);
+                                    comparator
+                                        .server_key
+                                        .key
+                                        .apply_lookup_table_assign(&mut block, &identity);
+                                    block
+                                },
                             );
 
                             comparator.compare_block_assign(&mut packed_lhs, &packed_rhs);
