@@ -1,24 +1,24 @@
 use crate::conformance::ParameterSetConformant;
-use crate::high_level_api::integers::parameters::IntegerParameter;
+use crate::high_level_api::integers::parameters::IntegerId;
 use crate::high_level_api::integers::types::base::GenericInteger;
-use crate::high_level_api::internal_traits::{EncryptionKey, TypeIdentifier};
+use crate::high_level_api::internal_traits::EncryptionKey;
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::high_level_api::ClientKey;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct CompressedGenericInteger<P>
+pub struct CompressedGenericInteger<Id>
 where
-    P: IntegerParameter,
+    Id: IntegerId,
 {
-    pub(in crate::high_level_api::integers) ciphertext: P::InnerCompressedCiphertext,
-    pub(in crate::high_level_api::integers) id: P::Id,
+    pub(in crate::high_level_api::integers) ciphertext: Id::InnerCompressedCiphertext,
+    pub(in crate::high_level_api::integers) id: Id,
 }
 
-impl<P: IntegerParameter> ParameterSetConformant for CompressedGenericInteger<P>
+impl<Id: IntegerId> ParameterSetConformant for CompressedGenericInteger<Id>
 where
-    P::InnerCompressedCiphertext:
+    Id::InnerCompressedCiphertext:
         ParameterSetConformant<ParameterSet = RadixCiphertextConformanceParams>,
 {
     type ParameterSet = RadixCiphertextConformanceParams;
@@ -27,17 +27,17 @@ where
     }
 }
 
-impl<P: IntegerParameter> Named for CompressedGenericInteger<P> {
+impl<Id: IntegerId> Named for CompressedGenericInteger<Id> {
     const NAME: &'static str = "high_level_api::CompressedGenericInteger";
 }
 
-impl<P> CompressedGenericInteger<P>
+impl<Id> CompressedGenericInteger<Id>
 where
-    P: IntegerParameter,
+    Id: IntegerId,
 {
     pub(in crate::high_level_api::integers) fn new(
-        inner: P::InnerCompressedCiphertext,
-        id: P::Id,
+        inner: Id::InnerCompressedCiphertext,
+        id: Id,
     ) -> Self {
         Self {
             ciphertext: inner,
@@ -46,42 +46,41 @@ where
     }
 }
 
-impl<P> CompressedGenericInteger<P>
+impl<Id> CompressedGenericInteger<Id>
 where
-    P: IntegerParameter,
-    P::InnerCompressedCiphertext: Into<P::InnerCiphertext>,
+    Id: IntegerId,
+    Id::InnerCompressedCiphertext: Into<Id::InnerCiphertext>,
 {
-    pub fn decompress(self) -> GenericInteger<P> {
+    pub fn decompress(self) -> GenericInteger<Id> {
         let inner = self.ciphertext.into();
         GenericInteger::new(inner, self.id)
     }
 }
 
-impl<P> From<CompressedGenericInteger<P>> for GenericInteger<P>
+impl<Id> From<CompressedGenericInteger<Id>> for GenericInteger<Id>
 where
-    P: IntegerParameter,
-    P::InnerCompressedCiphertext: Into<P::InnerCiphertext>,
+    Id: IntegerId,
+    Id::InnerCompressedCiphertext: Into<Id::InnerCiphertext>,
 {
-    fn from(value: CompressedGenericInteger<P>) -> Self {
+    fn from(value: CompressedGenericInteger<Id>) -> Self {
         let inner = value.ciphertext.into();
         Self::new(inner, value.id)
     }
 }
 
-impl<P, T> FheTryEncrypt<T, ClientKey> for CompressedGenericInteger<P>
+impl<Id, T> FheTryEncrypt<T, ClientKey> for CompressedGenericInteger<Id>
 where
-    P: IntegerParameter,
-    P::Id: Default + TypeIdentifier,
-    crate::integer::ClientKey: EncryptionKey<(T, usize), P::InnerCompressedCiphertext>,
+    Id: IntegerId,
+    crate::integer::ClientKey: EncryptionKey<(T, usize), Id::InnerCompressedCiphertext>,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
-        let id = P::Id::default();
+        let id = Id::default();
         let integer_client_key = &key.key.key;
         let inner = <crate::integer::ClientKey as EncryptionKey<_, _>>::encrypt(
             integer_client_key,
-            (value, P::num_blocks()),
+            (value, Id::num_blocks()),
         );
         Ok(Self::new(inner, id))
     }
