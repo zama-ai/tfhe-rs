@@ -10,10 +10,6 @@ pub(crate) trait DecryptionKey<CiphertextType, ClearType> {
     fn decrypt(&self, ciphertext: &CiphertextType) -> ClearType;
 }
 
-pub trait FromParameters<P> {
-    fn from_parameters(parameters: P) -> Self;
-}
-
 pub trait ParameterType: Clone {
     /// The Id allows to differentiate the different parameters
     /// as well as retrieving the corresponding client key and server key
