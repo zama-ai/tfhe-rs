@@ -1,5 +1,3 @@
-use crate::high_level_api::internal_traits::ParameterType;
-
 /// Meant to be implemented on the inner server key
 /// eg the crate::integer::ServerKey
 pub trait EvaluationIntegerKey<ClientKey> {
@@ -12,8 +10,8 @@ pub trait EvaluationIntegerKey<ClientKey> {
     ) -> crate::integer::wopbs::WopbsKey;
 }
 
-/// Trait to mark parameters type for integers
-pub trait IntegerParameter: ParameterType {
+/// Trait to mark Id type for integers
+pub trait IntegerId: Copy + Default {
     type InnerCiphertext: crate::integer::ciphertext::IntegerRadixCiphertext;
     type InnerCompressedCiphertext;
 

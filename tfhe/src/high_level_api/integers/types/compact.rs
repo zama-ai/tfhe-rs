@@ -1,7 +1,6 @@
 use crate::conformance::{ListSizeConstraint, ParameterSetConformant};
-use crate::high_level_api::integers::parameters::IntegerParameter;
+use crate::high_level_api::integers::parameters::IntegerId;
 use crate::high_level_api::integers::types::base::GenericInteger;
-use crate::high_level_api::internal_traits::TypeIdentifier;
 use crate::high_level_api::traits::FheTryEncrypt;
 use crate::integer::ciphertext::CompactCiphertextList;
 use crate::integer::parameters::{
@@ -12,37 +11,37 @@ use crate::CompactPublicKey;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
-pub struct GenericCompactInteger<P: IntegerParameter> {
+pub struct GenericCompactInteger<Id: IntegerId> {
     pub(in crate::high_level_api::integers) list: CompactCiphertextList,
-    pub(in crate::high_level_api::integers) id: P::Id,
+    pub(in crate::high_level_api::integers) id: Id,
 }
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
-pub struct GenericCompactIntegerList<P: IntegerParameter> {
+pub struct GenericCompactIntegerList<Id: IntegerId> {
     pub(in crate::high_level_api::integers) list: CompactCiphertextList,
-    pub(in crate::high_level_api::integers) id: P::Id,
+    pub(in crate::high_level_api::integers) id: Id,
 }
 
-impl<P> GenericCompactInteger<P>
+impl<Id> GenericCompactInteger<Id>
 where
-    P: IntegerParameter,
+    Id: IntegerId,
 {
-    pub fn expand(&self) -> GenericInteger<P> {
+    pub fn expand(&self) -> GenericInteger<Id> {
         let ct = self.list.expand_one();
         GenericInteger::new(ct, self.id)
     }
 }
 
-impl<P> GenericCompactIntegerList<P>
+impl<Id> GenericCompactIntegerList<Id>
 where
-    P: IntegerParameter,
+    Id: IntegerId,
 {
     pub fn len(&self) -> usize {
         self.list.ciphertext_count()
     }
 
-    pub fn expand(&self) -> Vec<GenericInteger<P>> {
+    pub fn expand(&self) -> Vec<GenericInteger<Id>> {
         self.list
             .expand()
             .into_iter()
@@ -51,17 +50,16 @@ where
     }
 }
 
-impl<P, T> FheTryEncrypt<T, CompactPublicKey> for GenericCompactInteger<P>
+impl<Id, T> FheTryEncrypt<T, CompactPublicKey> for GenericCompactInteger<Id>
 where
     T: crate::integer::block_decomposition::DecomposableInto<u64>,
-    P: IntegerParameter,
-    P::Id: Default + TypeIdentifier,
+    Id: IntegerId,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(value: T, key: &CompactPublicKey) -> Result<Self, Self::Error> {
-        let id = P::Id::default();
-        let ciphertext = key.key.try_encrypt_compact(&[value], P::num_blocks());
+        let id = Id::default();
+        let ciphertext = key.key.try_encrypt_compact(&[value], Id::num_blocks());
         Ok(Self {
             list: ciphertext,
             id,
@@ -69,17 +67,16 @@ where
     }
 }
 
-impl<'a, P, T> FheTryEncrypt<&'a [T], CompactPublicKey> for GenericCompactIntegerList<P>
+impl<'a, Id, T> FheTryEncrypt<&'a [T], CompactPublicKey> for GenericCompactIntegerList<Id>
 where
     T: crate::integer::block_decomposition::DecomposableInto<u64>,
-    P: IntegerParameter,
-    P::Id: Default + TypeIdentifier,
+    Id: IntegerId,
 {
     type Error = crate::high_level_api::errors::Error;
 
     fn try_encrypt(values: &'a [T], key: &CompactPublicKey) -> Result<Self, Self::Error> {
-        let id = P::Id::default();
-        let ciphertext = key.key.try_encrypt_compact(values, P::num_blocks());
+        let id = Id::default();
+        let ciphertext = key.key.try_encrypt_compact(values, Id::num_blocks());
         Ok(Self {
             list: ciphertext,
             id,
@@ -87,7 +84,7 @@ where
     }
 }
 
-impl<P: IntegerParameter> ParameterSetConformant for GenericCompactInteger<P> {
+impl<Id: IntegerId> ParameterSetConformant for GenericCompactInteger<Id> {
     type ParameterSet = RadixCiphertextConformanceParams;
     fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
         let lsc = ListSizeConstraint::exact_size(1);
@@ -97,15 +94,15 @@ impl<P: IntegerParameter> ParameterSetConformant for GenericCompactInteger<P> {
     }
 }
 
-impl<P: IntegerParameter> Named for GenericCompactInteger<P> {
+impl<Id: IntegerId> Named for GenericCompactInteger<Id> {
     const NAME: &'static str = "high_level_api::GenericCompactInteger";
 }
 
-impl<P: IntegerParameter> Named for GenericCompactIntegerList<P> {
+impl<Id: IntegerId> Named for GenericCompactIntegerList<Id> {
     const NAME: &'static str = "high_level_api::GenericCompactIntegerList";
 }
 
-impl<P: IntegerParameter> ParameterSetConformant for GenericCompactIntegerList<P> {
+impl<Id: IntegerId> ParameterSetConformant for GenericCompactIntegerList<Id> {
     type ParameterSet = RadixCompactCiphertextListConformanceParams;
     fn is_conformant(&self, params: &RadixCompactCiphertextListConformanceParams) -> bool {
         self.list.is_conformant(params)
