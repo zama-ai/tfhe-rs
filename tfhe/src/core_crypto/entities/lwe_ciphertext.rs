@@ -518,6 +518,18 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for LweCiphert
     }
 }
 
+// This accessor is used to create invalid objects and test the conformance functions
+// But these functions should not be used in other contexts, hence the `#[cfg(test)]`s
+#[cfg(test)]
+impl<C: Container> LweCiphertext<C>
+where
+    C::Element: UnsignedInteger,
+{
+    pub(crate) fn get_mut_ciphertext_modulus(&mut self) -> &mut CiphertextModulus<C::Element> {
+        &mut self.ciphertext_modulus
+    }
+}
+
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertext<C> {
     /// Create an [`LweCiphertext`] from an existing container.
     ///

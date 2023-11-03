@@ -130,8 +130,8 @@ mod test {
 
     fn change_parameters<Ct, T: UnsignedInteger>(
         func: &ParameterAccessor<Ct, T>,
-    ) -> Vec<Box<ParameterModifier<'_, Ct>>> {
-        vec![
+    ) -> [Box<ParameterModifier<'_, Ct>>; 3] {
+        [
             Box::new(|ct| *func(ct) = T::ZERO),
             Box::new(|ct| *func(ct) = func(ct).wrapping_add(T::ONE)),
             Box::new(|ct| *func(ct) = func(ct).wrapping_sub(T::ONE)),
@@ -157,7 +157,7 @@ mod test {
             ))
         );
 
-        let breaker_lists = vec![
+        let breaker_lists = [
             change_parameters(&|ct: &mut Ct| &mut ct.list.num_blocks_per_integer),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.message_modulus.0),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.carry_modulus.0),
@@ -233,7 +233,7 @@ mod test {
 
         assert!(ct.is_conformant(&params));
 
-        let breaker_lists = vec![
+        let breaker_lists = [
             change_parameters(&|ct: &mut Ct| &mut ct.list.num_blocks_per_integer),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.message_modulus.0),
             change_parameters(&|ct: &mut Ct| &mut ct.list.ct_list.carry_modulus.0),
