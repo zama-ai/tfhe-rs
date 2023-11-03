@@ -29,6 +29,27 @@ impl<T: UnsignedInteger> ParameterSetConformant for SeededLweCiphertext<T> {
     }
 }
 
+// These accessors are used to create invalid objects and test the conformance functions
+// But these functions should not be used in other contexts, hence the `#[cfg(test)]`
+#[cfg(test)]
+impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
+    pub(crate) fn get_mut_lwe_size(&mut self) -> &mut LweSize {
+        &mut self.lwe_size
+    }
+
+    pub(crate) fn get_mut_compressed_seed(&mut self) -> &mut CompressionSeed {
+        &mut self.compression_seed
+    }
+
+    pub(crate) fn get_mut_ciphertext_modulus(&mut self) -> &mut CiphertextModulus<Scalar> {
+        &mut self.ciphertext_modulus
+    }
+
+    pub(crate) fn get_mut_data(&mut self) -> &mut Scalar {
+        &mut self.data
+    }
+}
+
 impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
     /// Create a [`SeededLweCiphertext`] from a scalar.
     ///

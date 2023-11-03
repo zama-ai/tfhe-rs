@@ -255,19 +255,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCipherte
 // But these functions should not be used in other contexts, hence the `#[cfg(test)]`
 #[cfg(test)]
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCiphertextList<C> {
-    pub fn get_mut_lwe_size(&mut self) -> &mut LweSize {
+    pub(crate) fn get_mut_lwe_size(&mut self) -> &mut LweSize {
         &mut self.lwe_size
     }
 
-    pub fn get_mut_lwe_ciphertext_count(&mut self) -> &mut LweCiphertextCount {
+    pub(crate) fn get_mut_lwe_ciphertext_count(&mut self) -> &mut LweCiphertextCount {
         &mut self.lwe_ciphertext_count
     }
 
-    pub fn get_mut_ciphertext_modulus(&mut self) -> &mut CiphertextModulus<Scalar> {
+    pub(crate) fn get_mut_ciphertext_modulus(&mut self) -> &mut CiphertextModulus<Scalar> {
         &mut self.ciphertext_modulus
     }
 
-    pub fn get_mut_container(&mut self) -> &mut C {
+    pub(crate) fn get_mut_container(&mut self) -> &mut C {
         &mut self.data
     }
 }
