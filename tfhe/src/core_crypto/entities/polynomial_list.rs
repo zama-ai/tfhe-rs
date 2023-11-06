@@ -57,7 +57,7 @@ impl<Scalar, C: Container<Element = Scalar>> PolynomialList<C> {
     /// assert_eq!(polynomial_list.polynomial_size(), polynomial_size);
     /// assert_eq!(polynomial_list.polynomial_count(), polynomial_count);
     /// ```
-    pub fn from_container(container: C, polynomial_size: PolynomialSize) -> PolynomialList<C> {
+    pub fn from_container(container: C, polynomial_size: PolynomialSize) -> Self {
         assert!(
             container.container_len() % polynomial_size.0 == 0,
             "The provided container length is not valid. \
@@ -65,7 +65,7 @@ impl<Scalar, C: Container<Element = Scalar>> PolynomialList<C> {
         Got container length: {} and polynomial_size: {polynomial_size:?}.",
             container.container_len()
         );
-        PolynomialList {
+        Self {
             data: container,
             polynomial_size,
         }
@@ -127,8 +127,8 @@ impl<Scalar: Copy> PolynomialListOwned<Scalar> {
         fill_with: Scalar,
         polynomial_size: PolynomialSize,
         polynomial_count: PolynomialCount,
-    ) -> PolynomialListOwned<Scalar> {
-        PolynomialListOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![fill_with; polynomial_size.0 * polynomial_count.0],
             polynomial_size,
         )
@@ -143,9 +143,9 @@ impl<C: Container> CreateFrom<C> for PolynomialList<C> {
     type Metadata = PolynomialListCreationMetadata;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> PolynomialList<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let PolynomialListCreationMetadata(polynomial_size) = meta;
-        PolynomialList::from_container(from, polynomial_size)
+        Self::from_container(from, polynomial_size)
     }
 }
 

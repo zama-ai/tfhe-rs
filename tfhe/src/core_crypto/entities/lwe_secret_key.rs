@@ -72,7 +72,7 @@ impl<Scalar, C: Container<Element = Scalar>> LweSecretKey<C> {
             container.container_len() > 0,
             "Got an empty container to create an LweSecretKey"
         );
-        LweSecretKey { data: container }
+        Self { data: container }
     }
 
     /// Return the [`LweDimension`] of the [`LweSecretKey`].
@@ -109,11 +109,8 @@ where
     /// output.
     ///
     /// See [`LweSecretKey::from_container`] for usage.
-    pub fn new_empty_key(
-        fill_with: Scalar,
-        lwe_dimension: LweDimension,
-    ) -> LweSecretKeyOwned<Scalar> {
-        LweSecretKeyOwned::from_container(vec![fill_with; lwe_dimension.0])
+    pub fn new_empty_key(fill_with: Scalar, lwe_dimension: LweDimension) -> Self {
+        Self::from_container(vec![fill_with; lwe_dimension.0])
     }
 
     /// Allocate a new owned [`LweSecretKey`] and fill it with binary coefficients.
@@ -145,7 +142,7 @@ where
     pub fn generate_new_binary<Gen>(
         lwe_dimension: LweDimension,
         generator: &mut SecretRandomGenerator<Gen>,
-    ) -> LweSecretKeyOwned<Scalar>
+    ) -> Self
     where
         Scalar: Numeric + RandomGenerable<UniformBinary>,
         Gen: ByteRandomGenerator,

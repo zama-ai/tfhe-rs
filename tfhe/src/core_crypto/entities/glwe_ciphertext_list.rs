@@ -88,7 +88,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertextList
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> GlweCiphertextList<C> {
+    ) -> Self {
         assert!(
             container.container_len() % glwe_ciphertext_size(glwe_size, polynomial_size) == 0,
             "The provided container length is not valid. \
@@ -96,7 +96,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertextList
         Got container length: {}, glwe_size: {glwe_size:?}, polynomial_size: {polynomial_size:?}.",
             container.container_len()
         );
-        GlweCiphertextList {
+        Self {
             data: container,
             glwe_size,
             polynomial_size,
@@ -167,8 +167,8 @@ impl<Scalar: UnsignedInteger> GlweCiphertextListOwned<Scalar> {
         polynomial_size: PolynomialSize,
         ciphertext_count: GlweCiphertextCount,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> GlweCiphertextListOwned<Scalar> {
-        GlweCiphertextListOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![fill_with; glwe_ciphertext_size(glwe_size, polynomial_size) * ciphertext_count.0],
             glwe_size,
             polynomial_size,
@@ -191,10 +191,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     type Metadata = GlweCiphertextListCreationMetadata<Scalar>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GlweCiphertextList<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GlweCiphertextListCreationMetadata(glwe_size, polynomial_size, ciphertext_modulus) =
             meta;
-        GlweCiphertextList::from_container(from, glwe_size, polynomial_size, ciphertext_modulus)
+        Self::from_container(from, glwe_size, polynomial_size, ciphertext_modulus)
     }
 }
 

@@ -122,7 +122,7 @@ impl FheTryEncrypt<bool, ClientKey> for CompressedFheBool {
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
         let integer_client_key = &key.key.key;
         let ciphertext = integer_client_key.key.encrypt_compressed(u64::from(value));
-        Ok(CompressedFheBool::new(ciphertext))
+        Ok(Self::new(ciphertext))
     }
 }
 
@@ -132,7 +132,7 @@ impl FheTryEncrypt<bool, ClientKey> for FheBool {
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
         let integer_client_key = &key.key.key;
         let ciphertext = integer_client_key.encrypt_one_block(u64::from(value));
-        Ok(FheBool::new(ciphertext))
+        Ok(Self::new(ciphertext))
     }
 }
 
@@ -142,7 +142,7 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
     fn try_encrypt_trivial(value: bool) -> Result<Self, Self::Error> {
         let ciphertext = FheBoolId
             .with_unwrapped_global(|key| key.pbs_key().key.create_trivial(u64::from(value)));
-        Ok(FheBool::new(ciphertext))
+        Ok(Self::new(ciphertext))
     }
 }
 
@@ -159,7 +159,7 @@ impl FheTryEncrypt<bool, CompressedPublicKey> for crate::FheBool {
     fn try_encrypt(value: bool, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let key = &key.key;
         let ciphertext = key.key.encrypt(u64::from(value));
-        Ok(FheBool::new(ciphertext))
+        Ok(Self::new(ciphertext))
     }
 }
 
@@ -169,7 +169,7 @@ impl FheTryEncrypt<bool, PublicKey> for FheBool {
     fn try_encrypt(value: bool, key: &PublicKey) -> Result<Self, Self::Error> {
         let key = &key.key;
         let ciphertext = key.key.encrypt(u64::from(value));
-        Ok(FheBool::new(ciphertext))
+        Ok(Self::new(ciphertext))
     }
 }
 

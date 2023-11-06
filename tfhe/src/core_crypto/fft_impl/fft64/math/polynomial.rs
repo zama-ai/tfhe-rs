@@ -24,7 +24,7 @@ pub type FourierPolynomialMutView<'a> = FourierPolynomial<&'a mut [c64]>;
 pub type FourierPolynomialOwned = FourierPolynomial<ABox<[c64]>>;
 
 impl FourierPolynomial<ABox<[c64]>> {
-    pub fn new(polynomial_size: PolynomialSize) -> FourierPolynomial<ABox<[c64]>> {
+    pub fn new(polynomial_size: PolynomialSize) -> Self {
         let boxed = avec![
             c64::default();
             polynomial_size.to_fourier_polynomial_size().0

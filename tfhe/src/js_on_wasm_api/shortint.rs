@@ -40,12 +40,8 @@ pub enum ShortintEncryptionKeyChoice {
 impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::EncryptionKeyChoice {
     fn from(value: ShortintEncryptionKeyChoice) -> Self {
         match value {
-            ShortintEncryptionKeyChoice::Big => {
-                crate::shortint::parameters::EncryptionKeyChoice::Big
-            }
-            ShortintEncryptionKeyChoice::Small => {
-                crate::shortint::parameters::EncryptionKeyChoice::Small
-            }
+            ShortintEncryptionKeyChoice::Big => Self::Big,
+            ShortintEncryptionKeyChoice::Small => Self::Small,
         }
     }
 }

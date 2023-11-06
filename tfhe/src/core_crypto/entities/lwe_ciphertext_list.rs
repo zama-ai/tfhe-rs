@@ -72,7 +72,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertextList<
         container: C,
         lwe_size: LweSize,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> LweCiphertextList<C> {
+    ) -> Self {
         assert!(
             container.container_len() % lwe_size.0 == 0,
             "The provided container length is not valid. \
@@ -80,7 +80,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertextList<
         Got container length: {} and lwe_size: {lwe_size:?}.",
             container.container_len()
         );
-        LweCiphertextList {
+        Self {
             data: container,
             lwe_size,
             ciphertext_modulus,
@@ -159,8 +159,8 @@ impl<Scalar: UnsignedInteger> LweCiphertextListOwned<Scalar> {
         lwe_size: LweSize,
         ciphertext_count: LweCiphertextCount,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LweCiphertextListOwned<Scalar> {
-        LweCiphertextListOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![fill_with; lwe_size.0 * ciphertext_count.0],
             lwe_size,
             ciphertext_modulus,
@@ -181,9 +181,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     type Metadata = LweCiphertextListCreationMetadata<Scalar>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> LweCiphertextList<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let LweCiphertextListCreationMetadata(lwe_size, modulus) = meta;
-        LweCiphertextList::from_container(from, lwe_size, modulus)
+        Self::from_container(from, lwe_size, modulus)
     }
 }
 

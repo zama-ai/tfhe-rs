@@ -174,8 +174,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
         compression_seed: CompressionSeed,
         grouping_factor: LweBskGroupingFactor,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> SeededLweMultiBitBootstrapKey<C> {
-        let bsk = SeededLweMultiBitBootstrapKey {
+    ) -> Self {
+        let bsk = Self {
             ggsw_list: SeededGgswCiphertextList::from_container(
                 container,
                 glwe_size,
@@ -356,7 +356,7 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
         grouping_factor: LweBskGroupingFactor,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
+    ) -> Self {
         assert!(
             input_lwe_dimension.0 % grouping_factor.0 == 0,
             "Multi Bit BSK requires input LWE dimension ({}) to be a multiple of {}",
@@ -365,7 +365,7 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
         );
         let equivalent_multi_bit_dimension = input_lwe_dimension.0 / grouping_factor.0;
 
-        SeededLweMultiBitBootstrapKeyOwned {
+        Self {
             ggsw_list: SeededGgswCiphertextList::new(
                 fill_with,
                 glwe_size,

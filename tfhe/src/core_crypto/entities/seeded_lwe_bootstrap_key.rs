@@ -152,8 +152,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweBootstrap
         decomp_level_count: DecompositionLevelCount,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> SeededLweBootstrapKey<C> {
-        SeededLweBootstrapKey {
+    ) -> Self {
+        Self {
             ggsw_list: SeededGgswCiphertextList::from_container(
                 container,
                 glwe_size,
@@ -296,8 +296,8 @@ impl<Scalar: UnsignedInteger> SeededLweBootstrapKeyOwned<Scalar> {
         input_lwe_dimension: LweDimension,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededLweBootstrapKeyOwned<Scalar> {
-        SeededLweBootstrapKeyOwned {
+    ) -> Self {
+        Self {
             ggsw_list: SeededGgswCiphertextList::new(
                 fill_with,
                 glwe_size,

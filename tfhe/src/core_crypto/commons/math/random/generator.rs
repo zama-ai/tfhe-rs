@@ -40,7 +40,7 @@ pub struct CompressionSeed {
 
 impl From<Seed> for CompressionSeed {
     fn from(seed: Seed) -> Self {
-        CompressionSeed { seed }
+        Self { seed }
     }
 }
 
@@ -96,8 +96,8 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// ```
-    pub fn new(seed: Seed) -> RandomGenerator<G> {
-        RandomGenerator(G::new(seed))
+    pub fn new(seed: Seed) -> Self {
+        Self(G::new(seed))
     }
 
     /// Return the number of bytes that can still be generated, if the generator is bounded.
@@ -134,7 +134,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         &mut self,
         n_child: usize,
         bytes_per_child: usize,
-    ) -> Result<impl Iterator<Item = RandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         self.0
             .try_fork(ChildrenCount(n_child), BytesPerChild(bytes_per_child))
             .map(|iter| iter.map(Self))
@@ -554,7 +554,7 @@ impl<G: ParallelByteRandomGenerator> RandomGenerator<G> {
         &mut self,
         n_child: usize,
         bytes_per_child: usize,
-    ) -> Result<impl IndexedParallelIterator<Item = RandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         self.0
             .par_try_fork(ChildrenCount(n_child), BytesPerChild(bytes_per_child))
             .map(|iter| iter.map(Self))

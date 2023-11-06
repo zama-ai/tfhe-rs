@@ -75,12 +75,12 @@ impl<'de, Scalar: UnsignedInteger> serde::Deserialize<'de> for CiphertextModulus
         }
 
         let res = if thing.modulus == 0 {
-            CiphertextModulus {
+            Self {
                 inner: CiphertextModulusInner::Native,
                 _scalar: PhantomData,
             }
         } else {
-            CiphertextModulus {
+            Self {
                 inner: CiphertextModulusInner::Custom(NonZeroU128::new(thing.modulus).ok_or_else(
                     || {
                         serde::de::Error::custom(
@@ -137,12 +137,12 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             Err("Modulus is bigger than the maximum value of the associated Scalar type")
         } else {
             let res = match modulus {
-                0 => CiphertextModulus::new_native(),
+                0 => Self::new_native(),
                 modulus => {
                     let Some(non_zero_modulus) = NonZeroU128::new(modulus) else {
                         panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
                     };
-                    CiphertextModulus {
+                    Self {
                         inner: CiphertextModulusInner::Custom(non_zero_modulus),
                         _scalar: PhantomData,
                     }
@@ -157,7 +157,7 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             CiphertextModulusInner::Native => self,
             CiphertextModulusInner::Custom(modulus) => {
                 if Scalar::BITS < 128 && modulus.get() == (1 << Scalar::BITS) {
-                    CiphertextModulus::new_native()
+                    Self::new_native()
                 } else {
                     self
                 }

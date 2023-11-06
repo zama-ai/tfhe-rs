@@ -58,7 +58,7 @@ impl PublicKey {
     /// let pks = PublicKey::new(&cks);
     /// # }
     /// ```
-    pub fn new(client_key: &ClientKey) -> PublicKey {
+    pub fn new(client_key: &ClientKey) -> Self {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_public_key(client_key))
     }
 }

@@ -30,7 +30,7 @@ impl PublicKey {
     ///
     /// let pk = PublicKey::new(&cks);
     /// ```
-    pub fn new(client_key: &ClientKey) -> PublicKey {
+    pub fn new(client_key: &ClientKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_public_key(client_key).unwrap())
     }
 

@@ -136,7 +136,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
         output_glwe_size: GlweSize,
         output_polynomial_size: PolynomialSize,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> LwePrivateFunctionalPackingKeyswitchKeyList<C> {
+    ) -> Self {
         assert!(
             container.container_len()
                 % lwe_pfpksk_size(
@@ -160,7 +160,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
             container.container_len()
         );
 
-        LwePrivateFunctionalPackingKeyswitchKeyList {
+        Self {
             data: container,
             decomp_base_log,
             decomp_level_count,
@@ -330,8 +330,8 @@ impl<Scalar: UnsignedInteger> LwePrivateFunctionalPackingKeyswitchKeyListOwned<S
         output_polynomial_size: PolynomialSize,
         pfpksk_count: FunctionalPackingKeyswitchKeyCount,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LwePrivateFunctionalPackingKeyswitchKeyListOwned<Scalar> {
-        LwePrivateFunctionalPackingKeyswitchKeyListOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![
                 fill_with;
                 pfpksk_count.0
@@ -379,7 +379,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
             output_polynomial_size,
             ciphertext_modulus,
         ) = meta;
-        LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
+        Self::from_container(
             from,
             decomp_base_log,
             decomp_level_count,

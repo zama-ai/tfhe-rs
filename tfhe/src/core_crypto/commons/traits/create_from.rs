@@ -19,7 +19,7 @@ impl<'data, T> CreateFrom<&'data [T]> for DummyCreateFrom {
 
     #[inline]
     fn create_from(_: &'data [T], _: Self::Metadata) -> Self {
-        DummyCreateFrom {}
+        Self {}
     }
 }
 
@@ -28,6 +28,6 @@ impl<'data, T> CreateFrom<&'data mut [T]> for DummyCreateFrom {
 
     #[inline]
     fn create_from(_: &'data mut [T], _: Self::Metadata) -> Self {
-        DummyCreateFrom {}
+        Self {}
     }
 }

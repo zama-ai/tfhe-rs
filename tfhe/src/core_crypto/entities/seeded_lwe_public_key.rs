@@ -134,12 +134,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePublicKey
         lwe_size: LweSize,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> SeededLwePublicKey<C> {
+    ) -> Self {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create a SeededLwePublicKey"
         );
-        SeededLwePublicKey {
+        Self {
             lwe_list: SeededLweCiphertextList::from_container(
                 container,
                 lwe_size,
@@ -251,8 +251,8 @@ impl<Scalar: UnsignedInteger> SeededLwePublicKeyOwned<Scalar> {
         zero_encryption_count: LwePublicKeyZeroEncryptionCount,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededLwePublicKeyOwned<Scalar> {
-        SeededLwePublicKeyOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![fill_with; zero_encryption_count.0],
             lwe_size,
             compression_seed,

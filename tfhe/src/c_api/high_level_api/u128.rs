@@ -15,6 +15,6 @@ impl From<u128> for U128 {
 
 impl From<U128> for u128 {
     fn from(value: U128) -> Self {
-        ((value.w1 as u128) << 64u128) | value.w0 as u128
+        ((value.w1 as Self) << 64u128) | value.w0 as Self
     }
 }

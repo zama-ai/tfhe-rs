@@ -28,7 +28,7 @@ pub struct ServerKey {
 }
 
 impl From<ServerKey> for crate::shortint::ServerKey {
-    fn from(key: ServerKey) -> crate::shortint::ServerKey {
+    fn from(key: ServerKey) -> Self {
         key.key
     }
 }
@@ -61,7 +61,7 @@ impl ServerKey {
     /// // Generate the server key:
     /// let sks = ServerKey::new(&cks);
     /// ```
-    pub fn new<C>(cks: C) -> ServerKey
+    pub fn new<C>(cks: C) -> Self
     where
         C: AsRef<ClientKey>,
     {
@@ -74,7 +74,7 @@ impl ServerKey {
             max_degree,
         );
 
-        ServerKey { key: sks }
+        Self { key: sks }
     }
 
     /// Creates a ServerKey from an already generated shortint::ServerKey.
@@ -93,15 +93,12 @@ impl ServerKey {
     /// // Generate the server key:
     /// let sks = ServerKey::new(&cks);
     /// ```
-    pub fn from_shortint(
-        cks: &ClientKey,
-        mut key: crate::shortint::server_key::ServerKey,
-    ) -> ServerKey {
+    pub fn from_shortint(cks: &ClientKey, mut key: crate::shortint::server_key::ServerKey) -> Self {
         // It should remain just enough space add a carry
         let max_degree = integer_server_key_max_degree(cks.key.parameters);
 
         key.max_degree = max_degree;
-        ServerKey { key }
+        Self { key }
     }
 
     pub fn deterministic_pbs_execution(&self) -> bool {
@@ -120,7 +117,7 @@ pub struct CompressedServerKey {
 }
 
 impl CompressedServerKey {
-    pub fn new(client_key: &ClientKey) -> CompressedServerKey {
+    pub fn new(client_key: &ClientKey) -> Self {
         let max_degree = integer_server_key_max_degree(client_key.key.parameters);
 
         let key =

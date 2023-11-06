@@ -238,7 +238,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMask<C> {
     /// assert_eq!(lwe_mask.ciphertext_modulus(), ciphertext_modulus);
     /// ```
     pub fn from_container(container: C, ciphertext_modulus: CiphertextModulus<C::Element>) -> Self {
-        LweMask {
+        Self {
             data: container,
             ciphertext_modulus,
         }
@@ -563,15 +563,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertext<C> {
     /// );
     /// assert_eq!(lwe.ciphertext_modulus(), ciphertext_modulus);
     /// ```
-    pub fn from_container(
-        container: C,
-        ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> LweCiphertext<C> {
+    pub fn from_container(container: C, ciphertext_modulus: CiphertextModulus<C::Element>) -> Self {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create an LweCiphertext"
         );
-        LweCiphertext {
+        Self {
             data: container,
             ciphertext_modulus,
         }
@@ -727,8 +724,8 @@ impl<Scalar: UnsignedInteger> LweCiphertextOwned<Scalar> {
         fill_with: Scalar,
         lwe_size: LweSize,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LweCiphertextOwned<Scalar> {
-        LweCiphertextOwned::from_container(vec![fill_with; lwe_size.0], ciphertext_modulus)
+    ) -> Self {
+        Self::from_container(vec![fill_with; lwe_size.0], ciphertext_modulus)
     }
 }
 
@@ -740,8 +737,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     type Metadata = LweCiphertextCreationMetadata<C::Element>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> LweCiphertext<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let LweCiphertextCreationMetadata(modulus) = meta;
-        LweCiphertext::from_container(from, modulus)
+        Self::from_container(from, modulus)
     }
 }

@@ -597,7 +597,7 @@ impl ServerKey {
     pub fn smart_binary_op_seq_parallelized<'this, 'item, T>(
         &'this self,
         ct_seq: impl IntoIterator<Item = &'item mut T>,
-        op: impl for<'a> Fn(&'a ServerKey, &'a mut T, &'a mut T) -> T + Sync,
+        op: impl for<'a> Fn(&'a Self, &'a mut T, &'a mut T) -> T + Sync,
     ) -> Option<T>
     where
         T: IntegerRadixCiphertext + 'item + From<Vec<crate::shortint::Ciphertext>>,
@@ -679,7 +679,7 @@ impl ServerKey {
     pub fn default_binary_op_seq_parallelized<'this, 'item, T>(
         &'this self,
         ct_seq: impl IntoIterator<Item = &'item T>,
-        op: impl for<'a> Fn(&'a ServerKey, &'a T, &'a T) -> T + Sync,
+        op: impl for<'a> Fn(&'a Self, &'a T, &'a T) -> T + Sync,
     ) -> Option<T>
     where
         T: IntegerRadixCiphertext + 'item + From<Vec<crate::shortint::Ciphertext>>,

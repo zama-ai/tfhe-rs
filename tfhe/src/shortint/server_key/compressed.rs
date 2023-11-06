@@ -19,10 +19,8 @@ pub enum ShortintCompressedBootstrappingKey {
 impl ShortintCompressedBootstrappingKey {
     pub fn bootstrapping_key_size_elements(&self) -> usize {
         match self {
-            ShortintCompressedBootstrappingKey::Classic(bsk) => {
-                bsk.as_view().into_container().len()
-            }
-            ShortintCompressedBootstrappingKey::MultiBit {
+            Self::Classic(bsk) => bsk.as_view().into_container().len(),
+            Self::MultiBit {
                 seeded_bsk: bsk, ..
             } => bsk.as_view().into_container().len(),
         }
@@ -30,10 +28,8 @@ impl ShortintCompressedBootstrappingKey {
 
     pub fn bootstrapping_key_size_bytes(&self) -> usize {
         match self {
-            ShortintCompressedBootstrappingKey::Classic(bsk) => {
-                std::mem::size_of_val(bsk.as_view().into_container())
-            }
-            ShortintCompressedBootstrappingKey::MultiBit {
+            Self::Classic(bsk) => std::mem::size_of_val(bsk.as_view().into_container()),
+            Self::MultiBit {
                 seeded_bsk: bsk, ..
             } => std::mem::size_of_val(bsk.as_view().into_container()),
         }
@@ -73,14 +69,14 @@ impl CompressedServerKey {
     ///
     /// let sks = CompressedServerKey::new(&cks);
     /// ```
-    pub fn new(client_key: &ClientKey) -> CompressedServerKey {
+    pub fn new(client_key: &ClientKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.new_compressed_server_key(client_key).unwrap()
         })
     }
 
     /// Generate a compressed server key with a chosen maximum degree
-    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> CompressedServerKey {
+    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .new_compressed_server_key_with_max_degree(cks, max_degree)

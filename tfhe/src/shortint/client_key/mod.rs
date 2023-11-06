@@ -38,7 +38,7 @@ impl ClientKey {
     /// // Generate the client key:
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     /// ```
-    pub fn new<P>(parameters: P) -> ClientKey
+    pub fn new<P>(parameters: P) -> Self
     where
         P: TryInto<ShortintParameterSet>,
         <P as TryInto<ShortintParameterSet>>::Error: Debug,

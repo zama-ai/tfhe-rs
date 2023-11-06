@@ -94,10 +94,10 @@ impl From<OutOfRangeError> for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::OutOfRange => {
+            Self::OutOfRange => {
                 write!(f, "{OutOfRangeError}")
             }
-            Error::UninitializedServerKey => {
+            Self::UninitializedServerKey => {
                 write!(f, "{}", UninitializedServerKey)
             }
         }

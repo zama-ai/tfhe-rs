@@ -193,7 +193,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweKeyswitchKey<C>
             container.container_len()
         );
 
-        LweKeyswitchKey {
+        Self {
             data: container,
             decomp_base_log,
             decomp_level_count,
@@ -325,8 +325,8 @@ impl<Scalar: UnsignedInteger> LweKeyswitchKeyOwned<Scalar> {
         input_key_lwe_dimension: LweDimension,
         output_key_lwe_dimension: LweDimension,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LweKeyswitchKeyOwned<Scalar> {
-        LweKeyswitchKeyOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![
                 fill_with;
                 input_key_lwe_dimension.0
@@ -355,14 +355,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     type Metadata = LweKeyswitchKeyCreationMetadata<Scalar>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> LweKeyswitchKey<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let LweKeyswitchKeyCreationMetadata(
             decomp_base_log,
             decomp_level_count,
             output_lwe_size,
             ciphertext_modulus,
         ) = meta;
-        LweKeyswitchKey::from_container(
+        Self::from_container(
             from,
             decomp_base_log,
             decomp_level_count,

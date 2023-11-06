@@ -98,8 +98,8 @@ impl ClassicPBSParameters {
         carry_modulus: CarryModulus,
         ciphertext_modulus: CiphertextModulus,
         encryption_key_choice: EncryptionKeyChoice,
-    ) -> ClassicPBSParameters {
-        ClassicPBSParameters {
+    ) -> Self {
+        Self {
             lwe_dimension,
             glwe_dimension,
             polynomial_size,
@@ -214,88 +214,88 @@ impl From<MultiBitPBSParameters> for PBSParameters {
 impl PBSParameters {
     pub const fn lwe_dimension(&self) -> LweDimension {
         match self {
-            PBSParameters::PBS(params) => params.lwe_dimension,
-            PBSParameters::MultiBitPBS(params) => params.lwe_dimension,
+            Self::PBS(params) => params.lwe_dimension,
+            Self::MultiBitPBS(params) => params.lwe_dimension,
         }
     }
     pub const fn glwe_dimension(&self) -> GlweDimension {
         match self {
-            PBSParameters::PBS(params) => params.glwe_dimension,
-            PBSParameters::MultiBitPBS(params) => params.glwe_dimension,
+            Self::PBS(params) => params.glwe_dimension,
+            Self::MultiBitPBS(params) => params.glwe_dimension,
         }
     }
     pub const fn polynomial_size(&self) -> PolynomialSize {
         match self {
-            PBSParameters::PBS(params) => params.polynomial_size,
-            PBSParameters::MultiBitPBS(params) => params.polynomial_size,
+            Self::PBS(params) => params.polynomial_size,
+            Self::MultiBitPBS(params) => params.polynomial_size,
         }
     }
     pub const fn lwe_modular_std_dev(&self) -> StandardDev {
         match self {
-            PBSParameters::PBS(params) => params.lwe_modular_std_dev,
-            PBSParameters::MultiBitPBS(params) => params.lwe_modular_std_dev,
+            Self::PBS(params) => params.lwe_modular_std_dev,
+            Self::MultiBitPBS(params) => params.lwe_modular_std_dev,
         }
     }
     pub const fn glwe_modular_std_dev(&self) -> StandardDev {
         match self {
-            PBSParameters::PBS(params) => params.glwe_modular_std_dev,
-            PBSParameters::MultiBitPBS(params) => params.glwe_modular_std_dev,
+            Self::PBS(params) => params.glwe_modular_std_dev,
+            Self::MultiBitPBS(params) => params.glwe_modular_std_dev,
         }
     }
     pub const fn pbs_base_log(&self) -> DecompositionBaseLog {
         match self {
-            PBSParameters::PBS(params) => params.pbs_base_log,
-            PBSParameters::MultiBitPBS(params) => params.pbs_base_log,
+            Self::PBS(params) => params.pbs_base_log,
+            Self::MultiBitPBS(params) => params.pbs_base_log,
         }
     }
     pub const fn pbs_level(&self) -> DecompositionLevelCount {
         match self {
-            PBSParameters::PBS(params) => params.pbs_level,
-            PBSParameters::MultiBitPBS(params) => params.pbs_level,
+            Self::PBS(params) => params.pbs_level,
+            Self::MultiBitPBS(params) => params.pbs_level,
         }
     }
     pub const fn ks_base_log(&self) -> DecompositionBaseLog {
         match self {
-            PBSParameters::PBS(params) => params.ks_base_log,
-            PBSParameters::MultiBitPBS(params) => params.ks_base_log,
+            Self::PBS(params) => params.ks_base_log,
+            Self::MultiBitPBS(params) => params.ks_base_log,
         }
     }
     pub const fn ks_level(&self) -> DecompositionLevelCount {
         match self {
-            PBSParameters::PBS(params) => params.ks_level,
-            PBSParameters::MultiBitPBS(params) => params.ks_level,
+            Self::PBS(params) => params.ks_level,
+            Self::MultiBitPBS(params) => params.ks_level,
         }
     }
     pub const fn message_modulus(&self) -> MessageModulus {
         match self {
-            PBSParameters::PBS(params) => params.message_modulus,
-            PBSParameters::MultiBitPBS(params) => params.message_modulus,
+            Self::PBS(params) => params.message_modulus,
+            Self::MultiBitPBS(params) => params.message_modulus,
         }
     }
     pub const fn carry_modulus(&self) -> CarryModulus {
         match self {
-            PBSParameters::PBS(params) => params.carry_modulus,
-            PBSParameters::MultiBitPBS(params) => params.carry_modulus,
+            Self::PBS(params) => params.carry_modulus,
+            Self::MultiBitPBS(params) => params.carry_modulus,
         }
     }
     pub const fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self {
-            PBSParameters::PBS(params) => params.ciphertext_modulus,
-            PBSParameters::MultiBitPBS(params) => params.ciphertext_modulus,
+            Self::PBS(params) => params.ciphertext_modulus,
+            Self::MultiBitPBS(params) => params.ciphertext_modulus,
         }
     }
     pub const fn encryption_key_choice(&self) -> EncryptionKeyChoice {
         match self {
-            PBSParameters::PBS(params) => params.encryption_key_choice,
-            PBSParameters::MultiBitPBS(params) => params.encryption_key_choice,
+            Self::PBS(params) => params.encryption_key_choice,
+            Self::MultiBitPBS(params) => params.encryption_key_choice,
         }
     }
     pub const fn grouping_factor(&self) -> LweBskGroupingFactor {
         match self {
-            PBSParameters::PBS(_) => {
+            Self::PBS(_) => {
                 panic!("PBSParameters::PBS does not have an LweBskGroupingFactor")
             }
-            PBSParameters::MultiBitPBS(params) => params.grouping_factor,
+            Self::MultiBitPBS(params) => params.grouping_factor,
         }
     }
 
@@ -309,8 +309,8 @@ impl PBSParameters {
 
     pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
         match self {
-            super::PBSParameters::PBS(param) => param.to_shortint_conformance_param(),
-            super::PBSParameters::MultiBitPBS(param) => param.to_shortint_conformance_param(),
+            Self::PBS(param) => param.to_shortint_conformance_param(),
+            Self::MultiBitPBS(param) => param.to_shortint_conformance_param(),
         }
     }
 }
@@ -532,7 +532,7 @@ where
     type Error = &'static str;
 
     fn try_from(value: (P, WopbsParameters)) -> Result<Self, Self::Error> {
-        ShortintParameterSet::try_new_pbs_and_wopbs_param_set(value)
+        Self::try_new_pbs_and_wopbs_param_set(value)
     }
 }
 

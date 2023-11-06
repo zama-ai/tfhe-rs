@@ -96,12 +96,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LwePublicKey<C> {
         container: C,
         lwe_size: LweSize,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LwePublicKey<C> {
+    ) -> Self {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create an LwePublicKey"
         );
-        LwePublicKey {
+        Self {
             lwe_list: LweCiphertextList::from_container(container, lwe_size, ciphertext_modulus),
         }
     }
@@ -154,8 +154,8 @@ impl<Scalar: UnsignedInteger> LwePublicKeyOwned<Scalar> {
         lwe_size: LweSize,
         zero_encryption_count: LwePublicKeyZeroEncryptionCount,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LwePublicKeyOwned<Scalar> {
-        LwePublicKeyOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![fill_with; lwe_size.0 * zero_encryption_count.0],
             lwe_size,
             ciphertext_modulus,

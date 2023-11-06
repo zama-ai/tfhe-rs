@@ -40,10 +40,10 @@ impl TryFrom<u32> for BooleanParameterSet {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(BooleanParameterSet::Default),
-            1 => Ok(BooleanParameterSet::TfheLib),
-            2 => Ok(BooleanParameterSet::DefaultKsPbs),
-            3 => Ok(BooleanParameterSet::TfheLibKsPbs),
+            0 => Ok(Self::Default),
+            1 => Ok(Self::TfheLib),
+            2 => Ok(Self::DefaultKsPbs),
+            3 => Ok(Self::TfheLibKsPbs),
             _ => Err(format!(
                 "Invalid value '{value}' for BooleansParametersSet, use \
                 BooleanParameterSet constants"
@@ -63,12 +63,8 @@ impl From<BooleanEncryptionKeyChoice>
 {
     fn from(value: BooleanEncryptionKeyChoice) -> Self {
         match value {
-            BooleanEncryptionKeyChoice::Big => {
-                crate::shortint::parameters::EncryptionKeyChoice::Big
-            }
-            BooleanEncryptionKeyChoice::Small => {
-                crate::shortint::parameters::EncryptionKeyChoice::Small
-            }
+            BooleanEncryptionKeyChoice::Big => Self::Big,
+            BooleanEncryptionKeyChoice::Small => Self::Small,
         }
     }
 }

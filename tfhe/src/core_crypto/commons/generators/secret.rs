@@ -10,8 +10,8 @@ pub struct SecretRandomGenerator<G: ByteRandomGenerator>(RandomGenerator<G>);
 
 impl<G: ByteRandomGenerator> SecretRandomGenerator<G> {
     /// Create a new generator, optionally seeding it with the given value.
-    pub fn new(seed: Seed) -> SecretRandomGenerator<G> {
-        SecretRandomGenerator(RandomGenerator::new(seed))
+    pub fn new(seed: Seed) -> Self {
+        Self(RandomGenerator::new(seed))
     }
 
     /// Return the number of remaining bytes, if the generator is bounded.

@@ -15,12 +15,8 @@ impl From<BooleanEncryptionKeyChoice>
 {
     fn from(value: BooleanEncryptionKeyChoice) -> Self {
         match value {
-            BooleanEncryptionKeyChoice::BooleanEncryptionKeyChoiceBig => {
-                crate::core_crypto::commons::parameters::EncryptionKeyChoice::Big
-            }
-            BooleanEncryptionKeyChoice::BooleanEncryptionKeyChoiceSmall => {
-                crate::core_crypto::commons::parameters::EncryptionKeyChoice::Small
-            }
+            BooleanEncryptionKeyChoice::BooleanEncryptionKeyChoiceBig => Self::Big,
+            BooleanEncryptionKeyChoice::BooleanEncryptionKeyChoiceSmall => Self::Small,
         }
     }
 }

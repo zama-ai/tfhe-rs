@@ -71,17 +71,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactPublicKe
     ///     ciphertext_modulus
     /// );
     /// ```
-    pub fn from_container(
-        container: C,
-        ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LweCompactPublicKey<C> {
+    pub fn from_container(container: C, ciphertext_modulus: CiphertextModulus<Scalar>) -> Self {
         assert!(
             container.container_len().is_power_of_two(),
             "LweCompactPublicKey container len must be a power of 2, got len = {}",
             container.container_len()
         );
         let equivalent_polynomial_size = PolynomialSize(container.container_len() / 2);
-        LweCompactPublicKey {
+        Self {
             glwe_ciphertext: GlweCiphertext::from_container(
                 container,
                 equivalent_polynomial_size,
@@ -173,15 +170,12 @@ impl<Scalar: UnsignedInteger> LweCompactPublicKeyOwned<Scalar> {
         fill_with: Scalar,
         lwe_dimension: LweDimension,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LweCompactPublicKeyOwned<Scalar> {
+    ) -> Self {
         assert!(
             lwe_dimension.0.is_power_of_two(),
             "LweCompactPublicKey only supports power of 2 LweDimension. Got lwe_dimension = {}.",
             lwe_dimension.0
         );
-        LweCompactPublicKeyOwned::from_container(
-            vec![fill_with; 2 * lwe_dimension.0],
-            ciphertext_modulus,
-        )
+        Self::from_container(vec![fill_with; 2 * lwe_dimension.0], ciphertext_modulus)
     }
 }

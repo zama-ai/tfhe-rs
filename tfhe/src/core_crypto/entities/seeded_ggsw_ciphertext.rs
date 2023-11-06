@@ -160,7 +160,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             container.container_len()
         );
 
-        SeededGgswCiphertext {
+        Self {
             data: container,
             glwe_size,
             polynomial_size,
@@ -369,8 +369,8 @@ impl<Scalar: UnsignedInteger> SeededGgswCiphertextOwned<Scalar> {
         decomp_level_count: DecompositionLevelCount,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededGgswCiphertextOwned<Scalar> {
-        SeededGgswCiphertextOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![
                 fill_with;
                 seeded_ggsw_ciphertext_size(glwe_size, polynomial_size, decomp_level_count)
@@ -400,7 +400,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     type Metadata = SeededGgswCiphertextCreationMetadata<Scalar>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> SeededGgswCiphertext<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let SeededGgswCiphertextCreationMetadata(
             glwe_size,
             polynomial_size,
@@ -408,7 +408,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
             compression_seed,
             ciphertext_modulus,
         ) = meta;
-        SeededGgswCiphertext::from_container(
+        Self::from_container(
             from,
             glwe_size,
             polynomial_size,
@@ -473,7 +473,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswLevelMat
         polynomial_size: PolynomialSize,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> SeededGgswLevelMatrix<C> {
+    ) -> Self {
         assert!(
             container.container_len() == seeded_ggsw_level_matrix_size(glwe_size, polynomial_size),
             "The provided container length is not valid. \
@@ -482,7 +482,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswLevelMat
             container.container_len(),
         );
 
-        SeededGgswLevelMatrix {
+        Self {
             data: container,
             glwe_size,
             polynomial_size,
@@ -552,14 +552,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     type Metadata = SeededGgswLevelMatrixCreationMetadata<C::Element>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> SeededGgswLevelMatrix<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let SeededGgswLevelMatrixCreationMetadata(
             glwe_size,
             polynomial_size,
             compression_seed,
             ciphertext_modulus,
         ) = meta;
-        SeededGgswLevelMatrix::from_container(
+        Self::from_container(
             from,
             glwe_size,
             polynomial_size,

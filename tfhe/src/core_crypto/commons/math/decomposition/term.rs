@@ -24,12 +24,8 @@ where
     T: UnsignedInteger,
 {
     // Creates a new decomposition term.
-    pub(crate) fn new(
-        level: DecompositionLevel,
-        base_log: DecompositionBaseLog,
-        value: T,
-    ) -> DecompositionTerm<T> {
-        DecompositionTerm {
+    pub(crate) fn new(level: DecompositionLevel, base_log: DecompositionBaseLog, value: T) -> Self {
+        Self {
             level: level.0,
             base_log: base_log.0,
             value,
@@ -118,8 +114,8 @@ where
         base_log: DecompositionBaseLog,
         value: T,
         ciphertext_modulus: CiphertextModulus<T>,
-    ) -> DecompositionTermNonNative<T> {
-        DecompositionTermNonNative {
+    ) -> Self {
+        Self {
             level: level.0,
             base_log: base_log.0,
             value,
