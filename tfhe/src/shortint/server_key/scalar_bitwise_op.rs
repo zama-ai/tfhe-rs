@@ -56,8 +56,6 @@ impl ServerKey {
         })
     }
 
-    // by convention smart operations take mut refs to their inputs, even if they do not modify them
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_bitand(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_bitand(self, lhs, rhs).unwrap()
@@ -123,8 +121,6 @@ impl ServerKey {
         })
     }
 
-    // by convention smart operations take mut refs to their inputs, even if they do not modify them
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_bitxor(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_bitxor(self, lhs, rhs).unwrap()
@@ -189,8 +185,6 @@ impl ServerKey {
         })
     }
 
-    // by convention smart operations take mut refs to their inputs, even if they do not modify them
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_bitor(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.smart_scalar_bitor(self, lhs, rhs).unwrap()

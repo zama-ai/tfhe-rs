@@ -130,7 +130,7 @@ fn multi_bit_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Syn
     );
 
     let id = format!("Multi Bit PBS {}", Scalar::BITS);
-    #[allow(clippy::unit_arg)]
+
     {
         c.bench_function(&id, |b| {
             b.iter(|| {
