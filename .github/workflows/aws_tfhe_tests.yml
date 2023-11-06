@@ -100,6 +100,12 @@ jobs:
       - name: Run example tests
         run: |
           make test_examples
+          make dark_market
+
+      - name: Run apps tests
+        run: |
+          make test_trivium
+          make test_kreyvium
 
       - name: Slack Notification
         if: ${{ always() }}
