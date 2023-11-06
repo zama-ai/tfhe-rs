@@ -8,7 +8,7 @@ use rayon::prelude::*;
 
 #[repr(u64)]
 #[derive(PartialEq, Eq)]
-enum OutputCarry {
+pub(crate) enum OutputCarry {
     /// The block does not generate nor propagate a carry
     None = 0,
     /// The block generates a carry

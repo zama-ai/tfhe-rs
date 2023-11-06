@@ -2,7 +2,7 @@ use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
-use crate::integer::{RadixCiphertext, ServerKey};
+use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
@@ -453,5 +453,144 @@ impl ServerKey {
         // borrow of last block indicates overflow
         let overflowed = borrow;
         (RadixCiphertext::from(new_blocks), overflowed)
+    }
+    pub fn unchecked_signed_overflowing_sub(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        rhs: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, Ciphertext) {
+        let mut result = lhs.clone();
+
+        let num_blocks = result.blocks.len();
+        if num_blocks == 0 {
+            return (result, self.key.create_trivial(0));
+        }
+
+        fn block_add_assign_returning_carry(
+            sks: &ServerKey,
+            lhs: &mut Ciphertext,
+            rhs: &Ciphertext,
+        ) -> Ciphertext {
+            sks.key.unchecked_add_assign(lhs, rhs);
+            let (carry, message) = rayon::join(
+                || sks.key.carry_extract(lhs),
+                || sks.key.message_extract(lhs),
+            );
+
+            *lhs = message;
+
+            carry
+        }
+
+        // 2_2, 3_3, 4_4
+        // If we have at least 2 bits and at least as much carries
+        if self.key.message_modulus.0 >= 4 && self.key.carry_modulus.0 >= self.key.message_modulus.0
+        {
+            self.unchecked_sub_assign(&mut result, rhs);
+
+            let mut input_carry = self.key.create_trivial(0);
+
+            // For the first block do the first step of overflow computation in parallel
+            let (_, last_block_inner_propagation) = rayon::join(
+                || {
+                    input_carry =
+                        block_add_assign_returning_carry(self, &mut result.blocks[0], &input_carry);
+                },
+                || {
+                    self.generate_last_block_inner_propagation(
+                        &lhs.blocks[num_blocks - 1],
+                        &rhs.blocks[num_blocks - 1],
+                    )
+                },
+            );
+
+            for block in result.blocks[1..num_blocks - 1].iter_mut() {
+                input_carry = block_add_assign_returning_carry(self, block, &input_carry);
+            }
+
+            // Treat the last block separately to handle last step of overflow behavior
+            let output_carry = block_add_assign_returning_carry(
+                self,
+                &mut result.blocks[num_blocks - 1],
+                &input_carry,
+            );
+            let overflowed = self.resolve_signed_overflow(
+                last_block_inner_propagation,
+                &input_carry,
+                &output_carry,
+            );
+
+            return (result, overflowed);
+        }
+
+        // 1_X parameters
+        //
+        // Same idea as other algorithms, however since we have 1 bit per block
+        // we do not have to resolve any inner propagation but it adds one more
+        // sequential PBS
+        if self.key.message_modulus.0 == 2 {
+            self.unchecked_sub_assign(&mut result, rhs);
+
+            let mut input_carry = self.key.create_trivial(0);
+            for block in result.blocks[..num_blocks - 1].iter_mut() {
+                input_carry = block_add_assign_returning_carry(self, block, &input_carry);
+            }
+
+            let output_carry = block_add_assign_returning_carry(
+                self,
+                &mut result.blocks[num_blocks - 1],
+                &input_carry,
+            );
+
+            // Encode the rule
+            // "Overflow occurred if the carry into the last bit is different than the carry out
+            // of the last bit"
+            let overflowed = self.key.not_equal(&output_carry, &input_carry);
+            return (result, overflowed);
+        }
+
+        panic!(
+            "Invalid combo of message modulus ({}) and carry modulus ({}) \n\
+            This function requires the message modulus >= 2 and carry modulus >= message_modulus \n\
+            I.e. PARAM_MESSAGE_X_CARRY_Y where X >= 1 and Y >= X.",
+            self.key.message_modulus.0, self.key.carry_modulus.0
+        );
+    }
+
+    pub fn signed_overflowing_sub(
+        &self,
+        ctxt_left: &SignedRadixCiphertext,
+        ctxt_right: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, Ciphertext) {
+        let mut tmp_lhs;
+        let mut tmp_rhs;
+
+        let (lhs, rhs) = match (
+            ctxt_left.block_carries_are_empty(),
+            ctxt_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ctxt_left, ctxt_right),
+            (true, false) => {
+                tmp_rhs = ctxt_right.clone();
+                self.full_propagate(&mut tmp_rhs);
+                (ctxt_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = ctxt_left.clone();
+                self.full_propagate(&mut tmp_lhs);
+                (&tmp_lhs, ctxt_right)
+            }
+            (false, false) => {
+                tmp_lhs = ctxt_left.clone();
+                tmp_rhs = ctxt_right.clone();
+                rayon::join(
+                    || self.full_propagate(&mut tmp_lhs),
+                    || self.full_propagate(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_signed_overflowing_sub(lhs, rhs)
     }
 }
