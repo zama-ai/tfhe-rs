@@ -5,7 +5,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::engine::{EngineResult, ShortintEngine};
 use crate::shortint::server_key::{MaxDegree, ShortintBootstrappingKey};
 use crate::shortint::wopbs::{WopbsKey, WopbsLUTBase};
@@ -155,15 +155,26 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
+        let max_noise_level_wopbs = MaxNoiseLevel::from_msg_carry_modulus(
+            parameters.message_modulus,
+            parameters.carry_modulus,
+        );
+
         let wopbs_server_key = ServerKey {
             key_switching_key: ksk_wopbs_large_to_wopbs_small,
             bootstrapping_key: ShortintBootstrappingKey::Classic(small_bsk),
             message_modulus: parameters.message_modulus,
             carry_modulus: parameters.carry_modulus,
             max_degree: MaxDegree(parameters.message_modulus.0 * parameters.carry_modulus.0 - 1),
+            max_noise_level: max_noise_level_wopbs,
             ciphertext_modulus: parameters.ciphertext_modulus,
             pbs_order: cks.parameters.encryption_key_choice().into(),
         };
+
+        let max_noise_level_pbs = MaxNoiseLevel::from_msg_carry_modulus(
+            cks.parameters.message_modulus(),
+            cks.parameters.carry_modulus(),
+        );
 
         let pbs_server_key = ServerKey {
             key_switching_key: ksk_wopbs_large_to_pbs_small,
@@ -173,6 +184,7 @@ impl ShortintEngine {
             max_degree: MaxDegree(
                 cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1,
             ),
+            max_noise_level: max_noise_level_pbs,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
         };

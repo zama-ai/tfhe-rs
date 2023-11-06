@@ -13,6 +13,33 @@ use super::parameters::{CiphertextConformanceParams, CiphertextListConformancePa
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct Degree(pub usize);
 
+/// This tracks the maximal amount of noise of a [Ciphertext]
+/// that guarantees the target p-error when doing a PBS on it
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct MaxNoiseLevel(usize);
+
+impl MaxNoiseLevel {
+    pub fn new(value: usize) -> Self {
+        Self(value)
+    }
+
+    // This function is valid for current parameters as they guarantee the p-error for a norm2 noise
+    // limit equal to the norm2 limit which guarantees a clean padding bit
+    //
+    // TODO: remove this functions once noise norm2 constraint is decorrelated and stored in
+    // parameter sets
+    pub fn from_msg_carry_modulus(
+        msg_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> Self {
+        Self((carry_modulus.0 * msg_modulus.0 - 1) / (msg_modulus.0 - 1))
+    }
+
+    pub fn valid(&self, noise_level: NoiseLevel) -> bool {
+        noise_level.0 <= self.0
+    }
+}
+
 /// This tracks the amount of noise in a ciphertext.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct NoiseLevel(usize);
@@ -488,5 +515,13 @@ mod tests {
         let random_positive_multiplier = rng.gen_range(1usize..=usize::MAX);
         let mul = max_noise_level * random_positive_multiplier;
         assert_eq!(mul, NoiseLevel::MAX);
+    }
+
+    #[test]
+    fn test_max_noise_level_from_msg_carry_modulus() {
+        let max_noise_level =
+            MaxNoiseLevel::from_msg_carry_modulus(MessageModulus(4), CarryModulus(4));
+
+        assert_eq!(max_noise_level.0, 5);
     }
 }

@@ -21,7 +21,7 @@ pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
 #[cfg(test)]
 mod tests;
 
-use super::ciphertext::NoiseLevel;
+use super::ciphertext::{MaxNoiseLevel, NoiseLevel};
 use super::engine::fill_accumulator;
 use super::parameters::CiphertextConformanceParams;
 use super::PBSOrder;
@@ -251,6 +251,7 @@ pub struct ServerKey {
     pub carry_modulus: CarryModulus,
     // Maximum number of operations that can be done before emptying the operation buffer
     pub max_degree: MaxDegree,
+    pub max_noise_level: MaxNoiseLevel,
     // Modulus use for computations on the ciphertext
     pub ciphertext_modulus: CiphertextModulus,
     pub pbs_order: PBSOrder,
@@ -951,12 +952,15 @@ impl From<CompressedServerKey> for ServerKey {
             },
         );
 
+        let max_noise_level = MaxNoiseLevel::from_msg_carry_modulus(message_modulus, carry_modulus);
+
         Self {
             key_switching_key,
             bootstrapping_key,
             message_modulus,
             carry_modulus,
             max_degree,
+            max_noise_level,
             ciphertext_modulus,
             pbs_order,
         }
