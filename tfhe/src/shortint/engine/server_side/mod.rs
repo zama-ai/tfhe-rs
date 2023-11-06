@@ -8,7 +8,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::parameters::{MessageModulus, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{
     BivariateLookupTableOwned, LookupTableOwned, MaxDegree, ShortintBootstrappingKey,
@@ -159,6 +159,11 @@ impl ShortintEngine {
             &mut self.encryption_generator,
         );
 
+        let max_noise_level = MaxNoiseLevel::from_msg_carry_modulus(
+            cks.parameters.message_modulus(),
+            cks.parameters.carry_modulus(),
+        );
+
         // Pack the keys in the server key set:
         ServerKey {
             key_switching_key,
@@ -166,6 +171,7 @@ impl ShortintEngine {
             message_modulus: cks.parameters.message_modulus(),
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
+            max_noise_level,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
         }
