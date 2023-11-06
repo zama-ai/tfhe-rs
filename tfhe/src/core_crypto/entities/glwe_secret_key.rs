@@ -85,7 +85,7 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
         Got container length: {} and polynomial_size: {polynomial_size:?}",
             container.container_len()
         );
-        GlweSecretKey {
+        Self {
             data: container,
             polynomial_size,
         }
@@ -151,8 +151,8 @@ where
         value: Scalar,
         glwe_dimension: GlweDimension,
         polynomial_size: PolynomialSize,
-    ) -> GlweSecretKeyOwned<Scalar> {
-        GlweSecretKeyOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![
                 value;
                 glwe_dimension
@@ -197,7 +197,7 @@ where
         glwe_dimension: GlweDimension,
         polynomial_size: PolynomialSize,
         generator: &mut SecretRandomGenerator<Gen>,
-    ) -> GlweSecretKeyOwned<Scalar>
+    ) -> Self
     where
         Scalar: Numeric + RandomGenerable<UniformBinary>,
         Gen: ByteRandomGenerator,

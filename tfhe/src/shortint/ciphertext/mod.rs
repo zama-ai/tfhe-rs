@@ -54,7 +54,7 @@ impl std::ops::Mul<usize> for NoiseLevel {
 }
 
 impl Degree {
-    pub(crate) fn after_bitxor(&self, other: Degree) -> Degree {
+    pub(crate) fn after_bitxor(&self, other: Self) -> Self {
         let max = cmp::max(self.0, other.0);
         let min = cmp::min(self.0, other.0);
         let mut result = max;
@@ -66,10 +66,10 @@ impl Degree {
             }
         }
 
-        Degree(result)
+        Self(result)
     }
 
-    pub(crate) fn after_bitor(&self, other: Degree) -> Degree {
+    pub(crate) fn after_bitor(&self, other: Self) -> Self {
         let max = cmp::max(self.0, other.0);
         let min = cmp::min(self.0, other.0);
         let mut result = max;
@@ -80,14 +80,14 @@ impl Degree {
             }
         }
 
-        Degree(result)
+        Self(result)
     }
 
-    pub(crate) fn after_bitand(&self, other: Degree) -> Degree {
-        Degree(cmp::min(self.0, other.0))
+    pub(crate) fn after_bitand(&self, other: Self) -> Self {
+        Self(cmp::min(self.0, other.0))
     }
 
-    pub(crate) fn after_left_shift(&self, shift: u8, modulus: usize) -> Degree {
+    pub(crate) fn after_left_shift(&self, shift: u8, modulus: usize) -> Self {
         let mut result = 0;
 
         for i in 0..self.0 + 1 {
@@ -97,11 +97,11 @@ impl Degree {
             }
         }
 
-        Degree(result)
+        Self(result)
     }
 
     #[allow(dead_code)]
-    pub(crate) fn after_pbs<F>(&self, f: F) -> Degree
+    pub(crate) fn after_pbs<F>(&self, f: F) -> Self
     where
         F: Fn(usize) -> usize,
     {
@@ -114,7 +114,7 @@ impl Degree {
             }
         }
 
-        Degree(result)
+        Self(result)
     }
 }
 
@@ -153,7 +153,7 @@ impl ParameterSetConformant for Ciphertext {
 // And a warning if a member is destructured but not used.
 impl Clone for Ciphertext {
     fn clone(&self) -> Self {
-        let Ciphertext {
+        let Self {
             ct: src_ct,
             degree: src_degree,
             message_modulus: src_message_modulus,
@@ -173,7 +173,7 @@ impl Clone for Ciphertext {
     }
 
     fn clone_from(&mut self, source: &Self) {
-        let Ciphertext {
+        let Self {
             ct: dst_ct,
             degree: dst_degree,
             message_modulus: dst_message_modulus,
@@ -182,7 +182,7 @@ impl Clone for Ciphertext {
             noise_level: dst_noise_level,
         } = self;
 
-        let Ciphertext {
+        let Self {
             ct: src_ct,
             degree: src_degree,
             message_modulus: src_message_modulus,
@@ -214,8 +214,8 @@ impl Ciphertext {
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
         pbs_order: PBSOrder,
-    ) -> Ciphertext {
-        Ciphertext {
+    ) -> Self {
+        Self {
             ct,
             degree,
             noise_level,
@@ -265,7 +265,7 @@ impl ParameterSetConformant for CompressedCiphertext {
 
 impl CompressedCiphertext {
     pub fn decompress(self) -> Ciphertext {
-        let CompressedCiphertext {
+        let Self {
             ct,
             degree,
             message_modulus,

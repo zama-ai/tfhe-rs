@@ -36,21 +36,21 @@ pub enum GenericIntegerBlockError {
 impl std::fmt::Display for GenericIntegerBlockError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            GenericIntegerBlockError::NumberOfBlocks(correct, incorrect) => write!(
+            Self::NumberOfBlocks(correct, incorrect) => write!(
                 f,
                 "Wrong number of blocks for creating 
                     a GenericInteger: should have been {}, but 
                     was {} instead",
                 correct, incorrect
             ),
-            GenericIntegerBlockError::CarryModulus(correct, incorrect) => write!(
+            Self::CarryModulus(correct, incorrect) => write!(
                 f,
                 "Wrong carry modulus for creating 
                     a GenericInteger: should have been {:?}, but 
                     was {:?} instead",
                 correct, incorrect
             ),
-            GenericIntegerBlockError::MessageModulus(correct, incorrect) => write!(
+            Self::MessageModulus(correct, incorrect) => write!(
                 f,
                 "Wrong message modulus for creating 
                     a GenericInteger: should have been {:?}, but 
@@ -199,7 +199,7 @@ where
     ///
     /// - if `self` is true (1), the output will have the value of `ct_then`
     /// - if `self` is false (0), the output will have the value of `ct_else`
-    pub fn if_then_else(&self, ct_then: &Self, ct_else: &Self) -> GenericInteger<P> {
+    pub fn if_then_else(&self, ct_then: &Self, ct_else: &Self) -> Self {
         let ct_condition = self;
         let new_ct = ct_condition.id.with_unwrapped_global(|integer_key| {
             integer_key.pbs_key().if_then_else_parallelized(
@@ -209,13 +209,13 @@ where
             )
         });
 
-        GenericInteger::new(new_ct, ct_condition.id)
+        Self::new(new_ct, ct_condition.id)
     }
 
     /// Conditional selection.
     ///
     /// cmux is another name for (if_then_else)[Self::if_then_else]
-    pub fn cmux(&self, ct_then: &Self, ct_else: &Self) -> GenericInteger<P> {
+    pub fn cmux(&self, ct_then: &Self, ct_else: &Self) -> Self {
         self.if_then_else(ct_then, ct_else)
     }
 }
@@ -226,7 +226,7 @@ where
     P::Id: Default + WithGlobalKey<Key = IntegerServerKey>,
 {
     type Error = GenericIntegerBlockError;
-    fn try_from(other: RadixCiphertext) -> Result<GenericInteger<P>, GenericIntegerBlockError> {
+    fn try_from(other: RadixCiphertext) -> Result<Self, GenericIntegerBlockError> {
         // Check number of blocks
         if other.blocks.len() != P::num_blocks() {
             return Err(GenericIntegerBlockError::NumberOfBlocks(
@@ -261,7 +261,7 @@ where
             }
         }
 
-        Ok(GenericInteger::new(other, P::Id::default()))
+        Ok(Self::new(other, P::Id::default()))
     }
 }
 
@@ -272,9 +272,9 @@ where
     P::InnerCiphertext: From<Vec<T>>,
 {
     type Error = GenericIntegerBlockError;
-    fn try_from(blocks: Vec<T>) -> Result<GenericInteger<P>, GenericIntegerBlockError> {
+    fn try_from(blocks: Vec<T>) -> Result<Self, GenericIntegerBlockError> {
         let ciphertext = P::InnerCiphertext::from(blocks);
-        GenericInteger::try_from(ciphertext)
+        Self::try_from(ciphertext)
     }
 }
 
@@ -401,7 +401,7 @@ where
 impl<P> FheMax<&Self> for GenericInteger<P>
 where
     P: IntegerParameter,
-    GenericInteger<P>: Clone,
+    Self: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
@@ -412,7 +412,7 @@ where
                 .pbs_key()
                 .max_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
@@ -420,7 +420,7 @@ impl<P, Clear> FheMax<Clear> for GenericInteger<P>
 where
     Clear: DecomposableInto<u64>,
     P: IntegerParameter,
-    GenericInteger<P>: Clone,
+    Self: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
@@ -431,7 +431,7 @@ where
                 .pbs_key()
                 .scalar_max_parallelized(&self.ciphertext, rhs)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
@@ -439,7 +439,7 @@ impl<P> FheMin<&Self> for GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
-    GenericInteger<P>: Clone,
+    Self: Clone,
 {
     type Output = Self;
 
@@ -449,7 +449,7 @@ where
                 .pbs_key()
                 .min_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
@@ -457,7 +457,7 @@ impl<P, Clear> FheMin<Clear> for GenericInteger<P>
 where
     Clear: DecomposableInto<u64>,
     P: IntegerParameter,
-    GenericInteger<P>: Clone,
+    Self: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
@@ -468,14 +468,14 @@ where
                 .pbs_key()
                 .scalar_min_parallelized(&self.ciphertext, rhs)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
 impl<P> FheEq<Self> for GenericInteger<P>
 where
     P: IntegerParameter,
-    GenericInteger<P>: Clone,
+    Self: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
@@ -486,7 +486,7 @@ where
                 .pbs_key()
                 .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn ne(&self, rhs: Self) -> Self::Output {
@@ -495,14 +495,14 @@ where
                 .pbs_key()
                 .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
 impl<P> FheEq<&Self> for GenericInteger<P>
 where
     P: IntegerParameter,
-    GenericInteger<P>: Clone,
+    Self: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
@@ -513,7 +513,7 @@ where
                 .pbs_key()
                 .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn ne(&self, rhs: &Self) -> Self::Output {
@@ -522,7 +522,7 @@ where
                 .pbs_key()
                 .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
@@ -530,7 +530,7 @@ impl<P, Clear> FheEq<Clear> for GenericInteger<P>
 where
     Clear: DecomposableInto<u64>,
     P: IntegerParameter,
-    GenericInteger<P>: Clone,
+    Self: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
@@ -541,7 +541,7 @@ where
                 .pbs_key()
                 .scalar_eq_parallelized(&self.ciphertext, rhs)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn ne(&self, rhs: Clear) -> Self::Output {
@@ -550,14 +550,14 @@ where
                 .pbs_key()
                 .scalar_ne_parallelized(&self.ciphertext, rhs)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
 impl<P> FheOrd<Self> for GenericInteger<P>
 where
     P: IntegerParameter,
-    GenericInteger<P>: Clone,
+    Self: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
@@ -568,7 +568,7 @@ where
                 .pbs_key()
                 .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn le(&self, rhs: Self) -> Self::Output {
@@ -577,7 +577,7 @@ where
                 .pbs_key()
                 .le_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn gt(&self, rhs: Self) -> Self::Output {
@@ -586,7 +586,7 @@ where
                 .pbs_key()
                 .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn ge(&self, rhs: Self) -> Self::Output {
@@ -595,14 +595,14 @@ where
                 .pbs_key()
                 .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
 impl<P> FheOrd<&Self> for GenericInteger<P>
 where
     P: IntegerParameter,
-    GenericInteger<P>: Clone,
+    Self: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
@@ -613,7 +613,7 @@ where
                 .pbs_key()
                 .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn le(&self, rhs: &Self) -> Self::Output {
@@ -622,7 +622,7 @@ where
                 .pbs_key()
                 .le_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn gt(&self, rhs: &Self) -> Self::Output {
@@ -631,7 +631,7 @@ where
                 .pbs_key()
                 .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn ge(&self, rhs: &Self) -> Self::Output {
@@ -640,7 +640,7 @@ where
                 .pbs_key()
                 .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
@@ -648,7 +648,7 @@ impl<P, Clear> FheOrd<Clear> for GenericInteger<P>
 where
     Clear: DecomposableInto<u64>,
     P: IntegerParameter,
-    GenericInteger<P>: Clone,
+    Self: Clone,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = Self;
@@ -659,7 +659,7 @@ where
                 .pbs_key()
                 .scalar_lt_parallelized(&self.ciphertext, rhs)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn le(&self, rhs: Clear) -> Self::Output {
@@ -668,7 +668,7 @@ where
                 .pbs_key()
                 .scalar_le_parallelized(&self.ciphertext, rhs)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn gt(&self, rhs: Clear) -> Self::Output {
@@ -677,7 +677,7 @@ where
                 .pbs_key()
                 .scalar_gt_parallelized(&self.ciphertext, rhs)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 
     fn ge(&self, rhs: Clear) -> Self::Output {
@@ -686,7 +686,7 @@ where
                 .pbs_key()
                 .scalar_ge_parallelized(&self.ciphertext, rhs)
         });
-        GenericInteger::new(inner_result, self.id)
+        Self::new(inner_result, self.id)
     }
 }
 
@@ -708,7 +708,7 @@ where
                 .as_ref()
                 .expect("Function evaluation on integers was not enabled in the config")
                 .apply_wopbs(integer_key.pbs_key(), &self.ciphertext, func);
-            GenericInteger::<P>::new(res, self.id)
+            Self::new(res, self.id)
         })
     }
 
@@ -741,55 +741,55 @@ where
                 .as_ref()
                 .expect("Function evaluation on integers was not enabled in the config")
                 .apply_bivariate_wopbs(integer_key.pbs_key(), lhs, rhs, func);
-            GenericInteger::<P>::new(res, self.id)
+            Self::new(res, self.id)
         })
     }
 }
 
-impl<P> DivRem<GenericInteger<P>> for GenericInteger<P>
+impl<P> DivRem<Self> for GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
-    type Output = (GenericInteger<P>, GenericInteger<P>);
+    type Output = (Self, Self);
 
-    fn div_rem(self, rhs: GenericInteger<P>) -> Self::Output {
-        <Self as DivRem<&GenericInteger<P>>>::div_rem(self, &rhs)
+    fn div_rem(self, rhs: Self) -> Self::Output {
+        <Self as DivRem<&Self>>::div_rem(self, &rhs)
     }
 }
 
-impl<P> DivRem<&GenericInteger<P>> for GenericInteger<P>
+impl<P> DivRem<&Self> for GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
-    type Output = (GenericInteger<P>, GenericInteger<P>);
+    type Output = (Self, Self);
 
-    fn div_rem(self, rhs: &GenericInteger<P>) -> Self::Output {
-        <&Self as DivRem<&GenericInteger<P>>>::div_rem(&self, rhs)
+    fn div_rem(self, rhs: &Self) -> Self::Output {
+        <&Self as DivRem<&Self>>::div_rem(&self, rhs)
     }
 }
 
-impl<P> DivRem<GenericInteger<P>> for &GenericInteger<P>
+impl<P> DivRem<Self> for &GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = (GenericInteger<P>, GenericInteger<P>);
 
-    fn div_rem(self, rhs: GenericInteger<P>) -> Self::Output {
-        <Self as DivRem<&GenericInteger<P>>>::div_rem(self, &rhs)
+    fn div_rem(self, rhs: Self) -> Self::Output {
+        <Self as DivRem<&Self>>::div_rem(self, &rhs)
     }
 }
 
-impl<P> DivRem<&GenericInteger<P>> for &GenericInteger<P>
+impl<P> DivRem<&Self> for &GenericInteger<P>
 where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
     type Output = (GenericInteger<P>, GenericInteger<P>);
 
-    fn div_rem(self, rhs: &GenericInteger<P>) -> Self::Output {
+    fn div_rem(self, rhs: &Self) -> Self::Output {
         let (q, r) = self.id.with_unwrapped_global(|integer_key| {
             integer_key
                 .pbs_key()
@@ -1630,7 +1630,7 @@ where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
-    type Output = GenericInteger<P>;
+    type Output = Self;
 
     fn neg(self) -> Self::Output {
         <&Self as Neg>::neg(&self)
@@ -1648,7 +1648,7 @@ where
         let ciphertext = self.id.with_unwrapped_global(|integer_key| {
             integer_key.pbs_key().neg_parallelized(&self.ciphertext)
         });
-        GenericInteger::<P>::new(ciphertext, self.id)
+        GenericInteger::new(ciphertext, self.id)
     }
 }
 
@@ -1657,7 +1657,7 @@ where
     P: IntegerParameter,
     P::Id: WithGlobalKey<Key = IntegerServerKey>,
 {
-    type Output = GenericInteger<P>;
+    type Output = Self;
 
     fn not(self) -> Self::Output {
         <&Self as Not>::not(&self)

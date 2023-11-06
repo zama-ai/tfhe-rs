@@ -93,8 +93,8 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
         lwe_size: LweSize,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededLweCiphertext<Scalar> {
-        SeededLweCiphertext {
+    ) -> Self {
+        Self {
             data: scalar,
             lwe_size,
             compression_seed,
@@ -166,8 +166,8 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
         lwe_size: LweSize,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededLweCiphertext<Scalar> {
-        SeededLweCiphertext::from_scalar(scalar, lwe_size, compression_seed, ciphertext_modulus)
+    ) -> Self {
+        Self::from_scalar(scalar, lwe_size, compression_seed, ciphertext_modulus)
     }
 }
 

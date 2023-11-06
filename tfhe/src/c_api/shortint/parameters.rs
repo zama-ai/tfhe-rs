@@ -7,8 +7,6 @@ pub use crate::shortint::parameters::parameters_compact_pk::*;
 pub use crate::shortint::parameters::*;
 use std::os::raw::c_int;
 
-use crate::shortint;
-
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub enum ShortintEncryptionKeyChoice {
@@ -19,12 +17,8 @@ pub enum ShortintEncryptionKeyChoice {
 impl From<ShortintEncryptionKeyChoice> for crate::shortint::parameters::EncryptionKeyChoice {
     fn from(value: ShortintEncryptionKeyChoice) -> Self {
         match value {
-            ShortintEncryptionKeyChoice::ShortintEncryptionKeyChoiceBig => {
-                shortint::parameters::EncryptionKeyChoice::Big
-            }
-            ShortintEncryptionKeyChoice::ShortintEncryptionKeyChoiceSmall => {
-                shortint::parameters::EncryptionKeyChoice::Small
-            }
+            ShortintEncryptionKeyChoice::ShortintEncryptionKeyChoiceBig => Self::Big,
+            ShortintEncryptionKeyChoice::ShortintEncryptionKeyChoiceSmall => Self::Small,
         }
     }
 }

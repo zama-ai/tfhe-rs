@@ -112,7 +112,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertextList
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> GgswCiphertextList<C> {
+    ) -> Self {
         assert!(
             container.container_len()
                 % (decomp_level_count.0 * glwe_size.0 * glwe_size.0 * polynomial_size.0)
@@ -125,7 +125,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertextList
             container.container_len()
         );
 
-        GgswCiphertextList {
+        Self {
             data: container,
             glwe_size,
             polynomial_size,
@@ -230,8 +230,8 @@ impl<Scalar: UnsignedInteger> GgswCiphertextListOwned<Scalar> {
         decomp_level_count: DecompositionLevelCount,
         ciphertext_count: GgswCiphertextCount,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> GgswCiphertextListOwned<Scalar> {
-        GgswCiphertextList::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![
                 fill_with;
                 ggsw_ciphertext_list_size(
@@ -266,7 +266,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     type Metadata = GgswCiphertextListCreationMetadata<Scalar>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GgswCiphertextList<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GgswCiphertextListCreationMetadata(
             glwe_size,
             polynomial_size,
@@ -274,7 +274,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
             decomp_level_count,
             ciphertext_modulus,
         ) = meta;
-        GgswCiphertextList::from_container(
+        Self::from_container(
             from,
             glwe_size,
             polynomial_size,

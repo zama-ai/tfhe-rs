@@ -30,8 +30,8 @@ pub struct MaskRandomGenerator<G: ByteRandomGenerator> {
 }
 
 impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
-    pub fn new(seed: Seed) -> MaskRandomGenerator<G> {
-        MaskRandomGenerator {
+    pub fn new(seed: Seed) -> Self {
+        Self {
             gen: RandomGenerator::new(seed),
         }
     }
@@ -67,7 +67,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         level: DecompositionLevelCount,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_ggsw::<T>(level, glwe_size, polynomial_size);
         self.try_fork(lwe_dimension.0, mask_bytes)
     }
@@ -80,7 +80,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         grouping_factor: LweBskGroupingFactor,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_multi_bit_bsk_ggsw_group::<T>(
             level,
             glwe_size,
@@ -98,7 +98,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         grouping_factor: LweBskGroupingFactor,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let ggsw_count = grouping_factor.ggsw_per_multi_bit_element();
         let mask_bytes = mask_bytes_per_ggsw::<T>(level, glwe_size, polynomial_size);
         self.try_fork(ggsw_count.0, mask_bytes)
@@ -110,7 +110,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         level: DecompositionLevelCount,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_ggsw_level::<T>(glwe_size, polynomial_size);
         self.try_fork(level.0, mask_bytes)
     }
@@ -120,7 +120,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_glwe::<T>(glwe_size.to_glwe_dimension(), polynomial_size);
         self.try_fork(glwe_size.0, mask_bytes)
     }
@@ -130,7 +130,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         level: DecompositionLevelCount,
         lwe_size: LweSize,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_gsw_level::<T>(lwe_size);
         self.try_fork(level.0, mask_bytes)
     }
@@ -139,7 +139,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
     pub(crate) fn fork_gsw_level_to_lwe<T: UnsignedInteger>(
         &mut self,
         lwe_size: LweSize,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_lwe::<T>(lwe_size.to_lwe_dimension());
         self.try_fork(lwe_size.0, mask_bytes)
     }
@@ -149,7 +149,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         lwe_count: LweCiphertextCount,
         lwe_size: LweSize,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_lwe::<T>(lwe_size.to_lwe_dimension());
         self.try_fork(lwe_count.0, mask_bytes)
     }
@@ -162,7 +162,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         poly_size: PolynomialSize,
         lwe_size: LweSize,
         pfpksk_count: FunctionalPackingKeyswitchKeyCount,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_pfpksk::<T>(level, glwe_size, poly_size, lwe_size);
         self.try_fork(pfpksk_count.0, mask_bytes)
     }
@@ -174,7 +174,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         glwe_size: GlweSize,
         poly_size: PolynomialSize,
         lwe_size: LweSize,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_pfpksk_chunk::<T>(level, glwe_size, poly_size);
         self.try_fork(lwe_size.0, mask_bytes)
     }
@@ -183,7 +183,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         lwe_mask_count: LweMaskCount,
         lwe_dimension: LweDimension,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_lwe_compact_ciphertext_bin::<T>(lwe_dimension);
         self.try_fork(lwe_mask_count.0, mask_bytes)
     }
@@ -192,12 +192,12 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         n_child: usize,
         mask_bytes: usize,
-    ) -> Result<impl Iterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl Iterator<Item = Self>, ForkError> {
         // We try to fork the generators
         let mask_iter = self.gen.try_fork(n_child, mask_bytes)?;
 
         // We return a proper iterator.
-        Ok(mask_iter.map(|gen| MaskRandomGenerator { gen }))
+        Ok(mask_iter.map(|gen| Self { gen }))
     }
 }
 
@@ -209,7 +209,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         level: DecompositionLevelCount,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_ggsw::<T>(level, glwe_size, polynomial_size);
         self.par_try_fork(lwe_dimension.0, mask_bytes)
     }
@@ -222,7 +222,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         grouping_factor: LweBskGroupingFactor,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_multi_bit_bsk_ggsw_group::<T>(
             level,
             glwe_size,
@@ -240,7 +240,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         grouping_factor: LweBskGroupingFactor,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let ggsw_count = grouping_factor.ggsw_per_multi_bit_element();
         let mask_bytes = mask_bytes_per_ggsw::<T>(level, glwe_size, polynomial_size);
         self.par_try_fork(ggsw_count.0, mask_bytes)
@@ -252,7 +252,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         level: DecompositionLevelCount,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_ggsw_level::<T>(glwe_size, polynomial_size);
         self.par_try_fork(level.0, mask_bytes)
     }
@@ -262,7 +262,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_glwe::<T>(glwe_size.to_glwe_dimension(), polynomial_size);
         self.par_try_fork(glwe_size.0, mask_bytes)
     }
@@ -272,7 +272,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         level: DecompositionLevelCount,
         lwe_size: LweSize,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_gsw_level::<T>(lwe_size);
         self.par_try_fork(level.0, mask_bytes)
     }
@@ -281,7 +281,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
     pub(crate) fn par_fork_gsw_level_to_lwe<T: UnsignedInteger>(
         &mut self,
         lwe_size: LweSize,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_lwe::<T>(lwe_size.to_lwe_dimension());
         self.par_try_fork(lwe_size.0, mask_bytes)
     }
@@ -291,7 +291,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         lwe_count: LweCiphertextCount,
         lwe_size: LweSize,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_lwe::<T>(lwe_size.to_lwe_dimension());
         self.par_try_fork(lwe_count.0, mask_bytes)
     }
@@ -304,7 +304,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         poly_size: PolynomialSize,
         lwe_size: LweSize,
         pfpksk_count: FunctionalPackingKeyswitchKeyCount,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_pfpksk::<T>(level, glwe_size, poly_size, lwe_size);
         self.par_try_fork(pfpksk_count.0, mask_bytes)
     }
@@ -316,7 +316,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         glwe_size: GlweSize,
         poly_size: PolynomialSize,
         lwe_size: LweSize,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_pfpksk_chunk::<T>(level, glwe_size, poly_size);
         self.par_try_fork(lwe_size.0, mask_bytes)
     }
@@ -325,7 +325,7 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         lwe_mask_count: LweMaskCount,
         lwe_dimension: LweDimension,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_bytes = mask_bytes_per_lwe_compact_ciphertext_bin::<T>(lwe_dimension);
         self.par_try_fork(lwe_mask_count.0, mask_bytes)
     }
@@ -335,12 +335,12 @@ impl<G: ParallelByteRandomGenerator> MaskRandomGenerator<G> {
         &mut self,
         n_child: usize,
         mask_bytes: usize,
-    ) -> Result<impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>, ForkError> {
+    ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         // We try to fork the generators
         let mask_iter = self.gen.par_try_fork(n_child, mask_bytes)?;
 
         // We return a proper iterator.
-        Ok(mask_iter.map(|gen| MaskRandomGenerator { gen }))
+        Ok(mask_iter.map(|gen| Self { gen }))
     }
 }
 

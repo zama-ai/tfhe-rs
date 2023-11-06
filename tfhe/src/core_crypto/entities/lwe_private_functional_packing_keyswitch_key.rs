@@ -145,7 +145,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
         output_glwe_size: GlweSize,
         output_polynomial_size: PolynomialSize,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> LwePrivateFunctionalPackingKeyswitchKey<C> {
+    ) -> Self {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create an LweKeyswitchKey"
@@ -171,7 +171,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
             container.container_len()
         );
 
-        LwePrivateFunctionalPackingKeyswitchKey {
+        Self {
             data: container,
             decomp_base_log,
             decomp_level_count,
@@ -314,8 +314,8 @@ impl<Scalar: UnsignedInteger> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scala
         output_glwe_size: GlweSize,
         output_polynomial_size: PolynomialSize,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LwePrivateFunctionalPackingKeyswitchKeyOwned<Scalar> {
-        LwePrivateFunctionalPackingKeyswitchKeyOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![
                 fill_with;
                 lwe_pfpksk_size(
@@ -403,7 +403,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     type Metadata = LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata<Scalar>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> LwePrivateFunctionalPackingKeyswitchKey<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata(
             decomp_base_log,
             decomp_level_count,
@@ -411,7 +411,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
             output_polynomial_size,
             ciphertext_modulus,
         ) = meta;
-        LwePrivateFunctionalPackingKeyswitchKey::from_container(
+        Self::from_container(
             from,
             decomp_base_log,
             decomp_level_count,

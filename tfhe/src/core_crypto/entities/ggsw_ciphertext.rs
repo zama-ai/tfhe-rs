@@ -303,7 +303,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertext<C> 
             container.container_len()
         );
 
-        GgswCiphertext {
+        Self {
             data: container,
             glwe_size,
             polynomial_size,
@@ -453,8 +453,8 @@ impl<Scalar: UnsignedInteger> GgswCiphertextOwned<Scalar> {
         decomp_base_log: DecompositionBaseLog,
         decomp_level_count: DecompositionLevelCount,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> GgswCiphertextOwned<Scalar> {
-        GgswCiphertextOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![fill_with; ggsw_ciphertext_size(glwe_size, polynomial_size, decomp_level_count)],
             glwe_size,
             polynomial_size,
@@ -477,14 +477,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     type Metadata = GgswCiphertextCreationMetadata<Scalar>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GgswCiphertext<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GgswCiphertextCreationMetadata(
             glwe_size,
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
         ) = meta;
-        GgswCiphertext::from_container(
+        Self::from_container(
             from,
             glwe_size,
             polynomial_size,
@@ -537,7 +537,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswLevelMatrix<C>
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> GgswLevelMatrix<C> {
+    ) -> Self {
         assert!(
             container.container_len() == ggsw_level_matrix_size(glwe_size, polynomial_size),
             "The provided container length is not valid. \
@@ -546,7 +546,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswLevelMatrix<C>
             container.container_len(),
         );
 
-        GgswLevelMatrix {
+        Self {
             data: container,
             glwe_size,
             polynomial_size,
@@ -610,9 +610,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     type Metadata = GgswLevelMatrixCreationMetadata<C::Element>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GgswLevelMatrix<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GgswLevelMatrixCreationMetadata(glwe_size, polynomial_size, ciphertext_modulus) = meta;
-        GgswLevelMatrix::from_container(from, glwe_size, polynomial_size, ciphertext_modulus)
+        Self::from_container(from, glwe_size, polynomial_size, ciphertext_modulus)
     }
 }
 

@@ -146,9 +146,9 @@ impl RadixCiphertextConformanceParams {
     pub fn from_pbs_parameters<P: Into<PBSParameters>>(
         params: P,
         num_blocks_per_integer: usize,
-    ) -> RadixCiphertextConformanceParams {
+    ) -> Self {
         let params: PBSParameters = params.into();
-        RadixCiphertextConformanceParams {
+        Self {
             shortint_params: params.to_shortint_conformance_param(),
             num_blocks_per_integer,
         }

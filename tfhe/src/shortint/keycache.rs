@@ -271,7 +271,7 @@ impl NamedParam for ShortintKeySwitchingParameters {
         named_params_impl!(
             {
                 *self;
-                ShortintKeySwitchingParameters
+                Self
             } == (PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS)
         );
 
@@ -396,7 +396,7 @@ impl From<WopbsParamPair> for WopbsKey {
     fn from(params: WopbsParamPair) -> Self {
         // use with_key to avoid doing a temporary cloning
         KEY_CACHE.inner.with_key(params.0, |keys| {
-            WopbsKey::new_wopbs_key(&keys.0, &keys.1, &params.1)
+            Self::new_wopbs_key(&keys.0, &keys.1, &params.1)
         })
     }
 }
@@ -460,7 +460,7 @@ impl From<KeySwitchingKeyParams> for KeySwitchingKey {
         // use with_key to avoid doing a temporary cloning
         KEY_CACHE.inner.with_key(params.0, |keys_1| {
             KEY_CACHE.inner.with_key(params.1, |keys_2| {
-                KeySwitchingKey::new((&keys_1.0, &keys_1.1), (&keys_2.0, &keys_2.1), params.2)
+                Self::new((&keys_1.0, &keys_1.1), (&keys_2.0, &keys_2.1), params.2)
             })
         })
     }

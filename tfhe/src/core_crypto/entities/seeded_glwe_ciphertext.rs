@@ -121,12 +121,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
         glwe_size: GlweSize,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> SeededGlweCiphertext<C> {
+    ) -> Self {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create a SeededGlweCiphertext"
         );
-        SeededGlweCiphertext {
+        Self {
             data: container,
             glwe_size,
             compression_seed,
@@ -254,8 +254,8 @@ impl<Scalar: UnsignedInteger> SeededGlweCiphertextOwned<Scalar> {
         polynomial_size: PolynomialSize,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededGlweCiphertextOwned<Scalar> {
-        SeededGlweCiphertextOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![fill_with; polynomial_size.0],
             glwe_size,
             compression_seed,
@@ -278,9 +278,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     type Metadata = SeededGlweCiphertextCreationMetadata<Scalar>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> SeededGlweCiphertext<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let SeededGlweCiphertextCreationMetadata(glwe_size, compression_seed, ciphertext_modulus) =
             meta;
-        SeededGlweCiphertext::from_container(from, glwe_size, compression_seed, ciphertext_modulus)
+        Self::from_container(from, glwe_size, compression_seed, ciphertext_modulus)
     }
 }

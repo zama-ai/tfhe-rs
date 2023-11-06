@@ -65,7 +65,7 @@ impl Twisties {
             (*im, *re) = (i as f64 * unit).sin_cos();
         }
 
-        Twisties { re, im }
+        Self { re, im }
     }
 }
 

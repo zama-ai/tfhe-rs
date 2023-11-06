@@ -38,7 +38,7 @@ pub struct DeterministicSeeder<G: ByteRandomGenerator> {
 
 impl<G: ByteRandomGenerator> DeterministicSeeder<G> {
     pub fn new(seed: Seed) -> Self {
-        DeterministicSeeder {
+        Self {
             generator: RandomGenerator::new(seed),
         }
     }

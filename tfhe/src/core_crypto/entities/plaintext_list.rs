@@ -50,8 +50,8 @@ impl<Scalar, C: Container<Element = Scalar>> PlaintextList<C> {
     ///
     /// assert_eq!(plaintext_list.plaintext_count(), plaintext_count);
     /// ```
-    pub fn from_container(container: C) -> PlaintextList<C> {
-        PlaintextList { data: container }
+    pub fn from_container(container: C) -> Self {
+        Self { data: container }
     }
 
     /// Return the [`PlaintextCount`] of the [`PlaintextList`].
@@ -111,8 +111,8 @@ where
     /// type.
     ///
     /// See [`PlaintextList::from_container`] for usage.
-    pub fn new(fill_with: Scalar, count: PlaintextCount) -> PlaintextListOwned<Scalar> {
-        PlaintextListOwned::from_container(vec![fill_with; count.0])
+    pub fn new(fill_with: Scalar, count: PlaintextCount) -> Self {
+        Self::from_container(vec![fill_with; count.0])
     }
 }
 
@@ -120,8 +120,8 @@ impl<C: Container> CreateFrom<C> for PlaintextList<C> {
     type Metadata = ();
 
     #[inline]
-    fn create_from(from: C, _: Self::Metadata) -> PlaintextList<C> {
-        PlaintextList::from_container(from)
+    fn create_from(from: C, _: Self::Metadata) -> Self {
+        Self::from_container(from)
     }
 }
 

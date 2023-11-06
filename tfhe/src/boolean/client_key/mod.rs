@@ -131,7 +131,7 @@ impl ClientKey {
     /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
     /// # }
     /// ```
-    pub fn new(parameter_set: &BooleanParameters) -> ClientKey {
+    pub fn new(parameter_set: &BooleanParameters) -> Self {
         BooleanEngine::with_thread_local_mut(|engine| engine.create_client_key(*parameter_set))
     }
 }

@@ -35,15 +35,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweBody<C> {
     /// assert_eq!(glwe_body.polynomial_size(), polynomial_size);
     /// assert_eq!(glwe_body.ciphertext_modulus(), ciphertext_modulus);
     /// ```
-    pub fn from_container(
-        container: C,
-        ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> GlweBody<C> {
+    pub fn from_container(container: C, ciphertext_modulus: CiphertextModulus<C::Element>) -> Self {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create a GlweBody"
         );
-        GlweBody {
+        Self {
             data: container,
             ciphertext_modulus,
         }
@@ -80,9 +77,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     type Metadata = GlweCiphertextCreationMetadata<C::Element>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GlweBody<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GlweCiphertextCreationMetadata(_, ciphertext_modulus) = meta;
-        GlweBody::from_container(from, ciphertext_modulus)
+        Self::from_container(from, ciphertext_modulus)
     }
 }
 
@@ -142,7 +139,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweMask<C> {
         Got container length: {} and polynomial_size: {polynomial_size:?}.",
             container.container_len()
         );
-        GlweMask {
+        Self {
             data: container,
             polynomial_size,
             ciphertext_modulus,
@@ -382,7 +379,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertext<C> 
         container: C,
         polynomial_size: PolynomialSize,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> GlweCiphertext<C> {
+    ) -> Self {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create a GlweCiphertext"
@@ -394,7 +391,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertext<C> 
         Got container length: {} and polynomial_size: {polynomial_size:?}.",
             container.container_len()
         );
-        GlweCiphertext {
+        Self {
             data: container,
             polynomial_size,
             ciphertext_modulus,
@@ -571,8 +568,8 @@ impl<Scalar: UnsignedInteger> GlweCiphertextOwned<Scalar> {
         glwe_size: GlweSize,
         polynomial_size: PolynomialSize,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> GlweCiphertextOwned<Scalar> {
-        GlweCiphertextOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![fill_with; glwe_ciphertext_size(glwe_size, polynomial_size)],
             polynomial_size,
             ciphertext_modulus,
@@ -591,8 +588,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     type Metadata = GlweCiphertextCreationMetadata<Scalar>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> GlweCiphertext<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GlweCiphertextCreationMetadata(polynomial_size, ciphertext_modulus) = meta;
-        GlweCiphertext::from_container(from, polynomial_size, ciphertext_modulus)
+        Self::from_container(from, polynomial_size, ciphertext_modulus)
     }
 }

@@ -444,19 +444,19 @@ impl<const N: usize> CastFrom<u64> for StaticSignedBigInt<N> {
 
 impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for u8 {
     fn cast_from(input: StaticSignedBigInt<N>) -> Self {
-        input.0[0] as u8
+        input.0[0] as Self
     }
 }
 
 impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for u16 {
     fn cast_from(input: StaticSignedBigInt<N>) -> Self {
-        input.0[0] as u16
+        input.0[0] as Self
     }
 }
 
 impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for u32 {
     fn cast_from(input: StaticSignedBigInt<N>) -> Self {
-        input.0[0] as u32
+        input.0[0] as Self
     }
 }
 
@@ -475,6 +475,6 @@ impl<const N: usize> CastFrom<super::static_unsigned::StaticUnsignedBigInt<N>>
 }
 impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for i128 {
     fn cast_from(input: StaticSignedBigInt<N>) -> Self {
-        input.0[0] as i128 | ((input.0.get(1).copied().unwrap_or(0) as i128) << 64)
+        input.0[0] as Self | ((input.0.get(1).copied().unwrap_or(0) as Self) << 64)
     }
 }

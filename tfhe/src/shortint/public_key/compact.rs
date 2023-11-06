@@ -42,13 +42,13 @@ fn to_plaintext_iterator(
 }
 
 impl CompactPublicKey {
-    pub fn new(client_key: &ClientKey) -> CompactPublicKey {
+    pub fn new(client_key: &ClientKey) -> Self {
         Self::try_new(client_key).expect(
             "Incompatible parameters, the lwe_dimension of the secret key must be a power of two",
         )
     }
 
-    pub fn try_new(client_key: &ClientKey) -> Option<CompactPublicKey> {
+    pub fn try_new(client_key: &ClientKey) -> Option<Self> {
         let parameters = client_key.parameters;
         let (secret_encryption_key, encryption_noise) =
             match client_key.parameters.encryption_key_choice().into() {

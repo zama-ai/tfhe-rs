@@ -19,21 +19,18 @@ pub struct ListSizeConstraint {
 }
 
 impl ListSizeConstraint {
-    pub fn exact_size(size: usize) -> ListSizeConstraint {
-        ListSizeConstraint {
+    pub fn exact_size(size: usize) -> Self {
+        Self {
             min_inclusive_group_count: size,
             max_inclusive_group_count: size,
             group_size: 1,
         }
     }
-    pub fn try_size_in_range(
-        min_inclusive: usize,
-        max_inclusive: usize,
-    ) -> Result<ListSizeConstraint, String> {
+    pub fn try_size_in_range(min_inclusive: usize, max_inclusive: usize) -> Result<Self, String> {
         if max_inclusive < min_inclusive {
             return Err("max_inclusive < min_inclusive".to_owned());
         }
-        Ok(ListSizeConstraint {
+        Ok(Self {
             min_inclusive_group_count: min_inclusive,
             max_inclusive_group_count: max_inclusive,
             group_size: 1,
@@ -43,11 +40,11 @@ impl ListSizeConstraint {
         group_size: usize,
         min_inclusive_group_count: usize,
         max_inclusive_group_count: usize,
-    ) -> Result<ListSizeConstraint, String> {
+    ) -> Result<Self, String> {
         if max_inclusive_group_count < min_inclusive_group_count {
             return Err("max_inclusive < min_inclusive".to_owned());
         }
-        Ok(ListSizeConstraint {
+        Ok(Self {
             min_inclusive_group_count,
             max_inclusive_group_count,
             group_size,
@@ -55,7 +52,7 @@ impl ListSizeConstraint {
     }
 
     pub fn multiply_group_size(&self, group_size_multiplier: usize) -> Self {
-        ListSizeConstraint {
+        Self {
             min_inclusive_group_count: self.min_inclusive_group_count,
             max_inclusive_group_count: self.max_inclusive_group_count,
             group_size: self.group_size * group_size_multiplier,

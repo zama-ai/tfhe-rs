@@ -268,7 +268,7 @@ impl ShortintEngine {
 
             f(lhs, rhs)
         };
-        let accumulator = ShortintEngine::generate_lookup_table_with_engine(server_key, wrapped_f)?;
+        let accumulator = Self::generate_lookup_table_with_engine(server_key, wrapped_f)?;
 
         Ok(BivariateLookupTable {
             acc: accumulator,

@@ -158,7 +158,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LwePackingKeyswitc
             container.container_len()
         );
 
-        LwePackingKeyswitchKey {
+        Self {
             data: container,
             decomp_base_log,
             decomp_level_count,
@@ -318,8 +318,8 @@ impl<Scalar: UnsignedInteger> LwePackingKeyswitchKeyOwned<Scalar> {
         output_key_glwe_dimension: GlweDimension,
         output_key_polynomial_size: PolynomialSize,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LwePackingKeyswitchKeyOwned<Scalar> {
-        LwePackingKeyswitchKeyOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![
                 fill_with;
                 input_key_lwe_dimension.0

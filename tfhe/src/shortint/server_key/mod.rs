@@ -51,7 +51,7 @@ pub enum CheckError {
 impl Display for CheckError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            CheckError::CarryFull => {
+            Self::CarryFull => {
                 write!(f, "The carry buffer is full")
             }
         }
@@ -86,10 +86,8 @@ impl Serialize for ShortintBootstrappingKey {
         S: serde::Serializer,
     {
         match self {
-            ShortintBootstrappingKey::Classic(bsk) => {
-                SerializableShortintBootstrappingKey::Classic(bsk.as_view())
-            }
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(bsk) => SerializableShortintBootstrappingKey::Classic(bsk.as_view()),
+            Self::MultiBit {
                 fourier_bsk: bsk,
                 deterministic_execution,
                 ..
@@ -110,9 +108,7 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
         let deser_sk = SerializableShortintBootstrappingKey::deserialize(deserializer)?;
 
         match deser_sk {
-            SerializableShortintBootstrappingKey::Classic(bsk) => {
-                Ok(ShortintBootstrappingKey::Classic(bsk))
-            }
+            SerializableShortintBootstrappingKey::Classic(bsk) => Ok(Self::Classic(bsk)),
             SerializableShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
@@ -127,7 +123,7 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
                         fourier_bsk.grouping_factor(),
                     )
                 });
-                Ok(ShortintBootstrappingKey::MultiBit {
+                Ok(Self::MultiBit {
                     fourier_bsk,
                     thread_count,
                     deterministic_execution,
@@ -140,8 +136,8 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
 impl ShortintBootstrappingKey {
     pub fn input_lwe_dimension(&self) -> LweDimension {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.input_lwe_dimension(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.input_lwe_dimension(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.input_lwe_dimension(),
         }
@@ -149,8 +145,8 @@ impl ShortintBootstrappingKey {
 
     pub fn polynomial_size(&self) -> PolynomialSize {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.polynomial_size(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.polynomial_size(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.polynomial_size(),
         }
@@ -158,8 +154,8 @@ impl ShortintBootstrappingKey {
 
     pub fn glwe_size(&self) -> GlweSize {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.glwe_size(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.glwe_size(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.glwe_size(),
         }
@@ -167,8 +163,8 @@ impl ShortintBootstrappingKey {
 
     pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.decomposition_base_log(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.decomposition_base_log(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.decomposition_base_log(),
         }
@@ -176,8 +172,8 @@ impl ShortintBootstrappingKey {
 
     pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.decomposition_level_count(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.decomposition_level_count(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.decomposition_level_count(),
         }
@@ -185,8 +181,8 @@ impl ShortintBootstrappingKey {
 
     pub fn output_lwe_dimension(&self) -> LweDimension {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.output_lwe_dimension(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.output_lwe_dimension(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.output_lwe_dimension(),
         }
@@ -194,8 +190,8 @@ impl ShortintBootstrappingKey {
 
     pub fn bootstrapping_key_size_elements(&self) -> usize {
         match self {
-            ShortintBootstrappingKey::Classic(bsk) => bsk.as_view().data().len(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(bsk) => bsk.as_view().data().len(),
+            Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => bsk.as_view().data().len(),
         }
@@ -203,8 +199,8 @@ impl ShortintBootstrappingKey {
 
     pub fn bootstrapping_key_size_bytes(&self) -> usize {
         match self {
-            ShortintBootstrappingKey::Classic(bsk) => std::mem::size_of_val(bsk.as_view().data()),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(bsk) => std::mem::size_of_val(bsk.as_view().data()),
+            Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => std::mem::size_of_val(bsk.as_view().data()),
         }
@@ -216,8 +212,8 @@ impl ShortintBootstrappingKey {
     /// Note: the classic PBS algorithm is always deterministic.
     pub fn deterministic_pbs_execution(&self) -> bool {
         match self {
-            ShortintBootstrappingKey::Classic(_) => true,
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(_) => true,
+            Self::MultiBit {
                 deterministic_execution,
                 ..
             } => *deterministic_execution,
@@ -231,8 +227,8 @@ impl ShortintBootstrappingKey {
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         match self {
             // Classic PBS is already deterministic no matter what
-            ShortintBootstrappingKey::Classic(_) => (),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(_) => (),
+            Self::MultiBit {
                 deterministic_execution,
                 ..
             } => *deterministic_execution = new_deterministic_execution,
@@ -340,12 +336,12 @@ impl ServerKey {
     /// // Generate the server key:
     /// let sks = ServerKey::new(&cks);
     /// ```
-    pub fn new(cks: &ClientKey) -> ServerKey {
+    pub fn new(cks: &ClientKey) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_server_key(cks).unwrap())
     }
 
     /// Generate a server key with a chosen maximum degree
-    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> ServerKey {
+    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine
                 .new_server_key_with_max_degree(cks, max_degree)

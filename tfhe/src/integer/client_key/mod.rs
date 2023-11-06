@@ -68,13 +68,13 @@ impl From<ShortintClientKey> for ClientKey {
 }
 
 impl From<ClientKey> for ShortintClientKey {
-    fn from(key: ClientKey) -> ShortintClientKey {
+    fn from(key: ClientKey) -> Self {
         key.key
     }
 }
 
-impl AsRef<ClientKey> for ClientKey {
-    fn as_ref(&self) -> &ClientKey {
+impl AsRef<Self> for ClientKey {
+    fn as_ref(&self) -> &Self {
         self
     }
 }

@@ -18,11 +18,8 @@ impl ShortintKeySwitchingParameters {
     /// Unless you are a cryptographer who really knows the impact of each of those parameters, you
     /// __must__ stick with the provided parameters (if any), which both offer correct results with
     /// 128 bits of security.
-    pub fn new(
-        ks_base_log: DecompositionBaseLog,
-        ks_level: DecompositionLevelCount,
-    ) -> ShortintKeySwitchingParameters {
-        ShortintKeySwitchingParameters {
+    pub fn new(ks_base_log: DecompositionBaseLog, ks_level: DecompositionLevelCount) -> Self {
+        Self {
             ks_level,
             ks_base_log,
         }

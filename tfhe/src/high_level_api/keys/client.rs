@@ -22,16 +22,16 @@ pub struct ClientKey {
 
 impl ClientKey {
     /// Generates a new keys.
-    pub fn generate<C: Into<Config>>(config: C) -> ClientKey {
+    pub fn generate<C: Into<Config>>(config: C) -> Self {
         let config: Config = config.into();
-        ClientKey {
+        Self {
             key: IntegerClientKey::from(config.inner),
         }
     }
 
-    pub fn generate_with_seed<C: Into<Config>>(config: C, seed: Seed) -> ClientKey {
+    pub fn generate_with_seed<C: Into<Config>>(config: C, seed: Seed) -> Self {
         let config: Config = config.into();
-        ClientKey {
+        Self {
             key: IntegerClientKey::with_seed(config.inner, seed),
         }
     }

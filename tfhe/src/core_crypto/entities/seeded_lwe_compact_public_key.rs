@@ -100,13 +100,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
         container: C,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededLweCompactPublicKey<C> {
+    ) -> Self {
         assert!(
             container.container_len().is_power_of_two(),
             "SeededLweCompactPublicKey container len must be a power of 2, got len = {}",
             container.container_len()
         );
-        SeededLweCompactPublicKey {
+        Self {
             seeded_glwe_ciphertext: SeededGlweCiphertext::from_container(
                 container,
                 GlweSize(1),
@@ -199,13 +199,13 @@ impl<Scalar: UnsignedInteger> SeededLweCompactPublicKeyOwned<Scalar> {
         lwe_dimension: LweDimension,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededLweCompactPublicKeyOwned<Scalar> {
+    ) -> Self {
         assert!(
             lwe_dimension.0.is_power_of_two(),
             "SeededLweCompactPublicKey only supports power of 2 LweDimension. Got lwe_dimension = {}.",
             lwe_dimension.0
         );
-        SeededLweCompactPublicKeyOwned::from_container(
+        Self::from_container(
             vec![fill_with; lwe_dimension.0],
             compression_seed,
             ciphertext_modulus,

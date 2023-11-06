@@ -63,12 +63,12 @@ pub trait DispersionParameter: Copy {
 pub struct LogStandardDev(pub f64);
 
 impl LogStandardDev {
-    pub fn from_log_standard_dev(log_std: f64) -> LogStandardDev {
-        LogStandardDev(log_std)
+    pub fn from_log_standard_dev(log_std: f64) -> Self {
+        Self(log_std)
     }
 
-    pub fn from_modular_log_standard_dev(log_std: f64, log2_modulus: u32) -> LogStandardDev {
-        LogStandardDev(log_std - log2_modulus as f64)
+    pub fn from_modular_log_standard_dev(log_std: f64, log2_modulus: u32) -> Self {
+        Self(log_std - log2_modulus as f64)
     }
 }
 
@@ -114,12 +114,12 @@ impl DispersionParameter for LogStandardDev {
 pub struct StandardDev(pub f64);
 
 impl StandardDev {
-    pub fn from_standard_dev(std: f64) -> StandardDev {
-        StandardDev(std)
+    pub fn from_standard_dev(std: f64) -> Self {
+        Self(std)
     }
 
-    pub fn from_modular_standard_dev(std: f64, log2_modulus: u32) -> StandardDev {
-        StandardDev(std / 2_f64.powf(log2_modulus as f64))
+    pub fn from_modular_standard_dev(std: f64, log2_modulus: u32) -> Self {
+        Self(std / 2_f64.powf(log2_modulus as f64))
     }
 }
 
@@ -165,12 +165,12 @@ impl DispersionParameter for StandardDev {
 pub struct Variance(pub f64);
 
 impl Variance {
-    pub fn from_variance(var: f64) -> Variance {
-        Variance(var)
+    pub fn from_variance(var: f64) -> Self {
+        Self(var)
     }
 
-    pub fn from_modular_variance(var: f64, log2_modulus: u32) -> Variance {
-        Variance(var / 2_f64.powf(log2_modulus as f64 * 2.))
+    pub fn from_modular_variance(var: f64, log2_modulus: u32) -> Self {
+        Self(var / 2_f64.powf(log2_modulus as f64 * 2.))
     }
 }
 

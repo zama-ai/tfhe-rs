@@ -99,8 +99,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
         lwe_size: LweSize,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> SeededLweCiphertextList<C> {
-        SeededLweCiphertextList {
+    ) -> Self {
+        Self {
             data: container,
             lwe_size,
             compression_seed,
@@ -233,8 +233,8 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertextListOwned<Scalar> {
         ciphertext_count: LweCiphertextCount,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededLweCiphertextListOwned<Scalar> {
-        SeededLweCiphertextListOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![fill_with; ciphertext_count.0],
             lwe_size,
             compression_seed,
@@ -258,9 +258,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C>
     type Metadata = SeededLweCiphertextListCreationMetadata<C::Element>;
 
     #[inline]
-    fn create_from(from: C, meta: Self::Metadata) -> SeededLweCiphertextList<C> {
+    fn create_from(from: C, meta: Self::Metadata) -> Self {
         let SeededLweCiphertextListCreationMetadata(lwe_size, compression_seed, modulus) = meta;
-        SeededLweCiphertextList::from_container(from, lwe_size, compression_seed, modulus)
+        Self::from_container(from, lwe_size, compression_seed, modulus)
     }
 }
 

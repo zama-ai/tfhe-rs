@@ -68,12 +68,12 @@ impl<Scalar, C: Container<Element = Scalar>> Polynomial<C> {
     /// assert_eq!(polynomial.polynomial_size(), polynomial_size);
     /// assert_eq!(polynomial.degree(), polynomial_size.0 - 1);
     /// ```
-    pub fn from_container(container: C) -> Polynomial<C> {
+    pub fn from_container(container: C) -> Self {
         assert!(
             container.container_len() > 0,
             "Got an empty container to create a Polynomial"
         );
-        Polynomial { data: container }
+        Self { data: container }
     }
 
     /// Return the [`PolynomialSize`] of the [`Polynomial`].
@@ -156,7 +156,7 @@ impl<C: Container> CreateFrom<C> for Polynomial<C> {
     type Metadata = PolynomialCreationMetadata;
 
     #[inline]
-    fn create_from(from: C, _: Self::Metadata) -> Polynomial<C> {
-        Polynomial::from_container(from)
+    fn create_from(from: C, _: Self::Metadata) -> Self {
+        Self::from_container(from)
     }
 }

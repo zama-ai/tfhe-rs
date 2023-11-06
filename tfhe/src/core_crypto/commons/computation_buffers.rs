@@ -12,7 +12,7 @@ pub struct ComputationBuffers {
 impl ComputationBuffers {
     /// Create a new empty [`ComputationBuffers`] instance.
     pub fn new() -> Self {
-        ComputationBuffers { memory: Vec::new() }
+        Self { memory: Vec::new() }
     }
 
     /// Resize the underlying memory buffer, reallocating memory when capacity exceeds the current

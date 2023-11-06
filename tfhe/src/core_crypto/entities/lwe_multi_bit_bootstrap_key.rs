@@ -162,8 +162,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMultiBitBootstr
         decomp_level_count: DecompositionLevelCount,
         grouping_factor: LweBskGroupingFactor,
         ciphertext_modulus: CiphertextModulus<C::Element>,
-    ) -> LweMultiBitBootstrapKey<C> {
-        let bsk = LweMultiBitBootstrapKey {
+    ) -> Self {
+        let bsk = Self {
             ggsw_list: GgswCiphertextList::from_container(
                 container,
                 glwe_size,
@@ -287,7 +287,7 @@ impl<Scalar: UnsignedInteger> LweMultiBitBootstrapKeyOwned<Scalar> {
         input_lwe_dimension: LweDimension,
         grouping_factor: LweBskGroupingFactor,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> LweMultiBitBootstrapKeyOwned<Scalar> {
+    ) -> Self {
         assert!(
             input_lwe_dimension.0 % grouping_factor.0 == 0,
             "Multi Bit BSK requires input LWE dimension ({}) to be a multiple of {}",

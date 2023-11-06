@@ -47,40 +47,40 @@ mod implementation {
 
 impl<Lhs, Rhs> BinaryBooleanGates<Lhs, Rhs> for ServerKey
 where
-    <ServerKey as DefaultImplementation>::Engine: BinaryGatesEngine<Lhs, Rhs, ServerKey>,
+    <Self as DefaultImplementation>::Engine: BinaryGatesEngine<Lhs, Rhs, Self>,
 {
     fn and(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.and(ct_left, ct_right, self)
         })
     }
 
     fn nand(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.nand(ct_left, ct_right, self)
         })
     }
 
     fn nor(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.nor(ct_left, ct_right, self)
         })
     }
 
     fn or(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.or(ct_left, ct_right, self)
         })
     }
 
     fn xor(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.xor(ct_left, ct_right, self)
         })
     }
 
     fn xnor(&self, ct_left: Lhs, ct_right: Rhs) -> Ciphertext {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.xnor(ct_left, ct_right, self)
         })
     }
@@ -88,40 +88,40 @@ where
 
 impl<Lhs, Rhs> BinaryBooleanGatesAssign<Lhs, Rhs> for ServerKey
 where
-    <ServerKey as DefaultImplementation>::Engine: BinaryGatesAssignEngine<Lhs, Rhs, ServerKey>,
+    <Self as DefaultImplementation>::Engine: BinaryGatesAssignEngine<Lhs, Rhs, Self>,
 {
     fn and_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.and_assign(ct_left, ct_right, self)
         })
     }
 
     fn nand_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.nand_assign(ct_left, ct_right, self)
         })
     }
 
     fn nor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.nor_assign(ct_left, ct_right, self)
         })
     }
 
     fn or_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.or_assign(ct_left, ct_right, self)
         })
     }
 
     fn xor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.xor_assign(ct_left, ct_right, self)
         })
     }
 
     fn xnor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
-        <ServerKey as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
+        <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
             engine.xnor_assign(ct_left, ct_right, self)
         })
     }

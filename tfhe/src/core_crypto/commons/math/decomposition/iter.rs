@@ -38,8 +38,8 @@ where
         input: T,
         base_log: DecompositionBaseLog,
         level: DecompositionLevelCount,
-    ) -> SignedDecompositionIter<T> {
-        SignedDecompositionIter {
+    ) -> Self {
+        Self {
             base_log: base_log.0,
             level_count: level.0,
             state: input >> (T::BITS - base_log.0 * level.0),
@@ -163,14 +163,14 @@ where
         base_log: DecompositionBaseLog,
         level: DecompositionLevelCount,
         ciphertext_modulus: CiphertextModulus<T>,
-    ) -> SignedDecompositionIterNonNative<T> {
+    ) -> Self {
         let base_to_the_level = 1 << (base_log.0 * level.0);
         let smallest_representable = ciphertext_modulus.get_custom_modulus() / base_to_the_level;
 
         let input_128: u128 = input.cast_into();
         let state = T::cast_from(input_128 / smallest_representable);
 
-        SignedDecompositionIterNonNative {
+        Self {
             base_log: base_log.0,
             level_count: level.0,
             state,

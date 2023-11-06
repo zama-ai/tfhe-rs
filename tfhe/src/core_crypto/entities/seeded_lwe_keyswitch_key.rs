@@ -148,7 +148,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
             container.container_len()
         );
 
-        SeededLweKeyswitchKey {
+        Self {
             data: container,
             decomp_base_log,
             decomp_level_count,
@@ -339,8 +339,8 @@ impl<Scalar: UnsignedInteger> SeededLweKeyswitchKeyOwned<Scalar> {
         output_key_lwe_dimension: LweDimension,
         compression_seed: CompressionSeed,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SeededLweKeyswitchKeyOwned<Scalar> {
-        SeededLweKeyswitchKeyOwned::from_container(
+    ) -> Self {
+        Self::from_container(
             vec![
                 fill_with;
                 input_key_lwe_dimension.0

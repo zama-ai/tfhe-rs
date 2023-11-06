@@ -211,25 +211,21 @@ impl WopbsKey {
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     /// ```
-    pub fn new_wopbs_key(
-        cks: &ClientKey,
-        sks: &ServerKey,
-        parameters: &WopbsParameters,
-    ) -> WopbsKey {
-        WopbsKey {
+    pub fn new_wopbs_key(cks: &ClientKey, sks: &ServerKey, parameters: &WopbsParameters) -> Self {
+        Self {
             wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key(
                 &cks.key, &sks.key, parameters,
             ),
         }
     }
 
-    pub fn new_from_shortint(wopbskey: &crate::shortint::wopbs::WopbsKey) -> WopbsKey {
+    pub fn new_from_shortint(wopbskey: &crate::shortint::wopbs::WopbsKey) -> Self {
         let key = wopbskey.clone();
-        WopbsKey { wopbs_key: key }
+        Self { wopbs_key: key }
     }
 
-    pub fn new_wopbs_key_only_for_wopbs(cks: &ClientKey, sks: &ServerKey) -> WopbsKey {
-        WopbsKey {
+    pub fn new_wopbs_key_only_for_wopbs(cks: &ClientKey, sks: &ServerKey) -> Self {
+        Self {
             wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key_only_for_wopbs(
                 &cks.key, &sks.key,
             ),

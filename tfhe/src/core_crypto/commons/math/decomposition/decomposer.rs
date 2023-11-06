@@ -36,15 +36,12 @@ where
     /// assert_eq!(decomposer.level_count(), DecompositionLevelCount(3));
     /// assert_eq!(decomposer.base_log(), DecompositionBaseLog(4));
     /// ```
-    pub fn new(
-        base_log: DecompositionBaseLog,
-        level_count: DecompositionLevelCount,
-    ) -> SignedDecomposer<Scalar> {
+    pub fn new(base_log: DecompositionBaseLog, level_count: DecompositionLevelCount) -> Self {
         debug_assert!(
             Scalar::BITS > base_log.0 * level_count.0,
             "Decomposed bits exceeds the size of the integer to be decomposed"
         );
-        SignedDecomposer {
+        Self {
             base_log: base_log.0,
             level_count: level_count.0,
             integer_type: PhantomData,
@@ -221,12 +218,12 @@ where
         base_log: DecompositionBaseLog,
         level_count: DecompositionLevelCount,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-    ) -> SignedDecomposerNonNative<Scalar> {
+    ) -> Self {
         debug_assert!(
             Scalar::BITS > base_log.0 * level_count.0,
             "Decomposed bits exceeds the size of the integer to be decomposed"
         );
-        SignedDecomposerNonNative {
+        Self {
             base_log: base_log.0,
             level_count: level_count.0,
             ciphertext_modulus,

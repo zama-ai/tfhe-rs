@@ -280,7 +280,7 @@ impl FourierGgswCiphertext<ABox<[c64]>> {
         polynomial_size: PolynomialSize,
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
-    ) -> FourierGgswCiphertext<ABox<[c64]>> {
+    ) -> Self {
         let boxed = avec![
             c64::default();
             polynomial_size.to_fourier_polynomial_size().0
