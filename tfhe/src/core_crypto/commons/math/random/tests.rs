@@ -1,5 +1,6 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
-use crate::core_crypto::commons::math::torus::{CastInto, UnsignedTorus};
+use crate::core_crypto::commons::math::random::{RandomGenerable, Uniform};
+use crate::core_crypto::commons::math::torus::{CastInto, UnsignedInteger, UnsignedTorus};
 use crate::core_crypto::commons::test_tools::*;
 
 fn test_normal_random_three_sigma<T: UnsignedTorus>() {
@@ -373,5 +374,119 @@ fn test_normal_random_add_assign_native_custom_mod_u128() {
 fn test_normal_random_add_assign_solinas_custom_mod_u64() {
     test_normal_random_add_assign_custom_mod::<u64>(
         CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap(),
+    );
+}
+
+fn test_uniform_random_custom_mod<
+    Scalar: UnsignedInteger + CastInto<usize> + RandomGenerable<Uniform, CustomModulus = Scalar>,
+>(
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) {
+    assert!(
+        Scalar::BITS <= usize::BITS as usize,
+        "This test cannot be run for integers with more than {} bits",
+        usize::BITS
+    );
+
+    let distinct_values: usize = if ciphertext_modulus.is_native_modulus() {
+        if Scalar::BITS == usize::BITS as usize {
+            panic!("Unable to run test for such a large modulus {ciphertext_modulus:?}");
+        };
+        1 << Scalar::BITS
+    } else {
+        ciphertext_modulus.get_custom_modulus().cast_into()
+    };
+
+    // About 105 seconds on a dev laptop for the non native u64 case
+    pub const RUNS: usize = 5000;
+    // We hope to have exactly 1000 samples per value possible given the input ciphertext modulus
+    pub const NUMBER_OF_SAMPLES_PER_VALUE: usize = 1000;
+    pub const CONFIDENCE_INTERVAL: f64 = 0.95;
+    // Expected OK rate is 0.05, we have a small tolerance as randomness is hard
+    pub const EXPECTED_NOK_RATE_WITH_TOLERANCE: f64 = 0.065;
+
+    let mut runs_nok: usize = 0;
+
+    for _ in 0..RUNS {
+        let mut bins = vec![0u64; distinct_values];
+        let mut rng = new_random_generator();
+
+        // We could do a single loop, but in the case very large sampling ever becomes possible,
+        // this avoids overflowing the usize
+        for _ in 0..NUMBER_OF_SAMPLES_PER_VALUE {
+            for _ in 0..distinct_values {
+                let uniform_random_value = rng.random_uniform_custom_mod(ciphertext_modulus);
+                let bin_idx: usize = uniform_random_value.cast_into();
+                bins[bin_idx] += 1;
+            }
+        }
+
+        let mut cumulative_sums = vec![0u64; distinct_values];
+
+        let mut curr_sum = bins[0];
+        cumulative_sums[0] = curr_sum;
+
+        // Compute the cumulative sums
+        for (bin, cum_sum) in bins.iter().zip(cumulative_sums.iter_mut()).skip(1) {
+            curr_sum += bin;
+            *cum_sum = curr_sum;
+        }
+
+        // Inaccurate if modulus >~ 2^53 / number_of_samples_per_bin, but if that's the case your
+        // memory most likely blew up before (or the universe died its heat death)
+        let number_of_samples: f64 = NUMBER_OF_SAMPLES_PER_VALUE as f64 * distinct_values as f64;
+
+        let sup_diff: f64 = cumulative_sums
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(bin_idx, x)| {
+                // Compute the observed CDF
+                let empirical_cdf = x as f64 / number_of_samples;
+                // CDF for the uniform distribution
+                let theoretical_cdf =
+                    ((bin_idx + 1) * NUMBER_OF_SAMPLES_PER_VALUE) as f64 / number_of_samples;
+                let diff = empirical_cdf - theoretical_cdf;
+                diff.abs()
+            })
+            .max_by(|a, b| a.total_cmp(b))
+            .unwrap();
+
+        // https://en.wikipedia.org/wiki/Dvoretzky%E2%80%93Kiefer%E2%80%93Wolfowitz_inequality#Building_CDF_bands
+        // the true CDF is between the empirical CDF +/- this band width with probability 1 - alpha
+        // Said otherwise, the abs diff should be less than that value with high probability
+        let dkw_cdf_bands_width =
+            |sample_size: f64, alpha: f64| f64::sqrt(f64::ln(2.0 / alpha) / (2.0 * sample_size));
+
+        // alpha = 1 - probability of being in the interval
+        let upper_bound_for_cdf_abs_diff =
+            dkw_cdf_bands_width(number_of_samples, 1.0 - CONFIDENCE_INTERVAL);
+        let distribution_ok = sup_diff <= upper_bound_for_cdf_abs_diff;
+
+        if !distribution_ok {
+            runs_nok += 1;
+        }
+    }
+
+    // 95% confidence interval means 5% of runs may end up out of that value, have a small tolerance
+    let nok_ratio = runs_nok as f64 / RUNS as f64;
+    assert!(
+        nok_ratio <= EXPECTED_NOK_RATE_WITH_TOLERANCE,
+        "nok_ratio={nok_ratio}"
+    );
+}
+
+// This test takes care of all bigger native types, as underneath the CSPRNG outputs bytes
+#[test]
+fn test_uniform_random_native_custom_mod_u8() {
+    test_uniform_random_custom_mod::<u8>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn test_uniform_random_custom_mod_u64() {
+    // Have a modulus that will generate some rejection but is relatively small to be able to test
+    // quickly
+    test_uniform_random_custom_mod::<u64>(
+        CiphertextModulus::try_new((1 << 10) + (1 << 9)).unwrap(),
     );
 }
