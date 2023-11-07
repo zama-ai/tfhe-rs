@@ -33,6 +33,15 @@ where
         let ct = self.list.expand_one();
         GenericInteger::new(ct, self.id)
     }
+
+    pub fn into_raw_parts(self) -> (CompactCiphertextList, P::Id) {
+        let Self { list, id } = self;
+        (list, id)
+    }
+
+    pub fn from_raw_parts(list: CompactCiphertextList, id: P::Id) -> Self {
+        Self { list, id }
+    }
 }
 
 impl<P> GenericCompactIntegerList<P>
@@ -41,6 +50,15 @@ where
 {
     pub fn len(&self) -> usize {
         self.list.ciphertext_count()
+    }
+
+    pub fn into_raw_parts(self) -> (CompactCiphertextList, P::Id) {
+        let Self { list, id } = self;
+        (list, id)
+    }
+
+    pub fn from_raw_parts(list: CompactCiphertextList, id: P::Id) -> Self {
+        Self { list, id }
     }
 
     pub fn expand(&self) -> Vec<GenericInteger<P>> {

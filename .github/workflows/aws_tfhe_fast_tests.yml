@@ -114,6 +114,10 @@ jobs:
         run: |
           make test_safe_deserialization
 
+      - name: Run forward compatibility tests
+        run: |
+          make test_forward_compatibility
+
       - name: Slack Notification
         if: ${{ always() }}
         continue-on-error: true

@@ -11,7 +11,7 @@ pub(in crate::high_level_api) use keys::{
 };
 
 mod client_key;
-mod keys;
+pub(crate) mod keys;
 mod parameters;
 mod server_key;
 #[cfg(test)]

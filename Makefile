@@ -17,6 +17,7 @@ FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
 NODE_VERSION=20
+FORWARD_COMPAT?=OFF
 TFHE_CURRENT_VERSION:=$(shell grep '^version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
 # Cargo has a hard time distinguishing between our package from the workspace and a package that
 # could be a dependency, so we build an unambiguous spec here
@@ -41,6 +42,12 @@ ifeq ($(GEN_KEY_CACHE_COVERAGE_ONLY),TRUE)
 		COVERAGE_ONLY=--coverage-only
 else
 		COVERAGE_ONLY=
+endif
+
+ifeq ($(FORWARD_COMPAT),ON)
+		FORWARD_COMPAT_FEATURE=forward_compatibility
+else
+		FORWARD_COMPAT_FEATURE=
 endif
 
 # Variables used only for regex_engine example
@@ -199,9 +206,15 @@ clippy_trivium: install_rs_check_toolchain
 		-p tfhe-trivium -- --no-deps -D warnings
 
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
-clippy_all_targets:
+clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,safe-deserialization \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
+
+.PHONY: clippy_all_targets_forward_compatibility # Run clippy lints on all targets (benches, examples, etc.)
+clippy_all_targets_forward_compatibility: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache,safe-deserialization,forward_compatibility \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_concrete_csprng # Run clippy lints on concrete-csprng
@@ -212,7 +225,8 @@ clippy_concrete_csprng:
 
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets clippy_c_api \
-clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_trivium
+clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_trivium \
+clippy_all_targets_forward_compatibility
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core \
@@ -263,17 +277,25 @@ build_tfhe_full: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer -p $(TFHE_SPEC) --all-targets
 
+.PHONY: symlink_c_libs_without_fingerprint # Link the .a and .so files without the changing hash part in target
+symlink_c_libs_without_fingerprint:
+	@./scripts/symlink_c_libs_without_fingerprint.sh \
+		--cargo-profile "$(CARGO_PROFILE)" \
+		--lib-name tfhe-c-api-dynamic-buffer
+
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,safe-deserialization \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,safe-deserialization,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
+	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,safe-deserialization,experimental-force_fft_algo_dif4 \
+		--features=$(TARGET_ARCH_FEATURE),boolean-c-api,shortint-c-api,high-level-c-api,safe-deserialization,experimental-force_fft_algo_dif4,$(FORWARD_COMPAT_FEATURE) \
 		-p $(TFHE_SPEC)
+	@"$(MAKE)" symlink_c_libs_without_fingerprint
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
 build_web_js_api: install_rs_build_toolchain install_wasm_pack
@@ -334,7 +356,7 @@ test_c_api_rs: install_rs_check_toolchain
 
 .PHONY: test_c_api_c # Run the C tests for the C API
 test_c_api_c: build_c_api
-	./scripts/c_api_tests.sh
+	./scripts/c_api_tests.sh --forward-compat "$(FORWARD_COMPAT)"
 
 .PHONY: test_c_api # Run all the tests for the C API
 test_c_api: test_c_api_rs test_c_api_c
@@ -344,14 +366,14 @@ test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)"
+		--cargo-profile "$(CARGO_PROFILE)" --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_shortint_multi_bit_ci # Run the tests for shortint ci running only multibit tests
 test_shortint_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_shortint # Run all the tests for shortint
 test_shortint: install_rs_build_toolchain
@@ -371,14 +393,14 @@ test_integer_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)"
+		--cargo-profile "$(CARGO_PROFILE)" --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
 test_integer_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --tfhe-package "$(TFHE_SPEC)"
 
 .PHONY: test_safe_deserialization # Run the tests for safe deserialization
 test_safe_deserialization: install_rs_build_toolchain install_cargo_nextest
@@ -395,6 +417,12 @@ test_high_level_api: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) \
 		-- high_level_api::
+
+.PHONY: test_forward_compatibility # Run forward compatibility tests
+test_forward_compatibility: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --tests --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer,forward_compatibility,internal-keycache -p $(TFHE_SPEC) \
+		-- forward_compatibility::
 
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
@@ -466,8 +494,10 @@ check_compile_tests:
 		-p $(TFHE_SPEC)
 
 	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
-		"$(MAKE)" build_c_api; \
-		./scripts/c_api_tests.sh --build-only; \
+		"$(MAKE)" build_c_api && \
+		./scripts/c_api_tests.sh --build-only --forward-compat "$(FORWARD_COMPAT)" && \
+		FORWARD_COMPAT=ON "$(MAKE)" build_c_api && \
+		./scripts/c_api_tests.sh --build-only --forward-compat "$(FORWARD_COMPAT)"; \
 	fi
 
 .PHONY: build_nodejs_test_docker # Build a docker image with tools to run nodejs tests for wasm API
