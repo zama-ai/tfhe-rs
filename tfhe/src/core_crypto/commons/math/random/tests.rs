@@ -389,9 +389,11 @@ fn test_uniform_random_custom_mod<
     );
 
     let distinct_values: usize = if ciphertext_modulus.is_native_modulus() {
-        if Scalar::BITS == usize::BITS as usize {
-            panic!("Unable to run test for such a large modulus {ciphertext_modulus:?}");
-        };
+        assert!(
+            Scalar::BITS < usize::BITS as usize,
+            "Unable to run test for such a large modulus {ciphertext_modulus:?}, usize::MAX {}",
+            usize::MAX
+        );
         1 << Scalar::BITS
     } else {
         ciphertext_modulus.get_custom_modulus().cast_into()
