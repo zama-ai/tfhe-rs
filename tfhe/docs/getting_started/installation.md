@@ -8,12 +8,12 @@ To use `TFHE-rs` in your project, you first need to add it as a dependency in yo
 
 If you are using an `x86` machine:
 ```toml
-tfhe = { version = "0.4.0", features = [ "boolean", "shortint", "integer", "x86_64-unix" ] }
+tfhe = { version = "0.5.0", features = [ "boolean", "shortint", "integer", "x86_64-unix" ] }
 ```
 
 If you are using an `ARM` machine:
 ```toml
-tfhe = { version = "0.4.0", features = [ "boolean", "shortint", "integer", "aarch64-unix" ] }
+tfhe = { version = "0.5.0", features = [ "boolean", "shortint", "integer", "aarch64-unix" ] }
 ```
 
 {% hint style="info" %}
