@@ -78,9 +78,9 @@ where
         slice: &mut [Self],
         custom_modulus: Self::CustomModulus,
     ) {
-        slice.iter_mut().for_each(|s| {
+        for s in slice.iter_mut() {
             *s = Self::generate_one_custom_modulus(generator, distribution, custom_modulus);
-        });
+        }
     }
 }
 
