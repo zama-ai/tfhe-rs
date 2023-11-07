@@ -9,7 +9,7 @@ Welcome to this tutorial about `TFHE-rs` `core_crypto` module.
 To use `TFHE-rs`, it first has to be added as a dependency in the `Cargo.toml`:
 
 ```toml
-tfhe = { version = "0.4.0", features = [ "x86_64-unix" ] }
+tfhe = { version = "0.5.0", features = [ "x86_64-unix" ] }
 ```
 
 This enables the `x86_64-unix` feature to have efficient implementations of various algorithms for `x86_64` CPUs on a Unix-like system. The 'unix' suffix indicates that the `UnixSeeder`, which uses `/dev/random` to generate random numbers, is activated as a fallback if no hardware number generator is available (like `rdseed` on `x86_64` or if the [`Randomization Services`](https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc) on Apple platforms are not available). To avoid having the `UnixSeeder` as a potential fallback or to run on non-Unix systems (e.g., Windows), the `x86_64` feature is sufficient.
@@ -19,19 +19,19 @@ For Apple Silicon, the `aarch64-unix` or `aarch64` feature should be enabled. `a
 In short: For `x86_64`-based machines running Unix-like OSes:
 
 ```toml
-tfhe = { version = "0.4.0", features = ["x86_64-unix"] }
+tfhe = { version = "0.5.0", features = ["x86_64-unix"] }
 ```
 
 For Apple Silicon or aarch64-based machines running Unix-like OSes:
 
 ```toml
-tfhe = { version = "0.4.0", features = ["aarch64-unix"] }
+tfhe = { version = "0.5.0", features = ["aarch64-unix"] }
 ```
 
 For `x86_64`-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) running Windows:
 
 ```toml
-tfhe = { version = "0.4.0", features = ["x86_64"] }
+tfhe = { version = "0.5.0", features = ["x86_64"] }
 ```
 
 ### Commented code to double a 2-bit message in a leveled fashion and using a PBS with the `core_crypto` module.
