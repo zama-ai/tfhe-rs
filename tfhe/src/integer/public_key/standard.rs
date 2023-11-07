@@ -23,6 +23,14 @@ impl PublicKey {
         }
     }
 
+    pub fn into_raw_parts(self) -> ShortintPublicKey {
+        self.key
+    }
+
+    pub fn from_raw_parts(key: ShortintPublicKey) -> Self {
+        Self { key }
+    }
+
     pub fn encrypt_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
         self.encrypt_crt_impl(
             message,

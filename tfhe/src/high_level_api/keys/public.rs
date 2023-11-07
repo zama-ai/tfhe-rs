@@ -119,6 +119,11 @@ impl CompressedPublicKey {
         }
     }
 
+    #[cfg(feature = "integer")]
+    pub fn base_integer_key(&self) -> Option<&crate::integer::CompressedPublicKey> {
+        self.base_integer_key.as_ref()
+    }
+
     pub fn decompress(self) -> PublicKey {
         PublicKey {
             #[cfg(feature = "boolean")]
@@ -214,6 +219,18 @@ impl CompactPublicKey {
             Some(Self {})
         }
     }
+
+    #[cfg(feature = "integer")]
+    pub fn into_raw_parts(self) -> Option<crate::integer::public_key::CompactPublicKey> {
+        self.integer_key.into_raw_parts()
+    }
+
+    #[cfg(feature = "integer")]
+    pub fn from_raw_parts(key: Option<crate::integer::public_key::CompactPublicKey>) -> Self {
+        Self {
+            integer_key: IntegerCompactPublicKey::from_raw_parts(key),
+        }
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -234,6 +251,16 @@ impl CompressedCompactPublicKey {
         {
             let _ = client_key;
             Self {}
+        }
+    }
+
+    pub fn into_raw_parts(self) -> Option<crate::integer::CompressedCompactPublicKey> {
+        self.integer_key.into_raw_parts()
+    }
+
+    pub fn from_raw_parts(integer_key: Option<crate::integer::CompressedCompactPublicKey>) -> Self {
+        Self {
+            integer_key: IntegerCompressedCompactPublicKey::from_raw_parts(integer_key),
         }
     }
 

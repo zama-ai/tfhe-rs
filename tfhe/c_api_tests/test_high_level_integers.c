@@ -81,6 +81,17 @@ int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *serve
   ok = client_key_serialize(client_key, &cks_buffer);
   assert(ok == 0);
 
+  // TODO
+  deser_view.pointer = cks_buffer.pointer;
+  deser_view.length = cks_buffer.length;
+  DynamicBuffer out_buffer = {.pointer = NULL, .length = 0};
+
+  ok = client_key_update_serialization_from_0_4_to_0_5(deser_view, &out_buffer);
+  assert(ok == 0);
+
+  destroy_dynamic_buffer(&out_buffer);
+  // END TODO
+
   deser_view.pointer = cks_buffer.pointer;
   deser_view.length = cks_buffer.length;
   ok = client_key_deserialize(deser_view, &deserialized_client_key);

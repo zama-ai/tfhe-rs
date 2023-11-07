@@ -150,7 +150,7 @@ impl ClientKey {
         })
     }
 
-    /// Encrypt a small integer message using the client key with a specific message and carry
+    /// Encrypt a small integer message using the cent key with a specific message and carry
     /// moduli.
     ///
     /// # Warning

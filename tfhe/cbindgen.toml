@@ -20,7 +20,7 @@ include_version = false
 namespaces = []
 using_namespaces = []
 sys_includes = []
-includes = []
+includes = ["tfhe-c-api-dynamic-buffer.h"]
 no_includes = false
 cpp_compat = true
 after_includes = ""
@@ -114,8 +114,8 @@ bitflags = false
 ############## Options for How Your Rust library Should Be Parsed ##############
 
 [parse]
-parse_deps = true
-include = ["tfhe"]
+parse_deps = false
+include = []
 exclude = []
 clean = false
 extra_bindings = []
