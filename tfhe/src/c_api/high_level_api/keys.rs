@@ -19,6 +19,17 @@ impl_serialize_deserialize_on_type!(CompactPublicKey);
 impl_serialize_deserialize_on_type!(CompressedCompactPublicKey);
 impl_serialize_deserialize_on_type!(ServerKey);
 
+#[cfg(feature = "forward_compatibility")]
+mod forward_compatibility {
+    use super::*;
+
+    impl_update_serialization_format_on_type!(ClientKey);
+    impl_update_serialization_format_on_type!(PublicKey);
+    impl_update_serialization_format_on_type!(CompactPublicKey);
+    impl_update_serialization_format_on_type!(CompressedCompactPublicKey);
+    impl_update_serialization_format_on_type!(ServerKey);
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn generate_keys(
     config: *mut super::config::Config,

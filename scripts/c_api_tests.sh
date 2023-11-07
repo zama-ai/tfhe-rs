@@ -7,10 +7,12 @@ function usage() {
     echo
     echo "--help                    Print this message"
     echo "--build-only              Pass to only build the tests without running them"
+    echo "--forward-compat          Indicate if we have forward compatibility enabled"
     echo
 }
 
 BUILD_ONLY=0
+forward_compat="OFF"
 
 while [ -n "$1" ]
 do
@@ -24,6 +26,11 @@ do
             BUILD_ONLY=1
             ;;
 
+        "--forward-compat" )
+            shift
+            forward_compat="$1"
+            ;;
+
         *)
             echo "Unknown param : $1"
             exit 1
@@ -35,12 +42,18 @@ done
 CURR_DIR="$(dirname "$0")"
 REPO_ROOT="${CURR_DIR}/.."
 TFHE_BUILD_DIR="${REPO_ROOT}/tfhe/build/"
+DEFINE_FORWARD_COMPAT="OFF"
+
+if [[ "${forward_compat}" == "ON" ]]; then
+    DEFINE_FORWARD_COMPAT="ON"
+fi
 
 mkdir -p "${TFHE_BUILD_DIR}"
 
 cd "${TFHE_BUILD_DIR}"
 
-cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCARGO_PROFILE="${CARGO_PROFILE}"
+cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCARGO_PROFILE="${CARGO_PROFILE}" \
+    "-DWITH_FORWARD_COMPATIBILITY=${DEFINE_FORWARD_COMPAT}"
 
 make -j
 

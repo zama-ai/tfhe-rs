@@ -38,6 +38,14 @@ impl KeySwitchingKey {
         ret
     }
 
+    pub fn into_raw_parts(self) -> crate::shortint::KeySwitchingKey {
+        self.key
+    }
+
+    pub fn from_raw_parts(key: crate::shortint::KeySwitchingKey) -> Self {
+        Self { key }
+    }
+
     pub fn cast_into<Int: IntegerCiphertext>(&self, ct: &Int, ct_dest: &mut Int) {
         assert_eq!(ct.blocks().len(), ct_dest.blocks().len());
 

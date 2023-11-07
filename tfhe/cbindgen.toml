@@ -46,6 +46,7 @@ usize_is_size_t = true
 [defines]
 # "target_os = freebsd" = "DEFINE_FREEBSD"
 # "feature = serde" = "DEFINE_SERDE"
+"feature = forward_compatibility" = "WITH_FORWARD_COMPATIBILITY"
 
 
 [export]
@@ -114,8 +115,8 @@ bitflags = false
 ############## Options for How Your Rust library Should Be Parsed ##############
 
 [parse]
-parse_deps = true
-include = ["tfhe"]
+parse_deps = false
+include = []
 exclude = []
 clean = false
 extra_bindings = []

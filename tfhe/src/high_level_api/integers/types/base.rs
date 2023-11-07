@@ -126,6 +126,15 @@ where
         Self { ciphertext, id }
     }
 
+    pub fn into_raw_parts(self) -> (P::InnerCiphertext, P::Id) {
+        let Self { ciphertext, id } = self;
+        (ciphertext, id)
+    }
+
+    pub fn from_raw_parts(ciphertext: P::InnerCiphertext, id: P::Id) -> Self {
+        Self { ciphertext, id }
+    }
+
     pub fn cast_from<P2>(other: GenericInteger<P2>) -> Self
     where
         P2: IntegerParameter,

@@ -210,6 +210,14 @@ impl IntegerCompactPublicKey {
         let ct = key.encrypt_slice_radix_compact(values, num_blocks);
         Some(ct)
     }
+
+    pub fn into_raw_parts(self) -> Option<CompactPublicKey> {
+        self.key
+    }
+
+    pub fn from_raw_parts(key: Option<CompactPublicKey>) -> Self {
+        Self { key }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -226,6 +234,14 @@ impl IntegerCompressedCompactPublicKey {
         let key = CompressedCompactPublicKey::new(cks);
 
         Self { key: Some(key) }
+    }
+
+    pub fn into_raw_parts(self) -> Option<CompressedCompactPublicKey> {
+        self.key
+    }
+
+    pub fn from_raw_parts(key: Option<CompressedCompactPublicKey>) -> Self {
+        Self { key }
     }
 
     pub(in crate::high_level_api) fn decompress(self) -> IntegerCompactPublicKey {

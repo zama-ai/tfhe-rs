@@ -72,7 +72,7 @@ mod traits;
 mod booleans;
 pub mod errors;
 #[cfg(feature = "integer")]
-mod integers;
+pub(crate) mod integers;
 /// The tfhe prelude.
 pub mod prelude;
 #[cfg(feature = "shortint")]

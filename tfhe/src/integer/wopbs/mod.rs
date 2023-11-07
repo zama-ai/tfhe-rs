@@ -223,6 +223,10 @@ impl WopbsKey {
         }
     }
 
+    pub fn into_shortint_wopbskey(self) -> crate::shortint::wopbs::WopbsKey {
+        self.wopbs_key
+    }
+
     pub fn new_from_shortint(wopbskey: &crate::shortint::wopbs::WopbsKey) -> WopbsKey {
         let key = wopbskey.clone();
         WopbsKey { wopbs_key: key }

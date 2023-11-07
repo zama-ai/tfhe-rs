@@ -81,6 +81,10 @@ jobs:
         run: |
           make test_c_api
 
+      - name: Run C API tests with forward_compatibility
+        run: |
+          FORWARD_COMPAT=ON make test_c_api
+
       - name: Run user docs tests
         run: |
           make test_user_doc

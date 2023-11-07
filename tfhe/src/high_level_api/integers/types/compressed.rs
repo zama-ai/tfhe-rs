@@ -45,6 +45,15 @@ where
             id,
         }
     }
+
+    pub fn into_raw_parts(self) -> (P::InnerCompressedCiphertext, P::Id) {
+        let Self { ciphertext, id } = self;
+        (ciphertext, id)
+    }
+
+    pub fn from_raw_parts(ciphertext: P::InnerCompressedCiphertext, id: P::Id) -> Self {
+        Self { ciphertext, id }
+    }
 }
 
 impl<P> CompressedGenericInteger<P>
