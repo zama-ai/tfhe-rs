@@ -167,6 +167,46 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::generate_one(self, Uniform)
     }
 
+    /// Generate a random uniform unsigned integer. This is only supported for unsigned integers at
+    /// the moment.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use concrete_csprng::generators::SoftwareRandomGenerator;
+    /// use concrete_csprng::seeders::Seed;
+    /// use tfhe::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
+    /// use tfhe::core_crypto::commons::math::random::RandomGenerator;
+    /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
+    ///
+    /// let random =
+    ///     generator.random_uniform_custom_mod::<u8>(CiphertextModulus::try_new(1 << 8).unwrap());
+    /// let random =
+    ///     generator.random_uniform_custom_mod::<u16>(CiphertextModulus::try_new(1 << 8).unwrap());
+    /// let random =
+    ///     generator.random_uniform_custom_mod::<u32>(CiphertextModulus::try_new(1 << 8).unwrap());
+    /// let random =
+    ///     generator.random_uniform_custom_mod::<u64>(CiphertextModulus::try_new(1 << 8).unwrap());
+    /// let random =
+    ///     generator.random_uniform_custom_mod::<u128>(CiphertextModulus::try_new(1 << 8).unwrap());
+    /// ```
+    pub fn random_uniform_custom_mod<
+        Scalar: UnsignedInteger + RandomGenerable<Uniform, CustomModulus = Scalar>,
+    >(
+        &mut self,
+        custom_modulus: CiphertextModulus<Scalar>,
+    ) -> Scalar {
+        if custom_modulus.is_native_modulus() {
+            return self.random_uniform();
+        }
+
+        Scalar::generate_one_custom_modulus(
+            self,
+            Uniform,
+            custom_modulus.get_custom_modulus().cast_into(),
+        )
+    }
+
     /// Fill a slice with random uniform values.
     ///
     /// # Example
@@ -187,8 +227,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         Scalar::fill_slice(self, Uniform, output);
     }
 
-    /// Fill a slice with random uniform values, for non-native power of 2 moduli, a shift is
-    /// applied to only keep log2(modulus) MSBs and zeroed out LSBs
+    /// Fill a slice with random uniform values.
     ///
     /// # Example
     ///
