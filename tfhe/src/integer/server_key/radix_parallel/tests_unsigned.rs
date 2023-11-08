@@ -110,6 +110,7 @@ create_parametrized_test!(integer_smart_add);
 create_parametrized_test!(integer_smart_add_sequence_multi_thread);
 create_parametrized_test!(integer_smart_add_sequence_single_thread);
 create_parametrized_test!(integer_default_add);
+create_parametrized_test!(integer_default_overflowing_add);
 create_parametrized_test!(integer_default_add_work_efficient {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -715,6 +716,14 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
     default_add_test(param, executor);
+}
+
+fn integer_default_overflowing_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
+    default_overflowing_add_test(param, executor);
 }
 
 fn integer_default_sub<P>(param: P)

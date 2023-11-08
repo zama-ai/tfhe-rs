@@ -232,10 +232,92 @@ impl ServerKey {
         };
 
         if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
-            self.unchecked_add_assign_parallelized_low_latency(lhs, rhs);
+            let _carry = self.unchecked_add_assign_parallelized_low_latency(lhs, rhs);
         } else {
             self.unchecked_add_assign(lhs, rhs);
             self.full_propagate_parallelized(lhs);
+        }
+    }
+    /// Computes the addition of two unsigned ciphertexts and returns the overflow flag
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key and the server key:
+    /// let num_blocks = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks);
+    ///
+    /// let msg1 = u8::MAX;
+    /// let msg2 = 1;
+    ///
+    /// let ct1 = cks.encrypt(msg1);
+    /// let ct2 = cks.encrypt(msg2);
+    ///
+    /// let (ct_res, overflowed) = sks.unsigned_overflowing_add_parallelized(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let dec_result: u8 = cks.decrypt(&ct_res);
+    /// let dec_overflowed = cks.decrypt_one_block(&overflowed);
+    /// let (expected_result, expected_overflow) = msg1.overflowing_add(msg2);
+    /// assert_eq!(dec_result, expected_result);
+    /// assert_eq!(dec_overflowed, u64::from(expected_overflow));
+    /// ```
+    pub fn unsigned_overflowing_add_parallelized(
+        &self,
+        ct_left: &RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> (RadixCiphertext, Ciphertext) {
+        let mut ct_res = ct_left.clone();
+        let overflowed = self.unsigned_overflowing_add_assign_parallelized(&mut ct_res, ct_right);
+        (ct_res, overflowed)
+    }
+
+    pub fn unsigned_overflowing_add_assign_parallelized(
+        &self,
+        ct_left: &mut RadixCiphertext,
+        ct_right: &RadixCiphertext,
+    ) -> Ciphertext {
+        let mut tmp_rhs: RadixCiphertext;
+        if ct_left.blocks.is_empty() || ct_right.blocks.is_empty() {
+            return self.key.create_trivial(0);
+        }
+
+        let (lhs, rhs) = match (
+            ct_left.block_carries_are_empty(),
+            ct_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = ct_right.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                self.full_propagate_parallelized(ct_left);
+                (ct_left, ct_right)
+            }
+            (false, false) => {
+                tmp_rhs = ct_right.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(ct_left),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (ct_left, &tmp_rhs)
+            }
+        };
+
+        if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
+            self.unchecked_add_assign_parallelized_low_latency(lhs, rhs)
+        } else {
+            self.unchecked_add_assign(lhs, rhs);
+            let len = lhs.blocks.len();
+            for i in 0..len - 1 {
+                let _ = self.propagate_parallelized(lhs, i);
+            }
+            self.propagate_parallelized(lhs, len - 1)
         }
     }
 
@@ -309,6 +391,9 @@ impl ServerKey {
     ///
     /// At most num_block - 1 threads are used
     ///
+    /// Returns the output carry that can be used to check for unsigned addition
+    /// overflow.
+    ///
     /// # Requirements
     ///
     /// - The parameters have 4 bits in total
@@ -317,7 +402,11 @@ impl ServerKey {
     /// # Output
     ///
     /// - lhs will have its carries empty
-    pub(crate) fn unchecked_add_assign_parallelized_low_latency<T>(&self, lhs: &mut T, rhs: &T)
+    pub(crate) fn unchecked_add_assign_parallelized_low_latency<T>(
+        &self,
+        lhs: &mut T,
+        rhs: &T,
+    ) -> Ciphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -342,12 +431,15 @@ impl ServerKey {
     /// - first unchecked_add
     /// - at this point at most on bit of carry is taken
     /// - use this function to propagate them in parallel
-    pub(crate) fn propagate_single_carry_parallelized_low_latency<T>(&self, ct: &mut T)
+    pub(crate) fn propagate_single_carry_parallelized_low_latency<T>(
+        &self,
+        ct: &mut T,
+    ) -> Ciphertext
     where
         T: IntegerRadixCiphertext,
     {
         let generates_or_propagates = self.generate_init_carry_array(ct);
-        let (input_carries, _) =
+        let (input_carries, output_carry) =
             self.compute_carry_propagation_parallelized_low_latency(generates_or_propagates);
 
         ct.blocks_mut()
@@ -357,6 +449,7 @@ impl ServerKey {
                 self.key.unchecked_add_assign(block, input_carry);
                 self.key.message_extract_assign(block);
             });
+        output_carry
     }
 
     /// Backbone algorithm of parallel carry (only one bit) propagation
