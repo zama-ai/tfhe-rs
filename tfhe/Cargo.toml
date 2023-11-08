@@ -49,7 +49,7 @@ log = "0.4.19"
 cbindgen = { version = "0.26.0", optional = true }
 
 [dependencies]
-concrete-csprng = { version = "0.4.0", path= "../concrete-csprng", features = [
+concrete-csprng = { version = "0.4.0", path = "../concrete-csprng", features = [
     "generator_fallback",
     "parallel",
 ] }
@@ -82,7 +82,7 @@ bytemuck = "1.13.1"
 boolean = ["dep:paste"]
 shortint = ["dep:paste"]
 integer = ["shortint", "dep:paste"]
-internal-keycache = ["lazy_static", "dep:fs2", "dep:bincode", "dep:paste"]
+internal-keycache = ["dep:lazy_static", "dep:fs2", "dep:bincode", "dep:paste"]
 safe-deserialization = ["dep:bincode"]
 
 # Experimental section
@@ -90,7 +90,7 @@ experimental = []
 experimental-force_fft_algo_dif4 = []
 # End experimental section
 
-__c_api = ["cbindgen", "dep:bincode", "dep:paste"]
+__c_api = ["dep:cbindgen", "dep:bincode", "dep:paste"]
 # For the semver trick to skip the build.rs
 __force_skip_cbindgen = []
 boolean-c-api = ["boolean", "__c_api"]
@@ -98,11 +98,11 @@ shortint-c-api = ["shortint", "__c_api"]
 high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer", "__c_api"]
 
 __wasm_api = [
-    "wasm-bindgen",
-    "js-sys",
-    "console_error_panic_hook",
-    "serde-wasm-bindgen",
-    "getrandom",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:console_error_panic_hook",
+    "dep:serde-wasm-bindgen",
+    "dep:getrandom",
     "getrandom/js",
     "dep:bincode",
     "safe-deserialization",
@@ -111,7 +111,7 @@ boolean-client-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-client-js-wasm-api = ["shortint", "__wasm_api"]
 integer-client-js-wasm-api = ["integer", "__wasm_api"]
 high-level-client-js-wasm-api = ["boolean", "shortint", "integer", "__wasm_api"]
-parallel-wasm-api = ["wasm-bindgen-rayon"]
+parallel-wasm-api = ["dep:wasm-bindgen-rayon"]
 
 nightly-avx512 = ["concrete-fft/nightly", "pulp/nightly"]
 
