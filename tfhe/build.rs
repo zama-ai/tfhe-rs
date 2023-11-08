@@ -32,14 +32,15 @@ fn gen_c_api() {
     }
 
     extern crate cbindgen;
-    let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let crate_dir: PathBuf = env::var("CARGO_MANIFEST_DIR").unwrap().into();
     let package_name = env::var("CARGO_PKG_NAME").unwrap();
-    let output_file = target_dir()
-        .join(format!("{package_name}.h"))
-        .display()
-        .to_string();
+    let output_file = target_dir().join(format!("{package_name}.h"));
 
     let parse_expand_features_vec = vec![
+        // Note that this list may not be complete, but as macro expansion is used mostly/only for
+        // the C API and the HL API, this is fine, if the C API build fails or generates invalid
+        // headers then you likely need to add other features that will be forwarded to Cargo
+        // expand
         #[cfg(feature = "__c_api")]
         "__c_api",
         #[cfg(feature = "boolean-c-api")]
@@ -63,8 +64,8 @@ fn gen_c_api() {
     };
 
     cbindgen::Builder::new()
-        .with_crate(crate_dir.clone())
-        .with_config(cbindgen::Config::from_root_or_default(crate_dir))
+        .with_crate(crate_dir.as_path())
+        .with_config(cbindgen::Config::from_file(crate_dir.join("cbindgen.toml")).unwrap())
         .with_parse_expand(&parse_expand_vec)
         .with_parse_expand_features(&parse_expand_features_vec)
         .generate()

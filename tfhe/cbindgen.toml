@@ -114,14 +114,15 @@ bitflags = false
 ############## Options for How Your Rust library Should Be Parsed ##############
 
 [parse]
-parse_deps = true
-include = ["tfhe"]
+parse_deps = false
+include = []
 exclude = []
 clean = false
 extra_bindings = []
 
 
 [parse.expand]
+# Managed by build.rs to programmatically select features when required
 crates = []
 all_features = false
 default_features = true
