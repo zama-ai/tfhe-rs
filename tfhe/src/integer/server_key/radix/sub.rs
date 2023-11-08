@@ -428,6 +428,7 @@ impl ServerKey {
                 &mut result_block.ct,
                 &borrow.ct,
             );
+            result_block.set_noise_level(result_block.noise_level() + borrow.noise_level());
             let (msg, new_borrow) = rayon::join(
                 || self.key.message_extract(&result_block),
                 || {

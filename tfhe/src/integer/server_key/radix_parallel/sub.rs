@@ -385,6 +385,7 @@ impl ServerKey {
                         &mut block.ct,
                         &input_borrow.ct,
                     );
+                    block.set_noise_level(block.noise_level() + input_borrow.noise_level());
                     self.key.message_extract_assign(block);
                 });
             assert!(ct.block_carries_are_empty());
