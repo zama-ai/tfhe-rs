@@ -90,7 +90,7 @@ impl ServerKey {
 
         if self.is_eligible_for_parallel_single_carry_propagation(ct) {
             let mut ct = self.unchecked_neg(ct);
-            self.propagate_single_carry_parallelized_low_latency(&mut ct);
+            let _carry = self.propagate_single_carry_parallelized_low_latency(&mut ct);
             ct
         } else {
             let mut ct = self.unchecked_neg(ct);

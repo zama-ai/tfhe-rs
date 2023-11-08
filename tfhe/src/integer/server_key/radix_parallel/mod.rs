@@ -62,7 +62,11 @@ impl ServerKey {
     /// let res: u64 = cks.decrypt_one_block(&ct_res.blocks()[1]);
     /// assert_eq!(3, res);
     /// ```
-    pub fn propagate_parallelized<T>(&self, ctxt: &mut T, index: usize)
+    pub fn propagate_parallelized<T>(
+        &self,
+        ctxt: &mut T,
+        index: usize,
+    ) -> crate::shortint::Ciphertext
     where
         T: IntegerRadixCiphertext,
     {
@@ -77,6 +81,8 @@ impl ServerKey {
             self.key
                 .unchecked_add_assign(&mut ctxt.blocks_mut()[index + 1], &carry);
         }
+
+        carry
     }
 
     pub fn partial_propagate_parallelized<T>(&self, ctxt: &mut T, start_index: usize)
@@ -107,11 +113,11 @@ impl ServerKey {
 
             ctxt.blocks_mut()[start_index..].swap_with_slice(&mut message_blocks);
             let carries = T::from_blocks(carry_blocks);
-            self.unchecked_add_assign_parallelized_low_latency(ctxt, &carries);
+            let _ = self.unchecked_add_assign_parallelized_low_latency(ctxt, &carries);
         } else {
             let len = ctxt.blocks().len();
             for i in start_index..len {
-                self.propagate_parallelized(ctxt, i);
+                let _ = self.propagate_parallelized(ctxt, i);
             }
         }
     }
