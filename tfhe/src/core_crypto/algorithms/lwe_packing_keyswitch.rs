@@ -186,8 +186,8 @@ pub fn keyswitch_lwe_ciphertext_into_glwe_ciphertext<Scalar, KeyCont, InputCont,
     }
 }
 
-/// Apply a private functional keyswitch on each [`LWE ciphertext`](`LweCiphertext`) of an input
-/// [`LWE ciphertext list`](`LweCiphertextList`) and pack the result in an output [`GLWE
+/// Apply a keyswitch on each [`LWE ciphertext`](`LweCiphertext`) of an input [`LWE ciphertext
+/// list`](`LweCiphertextList`) and pack the result in an output [`GLWE
 /// ciphertext`](`GlweCiphertext`).
 ///
 /// ```
