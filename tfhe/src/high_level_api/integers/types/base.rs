@@ -471,7 +471,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -481,7 +481,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -499,7 +499,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -509,7 +509,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -528,7 +528,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .scalar_eq_parallelized(&self.ciphertext, rhs)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -538,7 +538,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .scalar_ne_parallelized(&self.ciphertext, rhs)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -556,7 +556,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -566,7 +566,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .le_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -576,7 +576,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -586,7 +586,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -604,7 +604,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -614,7 +614,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .le_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -624,7 +624,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -634,7 +634,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -653,7 +653,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .scalar_lt_parallelized(&self.ciphertext, rhs)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -663,7 +663,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .scalar_le_parallelized(&self.ciphertext, rhs)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -673,7 +673,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .scalar_gt_parallelized(&self.ciphertext, rhs)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
@@ -683,7 +683,7 @@ where
             let pbs_key = integer_key.pbs_key();
             pbs_key
                 .scalar_ge_parallelized(&self.ciphertext, rhs)
-                .into_radix(P::num_blocks(), pbs_key)
+                .into_radix(Id::num_blocks(), pbs_key)
         });
         Self::new(inner_result, self.id)
     }
