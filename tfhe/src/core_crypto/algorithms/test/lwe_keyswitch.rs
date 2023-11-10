@@ -46,7 +46,7 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &ksk_big_to_small,
                 ciphertext_modulus
             ));
@@ -61,7 +61,10 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let mut output_ct = LweCiphertext::new(
                 Scalar::ZERO,
@@ -77,7 +80,10 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 
             keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct);
 
-            assert!(check_content_respects_mod(&output_ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &output_ct,
+                ciphertext_modulus
+            ));
 
             par_keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut output_ct_parallel);
             assert_eq!(output_ct.as_ref(), output_ct_parallel.as_ref());

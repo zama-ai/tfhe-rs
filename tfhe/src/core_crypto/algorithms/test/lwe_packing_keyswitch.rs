@@ -43,7 +43,10 @@ fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Tes
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&pksk, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &pksk,
+                ciphertext_modulus
+            ));
 
             let plaintext = Plaintext(msg * delta);
 
@@ -55,7 +58,10 @@ fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Tes
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let mut output_ct = GlweCiphertext::new(
                 Scalar::ZERO,
@@ -66,7 +72,10 @@ fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Tes
 
             keyswitch_lwe_ciphertext_into_glwe_ciphertext(&pksk, &ct, &mut output_ct);
 
-            assert!(check_content_respects_mod(&output_ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &output_ct,
+                ciphertext_modulus
+            ));
 
             let mut decrypted_plaintext_list =
                 PlaintextList::new(Scalar::ZERO, PlaintextCount(output_ct.polynomial_size().0));
@@ -128,7 +137,10 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send 
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&pksk, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &pksk,
+                ciphertext_modulus
+            ));
 
             let mut input_lwe_list = LweCiphertextList::new(
                 Scalar::ZERO,
@@ -148,7 +160,7 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send 
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &input_lwe_list,
                 ciphertext_modulus
             ));
@@ -173,7 +185,10 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send 
                 &mut output_glwe,
             );
 
-            assert!(check_content_respects_mod(&output_glwe, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &output_glwe,
+                ciphertext_modulus
+            ));
 
             par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(
                 &pksk,

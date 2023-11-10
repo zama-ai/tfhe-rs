@@ -65,7 +65,10 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
             &mut encryption_generator,
         );
 
-        assert!(check_content_respects_mod(&pksk, ciphertext_modulus));
+        assert!(check_encrypted_content_respects_mod(
+            &pksk,
+            ciphertext_modulus
+        ));
 
         let mut seeded_pksk = SeededLwePackingKeyswitchKey::new(
             Scalar::ZERO,
@@ -89,7 +92,10 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
             &mut deterministic_seeder,
         );
 
-        assert!(check_content_respects_mod(&seeded_pksk, ciphertext_modulus));
+        assert!(check_encrypted_content_respects_mod(
+            &seeded_pksk,
+            ciphertext_modulus
+        ));
 
         let decompressed_ksk = seeded_pksk.decompress_into_lwe_packing_keyswitch_key();
 

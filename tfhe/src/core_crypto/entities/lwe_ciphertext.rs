@@ -3,7 +3,7 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::prelude::misc::check_content_respects_mod;
+use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 
 /// A convenience structure to easily manipulate the body of an [`LweCiphertext`].
 #[derive(Clone, Debug)]
@@ -716,7 +716,7 @@ where
     type ParameterSet = LweCiphertextParameters<C::Element>;
 
     fn is_conformant(&self, lwe_ct_parameters: &LweCiphertextParameters<C::Element>) -> bool {
-        check_content_respects_mod(self, lwe_ct_parameters.ct_modulus)
+        check_encrypted_content_respects_mod(self, lwe_ct_parameters.ct_modulus)
             && self.lwe_size() == lwe_ct_parameters.lwe_dim.to_lwe_size()
             && self.ciphertext_modulus() == lwe_ct_parameters.ct_modulus
     }

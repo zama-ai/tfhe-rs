@@ -1,3 +1,4 @@
+use crate::core_crypto::algorithms::misc::check_clear_content_respects_mod;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::random::{RandomGenerable, Uniform};
 use crate::core_crypto::commons::math::torus::{CastInto, UnsignedInteger, UnsignedTorus};
@@ -95,6 +96,11 @@ fn test_normal_random_native<Scalar: UnsignedTorus>() {
 
             rng.fill_slice_with_random_gaussian(&mut samples, 0.0, f64::powi(2., -20));
 
+            assert!(check_clear_content_respects_mod(
+                &samples,
+                CiphertextModulus::new_native()
+            ));
+
             let samples: Vec<f64> = samples
                 .iter()
                 .copied()
@@ -155,6 +161,11 @@ fn test_normal_random_custom_mod<Scalar: UnsignedTorus>(
                 f64::powi(2., -20),
                 ciphertext_modulus,
             );
+
+            assert!(check_clear_content_respects_mod(
+                &samples,
+                ciphertext_modulus
+            ));
 
             let samples: Vec<f64> = samples
                 .iter()
@@ -240,6 +251,11 @@ fn test_normal_random_add_assign_native<Scalar: UnsignedTorus>() {
                 f64::powi(2., -20),
             );
 
+            assert!(check_clear_content_respects_mod(
+                &samples,
+                CiphertextModulus::new_native()
+            ));
+
             let samples: Vec<f64> = samples
                 .iter()
                 .copied()
@@ -300,6 +316,11 @@ fn test_normal_random_add_assign_custom_mod<Scalar: UnsignedTorus>(
                 f64::powi(2., -20),
                 ciphertext_modulus,
             );
+
+            assert!(check_clear_content_respects_mod(
+                &samples,
+                ciphertext_modulus
+            ));
 
             let samples: Vec<f64> = samples
                 .iter()

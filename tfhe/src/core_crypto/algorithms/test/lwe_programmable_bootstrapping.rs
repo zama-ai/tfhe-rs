@@ -38,7 +38,10 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
         f,
     );
 
-    assert!(check_content_respects_mod(&accumulator, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -72,7 +75,10 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
             &mut rsc.encryption_random_generator,
         );
 
-        assert!(check_content_respects_mod(&*bsk, ciphertext_modulus));
+        assert!(check_encrypted_content_respects_mod(
+            &*bsk,
+            ciphertext_modulus
+        ));
 
         let mut fbsk = FourierLweBootstrapKey::new(
             input_lwe_dimension,
@@ -97,7 +103,7 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &lwe_ciphertext_in,
                 ciphertext_modulus
             ));
@@ -115,7 +121,10 @@ fn lwe_encrypt_pbs_decrypt_custom_mod<
                 &fbsk,
             );
 
-            assert!(check_content_respects_mod(&out_pbs_ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &out_pbs_ct,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
 
@@ -205,7 +214,10 @@ fn lwe_encrypt_pbs_f128_decrypt_custom_mod<
         f,
     );
 
-    assert!(check_content_respects_mod(&accumulator, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -239,7 +251,10 @@ fn lwe_encrypt_pbs_f128_decrypt_custom_mod<
             &mut rsc.encryption_random_generator,
         );
 
-        assert!(check_content_respects_mod(&*bsk, ciphertext_modulus));
+        assert!(check_encrypted_content_respects_mod(
+            &*bsk,
+            ciphertext_modulus
+        ));
 
         let mut fbsk = Fourier128LweBootstrapKey::new(
             input_lwe_dimension,
@@ -264,7 +279,7 @@ fn lwe_encrypt_pbs_f128_decrypt_custom_mod<
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &lwe_ciphertext_in,
                 ciphertext_modulus
             ));
@@ -282,7 +297,10 @@ fn lwe_encrypt_pbs_f128_decrypt_custom_mod<
                 &fbsk,
             );
 
-            assert!(check_content_respects_mod(&out_pbs_ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &out_pbs_ct,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
 

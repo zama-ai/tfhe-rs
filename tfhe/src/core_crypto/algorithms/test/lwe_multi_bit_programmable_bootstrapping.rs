@@ -54,7 +54,10 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
         f,
     );
 
-    assert!(check_content_respects_mod(&accumulator, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
 
     // Keygen is a bit slow on this one so we keep it out of the testing loop
     // Create the LweSecretKey
@@ -88,7 +91,10 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
         &mut rsc.encryption_random_generator,
     );
 
-    assert!(check_content_respects_mod(&*bsk, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &*bsk,
+        ciphertext_modulus
+    ));
 
     let mut fbsk = FourierLweMultiBitBootstrapKey::new(
         input_lwe_dimension,
@@ -116,7 +122,7 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &lwe_ciphertext_in,
                 ciphertext_modulus
             ));
@@ -135,7 +141,10 @@ fn lwe_encrypt_multi_bit_pbs_decrypt_custom_mod<
                 thread_count,
             );
 
-            assert!(check_content_respects_mod(&out_pbs_ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &out_pbs_ct,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
 
@@ -187,7 +196,10 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
         f,
     );
 
-    assert!(check_content_respects_mod(&accumulator, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
 
     // Keygen is a bit slow on this one so we keep it out of the testing loop
     // Create the LweSecretKey
@@ -221,7 +233,10 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
         &mut rsc.encryption_random_generator,
     );
 
-    assert!(check_content_respects_mod(&*bsk, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &*bsk,
+        ciphertext_modulus
+    ));
 
     let mut fbsk = FourierLweMultiBitBootstrapKey::new(
         input_lwe_dimension,
@@ -249,7 +264,7 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &lwe_ciphertext_in,
                 ciphertext_modulus
             ));
@@ -269,7 +284,10 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
                     thread_count,
                 );
 
-                assert!(check_content_respects_mod(&out_pbs_ct, ciphertext_modulus));
+                assert!(check_encrypted_content_respects_mod(
+                    &out_pbs_ct,
+                    ciphertext_modulus
+                ));
 
                 let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
 
@@ -343,7 +361,10 @@ fn lwe_encrypt_std_multi_bit_pbs_decrypt_custom_mod<
         f,
     );
 
-    assert!(check_content_respects_mod(&accumulator, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
 
     // Keygen is a bit slow on this one so we keep it out of the testing loop
     // Create the LweSecretKey
@@ -377,7 +398,10 @@ fn lwe_encrypt_std_multi_bit_pbs_decrypt_custom_mod<
         &mut rsc.encryption_random_generator,
     );
 
-    assert!(check_content_respects_mod(&*bsk, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &*bsk,
+        ciphertext_modulus
+    ));
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -392,7 +416,7 @@ fn lwe_encrypt_std_multi_bit_pbs_decrypt_custom_mod<
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &lwe_ciphertext_in,
                 ciphertext_modulus
             ));
@@ -411,7 +435,10 @@ fn lwe_encrypt_std_multi_bit_pbs_decrypt_custom_mod<
                 thread_count,
             );
 
-            assert!(check_content_respects_mod(&out_pbs_ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &out_pbs_ct,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
 
@@ -463,7 +490,10 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
         f,
     );
 
-    assert!(check_content_respects_mod(&accumulator, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &accumulator,
+        ciphertext_modulus
+    ));
 
     // Keygen is a bit slow on this one so we keep it out of the testing loop
     // Create the LweSecretKey
@@ -497,7 +527,10 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
         &mut rsc.encryption_random_generator,
     );
 
-    assert!(check_content_respects_mod(&*bsk, ciphertext_modulus));
+    assert!(check_encrypted_content_respects_mod(
+        &*bsk,
+        ciphertext_modulus
+    ));
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -512,7 +545,7 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &lwe_ciphertext_in,
                 ciphertext_modulus
             ));
@@ -532,7 +565,10 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<
                     thread_count,
                 );
 
-                assert!(check_content_respects_mod(&out_pbs_ct, ciphertext_modulus));
+                assert!(check_encrypted_content_respects_mod(
+                    &out_pbs_ct,
+                    ciphertext_modulus
+                ));
 
                 let decrypted = decrypt_lwe_ciphertext(&output_lwe_secret_key, &out_pbs_ct);
 
