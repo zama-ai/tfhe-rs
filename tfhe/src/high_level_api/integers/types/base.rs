@@ -109,26 +109,32 @@ where
         Self { ciphertext, id }
     }
 
-    pub fn cast_from<FromId>(other: GenericInteger<FromId>) -> Self
-    where
-        FromId: IntegerId,
-    {
-        other.cast_into()
-    }
+    pub fn abs(&self) -> Self {
+        let ciphertext = crate::high_level_api::global_state::with_internal_keys(|keys| {
+            keys.integer_key
+                .pbs_key()
+                .abs_parallelized(&self.ciphertext)
+        });
 
-    pub fn cast_into<IntoId>(self) -> GenericInteger<IntoId>
-    where
-        IntoId: IntegerId,
-    {
+        Self::new(ciphertext, self.id)
+    }
+}
+
+impl<FromId, IntoId> CastFrom<GenericInteger<FromId>> for GenericInteger<IntoId>
+where
+    FromId: IntegerId,
+    IntoId: IntegerId,
+{
+    fn cast_from(input: GenericInteger<FromId>) -> Self {
         crate::high_level_api::global_state::with_internal_keys(|keys| {
             let integer_key = keys.integer_key.pbs_key();
-            let current_num_blocks = Id::num_blocks();
+            let current_num_blocks = FromId::num_blocks();
             let target_num_blocks = IntoId::num_blocks();
 
-            let blocks = if Id::InnerCiphertext::IS_SIGNED {
+            let blocks = if FromId::InnerCiphertext::IS_SIGNED {
                 if target_num_blocks > current_num_blocks {
                     let mut ct_as_signed_radix =
-                        SignedRadixCiphertext::from_blocks(self.ciphertext.into_blocks());
+                        SignedRadixCiphertext::from_blocks(input.ciphertext.into_blocks());
                     let num_blocks_to_add = target_num_blocks - current_num_blocks;
                     integer_key.extend_radix_with_sign_msb_assign(
                         &mut ct_as_signed_radix,
@@ -137,7 +143,7 @@ where
                     ct_as_signed_radix.blocks
                 } else {
                     let mut ct_as_unsigned_radix =
-                        RadixCiphertext::from_blocks(self.ciphertext.into_blocks());
+                        RadixCiphertext::from_blocks(input.ciphertext.into_blocks());
                     let num_blocks_to_remove = current_num_blocks - target_num_blocks;
                     integer_key.trim_radix_blocks_msb_assign(
                         &mut ct_as_unsigned_radix,
@@ -147,7 +153,7 @@ where
                 }
             } else {
                 let mut ct_as_unsigned_radix =
-                    RadixCiphertext::from_blocks(self.ciphertext.into_blocks());
+                    RadixCiphertext::from_blocks(input.ciphertext.into_blocks());
                 if target_num_blocks > current_num_blocks {
                     let num_blocks_to_add = target_num_blocks - current_num_blocks;
                     integer_key.extend_radix_with_trivial_zero_blocks_msb_assign(
@@ -170,18 +176,8 @@ where
                 "internal error, wrong number of blocks after casting"
             );
             let new_ciphertext = IntoId::InnerCiphertext::from_blocks(blocks);
-            GenericInteger::<IntoId>::new(new_ciphertext, IntoId::default())
+            Self::new(new_ciphertext, IntoId::default())
         })
-    }
-
-    pub fn abs(&self) -> Self {
-        let ciphertext = crate::high_level_api::global_state::with_internal_keys(|keys| {
-            keys.integer_key
-                .pbs_key()
-                .abs_parallelized(&self.ciphertext)
-        });
-
-        Self::new(ciphertext, self.id)
     }
 }
 

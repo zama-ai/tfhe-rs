@@ -11,3 +11,5 @@ pub use crate::high_level_api::traits::{
     FheTryEncrypt, FheTryTrivialEncrypt, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
 };
+
+pub use crate::core_crypto::prelude::{CastFrom, CastInto};

@@ -5,8 +5,8 @@ use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUin
 use crate::integer::U256;
 use crate::{
     CompactFheUint32, CompactFheUint32List, CompactPublicKey, CompressedFheUint16,
-    CompressedFheUint256, CompressedPublicKey, Config, FheInt32, FheInt8, FheUint128, FheUint16,
-    FheUint256, FheUint32, FheUint64,
+    CompressedFheUint256, CompressedPublicKey, Config, FheInt16, FheInt32, FheInt8, FheUint128,
+    FheUint16, FheUint256, FheUint32, FheUint64,
 };
 
 #[test]
@@ -766,6 +766,16 @@ fn test_integer_casting() {
         let a: FheUint32 = a.cast_into();
         let da: u32 = a.decrypt(&client_key);
         assert_eq!(da, (clear as i8) as u32);
+    }
+
+    {
+        let clear = rng.gen_range(i16::MIN..0);
+        let a = FheInt16::encrypt(clear, &client_key);
+
+        // Upcasting
+        let a: FheUint32 = a.cast_into();
+        let da: u32 = a.decrypt(&client_key);
+        assert_eq!(da, clear as u32);
     }
 
     // Upcasting to bigger signed integer then downcasting back to unsigned
