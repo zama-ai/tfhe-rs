@@ -2,7 +2,7 @@ use crate::high_level_api::prelude::*;
 
 use std::ops::{BitAnd, BitOr, BitXor, Not};
 
-pub struct FheBool(crate::high_level_api::FheBool);
+pub struct FheBool(pub(in crate::c_api) crate::high_level_api::FheBool);
 
 impl_destroy_on_type!(FheBool);
 impl_clone_on_type!(FheBool);

@@ -5,6 +5,7 @@ use std::ops::{
 };
 
 use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::prelude::CastFrom;
 use crate::high_level_api::global_state::WithGlobalKey;
 use crate::high_level_api::integers::parameters::IntegerId;
 use crate::high_level_api::integers::IntegerServerKey;
@@ -17,12 +18,11 @@ use crate::high_level_api::traits::{
 };
 use crate::high_level_api::{ClientKey, PublicKey};
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::{IntegerCiphertext, SignedRadixCiphertext, I256, U256};
 use crate::named::Named;
-use crate::CompactPublicKey;
+use crate::{CompactPublicKey, FheBool};
 
 #[derive(Debug)]
 pub enum GenericIntegerBlockError {
@@ -80,7 +80,7 @@ impl std::fmt::Display for GenericIntegerBlockError {
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "integer")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct GenericInteger<Id: IntegerId> {
-    pub(in crate::high_level_api::integers) ciphertext: Id::InnerCiphertext,
+    pub(in crate::high_level_api) ciphertext: Id::InnerCiphertext,
     pub(in crate::high_level_api::integers) id: Id,
 }
 
@@ -102,10 +102,7 @@ impl<Id> GenericInteger<Id>
 where
     Id: IntegerId,
 {
-    pub(in crate::high_level_api::integers) fn new(
-        ciphertext: Id::InnerCiphertext,
-        id: Id,
-    ) -> Self {
+    pub(in crate::high_level_api) fn new(ciphertext: Id::InnerCiphertext, id: Id) -> Self {
         Self { ciphertext, id }
     }
 
@@ -181,37 +178,18 @@ where
     }
 }
 
-impl<Id> GenericInteger<Id>
+impl<Id> CastFrom<FheBool> for GenericInteger<Id>
 where
-    Id: IntegerId + WithGlobalKey<Key = IntegerServerKey>,
+    Id: IntegerId,
 {
-    /// Conditional selection.
-    ///
-    /// The output value returned depends on the value of `self`.
-    ///
-    /// `self` has to encrypt 0 or 1.
-    ///
-    /// - if `self` is true (1), the output will have the value of `ct_then`
-    /// - if `self` is false (0), the output will have the value of `ct_else`
-    pub fn if_then_else(&self, ct_then: &Self, ct_else: &Self) -> Self {
-        let ct_condition = self;
-        let new_ct = ct_condition.id.with_unwrapped_global(|integer_key| {
-            integer_key.pbs_key().if_then_else_parallelized(
-                &BooleanBlock::try_new(&ct_condition.ciphertext)
-                    .expect("if_then_else requires a boolean value"),
-                &ct_then.ciphertext,
-                &ct_else.ciphertext,
-            )
+    fn cast_from(input: FheBool) -> Self {
+        let ciphertext = crate::high_level_api::global_state::with_internal_keys(|keys| {
+            input
+                .ciphertext
+                .into_radix(Id::num_blocks(), keys.integer_key.pbs_key())
         });
 
-        Self::new(new_ct, ct_condition.id)
-    }
-
-    /// Conditional selection.
-    ///
-    /// cmux is another name for (if_then_else)[Self::if_then_else]
-    pub fn cmux(&self, ct_then: &Self, ct_else: &Self) -> Self {
-        self.if_then_else(ct_then, ct_else)
+        Self::new(ciphertext, Id::default())
     }
 }
 
@@ -460,26 +438,20 @@ where
     Id: IntegerId + WithGlobalKey<Key = IntegerServerKey>,
     Self: Clone,
 {
-    type Output = Self;
-
-    fn eq(&self, rhs: Self) -> Self::Output {
+    fn eq(&self, rhs: Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.eq_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn ne(&self, rhs: Self) -> Self::Output {
+    fn ne(&self, rhs: Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.ne_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 }
 
@@ -488,26 +460,20 @@ where
     Id: IntegerId + WithGlobalKey<Key = IntegerServerKey>,
     Self: Clone,
 {
-    type Output = Self;
-
-    fn eq(&self, rhs: &Self) -> Self::Output {
+    fn eq(&self, rhs: &Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .eq_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.eq_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn ne(&self, rhs: &Self) -> Self::Output {
+    fn ne(&self, rhs: &Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .ne_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.ne_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 }
 
@@ -517,26 +483,20 @@ where
     Id: IntegerId + WithGlobalKey<Key = IntegerServerKey>,
     Self: Clone,
 {
-    type Output = Self;
-
-    fn eq(&self, rhs: Clear) -> Self::Output {
+    fn eq(&self, rhs: Clear) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .scalar_eq_parallelized(&self.ciphertext, rhs)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.scalar_eq_parallelized(&self.ciphertext, rhs)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn ne(&self, rhs: Clear) -> Self::Output {
+    fn ne(&self, rhs: Clear) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .scalar_ne_parallelized(&self.ciphertext, rhs)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.scalar_ne_parallelized(&self.ciphertext, rhs)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 }
 
@@ -545,46 +505,36 @@ where
     Id: IntegerId + WithGlobalKey<Key = IntegerServerKey>,
     Self: Clone,
 {
-    type Output = Self;
-
-    fn lt(&self, rhs: Self) -> Self::Output {
+    fn lt(&self, rhs: Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.lt_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn le(&self, rhs: Self) -> Self::Output {
+    fn le(&self, rhs: Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .le_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.le_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn gt(&self, rhs: Self) -> Self::Output {
+    fn gt(&self, rhs: Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.gt_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn ge(&self, rhs: Self) -> Self::Output {
+    fn ge(&self, rhs: Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.ge_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 }
 
@@ -593,46 +543,36 @@ where
     Id: IntegerId + WithGlobalKey<Key = IntegerServerKey>,
     Self: Clone,
 {
-    type Output = Self;
-
-    fn lt(&self, rhs: &Self) -> Self::Output {
+    fn lt(&self, rhs: &Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .lt_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.lt_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn le(&self, rhs: &Self) -> Self::Output {
+    fn le(&self, rhs: &Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .le_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.le_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn gt(&self, rhs: &Self) -> Self::Output {
+    fn gt(&self, rhs: &Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .gt_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.gt_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn ge(&self, rhs: &Self) -> Self::Output {
+    fn ge(&self, rhs: &Self) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .ge_parallelized(&self.ciphertext, &rhs.ciphertext)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.ge_parallelized(&self.ciphertext, &rhs.ciphertext)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 }
 
@@ -642,46 +582,36 @@ where
     Clear: DecomposableInto<u64>,
     Self: Clone,
 {
-    type Output = Self;
-
-    fn lt(&self, rhs: Clear) -> Self::Output {
+    fn lt(&self, rhs: Clear) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .scalar_lt_parallelized(&self.ciphertext, rhs)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.scalar_lt_parallelized(&self.ciphertext, rhs)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn le(&self, rhs: Clear) -> Self::Output {
+    fn le(&self, rhs: Clear) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .scalar_le_parallelized(&self.ciphertext, rhs)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.scalar_le_parallelized(&self.ciphertext, rhs)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn gt(&self, rhs: Clear) -> Self::Output {
+    fn gt(&self, rhs: Clear) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .scalar_gt_parallelized(&self.ciphertext, rhs)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.scalar_gt_parallelized(&self.ciphertext, rhs)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 
-    fn ge(&self, rhs: Clear) -> Self::Output {
+    fn ge(&self, rhs: Clear) -> FheBool {
         let inner_result = self.id.with_unwrapped_global(|integer_key| {
             let pbs_key = integer_key.pbs_key();
-            pbs_key
-                .scalar_ge_parallelized(&self.ciphertext, rhs)
-                .into_radix(Id::num_blocks(), pbs_key)
+            pbs_key.scalar_ge_parallelized(&self.ciphertext, rhs)
         });
-        Self::new(inner_result, self.id)
+        FheBool::new(inner_result)
     }
 }
 

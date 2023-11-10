@@ -1,4 +1,5 @@
 use crate::high_level_api::ClientKey;
+use crate::FheBool;
 
 /// Trait used to have a generic way of creating a value of a FHE type
 /// from a native value.
@@ -87,11 +88,9 @@ pub trait FheDecrypt<T> {
 /// for equality, one cannot use the standard operator `==` but rather, use
 /// the function directly.
 pub trait FheEq<Rhs = Self> {
-    type Output;
+    fn eq(&self, other: Rhs) -> FheBool;
 
-    fn eq(&self, other: Rhs) -> Self::Output;
-
-    fn ne(&self, other: Rhs) -> Self::Output;
+    fn ne(&self, other: Rhs) -> FheBool;
 }
 
 /// Trait for fully homomorphic comparisons.
@@ -103,12 +102,10 @@ pub trait FheEq<Rhs = Self> {
 /// one cannot use the standard operators (`>`, `<`, etc) and must use
 /// the functions directly.
 pub trait FheOrd<Rhs = Self> {
-    type Output;
-
-    fn lt(&self, other: Rhs) -> Self::Output;
-    fn le(&self, other: Rhs) -> Self::Output;
-    fn gt(&self, other: Rhs) -> Self::Output;
-    fn ge(&self, other: Rhs) -> Self::Output;
+    fn lt(&self, other: Rhs) -> FheBool;
+    fn le(&self, other: Rhs) -> FheBool;
+    fn gt(&self, other: Rhs) -> FheBool;
+    fn ge(&self, other: Rhs) -> FheBool;
 }
 
 pub trait FheMin<Rhs = Self> {

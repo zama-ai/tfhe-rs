@@ -4,7 +4,7 @@ use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
 use crate::integer::public_key::compressed::CompressedPublicKey;
-use crate::integer::SignedRadixCiphertext;
+use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::PublicKey as ShortintPublicKey;
 
@@ -66,6 +66,10 @@ impl PublicKey {
         T: DecomposableInto<u64> + SignedNumeric,
     {
         encrypt_words_radix_impl(&self.key, message, num_blocks, ShortintPublicKey::encrypt)
+    }
+
+    pub fn encrypt_bool(&self, message: bool) -> BooleanBlock {
+        BooleanBlock::new_unchecked(self.key.encrypt(u64::from(message)))
     }
 
     pub fn encrypt_radix_without_padding(
