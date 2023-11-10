@@ -420,17 +420,7 @@ impl ServerKey {
         let mut borrow = self.key.create_trivial(0);
         let mut new_blocks = Vec::with_capacity(lhs.blocks.len());
         for (lhs_b, rhs_b) in lhs.blocks.iter().zip(rhs.blocks.iter()) {
-            let (mut result_block, correction) =
-                self.key.unchecked_sub_with_correcting_term(lhs_b, rhs_b);
-            if correction == 0 {
-                // When rhs_block is a trivial zero, the correcting term added is 0
-                // However we rely on that correcting term to be added regardless
-                assert_eq!(rhs_b.degree.0, 0);
-                self.key.unchecked_scalar_add_assign(
-                    &mut result_block,
-                    self.key.message_modulus.0 as u8,
-                );
-            }
+            let mut result_block = self.key.unchecked_sub(lhs_b, rhs_b);
             // Here unchecked_sub_assign does not give correct result, we don't want
             // the correcting term to be used
             // -> This is ok as the value returned by unchecked_sub is in range 1..(message_mod * 2)

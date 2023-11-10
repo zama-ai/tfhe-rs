@@ -216,6 +216,7 @@ where
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
+    let trivial0 = sks.create_trivial_radix(0u64, NB_CTXT);
     executor.setup(&cks, sks);
 
     for _ in 0..NB_TEST {
@@ -228,6 +229,13 @@ where
 
         let expected_result = clear.wrapping_neg() % modulus;
         assert_eq!(decrypted_result, expected_result);
+    }
+
+    // negation of trivial 0
+    {
+        let ct_res = executor.execute(&trivial0);
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(0, dec_res);
     }
 }
 

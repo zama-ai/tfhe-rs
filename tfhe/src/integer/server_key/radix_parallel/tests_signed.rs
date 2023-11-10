@@ -528,6 +528,14 @@ fn integer_signed_unchecked_neg(param: impl Into<PBSParameters>) {
         let clear_res = signed_neg_under_modulus(clear_0, modulus);
         assert_eq!(clear_res, dec_res);
     }
+
+    // negation of trivial 0
+    {
+        let ctxt_0 = sks.create_trivial_radix(0i64, NB_CTXT);
+        let ct_res = sks.unchecked_neg(&ctxt_0);
+        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
+        assert_eq!(0, dec_res);
+    }
 }
 
 fn integer_signed_unchecked_sub(param: impl Into<PBSParameters>) {
@@ -616,12 +624,14 @@ where
     }
 
     // Test with trivial inputs, as it was bugged at some point
-    for _ in 0..4 {
-        // Reduce maximum value of random number such that at least the last block is a trivial 0
-        // (This is how the reproducing case was found)
-        let clear_0 = rng.gen::<i64>() % modulus;
-        let clear_1 = rng.gen::<i64>() % modulus;
-
+    let values = [
+        (rng.gen::<i64>() % modulus, 0i64),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+    ];
+    for (clear_0, clear_1) in values {
         let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
         let b: SignedRadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
 
