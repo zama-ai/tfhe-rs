@@ -214,7 +214,7 @@ required-features = ["shortint", "internal-keycache"]
 [[example]]
 name = "generates_test_keys"
 path = "examples/utilities/generates_test_keys.rs"
-required-features = ["shortint", "internal-keycache"]
+required-features = ["boolean", "shortint", "internal-keycache"]
 
 [[example]]
 name = "boolean_key_sizes"
