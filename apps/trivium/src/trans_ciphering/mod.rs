@@ -4,6 +4,7 @@
 use crate::{KreyviumStreamByte, KreyviumStreamShortint, TriviumStreamByte, TriviumStreamShortint};
 use tfhe::shortint::Ciphertext;
 
+use tfhe::prelude::*;
 use tfhe::{set_server_key, unset_server_key, FheUint64, FheUint8, ServerKey};
 
 use rayon::prelude::*;
