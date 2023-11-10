@@ -1,6 +1,5 @@
 //! Module containing primitives pertaining to random noise generation in the context of encryption.
 
-use crate::core_crypto::algorithms::misc::convert_unsigned_integer_to_float_truncate;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, Gaussian, ParallelByteRandomGenerator, RandomGenerable, RandomGenerator,
@@ -64,31 +63,20 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         custom_modulus: CiphertextModulus<Scalar>,
     ) -> Scalar
     where
-        Scalar: UnsignedInteger + RandomGenerable<Gaussian<f64>, CustomModulus = f64>,
+        Scalar: UnsignedInteger + RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
         if custom_modulus.is_native_modulus() {
             return self.random_noise(std);
         }
 
         let custom_modulus_as_scalar: Scalar = custom_modulus.get_custom_modulus().cast_into();
-        // Here we convert the custom modulus to f64 but rounding down to the closest representable
-        // value by f64. This allows to make sure that the value that is outputed is in the correct
-        // range with respect to our modulus.
-        // The max error for a u64 is 2047, i.e. max(diff(floor(u64 as f64) as u64, u64)) <= 2047
-        // This small error should be acceptable for values produced by the gaussian generation as
-        // they have to be related to the modulus itself, 2048 / 2^63 = 2^-52, basically the f64
-        // relative error is the max relative error you can get. This is valid for other moduli >=
-        // 2^53 with a max absolute error as low as 1 e.g. for 2^64 - 2^32 + 1, which rounds down to
-        // 2^64 - 2^32 in the float domain.
-        let custom_modulus_f64: f64 =
-            convert_unsigned_integer_to_float_truncate(custom_modulus_as_scalar);
         Scalar::generate_one_custom_modulus(
             &mut self.gen,
             Gaussian {
                 std: std.get_standard_dev(),
                 mean: 0.,
             },
-            custom_modulus_f64,
+            custom_modulus_as_scalar,
         )
     }
 
@@ -113,7 +101,7 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         custom_modulus: CiphertextModulus<Scalar>,
     ) where
         Scalar: UnsignedTorus,
-        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = f64>,
+        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
         self.gen.fill_slice_with_random_gaussian_custom_mod(
             output,
@@ -148,7 +136,7 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         custom_modulus: CiphertextModulus<Scalar>,
     ) where
         Scalar: UnsignedTorus,
-        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = f64>,
+        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
         self.gen
             .unsigned_torus_slice_wrapping_add_random_gaussian_custom_mod_assign(

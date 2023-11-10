@@ -55,7 +55,7 @@ impl<Torus> RandomGenerable<Gaussian<f64>> for (Torus, Torus)
 where
     Torus: UnsignedTorus,
 {
-    type CustomModulus = f64;
+    type CustomModulus = Torus;
 
     fn generate_one<G: ByteRandomGenerator>(
         generator: &mut RandomGenerator<G>,
@@ -75,8 +75,8 @@ where
     ) -> Self {
         let (s1, s2) = <(f64, f64)>::generate_one(generator, distribution);
         (
-            <Torus as FromTorus<f64>>::from_torus_custom_modulus(s1, custom_modulus),
-            <Torus as FromTorus<f64>>::from_torus_custom_modulus(s2, custom_modulus),
+            <Torus as FromTorus<f64>>::from_torus_custom_mod(s1, custom_modulus),
+            <Torus as FromTorus<f64>>::from_torus_custom_mod(s2, custom_modulus),
         )
     }
 }
@@ -85,7 +85,7 @@ impl<Torus> RandomGenerable<Gaussian<f64>> for Torus
 where
     Torus: UnsignedTorus,
 {
-    type CustomModulus = f64;
+    type CustomModulus = Torus;
 
     fn generate_one<G: ByteRandomGenerator>(
         generator: &mut RandomGenerator<G>,
@@ -101,6 +101,6 @@ where
         custom_modulus: Self::CustomModulus,
     ) -> Self {
         let (s1, _) = <(f64, f64)>::generate_one(generator, distribution);
-        <Torus as FromTorus<f64>>::from_torus_custom_modulus(s1, custom_modulus)
+        <Torus as FromTorus<f64>>::from_torus_custom_mod(s1, custom_modulus)
     }
 }

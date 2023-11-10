@@ -45,7 +45,10 @@ fn test_seeded_lwe_cpk_gen_equivalence<Scalar: UnsignedTorus>(
             &mut encryption_generator,
         );
 
-        assert!(check_content_respects_mod(&cpk, ciphertext_modulus));
+        assert!(check_encrypted_content_respects_mod(
+            &cpk,
+            ciphertext_modulus
+        ));
 
         let mut seeded_cpk = SeededLweCompactPublicKey::new(
             Scalar::ZERO,
@@ -64,7 +67,10 @@ fn test_seeded_lwe_cpk_gen_equivalence<Scalar: UnsignedTorus>(
             &mut deterministic_seeder,
         );
 
-        assert!(check_content_respects_mod(&seeded_cpk, ciphertext_modulus));
+        assert!(check_encrypted_content_respects_mod(
+            &seeded_cpk,
+            ciphertext_modulus
+        ));
 
         let decompressed_cpk = seeded_cpk.decompress_into_lwe_compact_public_key();
 

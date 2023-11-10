@@ -44,6 +44,8 @@ pub trait RandomGenerable<D: Distribution>
 where
     Self: Sized,
 {
+    // This is required as e.g. Gaussian can generate pairs of Torus elements and we can't use a
+    // pair of elements as custom modulus
     type CustomModulus: Copy;
 
     fn generate_one<G: ByteRandomGenerator>(

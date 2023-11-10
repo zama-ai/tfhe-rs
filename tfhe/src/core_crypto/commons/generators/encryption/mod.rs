@@ -281,7 +281,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         custom_modulus: CiphertextModulus<Scalar>,
     ) -> Scalar
     where
-        Scalar: UnsignedTorus + RandomGenerable<Gaussian<f64>, CustomModulus = f64>,
+        Scalar: UnsignedTorus + RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
         self.noise.random_noise_custom_mod(std, custom_modulus)
     }
@@ -306,7 +306,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         custom_modulus: CiphertextModulus<Scalar>,
     ) where
         Scalar: UnsignedTorus,
-        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = f64>,
+        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
         self.noise
             .fill_slice_with_random_noise_custom_mod(output, std, custom_modulus)
@@ -333,7 +333,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         custom_modulus: CiphertextModulus<Scalar>,
     ) where
         Scalar: UnsignedTorus,
-        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = f64>,
+        (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
         self.noise
             .unsigned_torus_slice_wrapping_add_random_noise_custom_mod_assign(

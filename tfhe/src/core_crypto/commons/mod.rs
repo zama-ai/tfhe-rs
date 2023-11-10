@@ -56,7 +56,9 @@ pub mod traits;
 pub mod test_tools {
     use rand::Rng;
 
-    pub use crate::core_crypto::algorithms::misc::torus_modular_diff;
+    pub use crate::core_crypto::algorithms::misc::{
+        modular_distance, modular_distance_custom_mod, torus_modular_diff,
+    };
     use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
     use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
     use crate::core_crypto::commons::generators::{
@@ -71,12 +73,6 @@ pub mod test_tools {
     };
     use crate::core_crypto::commons::traits::*;
     use concrete_csprng::seeders::{Seed, Seeder};
-
-    pub fn modular_distance<T: UnsignedInteger>(first: T, other: T) -> T {
-        let d0 = first.wrapping_sub(other);
-        let d1 = other.wrapping_sub(first);
-        d0.min(d1)
-    }
 
     pub fn variance(samples: &[f64]) -> Variance {
         let num_samples = samples.len();

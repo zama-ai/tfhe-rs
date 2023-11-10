@@ -301,13 +301,13 @@ mod test {
         use rand::Rng;
         let mut thread_rng = rand::thread_rng();
 
-        let custom_modulis = vec![
+        let moduli_to_test = vec![
             (1u128 << 64) - (1 << 32) + 1,
             (1u128 << 16) + 1,
             thread_rng.gen_range(1u128..u64::MAX as u128),
         ];
 
-        for custom_modulus_u128 in custom_modulis {
+        for custom_modulus_u128 in moduli_to_test {
             let custom_modulus = custom_modulus_u128 as u64;
             let a = u64::MAX % custom_modulus;
             let b = u64::MAX % custom_modulus;
@@ -342,13 +342,13 @@ mod test {
         use rand::Rng;
         let mut thread_rng = rand::thread_rng();
 
-        let custom_modulis = vec![
+        let moduli_to_test = vec![
             (1u128 << 64) - (1 << 32) + 1,
             (1u128 << 16) + 1,
             thread_rng.gen_range(1u128..u64::MAX as u128),
         ];
 
-        for custom_modulus_u128 in custom_modulis {
+        for custom_modulus_u128 in moduli_to_test {
             let custom_modulus = custom_modulus_u128 as u64;
 
             let a = 0u64;
@@ -390,13 +390,13 @@ mod test {
         use rand::Rng;
         let mut thread_rng = rand::thread_rng();
 
-        let custom_modulis = vec![
+        let moduli_to_test = vec![
             (1u128 << 64) - (1 << 32) + 1,
             (1u128 << 16) + 1,
             thread_rng.gen_range(1u128..u64::MAX as u128),
         ];
 
-        for custom_modulus_u128 in custom_modulis {
+        for custom_modulus_u128 in moduli_to_test {
             let custom_modulus = custom_modulus_u128 as u64;
             let a = u64::MAX % custom_modulus;
             let b = u64::MAX % custom_modulus;

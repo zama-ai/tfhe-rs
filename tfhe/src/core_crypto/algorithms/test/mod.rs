@@ -1,4 +1,4 @@
-pub use super::misc::check_content_respects_mod;
+pub use super::misc::check_encrypted_content_respects_mod;
 use crate::core_crypto::prelude::*;
 use paste::paste;
 
@@ -135,6 +135,25 @@ pub const DUMMY_31_U32: TestParams<u32> = TestParams {
     cbs_base_log: DecompositionBaseLog(0),
     message_modulus_log: CiphertextModulusLog(3),
     ciphertext_modulus: CiphertextModulus::new(1 << 31),
+};
+
+pub const TEST_PARAMS_3_BITS_SOLINAS_U64: TestParams<u64> = TestParams {
+    lwe_dimension: LweDimension(742),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(5),
+    ks_base_log: DecompositionBaseLog(3),
+    pfks_level: DecompositionLevelCount(1),
+    pfks_base_log: DecompositionBaseLog(23),
+    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    cbs_level: DecompositionLevelCount(0),
+    cbs_base_log: DecompositionBaseLog(0),
+    message_modulus_log: CiphertextModulusLog(3),
+    ciphertext_modulus: CiphertextModulus::new((1 << 64) - (1 << 32) + 1),
 };
 
 pub fn get_encoding_with_padding<Scalar: UnsignedInteger>(

@@ -38,13 +38,19 @@ fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Test
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let rhs = ct.clone();
 
             lwe_ciphertext_add_assign(&mut ct, &rhs);
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
 
@@ -95,13 +101,19 @@ fn lwe_encrypt_add_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let mut res = ct.clone();
 
             lwe_ciphertext_add(&mut res, &ct, &ct);
 
-            assert!(check_content_respects_mod(&res, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &res,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &res);
 
@@ -154,11 +166,17 @@ fn lwe_encrypt_plaintext_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             lwe_ciphertext_plaintext_add_assign(&mut ct, plaintext);
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
 
@@ -211,11 +229,17 @@ fn lwe_encrypt_plaintext_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             lwe_ciphertext_plaintext_sub_assign(&mut ct, plaintext);
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
 
@@ -268,11 +292,17 @@ fn lwe_encrypt_opposite_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             lwe_ciphertext_opposite_assign(&mut ct);
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
 
@@ -326,11 +356,17 @@ fn lwe_encrypt_ciphertext_cleartext_mul_assign_decrypt_custom_mod<Scalar: Unsign
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             lwe_ciphertext_cleartext_mul_assign(&mut ct, cleartext);
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &ct);
 
@@ -382,13 +418,19 @@ fn lwe_encrypt_cleartext_mul_decrypt_custom_mod<Scalar: UnsignedTorus>(params: T
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let mut res = ct.clone();
 
             lwe_ciphertext_cleartext_mul(&mut res, &ct, cleartext);
 
-            assert!(check_content_respects_mod(&res, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &res,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &res);
 
@@ -439,7 +481,10 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Test
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&lhs, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &lhs,
+                ciphertext_modulus
+            ));
 
             let mut rhs = LweCiphertext::new(
                 Scalar::ZERO,
@@ -458,11 +503,17 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Test
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&rhs, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &rhs,
+                ciphertext_modulus
+            ));
 
             lwe_ciphertext_sub_assign(&mut lhs, &rhs);
 
-            assert!(check_content_respects_mod(&lhs, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &lhs,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &lhs);
 
@@ -513,7 +564,10 @@ fn lwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&lhs, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &lhs,
+                ciphertext_modulus
+            ));
 
             let mut rhs = LweCiphertext::new(
                 Scalar::ZERO,
@@ -532,13 +586,19 @@ fn lwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&rhs, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &rhs,
+                ciphertext_modulus
+            ));
 
             let mut res = lhs.clone();
 
             lwe_ciphertext_sub(&mut res, &lhs, &rhs);
 
-            assert!(check_content_respects_mod(&res, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &res,
+                ciphertext_modulus
+            ));
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_sk, &res);
 

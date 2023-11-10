@@ -41,13 +41,7 @@ where
     /// Consume `input` and returns its closest unsigned integer representation.
     fn from_torus(input: F) -> Self;
     /// Consume `input` and returns its closest unsigned integer representation for a given modulus.
-    ///
-    /// It is the caller's reponsibility to provide a custom_modulus that is a safe approximation of
-    /// the integer modulus they want to use in the floating point domain.
-    ///
-    /// If the approximate floating point modulus is too big then some values will be out of the
-    /// proper range for the given integer modulus.
-    fn from_torus_custom_modulus(input: F, custom_modulus: F) -> Self;
+    fn from_torus_custom_mod(input: F, custom_modulus: Self) -> Self;
 }
 
 macro_rules! implement {
@@ -83,26 +77,35 @@ macro_rules! implement {
                 return signed.cast_into();
             }
             #[inline]
-            // WARNING from documentation reproduced here
-            // It is the caller's reponsibility to provide a custom_modulus that is a safe
-            // approximation of the integer modulus they want to use in the floating point
-            // domain.
-            //
-            // If the approximate floating point modulus is too big then some values will be out of
-            // the proper range for the given integer modulus.
-            fn from_torus_custom_modulus(input: F, custom_modulus: F) -> Self {
+            fn from_torus_custom_mod(input: F, custom_modulus: Self) -> Self {
+                // TODO: there is a question around rounded Gaussian vs. discrete Gaussian that
+                // warrants a reflection on what the rounding behavior should be for q to scale the
+                // Gaussian value to the correct range.
+                let custom_modulus_float: F = custom_modulus.cast_into();
+
                 // This is in [-0.5, 0.5[
+                // We do not do the mapping to [0, 1[ here as some values can be extremely small
+                // (think 2^-127 for u128 and custom power of 2 moduli) and would be crushed by
+                // adding 1 to them, creating artificial zeros (not good for noise generation)
                 let mut fract = input - F::round(input);
                 // Scale to the modulus
-                fract *= custom_modulus;
-                // This allows to map the negative part of the [-0.5, 0.5[ torus to the upper part
-                // of the [0, 1[ torus in a single operation.
-                // Also this is better done here to avoid epsilon issues as input can be very very
-                // small (i.e. if input is very small adding 1.0 to input to map it to the positive
-                // values would always produce 1.0, and therefore a noise of 0.0 if this value is
-                // used for noise generation, big yikes)
-                fract = F::round(fract).rem_euclid(custom_modulus);
-                return fract.cast_into();
+                fract *= custom_modulus_float;
+                fract = F::round(fract);
+
+                // Cast to signed integer to retain as much information as possible and apply an
+                // exact modulus in the integer domain, doing so in the float domain leads to
+                // approximations and values that can be out of range for the selected modulus,
+                // which is not good (depending on how the values are handled it could result in 0s)
+                let signed: Self::Signed = fract.cast_into();
+                if signed >= 0 {
+                    signed.cast_into()
+                } else {
+                    // Get the abs value of the signed value we got
+                    let unsigned: Self = (-signed).cast_into();
+                    // As it was a negative value we subtract it from the modulus to get the proper
+                    // representant under our modulus
+                    custom_modulus - unsigned
+                }
             }
         }
     };
@@ -119,7 +122,7 @@ pub trait UnsignedTorus:
     UnsignedInteger
     + FromTorus<f64>
     + IntoTorus<f64>
-    + RandomGenerable<Gaussian<f64>, CustomModulus = f64>
+    + RandomGenerable<Gaussian<f64>, CustomModulus = Self>
     + RandomGenerable<UniformBinary, CustomModulus = Self>
     + RandomGenerable<UniformTernary, CustomModulus = Self>
     + RandomGenerable<Uniform, CustomModulus = Self>

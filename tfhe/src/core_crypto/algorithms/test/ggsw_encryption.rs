@@ -223,7 +223,10 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Sca
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ggsw, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ggsw,
+                ciphertext_modulus
+            ));
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
@@ -285,7 +288,10 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&ggsw, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ggsw,
+                ciphertext_modulus
+            ));
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
@@ -348,7 +354,10 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPar
 
             let ggsw = seeded_ggsw.decompress_into_ggsw_ciphertext();
 
-            assert!(check_content_respects_mod(&ggsw, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ggsw,
+                ciphertext_modulus
+            ));
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 
@@ -413,7 +422,10 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
 
             let ggsw = seeded_ggsw.decompress_into_ggsw_ciphertext();
 
-            assert!(check_content_respects_mod(&ggsw, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ggsw,
+                ciphertext_modulus
+            ));
 
             let decoded = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw);
 

@@ -38,7 +38,10 @@ fn glwe_encrypt_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPar
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&glwe, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &glwe,
+                ciphertext_modulus
+            ));
 
             let mut plaintext_list =
                 PlaintextList::new(Scalar::ZERO, PlaintextCount(glwe.polynomial_size().0));
@@ -101,7 +104,10 @@ fn glwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Sca
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&glwe, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &glwe,
+                ciphertext_modulus
+            ));
 
             let mut plaintext_list =
                 PlaintextList::new(Scalar::ZERO, PlaintextCount(glwe.polynomial_size().0));
@@ -168,7 +174,10 @@ fn glwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParam
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&glwe_list, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &glwe_list,
+                ciphertext_modulus
+            ));
 
             let mut plaintext_list = PlaintextList::new(
                 Scalar::ZERO,
@@ -226,7 +235,10 @@ fn glwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPa
 
             trivially_encrypt_glwe_ciphertext(&mut glwe, &plaintext_list);
 
-            assert!(check_content_respects_mod(&glwe, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &glwe,
+                ciphertext_modulus
+            ));
 
             let mut plaintext_list =
                 PlaintextList::new(Scalar::ZERO, PlaintextCount(glwe.polynomial_size().0));
@@ -280,7 +292,10 @@ fn glwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 ciphertext_modulus,
             );
 
-            assert!(check_content_respects_mod(&ct, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &ct,
+                ciphertext_modulus
+            ));
 
             let mut output_plaintext_list =
                 PlaintextList::new(Scalar::ZERO, PlaintextCount(polynomial_size.0));
@@ -341,11 +356,14 @@ fn glwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPar
                 rsc.seeder.as_mut(),
             );
 
-            assert!(check_content_respects_mod(&seeded_glwe, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &seeded_glwe,
+                ciphertext_modulus
+            ));
 
             let decompressed_glwe = seeded_glwe.decompress_into_glwe_ciphertext();
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &decompressed_glwe,
                 ciphertext_modulus
             ));
@@ -418,7 +436,7 @@ fn glwe_seeded_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Te
                 rsc.seeder.as_mut(),
             );
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &glwe_seeded_list,
                 ciphertext_modulus
             ));

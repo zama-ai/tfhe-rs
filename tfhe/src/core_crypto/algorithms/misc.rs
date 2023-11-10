@@ -108,9 +108,30 @@ pub fn torus_modular_diff<T: UnsignedInteger>(
     }
 }
 
+/// Compute the distance over the torus, taking the absolute value of the smallest distance between
+/// two torus values.
+pub fn modular_distance<T: UnsignedInteger>(first: T, other: T) -> T {
+    let d0 = first.wrapping_sub(other);
+    let d1 = other.wrapping_sub(first);
+    d0.min(d1)
+}
+
+/// Compute the distance over the torus, taking the absolute value of the smallest distance between
+/// two torus values, considering a non native modulus.
+///
+/// # Note
+///
+/// first and other must already be in `0..custom_modulus`.
+pub fn modular_distance_custom_mod<T: UnsignedInteger>(first: T, other: T, custom_modulus: T) -> T {
+    let d0 = first.wrapping_sub_custom_mod(other, custom_modulus);
+    let d1 = other.wrapping_sub_custom_mod(first, custom_modulus);
+    d0.min(d1)
+}
+
 // Our representation of non native power of 2 moduli puts the information in the MSBs and leaves
 // the LSBs empty, this is what this function is checking
-pub fn check_content_respects_mod<Scalar: UnsignedInteger, Input: AsRef<[Scalar]>>(
+#[track_caller]
+pub fn check_encrypted_content_respects_mod<Scalar: UnsignedInteger, Input: AsRef<[Scalar]>>(
     input: &Input,
     modulus: CiphertextModulus<Scalar>,
 ) -> bool {
@@ -126,6 +147,20 @@ pub fn check_content_respects_mod<Scalar: UnsignedInteger, Input: AsRef<[Scalar]
             .all(|&x| (x & power_2_diff_mask) == Scalar::ZERO)
     } else {
         // non native, not power of two
+        let scalar_modulus: Scalar = modulus.get_custom_modulus().cast_into();
+
+        input.as_ref().iter().all(|&x| x < scalar_modulus)
+    }
+}
+
+#[track_caller]
+pub fn check_clear_content_respects_mod<Scalar: UnsignedInteger, Input: AsRef<[Scalar]>>(
+    input: &Input,
+    modulus: CiphertextModulus<Scalar>,
+) -> bool {
+    if modulus.is_native_modulus() {
+        true
+    } else {
         let scalar_modulus: Scalar = modulus.get_custom_modulus().cast_into();
 
         input.as_ref().iter().all(|&x| x < scalar_modulus)

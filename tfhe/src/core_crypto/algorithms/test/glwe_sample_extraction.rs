@@ -46,7 +46,10 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
                 &mut rsc.encryption_random_generator,
             );
 
-            assert!(check_content_respects_mod(&glwe, ciphertext_modulus));
+            assert!(check_encrypted_content_respects_mod(
+                &glwe,
+                ciphertext_modulus
+            ));
 
             let mut ser_output_lwe_ciphertext_list = LweCiphertextList::new(
                 Scalar::ZERO,
@@ -65,7 +68,7 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
                 );
             }
 
-            assert!(check_content_respects_mod(
+            assert!(check_encrypted_content_respects_mod(
                 &ser_output_lwe_ciphertext_list,
                 ciphertext_modulus
             ));

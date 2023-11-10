@@ -1,4 +1,3 @@
-use crate::core_crypto::algorithms::misc::convert_unsigned_integer_to_float_truncate;
 use crate::core_crypto::commons::math::random::{
     Gaussian, RandomGenerable, Uniform, UniformBinary, UniformLsb, UniformMsb, UniformTernary,
     UniformWithZeros,
@@ -163,7 +162,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// let random = generator.random_uniform::<i64>();
     /// let random = generator.random_uniform::<i128>();
     /// ```
-    pub fn random_uniform<Scalar: RandomGenerable<Uniform>>(&mut self) -> Scalar {
+    pub fn random_uniform<Scalar>(&mut self) -> Scalar
+    where
+        Scalar: RandomGenerable<Uniform>,
+    {
         Scalar::generate_one(self, Uniform)
     }
 
@@ -190,12 +192,13 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// let random =
     ///     generator.random_uniform_custom_mod::<u128>(CiphertextModulus::try_new(1 << 8).unwrap());
     /// ```
-    pub fn random_uniform_custom_mod<
-        Scalar: UnsignedInteger + RandomGenerable<Uniform, CustomModulus = Scalar>,
-    >(
+    pub fn random_uniform_custom_mod<Scalar>(
         &mut self,
         custom_modulus: CiphertextModulus<Scalar>,
-    ) -> Scalar {
+    ) -> Scalar
+    where
+        Scalar: UnsignedInteger + RandomGenerable<Uniform, CustomModulus = Scalar>,
+    {
         if custom_modulus.is_native_modulus() {
             return self.random_uniform();
         }
@@ -272,7 +275,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let random: u32 = generator.random_uniform_binary();
     /// ```
-    pub fn random_uniform_binary<Scalar: RandomGenerable<UniformBinary>>(&mut self) -> Scalar {
+    pub fn random_uniform_binary<Scalar>(&mut self) -> Scalar
+    where
+        Scalar: RandomGenerable<UniformBinary>,
+    {
         Scalar::generate_one(self, UniformBinary)
     }
 
@@ -307,7 +313,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// let mut generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// let random: u32 = generator.random_uniform_ternary();
     /// ```
-    pub fn random_uniform_ternary<Scalar: RandomGenerable<UniformTernary>>(&mut self) -> Scalar {
+    pub fn random_uniform_ternary<Scalar>(&mut self) -> Scalar
+    where
+        Scalar: RandomGenerable<UniformTernary>,
+    {
         Scalar::generate_one(self, UniformTernary)
     }
 
@@ -324,10 +333,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// let random: u8 = generator.random_uniform_n_lsb(3);
     /// assert!(random <= 7 as u8);
     /// ```
-    pub fn random_uniform_n_lsb<Scalar: RandomGenerable<UniformLsb>>(
-        &mut self,
-        n: usize,
-    ) -> Scalar {
+    pub fn random_uniform_n_lsb<Scalar>(&mut self, n: usize) -> Scalar
+    where
+        Scalar: RandomGenerable<UniformLsb>,
+    {
         Scalar::generate_one(self, UniformLsb { n })
     }
 
@@ -344,10 +353,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// let random: u8 = generator.random_uniform_n_msb(3);
     /// assert!(random == 0 || random >= 32);
     /// ```
-    pub fn random_uniform_n_msb<Scalar: RandomGenerable<UniformMsb>>(
-        &mut self,
-        n: usize,
-    ) -> Scalar {
+    pub fn random_uniform_n_msb<Scalar>(&mut self, n: usize) -> Scalar
+    where
+        Scalar: RandomGenerable<UniformMsb>,
+    {
         Scalar::generate_one(self, UniformMsb { n })
     }
 
@@ -369,10 +378,10 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// assert_eq!(generator.random_uniform_with_zeros::<u128>(1.), 0);
     /// assert_ne!(generator.random_uniform_with_zeros::<u128>(0.), 0);
     /// ```
-    pub fn random_uniform_with_zeros<Scalar: RandomGenerable<UniformWithZeros>>(
-        &mut self,
-        prob_zero: f32,
-    ) -> Scalar {
+    pub fn random_uniform_with_zeros<Scalar>(&mut self, prob_zero: f32) -> Scalar
+    where
+        Scalar: RandomGenerable<UniformWithZeros>,
+    {
         Scalar::generate_one(self, UniformWithZeros { prob_zero })
     }
 
@@ -466,7 +475,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ) where
         Float: FloatingPoint,
         Scalar: UnsignedTorus + CastInto<Float>,
-        (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Float>,
+        (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Scalar>,
     {
         if custom_modulus.is_native_modulus() {
             self.fill_slice_with_random_gaussian(output, mean, std);
@@ -474,22 +483,11 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         }
 
         let custom_modulus_as_scalar: Scalar = custom_modulus.get_custom_modulus().cast_into();
-        // Here we convert the custom modulus to f64 but rounding down to the closest representable
-        // value by f64. This allows to make sure that the value that is outputed is in the correct
-        // range with respect to our modulus.
-        // The max error for a u64 is 2047, i.e. max(diff(floor(u64 as f64) as u64, u64)) <= 2047
-        // This small error should be acceptable for values produced by the gaussian generation as
-        // they have to be related to the modulus itself, 2048 / 2^63 = 2^-52, basically the f64
-        // relative error is the max relative error you can get. This is valid for other moduli >=
-        // 2^53 with a max absolute error as low as 1 e.g. for 2^64 - 2^32 + 1, which rounds down to
-        // 2^64 - 2^32 in the float domain.
-        let custom_modulus_float: Float =
-            convert_unsigned_integer_to_float_truncate(custom_modulus_as_scalar);
         output.chunks_mut(2).for_each(|s| {
             let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
                 self,
                 Gaussian { std, mean },
-                custom_modulus_float,
+                custom_modulus_as_scalar,
             );
             if let Some(elem) = s.get_mut(0) {
                 *elem = g1;
@@ -561,7 +559,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     ) where
         Float: FloatingPoint,
         Scalar: UnsignedTorus + CastInto<Float>,
-        (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Float>,
+        (Scalar, Scalar): RandomGenerable<Gaussian<Float>, CustomModulus = Scalar>,
     {
         if custom_modulus.is_native_modulus() {
             self.unsigned_torus_slice_wrapping_add_random_gaussian_assign(output, mean, std);
@@ -569,22 +567,11 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
         }
 
         let custom_modulus_as_scalar: Scalar = custom_modulus.get_custom_modulus().cast_into();
-        // Here we convert the custom modulus to f64 but rounding down to the closest representable
-        // value by f64. This allows to make sure that the value that is outputed is in the correct
-        // range with respect to our modulus.
-        // The max error for a u64 is 2047, i.e. max(diff(floor(u64 as f64) as u64, u64)) <= 2047
-        // This small error should be acceptable for values produced by the gaussian generation as
-        // they have to be related to the modulus itself, 2048 / 2^64 = 2^-53, basically the f64
-        // relative error is the max relative error you can get. This is valid for other moduli >=
-        // 2^53 with a max absolute error as low as 1 e.g. for 2^64 - 2^32 + 1, which rounds down to
-        // 2^64 - 2^32 in the float domain.
-        let custom_modulus_float: Float =
-            convert_unsigned_integer_to_float_truncate(custom_modulus_as_scalar);
         output.chunks_mut(2).for_each(|s| {
             let (g1, g2) = <(Scalar, Scalar)>::generate_one_custom_modulus(
                 self,
                 Gaussian { std, mean },
-                custom_modulus_float,
+                custom_modulus_as_scalar,
             );
             if let Some(elem) = s.get_mut(0) {
                 *elem = (*elem).wrapping_add(g1);
