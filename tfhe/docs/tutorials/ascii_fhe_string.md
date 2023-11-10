@@ -69,7 +69,7 @@ use tfhe::FheUint8;
 pub const UP_LOW_DISTANCE: u8 = 32;
 
 fn to_lower(c: &FheUint8) -> FheUint8 {
-    c + (c.gt(64) & c.lt(91)) * UP_LOW_DISTANCE
+    c + FheUint8::cast_from(c.gt(64) & c.lt(91)) * UP_LOW_DISTANCE
 }
 ```
 
@@ -86,11 +86,11 @@ struct FheAsciiString {
 }
 
 fn to_upper(c: &FheUint8) -> FheUint8 {
-    c - (c.gt(96) & c.lt(123)) * UP_LOW_DISTANCE
+    c - FheUint8::cast_from(c.gt(96) & c.lt(123)) * UP_LOW_DISTANCE
 }
 
 fn to_lower(c: &FheUint8) -> FheUint8 {
-    c + (c.gt(64) & c.lt(91)) * UP_LOW_DISTANCE
+    c + FheUint8::cast_from(c.gt(64) & c.lt(91)) * UP_LOW_DISTANCE
 }
 
 impl FheAsciiString {

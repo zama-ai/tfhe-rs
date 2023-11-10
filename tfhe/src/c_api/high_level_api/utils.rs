@@ -366,10 +366,73 @@ macro_rules! impl_binary_fn_on_type {
     // Usual binary fn case, where lhs, rhs and result are all of the same type
     ($wrapper_type:ty => $($binary_fn_name:ident),* $(,)?) => {
         impl_binary_fn_on_type!(
-          lhs_type: $wrapper_type,
+            lhs_type: $wrapper_type,
             rhs_type: $wrapper_type,
             binary_fn_names: $($binary_fn_name),*
         );
+    };
+}
+
+// Comparisons returns FheBool so we use a specialized
+// macro for them
+macro_rules! impl_comparison_fn_on_type {
+     (
+        lhs_type: $lhs_type:ty,
+        rhs_type: $rhs_type:ty,
+        comparison_fn_names: $($comparison_fn_name:ident),*
+        $(,)?
+    ) => {
+         $( // unroll comparison_fn_names
+           ::paste::paste! {
+                #[no_mangle]
+                pub unsafe extern "C" fn [<$lhs_type:snake _ $comparison_fn_name>](
+                    lhs: *const $lhs_type,
+                    rhs: *const $rhs_type,
+                    result: *mut *mut $crate::c_api::high_level_api::booleans::FheBool,
+                ) -> ::std::os::raw::c_int {
+                    $crate::c_api::utils::catch_panic(|| {
+                        let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
+                        let rhs = $crate::c_api::utils::get_ref_checked(rhs).unwrap();
+
+                        let inner = (&lhs.0).$comparison_fn_name(&rhs.0);
+
+                        let inner = $crate::c_api::high_level_api::booleans::FheBool(inner);
+                        *result = Box::into_raw(Box::new(inner));
+                    })
+                }
+            }
+         )*
+    };
+}
+
+macro_rules! impl_scalar_comparison_fn_on_type {
+     (
+        lhs_type: $lhs_type:ty,
+        clear_type: $scalar_type:ty,
+        comparison_fn_names: $($comparison_fn_name:ident),*
+        $(,)?
+    ) => {
+         $( // unroll comparison_fn_names
+           ::paste::paste! {
+                #[no_mangle]
+                pub unsafe extern "C" fn [<$lhs_type:snake _scalar_ $comparison_fn_name>](
+                    lhs: *const $lhs_type,
+                    rhs: $scalar_type,
+                    result: *mut *mut $crate::c_api::high_level_api::booleans::FheBool,
+                ) -> ::std::os::raw::c_int {
+                    $crate::c_api::utils::catch_panic(|| {
+                        let lhs = $crate::c_api::utils::get_ref_checked(lhs).unwrap();
+                        let rhs = <$scalar_type as $crate::c_api::high_level_api::utils::CApiIntegerType>::to_rust(rhs);
+
+
+                        let inner = (&lhs.0).$comparison_fn_name(rhs);
+
+                        let inner = $crate::c_api::high_level_api::booleans::FheBool(inner);
+                        *result = Box::into_raw(Box::new(inner));
+                    })
+                }
+            }
+         )*
     };
 }
 

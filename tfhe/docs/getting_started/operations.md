@@ -204,17 +204,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lower_or_equal = a.le(&b);
     let equal = a.eq(&b);
 
-    let dec_gt: i8 = greater.decrypt(&keys);
-    let dec_ge: i8 = greater_or_equal.decrypt(&keys);
-    let dec_lt: i8 = lower.decrypt(&keys);
-    let dec_le: i8 = lower_or_equal.decrypt(&keys);
-    let dec_eq: i8 = equal.decrypt(&keys);
+    let dec_gt = greater.decrypt(&keys);
+    let dec_ge = greater_or_equal.decrypt(&keys);
+    let dec_lt = lower.decrypt(&keys);
+    let dec_le = lower_or_equal.decrypt(&keys);
+    let dec_eq = equal.decrypt(&keys);
 
-    assert_eq!(dec_gt, (clear_a > clear_b ) as i8);
-    assert_eq!(dec_ge, (clear_a >= clear_b) as i8);
-    assert_eq!(dec_lt, (clear_a < clear_b ) as i8);
-    assert_eq!(dec_le, (clear_a <= clear_b) as i8);
-    assert_eq!(dec_eq, (clear_a == clear_b) as i8);
+    assert_eq!(dec_gt, clear_a > clear_b);
+    assert_eq!(dec_ge, clear_a >= clear_b);
+    assert_eq!(dec_lt, clear_a < clear_b);
+    assert_eq!(dec_le, clear_a <= clear_b);
+    assert_eq!(dec_eq, clear_a == clear_b);
 
     Ok(())
 }
@@ -292,11 +292,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 	
 	// Clear equivalent computations: 32 > -45
 	let encrypted_comp = &encrypted_a.gt(&encrypted_b);
-	let clear_res: i32 = encrypted_comp.decrypt(&client_key);
-	assert_eq!(clear_res, (clear_a > clear_b) as i32);
+	let clear_res = encrypted_comp.decrypt(&client_key);
+	assert_eq!(clear_res, clear_a > clear_b);
 	
-	// `encrypted_comp` contains the result of the comparison, i.e.,
-	// a boolean value. This acts as a condition on which the
+	// `encrypted_comp` is a FheBool, thus it encrypts a boolean value.
+    // This acts as a condition on which the
 	// `if_then_else` function can be applied on.
 	// Clear equivalent computations:
 	// if 32 > -45 {result = 32} else {result = -45}

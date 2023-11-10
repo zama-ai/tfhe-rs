@@ -10,6 +10,9 @@ pub(in crate::high_level_api) use keys::{
     IntegerCompressedServerKey, IntegerConfig, IntegerServerKey,
 };
 
+pub(in crate::high_level_api) use parameters::IntegerId;
+pub(in crate::high_level_api) use types::GenericInteger;
+
 mod client_key;
 mod keys;
 mod parameters;

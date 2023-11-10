@@ -2,7 +2,7 @@ use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
-use crate::integer::SignedRadixCiphertext;
+use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 use crate::shortint::parameters::MessageModulus;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -46,9 +46,7 @@ impl CompressedPublicKey {
     {
         encrypt_crt(&self.key, message, base_vec, encrypt_block)
     }
-}
 
-impl CompressedPublicKey {
     pub fn parameters(&self) -> crate::shortint::PBSParameters {
         self.key.parameters.pbs_parameters().unwrap()
     }
@@ -75,6 +73,10 @@ impl CompressedPublicKey {
             num_blocks,
             crate::shortint::CompressedPublicKey::encrypt,
         )
+    }
+
+    pub fn encrypt_bool(&self, message: bool) -> BooleanBlock {
+        BooleanBlock::new_unchecked(self.key.encrypt(u64::from(message)))
     }
 
     pub fn encrypt_radix_without_padding(

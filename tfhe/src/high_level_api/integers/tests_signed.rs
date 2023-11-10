@@ -52,86 +52,86 @@ fn test_int32_compare() {
     // Test comparing encrypted with encrypted
     {
         let result = &a.eq(&b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a == clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a == clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.eq(&a);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a == clear_a);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a == clear_a;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.ne(&b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a != clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a != clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.ne(&a);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a != clear_a);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a != clear_a;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.le(&b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a <= clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a <= clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.lt(&b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a < clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a < clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.ge(&b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a >= clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a >= clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.gt(&b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a > clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a > clear_b;
         assert_eq!(decrypted_result, clear_result);
     }
 
     // Test comparing encrypted with clear
     {
         let result = &a.eq(clear_b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a == clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a == clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.eq(clear_a);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a == clear_a);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a == clear_a;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.ne(clear_b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a != clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a != clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.ne(clear_a);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a != clear_a);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a != clear_a;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.le(clear_b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a <= clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a <= clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.lt(clear_b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a < clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a < clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.ge(clear_b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a >= clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a >= clear_b;
         assert_eq!(decrypted_result, clear_result);
 
         let result = &a.gt(clear_b);
-        let decrypted_result: i32 = result.decrypt(&client_key);
-        let clear_result = i32::from(clear_a > clear_b);
+        let decrypted_result = result.decrypt(&client_key);
+        let clear_result = clear_a > clear_b;
         assert_eq!(decrypted_result, clear_result);
     }
 }

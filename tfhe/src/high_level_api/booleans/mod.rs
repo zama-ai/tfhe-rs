@@ -3,11 +3,13 @@ use std::ops::{BitAnd, BitOr, BitXor};
 
 use crate::errors::Type;
 use crate::high_level_api::global_state::WithGlobalKey;
+use crate::high_level_api::integers::{GenericInteger, IntegerId};
 use crate::high_level_api::internal_traits::TypeIdentifier;
 use crate::high_level_api::keys::{ClientKey, PublicKey};
 use crate::high_level_api::traits::{
     FheDecrypt, FheEq, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
 };
+use crate::integer::BooleanBlock;
 use crate::shortint::{Ciphertext, CompressedCiphertext};
 use crate::CompressedPublicKey;
 use serde::{Deserialize, Serialize};
@@ -60,21 +62,57 @@ impl WithGlobalKey for FheBoolId {
 /// ```
 #[derive(Clone, Serialize, Deserialize)]
 pub struct FheBool {
-    pub(in crate::high_level_api::booleans) ciphertext: Ciphertext,
+    pub(in crate::high_level_api) ciphertext: BooleanBlock,
     id: FheBoolId,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CompressedFheBool {
-    pub(in crate::high_level_api::booleans) ciphertext: CompressedCiphertext,
+    pub(in crate::high_level_api) ciphertext: CompressedCiphertext,
 }
 
 impl FheBool {
-    pub(in crate::high_level_api::booleans) fn new(ciphertext: Ciphertext) -> Self {
+    pub(in crate::high_level_api) fn new(ciphertext: BooleanBlock) -> Self {
         Self {
             ciphertext,
             id: FheBoolId,
         }
+    }
+
+    /// Conditional selection.
+    ///
+    /// The output value returned depends on the value of `self`.
+    ///
+    /// `self` has to encrypt 0 or 1.
+    ///
+    /// - if `self` is true (1), the output will have the value of `ct_then`
+    /// - if `self` is false (0), the output will have the value of `ct_else`
+    pub fn if_then_else<Id: IntegerId>(
+        &self,
+        ct_then: &GenericInteger<Id>,
+        ct_else: &GenericInteger<Id>,
+    ) -> GenericInteger<Id> {
+        let ct_condition = self;
+        let new_ct = ct_condition.id.with_unwrapped_global(|integer_key| {
+            integer_key.pbs_key().if_then_else_parallelized(
+                &ct_condition.ciphertext,
+                &ct_then.ciphertext,
+                &ct_else.ciphertext,
+            )
+        });
+
+        GenericInteger::new(new_ct, Id::default())
+    }
+
+    /// Conditional selection.
+    ///
+    /// cmux is another name for (if_then_else)[Self::if_then_else]
+    pub fn cmux<Id: IntegerId>(
+        &self,
+        ct_then: &GenericInteger<Id>,
+        ct_else: &GenericInteger<Id>,
+    ) -> GenericInteger<Id> {
+        self.if_then_else(ct_then, ct_else)
     }
 }
 
@@ -82,24 +120,22 @@ impl<B> FheEq<B> for FheBool
 where
     B: Borrow<Self>,
 {
-    type Output = Self;
-
     fn eq(&self, other: B) -> Self {
         let ciphertext = self.id.with_unwrapped_global(|key| {
             key.pbs_key()
                 .key
-                .equal(&self.ciphertext, &other.borrow().ciphertext)
+                .equal(self.ciphertext.as_ref(), other.borrow().ciphertext.as_ref())
         });
-        Self::new(ciphertext)
+        Self::new(BooleanBlock::new_unchecked(ciphertext))
     }
 
     fn ne(&self, other: B) -> Self {
         let ciphertext = self.id.with_unwrapped_global(|key| {
             key.pbs_key()
                 .key
-                .not_equal(&self.ciphertext, &other.borrow().ciphertext)
+                .not_equal(self.ciphertext.as_ref(), other.borrow().ciphertext.as_ref())
         });
-        Self::new(ciphertext)
+        Self::new(BooleanBlock::new_unchecked(ciphertext))
     }
 }
 
@@ -112,7 +148,7 @@ impl CompressedFheBool {
 impl From<CompressedFheBool> for FheBool {
     fn from(value: CompressedFheBool) -> Self {
         let block: Ciphertext = value.ciphertext.into();
-        Self::new(block)
+        Self::new(BooleanBlock::new_unchecked(block))
     }
 }
 
@@ -131,7 +167,7 @@ impl FheTryEncrypt<bool, ClientKey> for FheBool {
 
     fn try_encrypt(value: bool, key: &ClientKey) -> Result<Self, Self::Error> {
         let integer_client_key = &key.key.key;
-        let ciphertext = integer_client_key.encrypt_one_block(u64::from(value));
+        let ciphertext = integer_client_key.encrypt_bool(value);
         Ok(Self::new(ciphertext))
     }
 }
@@ -141,7 +177,7 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
 
     fn try_encrypt_trivial(value: bool) -> Result<Self, Self::Error> {
         let ciphertext = FheBoolId
-            .with_unwrapped_global(|key| key.pbs_key().key.create_trivial(u64::from(value)));
+            .with_unwrapped_global(|key| key.pbs_key().create_trivial_boolean_block(value));
         Ok(Self::new(ciphertext))
     }
 }
@@ -158,7 +194,7 @@ impl FheTryEncrypt<bool, CompressedPublicKey> for crate::FheBool {
 
     fn try_encrypt(value: bool, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
         let key = &key.key;
-        let ciphertext = key.key.encrypt(u64::from(value));
+        let ciphertext = key.encrypt_bool(value);
         Ok(Self::new(ciphertext))
     }
 }
@@ -168,7 +204,7 @@ impl FheTryEncrypt<bool, PublicKey> for FheBool {
 
     fn try_encrypt(value: bool, key: &PublicKey) -> Result<Self, Self::Error> {
         let key = &key.key;
-        let ciphertext = key.key.encrypt(u64::from(value));
+        let ciphertext = key.encrypt_bool(value);
         Ok(Self::new(ciphertext))
     }
 }
@@ -176,7 +212,7 @@ impl FheTryEncrypt<bool, PublicKey> for FheBool {
 impl FheDecrypt<bool> for FheBool {
     fn decrypt(&self, key: &ClientKey) -> bool {
         let integer_client_key = &key.key.key;
-        integer_client_key.decrypt_one_block(&self.ciphertext) != 0
+        integer_client_key.decrypt_bool(&self.ciphertext)
     }
 }
 
@@ -199,9 +235,9 @@ macro_rules! fhe_bool_impl_operation(
 
             fn $trait_method(self, rhs: B) -> Self::Output {
                 let ciphertext = self.id.with_unwrapped_global(|key| {
-                    key.pbs_key().key.$key_method(&self.ciphertext, &rhs.borrow().ciphertext)
+                    key.pbs_key().key.$key_method(self.ciphertext.as_ref(), rhs.borrow().ciphertext.as_ref())
                 });
-                FheBool::new(ciphertext)
+                FheBool::new(BooleanBlock::new_unchecked(ciphertext))
             }
         }
     };
@@ -215,10 +251,10 @@ impl ::std::ops::Not for FheBool {
     type Output = Self;
 
     fn not(self) -> Self::Output {
-        let ciphertext = self
-            .id
-            .with_unwrapped_global(|key| key.pbs_key().key.scalar_bitxor(&self.ciphertext, 1));
-        Self::new(ciphertext)
+        let ciphertext = self.id.with_unwrapped_global(|key| {
+            key.pbs_key().key.scalar_bitxor(self.ciphertext.as_ref(), 1)
+        });
+        Self::new(BooleanBlock::new_unchecked(ciphertext))
     }
 }
 
@@ -226,9 +262,9 @@ impl ::std::ops::Not for &FheBool {
     type Output = FheBool;
 
     fn not(self) -> Self::Output {
-        let ciphertext = self
-            .id
-            .with_unwrapped_global(|key| key.pbs_key().key.scalar_bitxor(&self.ciphertext, 1));
-        FheBool::new(ciphertext)
+        let ciphertext = self.id.with_unwrapped_global(|key| {
+            key.pbs_key().key.scalar_bitxor(self.ciphertext.as_ref(), 1)
+        });
+        FheBool::new(BooleanBlock::new_unchecked(ciphertext))
     }
 }
