@@ -1,26 +1,18 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::engine::{EngineResult, ShortintEngine};
+use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ServerKey};
 
 impl ShortintEngine {
-    pub(crate) fn unchecked_scalar_mul(
-        &mut self,
-        ct: &Ciphertext,
-        scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    pub(crate) fn unchecked_scalar_mul(&mut self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
         let mut ct_result = ct.clone();
-        self.unchecked_scalar_mul_assign(&mut ct_result, scalar)?;
+        self.unchecked_scalar_mul_assign(&mut ct_result, scalar);
 
-        Ok(ct_result)
+        ct_result
     }
 
-    pub(crate) fn unchecked_scalar_mul_assign(
-        &mut self,
-        ct: &mut Ciphertext,
-        scalar: u8,
-    ) -> EngineResult<()> {
+    pub(crate) fn unchecked_scalar_mul_assign(&mut self, ct: &mut Ciphertext, scalar: u8) {
         ct.set_noise_level(ct.noise_level() * scalar as usize);
         ct.degree = Degree(ct.degree.0 * scalar as usize);
 
@@ -37,8 +29,6 @@ impl ShortintEngine {
                 lwe_ciphertext_cleartext_mul_assign(&mut ct.ct, cleartext_scalar);
             }
         }
-
-        Ok(())
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
@@ -48,11 +38,11 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ctxt: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut ct_result = ctxt.clone();
-        self.smart_scalar_mul_assign(server_key, &mut ct_result, scalar)?;
+        self.smart_scalar_mul_assign(server_key, &mut ct_result, scalar);
 
-        Ok(ct_result)
+        ct_result
     }
 
     pub(crate) fn smart_scalar_mul_assign(
@@ -60,20 +50,19 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ctxt: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<()> {
+    ) {
         // Direct scalar computation is possible
         if server_key.is_scalar_mul_possible(ctxt, scalar) {
-            self.unchecked_scalar_mul_assign(ctxt, scalar)?;
+            self.unchecked_scalar_mul_assign(ctxt, scalar);
             ctxt.degree = Degree(ctxt.degree.0 * scalar as usize);
         }
         // If the ciphertext cannot be multiplied without exceeding the degree max
         else {
             let acc = server_key
                 .generate_msg_lookup_table(|x| scalar as u64 * x, server_key.message_modulus);
-            self.apply_lookup_table_assign(server_key, ctxt, &acc)?;
+            self.apply_lookup_table_assign(server_key, ctxt, &acc);
             ctxt.degree = Degree(server_key.message_modulus.0 - 1);
         }
-        Ok(())
     }
 
     pub(crate) fn unchecked_scalar_mul_lsb_small_carry_modulus_assign(
@@ -81,15 +70,13 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct1: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<()> {
+    ) {
         // Modulus of the msg in the msg bits
         let modulus = ct1.message_modulus.0 as u64;
 
         let acc_mul =
             server_key.generate_lookup_table(|x| (x.wrapping_mul(scalar as u64)) % modulus);
 
-        self.apply_lookup_table_assign(server_key, ct1, &acc_mul)?;
-
-        Ok(())
+        self.apply_lookup_table_assign(server_key, ct1, &acc_mul);
     }
 }

@@ -185,7 +185,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_div(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_div(self, ct_left, ct_right).unwrap()
+            engine.unchecked_div(self, ct_left, ct_right)
         })
     }
 
@@ -238,9 +238,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_div_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_div_assign(self, ct_left, ct_right)
         })
     }
 
@@ -292,9 +290,7 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn smart_div(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_div(self, ct_left, ct_right).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_div(self, ct_left, ct_right))
     }
 
     /// Compute a division between two ciphertexts without checks.
@@ -346,7 +342,7 @@ impl ServerKey {
     /// ```
     pub fn smart_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_div_assign(self, ct_left, ct_right).unwrap()
+            engine.smart_div_assign(self, ct_left, ct_right)
         })
     }
 
@@ -429,15 +425,13 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_div(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_div(self, ct_left, scalar).unwrap()
+            engine.unchecked_scalar_div(self, ct_left, scalar)
         })
     }
 
     pub fn unchecked_scalar_div_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_div_assign(self, ct_left, scalar)
-                .unwrap()
+            engine.unchecked_scalar_div_assign(self, ct_left, scalar)
         })
     }
 
@@ -519,15 +513,13 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_mod(&self, ct_left: &Ciphertext, modulus: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mod(self, ct_left, modulus).unwrap()
+            engine.unchecked_scalar_mod(self, ct_left, modulus)
         })
     }
 
     pub fn unchecked_scalar_mod_assign(&self, ct_left: &mut Ciphertext, modulus: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_mod_assign(self, ct_left, modulus)
-                .unwrap()
+            engine.unchecked_scalar_mod_assign(self, ct_left, modulus)
         })
     }
 }

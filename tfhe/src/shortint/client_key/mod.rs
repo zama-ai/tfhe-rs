@@ -44,9 +44,7 @@ impl ClientKey {
         <P as TryInto<ShortintParameterSet>>::Error: Debug,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .new_client_key(parameters.try_into().unwrap())
-                .unwrap()
+            engine.new_client_key(parameters.try_into().unwrap())
         })
     }
 
@@ -78,7 +76,7 @@ impl ClientKey {
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt(&self, message: u64) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.encrypt(self, message).unwrap())
+        ShortintEngine::with_thread_local_mut(|engine| engine.encrypt(self, message))
     }
 
     /// Encrypt a integer message using the client key returning a compressed ciphertext.
@@ -113,9 +111,7 @@ impl ClientKey {
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt_compressed(&self, message: u64) -> CompressedCiphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.encrypt_compressed(self, message).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.encrypt_compressed(self, message))
     }
 
     /// Encrypt a small integer message using the client key with a specific message modulus
@@ -144,9 +140,7 @@ impl ClientKey {
         message_modulus: MessageModulus,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_with_message_modulus(self, message, message_modulus)
-                .unwrap()
+            engine.encrypt_with_message_modulus(self, message, message_modulus)
         })
     }
 
@@ -183,14 +177,12 @@ impl ClientKey {
         carry_modulus: CarryModulus,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_with_message_and_carry_modulus(
-                    self,
-                    message,
-                    message_modulus,
-                    carry_modulus,
-                )
-                .unwrap()
+            engine.encrypt_with_message_and_carry_modulus(
+                self,
+                message,
+                message_modulus,
+                carry_modulus,
+            )
         })
     }
 
@@ -223,9 +215,7 @@ impl ClientKey {
         message_modulus: MessageModulus,
     ) -> CompressedCiphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_with_message_modulus_compressed(self, message, message_modulus)
-                .unwrap()
+            engine.encrypt_with_message_modulus_compressed(self, message, message_modulus)
         })
     }
 
@@ -251,9 +241,7 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn unchecked_encrypt(&self, message: u64) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_encrypt(self, message).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_encrypt(self, message))
     }
 
     /// Decrypt a ciphertext encrypting an integer message and carries using the client key.
@@ -288,9 +276,7 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.decrypt_message_and_carry(self, ct).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.decrypt_message_and_carry(self, ct))
     }
 
     /// Decrypt a ciphertext encrypting a message using the client key.
@@ -325,7 +311,7 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt(&self, ct: &Ciphertext) -> u64 {
-        ShortintEngine::with_thread_local_mut(|engine| engine.decrypt(self, ct).unwrap())
+        ShortintEngine::with_thread_local_mut(|engine| engine.decrypt(self, ct))
     }
 
     /// Encrypt a small integer message using the client key without padding bit.
@@ -349,7 +335,7 @@ impl ClientKey {
     /// ```
     pub fn encrypt_without_padding(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.encrypt_without_padding(self, message).unwrap()
+            engine.encrypt_without_padding(self, message)
         })
     }
 
@@ -377,9 +363,7 @@ impl ClientKey {
     /// ```
     pub fn encrypt_without_padding_compressed(&self, message: u64) -> CompressedCiphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_without_padding_compressed(self, message)
-                .unwrap()
+            engine.encrypt_without_padding_compressed(self, message)
         })
     }
 
@@ -417,9 +401,7 @@ impl ClientKey {
     /// ```
     pub fn decrypt_message_and_carry_without_padding(&self, ct: &Ciphertext) -> u64 {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .decrypt_message_and_carry_without_padding(self, ct)
-                .unwrap()
+            engine.decrypt_message_and_carry_without_padding(self, ct)
         })
     }
 
@@ -457,9 +439,7 @@ impl ClientKey {
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn decrypt_without_padding(&self, ct: &Ciphertext) -> u64 {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.decrypt_without_padding(self, ct).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.decrypt_without_padding(self, ct))
     }
 
     /// Encrypt a small integer message using the client key without padding bit with some modulus.
@@ -487,9 +467,7 @@ impl ClientKey {
     /// ```
     pub fn encrypt_native_crt(&self, message: u64, message_modulus: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_native_crt(self, message, message_modulus)
-                .unwrap()
+            engine.encrypt_native_crt(self, message, message_modulus)
         })
     }
 
@@ -525,9 +503,7 @@ impl ClientKey {
         message_modulus: u8,
     ) -> CompressedCiphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_native_crt_compressed(self, message, message_modulus)
-                .unwrap()
+            engine.encrypt_native_crt_compressed(self, message, message_modulus)
         })
     }
 
@@ -567,9 +543,7 @@ impl ClientKey {
     /// ```
     pub fn decrypt_message_native_crt(&self, ct: &Ciphertext, message_modulus: u8) -> u64 {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .decrypt_message_native_crt(self, ct, message_modulus as u64)
-                .unwrap()
+            engine.decrypt_message_native_crt(self, ct, message_modulus as u64)
         })
     }
 }

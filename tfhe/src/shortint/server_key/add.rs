@@ -178,9 +178,7 @@ impl ServerKey {
     /// assert_eq!(msg1 + msg2, res);
     /// ```
     pub fn unchecked_add(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_add(ct_left, ct_right).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_add(ct_left, ct_right))
     }
 
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
@@ -227,7 +225,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_add_assign(ct_left, ct_right).unwrap()
+            engine.unchecked_add_assign(ct_left, ct_right)
         })
     }
 
@@ -432,9 +430,7 @@ impl ServerKey {
     /// assert_eq!(msg + msg, two);
     /// ```
     pub fn smart_add(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_add(self, ct_left, ct_right).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_add(self, ct_left, ct_right))
     }
 
     /// Compute homomorphically an addition between two ciphertexts
@@ -487,7 +483,7 @@ impl ServerKey {
     /// ```
     pub fn smart_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_add_assign(self, ct_left, ct_right).unwrap()
+            engine.smart_add_assign(self, ct_left, ct_right)
         })
     }
 }

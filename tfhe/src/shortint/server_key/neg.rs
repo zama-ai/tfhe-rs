@@ -164,12 +164,12 @@ impl ServerKey {
     /// assert_eq!(modulus - msg, three);
     /// ```
     pub fn unchecked_neg(&self, ct: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_neg(self, ct).unwrap())
+        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_neg(self, ct))
     }
 
     pub fn unchecked_neg_with_correcting_term(&self, ct: &Ciphertext) -> (Ciphertext, u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_neg_with_correcting_term(self, ct).unwrap()
+            engine.unchecked_neg_with_correcting_term(self, ct)
         })
     }
 
@@ -213,16 +213,12 @@ impl ServerKey {
     /// assert_eq!(modulus - msg, cks.decrypt(&ct));
     /// ```
     pub fn unchecked_neg_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_neg_assign(self, ct).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_neg_assign(self, ct))
     }
 
     pub fn unchecked_neg_assign_with_correcting_term(&self, ct: &mut Ciphertext) -> u64 {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_neg_assign_with_correcting_term(self, ct)
-                .unwrap()
+            engine.unchecked_neg_assign_with_correcting_term(self, ct)
         })
     }
 
@@ -420,7 +416,7 @@ impl ServerKey {
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn smart_neg(&self, ct: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_neg(self, ct).unwrap())
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_neg(self, ct))
     }
 
     /// Compute homomorphically a negation of a ciphertext.
@@ -465,6 +461,6 @@ impl ServerKey {
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn smart_neg_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_neg_assign(self, ct).unwrap())
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_neg_assign(self, ct))
     }
 }

@@ -73,7 +73,7 @@ impl KeySwitchingKey {
 
         // Pack the keys in the casting key set:
         Self {
-            key_switching_key: key_switching_key.unwrap(),
+            key_switching_key,
             dest_server_key: key_pair_2.1.clone(),
             src_server_key: key_pair_1.1.clone(),
             cast_rshift: nb_bits_2 - nb_bits_1,

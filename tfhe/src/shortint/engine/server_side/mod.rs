@@ -9,7 +9,6 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::engine::EngineResult;
 use crate::shortint::parameters::{MessageModulus, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{
     BivariateLookupTableOwned, LookupTableOwned, MaxDegree, ShortintBootstrappingKey,
@@ -31,7 +30,7 @@ mod shift;
 mod sub;
 
 impl ShortintEngine {
-    pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> EngineResult<ServerKey> {
+    pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {
         // Plaintext Max Value
         let max_value = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1;
 
@@ -74,7 +73,7 @@ impl ShortintEngine {
         &mut self,
         cks: &ClientKey,
         max_degree: MaxDegree,
-    ) -> EngineResult<ServerKey> {
+    ) -> ServerKey {
         let params = &cks.parameters;
         let pbs_params_base = params.pbs_parameters().unwrap();
         let bootstrapping_key_base = match pbs_params_base {
@@ -161,7 +160,7 @@ impl ShortintEngine {
         );
 
         // Pack the keys in the server key set:
-        Ok(ServerKey {
+        ServerKey {
             key_switching_key,
             bootstrapping_key: bootstrapping_key_base,
             message_modulus: cks.parameters.message_modulus(),
@@ -169,7 +168,7 @@ impl ShortintEngine {
             max_degree,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
-        })
+        }
     }
 
     pub(crate) fn new_key_switching_key(
@@ -177,9 +176,9 @@ impl ShortintEngine {
         cks1: &ClientKey,
         cks2: &ClientKey,
         params: ShortintKeySwitchingParameters,
-    ) -> EngineResult<LweKeyswitchKeyOwned<u64>> {
+    ) -> LweKeyswitchKeyOwned<u64> {
         // Creation of the key switching key
-        Ok(allocate_and_generate_new_lwe_keyswitch_key(
+        allocate_and_generate_new_lwe_keyswitch_key(
             &cks1.large_lwe_secret_key,
             &cks2.large_lwe_secret_key,
             params.ks_base_log,
@@ -187,13 +186,10 @@ impl ShortintEngine {
             cks2.parameters.lwe_modular_std_dev(),
             cks2.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
-        ))
+        )
     }
 
-    pub(crate) fn new_compressed_server_key(
-        &mut self,
-        cks: &ClientKey,
-    ) -> EngineResult<CompressedServerKey> {
+    pub(crate) fn new_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {
         // Plaintext Max Value
         let max_value = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1;
 
@@ -206,7 +202,7 @@ impl ShortintEngine {
         &mut self,
         cks: &ClientKey,
         max_degree: MaxDegree,
-    ) -> EngineResult<CompressedServerKey> {
+    ) -> CompressedServerKey {
         let bootstrapping_key = match cks.parameters.pbs_parameters().unwrap() {
             crate::shortint::PBSParameters::PBS(pbs_params) => {
                 #[cfg(not(feature = "__wasm_api"))]
@@ -279,7 +275,7 @@ impl ShortintEngine {
         );
 
         // Pack the keys in the server key set:
-        Ok(CompressedServerKey {
+        CompressedServerKey {
             key_switching_key,
             bootstrapping_key,
             message_modulus: cks.parameters.message_modulus(),
@@ -287,7 +283,7 @@ impl ShortintEngine {
             max_degree,
             ciphertext_modulus: cks.parameters.ciphertext_modulus(),
             pbs_order: cks.parameters.encryption_key_choice().into(),
-        })
+        }
     }
 
     pub(crate) fn keyswitch_programmable_bootstrap_assign(
@@ -295,7 +291,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
         acc: &LookupTableOwned,
-    ) -> EngineResult<()> {
+    ) {
         // Compute the programmable bootstrapping with fixed test polynomial
         let (mut ciphertext_buffers, buffers) = self.get_buffers(server_key);
 
@@ -358,8 +354,6 @@ impl ShortintEngine {
 
         ct.degree = acc.degree;
         ct.set_noise_level(NoiseLevel::NOMINAL);
-
-        Ok(())
     }
 
     pub(crate) fn unchecked_apply_lookup_table_bivariate(
@@ -368,10 +362,10 @@ impl ShortintEngine {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
         acc: &BivariateLookupTableOwned,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut ct_res = ct_left.clone();
-        self.unchecked_apply_lookup_table_bivariate_assign(server_key, &mut ct_res, ct_right, acc)?;
-        Ok(ct_res)
+        self.unchecked_apply_lookup_table_bivariate_assign(server_key, &mut ct_res, ct_right, acc);
+        ct_res
     }
 
     pub(crate) fn unchecked_apply_lookup_table_bivariate_assign(
@@ -380,19 +374,17 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
         acc: &BivariateLookupTableOwned,
-    ) -> EngineResult<()> {
+    ) {
         let modulus = (ct_right.degree.0 + 1) as u64;
         assert!(modulus <= acc.ct_right_modulus.0 as u64);
 
         // Message 1 is shifted
-        self.unchecked_scalar_mul_assign(ct_left, acc.ct_right_modulus.0 as u8)?;
+        self.unchecked_scalar_mul_assign(ct_left, acc.ct_right_modulus.0 as u8);
 
-        self.unchecked_add_assign(ct_left, ct_right)?;
+        self.unchecked_add_assign(ct_left, ct_right);
 
         // Compute the PBS
-        self.apply_lookup_table_assign(server_key, ct_left, &acc.acc)?;
-
-        Ok(())
+        self.apply_lookup_table_assign(server_key, ct_left, &acc.acc);
     }
 
     pub(crate) fn unchecked_evaluate_bivariate_function<F>(
@@ -401,13 +393,13 @@ impl ShortintEngine {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
         f: F,
-    ) -> EngineResult<Ciphertext>
+    ) -> Ciphertext
     where
         F: Fn(u64, u64) -> u64,
     {
         let mut ct_res = ct_left.clone();
-        self.unchecked_evaluate_bivariate_function_assign(server_key, &mut ct_res, ct_right, f)?;
-        Ok(ct_res)
+        self.unchecked_evaluate_bivariate_function_assign(server_key, &mut ct_res, ct_right, f);
+        ct_res
     }
 
     pub(crate) fn unchecked_evaluate_bivariate_function_assign<F>(
@@ -416,8 +408,7 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
         f: F,
-    ) -> EngineResult<()>
-    where
+    ) where
         F: Fn(u64, u64) -> u64,
     {
         // Generate the lookup _table for the function
@@ -429,8 +420,7 @@ impl ShortintEngine {
             ct_left,
             ct_right,
             &lookup_table,
-        )?;
-        Ok(())
+        );
     }
 
     pub(crate) fn smart_evaluate_bivariate_function<F>(
@@ -439,14 +429,14 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
         f: F,
-    ) -> EngineResult<Ciphertext>
+    ) -> Ciphertext
     where
         F: Fn(u64, u64) -> u64,
     {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             // We don't have enough space in carries, so clear them
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
 
@@ -464,14 +454,13 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
         f: F,
-    ) -> EngineResult<()>
-    where
+    ) where
         F: Fn(u64, u64) -> u64,
     {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             // We don't have enough space in carries, so clear them
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
 
@@ -485,8 +474,7 @@ impl ShortintEngine {
             ct_left,
             ct_right,
             &lookup_table,
-        )?;
-        Ok(())
+        );
     }
 
     pub(crate) fn smart_apply_lookup_table_bivariate(
@@ -495,13 +483,13 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
         acc: &BivariateLookupTableOwned,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
             // so the factor has to be message_modulus
             assert_eq!(ct_right.message_modulus.0, acc.ct_right_modulus.0);
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
 
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
@@ -515,13 +503,13 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
         acc: &BivariateLookupTableOwned,
-    ) -> EngineResult<()> {
+    ) {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
             // so the factor has to be message_modulus
             assert_eq!(ct_right.message_modulus.0, acc.ct_right_modulus.0);
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
 
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
@@ -534,7 +522,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
         acc: &LookupTableOwned,
-    ) -> EngineResult<()> {
+    ) {
         let (mut ciphertext_buffers, buffers) = self.get_buffers(server_key);
 
         match &server_key.bootstrapping_key {
@@ -596,8 +584,6 @@ impl ShortintEngine {
 
         ct.degree = acc.degree;
         ct.set_noise_level(NoiseLevel::NOMINAL);
-
-        Ok(())
     }
 
     pub(crate) fn apply_lookup_table_assign(
@@ -605,19 +591,17 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
         acc: &LookupTableOwned,
-    ) -> EngineResult<()> {
+    ) {
         match server_key.pbs_order {
             PBSOrder::KeyswitchBootstrap => {
                 // This updates the ciphertext degree
-                self.keyswitch_programmable_bootstrap_assign(server_key, ct, acc)?;
+                self.keyswitch_programmable_bootstrap_assign(server_key, ct, acc);
             }
             PBSOrder::BootstrapKeyswitch => {
                 // This updates the ciphertext degree
-                self.programmable_bootstrap_keyswitch_assign(server_key, ct, acc)?;
+                self.programmable_bootstrap_keyswitch_assign(server_key, ct, acc);
             }
         };
-
-        Ok(())
     }
 
     pub(crate) fn apply_lookup_table(
@@ -625,58 +609,42 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &Ciphertext,
         acc: &LookupTableOwned,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut ct_res = ct.clone();
 
-        self.apply_lookup_table_assign(server_key, &mut ct_res, acc)?;
+        self.apply_lookup_table_assign(server_key, &mut ct_res, acc);
 
-        Ok(ct_res)
+        ct_res
     }
 
-    pub(crate) fn carry_extract_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct: &mut Ciphertext,
-    ) -> EngineResult<()> {
+    pub(crate) fn carry_extract_assign(&mut self, server_key: &ServerKey, ct: &mut Ciphertext) {
         let modulus = ct.message_modulus.0 as u64;
 
         let lookup_table = server_key.generate_lookup_table(|x| x / modulus);
 
-        self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
-
-        Ok(())
+        self.apply_lookup_table_assign(server_key, ct, &lookup_table);
     }
 
-    pub(crate) fn carry_extract(
-        &mut self,
-        server_key: &ServerKey,
-        ct: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    pub(crate) fn carry_extract(&mut self, server_key: &ServerKey, ct: &Ciphertext) -> Ciphertext {
         let mut result = ct.clone();
-        self.carry_extract_assign(server_key, &mut result)?;
-        Ok(result)
+        self.carry_extract_assign(server_key, &mut result);
+        result
     }
 
-    pub(crate) fn message_extract_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct: &mut Ciphertext,
-    ) -> EngineResult<()> {
+    pub(crate) fn message_extract_assign(&mut self, server_key: &ServerKey, ct: &mut Ciphertext) {
         let acc = server_key.generate_msg_lookup_table(|x| x, ct.message_modulus);
 
-        self.apply_lookup_table_assign(server_key, ct, &acc)?;
-
-        Ok(())
+        self.apply_lookup_table_assign(server_key, ct, &acc);
     }
 
     pub(crate) fn message_extract(
         &mut self,
         server_key: &ServerKey,
         ct: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct.clone();
-        self.message_extract_assign(server_key, &mut result)?;
-        Ok(result)
+        self.message_extract_assign(server_key, &mut result);
+        result
     }
 
     // Impossible to call the assign function in this case
@@ -685,7 +653,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         value: u64,
         ciphertext_modulus: CiphertextModulus<u64>,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let lwe_size = match server_key.pbs_order {
             PBSOrder::KeyswitchBootstrap => server_key
                 .bootstrapping_key
@@ -714,14 +682,14 @@ impl ShortintEngine {
 
         let degree = Degree(modular_value);
 
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             ct,
             degree,
             NoiseLevel::ZERO,
             server_key.message_modulus,
             server_key.carry_modulus,
             server_key.pbs_order,
-        ))
+        )
     }
 
     pub(crate) fn create_trivial_assign(
@@ -729,7 +697,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
         value: u64,
-    ) -> EngineResult<()> {
+    ) {
         let modular_value = value as usize % server_key.message_modulus.0;
 
         let delta =
@@ -743,7 +711,5 @@ impl ShortintEngine {
 
         ct.degree = Degree(modular_value);
         ct.set_noise_level(NoiseLevel::ZERO);
-
-        Ok(())
     }
 }

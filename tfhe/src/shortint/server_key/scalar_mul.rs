@@ -156,9 +156,7 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_mul(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mul(ct, scalar).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_scalar_mul(ct, scalar))
     }
 
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
@@ -202,7 +200,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mul_assign(ct, scalar).unwrap()
+            engine.unchecked_scalar_mul_assign(ct, scalar)
         })
     }
 
@@ -253,9 +251,7 @@ impl ServerKey {
         scalar: u8,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_mul_lsb_small_carry_modulus_assign(self, ct, scalar)
-                .unwrap()
+            engine.unchecked_scalar_mul_lsb_small_carry_modulus_assign(self, ct, scalar)
         })
     }
 
@@ -461,9 +457,7 @@ impl ServerKey {
     /// assert_eq!(3, clear % modulus);
     /// ```
     pub fn smart_scalar_mul(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_mul(self, ct, scalar).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_mul(self, ct, scalar))
     }
 
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
@@ -509,7 +503,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_mul_assign(self, ct, scalar).unwrap()
+            engine.smart_scalar_mul_assign(self, ct, scalar)
         })
     }
 }

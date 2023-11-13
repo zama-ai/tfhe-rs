@@ -67,7 +67,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_mul_lsb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_mul_lsb(self, ct_left, ct_right).unwrap()
+            engine.unchecked_mul_lsb(self, ct_left, ct_right)
         })
     }
 
@@ -120,9 +120,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_mul_lsb_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_mul_lsb_assign(self, ct_left, ct_right)
         })
     }
 
@@ -189,15 +187,13 @@ impl ServerKey {
     /// ```
     pub fn unchecked_mul_msb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_mul_msb(self, ct_left, ct_right).unwrap()
+            engine.unchecked_mul_msb(self, ct_left, ct_right)
         })
     }
 
     pub fn unchecked_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_mul_msb_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_mul_msb_assign(self, ct_left, ct_right)
         })
     }
 
@@ -499,9 +495,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_mul_lsb_small_carry_modulus(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_mul_lsb_small_carry_modulus(self, ct_left, ct_right)
         })
     }
 
@@ -511,9 +505,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, ct_right)
         })
     }
 
@@ -869,14 +861,12 @@ impl ServerKey {
 
         if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
             ShortintEngine::with_thread_local_mut(|engine| {
-                engine
-                    .unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, rhs)
-                    .unwrap()
+                engine.unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, rhs)
             });
             self.message_extract_assign(ct_left);
         } else {
             ShortintEngine::with_thread_local_mut(|engine| {
-                engine.unchecked_mul_lsb_assign(self, ct_left, rhs).unwrap()
+                engine.unchecked_mul_lsb_assign(self, ct_left, rhs)
             });
         }
     }
@@ -1007,7 +997,7 @@ impl ServerKey {
         };
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_mul_msb_assign(self, ct_left, rhs).unwrap()
+            engine.unchecked_mul_msb_assign(self, ct_left, rhs)
         });
     }
 
@@ -1116,9 +1106,7 @@ impl ServerKey {
     /// ```
     pub fn smart_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_mul_lsb_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.smart_mul_lsb_assign(self, ct_left, ct_right)
         })
     }
 
@@ -1169,9 +1157,7 @@ impl ServerKey {
     /// ```
     pub fn smart_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_mul_msb_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.smart_mul_msb_assign(self, ct_left, ct_right)
         })
     }
 
@@ -1244,7 +1230,7 @@ impl ServerKey {
     /// ```
     pub fn smart_mul_lsb(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_mul_lsb(self, ct_left, ct_right).unwrap()
+            engine.smart_mul_lsb(self, ct_left, ct_right)
         })
     }
 
@@ -1293,7 +1279,7 @@ impl ServerKey {
     /// ```
     pub fn smart_mul_msb(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_mul_msb(self, ct_left, ct_right).unwrap()
+            engine.smart_mul_msb(self, ct_left, ct_right)
         })
     }
 }

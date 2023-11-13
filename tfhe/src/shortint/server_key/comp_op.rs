@@ -118,7 +118,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_greater(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_greater(self, ct_left, ct_right).unwrap()
+            engine.unchecked_greater(self, ct_left, ct_right)
         })
     }
 
@@ -221,7 +221,7 @@ impl ServerKey {
     /// ```
     pub fn smart_greater(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_greater(self, ct_left, ct_right).unwrap()
+            engine.smart_greater(self, ct_left, ct_right)
         })
     }
 
@@ -336,9 +336,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_greater_or_equal(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_greater_or_equal(self, ct_left, ct_right)
         })
     }
 
@@ -389,9 +387,7 @@ impl ServerKey {
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_greater_or_equal(self, ct_left, ct_right)
-                .unwrap()
+            engine.smart_greater_or_equal(self, ct_left, ct_right)
         })
     }
 
@@ -560,7 +556,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_less(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_less(self, ct_left, ct_right).unwrap()
+            engine.unchecked_less(self, ct_left, ct_right)
         })
     }
 
@@ -662,9 +658,7 @@ impl ServerKey {
     /// assert_eq!((msg < msg) as u64, res);
     /// ```
     pub fn smart_less(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_less(self, ct_left, ct_right).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_less(self, ct_left, ct_right))
     }
 
     /// Compute homomorphically a `<=` between two ciphertexts encrypting integer values.
@@ -778,9 +772,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_less_or_equal(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_less_or_equal(self, ct_left, ct_right)
         })
     }
 
@@ -887,7 +879,7 @@ impl ServerKey {
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_less_or_equal(self, ct_left, ct_right).unwrap()
+            engine.smart_less_or_equal(self, ct_left, ct_right)
         })
     }
 
@@ -998,7 +990,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_equal(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_equal(self, ct_left, ct_right).unwrap()
+            engine.unchecked_equal(self, ct_left, ct_right)
         })
     }
 
@@ -1100,9 +1092,7 @@ impl ServerKey {
     /// assert_eq!((msg == msg) as u64, res);
     /// ```
     pub fn smart_equal(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_equal(self, ct_left, ct_right).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_equal(self, ct_left, ct_right))
     }
 
     /// Compute homomorphically a `!=` between two ciphertexts encrypting integer values.
@@ -1212,7 +1202,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_not_equal(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_not_equal(self, ct_left, ct_right).unwrap()
+            engine.unchecked_not_equal(self, ct_left, ct_right)
         })
     }
 
@@ -1319,7 +1309,7 @@ impl ServerKey {
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_not_equal(self, ct_left, ct_right).unwrap()
+            engine.smart_not_equal(self, ct_left, ct_right)
         })
     }
 
@@ -1360,7 +1350,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_equal(self, ct_left, scalar).unwrap()
+            engine.smart_scalar_equal(self, ct_left, scalar)
         })
     }
 
@@ -1414,9 +1404,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_not_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_scalar_not_equal(self, ct_left, scalar)
-                .unwrap()
+            engine.smart_scalar_not_equal(self, ct_left, scalar)
         })
     }
 
@@ -1475,9 +1463,7 @@ impl ServerKey {
         scalar: u8,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_scalar_greater_or_equal(self, ct_left, scalar)
-                .unwrap()
+            engine.smart_scalar_greater_or_equal(self, ct_left, scalar)
         })
     }
 
@@ -1533,9 +1519,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_less_or_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_scalar_less_or_equal(self, ct_left, scalar)
-                .unwrap()
+            engine.smart_scalar_less_or_equal(self, ct_left, scalar)
         })
     }
 
@@ -1590,7 +1574,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_greater(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_greater(self, ct_left, scalar).unwrap()
+            engine.smart_scalar_greater(self, ct_left, scalar)
         })
     }
 
@@ -1644,7 +1628,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_less(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_less(self, ct_left, scalar).unwrap()
+            engine.smart_scalar_less(self, ct_left, scalar)
         })
     }
 
