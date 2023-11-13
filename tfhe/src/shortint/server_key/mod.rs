@@ -22,6 +22,7 @@ pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
 mod tests;
 
 use super::ciphertext::NoiseLevel;
+use super::engine::fill_accumulator;
 use super::parameters::CiphertextConformanceParams;
 use super::PBSOrder;
 use crate::core_crypto::algorithms::*;
@@ -377,9 +378,18 @@ impl ServerKey {
     where
         F: Fn(u64) -> u64,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.generate_lookup_table(self, f).unwrap()
-        })
+        let mut acc = GlweCiphertext::new(
+            0,
+            self.bootstrapping_key.glwe_size(),
+            self.bootstrapping_key.polynomial_size(),
+            self.ciphertext_modulus,
+        );
+        let max_value = fill_accumulator(&mut acc, self, f);
+
+        LookupTableOwned {
+            acc,
+            degree: Degree(max_value as usize),
+        }
     }
 
     /// Given a function as input, constructs the lookup table working on the message bits
@@ -412,11 +422,10 @@ impl ServerKey {
     where
         F: Fn(u64) -> u64,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.generate_msg_lookup_table(self, f, modulus).unwrap()
-        })
+        self.generate_lookup_table(|x| f(x % modulus.0 as u64) % modulus.0 as u64)
     }
 
+    /// Generates a bivariate accumulator
     pub fn generate_lookup_table_bivariate_with_factor<F>(
         &self,
         f: F,
@@ -425,11 +434,23 @@ impl ServerKey {
     where
         F: Fn(u64, u64) -> u64,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .generate_lookup_table_bivariate_with_factor(self, f, left_message_scaling)
-                .unwrap()
-        })
+        // Depending on the factor used, rhs and / or lhs may have carries
+        // (degree >= message_modulus) which is why we need to apply the message_modulus
+        // to clear them
+        let factor_u64 = left_message_scaling.0 as u64;
+        let message_modulus = self.message_modulus.0 as u64;
+        let wrapped_f = |input: u64| -> u64 {
+            let lhs = (input / factor_u64) % message_modulus;
+            let rhs = (input % factor_u64) % message_modulus;
+
+            f(lhs, rhs)
+        };
+        let accumulator = self.generate_lookup_table(wrapped_f);
+
+        BivariateLookupTable {
+            acc: accumulator,
+            ct_right_modulus: left_message_scaling,
+        }
     }
 
     /// Constructs the lookup table for a given bivariate function as input.
@@ -462,9 +483,7 @@ impl ServerKey {
     where
         F: Fn(u64, u64) -> u64,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.generate_lookup_table_bivariate(self, f).unwrap()
-        })
+        self.generate_lookup_table_bivariate_with_factor(f, self.message_modulus)
     }
 
     /// Compute a keyswitch and programmable bootstrap.

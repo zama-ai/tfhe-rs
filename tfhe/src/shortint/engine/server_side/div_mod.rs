@@ -110,11 +110,8 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         assert_ne!(scalar, 0, "attempt to divide by zero");
 
-        let lookup_table = self.generate_msg_lookup_table(
-            server_key,
-            |x| x / (scalar as u64),
-            ct.message_modulus,
-        )?;
+        let lookup_table =
+            server_key.generate_msg_lookup_table(|x| x / (scalar as u64), ct.message_modulus);
         self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
         ct.degree = Degree(ct.degree.0 / scalar as usize);
         Ok(())
@@ -141,8 +138,7 @@ impl ShortintEngine {
         modulus: u8,
     ) -> EngineResult<()> {
         assert_ne!(modulus, 0);
-        let acc =
-            self.generate_msg_lookup_table(server_key, |x| x % modulus as u64, ct.message_modulus)?;
+        let acc = server_key.generate_msg_lookup_table(|x| x % modulus as u64, ct.message_modulus);
         self.apply_lookup_table_assign(server_key, ct, &acc)?;
         ct.degree = Degree(modulus as usize - 1);
         Ok(())

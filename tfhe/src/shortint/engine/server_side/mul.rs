@@ -86,11 +86,10 @@ impl ShortintEngine {
         //Modulus of the msg in the msg bits
         let modulus = ct1.message_modulus.0 as u64;
 
-        let acc_add =
-            self.generate_lookup_table(server_key, |x| ((x.wrapping_mul(x)) / 4) % modulus)?;
-        let acc_sub = self.generate_lookup_table(server_key, |x| {
+        let acc_add = server_key.generate_lookup_table(|x| ((x.wrapping_mul(x)) / 4) % modulus);
+        let acc_sub = server_key.generate_lookup_table(|x| {
             (((x.wrapping_sub(z)).wrapping_mul(x.wrapping_sub(z))) / 4) % modulus
-        })?;
+        });
 
         self.apply_lookup_table_assign(server_key, &mut ct_add, &acc_add)?;
         self.apply_lookup_table_assign(server_key, &mut ct_sub, &acc_sub)?;

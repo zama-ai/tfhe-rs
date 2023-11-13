@@ -57,11 +57,8 @@ impl ShortintEngine {
             self.unchecked_scalar_add_assign(server_key, ct, scalar)?;
         } else {
             // If the scalar is too large, PBS is used to compute the scalar mul
-            let acc = self.generate_msg_lookup_table(
-                server_key,
-                |x| scalar as u64 + x,
-                server_key.message_modulus,
-            )?;
+            let acc = server_key
+                .generate_msg_lookup_table(|x| scalar as u64 + x, server_key.message_modulus);
             self.apply_lookup_table_assign(server_key, ct, &acc)?;
             ct.degree = Degree(server_key.message_modulus.0 - 1);
         }
