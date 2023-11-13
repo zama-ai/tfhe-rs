@@ -1,5 +1,5 @@
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::engine::{EngineResult, ShortintEngine};
+use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ServerKey};
 
 // Specific division function returning value_on_div_by_zero in case of a division by 0
@@ -17,10 +17,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.unchecked_div_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_div_assign(server_key, &mut result, ct_right);
+        result
     }
 
     pub(crate) fn unchecked_div_assign(
@@ -28,15 +28,11 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<()> {
+    ) {
         let value_on_div_by_zero = (ct_left.message_modulus.0 - 1) as u64;
-        self.unchecked_evaluate_bivariate_function_assign(
-            server_key,
-            ct_left,
-            ct_right,
-            |x, y| safe_division(x, y, value_on_div_by_zero),
-        )?;
-        Ok(())
+        self.unchecked_evaluate_bivariate_function_assign(server_key, ct_left, ct_right, |x, y| {
+            safe_division(x, y, value_on_div_by_zero)
+        });
     }
 
     pub(crate) fn smart_div(
@@ -44,16 +40,16 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             if ct_left.message_modulus.0 + ct_right.degree.0 <= server_key.max_degree.0 {
-                self.message_extract_assign(server_key, ct_left)?;
+                self.message_extract_assign(server_key, ct_left);
             } else if ct_right.message_modulus.0 + (ct_left.degree.0 + 1) <= server_key.max_degree.0
             {
-                self.message_extract_assign(server_key, ct_right)?;
+                self.message_extract_assign(server_key, ct_right);
             } else {
-                self.message_extract_assign(server_key, ct_left)?;
-                self.message_extract_assign(server_key, ct_right)?;
+                self.message_extract_assign(server_key, ct_left);
+                self.message_extract_assign(server_key, ct_right);
             }
         }
 
@@ -67,22 +63,21 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-    ) -> EngineResult<()> {
+    ) {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
             if ct_left.message_modulus.0 + ct_right.degree.0 <= server_key.max_degree.0 {
-                self.message_extract_assign(server_key, ct_left)?;
+                self.message_extract_assign(server_key, ct_left);
             } else if ct_right.message_modulus.0 + (ct_left.degree.0 + 1) <= server_key.max_degree.0
             {
-                self.message_extract_assign(server_key, ct_right)?;
+                self.message_extract_assign(server_key, ct_right);
             } else {
-                self.message_extract_assign(server_key, ct_left)?;
-                self.message_extract_assign(server_key, ct_right)?;
+                self.message_extract_assign(server_key, ct_left);
+                self.message_extract_assign(server_key, ct_right);
             }
         }
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
 
-        self.unchecked_div_assign(server_key, ct_left, ct_right)?;
-        Ok(())
+        self.unchecked_div_assign(server_key, ct_left, ct_right);
     }
 
     /// # Panics
@@ -93,10 +88,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &Ciphertext,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct.clone();
-        self.unchecked_scalar_div_assign(server_key, &mut result, scalar)?;
-        Ok(result)
+        self.unchecked_scalar_div_assign(server_key, &mut result, scalar);
+        result
     }
 
     /// # Panics
@@ -107,14 +102,13 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<()> {
+    ) {
         assert_ne!(scalar, 0, "attempt to divide by zero");
 
         let lookup_table =
             server_key.generate_msg_lookup_table(|x| x / (scalar as u64), ct.message_modulus);
-        self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
+        self.apply_lookup_table_assign(server_key, ct, &lookup_table);
         ct.degree = Degree(ct.degree.0 / scalar as usize);
-        Ok(())
     }
 
     pub(crate) fn unchecked_scalar_mod(
@@ -122,10 +116,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &Ciphertext,
         modulus: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct.clone();
-        self.unchecked_scalar_mod_assign(server_key, &mut result, modulus)?;
-        Ok(result)
+        self.unchecked_scalar_mod_assign(server_key, &mut result, modulus);
+        result
     }
 
     /// # Panics
@@ -136,11 +130,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
         modulus: u8,
-    ) -> EngineResult<()> {
+    ) {
         assert_ne!(modulus, 0);
         let acc = server_key.generate_msg_lookup_table(|x| x % modulus as u64, ct.message_modulus);
-        self.apply_lookup_table_assign(server_key, ct, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct, &acc);
         ct.degree = Degree(modulus as usize - 1);
-        Ok(())
     }
 }

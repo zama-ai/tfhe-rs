@@ -31,9 +31,7 @@ impl CompressedPublicKey {
     /// let pk = CompressedPublicKey::new(&cks);
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_compressed_public_key(client_key).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.new_compressed_public_key(client_key))
     }
 
     /// Encrypts a small integer message using the client key.
@@ -68,9 +66,7 @@ impl CompressedPublicKey {
     /// ```
     pub fn encrypt(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_with_compressed_public_key(self, message)
-                .unwrap()
+            engine.encrypt_with_compressed_public_key(self, message)
         })
     }
 
@@ -102,13 +98,11 @@ impl CompressedPublicKey {
         message_modulus: MessageModulus,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_with_message_modulus_and_compressed_public_key(
-                    self,
-                    message,
-                    message_modulus,
-                )
-                .unwrap()
+            engine.encrypt_with_message_modulus_and_compressed_public_key(
+                self,
+                message,
+                message_modulus,
+            )
         })
     }
 
@@ -137,9 +131,7 @@ impl CompressedPublicKey {
     /// ```
     pub fn unchecked_encrypt(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_encrypt_with_compressed_public_key(self, message)
-                .unwrap()
+            engine.unchecked_encrypt_with_compressed_public_key(self, message)
         })
     }
 
@@ -167,9 +159,7 @@ impl CompressedPublicKey {
     /// ```
     pub fn encrypt_without_padding(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_without_padding_with_compressed_public_key(self, message)
-                .unwrap()
+            engine.encrypt_without_padding_with_compressed_public_key(self, message)
         })
     }
 
@@ -192,9 +182,7 @@ impl CompressedPublicKey {
     /// ```
     pub fn encrypt_native_crt(&self, message: u64, message_modulus: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .encrypt_native_crt_with_compressed_public_key(self, message, message_modulus)
-                .unwrap()
+            engine.encrypt_native_crt_with_compressed_public_key(self, message, message_modulus)
         })
     }
 }

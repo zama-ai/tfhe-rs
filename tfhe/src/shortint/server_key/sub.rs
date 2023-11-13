@@ -120,7 +120,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_sub(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_sub(self, ct_left, ct_right).unwrap()
+            engine.unchecked_sub(self, ct_left, ct_right)
         })
     }
 
@@ -153,9 +153,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_sub_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_sub_assign(self, ct_left, ct_right)
         })
     }
 
@@ -298,9 +296,7 @@ impl ServerKey {
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn smart_sub(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_sub(self, ct_left, ct_right).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_sub(self, ct_left, ct_right))
     }
 
     /// Compute homomorphically a subtraction between two ciphertexts.
@@ -328,7 +324,7 @@ impl ServerKey {
     /// ```
     pub fn smart_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_sub_assign(self, ct_left, ct_right).unwrap()
+            engine.smart_sub_assign(self, ct_left, ct_right)
         })
     }
 
@@ -347,9 +343,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> (Ciphertext, u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_sub_with_correcting_term(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_sub_with_correcting_term(self, ct_left, ct_right)
         })
     }
 
@@ -365,9 +359,7 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> u64 {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_sub_assign_with_correcting_term(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_sub_assign_with_correcting_term(self, ct_left, ct_right)
         })
     }
 
@@ -383,9 +375,7 @@ impl ServerKey {
         ct_right: &mut Ciphertext,
     ) -> (Ciphertext, u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_sub_with_correcting_term(self, ct_left, ct_right)
-                .unwrap()
+            engine.smart_sub_with_correcting_term(self, ct_left, ct_right)
         })
     }
 }

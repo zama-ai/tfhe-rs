@@ -44,27 +44,23 @@ impl ServerKey {
 
     pub fn unchecked_scalar_bitand(&self, lhs: &Ciphertext, rhs: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_bitand(self, lhs, rhs).unwrap()
+            engine.unchecked_scalar_bitand(self, lhs, rhs)
         })
     }
 
     pub fn unchecked_scalar_bitand_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_bitand_assign(self, lhs, rhs)
-                .unwrap()
+            engine.unchecked_scalar_bitand_assign(self, lhs, rhs)
         })
     }
 
     pub fn smart_scalar_bitand(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_bitand(self, lhs, rhs).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_bitand(self, lhs, rhs))
     }
 
     pub fn smart_scalar_bitand_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_bitand_assign(self, lhs, rhs).unwrap()
+            engine.smart_scalar_bitand_assign(self, lhs, rhs)
         })
     }
 
@@ -109,26 +105,22 @@ impl ServerKey {
 
     pub fn unchecked_scalar_bitxor(&self, lhs: &Ciphertext, rhs: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_bitxor(self, lhs, rhs).unwrap()
+            engine.unchecked_scalar_bitxor(self, lhs, rhs)
         })
     }
 
     pub fn unchecked_scalar_bitxor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_bitxor_assign(self, lhs, rhs)
-                .unwrap()
+            engine.unchecked_scalar_bitxor_assign(self, lhs, rhs)
         })
     }
 
     pub fn smart_scalar_bitxor(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_bitxor(self, lhs, rhs).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_bitxor(self, lhs, rhs))
     }
     pub fn smart_scalar_bitxor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_bitxor_assign(self, lhs, rhs).unwrap()
+            engine.smart_scalar_bitxor_assign(self, lhs, rhs)
         })
     }
 
@@ -173,27 +165,23 @@ impl ServerKey {
 
     pub fn unchecked_scalar_bitor(&self, lhs: &Ciphertext, rhs: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_bitor(self, lhs, rhs).unwrap()
+            engine.unchecked_scalar_bitor(self, lhs, rhs)
         })
     }
 
     pub fn unchecked_scalar_bitor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_bitor_assign(self, lhs, rhs)
-                .unwrap()
+            engine.unchecked_scalar_bitor_assign(self, lhs, rhs)
         })
     }
 
     pub fn smart_scalar_bitor(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_bitor(self, lhs, rhs).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_bitor(self, lhs, rhs))
     }
 
     pub fn smart_scalar_bitor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_bitor_assign(self, lhs, rhs).unwrap()
+            engine.smart_scalar_bitor_assign(self, lhs, rhs)
         })
     }
 }

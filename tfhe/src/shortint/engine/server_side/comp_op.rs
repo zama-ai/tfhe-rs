@@ -1,4 +1,4 @@
-use crate::shortint::engine::{EngineResult, ShortintEngine};
+use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ServerKey};
 
 impl ShortintEngine {
@@ -7,10 +7,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.unchecked_greater_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_greater_assign(server_key, &mut result, ct_right);
+        result
     }
 
     fn unchecked_greater_assign(
@@ -18,14 +18,13 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<()> {
+    ) {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
             ct_left,
             ct_right,
             |lhs, rhs| u64::from(lhs > rhs),
-        )?;
-        Ok(())
+        );
     }
 
     pub(crate) fn smart_greater(
@@ -33,10 +32,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_greater(server_key, ct_left, ct_right)
@@ -47,10 +46,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.unchecked_greater_or_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_greater_or_equal_assign(server_key, &mut result, ct_right);
+        result
     }
 
     fn unchecked_greater_or_equal_assign(
@@ -58,14 +57,13 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<()> {
+    ) {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
             ct_left,
             ct_right,
             |lhs, rhs| u64::from(lhs >= rhs),
-        )?;
-        Ok(())
+        );
     }
 
     pub(crate) fn smart_greater_or_equal(
@@ -73,10 +71,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_greater_or_equal(server_key, ct_left, ct_right)
@@ -87,10 +85,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.unchecked_less_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_less_assign(server_key, &mut result, ct_right);
+        result
     }
 
     fn unchecked_less_assign(
@@ -98,14 +96,13 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<()> {
+    ) {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
             ct_left,
             ct_right,
             |lhs, rhs| u64::from(lhs < rhs),
-        )?;
-        Ok(())
+        );
     }
 
     pub(crate) fn smart_less(
@@ -113,10 +110,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_less(server_key, ct_left, ct_right)
@@ -127,10 +124,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.unchecked_less_or_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_less_or_equal_assign(server_key, &mut result, ct_right);
+        result
     }
 
     fn unchecked_less_or_equal_assign(
@@ -138,14 +135,13 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<()> {
+    ) {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
             ct_left,
             ct_right,
             |lhs, rhs| u64::from(lhs <= rhs),
-        )?;
-        Ok(())
+        );
     }
 
     pub(crate) fn smart_less_or_equal(
@@ -153,10 +149,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_less_or_equal(server_key, ct_left, ct_right)
@@ -167,10 +163,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.unchecked_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_equal_assign(server_key, &mut result, ct_right);
+        result
     }
 
     fn unchecked_equal_assign(
@@ -178,14 +174,13 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<()> {
+    ) {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
             ct_left,
             ct_right,
             |lhs, rhs| u64::from(lhs == rhs),
-        )?;
-        Ok(())
+        );
     }
 
     pub(crate) fn smart_equal(
@@ -193,10 +188,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_equal(server_key, ct_left, ct_right)
@@ -209,10 +204,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.smart_scalar_equal_assign(server_key, &mut result, scalar)?;
-        Ok(result)
+        self.smart_scalar_equal_assign(server_key, &mut result, scalar);
+        result
     }
 
     fn smart_scalar_equal_assign(
@@ -220,12 +215,11 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<()> {
+    ) {
         let acc = server_key
             .generate_msg_lookup_table(|x| (x == scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &acc);
         ct_left.degree.0 = 1;
-        Ok(())
     }
 
     pub(crate) fn unchecked_not_equal(
@@ -233,10 +227,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.unchecked_not_equal_assign(server_key, &mut result, ct_right)?;
-        Ok(result)
+        self.unchecked_not_equal_assign(server_key, &mut result, ct_right);
+        result
     }
 
     fn unchecked_not_equal_assign(
@@ -244,14 +238,13 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
-    ) -> EngineResult<()> {
+    ) {
         self.unchecked_evaluate_bivariate_function_assign(
             server_key,
             ct_left,
             ct_right,
             |lhs, rhs| u64::from(lhs != rhs),
-        )?;
-        Ok(())
+        );
     }
 
     pub(crate) fn smart_not_equal(
@@ -259,10 +252,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.message_extract_assign(server_key, ct_left)?;
-            self.message_extract_assign(server_key, ct_right)?;
+            self.message_extract_assign(server_key, ct_left);
+            self.message_extract_assign(server_key, ct_right);
         }
         assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
         self.unchecked_not_equal(server_key, ct_left, ct_right)
@@ -275,10 +268,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.smart_scalar_not_equal_assign(server_key, &mut result, scalar)?;
-        Ok(result)
+        self.smart_scalar_not_equal_assign(server_key, &mut result, scalar);
+        result
     }
 
     fn smart_scalar_not_equal_assign(
@@ -286,12 +279,11 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<()> {
+    ) {
         let acc = server_key
             .generate_msg_lookup_table(|x| (x != scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &acc);
         ct_left.degree.0 = 1;
-        Ok(())
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
@@ -301,10 +293,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.smart_scalar_greater_or_equal_assign(server_key, &mut result, scalar)?;
-        Ok(result)
+        self.smart_scalar_greater_or_equal_assign(server_key, &mut result, scalar);
+        result
     }
 
     fn smart_scalar_greater_or_equal_assign(
@@ -312,12 +304,11 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<()> {
+    ) {
         let acc = server_key
             .generate_msg_lookup_table(|x| (x >= scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &acc);
         ct_left.degree.0 = 1;
-        Ok(())
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
@@ -327,10 +318,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.smart_scalar_less_or_equal_assign(server_key, &mut result, scalar)?;
-        Ok(result)
+        self.smart_scalar_less_or_equal_assign(server_key, &mut result, scalar);
+        result
     }
 
     fn smart_scalar_less_or_equal_assign(
@@ -338,12 +329,11 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<()> {
+    ) {
         let acc = server_key
             .generate_msg_lookup_table(|x| (x <= scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &acc);
         ct_left.degree.0 = 1;
-        Ok(())
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
@@ -353,10 +343,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.smart_scalar_greater_assign(server_key, &mut result, scalar)?;
-        Ok(result)
+        self.smart_scalar_greater_assign(server_key, &mut result, scalar);
+        result
     }
 
     fn smart_scalar_greater_assign(
@@ -364,12 +354,11 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<()> {
+    ) {
         let acc = server_key
             .generate_msg_lookup_table(|x| (x > scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &acc);
         ct_left.degree.0 = 1;
-        Ok(())
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
@@ -379,10 +368,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = ct_left.clone();
-        self.smart_scalar_less_assign(server_key, &mut result, scalar)?;
-        Ok(result)
+        self.smart_scalar_less_assign(server_key, &mut result, scalar);
+        result
     }
 
     fn smart_scalar_less_assign(
@@ -390,11 +379,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         scalar: u8,
-    ) -> EngineResult<()> {
+    ) {
         let acc = server_key
             .generate_msg_lookup_table(|x| (x < scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(server_key, ct_left, &acc)?;
+        self.apply_lookup_table_assign(server_key, ct_left, &acc);
         ct_left.degree.0 = 1;
-        Ok(())
     }
 }

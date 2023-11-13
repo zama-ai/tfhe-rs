@@ -193,7 +193,7 @@ impl ShortintEngine {
         lwe_in: &LweCiphertextOwned<u64>,
         wopbs_key: &WopbsKey,
         extracted_bit_count: ExtractedBitsCount,
-    ) -> EngineResult<LweCiphertextListOwned<u64>> {
+    ) -> LweCiphertextListOwned<u64> {
         let server_key = &wopbs_key.wopbs_server_key;
 
         let lwe_size = server_key
@@ -216,7 +216,7 @@ impl ShortintEngine {
             &mut output,
         );
 
-        Ok(output)
+        output
     }
 
     pub(crate) fn extract_bits_assign<OutputCont>(
@@ -344,8 +344,7 @@ impl ShortintEngine {
         delta_log: DeltaLog,
         nb_bit_to_extract: ExtractedBitsCount,
     ) -> EngineResult<Ciphertext> {
-        let extracted_bits =
-            self.extract_bits(delta_log, &ct_in.ct, wopbs_key, nb_bit_to_extract)?;
+        let extracted_bits = self.extract_bits(delta_log, &ct_in.ct, wopbs_key, nb_bit_to_extract);
 
         let ciphertext_list = self.circuit_bootstrap_with_bits(
             wopbs_key,
@@ -406,10 +405,10 @@ impl ShortintEngine {
         sks: &ServerKey,
         wopbs_key: &WopbsKey,
         ct_in: &Ciphertext,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         // First PBS to remove the noise
         let acc = sks.generate_lookup_table(|x| x);
-        let ct_clean = self.apply_lookup_table(sks, ct_in, &acc)?;
+        let ct_clean = self.apply_lookup_table(sks, ct_in, &acc);
 
         let mut buffer_lwe_after_ks = LweCiphertextOwned::new(
             0,
@@ -429,14 +428,14 @@ impl ShortintEngine {
 
         // The identity lut wrongly sets the max degree in the ciphertext, when in reality the
         // degree of the ciphertext has no changed, we manage this case manually here
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             buffer_lwe_after_ks,
             ct_in.degree,
             NoiseLevel::NOMINAL,
             ct_clean.message_modulus,
             ct_clean.carry_modulus,
             ct_in.pbs_order,
-        ))
+        )
     }
 
     pub(crate) fn keyswitch_to_pbs_params(
@@ -536,7 +535,7 @@ impl ShortintEngine {
         ct_in: &Ciphertext,
         lut: &WopbsLUTBase,
     ) -> EngineResult<Ciphertext> {
-        let ct_wopbs = self.keyswitch_to_wopbs_params(sks, wopbs_key, ct_in)?;
+        let ct_wopbs = self.keyswitch_to_wopbs_params(sks, wopbs_key, ct_in);
         let result_ct = self.wopbs(wopbs_key, &ct_wopbs, lut)?;
         let ct_out = self.keyswitch_to_pbs_params(wopbs_key, &result_ct)?;
 

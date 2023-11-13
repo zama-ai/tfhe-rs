@@ -162,7 +162,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_sub(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_sub(self, ct, scalar).unwrap()
+            engine.unchecked_scalar_sub(self, ct, scalar)
         })
     }
 
@@ -205,9 +205,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_sub_assign(self, ct, scalar)
-                .unwrap()
+            engine.unchecked_scalar_sub_assign(self, ct, scalar)
         })
     }
 
@@ -408,9 +406,7 @@ impl ServerKey {
     /// assert_eq!(msg - scalar as u64, clear);
     /// ```
     pub fn smart_scalar_sub(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_sub(self, ct, scalar).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_sub(self, ct, scalar))
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -458,7 +454,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_sub_assign(self, ct, scalar).unwrap()
+            engine.smart_scalar_sub_assign(self, ct, scalar)
         })
     }
 }

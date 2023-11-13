@@ -1,4 +1,4 @@
-use crate::shortint::engine::{EngineResult, ShortintEngine};
+use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{Ciphertext, ServerKey};
 
 impl ShortintEngine {
@@ -7,10 +7,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &Ciphertext,
         rhs: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = lhs.clone();
-        self.unchecked_scalar_bitand_assign(server_key, &mut result, rhs)?;
-        Ok(result)
+        self.unchecked_scalar_bitand_assign(server_key, &mut result, rhs);
+        result
     }
 
     pub(crate) fn unchecked_scalar_bitand_assign(
@@ -18,10 +18,9 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &mut Ciphertext,
         rhs: u8,
-    ) -> EngineResult<()> {
+    ) {
         let lut = server_key.generate_msg_lookup_table(|x| x & rhs as u64, lhs.message_modulus);
-        self.apply_lookup_table_assign(server_key, lhs, &lut)?;
-        Ok(())
+        self.apply_lookup_table_assign(server_key, lhs, &lut);
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
@@ -31,10 +30,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &mut Ciphertext,
         rhs: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = lhs.clone();
-        self.smart_scalar_bitand_assign(server_key, &mut result, rhs)?;
-        Ok(result)
+        self.smart_scalar_bitand_assign(server_key, &mut result, rhs);
+        result
     }
 
     pub(crate) fn smart_scalar_bitand_assign(
@@ -42,9 +41,8 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct_left: &mut Ciphertext,
         ct_right: u8,
-    ) -> EngineResult<()> {
-        self.unchecked_scalar_bitand_assign(server_key, ct_left, ct_right)?;
-        Ok(())
+    ) {
+        self.unchecked_scalar_bitand_assign(server_key, ct_left, ct_right);
     }
 
     pub(crate) fn unchecked_scalar_bitxor(
@@ -52,10 +50,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &Ciphertext,
         rhs: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = lhs.clone();
-        self.unchecked_scalar_bitxor_assign(server_key, &mut result, rhs)?;
-        Ok(result)
+        self.unchecked_scalar_bitxor_assign(server_key, &mut result, rhs);
+        result
     }
 
     pub(crate) fn unchecked_scalar_bitxor_assign(
@@ -63,10 +61,9 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &mut Ciphertext,
         rhs: u8,
-    ) -> EngineResult<()> {
+    ) {
         let lut = server_key.generate_msg_lookup_table(|x| x ^ rhs as u64, lhs.message_modulus);
-        self.apply_lookup_table_assign(server_key, lhs, &lut)?;
-        Ok(())
+        self.apply_lookup_table_assign(server_key, lhs, &lut);
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
@@ -76,10 +73,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &mut Ciphertext,
         rhs: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = lhs.clone();
-        self.smart_scalar_bitxor_assign(server_key, &mut result, rhs)?;
-        Ok(result)
+        self.smart_scalar_bitxor_assign(server_key, &mut result, rhs);
+        result
     }
 
     pub(crate) fn smart_scalar_bitxor_assign(
@@ -87,9 +84,8 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &mut Ciphertext,
         rhs: u8,
-    ) -> EngineResult<()> {
-        self.unchecked_scalar_bitxor_assign(server_key, lhs, rhs)?;
-        Ok(())
+    ) {
+        self.unchecked_scalar_bitxor_assign(server_key, lhs, rhs);
     }
 
     pub(crate) fn unchecked_scalar_bitor(
@@ -97,10 +93,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &Ciphertext,
         rhs: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = lhs.clone();
-        self.unchecked_scalar_bitor_assign(server_key, &mut result, rhs)?;
-        Ok(result)
+        self.unchecked_scalar_bitor_assign(server_key, &mut result, rhs);
+        result
     }
 
     pub(crate) fn unchecked_scalar_bitor_assign(
@@ -108,10 +104,9 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &mut Ciphertext,
         rhs: u8,
-    ) -> EngineResult<()> {
+    ) {
         let lut = server_key.generate_msg_lookup_table(|x| x | rhs as u64, lhs.message_modulus);
-        self.apply_lookup_table_assign(server_key, lhs, &lut)?;
-        Ok(())
+        self.apply_lookup_table_assign(server_key, lhs, &lut);
     }
 
     // by convention smart operations take mut refs to their inputs, even if they do not modify them
@@ -121,10 +116,10 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &mut Ciphertext,
         rhs: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let mut result = lhs.clone();
-        self.smart_scalar_bitor_assign(server_key, &mut result, rhs)?;
-        Ok(result)
+        self.smart_scalar_bitor_assign(server_key, &mut result, rhs);
+        result
     }
 
     pub(crate) fn smart_scalar_bitor_assign(
@@ -132,8 +127,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         lhs: &mut Ciphertext,
         rhs: u8,
-    ) -> EngineResult<()> {
-        self.unchecked_scalar_bitor_assign(server_key, lhs, rhs)?;
-        Ok(())
+    ) {
+        self.unchecked_scalar_bitor_assign(server_key, lhs, rhs);
     }
 }

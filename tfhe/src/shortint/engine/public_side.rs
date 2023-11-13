@@ -1,5 +1,5 @@
 //! All the `ShortintEngine` method related to public side (encrypt / decrypt)
-use super::{EngineResult, ShortintEngine};
+use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::entities::*;
@@ -20,7 +20,7 @@ pub fn shortint_public_key_zero_encryption_count(
 }
 
 impl ShortintEngine {
-    pub(crate) fn new_public_key(&mut self, client_key: &ClientKey) -> EngineResult<PublicKey> {
+    pub(crate) fn new_public_key(&mut self, client_key: &ClientKey) -> PublicKey {
         let client_parameters = client_key.parameters;
 
         let (secret_encryption_key, encryption_noise) =
@@ -56,18 +56,17 @@ impl ShortintEngine {
             client_key.parameters.ciphertext_modulus(),
             &mut self.encryption_generator,
         );
-
-        Ok(PublicKey {
+        PublicKey {
             lwe_public_key,
             parameters: client_key.parameters.to_owned(),
             pbs_order: client_key.parameters.encryption_key_choice().into(),
-        })
+        }
     }
 
     pub(crate) fn new_compressed_public_key(
         &mut self,
         client_key: &ClientKey,
-    ) -> EngineResult<CompressedPublicKey> {
+    ) -> CompressedPublicKey {
         let client_parameters = client_key.parameters;
 
         let (secret_encryption_key, encryption_noise) =
@@ -104,39 +103,35 @@ impl ShortintEngine {
             &mut self.seeder,
         );
 
-        Ok(CompressedPublicKey {
+        CompressedPublicKey {
             lwe_public_key: compressed_public_key,
             parameters: client_key.parameters.to_owned(),
             pbs_order: client_key.parameters.encryption_key_choice().into(),
-        })
+        }
     }
 
     pub(crate) fn encrypt_with_public_key(
         &mut self,
         public_key: &PublicKey,
         message: u64,
-    ) -> EngineResult<Ciphertext> {
-        let ciphertext = self.encrypt_with_message_modulus_and_public_key(
+    ) -> Ciphertext {
+        self.encrypt_with_message_modulus_and_public_key(
             public_key,
             message,
             public_key.parameters.message_modulus(),
-        )?;
-
-        Ok(ciphertext)
+        )
     }
 
     pub(crate) fn encrypt_with_compressed_public_key(
         &mut self,
         public_key: &CompressedPublicKey,
         message: u64,
-    ) -> EngineResult<Ciphertext> {
-        let ciphertext = self.encrypt_with_message_modulus_and_compressed_public_key(
+    ) -> Ciphertext {
+        self.encrypt_with_message_modulus_and_compressed_public_key(
             public_key,
             message,
             public_key.parameters.message_modulus(),
-        )?;
-
-        Ok(ciphertext)
+        )
     }
 
     pub(crate) fn encrypt_with_message_modulus_and_public_key(
@@ -144,7 +139,7 @@ impl ShortintEngine {
         public_key: &PublicKey,
         message: u64,
         message_modulus: MessageModulus,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         //This ensures that the space message_modulus*carry_modulus < param.message_modulus *
         // param.carry_modulus
         let carry_modulus = (public_key.parameters.message_modulus().0
@@ -177,14 +172,14 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             encrypted_ct,
             Degree(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
             message_modulus,
             CarryModulus(carry_modulus),
             public_key.pbs_order,
-        ))
+        )
     }
 
     pub(crate) fn encrypt_with_message_modulus_and_compressed_public_key(
@@ -192,7 +187,7 @@ impl ShortintEngine {
         public_key: &CompressedPublicKey,
         message: u64,
         message_modulus: MessageModulus,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         //This ensures that the space message_modulus*carry_modulus < param.message_modulus *
         // param.carry_modulus
         let carry_modulus = (public_key.parameters.message_modulus().0
@@ -226,21 +221,21 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             encrypted_ct,
             Degree(message_modulus.0 - 1),
             NoiseLevel::NOMINAL,
             message_modulus,
             CarryModulus(carry_modulus),
             public_key.pbs_order,
-        ))
+        )
     }
 
     pub(crate) fn encrypt_without_padding_with_public_key(
         &mut self,
         public_key: &PublicKey,
         message: u64,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         //Multiply by 2 to reshift and exclude the padding bit
         let delta = ((1_u64 << 63)
             / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
@@ -266,21 +261,21 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             encrypted_ct,
             Degree(public_key.parameters.message_modulus().0 - 1),
             NoiseLevel::NOMINAL,
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
             public_key.pbs_order,
-        ))
+        )
     }
 
     pub(crate) fn encrypt_without_padding_with_compressed_public_key(
         &mut self,
         public_key: &CompressedPublicKey,
         message: u64,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         //Multiply by 2 to reshift and exclude the padding bit
         let delta = ((1_u64 << 63)
             / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
@@ -306,14 +301,14 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             encrypted_ct,
             Degree(public_key.parameters.message_modulus().0 - 1),
             NoiseLevel::NOMINAL,
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
             public_key.pbs_order,
-        ))
+        )
     }
 
     pub(crate) fn encrypt_native_crt_with_public_key(
@@ -321,7 +316,7 @@ impl ShortintEngine {
         public_key: &PublicKey,
         message: u64,
         message_modulus: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let carry_modulus = 1;
         let m = (message % message_modulus as u64) as u128;
         let shifted_message = m * (1 << 64) / message_modulus as u128;
@@ -343,14 +338,14 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             encrypted_ct,
             Degree(message_modulus as usize - 1),
             NoiseLevel::NOMINAL,
             MessageModulus(message_modulus as usize),
             CarryModulus(carry_modulus),
             public_key.pbs_order,
-        ))
+        )
     }
 
     pub(crate) fn encrypt_native_crt_with_compressed_public_key(
@@ -358,7 +353,7 @@ impl ShortintEngine {
         public_key: &CompressedPublicKey,
         message: u64,
         message_modulus: u8,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let carry_modulus = 1;
         let m = (message % message_modulus as u64) as u128;
         let shifted_message = m * (1 << 64) / message_modulus as u128;
@@ -380,21 +375,21 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             encrypted_ct,
             Degree(message_modulus as usize - 1),
             NoiseLevel::NOMINAL,
             MessageModulus(message_modulus as usize),
             CarryModulus(carry_modulus),
             public_key.pbs_order,
-        ))
+        )
     }
 
     pub(crate) fn unchecked_encrypt_with_public_key(
         &mut self,
         public_key: &PublicKey,
         message: u64,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let delta = (1_u64 << 63)
             / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
                 as u64;
@@ -416,7 +411,7 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             encrypted_ct,
             Degree(
                 public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0
@@ -426,14 +421,14 @@ impl ShortintEngine {
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
             public_key.pbs_order,
-        ))
+        )
     }
 
     pub(crate) fn unchecked_encrypt_with_compressed_public_key(
         &mut self,
         public_key: &CompressedPublicKey,
         message: u64,
-    ) -> EngineResult<Ciphertext> {
+    ) -> Ciphertext {
         let delta = (1_u64 << 63)
             / (public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0)
                 as u64;
@@ -455,7 +450,7 @@ impl ShortintEngine {
             &mut self.secret_generator,
         );
 
-        Ok(Ciphertext::new(
+        Ciphertext::new(
             encrypted_ct,
             Degree(
                 public_key.parameters.message_modulus().0 * public_key.parameters.carry_modulus().0
@@ -465,6 +460,6 @@ impl ShortintEngine {
             public_key.parameters.message_modulus(),
             public_key.parameters.carry_modulus(),
             public_key.pbs_order,
-        ))
+        )
     }
 }

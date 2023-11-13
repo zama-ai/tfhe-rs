@@ -70,17 +70,13 @@ impl CompressedServerKey {
     /// let sks = CompressedServerKey::new(&cks);
     /// ```
     pub fn new(client_key: &ClientKey) -> Self {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_compressed_server_key(client_key).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.new_compressed_server_key(client_key))
     }
 
     /// Generate a compressed server key with a chosen maximum degree
     pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .new_compressed_server_key_with_max_degree(cks, max_degree)
-                .unwrap()
+            engine.new_compressed_server_key_with_max_degree(cks, max_degree)
         })
     }
 }

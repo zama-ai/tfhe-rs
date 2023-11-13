@@ -136,14 +136,12 @@ pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap(
         let ct_right = get_mut_checked(ct_right).unwrap();
 
         let res = crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_apply_lookup_table_bivariate(
-                    &server_key.0,
-                    &mut ct_left.0,
-                    &mut ct_right.0,
-                    &lookup_table.0,
-                )
-                .unwrap()
+            engine.smart_apply_lookup_table_bivariate(
+                &server_key.0,
+                &mut ct_left.0,
+                &mut ct_right.0,
+                &lookup_table.0,
+            )
         });
 
         let heap_allocated_result = Box::new(ShortintCiphertext(res));
@@ -166,14 +164,12 @@ pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap_as
         let ct_right = get_mut_checked(ct_right).unwrap();
 
         crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_apply_lookup_table_bivariate_assign(
-                    &server_key.0,
-                    &mut ct_left_and_result.0,
-                    &mut ct_right.0,
-                    &lookup_table.0,
-                )
-                .unwrap()
+            engine.smart_apply_lookup_table_bivariate_assign(
+                &server_key.0,
+                &mut ct_left_and_result.0,
+                &mut ct_right.0,
+                &lookup_table.0,
+            )
         });
     })
 }

@@ -164,7 +164,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_bitand(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitand(self, ct_left, ct_right).unwrap()
+            engine.unchecked_bitand(self, ct_left, ct_right)
         })
     }
 
@@ -205,9 +205,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_bitand_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_bitand_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_bitand_assign(self, ct_left, ct_right)
         })
     }
 
@@ -369,9 +367,7 @@ impl ServerKey {
     /// assert_eq!(msg & msg, res);
     /// ```
     pub fn smart_bitand(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitand(self, ct_left, ct_right).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_bitand(self, ct_left, ct_right))
     }
 
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
@@ -424,7 +420,7 @@ impl ServerKey {
     /// ```
     pub fn smart_bitand_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitand_assign(self, ct_left, ct_right).unwrap()
+            engine.smart_bitand_assign(self, ct_left, ct_right)
         })
     }
 
@@ -590,7 +586,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_bitxor(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitxor(self, ct_left, ct_right).unwrap()
+            engine.unchecked_bitxor(self, ct_left, ct_right)
         })
     }
 
@@ -633,9 +629,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_bitxor_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_bitxor_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_bitxor_assign(self, ct_left, ct_right)
         })
     }
 
@@ -797,9 +791,7 @@ impl ServerKey {
     /// assert_eq!(msg ^ msg, res);
     /// ```
     pub fn smart_bitxor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitxor(self, ct_left, ct_right).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_bitxor(self, ct_left, ct_right))
     }
 
     /// Compute homomorphically a XOR between two ciphertexts encrypting integer values.
@@ -852,7 +844,7 @@ impl ServerKey {
     /// ```
     pub fn smart_bitxor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitxor_assign(self, ct_left, ct_right).unwrap()
+            engine.smart_bitxor_assign(self, ct_left, ct_right)
         })
     }
 
@@ -1019,7 +1011,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_bitor(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitor(self, ct_left, ct_right).unwrap()
+            engine.unchecked_bitor(self, ct_left, ct_right)
         })
     }
 
@@ -1063,9 +1055,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_bitor_assign(self, ct_left, ct_right)
-                .unwrap()
+            engine.unchecked_bitor_assign(self, ct_left, ct_right)
         })
     }
 
@@ -1227,9 +1217,7 @@ impl ServerKey {
     /// assert_eq!(msg | msg, res);
     /// ```
     pub fn smart_bitor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitor(self, ct_left, ct_right).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_bitor(self, ct_left, ct_right))
     }
 
     /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
@@ -1283,7 +1271,7 @@ impl ServerKey {
     /// ```
     pub fn smart_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitor_assign(self, ct_left, ct_right).unwrap()
+            engine.smart_bitor_assign(self, ct_left, ct_right)
         })
     }
 }

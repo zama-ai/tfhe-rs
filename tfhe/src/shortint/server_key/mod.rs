@@ -338,15 +338,13 @@ impl ServerKey {
     /// let sks = ServerKey::new(&cks);
     /// ```
     pub fn new(cks: &ClientKey) -> Self {
-        ShortintEngine::with_thread_local_mut(|engine| engine.new_server_key(cks).unwrap())
+        ShortintEngine::with_thread_local_mut(|engine| engine.new_server_key(cks))
     }
 
     /// Generate a server key with a chosen maximum degree
     pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .new_server_key_with_max_degree(cks, max_degree)
-                .unwrap()
+            engine.new_server_key_with_max_degree(cks, max_degree)
         })
     }
 
@@ -517,9 +515,7 @@ impl ServerKey {
         acc: &BivariateLookupTableOwned,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_apply_lookup_table_bivariate(self, ct_left, ct_right, acc)
-                .unwrap()
+            engine.unchecked_apply_lookup_table_bivariate(self, ct_left, ct_right, acc)
         })
     }
 
@@ -530,9 +526,7 @@ impl ServerKey {
         acc: &BivariateLookupTableOwned,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
-                .unwrap()
+            engine.unchecked_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
         })
     }
 
@@ -567,9 +561,7 @@ impl ServerKey {
         acc: &BivariateLookupTableOwned,
     ) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_apply_lookup_table_bivariate(self, ct_left, ct_right, acc)
-                .unwrap()
+            engine.smart_apply_lookup_table_bivariate(self, ct_left, ct_right, acc)
         })
     }
 
@@ -580,9 +572,7 @@ impl ServerKey {
         acc: &BivariateLookupTableOwned,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
-                .unwrap()
+            engine.smart_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
         })
     }
 
@@ -610,14 +600,12 @@ impl ServerKey {
     /// assert_eq!(dec, (msg * msg * msg) % modulus);
     /// ```
     pub fn apply_lookup_table(&self, ct_in: &Ciphertext, acc: &LookupTableOwned) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.apply_lookup_table(self, ct_in, acc).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.apply_lookup_table(self, ct_in, acc))
     }
 
     pub fn apply_lookup_table_assign(&self, ct_in: &mut Ciphertext, acc: &LookupTableOwned) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.apply_lookup_table_assign(self, ct_in, acc).unwrap()
+            engine.apply_lookup_table_assign(self, ct_in, acc)
         })
     }
 
@@ -634,9 +622,7 @@ impl ServerKey {
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_evaluate_bivariate_function(self, ct_left, ct_right, f)
-                .unwrap()
+            engine.unchecked_evaluate_bivariate_function(self, ct_left, ct_right, f)
         })
     }
 
@@ -649,9 +635,7 @@ impl ServerKey {
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
-                .unwrap()
+            engine.unchecked_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
         })
     }
 
@@ -669,9 +653,7 @@ impl ServerKey {
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
-                .unwrap()
+            engine.smart_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
         })
     }
 
@@ -685,9 +667,7 @@ impl ServerKey {
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_evaluate_bivariate_function(self, ct_left, ct_right, f)
-                .unwrap()
+            engine.smart_evaluate_bivariate_function(self, ct_left, ct_right, f)
         })
     }
     /// Replace the input encrypted message by the value of its carry buffer.
@@ -724,9 +704,7 @@ impl ServerKey {
     /// assert_eq!(2, res);
     /// ```
     pub fn carry_extract_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.carry_extract_assign(self, ct).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.carry_extract_assign(self, ct))
     }
 
     /// Extract a new ciphertext encrypting the input carry buffer.
@@ -763,7 +741,7 @@ impl ServerKey {
     /// assert_eq!(2, res);
     /// ```
     pub fn carry_extract(&self, ct: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.carry_extract(self, ct).unwrap())
+        ShortintEngine::with_thread_local_mut(|engine| engine.carry_extract(self, ct))
     }
 
     /// Clears the carry buffer of the input ciphertext.
@@ -800,9 +778,7 @@ impl ServerKey {
     /// assert_eq!(1, res);
     /// ```
     pub fn message_extract_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.message_extract_assign(self, ct).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.message_extract_assign(self, ct))
     }
 
     /// Extract a new ciphertext containing only the message i.e., with a cleared carry buffer.
@@ -839,7 +815,7 @@ impl ServerKey {
     /// assert_eq!(1, res);
     /// ```
     pub fn message_extract(&self, ct: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.message_extract(self, ct).unwrap())
+        ShortintEngine::with_thread_local_mut(|engine| engine.message_extract(self, ct))
     }
 
     /// Compute a trivial shortint ciphertext with the dimension of the big LWE secret key from a
@@ -864,15 +840,13 @@ impl ServerKey {
     /// ```
     pub fn create_trivial(&self, value: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .create_trivial(self, value, self.ciphertext_modulus)
-                .unwrap()
+            engine.create_trivial(self, value, self.ciphertext_modulus)
         })
     }
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.create_trivial_assign(self, ct, value).unwrap()
+            engine.create_trivial_assign(self, ct, value)
         })
     }
 

@@ -206,9 +206,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_right_shift(&self, ct: &Ciphertext, shift: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_right_shift(self, ct, shift)
-                .unwrap()
+            engine.unchecked_scalar_right_shift(self, ct, shift)
         })
     }
 
@@ -269,9 +267,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_right_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_right_shift_assign(self, ct, shift)
-                .unwrap()
+            engine.unchecked_scalar_right_shift_assign(self, ct, shift)
         })
     }
 
@@ -482,7 +478,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_left_shift(&self, ct: &Ciphertext, shift: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_left_shift(ct, shift).unwrap()
+            engine.unchecked_scalar_left_shift(ct, shift)
         })
     }
 
@@ -549,9 +545,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_scalar_left_shift_assign(ct, shift)
-                .unwrap()
+            engine.unchecked_scalar_left_shift_assign(ct, shift)
         })
     }
 
@@ -762,15 +756,13 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_left_shift(&self, ct: &mut Ciphertext, shift: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_left_shift(self, ct, shift).unwrap()
+            engine.smart_scalar_left_shift(self, ct, shift)
         })
     }
 
     pub fn smart_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_scalar_left_shift_assign(self, ct, shift)
-                .unwrap()
+            engine.smart_scalar_left_shift_assign(self, ct, shift)
         })
     }
 }

@@ -340,17 +340,17 @@ impl Shortint {
         seed_high_bytes: u64,
         seed_low_bytes: u64,
         parameters: &ShortintParameters,
-    ) -> Result<ShortintClientKey, JsError> {
+    ) -> ShortintClientKey {
         set_hook(Box::new(console_error_panic_hook::hook));
         let seed_high_bytes: u128 = seed_high_bytes.into();
         let seed_low_bytes: u128 = seed_low_bytes.into();
         let seed: u128 = (seed_high_bytes << 64) | seed_low_bytes;
 
         let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(seed));
-        crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
-            .new_client_key(parameters.0.try_into().unwrap())
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
-            .map(ShortintClientKey)
+        ShortintClientKey(
+            crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
+                .new_client_key(parameters.0.try_into().unwrap()),
+        )
     }
 
     #[wasm_bindgen]

@@ -59,8 +59,7 @@ impl IntegerClientKey {
     pub(crate) fn with_seed(config: IntegerConfig, seed: Seed) -> Self {
         let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(seed);
         let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
-            .new_client_key(config.block_parameters.into())
-            .unwrap();
+            .new_client_key(config.block_parameters.into());
         let key = crate::integer::ClientKey::from(cks);
         Self {
             key,

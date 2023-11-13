@@ -475,14 +475,12 @@ impl WopbsKey {
         num_bits_to_extract: usize,
     ) -> LweCiphertextListOwned<u64> {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .extract_bits(
-                    delta_log,
-                    &ciphertext.ct,
-                    self,
-                    ExtractedBitsCount(num_bits_to_extract),
-                )
-                .unwrap()
+            engine.extract_bits(
+                delta_log,
+                &ciphertext.ct,
+                self,
+                ExtractedBitsCount(num_bits_to_extract),
+            )
         })
     }
 
@@ -529,7 +527,6 @@ impl WopbsKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             engine.keyswitch_to_wopbs_params(sks, self, ct_in)
         })
-        .unwrap()
     }
 
     pub fn keyswitch_to_pbs_params(&self, ct_in: &Ciphertext) -> Ciphertext {
