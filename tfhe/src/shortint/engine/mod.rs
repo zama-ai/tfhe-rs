@@ -11,14 +11,9 @@ use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, Seeder
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::ContainerMut;
 use crate::core_crypto::seeders::new_seeder;
-use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::{BivariateLookupTableOwned, LookupTableOwned};
 use crate::shortint::ServerKey;
 use std::cell::RefCell;
 use std::fmt::Debug;
-
-use super::parameters::MessageModulus;
-use super::server_key::BivariateLookupTable;
 
 mod client_side;
 mod public_side;
@@ -74,7 +69,11 @@ impl Memory {
     }
 }
 
-fn fill_accumulator<F, C>(accumulator: &mut GlweCiphertext<C>, server_key: &ServerKey, f: F) -> u64
+pub(crate) fn fill_accumulator<F, C>(
+    accumulator: &mut GlweCiphertext<C>,
+    server_key: &ServerKey,
+    f: F,
+) -> u64
 where
     C: ContainerMut<Element = u64>,
     F: Fn(u64) -> u64,
@@ -225,55 +224,6 @@ impl ShortintEngine {
             computation_buffers: Default::default(),
             ciphertext_buffers: Default::default(),
         }
-    }
-
-    fn generate_lookup_table_with_engine<F>(
-        server_key: &ServerKey,
-        f: F,
-    ) -> EngineResult<LookupTableOwned>
-    where
-        F: Fn(u64) -> u64,
-    {
-        let mut acc = GlweCiphertext::new(
-            0,
-            server_key.bootstrapping_key.glwe_size(),
-            server_key.bootstrapping_key.polynomial_size(),
-            server_key.ciphertext_modulus,
-        );
-        let max_value = fill_accumulator(&mut acc, server_key, f);
-
-        Ok(LookupTableOwned {
-            acc,
-            degree: Degree(max_value as usize),
-        })
-    }
-
-    /// Generates a bivariate accumulator
-    fn generate_lookup_table_bivariate_with_engine<F>(
-        server_key: &ServerKey,
-        f: F,
-        left_message_scaling: MessageModulus,
-    ) -> EngineResult<BivariateLookupTableOwned>
-    where
-        F: Fn(u64, u64) -> u64,
-    {
-        // Depending on the factor used, rhs and / or lhs may have carries
-        // (degree >= message_modulus) which is why we need to apply the message_modulus
-        // to clear them
-        let factor_u64 = left_message_scaling.0 as u64;
-        let message_modulus = server_key.message_modulus.0 as u64;
-        let wrapped_f = |input: u64| -> u64 {
-            let lhs = (input / factor_u64) % message_modulus;
-            let rhs = (input % factor_u64) % message_modulus;
-
-            f(lhs, rhs)
-        };
-        let accumulator = Self::generate_lookup_table_with_engine(server_key, wrapped_f)?;
-
-        Ok(BivariateLookupTable {
-            acc: accumulator,
-            ct_right_modulus: left_message_scaling,
-        })
     }
 
     /// Return the [`BuffersRef`] and [`ComputationBuffers`] for the given `ServerKey`

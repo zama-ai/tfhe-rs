@@ -290,31 +290,6 @@ impl ShortintEngine {
         })
     }
 
-    pub(crate) fn generate_msg_lookup_table<F>(
-        &mut self,
-        server_key: &ServerKey,
-        f: F,
-        modulus: MessageModulus,
-    ) -> EngineResult<LookupTableOwned>
-    where
-        F: Fn(u64) -> u64,
-    {
-        Self::generate_lookup_table_with_engine(server_key, |x| {
-            f(x % modulus.0 as u64) % modulus.0 as u64
-        })
-    }
-
-    pub(crate) fn generate_lookup_table<F>(
-        &mut self,
-        server_key: &ServerKey,
-        f: F,
-    ) -> EngineResult<LookupTableOwned>
-    where
-        F: Fn(u64) -> u64,
-    {
-        Self::generate_lookup_table_with_engine(server_key, f)
-    }
-
     pub(crate) fn keyswitch_programmable_bootstrap_assign(
         &mut self,
         server_key: &ServerKey,
@@ -420,32 +395,6 @@ impl ShortintEngine {
         Ok(())
     }
 
-    pub(crate) fn generate_lookup_table_bivariate_with_factor<F>(
-        &mut self,
-        server_key: &ServerKey,
-        f: F,
-        left_message_scaling: MessageModulus,
-    ) -> EngineResult<BivariateLookupTableOwned>
-    where
-        F: Fn(u64, u64) -> u64,
-    {
-        Self::generate_lookup_table_bivariate_with_engine(server_key, f, left_message_scaling)
-    }
-
-    pub(crate) fn generate_lookup_table_bivariate<F>(
-        &mut self,
-        server_key: &ServerKey,
-        f: F,
-    ) -> EngineResult<BivariateLookupTableOwned>
-    where
-        F: Fn(u64, u64) -> u64,
-    {
-        // We use the message_modulus as the multiplying factor as its the most general one.
-        // It makes it compatible with any pair of ciphertext which have empty carries,
-        // and carries can be emptied with `message_extract`
-        self.generate_lookup_table_bivariate_with_factor(server_key, f, server_key.message_modulus)
-    }
-
     pub(crate) fn unchecked_evaluate_bivariate_function<F>(
         &mut self,
         server_key: &ServerKey,
@@ -473,8 +422,7 @@ impl ShortintEngine {
     {
         // Generate the lookup _table for the function
         let factor = MessageModulus(ct_right.degree.0 + 1);
-        let lookup_table =
-            self.generate_lookup_table_bivariate_with_factor(server_key, f, factor)?;
+        let lookup_table = server_key.generate_lookup_table_bivariate_with_factor(f, factor);
 
         self.unchecked_apply_lookup_table_bivariate_assign(
             server_key,
@@ -505,8 +453,7 @@ impl ShortintEngine {
         let factor = MessageModulus(ct_right.degree.0 + 1);
 
         // Generate the lookup table for the function
-        let lookup_table =
-            self.generate_lookup_table_bivariate_with_factor(server_key, f, factor)?;
+        let lookup_table = server_key.generate_lookup_table_bivariate_with_factor(f, factor);
 
         self.unchecked_apply_lookup_table_bivariate(server_key, ct_left, ct_right, &lookup_table)
     }
@@ -531,8 +478,7 @@ impl ShortintEngine {
         let factor = MessageModulus(ct_right.degree.0 + 1);
 
         // Generate the lookup table for the function
-        let lookup_table =
-            self.generate_lookup_table_bivariate_with_factor(server_key, f, factor)?;
+        let lookup_table = server_key.generate_lookup_table_bivariate_with_factor(f, factor);
 
         self.unchecked_apply_lookup_table_bivariate_assign(
             server_key,
@@ -694,7 +640,7 @@ impl ShortintEngine {
     ) -> EngineResult<()> {
         let modulus = ct.message_modulus.0 as u64;
 
-        let lookup_table = self.generate_lookup_table(server_key, |x| x / modulus)?;
+        let lookup_table = server_key.generate_lookup_table(|x| x / modulus);
 
         self.apply_lookup_table_assign(server_key, ct, &lookup_table)?;
 
@@ -716,7 +662,7 @@ impl ShortintEngine {
         server_key: &ServerKey,
         ct: &mut Ciphertext,
     ) -> EngineResult<()> {
-        let acc = self.generate_msg_lookup_table(server_key, |x| x, ct.message_modulus)?;
+        let acc = server_key.generate_msg_lookup_table(|x| x, ct.message_modulus);
 
         self.apply_lookup_table_assign(server_key, ct, &acc)?;
 
