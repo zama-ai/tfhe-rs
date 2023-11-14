@@ -7,7 +7,7 @@ const NB_TESTS: usize = 10;
 #[cfg(feature = "__coverage")]
 const NB_TESTS: usize = 1;
 
-fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + Sync + Send>(
+fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
 ) {
     // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
@@ -131,25 +131,13 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedToru
     }
 }
 
-#[test]
-fn test_parallel_and_seeded_lwe_list_encryption_equivalence_native_mod_u64() {
-    test_parallel_and_seeded_lwe_list_encryption_equivalence(TEST_PARAMS_4_BITS_NATIVE_U64);
-}
-
-#[test]
-fn test_parallel_and_seeded_lwe_list_encryption_equivalence_non_native_power_of_2_mod_u64() {
-    test_parallel_and_seeded_lwe_list_encryption_equivalence(TEST_PARAMS_3_BITS_63_U64);
-}
-
-#[test]
-fn test_parallel_and_seeded_lwe_list_encryption_equivalence_native_mod_u32() {
-    test_parallel_and_seeded_lwe_list_encryption_equivalence(DUMMY_NATIVE_U32);
-}
-
-#[test]
-fn test_parallel_and_seeded_lwe_list_encryption_equivalence_non_native_power_of_2_mod_u32() {
-    test_parallel_and_seeded_lwe_list_encryption_equivalence(DUMMY_31_U32);
-}
+create_parametrized_test!(parallel_and_seeded_lwe_list_encryption_equivalence {
+    TEST_PARAMS_4_BITS_NATIVE_U64,
+    TEST_PARAMS_3_BITS_63_U64,
+    TEST_PARAMS_3_BITS_SOLINAS_U64,
+    DUMMY_NATIVE_U32,
+    DUMMY_31_U32,
+});
 
 fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -207,7 +195,7 @@ fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPara
     }
 }
 
-create_parametrized_test!(lwe_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_encrypt_decrypt_custom_mod);
 
 fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -261,7 +249,7 @@ fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_allocate_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_allocate_encrypt_decrypt_custom_mod);
 
 fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -313,7 +301,7 @@ fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
         break;
     }
 }
-create_parametrized_test!(lwe_trivial_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_trivial_encrypt_decrypt_custom_mod);
 
 fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -364,7 +352,9 @@ fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_allocate_trivial_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(
+    lwe_allocate_trivial_encrypt_decrypt_custom_mod
+);
 
 fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -433,7 +423,7 @@ fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTes
     }
 }
 
-create_parametrized_test!(lwe_list_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_list_encrypt_decrypt_custom_mod);
 
 fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -504,7 +494,7 @@ fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     }
 }
 
-create_parametrized_test!(lwe_list_par_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_list_par_encrypt_decrypt_custom_mod);
 
 fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -570,7 +560,7 @@ fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
     }
 }
 
-create_parametrized_test!(lwe_public_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_public_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -645,7 +635,7 @@ fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_seeded_public_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_seeded_public_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -728,7 +718,9 @@ fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync +
     }
 }
 
-create_parametrized_test!(lwe_seeded_list_par_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(
+    lwe_seeded_list_par_encrypt_decrypt_custom_mod
+);
 
 fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -794,7 +786,7 @@ fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
     }
 }
 
-create_parametrized_test!(lwe_seeded_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_seeded_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -855,7 +847,9 @@ fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_seeded_allocate_encrypt_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(
+    lwe_seeded_allocate_encrypt_decrypt_custom_mod
+);
 
 #[test]
 fn test_u128_encryption() {
@@ -907,8 +901,10 @@ fn test_u128_encryption() {
             // Round and remove encoding
             // First create a decomposer working on the high 4 bits corresponding to our
             // encoding.
-            let decomposer =
-                SignedDecomposer::new(DecompositionBaseLog(4), DecompositionLevelCount(1));
+            let decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(MSG_BITS as usize),
+                DecompositionLevelCount(1),
+            );
 
             let rounded = decomposer.closest_representable(decrypted_plaintext.0);
 
