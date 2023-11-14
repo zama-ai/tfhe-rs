@@ -94,6 +94,7 @@ or test(/^shortint::.*_param${multi_bit}_message_2_carry_3${multi_bit:+"_group_[
 or test(/^shortint::.*_param${multi_bit}_message_3_carry_1${multi_bit:+"_group_[0-9]"}(_compact_pk)?_ks_pbs/) \
 or test(/^shortint::.*_param${multi_bit}_message_3_carry_2${multi_bit:+"_group_[0-9]"}(_compact_pk)?_ks_pbs/) \
 or test(/^shortint::.*_param${multi_bit}_message_3_carry_3${multi_bit:+"_group_[0-9]"}(_compact_pk)?_ks_pbs/) \
+or test(/^shortint::.*_ci_run_filter/) \
 )\
 and not test(~smart_add_and_mul)""" # This test is too slow
     else
@@ -159,6 +160,7 @@ or test(/^shortint::.*_param${multi_bit}_message_3_carry_1${multi_bit:+"_group_[
 or test(/^shortint::.*_param${multi_bit}_message_3_carry_2${multi_bit:+"_group_[0-9]"}(_compact_pk)?_ks_pbs/) \
 or test(/^shortint::.*_param${multi_bit}_message_3_carry_3${multi_bit:+"_group_[0-9]"}(_compact_pk)?_ks_pbs/) \
 or test(/^shortint::.*_param${multi_bit}_message_4_carry_4${multi_bit:+"_group_[0-9]"}(_compact_pk)?_ks_pbs/) \
+or test(/^shortint::.*_ci_run_filter/) \
 )\
 and not test(~smart_add_and_mul)""" # This test is too slow
     else
