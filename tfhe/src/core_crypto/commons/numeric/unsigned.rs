@@ -207,8 +207,8 @@ macro_rules! implement {
             }
             #[inline]
             fn wrapping_neg_custom_mod(self, custom_modulus: Self) -> Self {
-                Self::ZERO.wrapping_sub_custom_mod(self, custom_modulus)
                 // Custom modulus applied by wrapping_sub
+                Self::ZERO.wrapping_sub_custom_mod(self, custom_modulus)
             }
             #[inline]
             fn wrapping_shl(self, rhs: u32) -> Self {

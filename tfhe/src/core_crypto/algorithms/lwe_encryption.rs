@@ -3,6 +3,7 @@
 
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulusKind;
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::generators::{EncryptionRandomGenerator, SecretRandomGenerator};
 use crate::core_crypto::commons::math::random::{ActivatedRandomGenerator, RandomGenerator};
@@ -36,25 +37,129 @@ pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
 
     let ciphertext_modulus = output_mask.ciphertext_modulus();
 
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        fill_lwe_mask_and_body_for_encryption_native_mod_compatible(
+            lwe_secret_key,
+            output_mask,
+            output_body,
+            encoded,
+            noise_parameters,
+            generator,
+        );
+    } else {
+        fill_lwe_mask_and_body_for_encryption_other_mod(
+            lwe_secret_key,
+            output_mask,
+            output_body,
+            encoded,
+            noise_parameters,
+            generator,
+        );
+    }
+}
+
+pub fn fill_lwe_mask_and_body_for_encryption_native_mod_compatible<
+    Scalar,
+    KeyCont,
+    OutputCont,
+    Gen,
+>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output_mask: &mut LweMask<OutputCont>,
+    output_body: &mut LweBodyRefMut<Scalar>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert_eq!(
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus(),
+        "Mismatched moduli between mask ({:?}) and body ({:?})",
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus()
+    );
+
+    let ciphertext_modulus = output_mask.ciphertext_modulus();
+
     assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
+    // generate a randomly uniform mask
     generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
 
     // generate an error from the normal distribution described by std_dev
-    *output_body.data = generator.random_noise_custom_mod(noise_parameters, ciphertext_modulus);
-    *output_body.data = (*output_body.data).wrapping_add(encoded.0);
-
-    if !ciphertext_modulus.is_native_modulus() {
-        let torus_scaling = ciphertext_modulus.get_power_of_two_scaling_to_native_torus();
-        slice_wrapping_scalar_mul_assign(output_mask.as_mut(), torus_scaling);
-        *output_body.data = (*output_body.data).wrapping_mul(torus_scaling);
-    }
-
+    let noise = generator.random_noise_custom_mod(noise_parameters, ciphertext_modulus);
     // compute the multisum between the secret key and the mask
-    *output_body.data = (*output_body.data).wrapping_add(slice_wrapping_dot_product(
+    let mask_key_dot_product = (*output_body.data).wrapping_add(slice_wrapping_dot_product(
         output_mask.as_ref(),
         lwe_secret_key.as_ref(),
     ));
+
+    // Store sum(ai * si) + delta * m + e in the body
+    *output_body.data = mask_key_dot_product
+        .wrapping_add(encoded.0)
+        .wrapping_add(noise);
+
+    match ciphertext_modulus.kind() {
+        CiphertextModulusKind::Native => (),
+        CiphertextModulusKind::NonNativePowerOfTwo => {
+            // Manage power of 2 encoding to map to the native case
+            let torus_scaling = ciphertext_modulus.get_power_of_two_scaling_to_native_torus();
+            slice_wrapping_scalar_mul_assign(output_mask.as_mut(), torus_scaling);
+            *output_body.data = (*output_body.data).wrapping_mul(torus_scaling);
+        }
+        CiphertextModulusKind::Other => unreachable!(),
+    };
+}
+
+pub fn fill_lwe_mask_and_body_for_encryption_other_mod<Scalar, KeyCont, OutputCont, Gen>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    output_mask: &mut LweMask<OutputCont>,
+    output_body: &mut LweBodyRefMut<Scalar>,
+    encoded: Plaintext<Scalar>,
+    noise_parameters: impl DispersionParameter,
+    generator: &mut EncryptionRandomGenerator<Gen>,
+) where
+    Scalar: UnsignedTorus,
+    KeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+{
+    assert_eq!(
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus(),
+        "Mismatched moduli between mask ({:?}) and body ({:?})",
+        output_mask.ciphertext_modulus(),
+        output_body.ciphertext_modulus()
+    );
+
+    let ciphertext_modulus = output_mask.ciphertext_modulus();
+
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    // generate a randomly uniform mask
+    generator.fill_slice_with_random_mask_custom_mod(output_mask.as_mut(), ciphertext_modulus);
+
+    // generate an error from the normal distribution described by std_dev
+    let noise = generator.random_noise_custom_mod(noise_parameters, ciphertext_modulus);
+
+    let ciphertext_modulus_as_scalar: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+
+    // compute the multisum between the secret key and the mask
+    let mask_key_dot_product = slice_wrapping_dot_product_custom_mod(
+        output_mask.as_ref(),
+        lwe_secret_key.as_ref(),
+        ciphertext_modulus_as_scalar,
+    );
+
+    // Store sum(ai * si) + delta * m + e in the body
+    *output_body.data = mask_key_dot_product
+        .wrapping_add_custom_mod(encoded.0, ciphertext_modulus_as_scalar)
+        .wrapping_add_custom_mod(noise, ciphertext_modulus_as_scalar);
 }
 
 /// Encrypt an input plaintext in an output [`LWE ciphertext`](`LweCiphertext`).
@@ -294,15 +399,15 @@ pub fn trivially_encrypt_lwe_ciphertext<Scalar, OutputCont>(
     output.get_mut_mask().as_mut().fill(Scalar::ZERO);
 
     let output_body = output.get_mut_body();
-
-    *output_body.data = encoded.0;
-
     let ciphertext_modulus = output_body.ciphertext_modulus();
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-    if !ciphertext_modulus.is_native_modulus() {
-        *output_body.data = (*output_body.data)
-            .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
-    }
+
+    *output_body.data = match ciphertext_modulus.kind() {
+        CiphertextModulusKind::Native | CiphertextModulusKind::Other => encoded.0,
+        CiphertextModulusKind::NonNativePowerOfTwo => {
+            // Manage non native power of 2 encoding
+            encoded.0 * ciphertext_modulus.get_power_of_two_scaling_to_native_torus()
+        }
+    };
 }
 
 /// A trivial encryption uses a zero mask and no noise.
@@ -373,15 +478,15 @@ where
     *new_ct.get_mut_body().data = encoded.0;
 
     let output_body = new_ct.get_mut_body();
-
-    *output_body.data = encoded.0;
-
     let ciphertext_modulus = output_body.ciphertext_modulus();
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-    if !ciphertext_modulus.is_native_modulus() {
-        *output_body.data = (*output_body.data)
-            .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
-    }
+
+    *output_body.data = match ciphertext_modulus.kind() {
+        CiphertextModulusKind::Native | CiphertextModulusKind::Other => encoded.0,
+        CiphertextModulusKind::NonNativePowerOfTwo => {
+            // Manage non native power of 2 encoding
+            encoded.0 * ciphertext_modulus.get_power_of_two_scaling_to_native_torus()
+        }
+    };
 
     new_ct
 }
@@ -395,6 +500,24 @@ where
 /// See the [`LWE ciphertext formal definition`](`LweCiphertext#lwe-decryption`) for the definition
 /// of the encryption algorithm.
 pub fn decrypt_lwe_ciphertext<Scalar, KeyCont, InputCont>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    lwe_ciphertext: &LweCiphertext<InputCont>,
+) -> Plaintext<Scalar>
+where
+    Scalar: UnsignedInteger,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    let ciphertext_modulus = lwe_ciphertext.ciphertext_modulus();
+
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        decrypt_lwe_ciphertext_native_mod_compatible(lwe_secret_key, lwe_ciphertext)
+    } else {
+        decrypt_lwe_ciphertext_other_mod(lwe_secret_key, lwe_ciphertext)
+    }
+}
+
+pub fn decrypt_lwe_ciphertext_native_mod_compatible<Scalar, KeyCont, InputCont>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     lwe_ciphertext: &LweCiphertext<InputCont>,
 ) -> Plaintext<Scalar>
@@ -417,21 +540,55 @@ where
 
     let (mask, body) = lwe_ciphertext.get_mask_and_body();
 
-    if ciphertext_modulus.is_native_modulus() {
-        Plaintext((*body.data).wrapping_sub(slice_wrapping_dot_product(
+    let mask_key_dot_product = slice_wrapping_dot_product(mask.as_ref(), lwe_secret_key.as_ref());
+    let plaintext = (*body.data).wrapping_sub(mask_key_dot_product);
+
+    match ciphertext_modulus.kind() {
+        CiphertextModulusKind::Native => Plaintext(plaintext),
+        CiphertextModulusKind::NonNativePowerOfTwo => {
+            // Manage power of 2 encoding
+            Plaintext(
+                plaintext
+                    .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
+            )
+        }
+        CiphertextModulusKind::Other => unreachable!(),
+    }
+}
+
+pub fn decrypt_lwe_ciphertext_other_mod<Scalar, KeyCont, InputCont>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    lwe_ciphertext: &LweCiphertext<InputCont>,
+) -> Plaintext<Scalar>
+where
+    Scalar: UnsignedInteger,
+    KeyCont: Container<Element = Scalar>,
+    InputCont: Container<Element = Scalar>,
+{
+    assert!(
+        lwe_ciphertext.lwe_size().to_lwe_dimension() == lwe_secret_key.lwe_dimension(),
+        "Mismatch between LweDimension of output ciphertext and input secret key. \
+        Got {:?} in output, and {:?} in secret key.",
+        lwe_ciphertext.lwe_size().to_lwe_dimension(),
+        lwe_secret_key.lwe_dimension()
+    );
+
+    let ciphertext_modulus = lwe_ciphertext.ciphertext_modulus();
+
+    assert!(!ciphertext_modulus.is_compatible_with_native_modulus());
+
+    let (mask, body) = lwe_ciphertext.get_mask_and_body();
+
+    let ciphertext_modulus_as_scalar: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+
+    Plaintext((*body.data).wrapping_sub_custom_mod(
+        slice_wrapping_dot_product_custom_mod(
             mask.as_ref(),
             lwe_secret_key.as_ref(),
-        )))
-    } else {
-        Plaintext(
-            (*body.data)
-                .wrapping_sub(slice_wrapping_dot_product(
-                    mask.as_ref(),
-                    lwe_secret_key.as_ref(),
-                ))
-                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
-        )
-    }
+            ciphertext_modulus_as_scalar,
+        ),
+        ciphertext_modulus_as_scalar,
+    ))
 }
 
 /// Encrypt an input plaintext list in an output [`LWE ciphertext list`](`LweCiphertextList`).
@@ -781,10 +938,6 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
         lwe_public_key.lwe_size().to_lwe_dimension()
     );
 
-    let ciphertext_modulus = output.ciphertext_modulus();
-
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
     output.as_mut().fill(Scalar::ZERO);
 
     let mut tmp_zero_encryption =
@@ -806,17 +959,7 @@ pub fn encrypt_lwe_ciphertext_with_public_key<Scalar, KeyCont, OutputCont, Gen>(
         lwe_ciphertext_add_assign(output, &tmp_zero_encryption);
     }
 
-    let body = output.get_mut_body();
-
-    if ciphertext_modulus.is_native_modulus() {
-        *body.data = (*body.data).wrapping_add(encoded.0);
-    } else {
-        *body.data = (*body.data).wrapping_add(
-            encoded
-                .0
-                .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
-        );
-    }
+    lwe_ciphertext_plaintext_add_assign(output, encoded);
 }
 
 /// Encrypt an input plaintext in an output [`LWE ciphertext`](`LweCiphertext`) using a
@@ -920,8 +1063,6 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
 
     let ciphertext_modulus = output.ciphertext_modulus();
 
-    assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-
     let mut tmp_zero_encryption =
         LweCiphertext::new(Scalar::ZERO, lwe_public_key.lwe_size(), ciphertext_modulus);
 
@@ -933,7 +1074,7 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
         let (mut mask, body) = tmp_zero_encryption.get_mut_mask_and_body();
         random_generator
             .fill_slice_with_random_uniform_custom_mod(mask.as_mut(), ciphertext_modulus);
-        if !ciphertext_modulus.is_native_modulus() {
+        if ciphertext_modulus.is_non_native_power_of_two() {
             slice_wrapping_scalar_mul_assign(
                 mask.as_mut(),
                 ciphertext_modulus.get_power_of_two_scaling_to_native_torus(),
@@ -947,17 +1088,7 @@ pub fn encrypt_lwe_ciphertext_with_seeded_public_key<Scalar, KeyCont, OutputCont
         lwe_ciphertext_add_assign(output, &tmp_zero_encryption);
     }
 
-    // Add encoded plaintext
-    let body = output.get_mut_body();
-    if ciphertext_modulus.is_native_modulus() {
-        *body.data = (*body.data).wrapping_add(encoded.0);
-    } else {
-        *body.data = (*body.data).wrapping_add(
-            encoded
-                .0
-                .wrapping_mul(ciphertext_modulus.get_power_of_two_scaling_to_native_torus()),
-        );
-    }
+    lwe_ciphertext_plaintext_add_assign(output, encoded);
 }
 
 /// Convenience function to share the core logic of the seeded LWE encryption between all functions

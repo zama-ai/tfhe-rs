@@ -64,13 +64,12 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
 
             assert_eq!(msg, decoded);
 
-            let torus_distance = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
-            noise_samples.push(torus_distance);
+            let torus_diff = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
+            noise_samples.push(torus_diff);
         }
     }
 
     let measured_variance = variance(&noise_samples);
-
     let var_abs_diff = (expected_variance.0 - measured_variance.0).abs();
     let tolerance_threshold = RELATIVE_TOLERANCE * expected_variance.0;
     assert!(
@@ -84,6 +83,7 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
 
 create_parametrized_test!(lwe_encrypt_decrypt_noise_distribution_custom_mod {
     TEST_PARAMS_4_BITS_NATIVE_U64,
+    TEST_PARAMS_3_BITS_SOLINAS_U64,
     TEST_PARAMS_3_BITS_63_U64
 });
 
@@ -173,8 +173,8 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
 
             assert_eq!(msg, decoded);
 
-            let torus_distance = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
-            noise_samples.push(torus_distance);
+            let torus_diff = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
+            noise_samples.push(torus_diff);
         }
     }
 

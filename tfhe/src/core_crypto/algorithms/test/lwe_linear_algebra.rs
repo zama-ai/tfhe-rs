@@ -72,7 +72,7 @@ fn lwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_encrypt_add_assign_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_encrypt_add_assign_decrypt_custom_mod);
 
 fn lwe_encrypt_add_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -139,7 +139,7 @@ fn lwe_encrypt_add_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTest
     }
 }
 
-create_parametrized_test!(lwe_encrypt_add_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_encrypt_add_decrypt_custom_mod);
 
 fn lwe_encrypt_plaintext_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -206,7 +206,9 @@ fn lwe_encrypt_plaintext_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_encrypt_plaintext_add_assign_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(
+    lwe_encrypt_plaintext_add_assign_decrypt_custom_mod
+);
 
 fn lwe_encrypt_plaintext_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -273,7 +275,9 @@ fn lwe_encrypt_plaintext_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_encrypt_plaintext_sub_assign_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(
+    lwe_encrypt_plaintext_sub_assign_decrypt_custom_mod
+);
 
 fn lwe_encrypt_opposite_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -340,7 +344,9 @@ fn lwe_encrypt_opposite_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_encrypt_opposite_assign_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(
+    lwe_encrypt_opposite_assign_decrypt_custom_mod
+);
 
 fn lwe_encrypt_ciphertext_cleartext_mul_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -408,7 +414,9 @@ fn lwe_encrypt_ciphertext_cleartext_mul_assign_decrypt_custom_mod<Scalar: Unsign
     }
 }
 
-create_parametrized_test!(lwe_encrypt_ciphertext_cleartext_mul_assign_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(
+    lwe_encrypt_ciphertext_cleartext_mul_assign_decrypt_custom_mod
+);
 
 fn lwe_encrypt_cleartext_mul_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -478,7 +486,7 @@ fn lwe_encrypt_cleartext_mul_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_encrypt_cleartext_mul_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_encrypt_cleartext_mul_decrypt_custom_mod);
 
 fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -567,7 +575,7 @@ fn lwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     }
 }
 
-create_parametrized_test!(lwe_encrypt_sub_assign_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_encrypt_sub_assign_decrypt_custom_mod);
 
 fn lwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
@@ -656,4 +664,4 @@ fn lwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTest
     }
 }
 
-create_parametrized_test!(lwe_encrypt_sub_decrypt_custom_mod);
+create_parametrized_test_with_non_native_parameters!(lwe_encrypt_sub_decrypt_custom_mod);

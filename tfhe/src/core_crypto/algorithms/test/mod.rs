@@ -2,6 +2,7 @@ pub mod params;
 pub(crate) use params::*;
 
 pub use super::misc::check_encrypted_content_respects_mod;
+use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::*;
 use paste::paste;
@@ -327,13 +328,7 @@ pub fn get_encoding_with_padding<Scalar: UnsignedInteger>(
 }
 
 pub fn round_decode<Scalar: UnsignedInteger>(decrypted: Scalar, delta: Scalar) -> Scalar {
-    // Get half interval on the discretized torus
-    let rounding_margin = delta.wrapping_div(Scalar::TWO);
-
-    // Add the half interval mapping
-    // [delta * (m - 1/2); delta * (m + 1/2)[ to [delta * m; delta * (m + 1)[
-    // Dividing by delta gives m which is what we want
-    (decrypted.wrapping_add(rounding_margin)).wrapping_div(delta)
+    divide_round(decrypted, delta)
 }
 
 // Here we will define a helper function to generate an accumulator for a PBS
@@ -366,9 +361,16 @@ where
 
     let half_box_size = box_size / 2;
 
-    // Negate the first half_box_size coefficients to manage negacyclicity and rotate
-    for a_i in accumulator_scalar[0..half_box_size].iter_mut() {
-        *a_i = (*a_i).wrapping_neg();
+    if ciphertext_modulus.is_compatible_with_native_modulus() {
+        // Negate the first half_box_size coefficients to manage negacyclicity and rotate
+        for a_i in accumulator_scalar[0..half_box_size].iter_mut() {
+            *a_i = (*a_i).wrapping_neg();
+        }
+    } else {
+        let modulus: Scalar = ciphertext_modulus.get_custom_modulus().cast_into();
+        for a_i in accumulator_scalar[0..half_box_size].iter_mut() {
+            *a_i = (*a_i).wrapping_neg_custom_mod(modulus);
+        }
     }
 
     // Rotate the accumulator
@@ -402,7 +404,7 @@ pub(crate) fn gen_keys_or_get_from_cache_if_enabled<
 
 // Macro to generate tests for all parameter sets
 macro_rules! create_parametrized_test{
-    ($name:ident { $($param:ident),* }) => {
+    ($name:ident { $($param:ident),*  $(,)? }) => {
         paste! {
             $(
             #[test]
@@ -421,4 +423,15 @@ macro_rules! create_parametrized_test{
     };
 }
 
-use create_parametrized_test;
+// Macro to generate tests for all parameter sets
+macro_rules! create_parametrized_test_with_non_native_parameters {
+    ($name:ident) => {
+        create_parametrized_test!($name {
+            TEST_PARAMS_4_BITS_NATIVE_U64,
+            TEST_PARAMS_3_BITS_63_U64,
+            TEST_PARAMS_3_BITS_SOLINAS_U64
+        });
+    };
+}
+
+use {create_parametrized_test, create_parametrized_test_with_non_native_parameters};
