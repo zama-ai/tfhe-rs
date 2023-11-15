@@ -131,7 +131,7 @@ install_tarpaulin: install_rs_build_toolchain
 .PHONY: check_linelint_installed # Check if linelint newline linter is installed
 check_linelint_installed:
 	@printf "\n" | linelint - > /dev/null 2>&1 || \
-	( echo "Unable to locate linelint. Try installing it:  https://github.com/fernandrone/linelint/releases" && exit 1 )
+	( echo "Unable to locate linelint. Try installing it: https://github.com/fernandrone/linelint/releases" && exit 1 )
 
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
@@ -374,34 +374,34 @@ test_shortint_cov: install_rs_check_toolchain install_tarpaulin
 		-p $(TFHE_SPEC) -- shortint::
 
 .PHONY: test_integer_ci # Run the tests for integer ci
-test_integer_ci: install_rs_build_toolchain install_cargo_nextest
+test_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)"
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)"
 
 .PHONY: test_unsigned_integer_ci # Run the tests for unsigned integer ci
-test_unsigned_integer_ci: install_rs_build_toolchain install_cargo_nextest
+test_unsigned_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--unsigned-only
 
 .PHONY: test_signed_integer_ci # Run the tests for signed integer ci
-test_signed_integer_ci: install_rs_build_toolchain install_cargo_nextest
+test_signed_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only
 
 .PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
-test_integer_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
+test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)"
 
 .PHONY: test_safe_deserialization # Run the tests for safe deserialization
 test_safe_deserialization: install_rs_build_toolchain install_cargo_nextest
