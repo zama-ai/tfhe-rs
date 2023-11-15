@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// Error returned when the carry buffer is full.
 pub use crate::shortint::CheckError;
+use crate::shortint::{CarryModulus, MessageModulus};
 pub use radix::scalar_mul::ScalarMultiplier;
 pub use radix::scalar_sub::TwosComplementNegation;
 pub use radix_parallel::{MiniUnsignedInteger, Reciprocable};
@@ -175,6 +176,19 @@ impl ServerKey {
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         self.key
             .set_deterministic_pbs_execution(new_deterministic_execution)
+    }
+    pub fn message_modulus(&self) -> MessageModulus {
+        self.key.message_modulus
+    }
+
+    pub fn carry_modulus(&self) -> CarryModulus {
+        self.key.carry_modulus
+    }
+}
+
+impl AsRef<crate::shortint::ServerKey> for ServerKey {
+    fn as_ref(&self) -> &crate::shortint::ServerKey {
+        &self.key
     }
 }
 
