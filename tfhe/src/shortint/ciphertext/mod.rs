@@ -8,6 +8,7 @@ use std::cmp;
 use std::fmt::Debug;
 
 use super::parameters::{CiphertextConformanceParams, CiphertextListConformanceParams};
+use super::CheckError;
 
 /// This tracks the number of operations that has been done.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -23,6 +24,10 @@ impl MaxNoiseLevel {
         Self(value)
     }
 
+    pub fn get(&self) -> usize {
+        self.0
+    }
+
     // This function is valid for current parameters as they guarantee the p-error for a norm2 noise
     // limit equal to the norm2 limit which guarantees a clean padding bit
     //
@@ -35,8 +40,14 @@ impl MaxNoiseLevel {
         Self((carry_modulus.0 * msg_modulus.0 - 1) / (msg_modulus.0 - 1))
     }
 
-    pub fn valid(&self, noise_level: NoiseLevel) -> bool {
-        noise_level.0 <= self.0
+    pub fn valid(&self, noise_level: NoiseLevel) -> Result<(), CheckError> {
+        if noise_level.0 > self.0 {
+            return Err(CheckError::NoiseTooBig {
+                noise_level,
+                max_noise_level: *self,
+            });
+        }
+        Ok(())
     }
 }
 
@@ -52,6 +63,12 @@ impl NoiseLevel {
     pub const MAX: Self = Self(usize::MAX);
     // As a safety measure the unknown noise level is set to the max value
     pub const UNKNOWN: Self = Self::MAX;
+}
+
+impl NoiseLevel {
+    pub fn get(&self) -> usize {
+        self.0
+    }
 }
 
 impl std::ops::AddAssign for NoiseLevel {

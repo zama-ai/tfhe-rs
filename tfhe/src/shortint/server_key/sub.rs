@@ -189,10 +189,12 @@ impl ServerKey {
         let final_operation_count = ct_left.degree.0 + z;
 
         if final_operation_count > self.max_degree.0 {
-            Err(CheckError::CarryFull)
-        } else {
-            Ok(())
+            return Err(CheckError::CarryFull);
         }
+
+        self.max_noise_level
+            .valid(ct_left.noise_level() + ct_right.noise_level())?;
+        Ok(())
     }
 
     /// Compute homomorphically a subtraction between two ciphertexts encrypting integer values.

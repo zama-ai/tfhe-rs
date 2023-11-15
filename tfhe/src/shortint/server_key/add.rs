@@ -268,10 +268,12 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
         if ct_left.degree.0 + ct_right.degree.0 > self.max_degree.0 {
-            Err(CheckError::CarryFull)
-        } else {
-            Ok(())
+            return Err(CheckError::CarryFull);
         }
+
+        self.max_noise_level
+            .valid(ct_left.noise_level() + ct_right.noise_level())?;
+        Ok(())
     }
 
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.

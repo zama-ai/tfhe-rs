@@ -591,10 +591,13 @@ impl ServerKey {
         let final_operation_count = ct1.degree.0 << shift as usize;
 
         if final_operation_count > self.max_degree.0 {
-            Err(CheckError::CarryFull)
-        } else {
-            Ok(())
+            return Err(CheckError::CarryFull);
         }
+
+        self.max_noise_level
+            .valid(ct1.noise_level() * (1 << shift))?;
+
+        Ok(())
     }
 
     /// Compute homomorphically a left shift of the bits.

@@ -1,6 +1,7 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
+use crate::shortint::ciphertext::NoiseLevel;
 
 impl ServerKey {
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
@@ -108,6 +109,7 @@ impl ServerKey {
     {
         // Assumes message_modulus and carry_modulus matches between pairs of block
         let mut preceding_block_carry = 0;
+        let mut extracted_carry_noise_level = NoiseLevel::ZERO;
         for (left_block, right_block) in ct_left.blocks().iter().zip(ct_right.blocks().iter()) {
             let degree_after_add = left_block.degree.0 + right_block.degree.0;
 
@@ -119,7 +121,12 @@ impl ServerKey {
                 return Err(CheckError::CarryFull);
             }
 
+            self.key.max_noise_level.valid(
+                left_block.noise_level() + right_block.noise_level() + extracted_carry_noise_level,
+            )?;
+
             preceding_block_carry = degree_after_add / left_block.message_modulus.0;
+            extracted_carry_noise_level = NoiseLevel::NOMINAL;
         }
         Ok(())
     }
