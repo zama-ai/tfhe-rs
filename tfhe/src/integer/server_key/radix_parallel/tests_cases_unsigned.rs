@@ -1794,7 +1794,7 @@ where
         (RadixCiphertext, Ciphertext),
     >,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
