@@ -287,10 +287,12 @@ impl ServerKey {
         let final_degree = scalar as usize * ct.degree.0;
 
         if final_degree > self.max_degree.0 {
-            Err(CheckError::CarryFull)
-        } else {
-            Ok(())
+            return Err(CheckError::CarryFull);
         }
+
+        self.max_noise_level
+            .valid(ct.noise_level() * scalar as usize)?;
+        Ok(())
     }
 
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.

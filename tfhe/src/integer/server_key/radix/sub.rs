@@ -2,6 +2,7 @@ use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
@@ -111,7 +112,7 @@ impl ServerKey {
     {
         let mut preceding_block_carry = 0;
         let mut preceding_scaled_z = 0;
-
+        let mut extracted_carry_noise_level = NoiseLevel::ZERO;
         for (left_block, right_block) in ctxt_left.blocks().iter().zip(ctxt_right.blocks().iter()) {
             // Assumes message_modulus and carry_modulus matches between pairs of block
             let msg_mod = left_block.message_modulus.0;
@@ -137,8 +138,13 @@ impl ServerKey {
                 return Err(CheckError::CarryFull);
             }
 
+            self.key.max_noise_level.valid(
+                left_block.noise_level() + right_block.noise_level() + extracted_carry_noise_level,
+            )?;
+
             preceding_block_carry = degree_after_add / msg_mod;
             preceding_scaled_z = z / msg_mod;
+            extracted_carry_noise_level = NoiseLevel::NOMINAL;
         }
         Ok(())
     }

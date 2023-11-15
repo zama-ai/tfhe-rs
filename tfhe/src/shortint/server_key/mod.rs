@@ -47,6 +47,10 @@ pub struct MaxDegree(pub usize);
 #[derive(Debug)]
 pub enum CheckError {
     CarryFull,
+    NoiseTooBig {
+        noise_level: NoiseLevel,
+        max_noise_level: MaxNoiseLevel,
+    },
 }
 
 impl Display for CheckError {
@@ -54,6 +58,17 @@ impl Display for CheckError {
         match self {
             Self::CarryFull => {
                 write!(f, "The carry buffer is full")
+            }
+            Self::NoiseTooBig {
+                noise_level,
+                max_noise_level,
+            } => {
+                write!(
+                    f,
+                    "The noise (={}) should not exceed {}",
+                    noise_level.get(),
+                    max_noise_level.get(),
+                )
             }
         }
     }
@@ -284,6 +299,7 @@ impl ServerKey {
 /// ciphertext without exceeding the max storable value using the formula:
 /// `unique_ciphertext = (lhs * factor) + rhs`
 fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
+    server_key: &ServerKey,
     lhs: &Ciphertext,
     rhs: &Ciphertext,
     factor: usize,
@@ -293,6 +309,10 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
     if final_degree >= lhs.carry_modulus.0 * lhs.message_modulus.0 {
         return Err(CheckError::CarryFull);
     }
+
+    server_key
+        .max_noise_level
+        .valid(lhs.noise_level() * factor + rhs.noise_level())?;
 
     Ok(())
 }
@@ -325,10 +345,12 @@ pub type BivariateLookupTableView<'a> = BivariateLookupTable<&'a [u64]>;
 impl<C: Container<Element = u64>> BivariateLookupTable<C> {
     pub fn is_bivariate_pbs_possible(
         &self,
+        server_key: &ServerKey,
         lhs: &Ciphertext,
         rhs: &Ciphertext,
     ) -> Result<(), CheckError> {
         ciphertexts_can_be_packed_without_exceeding_space_or_noise(
+            server_key,
             lhs,
             rhs,
             self.ct_right_modulus.0,
@@ -486,7 +508,7 @@ impl ServerKey {
     /// let f = |x, y| (x + y) % 4;
     ///
     /// let acc = sks.generate_lookup_table_bivariate(f);
-    /// acc.is_bivariate_pbs_possible(&ct1, &ct2).unwrap();
+    /// acc.is_bivariate_pbs_possible(&sks, &ct1, &ct2).unwrap();
     /// let ct_res = sks.smart_apply_lookup_table_bivariate(&mut ct1, &mut ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
@@ -660,7 +682,12 @@ impl ServerKey {
         ct1: &Ciphertext,
         ct2: &Ciphertext,
     ) -> Result<(), CheckError> {
-        ciphertexts_can_be_packed_without_exceeding_space_or_noise(ct1, ct2, ct2.degree.0 + 1)?;
+        ciphertexts_can_be_packed_without_exceeding_space_or_noise(
+            self,
+            ct1,
+            ct2,
+            ct2.degree.0 + 1,
+        )?;
 
         Ok(())
     }
