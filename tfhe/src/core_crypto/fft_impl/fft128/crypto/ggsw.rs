@@ -173,7 +173,7 @@ impl Fourier128GgswCiphertext<ABox<[f64]>> {
         polynomial_size: PolynomialSize,
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
-    ) -> Fourier128GgswCiphertext<ABox<[f64]>> {
+    ) -> Self {
         let container_len = polynomial_size.to_fourier_polynomial_size().0
             * decomposition_level_count.0
             * glwe_size.0
