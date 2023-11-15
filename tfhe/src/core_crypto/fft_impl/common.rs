@@ -1,3 +1,4 @@
+use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
@@ -40,6 +41,18 @@ pub fn fast_pbs_modulus_switch<Scalar: UnsignedTorus + CastInto<usize>>(
     // Apply the lsb padding
     output <<= lut_count_log.0;
     <Scalar as CastInto<usize>>::cast_into(output)
+}
+
+pub fn pbs_modulus_switch_non_native<Scalar: UnsignedTorus + CastInto<usize>>(
+    input: Scalar,
+    poly_size: PolynomialSize,
+    modulus: Scalar,
+) -> usize {
+    let input_u128: u128 = input.cast_into();
+    let modulus_u128: u128 = modulus.cast_into();
+    let switched = divide_round(input_u128 * 2 * poly_size.0 as u128, modulus_u128);
+    assert!(switched as usize <= (2 * poly_size.0));
+    switched as usize
 }
 
 pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {

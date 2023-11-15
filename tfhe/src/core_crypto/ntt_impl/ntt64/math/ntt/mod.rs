@@ -116,7 +116,7 @@ impl NttView<'_> {
             #[inline(always)]
             || {
                 for (out, inp) in izip!(standard, &*ntt) {
-                    *out = u64::wrapping_add(*out, *inp);
+                    *out = u64::wrapping_add_custom_mod(*out, *inp, self.custom_modulus());
                 }
             },
         )

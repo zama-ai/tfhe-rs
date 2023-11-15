@@ -4,15 +4,16 @@ use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LutCountLog, LweDimension,
-    ModulusSwitchOffset, MonomialDegree, PolynomialSize,
+    DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, MonomialDegree,
+    PolynomialSize,
 };
 use crate::core_crypto::commons::traits::{
-    Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split, UnsignedInteger,
+    CastInto, Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
+    UnsignedInteger,
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::{fast_pbs_modulus_switch, FourierBootstrapKey};
+use crate::core_crypto::fft_impl::common::{pbs_modulus_switch_non_native, FourierBootstrapKey};
 use crate::core_crypto::prelude::{CiphertextModulus, ContainerMut};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use dyn_stack::{PodStack, ReborrowMut, SizeOverflow, StackReq};
@@ -219,11 +220,10 @@ impl<'a> NttLweBootstrapKeyView<'a> {
 
         let lut_poly_size = lut.polynomial_size();
         let ciphertext_modulus = lut.ciphertext_modulus();
-        let monomial_degree = fast_pbs_modulus_switch(
+        let monomial_degree = pbs_modulus_switch_non_native(
             *lwe_body,
             lut_poly_size,
-            ModulusSwitchOffset(0),
-            LutCountLog(0),
+            ciphertext_modulus.get_custom_modulus().cast_into(),
         );
 
         lut.as_mut_polynomial_list()
@@ -256,11 +256,10 @@ impl<'a> NttLweBootstrapKeyView<'a> {
                 for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
                     polynomial_wrapping_monic_monomial_mul_assign_custom_modulus(
                         &mut poly,
-                        MonomialDegree(fast_pbs_modulus_switch(
+                        MonomialDegree(pbs_modulus_switch_non_native(
                             *lwe_mask_element,
                             lut_poly_size,
-                            ModulusSwitchOffset(0),
-                            LutCountLog(0),
+                            ciphertext_modulus.get_custom_modulus().cast_into(),
                         )),
                         modulus,
                     );

@@ -550,11 +550,7 @@ fn lwe_encrypt_ntt_pbs_decrypt_custom_mod(params: TestParams<u64>) {
     let decomp_level_count = params.pbs_level;
     let mut rsc = TestResources::new();
 
-    let f = |x: u64| {
-        x.wrapping_mul(2u64)
-            .wrapping_sub(1u64)
-            .wrapping_rem(msg_modulus)
-    };
+    let f = |x: u64| x.wrapping_rem(msg_modulus);
 
     let delta: u64 = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
@@ -704,6 +700,26 @@ pub const TEST_PARAMS_3_BITS_SOLINAS_NTT_U64: TestParams<u64> = TestParams {
     ciphertext_modulus: CiphertextModulus::new((1 << 64) - (1 << 32) + 1),
 };
 
+pub const TEST_PARAMS_2_BITS_MICKAEL_PRIME_U64: TestParams<u64> = TestParams {
+    lwe_dimension: LweDimension(568),
+    glwe_dimension: GlweDimension(2),
+    polynomial_size: PolynomialSize(512),
+    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(8),
+    pbs_level: DecompositionLevelCount(2),
+    ks_level: DecompositionLevelCount(2),
+    ks_base_log: DecompositionBaseLog(8),
+    pfks_level: DecompositionLevelCount(1),
+    pfks_base_log: DecompositionBaseLog(23),
+    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    cbs_level: DecompositionLevelCount(0),
+    cbs_base_log: DecompositionBaseLog(0),
+    message_modulus_log: CiphertextModulusLog(1),
+    ciphertext_modulus: CiphertextModulus::new(4294828033),
+};
+
 create_parametrized_test!(lwe_encrypt_ntt_pbs_decrypt_custom_mod {
-    TEST_PARAMS_3_BITS_SOLINAS_NTT_U64
+    TEST_PARAMS_3_BITS_SOLINAS_NTT_U64,
+    TEST_PARAMS_2_BITS_MICKAEL_PRIME_U64
 });
