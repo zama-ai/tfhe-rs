@@ -69,9 +69,11 @@ jobs:
         run: |
           make gen_key_cache
 
-      - name: Run integer tests
+      - name: Run unsigned integer tests
         run: |
-          AVX512_SUPPORT=ON BIG_TESTS_INSTANCE=TRUE make test_integer_ci
+          # Signed integer tests have been grouped with the multi bit tests as this single workflow
+          # was getting way too long in terms of execution time
+          AVX512_SUPPORT=ON BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_ci
 
       - name: Slack Notification
         if: ${{ always() }}

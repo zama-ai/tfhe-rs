@@ -8,6 +8,8 @@ function usage() {
     echo "--help                    Print this message"
     echo "--rust-toolchain          The toolchain to run the tests with default: stable"
     echo "--multi-bit               Run multi-bit tests only: default off"
+    echo "--unsigned-only           Run only unsigned integer tests, by default both signed and unsigned tests are run"
+    echo "--signed-only             Run only signed integer tests, by default both signed and unsigned tests are run"
     echo "--cargo-profile           The cargo profile used to build tests"
     echo "--avx512-support          Set to ON to enable avx512"
     echo
@@ -16,6 +18,9 @@ function usage() {
 RUST_TOOLCHAIN="+stable"
 multi_bit=""
 not_multi_bit="_multi_bit"
+# Run signed test by default
+signed=""
+not_signed=""
 cargo_profile="release"
 # TODO: revert to release once the bug is properly fixed/identified
 cargo_profile_doctests="release_lto_off"
@@ -37,6 +42,16 @@ do
         "--multi-bit" )
             multi_bit="_multi_bit"
             not_multi_bit=""
+            ;;
+
+        "--unsigned-only" )
+            signed=""
+            not_signed="_signed"
+            ;;
+
+        "--signed-only" )
+            signed="_signed"
+            not_signed=""
             ;;
 
         "--cargo-profile" )
@@ -94,7 +109,9 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
         # so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
+${signed:+"and test(/^integer::.*${signed}/)"} \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
+${not_signed:+"and not test(~${not_signed})"} \
 and not test(/.*_block_pbs(_base)?_param_message_[34]_carry_[34]_ks_pbs$/) \
 and not test(~mul_crt_param_message_4_carry_4_ks_pbs) \
 and not test(/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]_ks_pbs$/) \
@@ -104,7 +121,9 @@ and not test(/.*test_integer_default_add_sequence_multi_thread_param_message_4_c
         # test only fast default operations with only two set of parameters
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
+${signed:+"and test(/^integer::.*${signed}/)"} \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
+${not_signed:+"and not test(~${not_signed})"} \
 and test(/.*_default_.*?_param${multi_bit}_message_[2-3]_carry_[2-3]${multi_bit:+"_group_2"}_ks_pbs/) \
 and not test(/.*_param_message_[14]_carry_[14]_ks_pbs$/) \
 and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs$/)"""
@@ -136,7 +155,9 @@ else
         # so is test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
+${signed:+"and test(/^integer::.*${signed}/)"} \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
+${not_signed:+"and not test(~${not_signed})"} \
 and not test(/.*_block_pbs(_base)?_param_message_[34]_carry_[34]_ks_pbs$/) \
 and not test(~mul_crt_param_message_4_carry_4_ks_pbs) \
 and not test(/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]_ks_pbs$/) \
@@ -146,7 +167,9 @@ and not test(/.*test_integer_default_add_sequence_multi_thread_param_message_4_c
         # test only fast default operations with only two set of parameters
         filter_expression="""\
 test(/^integer::.*${multi_bit}/) \
+${signed:+"and test(/^integer::.*${signed}/)"} \
 ${not_multi_bit:+"and not test(~${not_multi_bit})"} \
+${not_signed:+"and not test(~${not_signed})"} \
 and test(/.*_default_.*?_param${multi_bit}_message_[2-3]_carry_[2-3]${multi_bit:+"_group_2"}_ks_pbs/) \
 and not test(/.*_param_message_[14]_carry_[14]_ks_pbs$/) \
 and not test(/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs$/)"""

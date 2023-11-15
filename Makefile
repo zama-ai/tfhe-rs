@@ -380,6 +380,22 @@ test_integer_ci: install_rs_build_toolchain install_cargo_nextest
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)"
 
+.PHONY: test_unsigned_integer_ci # Run the tests for unsigned integer ci
+test_unsigned_integer_ci: install_rs_build_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" \
+		--unsigned-only
+
+.PHONY: test_signed_integer_ci # Run the tests for signed integer ci
+test_signed_integer_ci: install_rs_build_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" \
+		--signed-only
+
 .PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
 test_integer_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
