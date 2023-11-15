@@ -473,7 +473,7 @@ pub fn add_external_product_assign_scratch<Scalar>(
 }
 
 /// Perform the external product of `ggsw` and `glwe`, and adds the result to `out`.
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 pub fn add_external_product_assign<Scalar>(
     mut out: GlweCiphertextMutView<'_, Scalar>,
     ggsw: FourierGgswCiphertextView<'_>,
@@ -597,7 +597,7 @@ pub fn add_external_product_assign<Scalar>(
     }
 }
 
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 fn collect_next_term<'a, Scalar: UnsignedTorus>(
     decomposition: &mut TensorSignedDecompositionLendingIter<'_, Scalar>,
     substack1: &'a mut PodStack,
@@ -612,7 +612,7 @@ fn collect_next_term<'a, Scalar: UnsignedTorus>(
     (glwe_level, glwe_decomp_term, substack2)
 }
 
-#[cfg_attr(__profiling, inline(never))]
+#[cfg_attr(feature = "__profiling", inline(never))]
 pub(crate) fn update_with_fmadd(
     output_fft_buffer: &mut [c64],
     lhs_polynomial_list: &[c64],

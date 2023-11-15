@@ -10,6 +10,7 @@ pub(crate) trait DecryptionKey<CiphertextType, ClearType> {
     fn decrypt(&self, ciphertext: &CiphertextType) -> ClearType;
 }
 
+#[allow(dead_code)]
 pub trait TypeIdentifier {
     fn type_variant(&self) -> crate::high_level_api::errors::Type;
 }

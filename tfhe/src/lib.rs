@@ -61,6 +61,7 @@
 #![cfg_attr(all(doc, not(doctest)), feature(doc_auto_cfg))]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 #![warn(rustdoc::broken_intra_doc_links)]
+#![allow(elided_named_lifetimes)]
 
 #[cfg(feature = "__c_api")]
 pub mod c_api;
@@ -77,6 +78,12 @@ pub mod boolean;
 /// # Special module attributes
 /// cbindgen:ignore
 pub mod core_crypto;
+
+/// Welcome to the TFHE-rs [`float_wopbs`](`crate::float_wopbs`) module documentation!
+///
+/// # Special module attributes
+/// cbindgen:ignore
+pub mod float_wopbs;
 
 #[cfg(feature = "integer")]
 /// Welcome to the TFHE-rs [`integer`](`crate::integer`) module documentation!

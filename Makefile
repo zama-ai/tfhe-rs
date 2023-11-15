@@ -149,6 +149,11 @@ fix_newline: check_linelint_installed
 check_newline: check_linelint_installed
 	linelint .
 
+.PHONY: clippy_float # Run clippy lints on core_crypto with and without experimental features
+clippy_float: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		-p concrete-float -- --no-deps -D warnings
+
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
@@ -478,6 +483,59 @@ test_concrete_csprng:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=$(TARGET_ARCH_FEATURE) -p concrete-csprng
 
+.PHONY: test_float # Run minifloat bivariate test
+test_float: test_float_add test_float_sub test_float_mul test_float_div test_float_cos test_float_sin test_float_relu test_float_sigmoid test_minifloat
+
+.PHONY: test_minifloat # Run minifloat bivariate test
+test_minifloat:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),shortint -p tfhe float_wopbs_bivariate -- --nocapture
+
+.PHONY: test_float_cos # Run floating points cosine test
+test_float_cos:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::float_cos" -- --exact --nocapture
+
+.PHONY: test_float_sin # Run floating points sine test
+test_float_sin:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::float_sin" -- --exact --nocapture
+
+.PHONY: test_float_mul # Run floating points multiplication test
+test_float_mul:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::test_float_mul" -- --exact --nocapture
+
+.PHONY: test_float_add # Run floating points addition test
+test_float_add:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::test_float_add" -- --exact --nocapture
+
+.PHONY: test_float_sub # Run floating points subtraction test
+test_float_sub:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::test_float_sub" -- --exact --nocapture
+
+.PHONY: test_float_div # Run floating points division test
+test_float_div:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::test_float_div" -- --exact --nocapture
+
+.PHONY: test_float_relu # Run floating points relu test
+test_float_relu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::test_float_relu" -- --exact --nocapture
+
+.PHONY: test_float_sigmoid # Run floating points sigmoid test
+test_float_sigmoid:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::test_float_sigmoid" -- --exact --nocapture
+
+.PHONY: test_float_long_run # Run floating points long run test
+test_float_long_run:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE) -p concrete-float "server_key::tests::float_long_run_details_parallelized" -- --exact --nocapture
+
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
@@ -630,6 +688,38 @@ ci_bench_web_js_api_parallel: build_web_js_api_parallel
 	source ~/.nvm/nvm.sh && \
 	nvm use node && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests bench-ci
+
+.PHONY: bench_float # Run benchmarks for the floating points
+bench_float: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench float-bench
+
+.PHONY: bench_float_8bit # Run benchmarks for the floating points
+bench_float_8bit: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench float-bench -- PARAM_8
+
+
+.PHONY: bench_float_16bit # Run benchmarks for the floating points
+bench_float_16bit: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench float-bench -- PARAM_16
+
+
+.PHONY: bench_float_32bit # Run benchmarks for the floating points
+bench_float_32bit: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench float-bench -- PARAM_32
+
+.PHONY: bench_float_64bit # Run benchmarks for the floating points
+bench_float_64bit: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench float-bench -- PARAM_64
+
+.PHONY: bench_minifloat # Run benchmarks for Wopbs floating points
+bench_minifloat: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench float-wopbs-bench
 
 #
 # Utility tools

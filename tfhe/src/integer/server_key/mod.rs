@@ -61,6 +61,18 @@ impl MaxDegree {
     }
 }
 
+fn integer_server_key_max_degree_ex(
+    msg_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+) -> MaxDegree {
+    let full_max_degree = msg_modulus.0 * carry_modulus.0 - 1;
+
+    let carry_max_degree = carry_modulus.0 - 1;
+
+    // We want to be have a margin to add a carry from another block
+    MaxDegree::new(full_max_degree - carry_max_degree)
+}
+
 impl ServerKey {
     /// Generates a server key.
     ///
@@ -167,6 +179,15 @@ impl ServerKey {
         mut key: crate::shortint::server_key::ServerKey,
     ) -> Self {
         key.max_degree = MaxDegree::integer_crt_server_key(cks.key.parameters);
+
+        Self { key }
+    }
+
+    pub fn from_shortint_ex(mut key: crate::shortint::server_key::ServerKey) -> Self {
+        // It should remain just enough space add a carry
+        let max_degree = integer_server_key_max_degree_ex(key.message_modulus, key.carry_modulus);
+
+        key.max_degree = max_degree;
         Self { key }
     }
 

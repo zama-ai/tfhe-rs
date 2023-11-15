@@ -1,5 +1,6 @@
 /// Meant to be implemented on the inner server key
 /// eg the crate::integer::ServerKey
+#[allow(dead_code)]
 pub trait EvaluationIntegerKey<ClientKey> {
     fn new(client_key: &ClientKey) -> Self;
 

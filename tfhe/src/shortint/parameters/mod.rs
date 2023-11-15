@@ -36,7 +36,7 @@ pub struct MessageModulus(pub usize);
 
 /// The number of bits on which the carry will be encoded.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct CarryModulus(pub usize);
+pub struct  CarryModulus(pub usize);
 
 /// Determines in what ring computations are made
 pub type CiphertextModulus = CoreCiphertextModulus<u64>;

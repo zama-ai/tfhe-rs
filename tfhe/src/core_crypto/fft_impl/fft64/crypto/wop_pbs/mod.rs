@@ -12,12 +12,15 @@ use super::ggsw::{
 };
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
+
+use rayon::prelude::*;
 
 use concrete_fft::c64;
 
@@ -224,6 +227,167 @@ pub fn extract_bits<Scalar: UnsignedTorus + CastInto<usize>>(
     }
 }
 
+pub fn extract_bits_parallelized<Scalar: UnsignedTorus + CastInto<usize>>(
+    mut lwe_list_out: LweCiphertextList<&'_ mut [Scalar]>,
+    lwe_in: LweCiphertext<&'_ [Scalar]>,
+    ksk: LweKeyswitchKey<&'_ [Scalar]>,
+    fourier_bsk: FourierLweBootstrapKeyView<'_>,
+    delta_log: DeltaLog,
+    number_of_bits_to_extract: ExtractedBitsCount,
+    fft: FftView<'_>,
+    stack: PodStack<'_>,
+) {
+    debug_assert!(lwe_list_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
+    debug_assert!(lwe_in.ciphertext_modulus() == ksk.ciphertext_modulus());
+    debug_assert!(
+        ksk.ciphertext_modulus().is_native_modulus(),
+        "This operation only supports native moduli"
+    );
+
+    let ciphertext_n_bits = Scalar::BITS;
+    let number_of_bits_to_extract = number_of_bits_to_extract.0;
+
+    debug_assert!(
+        ciphertext_n_bits >= number_of_bits_to_extract + delta_log.0,
+        "Tried to extract {} bits, while the maximum number of extractable bits for {} bits
+        ciphertexts and a scaling factor of 2^{} is {}",
+        number_of_bits_to_extract,
+        ciphertext_n_bits,
+        delta_log.0,
+        ciphertext_n_bits - delta_log.0,
+    );
+    debug_assert!(
+        lwe_list_out.lwe_size().to_lwe_dimension() == ksk.output_key_lwe_dimension(),
+        "lwe_list_out needs to have an lwe_size of {}, got {}",
+        ksk.output_key_lwe_dimension().0,
+        lwe_list_out.lwe_size().to_lwe_dimension().0,
+    );
+    debug_assert!(
+        lwe_list_out.lwe_ciphertext_count().0 == number_of_bits_to_extract,
+        "lwe_list_out needs to have a ciphertext count of {}, got {}",
+        number_of_bits_to_extract,
+        lwe_list_out.lwe_ciphertext_count().0,
+    );
+    debug_assert!(
+        lwe_in.lwe_size() == fourier_bsk.output_lwe_dimension().to_lwe_size(),
+        "lwe_in needs to have an LWE dimension of {}, got {}",
+        fourier_bsk.output_lwe_dimension().to_lwe_size().0,
+        lwe_in.lwe_size().0,
+    );
+    debug_assert!(
+        ksk.output_key_lwe_dimension() == fourier_bsk.input_lwe_dimension(),
+        "ksk needs to have an output LWE dimension of {}, got {}",
+        fourier_bsk.input_lwe_dimension().0,
+        ksk.output_key_lwe_dimension().0,
+    );
+    debug_assert!(lwe_list_out.ciphertext_modulus() == lwe_in.ciphertext_modulus());
+    debug_assert!(lwe_in.ciphertext_modulus() == ksk.ciphertext_modulus());
+
+    let polynomial_size = fourier_bsk.polynomial_size();
+    let glwe_size = fourier_bsk.glwe_size();
+    let glwe_dimension = glwe_size.to_glwe_dimension();
+    let ciphertext_modulus = lwe_in.ciphertext_modulus();
+
+    let align = CACHELINE_ALIGN;
+
+    let (mut lwe_in_buffer_data, stack) =
+        stack.collect_aligned(align, lwe_in.as_ref().iter().copied());
+    let mut lwe_in_buffer =
+        LweCiphertext::from_container(&mut *lwe_in_buffer_data, lwe_in.ciphertext_modulus());
+
+    let (mut lwe_out_ks_buffer_data, stack) =
+        stack.make_aligned_with(ksk.output_lwe_size().0, align, |_| Scalar::ZERO);
+    let mut lwe_out_ks_buffer =
+        LweCiphertext::from_container(&mut *lwe_out_ks_buffer_data, ksk.ciphertext_modulus());
+
+    let (mut pbs_accumulator_data, stack) =
+        stack.make_aligned_with(glwe_size.0 * polynomial_size.0, align, |_| Scalar::ZERO);
+    let mut pbs_accumulator = GlweCiphertextMutView::from_container(
+        &mut *pbs_accumulator_data,
+        polynomial_size,
+        ciphertext_modulus,
+    );
+
+    let lwe_size = glwe_dimension
+        .to_equivalent_lwe_dimension(polynomial_size)
+        .to_lwe_size();
+    let (mut lwe_out_pbs_buffer_data, mut stack) =
+        stack.make_aligned_with(lwe_size.0, align, |_| Scalar::ZERO);
+    let mut lwe_out_pbs_buffer = LweCiphertext::from_container(
+        &mut *lwe_out_pbs_buffer_data,
+        lwe_list_out.ciphertext_modulus(),
+    );
+
+    // We iterate on the list in reverse as we want to store the extracted MSB at index 0
+    for (bit_idx, mut output_ct) in lwe_list_out.iter_mut().rev().enumerate() {
+        // Shift on padding bit
+        let (lwe_bit_left_shift_buffer_data, _) = stack.rb_mut().collect_aligned(
+            align,
+            lwe_in_buffer
+                .as_ref()
+                .iter()
+                .map(|s| *s << (ciphertext_n_bits - delta_log.0 - bit_idx - 1)),
+        );
+
+        // Key switch to input PBS key
+        par_keyswitch_lwe_ciphertext(
+            &ksk,
+            &LweCiphertext::from_container(
+                &*lwe_bit_left_shift_buffer_data,
+                lwe_in.ciphertext_modulus(),
+            ),
+            &mut lwe_out_ks_buffer,
+        );
+
+        drop(lwe_bit_left_shift_buffer_data);
+
+        // Store the keyswitch output unmodified to the output list (as we need to to do other
+        // computations on the output of the keyswitch)
+        output_ct
+            .as_mut()
+            .copy_from_slice(lwe_out_ks_buffer.as_ref());
+
+        // If this was the last extracted bit, break
+        // we subtract 1 because if the number_of_bits_to_extract is 1 we want to stop right away
+        if bit_idx == number_of_bits_to_extract - 1 {
+            break;
+        }
+
+        // Add q/4 to center the error while computing a negacyclic LUT
+        let out_ks_body = lwe_out_ks_buffer.get_mut_body().data;
+        *out_ks_body = (*out_ks_body).wrapping_add(Scalar::ONE << (ciphertext_n_bits - 2));
+
+        // Fill lut for the current bit (equivalent to trivial encryption as mask is 0s)
+        // The LUT is filled with -alpha in each coefficient where alpha = delta*2^{bit_idx-1}
+        for poly_coeff in &mut pbs_accumulator
+            .as_mut_view()
+            .get_mut_body()
+            .as_mut_polynomial()
+            .iter_mut()
+        {
+            *poly_coeff = Scalar::ZERO.wrapping_sub(Scalar::ONE << (delta_log.0 - 1 + bit_idx));
+        }
+
+        fourier_bsk.bootstrap(
+            lwe_out_pbs_buffer.as_mut_view(),
+            lwe_out_ks_buffer.as_view(),
+            pbs_accumulator.as_view(),
+            fft,
+            stack.rb_mut(),
+        );
+
+        // Add alpha where alpha = delta*2^{bit_idx-1} to end up with an encryption of 0 if the
+        // extracted bit was 0 and 1 in the other case
+        let out_pbs_body = lwe_out_pbs_buffer.get_mut_body().data;
+
+        *out_pbs_body = (*out_pbs_body).wrapping_add(Scalar::ONE << (delta_log.0 + bit_idx - 1));
+
+        // Remove the extracted bit from the initial LWE to get a 0 at the extracted bit location.
+        izip!(lwe_in_buffer.as_mut(), lwe_out_pbs_buffer.as_ref())
+            .for_each(|(out, inp)| *out = (*out).wrapping_sub(*inp));
+    }
+}
+
 pub fn circuit_bootstrap_boolean_scratch<Scalar>(
     lwe_in_size: LweSize,
     bsk_output_lwe_size: LweSize,
@@ -341,6 +505,137 @@ pub fn circuit_bootstrap_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
             );
         }
     }
+}
+
+pub fn circuit_bootstrap_boolean_parallelized<Scalar: UnsignedTorus + CastInto<usize>>(
+    fourier_bsk: FourierLweBootstrapKeyView<'_>,
+    lwe_in: LweCiphertext<&[Scalar]>,
+    mut ggsw_out: GgswCiphertext<&mut [Scalar]>,
+    delta_log: DeltaLog,
+    pfpksk_list: LwePrivateFunctionalPackingKeyswitchKeyList<&[Scalar]>,
+    fft: FftView<'_>,
+    _stack: PodStack<'_>,
+) {
+    debug_assert!(lwe_in.ciphertext_modulus() == ggsw_out.ciphertext_modulus());
+    debug_assert!(ggsw_out.ciphertext_modulus() == pfpksk_list.ciphertext_modulus());
+
+    debug_assert!(
+        pfpksk_list.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
+    let level_cbs = ggsw_out.decomposition_level_count();
+    let base_log_cbs = ggsw_out.decomposition_base_log();
+
+    debug_assert!(
+        level_cbs.0 >= 1,
+        "level_cbs needs to be >= 1, got {}",
+        level_cbs.0
+    );
+    debug_assert!(
+        base_log_cbs.0 >= 1,
+        "base_log_cbs needs to be >= 1, got {}",
+        base_log_cbs.0
+    );
+
+    let fpksk_input_lwe_key_dimension = pfpksk_list.input_key_lwe_dimension();
+    let fourier_bsk_output_lwe_dimension = fourier_bsk.output_lwe_dimension();
+
+    debug_assert!(
+        fpksk_input_lwe_key_dimension == fourier_bsk_output_lwe_dimension,
+        "The fourier_bsk output_lwe_dimension, got {}, must be equal to the fpksk \
+        input_lwe_key_dimension, got {}",
+        fourier_bsk_output_lwe_dimension.0,
+        fpksk_input_lwe_key_dimension.0
+    );
+
+    let fpksk_output_polynomial_size = pfpksk_list.output_polynomial_size();
+    let fpksk_output_glwe_key_dimension = pfpksk_list.output_key_glwe_dimension();
+
+    debug_assert!(
+        ggsw_out.polynomial_size() == fpksk_output_polynomial_size,
+        "The output GGSW ciphertext needs to have the same polynomial size as the fpksks, \
+        got {}, expected {}",
+        ggsw_out.polynomial_size().0,
+        fpksk_output_polynomial_size.0
+    );
+
+    debug_assert!(
+        ggsw_out.glwe_size().to_glwe_dimension() == fpksk_output_glwe_key_dimension,
+        "The output GGSW ciphertext needs to have the same GLWE dimension as the fpksks, \
+        got {}, expected {}",
+        ggsw_out.glwe_size().to_glwe_dimension().0,
+        fpksk_output_glwe_key_dimension.0
+    );
+
+    debug_assert!(
+        ggsw_out.glwe_size().0 == pfpksk_list.lwe_pfpksk_count().0,
+        "The input vector of pfpksk_list needs to have {} ggsw.glwe_size elements got {}",
+        ggsw_out.glwe_size().0,
+        pfpksk_list.lwe_pfpksk_count().0,
+    );
+
+    // // Output for every bootstrapping
+    // let (mut lwe_out_bs_buffer_data, mut stack) = stack.make_aligned_with(
+    //     fourier_bsk_output_lwe_dimension.to_lwe_size().0,
+    //     CACHELINE_ALIGN,
+    //     |_| Scalar::ZERO,
+    // );
+    // let mut lwe_out_bs_buffer =
+    //     LweCiphertext::from_container(&mut *lwe_out_bs_buffer_data, lwe_in.ciphertext_modulus());
+
+    ggsw_out.par_iter_mut().enumerate().for_each(
+        |(decomposition_level_minus_one, mut ggsw_level_matrix)| {
+            let mut computation_buffers = ComputationBuffers::new();
+            computation_buffers.resize(
+                circuit_bootstrap_boolean_scratch::<u64>(
+                    lwe_in.lwe_size(),
+                    fourier_bsk.output_lwe_dimension().to_lwe_size(),
+                    fourier_bsk.glwe_size(),
+                    fourier_bsk.polynomial_size(),
+                    fft,
+                )
+                .unwrap()
+                .try_unaligned_bytes_required()
+                .unwrap(),
+            );
+
+            let stack = computation_buffers.stack();
+
+            let (mut lwe_out_bs_buffer_data, mut stack) = stack.make_aligned_with(
+                fourier_bsk_output_lwe_dimension.to_lwe_size().0,
+                CACHELINE_ALIGN,
+                |_| Scalar::ZERO,
+            );
+            let mut lwe_out_bs_buffer = LweCiphertext::from_container(
+                &mut *lwe_out_bs_buffer_data,
+                lwe_in.ciphertext_modulus(),
+            );
+
+            let decomposition_level = DecompositionLevel(decomposition_level_minus_one + 1);
+            homomorphic_shift_boolean(
+                fourier_bsk,
+                lwe_out_bs_buffer.as_mut_view(),
+                lwe_in.as_view(),
+                decomposition_level,
+                base_log_cbs,
+                delta_log,
+                fft,
+                stack.rb_mut(),
+            );
+
+            pfpksk_list
+                .par_iter()
+                .zip(ggsw_level_matrix.as_mut_glwe_list().par_iter_mut())
+                .for_each(|(pfpksk, mut glwe_out)| {
+                    par_private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext(
+                        &pfpksk,
+                        &mut glwe_out,
+                        &lwe_out_bs_buffer,
+                    );
+                });
+        },
+    );
 }
 
 pub fn homomorphic_shift_boolean_scratch<Scalar>(

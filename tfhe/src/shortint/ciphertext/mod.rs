@@ -112,7 +112,7 @@ impl std::ops::Mul<usize> for NoiseLevel {
 
 /// Maximum value that the degree can reach.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct MaxDegree(usize);
+pub struct MaxDegree(pub usize);
 
 impl MaxDegree {
     pub fn new(value: usize) -> Self {
@@ -143,7 +143,7 @@ impl MaxDegree {
 
 /// This tracks the number of operations that has been done.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct Degree(usize);
+pub struct Degree(pub usize);
 
 impl Degree {
     pub fn new(degree: usize) -> Self {
