@@ -254,7 +254,7 @@ fn test_ct_scalar_op_assign_noise_level_propagation(sk: &ServerKey, ct: &Ciphert
 }
 
 #[test]
-fn test_noise_level_propagation() {
+fn test_noise_level_propagation_ci_run_filter() {
     let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
     let keys = KEY_CACHE.get_from_param(params);

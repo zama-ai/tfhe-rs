@@ -3,7 +3,7 @@ use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::prelude::*;
 
 #[test]
-fn gen_multi_keys_test_fresh() {
+fn gen_multi_keys_test_fresh_ci_run_filter() {
     let keys = KEY_CACHE_KSK.get_from_param((
         PARAM_MESSAGE_1_CARRY_1_KS_PBS,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -53,7 +53,7 @@ fn gen_multi_keys_test_fresh() {
 }
 
 #[test]
-fn gen_multi_keys_test_fresh_2() {
+fn gen_multi_keys_test_fresh_2_ci_run_filter() {
     let keys2 = KEY_CACHE.get_from_param(PARAM_MESSAGE_3_CARRY_3_KS_PBS);
     let (ck2, sk2) = (keys2.client_key(), keys2.server_key());
 
@@ -110,7 +110,7 @@ fn gen_multi_keys_test_fresh_2() {
 }
 
 #[test]
-fn gen_multi_keys_test_add_with_overflow() {
+fn gen_multi_keys_test_add_with_overflow_ci_run_filter() {
     let keys = KEY_CACHE_KSK.get_from_param((
         PARAM_MESSAGE_1_CARRY_1_KS_PBS,
         PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -136,7 +136,7 @@ fn gen_multi_keys_test_add_with_overflow() {
 }
 
 #[test]
-fn gen_multi_keys_test_no_shift() {
+fn gen_multi_keys_test_no_shift_ci_run_filter() {
     let keys2 = KEY_CACHE.get_from_param(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     let ck2 = keys2.client_key();
 
@@ -156,7 +156,7 @@ fn gen_multi_keys_test_no_shift() {
 }
 
 #[test]
-fn gen_multi_keys_test_truncate() {
+fn gen_multi_keys_test_truncate_ci_run_filter() {
     let keys2 = KEY_CACHE.get_from_param(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     let (ck2, sk2) = (keys2.client_key(), keys2.server_key());
 
