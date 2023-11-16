@@ -2,7 +2,7 @@ use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::server_key::CheckError::CarryFull;
-use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
@@ -353,7 +353,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let decrypted_result: u8 = cks.decrypt(&result);
-    /// let decrypted_overflow = cks.decrypt_one_block(&overflowed) == 1;
+    /// let decrypted_overflow = cks.decrypt_bool(&overflowed);
     ///
     /// let (expected_result, expected_overflow) = msg_1.overflowing_sub(msg_2);
     /// assert_eq!(expected_result, decrypted_result);
@@ -363,7 +363,7 @@ impl ServerKey {
         &self,
         ctxt_left: &RadixCiphertext,
         ctxt_right: &RadixCiphertext,
-    ) -> (RadixCiphertext, Ciphertext) {
+    ) -> (RadixCiphertext, BooleanBlock) {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -400,7 +400,7 @@ impl ServerKey {
         &self,
         lhs: &RadixCiphertext,
         rhs: &RadixCiphertext,
-    ) -> (RadixCiphertext, Ciphertext) {
+    ) -> (RadixCiphertext, BooleanBlock) {
         assert_eq!(
             lhs.blocks.len(),
             rhs.blocks.len(),
@@ -441,19 +441,19 @@ impl ServerKey {
         }
 
         // borrow of last block indicates overflow
-        let overflowed = borrow;
+        let overflowed = BooleanBlock::new_unchecked(borrow);
         (RadixCiphertext::from(new_blocks), overflowed)
     }
     pub fn unchecked_signed_overflowing_sub(
         &self,
         lhs: &SignedRadixCiphertext,
         rhs: &SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, Ciphertext) {
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
         let mut result = lhs.clone();
 
         let num_blocks = result.blocks.len();
         if num_blocks == 0 {
-            return (result, self.key.create_trivial(0));
+            return (result, self.create_trivial_boolean_block(false));
         }
 
         fn block_add_assign_returning_carry(
@@ -506,8 +506,8 @@ impl ServerKey {
             );
             let overflowed = self.resolve_signed_overflow(
                 last_block_inner_propagation,
-                &input_carry,
-                &output_carry,
+                &BooleanBlock::new_unchecked(input_carry),
+                &BooleanBlock::new_unchecked(output_carry),
             );
 
             return (result, overflowed);
@@ -536,7 +536,7 @@ impl ServerKey {
             // "Overflow occurred if the carry into the last bit is different than the carry out
             // of the last bit"
             let overflowed = self.key.not_equal(&output_carry, &input_carry);
-            return (result, overflowed);
+            return (result, BooleanBlock::new_unchecked(overflowed));
         }
 
         panic!(
@@ -551,7 +551,7 @@ impl ServerKey {
         &self,
         ctxt_left: &SignedRadixCiphertext,
         ctxt_right: &SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, Ciphertext) {
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
         let mut tmp_lhs;
         let mut tmp_rhs;
 

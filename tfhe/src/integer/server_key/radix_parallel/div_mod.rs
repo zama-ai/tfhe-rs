@@ -372,7 +372,7 @@ impl ServerKey {
             drop(merged_interesting_remainder);
 
             let overflow_sum = self.key.unchecked_add(
-                &subtraction_overflowed,
+                subtraction_overflowed.as_ref(),
                 &at_least_one_upper_block_is_non_zero,
             );
             // Give name to closures to improve readability
@@ -430,7 +430,7 @@ impl ServerKey {
 
             let mut set_quotient_bit = || {
                 let did_not_overflow = self.key.unchecked_apply_lookup_table_bivariate(
-                    &subtraction_overflowed,
+                    subtraction_overflowed.as_ref(),
                     &at_least_one_upper_block_is_non_zero,
                     &merge_overflow_flags_luts[pos_in_block],
                 );

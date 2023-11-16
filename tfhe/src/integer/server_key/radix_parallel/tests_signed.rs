@@ -1,5 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
+use crate::integer::{
+    BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
+};
 use crate::shortint::parameters::*;
 use itertools::{iproduct, izip};
 use paste::paste;
@@ -580,7 +582,7 @@ where
         &'a ServerKey,
         &'a SignedRadixCiphertext,
         &'a SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, crate::shortint::Ciphertext),
+    ) -> (SignedRadixCiphertext, BooleanBlock),
 {
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
@@ -601,7 +603,6 @@ where
         let (ct_res, result_overflowed) = signed_overflowing_sub(&sks, &ctxt_0, &ctxt_1);
         let (tmp_ct, tmp_o) = signed_overflowing_sub(&sks, &ctxt_0, &ctxt_1);
         assert!(ct_res.block_carries_are_empty());
-        assert!(result_overflowed.carry_is_empty());
         assert_eq!(ct_res, tmp_ct, "Failed determinism check");
         assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
 
@@ -609,7 +610,7 @@ where
             signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
 
         let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
-        let decrypted_overflowed = cks.decrypt_one_block(&result_overflowed) == 1;
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
         assert_eq!(
             decrypted_result, expected_result,
             "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
@@ -641,7 +642,7 @@ where
             signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
 
         let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
-        let decrypted_overflowed = cks.decrypt_one_block(&encrypted_overflow) == 1;
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
         assert_eq!(
             decrypted_result, expected_result,
             "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
@@ -1450,7 +1451,6 @@ where
         let (ct_res, result_overflowed) = sks.signed_overflowing_sub_parallelized(&ctxt_0, &ctxt_1);
         let (tmp_ct, tmp_o) = sks.signed_overflowing_sub_parallelized(&ctxt_0, &ctxt_1);
         assert!(ct_res.block_carries_are_empty());
-        assert!(result_overflowed.carry_is_empty());
         assert_eq!(ct_res, tmp_ct, "Failed determinism check");
         assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
 
@@ -1458,7 +1458,7 @@ where
             signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
 
         let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
-        let decrypted_overflowed = cks.decrypt_one_block(&result_overflowed) == 1;
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
         assert_eq!(
             decrypted_result, expected_result,
             "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
@@ -1490,13 +1490,12 @@ where
             let (ct_res, result_overflowed) =
                 sks.signed_overflowing_sub_parallelized(&ctxt_0, &ctxt_1);
             assert!(ct_res.block_carries_are_empty());
-            assert!(result_overflowed.carry_is_empty());
 
             let (expected_result, expected_overflowed) =
                 signed_overflowing_sub_under_modulus(clear_lhs, clear_rhs, modulus);
 
             let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
-            let decrypted_overflowed = cks.decrypt_one_block(&result_overflowed) == 1;
+            let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
             assert_eq!(
                 decrypted_result, expected_result,
                 "Invalid result for sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
@@ -1528,7 +1527,7 @@ where
             signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
 
         let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
-        let decrypted_overflowed = cks.decrypt_one_block(&encrypted_overflow) == 1;
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
         assert_eq!(
             decrypted_result, expected_result,
             "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \

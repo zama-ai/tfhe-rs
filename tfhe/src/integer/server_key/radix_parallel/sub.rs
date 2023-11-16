@@ -1,6 +1,6 @@
 use super::add::OutputCarry;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 use std::cmp::Ordering;
@@ -301,7 +301,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let decrypted_result: u8 = cks.decrypt(&result);
-    /// let decrypted_overflow = cks.decrypt_one_block(&overflowed) == 1;
+    /// let decrypted_overflow = cks.decrypt_bool(&overflowed);
     ///
     /// let (expected_result, expected_overflow) = msg_1.overflowing_sub(msg_2);
     /// assert_eq!(expected_result, decrypted_result);
@@ -311,7 +311,7 @@ impl ServerKey {
         &self,
         ctxt_left: &RadixCiphertext,
         ctxt_right: &RadixCiphertext,
-    ) -> (RadixCiphertext, Ciphertext) {
+    ) -> (RadixCiphertext, BooleanBlock) {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
@@ -348,7 +348,7 @@ impl ServerKey {
         &self,
         lhs: &RadixCiphertext,
         rhs: &RadixCiphertext,
-    ) -> (RadixCiphertext, Ciphertext) {
+    ) -> (RadixCiphertext, BooleanBlock) {
         assert_eq!(
             lhs.blocks.len(),
             rhs.blocks.len(),
@@ -391,7 +391,7 @@ impl ServerKey {
             // we know here that the result is a boolean value
             // however the lut used has a degree of 2.
             output_borrow.degree.0 = 1;
-            (ct, output_borrow)
+            (ct, BooleanBlock::new_unchecked(output_borrow))
         } else {
             self.unchecked_unsigned_overflowing_sub(lhs, rhs)
         }
@@ -470,9 +470,9 @@ impl ServerKey {
     pub(crate) fn resolve_signed_overflow(
         &self,
         mut last_block_inner_propagation: Ciphertext,
-        last_block_input_carry: &Ciphertext,
-        last_block_output_carry: &Ciphertext,
-    ) -> Ciphertext {
+        last_block_input_carry: &BooleanBlock,
+        last_block_output_carry: &BooleanBlock,
+    ) -> BooleanBlock {
         let bits_of_message = self.key.message_modulus.0.ilog2();
 
         let resolve_overflow_lut = self.key.generate_lookup_table(|x| {
@@ -492,13 +492,19 @@ impl ServerKey {
             u64::from(input_carry_to_last_bit != output_carry_of_block)
         });
 
-        let x = self.key.unchecked_scalar_mul(last_block_output_carry, 2);
+        let x = self
+            .key
+            .unchecked_scalar_mul(last_block_output_carry.as_ref(), 2);
         self.key
             .unchecked_add_assign(&mut last_block_inner_propagation, &x);
-        self.key
-            .unchecked_add_assign(&mut last_block_inner_propagation, last_block_input_carry);
-        self.key
-            .apply_lookup_table(&last_block_inner_propagation, &resolve_overflow_lut)
+        self.key.unchecked_add_assign(
+            &mut last_block_inner_propagation,
+            last_block_input_carry.as_ref(),
+        );
+        let result = self
+            .key
+            .apply_lookup_table(&last_block_inner_propagation, &resolve_overflow_lut);
+        BooleanBlock::new_unchecked(result)
     }
 
     // This is the implementation of overflowing sub when we can use parallel carry
@@ -511,7 +517,7 @@ impl ServerKey {
         &self,
         lhs: &SignedRadixCiphertext,
         rhs: &SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, Ciphertext) {
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
         // This assert is here because this overflow computation requires these preconditions
         // which is_eligible_for_parallel_single_carry_propagation, but it could change in the
         // future
@@ -561,9 +567,15 @@ impl ServerKey {
                     });
             },
             || {
+                let input_carry = input_carries
+                    .last()
+                    .cloned()
+                    .map(BooleanBlock::new_unchecked)
+                    .unwrap();
+                let output_carry = BooleanBlock::new_unchecked(output_carry);
                 self.resolve_signed_overflow(
                     last_block_inner_propagation,
-                    input_carries.last().as_ref().unwrap(),
+                    &input_carry,
                     &output_carry,
                 )
             },
@@ -576,7 +588,7 @@ impl ServerKey {
         &self,
         lhs: &SignedRadixCiphertext,
         rhs: &SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, Ciphertext) {
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
         assert_eq!(
             lhs.blocks.len(),
             rhs.blocks.len(),
@@ -697,7 +709,7 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let decrypted_result: i8 = cks.decrypt_signed(&result);
-    /// let decrypted_overflow = cks.decrypt_one_block(&overflowed) == 1;
+    /// let decrypted_overflow = cks.decrypt_bool(&overflowed);
     ///
     /// let (expected_result, expected_overflow) = msg_1.overflowing_sub(msg_2);
     /// assert_eq!(expected_result, decrypted_result);
@@ -707,7 +719,7 @@ impl ServerKey {
         &self,
         ctxt_left: &SignedRadixCiphertext,
         ctxt_right: &SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, Ciphertext) {
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
         let mut tmp_lhs;
         let mut tmp_rhs;
 
