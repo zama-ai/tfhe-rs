@@ -403,6 +403,22 @@ test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)"
 
+.PHONY: test_unsigned_integer_multi_bit_ci # Run the tests for nsigned integer ci running only multibit tests
+test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
+		--unsigned-only
+
+.PHONY: test_signed_integer_multi_bit_ci # Run the tests for nsigned integer ci running only multibit tests
+test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	FAST_TESTS="$(FAST_TESTS)" \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
+		--signed-only
+
 .PHONY: test_safe_deserialization # Run the tests for safe deserialization
 test_safe_deserialization: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \

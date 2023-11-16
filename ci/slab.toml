@@ -21,12 +21,12 @@ check_run_name = "CPU AWS Tests"
 [command.cpu_integer_test]
 workflow = "aws_tfhe_integer_tests.yml"
 profile = "cpu-big"
-check_run_name = "CPU Integer AWS Tests"
+check_run_name = "CPU Unsigned Integer AWS Tests"
 
 [command.cpu_multi_bit_test]
-workflow = "aws_tfhe_multi_bit_tests.yml"
+workflow = "aws_tfhe_signed_integer_tests.yml"
 profile = "cpu-big"
-check_run_name = "CPU AWS Multi Bit Tests"
+check_run_name = "CPU Signed Integer AWS Tests"
 
 [command.cpu_wasm_test]
 workflow = "aws_tfhe_wasm_tests.yml"

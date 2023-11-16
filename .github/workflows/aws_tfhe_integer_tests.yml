@@ -1,4 +1,4 @@
-name: AWS Integer Tests on CPU
+name: AWS Unsigned Integer Tests on CPU
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,13 +23,13 @@ on:
         description: "Action runner name"
         type: string
       request_id:
-        description: 'Slab request ID'
+        description: "Slab request ID"
         type: string
       fork_repo:
-        description: 'Name of forked repo as user/repo'
+        description: "Name of forked repo as user/repo"
         type: string
       fork_git_sha:
-        description: 'Git SHA to checkout from fork'
+        description: "Git SHA to checkout from fork"
         type: string
 
 jobs:
@@ -67,12 +67,18 @@ jobs:
 
       - name: Gen Keys if required
         run: |
+          make GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
+
+      - name: Run unsigned integer multi-bit tests
+        run: |
+          AVX512_SUPPORT=ON make test_unsigned_integer_multi_bit_ci
+
+      - name: Gen Keys if required
+        run: |
           make gen_key_cache
 
       - name: Run unsigned integer tests
         run: |
-          # Signed integer tests have been grouped with the multi bit tests as this single workflow
-          # was getting way too long in terms of execution time
           AVX512_SUPPORT=ON BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_ci
 
       - name: Slack Notification
