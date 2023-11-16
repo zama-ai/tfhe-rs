@@ -20,6 +20,17 @@ pub struct NoiseLevel(usize);
 impl NoiseLevel {
     pub const NOMINAL: Self = Self(1);
     pub const ZERO: Self = Self(0);
+    // To force a refresh no matter the tolerance of the server key, useful for serialization update
+    // for formats which did not have noise levels saved
+    pub const MAX: Self = Self(usize::MAX);
+    // As a safety measure the unknwon noise level is set to the max value
+    pub const UNKOWN: Self = Self::MAX;
+}
+
+impl std::ops::AddAssign for NoiseLevel {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 = self.0.saturating_add(rhs.0);
+    }
 }
 
 impl std::ops::Add for NoiseLevel {
@@ -31,15 +42,9 @@ impl std::ops::Add for NoiseLevel {
     }
 }
 
-impl std::ops::AddAssign for NoiseLevel {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
-    }
-}
-
 impl std::ops::MulAssign<usize> for NoiseLevel {
     fn mul_assign(&mut self, rhs: usize) {
-        self.0 *= rhs
+        self.0 = self.0.saturating_mul(rhs);
     }
 }
 
@@ -372,7 +377,7 @@ mod tests {
     use crate::shortint::CiphertextModulus;
 
     #[test]
-    fn test_clone_from_same_lwe_size_and_modulus() {
+    fn test_clone_from_same_lwe_size_and_modulus_ci_run_filter() {
         let mut c1 = Ciphertext {
             ct: LweCiphertextOwned::from_container(
                 vec![1u64; 256],
@@ -404,7 +409,7 @@ mod tests {
     }
 
     #[test]
-    fn test_clone_from_same_lwe_size_different_modulus() {
+    fn test_clone_from_same_lwe_size_different_modulus_ci_run_filter() {
         let mut c1 = Ciphertext {
             ct: LweCiphertextOwned::from_container(
                 vec![1u64; 256],
@@ -436,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn test_clone_from_different_lwe_size_same_modulus() {
+    fn test_clone_from_different_lwe_size_same_modulus_ci_run_filter() {
         let mut c1 = Ciphertext {
             ct: LweCiphertextOwned::from_container(
                 vec![1u64; 512],
@@ -465,5 +470,23 @@ mod tests {
 
         c1.clone_from(&c2);
         assert_eq!(c1, c2);
+    }
+
+    #[test]
+    fn test_noise_level_ci_run_filter() {
+        use rand::{thread_rng, Rng};
+
+        let mut rng = thread_rng();
+
+        assert_eq!(NoiseLevel::UNKOWN, NoiseLevel::MAX);
+
+        let max_noise_level = NoiseLevel::MAX;
+        let random_addend = rng.gen::<usize>();
+        let add = max_noise_level + NoiseLevel(random_addend);
+        assert_eq!(add, NoiseLevel::MAX);
+
+        let random_positive_multiplier = rng.gen_range(1usize..=usize::MAX);
+        let mul = max_noise_level * random_positive_multiplier;
+        assert_eq!(mul, NoiseLevel::MAX);
     }
 }
