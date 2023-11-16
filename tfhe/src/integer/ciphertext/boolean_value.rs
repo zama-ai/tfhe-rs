@@ -41,7 +41,7 @@ use serde::{Deserialize, Serialize};
 /// let dec: u8 = cks.decrypt(&ct_res);
 /// assert_eq!(u8::from(a >= b), dec);
 /// ```
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct BooleanBlock(pub(crate) Ciphertext);
 
 impl BooleanBlock {

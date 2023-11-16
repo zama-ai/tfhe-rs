@@ -1,5 +1,5 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::{RadixCiphertext, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
 use crate::shortint::Ciphertext;
 
 use crate::core_crypto::commons::numeric::UnsignedInteger;
@@ -260,16 +260,16 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec_result: u8 = cks.decrypt(&ct_res);
-    /// let dec_overflowed = cks.decrypt_one_block(&overflowed);
+    /// let dec_overflowed = cks.decrypt_bool(&overflowed);
     /// let (expected_result, expected_overflow) = msg1.overflowing_add(msg2);
     /// assert_eq!(dec_result, expected_result);
-    /// assert_eq!(dec_overflowed, u64::from(expected_overflow));
+    /// assert_eq!(dec_overflowed, expected_overflow);
     /// ```
     pub fn unsigned_overflowing_add_parallelized(
         &self,
         ct_left: &RadixCiphertext,
         ct_right: &RadixCiphertext,
-    ) -> (RadixCiphertext, Ciphertext) {
+    ) -> (RadixCiphertext, BooleanBlock) {
         let mut ct_res = ct_left.clone();
         let overflowed = self.unsigned_overflowing_add_assign_parallelized(&mut ct_res, ct_right);
         (ct_res, overflowed)
@@ -279,10 +279,10 @@ impl ServerKey {
         &self,
         ct_left: &mut RadixCiphertext,
         ct_right: &RadixCiphertext,
-    ) -> Ciphertext {
+    ) -> BooleanBlock {
         let mut tmp_rhs: RadixCiphertext;
         if ct_left.blocks.is_empty() || ct_right.blocks.is_empty() {
-            return self.key.create_trivial(0);
+            return self.create_trivial_boolean_block(false);
         }
 
         let (lhs, rhs) = match (
@@ -310,14 +310,16 @@ impl ServerKey {
         };
 
         if self.is_eligible_for_parallel_single_carry_propagation(lhs) {
-            self.unchecked_add_assign_parallelized_low_latency(lhs, rhs)
+            let carry = self.unchecked_add_assign_parallelized_low_latency(lhs, rhs);
+            BooleanBlock::new_unchecked(carry)
         } else {
             self.unchecked_add_assign(lhs, rhs);
             let len = lhs.blocks.len();
             for i in 0..len - 1 {
                 let _ = self.propagate_parallelized(lhs, i);
             }
-            self.propagate_parallelized(lhs, len - 1)
+            let carry = self.propagate_parallelized(lhs, len - 1);
+            BooleanBlock::new_unchecked(carry)
         }
     }
 
