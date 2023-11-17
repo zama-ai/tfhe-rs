@@ -1,7 +1,8 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
-use crate::shortint::ciphertext::NoiseLevel;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::server_key::MaxDegree;
 
 impl ServerKey {
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
@@ -118,7 +119,12 @@ impl ServerKey {
                 >= (left_block.message_modulus.0 * left_block.carry_modulus.0)
             {
                 // We would exceed the block 'capacity'
-                return Err(CheckError::CarryFull);
+                return Err(CheckError::CarryFull {
+                    degree: Degree(degree_after_add + preceding_block_carry),
+                    max_degree: MaxDegree(
+                        left_block.message_modulus.0 * left_block.carry_modulus.0 - 1,
+                    ),
+                });
             }
 
             self.key.max_noise_level.valid(

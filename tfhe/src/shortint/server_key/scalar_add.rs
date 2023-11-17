@@ -1,4 +1,5 @@
 use super::ServerKey;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
 
@@ -244,7 +245,10 @@ impl ServerKey {
         let final_degree = scalar as usize + ct.degree.0;
 
         if final_degree > self.max_degree.0 {
-            Err(CheckError::CarryFull)
+            Err(CheckError::CarryFull {
+                degree: Degree(final_degree),
+                max_degree: self.max_degree,
+            })
         } else {
             Ok(())
         }

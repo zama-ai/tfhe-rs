@@ -46,7 +46,10 @@ pub struct MaxDegree(pub usize);
 /// Error returned when the carry buffer is full.
 #[derive(Debug)]
 pub enum CheckError {
-    CarryFull,
+    CarryFull {
+        degree: Degree,
+        max_degree: MaxDegree,
+    },
     NoiseTooBig {
         noise_level: NoiseLevel,
         max_noise_level: MaxNoiseLevel,
@@ -56,8 +59,12 @@ pub enum CheckError {
 impl Display for CheckError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::CarryFull => {
-                write!(f, "The carry buffer is full")
+            Self::CarryFull { degree, max_degree } => {
+                write!(
+                    f,
+                    "The degree (={}) should not exceed {}",
+                    degree.0, max_degree.0,
+                )
             }
             Self::NoiseTooBig {
                 noise_level,
@@ -307,7 +314,10 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
     let final_degree = (lhs.degree.0 * factor) + rhs.degree.0;
 
     if final_degree >= lhs.carry_modulus.0 * lhs.message_modulus.0 {
-        return Err(CheckError::CarryFull);
+        return Err(CheckError::CarryFull {
+            degree: Degree(final_degree),
+            max_degree: MaxDegree(lhs.carry_modulus.0 * lhs.message_modulus.0 - 1),
+        });
     }
 
     server_key
