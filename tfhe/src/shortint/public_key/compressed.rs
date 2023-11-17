@@ -179,6 +179,13 @@ impl CompressedPublicKey {
     ///
     /// let msg = 2;
     /// let modulus = 3;
+    ///
+    /// // Encryption of one message:
+    /// let ct = pk.encrypt_native_crt(msg, modulus);
+    ///
+    /// // Decryption:
+    /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
+    /// assert_eq!(msg, dec % modulus as u64);
     /// ```
     pub fn encrypt_native_crt(&self, message: u64, message_modulus: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
