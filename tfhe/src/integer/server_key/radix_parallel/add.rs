@@ -912,7 +912,7 @@ impl ServerKey {
                 .map(|chunk| {
                     let (s, rest) = chunk.split_first_mut().unwrap();
                     let mut first_block_where_addition_happened = num_blocks - 1;
-                    let mut last_block_where_addition_happened = num_blocks - 1;
+                    let mut last_block_where_addition_happened = 0;
                     for a in rest.iter() {
                         let first_block_to_add = a
                             .blocks()
@@ -938,36 +938,39 @@ impl ServerKey {
                         }
                     }
 
-                    // last carry is not interesting
-                    let mut carry_blocks = s.blocks()
-                        [first_block_where_addition_happened..last_block_where_addition_happened]
-                        .to_vec();
-
-                    let message_blocks = s.blocks_mut();
-
+                    let mut carry_ct = s.clone();
                     rayon::join(
                         || {
-                            message_blocks[first_block_where_addition_happened
-                                ..last_block_where_addition_happened + 1]
+                            s.blocks_mut()[first_block_where_addition_happened
+                                ..=last_block_where_addition_happened]
                                 .par_iter_mut()
                                 .for_each(|block| {
                                     self.key.message_extract_assign(block);
                                 });
                         },
                         || {
-                            carry_blocks.par_iter_mut().for_each(|block| {
-                                self.key.carry_extract_assign(block);
-                            });
+                            let start = first_block_where_addition_happened;
+                            let end = if last_block_where_addition_happened == num_blocks - 1 {
+                                // This carry would be thrown away, so don't compute it
+                                last_block_where_addition_happened - 1
+                            } else {
+                                last_block_where_addition_happened
+                            };
+                            carry_ct.blocks_mut()[start..=end]
+                                .par_iter_mut()
+                                .for_each(|block| {
+                                    self.key.carry_extract_assign(block);
+                                });
+                            for block in &mut carry_ct.blocks_mut()[..start] {
+                                self.key.create_trivial_assign(block, 0);
+                            }
+                            for block in &mut carry_ct.blocks_mut()[end + 1..] {
+                                self.key.create_trivial_assign(block, 0);
+                            }
+                            carry_ct.blocks_mut().rotate_right(1);
                         },
                     );
 
-                    let mut carry_ct = RadixCiphertext::from(carry_blocks);
-                    let num_blocks_to_add = s.blocks().len() - carry_ct.blocks.len();
-                    self.extend_radix_with_trivial_zero_blocks_lsb_assign(
-                        &mut carry_ct,
-                        num_blocks_to_add,
-                    );
-                    let carry_ct = T::from(carry_ct.blocks);
                     (s.clone(), carry_ct)
                 })
                 .collect_into_vec(&mut tmp_out);
