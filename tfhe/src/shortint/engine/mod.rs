@@ -98,7 +98,7 @@ where
     let box_size = server_key.bootstrapping_key.polynomial_size().0 / modulus_sup;
 
     // Value of the shift we multiply our messages by
-    let delta = (1_u64 << 63) / (server_key.message_modulus.0 * server_key.carry_modulus.0) as u64;
+    let delta = (1_u64 << 63) / modulus_sup as u64;
 
     let mut body = accumulator_view.get_mut_body();
     let accumulator_u64 = body.as_mut();
