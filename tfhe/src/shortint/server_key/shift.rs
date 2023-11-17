@@ -1,4 +1,5 @@
 use super::ServerKey;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
 
@@ -591,7 +592,10 @@ impl ServerKey {
         let final_operation_count = ct1.degree.0 << shift as usize;
 
         if final_operation_count > self.max_degree.0 {
-            return Err(CheckError::CarryFull);
+            return Err(CheckError::CarryFull {
+                degree: Degree(final_operation_count),
+                max_degree: self.max_degree,
+            });
         }
 
         self.max_noise_level

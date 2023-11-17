@@ -2,7 +2,8 @@ use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
-use crate::shortint::ciphertext::NoiseLevel;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::server_key::MaxDegree;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
@@ -135,7 +136,10 @@ impl ServerKey {
             // and we also want to be able to add the carry from preceding block addition
             // to make sure carry propagation would be correct.
             if (degree_after_add + preceding_block_carry) >= total_modulus {
-                return Err(CheckError::CarryFull);
+                return Err(CheckError::CarryFull {
+                    degree: Degree(degree_after_add + preceding_block_carry),
+                    max_degree: MaxDegree(total_modulus - 1),
+                });
             }
 
             self.key.max_noise_level.valid(

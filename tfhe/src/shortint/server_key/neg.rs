@@ -1,4 +1,5 @@
 use super::ServerKey;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
 
@@ -258,7 +259,10 @@ impl ServerKey {
         z = z.wrapping_mul(msg_mod);
 
         if z > self.max_degree.0 {
-            Err(CheckError::CarryFull)
+            Err(CheckError::CarryFull {
+                degree: Degree(z),
+                max_degree: self.max_degree,
+            })
         } else {
             Ok(())
         }

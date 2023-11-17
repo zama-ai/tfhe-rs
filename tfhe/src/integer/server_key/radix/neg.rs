@@ -2,6 +2,8 @@ use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
+use crate::shortint::ciphertext::Degree;
+use crate::shortint::server_key::MaxDegree;
 
 impl ServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
@@ -115,7 +117,10 @@ impl ServerKey {
             // We want to be able to add together the negated block and the carry
             // from preceding negated block to make sure carry propagation would be correct.
             if (block_degree_after_negation + preceding_block_carry) >= total_modulus {
-                return Err(CheckError::CarryFull);
+                return Err(CheckError::CarryFull {
+                    degree: Degree(block_degree_after_negation + preceding_block_carry),
+                    max_degree: MaxDegree(total_modulus - 1),
+                });
             }
 
             preceding_block_carry = block_degree_after_negation / msg_mod;
