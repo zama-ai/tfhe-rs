@@ -353,10 +353,10 @@ where
         let ct = cks.encrypt_without_padding(clear);
 
         // decryption of ct_zero
-        let dec = cks.decrypt_message_and_carry_without_padding(&ct);
+        let dec = cks.decrypt_decode_without_padding(&ct);
 
         // assert
-        assert_eq!(clear, dec);
+        assert_eq!(clear, dec.carry_and_msg);
     }
 }
 
@@ -389,7 +389,7 @@ where
             failures += 1;
         }
         // assert
-        // assert_eq!(clear_0, dec_res);
+        // assert_eq!(clear_0, dec_res.msg);
     }
 
     println!("fail_rate = {failures}/{NB_TEST}");
@@ -482,14 +482,15 @@ where
         let ct_carry = sks.carry_extract(&ctxt);
 
         // decryption of message and carry
-        let dec = cks.decrypt_message_and_carry(&ct_carry);
+        let dec = cks.decrypt_decode_padding(&ct_carry);
 
         // assert
         println!(
             "msg = {clear}, modulus = {msg_modulus}, msg/modulus = {}",
             clear / msg_modulus
         );
-        assert_eq!(clear / msg_modulus, dec);
+        assert_eq!(clear / msg_modulus, dec.msg);
+        assert_eq!(dec.carry, 0);
     }
 }
 
@@ -2708,7 +2709,7 @@ where
 
         let mut clear = (clear_0 - clear_1) % modulus;
 
-        // let dec_res = cks.decrypt(&ct_res);
+        // let dec_res = cks.decrypt_decode_padding(&ct_res);
         // println!("clear_0 = {}, clear_1 = {}, dec = {}, clear = {}", clear_0, clear_1, dec_res,
         // clear);
 
@@ -3010,7 +3011,7 @@ where
 
         // Check the correctness
         let clear_result = (clear1 - clear2) % modulus;
-        assert_eq!(clear_result, dec % modulus);
+        assert_eq!(clear_result, dec);
     }
 }
 
@@ -3108,7 +3109,7 @@ where
         let dec_res = cks.decrypt(&ct_res);
 
         // assert
-        assert_eq!((clear_0 * clear_1) % modulus, dec_res % modulus);
+        assert_eq!((clear_0 * clear_1) % modulus, dec_res);
     }
 }
 
@@ -3137,14 +3138,16 @@ where
 
         println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
         let ct_res = sks.unchecked_mul_lsb_small_carry(&ct1, &ct2);
-        assert_eq!(
-            (clear1 * clear2) % modulus,
-            cks.decrypt_message_and_carry(&ct_res) % modulus
-        );
+
+        let res = cks.decrypt_decode_padding(&ct_res);
+        assert_eq!(clear1 * clear2, res.carry_and_msg);
 
         println!("ADD:: clear1 = {clear1}, clear2 = {clear2}, mod = {modulus}");
         let ct_res = sks.unchecked_add(&ct1, &ct2);
-        assert_eq!((clear1 + clear2), cks.decrypt_message_and_carry(&ct_res));
+
+        let res = cks.decrypt_decode_padding(&ct_res);
+
+        assert_eq!((clear1 + clear2), res.carry_and_msg);
     }
 }
 
@@ -3183,17 +3186,11 @@ where
 
         println!("MUL SMALL CARRY:: clear1 = {clear1}, clear2 = {clear2}, msg_mod = {msg_modulus}, carry_mod = {carry_modulus}");
         let ct_res = sks.unchecked_mul_lsb_small_carry(&ct1, &ct2);
-        assert_eq!(
-            (clear1 * clear2) % msg_modulus,
-            cks.decrypt_message_and_carry(&ct_res) % msg_modulus
-        );
+        assert_eq!((clear1 * clear2) % msg_modulus, cks.decrypt(&ct_res));
 
         println!("ADD:: clear1 = {clear1}, clear2 = {clear2}, msg_mod = {msg_modulus}, carry_mod = {carry_modulus}");
         let ct_res = sks.unchecked_add(&ct1, &ct2);
-        assert_eq!(
-            (clear1 + clear2) % modulus,
-            cks.decrypt_message_and_carry(&ct_res) % modulus
-        );
+        assert_eq!((clear1 + clear2) % modulus, cks.decrypt(&ct_res));
     }
 }
 

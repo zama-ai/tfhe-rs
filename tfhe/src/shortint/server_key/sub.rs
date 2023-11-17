@@ -34,8 +34,7 @@ impl ServerKey {
     /// let ct_res = sks.sub(&mut ct_1, &ct_2);
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(clear_res % modulus, 2);
+    /// assert_eq!(clear_res, 2);
     /// ```
     pub fn sub(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
         let mut ct_res = ct_left.clone();
@@ -70,8 +69,7 @@ impl ServerKey {
     ///
     /// // Compute homomorphically a subtraction:
     /// sks.sub_assign(&mut ct_1, &ct_2);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
+    /// assert_eq!(cks.decrypt(&ct_1), 2);
     /// ```
     pub fn sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         let tmp_rhs: Ciphertext;
@@ -115,7 +113,6 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_sub(&ct_1, &ct_2);
     ///
     /// // Decrypt:
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(cks.decrypt(&ct_res), 2 - 1);
     /// ```
     pub fn unchecked_sub(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
@@ -148,8 +145,7 @@ impl ServerKey {
     /// sks.unchecked_sub_assign(&mut ct_1, &ct_2);
     ///
     /// // Decrypt:
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(cks.decrypt(&ct_1) % modulus, 1);
+    /// assert_eq!(cks.decrypt(&ct_1), 1);
     /// ```
     pub fn unchecked_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -212,9 +208,8 @@ impl ServerKey {
     /// let ct_res = sks.checked_sub(&ct_1, &ct_2);
     ///
     /// assert!(ct_res.is_ok());
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// let clear_res = cks.decrypt(&ct_res.unwrap());
-    /// assert_eq!(clear_res % modulus, 2);
+    /// assert_eq!(clear_res, 2);
     /// ```
     pub fn checked_sub(
         &self,
@@ -252,9 +247,8 @@ impl ServerKey {
     /// let res = sks.checked_sub_assign(&mut ct_1, &ct_2);
     ///
     /// assert!(res.is_ok());
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// let clear_res = cks.decrypt(&ct_1);
-    /// assert_eq!(clear_res % modulus, 2);
+    /// assert_eq!(clear_res, 2);
     /// ```
     pub fn checked_sub_assign(
         &self,
@@ -292,8 +286,7 @@ impl ServerKey {
     /// let ct_res = sks.smart_sub(&mut ct_1, &mut ct_2);
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(clear_res % modulus, 2);
+    /// assert_eq!(clear_res, 2);
     /// ```
     pub fn smart_sub(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| engine.smart_sub(self, ct_left, ct_right))
@@ -319,8 +312,7 @@ impl ServerKey {
     ///
     /// // Compute homomorphically a subtraction:
     /// sks.smart_sub_assign(&mut ct_1, &mut ct_2);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
+    /// assert_eq!(cks.decrypt(&ct_1), 2);
     /// ```
     pub fn smart_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {

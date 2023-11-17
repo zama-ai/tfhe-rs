@@ -265,9 +265,8 @@ impl ServerKey {
     /// assert!(ct_res.is_ok());
     ///
     /// let ct_res = ct_res.unwrap();
-    /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(clear_res % modulus, 2);
+    /// let clear_res = cks.decrypt(&ct_res);
+    /// assert_eq!(clear_res, 2);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -281,9 +280,8 @@ impl ServerKey {
     /// assert!(ct_res.is_ok());
     ///
     /// let ct_res = ct_res.unwrap();
-    /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(clear_res % modulus, 2);
+    /// let clear_res = cks.decrypt(&ct_res);
+    /// assert_eq!(clear_res, 2);
     /// ```
     pub fn checked_mul_lsb(
         &self,
@@ -327,9 +325,8 @@ impl ServerKey {
     ///
     /// assert!(ct_res.is_ok());
     ///
-    /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(clear_res % modulus, 2);
+    /// let clear_res = cks.decrypt(&ct_1);
+    /// assert_eq!(clear_res, 2);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -342,9 +339,8 @@ impl ServerKey {
     ///
     /// assert!(ct_res.is_ok());
     ///
-    /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(clear_res % modulus, 2);
+    /// let clear_res = cks.decrypt(&ct_1);
+    /// assert_eq!(clear_res, 2);
     /// ```
     pub fn checked_mul_lsb_assign(
         &self,
@@ -599,7 +595,7 @@ impl ServerKey {
     /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
+    /// assert_eq!(clear_res, (msg_1 * msg_2) % modulus);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -615,7 +611,7 @@ impl ServerKey {
     /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
+    /// assert_eq!(clear_res, (msg_1 * msg_2) % modulus);
     /// ```
     pub fn checked_mul_lsb_with_small_carry(
         &self,
@@ -829,7 +825,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_1);
     /// let modulus = sks.message_modulus.0 as u64;
-    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -843,7 +839,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_1);
     /// let modulus = sks.message_modulus.0 as u64;
-    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     /// ```
     pub fn mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         let tmp_rhs: Ciphertext;
@@ -909,7 +905,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_1);
     /// let modulus = sks.message_modulus.0 as u64;
-    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -923,7 +919,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_1);
     /// let modulus = sks.message_modulus.0 as u64;
-    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     /// ```
     pub fn mul_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         self.mul_lsb_assign(ct_left, ct_right)
@@ -1088,7 +1084,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_1);
     /// let modulus = sks.message_modulus.0 as u64;
-    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -1102,7 +1098,7 @@ impl ServerKey {
     ///
     /// let res = cks.decrypt(&ct_1);
     /// let modulus = sks.message_modulus.0 as u64;
-    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
+    /// assert_eq!(res, (msg1 * msg2) % modulus);
     /// ```
     pub fn smart_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {

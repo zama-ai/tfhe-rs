@@ -238,8 +238,8 @@ impl ClientKey {
     /// // |-------|---------|
     /// // |  0 1  |   1 1   |
     ///
-    /// let dec = cks.decrypt_message_and_carry(&ct);
-    /// assert_eq!(msg, dec);
+    /// let dec = cks.decrypt_decode_padding(&ct);
+    /// assert_eq!(msg, dec.carry_and_msg);
     /// ```
     pub fn unchecked_encrypt(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_encrypt(self, message))

@@ -391,8 +391,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(2, clear % modulus);
+    /// assert_eq!(2, clear);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -407,8 +406,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(2, clear % modulus);
+    /// assert_eq!(2, clear);
     /// ```
     pub fn smart_scalar_add(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_add(self, ct, scalar))
@@ -438,24 +436,24 @@ impl ServerKey {
     /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
     ///
-    /// // Compute homomorphically a scalar multiplication:
+    /// // Compute homomorphically a scalar addition:
     /// sks.smart_scalar_add_assign(&mut ct, scalar);
     ///
     /// // Our result is what we expect
-    /// let clear = cks.decrypt_message_and_carry(&ct);
-    /// assert_eq!(6, clear);
+    /// let clear = cks.decrypt_decode_padding(&ct);
+    /// assert_eq!(6, clear.carry_and_msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
     /// // Encrypt a message
     /// let mut ct = cks.encrypt(msg);
     ///
-    /// // Compute homomorphically a scalar multiplication:
+    /// // Compute homomorphically a scalar addition:
     /// sks.smart_scalar_add_assign(&mut ct, scalar);
     ///
     /// // Our result is what we expect
-    /// let clear = cks.decrypt_message_and_carry(&ct);
-    /// assert_eq!(6, clear);
+    /// let clear = cks.decrypt_decode_padding(&ct);
+    /// assert_eq!(6, clear.carry_and_msg);
     /// ```
     pub fn smart_scalar_add_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {

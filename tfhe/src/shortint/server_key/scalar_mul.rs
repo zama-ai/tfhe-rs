@@ -437,8 +437,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(3, clear % modulus);
+    /// assert_eq!(3, clear);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -453,8 +452,7 @@ impl ServerKey {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// assert_eq!(3, clear % modulus);
+    /// assert_eq!(3, clear);
     /// ```
     pub fn smart_scalar_mul(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_mul(self, ct, scalar))

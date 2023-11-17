@@ -241,10 +241,9 @@ impl ClientKey {
     where
         T: RecomposableFrom<u64> + UnsignedNumeric,
     {
-        self.decrypt_radix_impl(
-            &ctxt.blocks,
-            crate::shortint::ClientKey::decrypt_message_and_carry,
-        )
+        self.decrypt_radix_impl(&ctxt.blocks, |ck, ct| {
+            crate::shortint::ClientKey::decrypt_decode_padding(ck, ct).carry_and_msg
+        })
     }
 
     /// Decrypts a ciphertext encrypting an radix integer encrypted without padding
@@ -271,10 +270,9 @@ impl ClientKey {
     where
         T: RecomposableFrom<u64> + UnsignedNumeric,
     {
-        self.decrypt_radix_impl(
-            &ctxt.blocks,
-            crate::shortint::ClientKey::decrypt_message_and_carry_without_padding,
-        )
+        self.decrypt_radix_impl(&ctxt.blocks, |ck, ct| {
+            crate::shortint::ClientKey::decrypt_decode_without_padding(ck, ct).carry_and_msg
+        })
     }
 
     /// Decrypts a ciphertext in radix decomposition into 64bits
@@ -368,7 +366,9 @@ impl ClientKey {
     where
         T: RecomposableSignedInteger,
     {
-        self.decrypt_signed_radix_impl(ctxt, crate::shortint::ClientKey::decrypt_message_and_carry)
+        self.decrypt_signed_radix_impl(ctxt, |ck, ct| {
+            crate::shortint::ClientKey::decrypt_decode_padding(ck, ct).carry_and_msg
+        })
     }
 
     pub fn decrypt_signed_radix_impl<T, F>(
@@ -551,7 +551,7 @@ impl ClientKey {
         // Decrypting each block individually
         for (c_i, b_i) in ctxt.blocks.iter().zip(ctxt.moduli.iter()) {
             // decrypt the component i of the integer and multiply it by the radix product
-            val.push(self.key.decrypt_message_and_carry(c_i) % b_i);
+            val.push(self.key.decrypt_decode_padding(c_i).carry_and_msg % b_i);
         }
 
         // Computing the inverse CRT to recompose the message

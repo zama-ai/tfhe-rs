@@ -700,8 +700,8 @@ impl ServerKey {
     /// // |  0 0  |   1 0   |
     ///
     /// // Decrypt:
-    /// let res = cks.decrypt_message_and_carry(&ct);
-    /// assert_eq!(2, res);
+    /// let res = cks.decrypt_decode_padding(&ct);
+    /// assert_eq!(2, res.carry_and_msg);
     /// ```
     pub fn carry_extract_assign(&self, ct: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| engine.carry_extract_assign(self, ct))

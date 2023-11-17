@@ -146,7 +146,7 @@ impl ServerKey {
     /// let ct_res = sks.scalar_bitor(&ct1, msg2 as u8);
     ///
     /// // Decrypt:
-    /// let res: u64 = cks.decrypt(&ct_res);
+    /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(msg1 | msg2, res);
     /// ```
     pub fn scalar_bitor(&self, lhs: &Ciphertext, rhs: u8) -> Ciphertext {

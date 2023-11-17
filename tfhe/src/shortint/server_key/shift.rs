@@ -47,7 +47,6 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg >> shift, dec);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -69,7 +68,6 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn scalar_right_shift(&self, ct: &Ciphertext, shift: u8) -> Ciphertext {
@@ -117,7 +115,6 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg >> shift, dec);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -139,7 +136,6 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn scalar_right_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
@@ -179,7 +175,6 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg >> shift, dec);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -201,7 +196,6 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn unchecked_scalar_right_shift(&self, ct: &Ciphertext, shift: u8) -> Ciphertext {
@@ -240,7 +234,6 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg >> shift, dec);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
@@ -262,7 +255,6 @@ impl ServerKey {
     ///
     /// // Decrypt:
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn unchecked_scalar_right_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
@@ -309,10 +301,10 @@ impl ServerKey {
     /// // |  0 0  |   1 0   |
     ///
     /// // Decrypt:
-    /// let msg_only = cks.decrypt(&ct_res);
+    /// let res = cks.decrypt(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!((msg << shift) % modulus, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -331,10 +323,9 @@ impl ServerKey {
     /// // |  0 0  |   1 0   |
     ///
     /// // Decrypt:
-    /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let res = cks.decrypt(&ct_res);
     ///
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!((msg << shift) % modulus, res);
     /// ```
     pub fn scalar_left_shift(&self, ct: &Ciphertext, shift: u8) -> Ciphertext {
         let mut ct_res = ct.clone();
@@ -380,10 +371,10 @@ impl ServerKey {
     /// // |  0 0  |   1 0   |
     ///
     /// // Decrypt:
-    /// let msg_only = cks.decrypt(&ct);
+    /// let res = cks.decrypt(&ct);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!((msg << shift) % modulus, res);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -402,10 +393,9 @@ impl ServerKey {
     /// // |  0 0  |   1 0   |
     ///
     /// // Decrypt:
-    /// let msg_only = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let res = cks.decrypt(&ct);
     ///
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!((msg << shift) % modulus, res);
     /// ```
     pub fn scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         let modulus = self.message_modulus.0 as u64;
@@ -444,12 +434,11 @@ impl ServerKey {
     /// // |  0 1  |   0 0   |
     ///
     /// // Decrypt:
-    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
-    /// let msg_only = cks.decrypt(&ct_res);
+    /// let res = cks.decrypt_decode_padding(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// assert_eq!(msg << shift, msg_and_carry);
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!(msg << shift, res.carry_and_msg);
+    /// assert_eq!((msg << shift) % modulus, res.msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -469,12 +458,11 @@ impl ServerKey {
     /// // |  0 1  |   0 0   |
     ///
     /// // Decrypt:
-    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
-    /// let msg_only = cks.decrypt(&ct_res);
+    /// let res = cks.decrypt_decode_padding(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// assert_eq!(msg << shift, msg_and_carry);
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!(msg << shift, res.carry_and_msg);
+    /// assert_eq!((msg << shift) % modulus, res.msg);
     /// ```
     pub fn unchecked_scalar_left_shift(&self, ct: &Ciphertext, shift: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -511,12 +499,11 @@ impl ServerKey {
     /// // |  0 1  |   0 0   |
     ///
     /// // Decrypt:
-    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct);
-    /// let msg_only = cks.decrypt(&ct);
+    /// let res = cks.decrypt_decode_padding(&ct);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// assert_eq!(msg << shift, msg_and_carry);
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!(msg << shift, res.carry_and_msg);
+    /// assert_eq!((msg << shift) % modulus, res.msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -536,12 +523,10 @@ impl ServerKey {
     /// // |  0 1  |   0 0   |
     ///
     /// // Decrypt:
-    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct);
-    /// let msg_only = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let res = cks.decrypt_decode_padding(&ct);
     ///
-    /// assert_eq!(msg << shift, msg_and_carry);
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!(msg << shift, res.carry_and_msg);
+    /// assert_eq!((msg << shift) % modulus, res.msg);
     /// ```
     pub fn unchecked_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -628,12 +613,11 @@ impl ServerKey {
     /// // |  1 0  |   0 0   |
     ///
     /// // Decrypt:
-    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
-    /// let msg_only = cks.decrypt(&ct_res);
+    /// let res = cks.decrypt_decode_padding(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     ///
-    /// assert_eq!(msg << shift, msg_and_carry);
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!(msg << shift, res.carry_and_msg);
+    /// assert_eq!((msg << shift) % modulus, res.msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -659,12 +643,10 @@ impl ServerKey {
     /// // |  1 0  |   0 0   |
     ///
     /// // Decrypt:
-    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
-    /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let res = cks.decrypt_decode_padding(&ct_res);
     ///
-    /// assert_eq!(msg << shift, msg_and_carry);
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!(msg << shift, res.carry_and_msg);
+    /// assert_eq!((msg << shift) % modulus, res.msg);
     /// ```
     pub fn checked_scalar_left_shift(
         &self,
@@ -723,12 +705,10 @@ impl ServerKey {
     /// // |  0 1  |   0 0   |
     ///
     /// // Decrypt:
-    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
-    /// let msg_only = cks.decrypt(&ct_res);
+    /// let res = cks.decrypt_decode_padding(&ct_res);
     /// let modulus = cks.parameters.message_modulus().0 as u64;
-    ///
-    /// assert_eq!(msg << shift, msg_and_carry);
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!(msg << shift, res.carry_and_msg);
+    /// assert_eq!((msg << shift) % modulus, res.msg);
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -747,12 +727,10 @@ impl ServerKey {
     /// // |  0 1  |   0 0   |
     ///
     /// // Decrypt:
-    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
-    /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
+    /// let res = cks.decrypt_decode_padding(&ct_res);
     ///
-    /// assert_eq!(msg << shift, msg_and_carry);
-    /// assert_eq!((msg << shift) % modulus, msg_only);
+    /// assert_eq!(msg << shift, res.carry_and_msg);
+    /// assert_eq!((msg << shift) % modulus, res.msg);
     /// ```
     pub fn smart_scalar_left_shift(&self, ct: &mut Ciphertext, shift: u8) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {

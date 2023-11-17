@@ -126,8 +126,8 @@ impl CompressedPublicKey {
     /// // |-------|---------|
     /// // |  0 1  |   1 1   |
     ///
-    /// let dec = cks.decrypt_message_and_carry(&ct);
-    /// assert_eq!(msg, dec);
+    /// let dec = cks.decrypt_decode_padding(&ct);
+    /// assert_eq!(msg, dec.carry_and_msg);
     /// ```
     pub fn unchecked_encrypt(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -154,8 +154,8 @@ impl CompressedPublicKey {
     /// let msg = 6;
     /// let ct = pk.encrypt_without_padding(msg);
     ///
-    /// let dec = cks.decrypt_message_and_carry_without_padding(&ct);
-    /// assert_eq!(msg, dec);
+    /// let dec = cks.decrypt_decode_without_padding(&ct);
+    /// assert_eq!(msg, dec.carry_and_msg);
     /// ```
     pub fn encrypt_without_padding(&self, message: u64) -> Ciphertext {
         ShortintEngine::with_thread_local_mut(|engine| {

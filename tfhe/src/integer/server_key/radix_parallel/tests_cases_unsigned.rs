@@ -3408,15 +3408,15 @@ where
         // Manually check that each shortint block of the input
         // corresponds to what we want.
         let shortint_cks = &cks.as_ref().key;
-        let first_block = shortint_cks.decrypt_message_and_carry(&ct.blocks[0]);
-        let first_block_msg = first_block % block_msg_mod;
-        let first_block_carry = first_block / block_msg_mod;
+        let first_block = shortint_cks.decrypt_decode_padding(&ct.blocks[0]);
+        let first_block_msg = first_block.msg;
+        let first_block_carry = first_block.carry;
         assert_eq!(first_block_msg, (block_msg_mod - 1 + msg) % block_msg_mod);
         assert_eq!(first_block_carry, (block_msg_mod - 1 + msg) / block_msg_mod);
         for b in &ct.blocks[1..] {
-            let block = shortint_cks.decrypt_message_and_carry(b);
-            let msg = block % block_msg_mod;
-            let carry = block / block_msg_mod;
+            let block = shortint_cks.decrypt_decode_padding(b);
+            let msg = block.msg;
+            let carry = block.carry;
             assert_eq!(msg, block_msg_mod - 1);
             assert_eq!(carry, 0);
         }
@@ -3439,11 +3439,11 @@ where
         // Manually check each shortint block of the output
         let shortint_cks = &cks.as_ref().key;
         assert_eq!(
-            shortint_cks.decrypt_message_and_carry(&ct.blocks[0]),
+            shortint_cks.decrypt(&ct.blocks[0]),
             (block_msg_mod - 1 + msg) % block_msg_mod
         );
         for b in &ct.blocks[1..] {
-            assert_eq!(shortint_cks.decrypt_message_and_carry(b), 0);
+            assert_eq!(shortint_cks.decrypt(b), 0);
         }
     }
 
@@ -3501,9 +3501,9 @@ where
             .take(cks.num_blocks());
         let shortint_cks = &cks.as_ref().key;
         for (block, expected_msg) in ct.blocks.iter().zip(expected_block_iter) {
-            let block = shortint_cks.decrypt_message_and_carry(block);
-            let msg = block % block_msg_mod;
-            let carry = block / block_msg_mod;
+            let block = shortint_cks.decrypt_decode_padding(block);
+            let msg = block.msg;
+            let carry = block.carry;
 
             assert_eq!(msg, expected_msg);
             assert_eq!(carry, 0);
@@ -3544,9 +3544,9 @@ where
         expected_blocks[absorber_block_index] = 0;
 
         for (block, expected_block) in ct.blocks.iter().zip(expected_blocks) {
-            let block = shortint_cks.decrypt_message_and_carry(block);
-            let msg = block % block_msg_mod;
-            let carry = block / block_msg_mod;
+            let block = shortint_cks.decrypt_decode_padding(block);
+            let msg = block.msg;
+            let carry = block.carry;
 
             let expected_msg = expected_block % block_msg_mod;
             let expected_carry = expected_block / block_msg_mod;
@@ -3597,9 +3597,9 @@ where
                 .take(cks.num_blocks());
         let shortint_cks = &cks.as_ref().key;
         for (block, expected_msg) in ct.blocks.iter().zip(expected_block_iter) {
-            let block = shortint_cks.decrypt_message_and_carry(block);
-            let msg = block % block_msg_mod;
-            let carry = block / block_msg_mod;
+            let block = shortint_cks.decrypt_decode_padding(block);
+            let msg = block.msg;
+            let carry = block.carry;
 
             assert_eq!(msg, expected_msg);
             assert_eq!(carry, 0);
