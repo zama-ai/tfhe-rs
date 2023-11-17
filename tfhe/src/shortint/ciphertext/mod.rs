@@ -23,8 +23,8 @@ impl NoiseLevel {
     // To force a refresh no matter the tolerance of the server key, useful for serialization update
     // for formats which did not have noise levels saved
     pub const MAX: Self = Self(usize::MAX);
-    // As a safety measure the unknwon noise level is set to the max value
-    pub const UNKOWN: Self = Self::MAX;
+    // As a safety measure the unknown noise level is set to the max value
+    pub const UNKNOWN: Self = Self::MAX;
 }
 
 impl std::ops::AddAssign for NoiseLevel {
@@ -478,7 +478,7 @@ mod tests {
 
         let mut rng = thread_rng();
 
-        assert_eq!(NoiseLevel::UNKOWN, NoiseLevel::MAX);
+        assert_eq!(NoiseLevel::UNKNOWN, NoiseLevel::MAX);
 
         let max_noise_level = NoiseLevel::MAX;
         let random_addend = rng.gen::<usize>();
