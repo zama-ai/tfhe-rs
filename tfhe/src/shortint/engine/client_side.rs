@@ -9,6 +9,21 @@ use crate::shortint::{
     Ciphertext, ClientKey, CompressedCiphertext, PBSOrder, ShortintParameterSet,
 };
 
+#[derive(Copy, Clone, Debug)]
+pub struct DecodedWithPadding {
+    pub padding_bit: bool,
+    pub carry: u64,
+    pub msg: u64,
+    pub carry_and_msg: u64,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct DecodedNoPadding {
+    pub carry: u64,
+    pub msg: u64,
+    pub carry_and_msg: u64,
+}
+
 impl ShortintEngine {
     pub fn new_client_key(&mut self, parameters: ShortintParameterSet) -> ClientKey {
         // generate the lwe secret key
@@ -270,20 +285,25 @@ impl ShortintEngine {
         )
     }
 
-    pub(crate) fn decrypt_message_and_carry(
+    pub(crate) fn decrypt_no_decode(
         &mut self,
         client_key: &ClientKey,
         ct: &Ciphertext,
-    ) -> u64 {
+    ) -> Plaintext<u64> {
         let lwe_decryption_key = match ct.pbs_order {
             PBSOrder::KeyswitchBootstrap => &client_key.large_lwe_secret_key,
             PBSOrder::BootstrapKeyswitch => &client_key.small_lwe_secret_key,
         };
 
-        // decryption
-        let decrypted_encoded = decrypt_lwe_ciphertext(lwe_decryption_key, &ct.ct);
+        decrypt_lwe_ciphertext(lwe_decryption_key, &ct.ct)
+    }
 
-        let decrypted_u64: u64 = decrypted_encoded.0;
+    pub fn decrypt_decode_padding(
+        &mut self,
+        client_key: &ClientKey,
+        ct: &Ciphertext,
+    ) -> DecodedWithPadding {
+        let decrypted = self.decrypt_no_decode(client_key, ct).0;
 
         let delta = (1_u64 << 63)
             / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
@@ -292,14 +312,26 @@ impl ShortintEngine {
         //The bit before the message
         let rounding_bit = delta >> 1;
 
-        //compute the rounding bit
-        let rounding = (decrypted_u64 & rounding_bit) << 1;
+        let decoded = decrypted.wrapping_add(rounding_bit) / delta;
 
-        (decrypted_u64.wrapping_add(rounding)) / delta
-    }
+        let padding_bit = match decoded / (ct.carry_modulus.0 * ct.message_modulus.0) as u64 {
+            0 => false,
+            1 => true,
+            _ => unreachable!(),
+        };
 
-    pub fn decrypt(&mut self, client_key: &ClientKey, ct: &Ciphertext) -> u64 {
-        self.decrypt_message_and_carry(client_key, ct) % ct.message_modulus.0 as u64
+        let carry_and_msg = decoded % (ct.message_modulus.0 as u64 * ct.carry_modulus.0 as u64);
+
+        let carry = carry_and_msg / ct.message_modulus.0 as u64;
+
+        let msg = carry_and_msg % ct.message_modulus.0 as u64;
+
+        DecodedWithPadding {
+            padding_bit,
+            carry,
+            msg,
+            carry_and_msg,
+        }
     }
 
     pub(crate) fn encrypt_without_padding(
@@ -394,41 +426,34 @@ impl ShortintEngine {
         }
     }
 
-    pub(crate) fn decrypt_message_and_carry_without_padding(
+    pub(crate) fn decrypt_decode_without_padding(
         &mut self,
         client_key: &ClientKey,
         ct: &Ciphertext,
-    ) -> u64 {
-        let lwe_decryption_key = match ct.pbs_order {
-            PBSOrder::KeyswitchBootstrap => &client_key.large_lwe_secret_key,
-            PBSOrder::BootstrapKeyswitch => &client_key.small_lwe_secret_key,
-        };
+    ) -> DecodedNoPadding {
+        let decrypted = self.decrypt_no_decode(client_key, ct).0;
 
-        // decryption
-        let decrypted_encoded = decrypt_lwe_ciphertext(lwe_decryption_key, &ct.ct);
-
-        let decrypted_u64: u64 = decrypted_encoded.0;
-
-        let delta = ((1_u64 << 63)
+        let delta = (1_u64 << 63)
             / (client_key.parameters.message_modulus().0 * client_key.parameters.carry_modulus().0)
-                as u64)
+                as u64
             * 2;
 
         //The bit before the message
         let rounding_bit = delta >> 1;
 
-        //compute the rounding bit
-        let rounding = (decrypted_u64 & rounding_bit) << 1;
+        let decoded = decrypted.wrapping_add(rounding_bit) / delta;
 
-        (decrypted_u64.wrapping_add(rounding)) / delta
-    }
+        let carry_and_msg = decoded % (ct.message_modulus.0 as u64 * ct.carry_modulus.0 as u64);
 
-    pub(crate) fn decrypt_without_padding(
-        &mut self,
-        client_key: &ClientKey,
-        ct: &Ciphertext,
-    ) -> u64 {
-        self.decrypt_message_and_carry_without_padding(client_key, ct) % ct.message_modulus.0 as u64
+        let carry = carry_and_msg / ct.message_modulus.0 as u64;
+
+        let msg = carry_and_msg % ct.message_modulus.0 as u64;
+
+        DecodedNoPadding {
+            carry,
+            msg,
+            carry_and_msg,
+        }
     }
 
     pub(crate) fn encrypt_native_crt(

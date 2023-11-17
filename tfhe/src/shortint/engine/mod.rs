@@ -15,6 +15,8 @@ use crate::shortint::ServerKey;
 use std::cell::RefCell;
 use std::fmt::Debug;
 
+pub use client_side::{DecodedNoPadding, DecodedWithPadding};
+
 mod client_side;
 mod public_side;
 mod server_side;
