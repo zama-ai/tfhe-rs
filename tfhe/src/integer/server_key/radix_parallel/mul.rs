@@ -352,7 +352,7 @@ impl ServerKey {
             .key
             .generate_lookup_table_bivariate(|x, y| (x * y) / message_modulus as u64);
 
-        let all_shifted_lhs = rhs
+        let message_part_terms_generator = rhs
             .blocks()
             .par_iter()
             .enumerate()
@@ -371,34 +371,42 @@ impl ServerKey {
                     });
 
                 result
-            })
-            .chain(
-                rhs.blocks()
-                    .par_iter()
-                    .enumerate()
-                    .filter(|(_, block)| block.degree.0 != 0)
-                    .map(|(i, rhs_block)| {
-                        // Here we are doing (a * b) / modulus
-                        // that is, getting the carry part of the block multiplication
-                        // so the shift is one block longer
-                        let mut result = self.blockshift(lhs, i + 1);
-                        result.blocks_mut()[i + 1..]
-                            .par_iter_mut()
-                            .filter(|block| block.degree.0 != 0)
-                            .for_each(|lhs_block| {
-                                self.key.unchecked_apply_lookup_table_bivariate_assign(
-                                    lhs_block,
-                                    rhs_block,
-                                    &msb_block_mul_lut,
-                                )
-                            });
+            });
 
-                        result
-                    }),
-            )
-            .collect::<Vec<_>>();
+        let terms = if self.message_modulus().0 > 2 {
+            // Multiplying 2 blocks generates some part this is in the carry
+            // we have to compute them.
+            message_part_terms_generator
+                .chain(
+                    rhs.blocks()
+                        .par_iter()
+                        .enumerate()
+                        .filter(|(_, block)| block.degree.0 != 0)
+                        .map(|(i, rhs_block)| {
+                            // Here we are doing (a * b) / modulus
+                            // that is, getting the carry part of the block multiplication
+                            // so the shift is one block longer
+                            let mut result = self.blockshift(lhs, i + 1);
+                            result.blocks_mut()[i + 1..]
+                                .par_iter_mut()
+                                .filter(|block| block.degree.0 != 0)
+                                .for_each(|lhs_block| {
+                                    self.key.unchecked_apply_lookup_table_bivariate_assign(
+                                        lhs_block,
+                                        rhs_block,
+                                        &msb_block_mul_lut,
+                                    )
+                                });
 
-        if let Some(result) = self.unchecked_sum_ciphertexts_vec_parallelized(all_shifted_lhs) {
+                            result
+                        }),
+                )
+                .collect::<Vec<_>>()
+        } else {
+            message_part_terms_generator.collect::<Vec<_>>()
+        };
+
+        if let Some(result) = self.unchecked_sum_ciphertexts_vec_parallelized(terms) {
             *lhs = result;
         } else {
             self.create_trivial_zero_assign_radix(lhs);
