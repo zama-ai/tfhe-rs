@@ -225,13 +225,6 @@ clippy_js_wasm_api clippy_tasks clippy_core clippy_concrete_csprng clippy_triviu
 clippy_fast: clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core \
 clippy_concrete_csprng
 
-.PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
-gen_key_cache: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
-		--example generates_test_keys \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache -- \
-		$(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
-
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
@@ -317,6 +310,21 @@ test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 			--features=$(TARGET_ARCH_FEATURE),experimental,$(AVX512_FEATURE) -p $(TFHE_SPEC) -- core_crypto::; \
+	fi
+
+.PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
+test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain install_tarpaulin
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+		--out xml --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
+		--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
+		--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,__coverage \
+		-p tfhe -- core_crypto::
+	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
+			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
+			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
+			--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,__coverage,$(AVX512_FEATURE) \
+			-p tfhe -- core_crypto::; \
 	fi
 
 .PHONY: test_boolean # Run the tests of the boolean module
@@ -627,6 +635,18 @@ ci_bench_web_js_api_parallel: build_web_js_api_parallel
 #
 # Utility tools
 #
+.PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
+gen_key_cache: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+		--example generates_test_keys \
+		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache -- \
+		$(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
+
+.PHONY: gen_key_cache_core_crypto # Run function to generate keys and cache them for core_crypto tests
+gen_key_cache_core_crypto: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --tests --profile $(CARGO_PROFILE) \
+		--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache -p tfhe -- --nocapture \
+		core_crypto::keycache::generate_keys
 
 .PHONY: measure_hlapi_compact_pk_ct_sizes # Measure sizes of public keys and ciphertext for high-level API
 measure_hlapi_compact_pk_ct_sizes: install_rs_check_toolchain

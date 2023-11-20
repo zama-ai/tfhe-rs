@@ -892,4 +892,4 @@ pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
 }
 
 #[cfg(test)]
-mod tests;
+pub mod tests;

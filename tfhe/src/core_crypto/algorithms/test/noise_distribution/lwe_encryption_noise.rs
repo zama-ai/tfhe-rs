@@ -9,7 +9,7 @@ use crate::core_crypto::commons::test_tools::{
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + CastInto<usize>>(
-    params: TestParams<Scalar>,
+    params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
@@ -109,7 +109,7 @@ fn test_variance_increase_cpk_formula() {
 fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
     Scalar: UnsignedTorus + CastInto<usize>,
 >(
-    params: TestParams<Scalar>,
+    params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = LweDimension(params.polynomial_size.0);
     let glwe_modular_std_dev = params.glwe_modular_std_dev;
@@ -194,7 +194,9 @@ create_parametrized_test!(lwe_compact_public_encrypt_noise_distribution_custom_m
     TEST_PARAMS_4_BITS_NATIVE_U64
 });
 
-fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(params: TestParams<Scalar>) {
+fn random_noise_roundtrip<Scalar: UnsignedTorus + CastInto<usize>>(
+    params: ClassicTestParams<Scalar>,
+) {
     let mut rsc = TestResources::new();
     let noise = params.glwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;

@@ -1,20 +1,64 @@
 use super::*;
+use crate::core_crypto::keycache::KeyCacheAccess;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
-fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
-    let lwe_dimension = params.lwe_dimension;
+#[cfg(not(feature = "__coverage"))]
+const NB_TESTS: usize = 10;
+#[cfg(feature = "__coverage")]
+const NB_TESTS: usize = 1;
+
+fn generate_keys<Scalar: UnsignedTorus + Sync + Send + Serialize + DeserializeOwned>(
+    params: PackingKeySwitchTestParams<Scalar>,
+    rsc: &mut TestResources,
+) -> PackingKeySwitchKeys<Scalar> {
+    let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
+        params.lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
+
+    let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+        params.glwe_dimension,
+        params.polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+
+    let pksk = allocate_and_generate_new_lwe_packing_keyswitch_key(
+        &lwe_sk,
+        &glwe_sk,
+        params.pbs_base_log,
+        params.pbs_level,
+        params.glwe_modular_std_dev,
+        params.ciphertext_modulus,
+        &mut rsc.encryption_random_generator,
+    );
+
+    assert!(check_encrypted_content_respects_mod(
+        &pksk,
+        params.ciphertext_modulus
+    ));
+
+    PackingKeySwitchKeys {
+        lwe_sk,
+        glwe_sk,
+        pksk,
+    }
+}
+fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar, P>(params: P)
+where
+    Scalar: UnsignedTorus + Serialize + DeserializeOwned,
+    P: Into<PackingKeySwitchTestParams<Scalar>>,
+    PackingKeySwitchTestParams<Scalar>: KeyCacheAccess<Keys = PackingKeySwitchKeys<Scalar>>,
+{
+    let params = params.into();
+
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
-    let glwe_dimension = params.glwe_dimension;
-    let polynomial_size = params.polynomial_size;
-    let decomp_base_log = params.pbs_base_log;
-    let decomp_level_count = params.pbs_level;
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -22,31 +66,9 @@ fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Tes
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
         for _ in 0..NB_TESTS {
-            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
-                lwe_dimension,
-                &mut rsc.secret_random_generator,
-            );
-
-            let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
-                glwe_dimension,
-                polynomial_size,
-                &mut rsc.secret_random_generator,
-            );
-
-            let pksk = allocate_and_generate_new_lwe_packing_keyswitch_key(
-                &lwe_sk,
-                &glwe_sk,
-                decomp_base_log,
-                decomp_level_count,
-                glwe_modular_std_dev,
-                ciphertext_modulus,
-                &mut rsc.encryption_random_generator,
-            );
-
-            assert!(check_encrypted_content_respects_mod(
-                &pksk,
-                ciphertext_modulus
-            ));
+            let mut keys_gen = |params| generate_keys(params, &mut rsc);
+            let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+            let (pksk, lwe_sk, glwe_sk) = (keys.pksk, keys.lwe_sk, keys.glwe_sk);
 
             let plaintext = Plaintext(msg * delta);
 
@@ -86,29 +108,31 @@ fn lwe_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus>(params: Tes
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_encrypt_pks_to_glwe_decrypt_custom_mod);
 
-fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
-    params: TestParams<Scalar>,
-) {
-    let lwe_dimension = params.lwe_dimension;
+fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar, P>(params: P)
+where
+    Scalar: UnsignedTorus + Serialize + DeserializeOwned,
+    P: Into<PackingKeySwitchTestParams<Scalar>>,
+    PackingKeySwitchTestParams<Scalar>: KeyCacheAccess<Keys = PackingKeySwitchKeys<Scalar>>,
+{
+    let params = params.into();
+
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
-    let glwe_dimension = params.glwe_dimension;
-    let polynomial_size = params.polynomial_size;
-    let decomp_base_log = params.pbs_base_log;
-    let decomp_level_count = params.pbs_level;
 
     let mut rsc = TestResources::new();
 
-    // These tests are pretty heavy, cut down a bit
-    const NB_TESTS: usize = 5;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -116,31 +140,9 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
         for _ in 0..NB_TESTS {
-            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
-                lwe_dimension,
-                &mut rsc.secret_random_generator,
-            );
-
-            let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
-                glwe_dimension,
-                polynomial_size,
-                &mut rsc.secret_random_generator,
-            );
-
-            let pksk = allocate_and_generate_new_lwe_packing_keyswitch_key(
-                &lwe_sk,
-                &glwe_sk,
-                decomp_base_log,
-                decomp_level_count,
-                glwe_modular_std_dev,
-                ciphertext_modulus,
-                &mut rsc.encryption_random_generator,
-            );
-
-            assert!(check_encrypted_content_respects_mod(
-                &pksk,
-                ciphertext_modulus
-            ));
+            let mut keys_gen = |params| generate_keys(params, &mut rsc);
+            let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+            let (pksk, lwe_sk, glwe_sk) = (keys.pksk, keys.lwe_sk, keys.glwe_sk);
 
             let mut input_lwe_list = LweCiphertextList::new(
                 Scalar::ZERO,
@@ -212,6 +214,11 @@ fn lwe_list_encrypt_pks_to_glwe_decrypt_custom_mod<Scalar: UnsignedTorus + Send 
 
             assert_eq!(decrypted_plaintext_list, input_plaintext_list);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 

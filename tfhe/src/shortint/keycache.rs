@@ -392,15 +392,6 @@ where
     }
 }
 
-impl From<WopbsParamPair> for WopbsKey {
-    fn from(params: WopbsParamPair) -> Self {
-        // use with_key to avoid doing a temporary cloning
-        KEY_CACHE.inner.with_key(params.0, |keys| {
-            Self::new_wopbs_key(&keys.0, &keys.1, &params.1)
-        })
-    }
-}
-
 impl NamedParam for WopbsParamPair {
     fn name(&self) -> String {
         self.1.name()
@@ -427,7 +418,9 @@ impl KeycacheWopbsV0 {
     pub fn get_from_param<T: Into<WopbsParamPair>>(&self, params: T) -> SharedWopbsKey {
         let params = params.into();
         let key = KEY_CACHE.get_from_param(params.0);
-        let wk = self.inner.get(params);
+        let wk = self.inner.get_with_closure(params, &mut |_| {
+            WopbsKey::new_wopbs_key(&key.inner.0, &key.inner.1, &params.1)
+        });
         SharedWopbsKey {
             inner: key.inner,
             wopbs: wk,
@@ -452,17 +445,6 @@ where
 {
     fn from(tuple: (P, P, ShortintKeySwitchingParameters)) -> Self {
         Self(tuple.0.into(), tuple.1.into(), tuple.2)
-    }
-}
-
-impl From<KeySwitchingKeyParams> for KeySwitchingKey {
-    fn from(params: KeySwitchingKeyParams) -> Self {
-        // use with_key to avoid doing a temporary cloning
-        KEY_CACHE.inner.with_key(params.0, |keys_1| {
-            KEY_CACHE.inner.with_key(params.1, |keys_2| {
-                Self::new((&keys_1.0, &keys_1.1), (&keys_2.0, &keys_2.1), params.2)
-            })
-        })
     }
 }
 
@@ -496,7 +478,13 @@ impl KeycacheKeySwitchingKey {
         let params = params.into();
         let key_1 = KEY_CACHE.get_from_param(params.0);
         let key_2 = KEY_CACHE.get_from_param(params.1);
-        let ksk = self.inner.get(params);
+        let ksk = self.inner.get_with_closure(params, &mut |_| {
+            KeySwitchingKey::new(
+                (key_1.client_key(), key_1.server_key()),
+                (key_2.client_key(), key_2.server_key()),
+                params.2,
+            )
+        });
         SharedKeySwitchingKey {
             inner_1: key_1.inner,
             inner_2: key_2.inner,

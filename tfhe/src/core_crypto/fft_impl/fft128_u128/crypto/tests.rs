@@ -2,23 +2,23 @@ use dyn_stack::{GlobalPodBuffer, PodStack, ReborrowMut};
 
 use super::super::super::{fft128, fft128_u128};
 use super::super::math::fft::{Fft128, Fft128View};
+use crate::core_crypto::fft_impl::common::tests::{
+    gen_keys_or_get_from_cache_if_enabled, generate_keys,
+};
+use crate::core_crypto::prelude::test::{TestResources, FFT128_U128_PARAMS};
 use crate::core_crypto::prelude::*;
 use aligned_vec::CACHELINE_ALIGN;
 
-fn sqr(x: f64) -> f64 {
-    x * x
-}
-
 #[test]
 fn test_split_external_product() {
-    let small_lwe_dimension = LweDimension(742);
-    let glwe_dimension = GlweDimension(1);
-    let polynomial_size = PolynomialSize(2048);
-    let pbs_base_log = DecompositionBaseLog(23);
-    let pbs_level = DecompositionLevelCount(1);
-    let glwe_modular_std_dev = StandardDev(sqr(0.00000000000000029403601535432533));
-    let ciphertext_modulus = CiphertextModulus::<u128>::new_native();
+    let params = FFT128_U128_PARAMS;
+
+    let glwe_dimension = params.glwe_dimension;
+    let polynomial_size = params.polynomial_size;
+    let ciphertext_modulus = params.ciphertext_modulus;
     let ciphertext_modulus_split = CiphertextModulus::<u64>::new_native();
+
+    let mut rsc = TestResources::new();
 
     let mut glwe = GlweCiphertext::new(
         0u128,
@@ -31,27 +31,9 @@ fn test_split_external_product() {
         *x = rand::random();
     }
 
-    let mut boxed_seeder = new_seeder();
-    let seeder = boxed_seeder.as_mut();
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-    let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-
-    let small_lwe_sk =
-        LweSecretKey::generate_new_binary(small_lwe_dimension, &mut secret_generator);
-    let glwe_sk =
-        GlweSecretKey::generate_new_binary(glwe_dimension, polynomial_size, &mut secret_generator);
-
-    let std_bootstrapping_key = par_allocate_and_generate_new_lwe_bootstrap_key(
-        &small_lwe_sk,
-        &glwe_sk,
-        pbs_base_log,
-        pbs_level,
-        glwe_modular_std_dev,
-        ciphertext_modulus,
-        &mut encryption_generator,
-    );
+    let mut keys_gen = |params| generate_keys(params, &mut rsc);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let std_bootstrapping_key = keys.bsk;
 
     let mut fourier_bsk = Fourier128LweBootstrapKey::new(
         std_bootstrapping_key.input_lwe_dimension(),
@@ -154,35 +136,18 @@ fn test_split_external_product() {
 
 #[test]
 fn test_split_pbs() {
-    let small_lwe_dimension = LweDimension(742);
-    let glwe_dimension = GlweDimension(1);
-    let polynomial_size = PolynomialSize(2048);
-    let pbs_base_log = DecompositionBaseLog(23);
-    let pbs_level = DecompositionLevelCount(1);
-    let glwe_modular_std_dev = StandardDev(sqr(0.00000000000000029403601535432533));
-    let ciphertext_modulus = CiphertextModulus::<u128>::new_native();
+    let params = FFT128_U128_PARAMS;
 
-    let mut boxed_seeder = new_seeder();
-    let seeder = boxed_seeder.as_mut();
-    let mut secret_generator =
-        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-    let mut encryption_generator =
-        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let small_lwe_dimension = params.lwe_dimension;
+    let glwe_dimension = params.glwe_dimension;
+    let polynomial_size = params.polynomial_size;
+    let ciphertext_modulus = params.ciphertext_modulus;
 
-    let small_lwe_sk =
-        LweSecretKey::generate_new_binary(small_lwe_dimension, &mut secret_generator);
-    let glwe_sk =
-        GlweSecretKey::generate_new_binary(glwe_dimension, polynomial_size, &mut secret_generator);
+    let mut rsc = TestResources::new();
 
-    let std_bootstrapping_key = par_allocate_and_generate_new_lwe_bootstrap_key(
-        &small_lwe_sk,
-        &glwe_sk,
-        pbs_base_log,
-        pbs_level,
-        glwe_modular_std_dev,
-        ciphertext_modulus,
-        &mut encryption_generator,
-    );
+    let mut keys_gen = |params| generate_keys(params, &mut rsc);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let std_bootstrapping_key = keys.bsk;
 
     let mut fourier_bsk = Fourier128LweBootstrapKey::new(
         std_bootstrapping_key.input_lwe_dimension(),

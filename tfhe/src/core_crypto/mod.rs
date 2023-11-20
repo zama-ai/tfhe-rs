@@ -17,3 +17,6 @@ pub mod prelude;
 pub mod seeders;
 
 pub mod fft_impl;
+
+#[cfg(test)]
+pub mod keycache;

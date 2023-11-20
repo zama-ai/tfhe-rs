@@ -2,8 +2,13 @@ use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::test_tools;
 
+#[cfg(not(feature = "__coverage"))]
+const NB_TESTS: usize = 10;
+#[cfg(feature = "__coverage")]
+const NB_TESTS: usize = 1;
+
 fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + Sync + Send>(
-    params: TestParams<Scalar>,
+    params: ClassicTestParams<Scalar>,
 ) {
     // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
     // computations
@@ -20,8 +25,6 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedToru
 
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-
-    const NB_TESTS: usize = 10;
 
     for _ in 0..NB_TESTS {
         // Create the LweSecretKey
@@ -148,7 +151,7 @@ fn test_parallel_and_seeded_lwe_list_encryption_equivalence_non_native_power_of_
     test_parallel_and_seeded_lwe_list_encryption_equivalence(DUMMY_31_U32);
 }
 
-fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
+fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -157,7 +160,6 @@ fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scal
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -197,12 +199,19 @@ fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scal
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_encrypt_decrypt_custom_mod);
 
-fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
+fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
+    params: ClassicTestParams<Scalar>,
+) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -211,7 +220,6 @@ fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPa
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -245,12 +253,19 @@ fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPa
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_allocate_encrypt_decrypt_custom_mod);
 
-fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
+fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
+    params: ClassicTestParams<Scalar>,
+) {
     let lwe_dimension = params.lwe_dimension;
     let ciphertext_modulus = params.ciphertext_modulus;
     let message_modulus_log = params.message_modulus_log;
@@ -258,7 +273,6 @@ fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPar
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -292,12 +306,17 @@ fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPar
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 create_parametrized_test!(lwe_trivial_encrypt_decrypt_custom_mod);
 
 fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
-    params: TestParams<Scalar>,
+    params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -306,7 +325,6 @@ fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -338,12 +356,17 @@ fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_allocate_trivial_encrypt_decrypt_custom_mod);
 
-fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
+fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -353,7 +376,6 @@ fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -403,13 +425,18 @@ fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams
 
             assert!(decoded.iter().all(|&x| x == msg));
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_list_encrypt_decrypt_custom_mod);
 
 fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
-    params: TestParams<Scalar>,
+    params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
@@ -420,7 +447,6 @@ fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -470,12 +496,17 @@ fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
 
             assert!(decoded.iter().all(|&x| x == msg));
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_list_par_encrypt_decrypt_custom_mod);
 
-fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
+fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -485,7 +516,6 @@ fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPara
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -532,12 +562,19 @@ fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPara
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_public_encrypt_decrypt_custom_mod);
 
-fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
+fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
+    params: ClassicTestParams<Scalar>,
+) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -547,7 +584,6 @@ fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: T
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -601,13 +637,18 @@ fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: T
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_seeded_public_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
-    params: TestParams<Scalar>,
+    params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
@@ -618,7 +659,6 @@ fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync +
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -680,12 +720,17 @@ fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync +
 
             assert!(decoded.iter().all(|&x| x == msg));
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_seeded_list_par_encrypt_decrypt_custom_mod);
 
-fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestParams<Scalar>) {
+fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestParams<Scalar>) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -694,7 +739,6 @@ fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPara
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -742,13 +786,18 @@ fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: TestPara
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
 create_parametrized_test!(lwe_seeded_encrypt_decrypt_custom_mod);
 
 fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
-    params: TestParams<Scalar>,
+    params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = params.lwe_dimension;
     let lwe_modular_std_dev = params.lwe_modular_std_dev;
@@ -758,7 +807,6 @@ fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -799,6 +847,11 @@ fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 
@@ -820,7 +873,6 @@ fn test_u128_encryption() {
     let mut secret_generator =
         SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
 
-    const NB_TESTS: usize = 10;
     const MSG_BITS: u32 = 4;
 
     for _ in 0..NB_TESTS {
@@ -870,7 +922,7 @@ fn test_u128_encryption() {
 }
 
 fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
-    params: TestParams<Scalar>,
+    params: ClassicTestParams<Scalar>,
 ) {
     let lwe_dimension = LweDimension(params.polynomial_size.0);
     let glwe_modular_std_dev = params.glwe_modular_std_dev;
@@ -880,7 +932,6 @@ fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 10;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -929,6 +980,11 @@ fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(msg, decoded);
         }
+
+        // In coverage, we break after one while loop iteration, changing message values does not
+        // yield higher coverage
+        #[cfg(feature = "__coverage")]
+        break;
     }
 }
 

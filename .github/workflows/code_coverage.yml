@@ -38,6 +38,7 @@ jobs:
       group: ${{ github.workflow }}_${{ github.ref }}_${{ inputs.instance_image_id }}_${{ inputs.instance_type }}
       cancel-in-progress: true
     runs-on: ${{ inputs.runner_name }}
+    timeout-minutes: 1080
     steps:
       # Step used for log purpose.
       - name: Instance configuration used
@@ -79,6 +80,12 @@ jobs:
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make GEN_KEY_CACHE_COVERAGE_ONLY=TRUE gen_key_cache
+          make gen_key_cache_core_crypto
+
+      - name: Run coverage for core_crypto
+        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+        run: |
+          make test_core_crypto_cov AVX512_SUPPORT=ON
 
       - name: Run coverage for boolean
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'
@@ -97,7 +104,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/
           fail_ci_if_error: true
-          files: shortint/cobertura.xml,boolean/cobertura.xml
+          files: shortint/cobertura.xml,boolean/cobertura.xml,core_crypto/cobertura.xml,core_crypto_avx512/cobertura.xml
 
       - name: Slack Notification
         if: ${{ failure() }}
