@@ -500,4 +500,16 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
             .zip(rayon::iter::repeatn(meta, entity_count))
             .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
     }
+
+    fn rotate_left(&mut self, count: usize) {
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let pod_rotation = entity_view_pod_size * count;
+        self.as_mut().rotate_left(pod_rotation);
+    }
+
+    fn rotate_right(&mut self, count: usize) {
+        let entity_view_pod_size = self.get_entity_view_pod_size();
+        let pod_rotation = entity_view_pod_size * count;
+        self.as_mut().rotate_right(pod_rotation);
+    }
 }

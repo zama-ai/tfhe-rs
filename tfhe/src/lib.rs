@@ -32,8 +32,8 @@
 #![allow(clippy::bool_to_int_with_if)] // 6
 #![allow(clippy::unsafe_derive_deserialize)] // 1
 #![allow(clippy::cast_possible_wrap)]
+#![allow(deprecated)]
 // 1
-
 // These pedantic lints are deemed to bring too little value therefore they are allowed (which are
 // their natural state anyways, being pedantic lints)
 
