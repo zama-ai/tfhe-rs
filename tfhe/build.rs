@@ -73,7 +73,71 @@ fn gen_c_api() {
         .write_to_file(output_file);
 }
 
+fn panic_if_non_optimized_build() {
+    // This has a lot of \n and \ to control formatting precisely
+    const ERROR_MESSAGE: &str = "\
+    It seems that tfhe-rs is being compiled with insufficient optimization level.\n\
+    FHE is already slow on its own, and so compiler optimizations have to be turned on.\n\
+    \n\
+    By default rust/cargo does not enable optimizations, make sure you build/run with the \n\
+    release flag:\n    \
+    - `cargo run --release`\n    \
+    - `cargo build --release`\n\
+    (Note that doing `cargo build --release && cargo run`, will build in release mode\n\
+     but then rebuild in debug mode and run in debug mode)\n
+    \n\
+    * If you wish to be able to use a debugger, consider adding the following lines \n\
+    to the projects's Cargo.toml and compile in release\n\
+    \t```\n\
+    \t[profile.release]\n\
+    \tdebug = true\n\
+    \t```\n\
+    \t\n\
+    * It is also possible to override the opt-level only for tfhe-rs in the Cargo.toml\n\
+    \t```\n\
+    \t[profile.dev.package.tfhe]\n\
+    \topt-level=3\n\
+    \t```\n\
+    \tMore generally:\n\
+    \t```\n\
+    \t[profile.profile_name.package.tfhe]\n\
+    \topt-level=3\n\
+    \t```\n\
+    \t\n\
+    * If you really need a non optimized / less optimized build set the environment variable:\n\
+    \t```\n\
+    \texport TFHE_RS_ALLOW_NON_OPTIMIZED_BUILD=true\n\
+    \t```\n\
+    Or in .cargo/config.toml add\n\
+    \t```\n\
+    \t[env]\n\
+    \tTFHE_RS_ALLOW_NON_OPTIMIZED_BUILD=\"true\"\n\
+    ```\n\
+";
+    if option_env!("CARGO_PRIMARY_PACKAGE").is_none() {
+        // If CARGO_PRIMARY_PACKAGE is set, then we are build tfhe-rs is not being built
+        // as a dependency.
+        match std::env::var("TFHE_RS_ALLOW_NON_OPTIMIZED_BUILD") {
+            Ok(value) if value == "true" => {}
+            // Either the variable is defined but with not the correct value
+            // Or undefined, or other some kind of errors we consider those cases equal anyway
+            _ => {
+                let opt_level_string = std::env::var("OPT_LEVEL").expect(
+                    "Unable to get opt-level from cargo ('OPT_LEVEL' enviromnent variable not set)",
+                );
+                let opt_level = opt_level_string
+                    .parse::<i32>()
+                    .expect("Failed to parse opt-level");
+                if opt_level < 3 {
+                    panic!("{ERROR_MESSAGE}");
+                }
+            }
+        }
+    }
+}
+
 fn main() {
+    panic_if_non_optimized_build();
     #[cfg(all(feature = "__c_api", not(feature = "__force_skip_cbindgen")))]
     gen_c_api()
 }
