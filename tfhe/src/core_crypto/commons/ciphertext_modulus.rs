@@ -298,10 +298,8 @@ mod tests {
         assert!(std::mem::align_of::<CiphertextModulus<u128>>() == std::mem::align_of::<u128>());
 
         {
-            let mod_32_res = CiphertextModulus::<u32>::try_new_power_of_2(32);
-            assert!(mod_32_res.is_ok());
+            let mod_32 = CiphertextModulus::<u32>::try_new_power_of_2(32).unwrap();
 
-            let mod_32 = mod_32_res.unwrap();
             assert!(mod_32.is_native_modulus());
 
             let std_fmt = format!("{mod_32}");
@@ -351,10 +349,8 @@ mod tests {
         }
 
         {
-            let mod_128_res = CiphertextModulus::<u128>::try_new_power_of_2(64);
-            assert!(mod_128_res.is_ok());
+            let mod_128 = CiphertextModulus::<u128>::try_new_power_of_2(64).unwrap();
 
-            let mod_128 = mod_128_res.unwrap();
             assert_eq!(mod_128.get_custom_modulus(), 1 << 64);
 
             let ser = bincode::serialize(&mod_128).unwrap();
@@ -386,16 +382,16 @@ mod tests {
         // Native (u64 -> u64) => Native
         let native_mod = CiphertextModulus::<u64>::try_new_power_of_2(64).unwrap();
         assert!(native_mod.is_native_modulus());
-        let converted: Result<CiphertextModulus<u64>, _> = native_mod.try_to();
-        assert!(converted.is_ok());
-        assert!(converted.unwrap().is_native_modulus());
+        let converted: CiphertextModulus<u64> = native_mod.try_to().unwrap();
+
+        assert!(converted.is_native_modulus());
 
         // Native (u64 -> u128) => Custom
         let native_mod = CiphertextModulus::<u64>::try_new_power_of_2(64).unwrap();
-        let converted: Result<CiphertextModulus<u128>, _> = native_mod.try_to();
-        assert!(converted.is_ok());
-        assert!(!converted.unwrap().is_native_modulus());
-        assert_eq!(converted.unwrap().get_custom_modulus(), 1u128 << 64);
+        let converted: CiphertextModulus<u128> = native_mod.try_to().unwrap();
+
+        assert!(!converted.is_native_modulus());
+        assert_eq!(converted.get_custom_modulus(), 1u128 << 64);
 
         // Native(u64 -> u32) => Impossible
         let native_mod = CiphertextModulus::<u64>::try_new_power_of_2(64).unwrap();
@@ -405,17 +401,16 @@ mod tests {
         // Custom(u64 -> u64) => Custom
         let custom_mod = CiphertextModulus::<u64>::try_new(64).unwrap();
         assert!(!custom_mod.is_native_modulus());
-        let converted: Result<CiphertextModulus<u64>, _> = custom_mod.try_to();
-        assert!(converted.is_ok());
-        assert!(!converted.unwrap().is_native_modulus());
-        assert_eq!(converted.unwrap().get_custom_modulus(), 64);
+        let converted: CiphertextModulus<u64> = custom_mod.try_to().unwrap();
+
+        assert!(!converted.is_native_modulus());
+        assert_eq!(converted.get_custom_modulus(), 64);
 
         // Custom(u64[with value == 2**32] -> u32) => Native
         let custom_mod = CiphertextModulus::<u64>::try_new_power_of_2(32).unwrap();
         assert!(!custom_mod.is_native_modulus());
-        let converted: Result<CiphertextModulus<u32>, _> = custom_mod.try_to();
-        assert!(converted.is_ok());
-        assert!(converted.unwrap().is_native_modulus());
+        let converted: CiphertextModulus<u32> = custom_mod.try_to().unwrap();
+        assert!(converted.is_native_modulus());
 
         // Custom (u64[with value > 2**32] -> u32) => Impossible
         let custom_mod = CiphertextModulus::<u64>::try_new(1 << 48).unwrap();
@@ -426,9 +421,8 @@ mod tests {
         // Custom (u64[with value < 2**32] -> u32) => Custom
         let custom_mod = CiphertextModulus::<u64>::try_new(1 << 21).unwrap();
         assert!(!custom_mod.is_native_modulus());
-        let converted: Result<CiphertextModulus<u32>, _> = custom_mod.try_to();
-        assert!(converted.is_ok());
-        assert!(!converted.unwrap().is_native_modulus());
-        assert_eq!(converted.unwrap().get_custom_modulus(), 1 << 21);
+        let converted: CiphertextModulus<u32> = custom_mod.try_to().unwrap();
+        assert!(!converted.is_native_modulus());
+        assert_eq!(converted.get_custom_modulus(), 1 << 21);
     }
 }
