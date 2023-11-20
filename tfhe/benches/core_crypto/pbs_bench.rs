@@ -1,4 +1,5 @@
 #[path = "../utilities.rs"]
+#[allow(dead_code)]
 mod utilities;
 
 use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
@@ -1323,12 +1324,1086 @@ pub fn pbs_throughput_group() {
     pbs_throughput(&mut criterion, &throughput_benchmark_parameters_32bits());
 }
 
-#[cfg(not(feature = "gpu"))]
-criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
-#[cfg(feature = "gpu")]
-criterion_main!(
-    cuda_pbs_group,
-    cuda_multi_bit_pbs_group,
-    cuda_pbs_throughput_group,
-    cuda_multi_bit_pbs_throughput_group
+#[cfg(feature = "ly23_parallelized")]
+criterion_main!(ly23_parallelized);
+
+#[cfg(feature = "sorted_parallelized")]
+criterion_main!(sorted_parallelized);
+
+#[cfg(feature = "cms")]
+criterion_main!(cms);
+
+#[cfg(feature = "sorted")]
+criterion_main!(sorted);
+
+#[cfg(feature = "ly")]
+criterion_main!(ly);
+
+#[cfg(feature = "pbs_asiacrypt")]
+criterion_main!(pbs);
+
+#[cfg(all(not(feature = "ly23_parallelized"), not(feature = "sorted_parallelized"), not(feature = "cms"), not(feature = "sorted"),not(feature = "ly"), not(feature = "pbs_asiacrypt")))]
+criterion_main!(ly23_parallelized, sorted_parallelized, cms, sorted, ly, pbs);
+
+
+criterion::criterion_group!(
+    name = ly23_parallelized;
+    config = Criterion::default().sample_size(500);
+    targets =
+    pbs_ly23_parallelized,
 );
+
+criterion::criterion_group!(
+    name = sorted_parallelized;
+    config = Criterion::default().sample_size(500);
+    targets =
+    pbs_ly23_sorted_parallelized,
+);
+
+criterion::criterion_group!(
+    name = cms;
+    config = Criterion::default().sample_size(500);
+    targets =
+    ks_sorted_pbs_with_cms,
+);
+
+criterion::criterion_group!(
+    name = sorted;
+    config = Criterion::default().sample_size(500);
+    targets =
+    ks_sorted_pbs,
+);
+
+criterion::criterion_group!(
+    name = ly;
+    config = Criterion::default().sample_size(500);
+    targets =
+    ks_extended_pbs_ly23,
+);
+
+criterion::criterion_group!(
+    name = pbs;
+    config = Criterion::default().sample_size(500);
+    targets =
+    ks_pbs,
+);
+
+////////LY23///////////
+struct ParametersLY23 {
+    param: ClassicPBSParameters,
+    log_extension_factor: u64,
+}
+
+const LY_5_40: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_5_SORTED_PBS_MS_0_EF_1_40,
+    log_extension_factor: 1,
+};
+
+const LY_6_40: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_6_SORTED_PBS_MS_0_EF_3_40,
+    log_extension_factor: 3,
+};
+
+const LY_7_40: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_7_SORTED_PBS_MS_0_EF_3_40,
+    log_extension_factor: 3,
+};
+
+const LY_8_40: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_8_SORTED_PBS_MS_0_EF_4_40,
+    log_extension_factor: 4,
+};
+
+const LY_9_40: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_9_SORTED_PBS_MS_0_EF_5_40,
+    log_extension_factor: 5,
+};
+
+const LY_5_64: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_5_SORTED_PBS_MS_0_EF_2_64,
+    log_extension_factor: 2,
+};
+
+const LY_6_64: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_6_SORTED_PBS_MS_0_EF_2_64,
+    log_extension_factor: 2,
+};
+
+const LY_7_64: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_7_SORTED_PBS_MS_0_EF_3_64,
+    log_extension_factor: 3,
+};
+
+const LY_8_64: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_8_SORTED_PBS_MS_0_EF_4_64,
+    log_extension_factor: 4,
+};
+
+const LY_9_64: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_9_SORTED_PBS_MS_0_EF_5_64,
+    log_extension_factor: 5,
+};
+
+const LY_5_80: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_5_SORTED_PBS_MS_0_EF_2_80,
+    log_extension_factor: 2,
+};
+
+const LY_6_80: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_6_SORTED_PBS_MS_0_EF_4_80,
+    log_extension_factor: 4,
+};
+
+const LY_7_81: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_7_SORTED_PBS_MS_0_EF_4_81,
+    log_extension_factor: 4,
+};
+
+const LY_8_81: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_8_SORTED_PBS_MS_0_EF_5_81,
+    log_extension_factor: 5,
+};
+
+const LY_9_81: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_9_SORTED_PBS_MS_0_EF_6_81,
+    log_extension_factor: 6,
+};
+
+const LY_4_128: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_4_SORTED_PBS_MS_0_EF_1_128,
+    log_extension_factor: 1,
+};
+
+const LY_5_128: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_5_SORTED_PBS_MS_0_EF_2_128,
+    log_extension_factor: 2,
+};
+
+const LY_6_129: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_6_SORTED_PBS_MS_0_EF_3_129,
+    log_extension_factor: 3,
+};
+
+const LY_7_128: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_7_SORTED_PBS_MS_0_EF_4_128,
+    log_extension_factor: 4,
+};
+
+const LY_8_128: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_8_SORTED_PBS_MS_0_EF_5_128,
+    log_extension_factor: 5,
+};
+
+const LY_9_129: ParametersLY23 = ParametersLY23 {
+    param: PARAM_MESSAGE_9_SORTED_PBS_MS_0_EF_6_129,
+    log_extension_factor: 6,
+};
+
+const PARAM_BENCHES_LY23: [ParametersLY23; 16] = [
+    //LY_5_40, LY_6_40, LY_7_40, LY_8_40, LY_9_40,
+    LY_5_64, LY_6_64, LY_7_64, LY_8_64, LY_9_64,
+    LY_5_80, LY_6_80, LY_7_81, LY_8_81, LY_9_81,
+    LY_4_128, LY_5_128, LY_6_129, LY_7_128, LY_8_128, LY_9_129,
+];
+
+struct ParametersLY23MS{
+    param: ClassicPBSParameters,
+    log_extension_factor: u64,
+    shortcut_coeff: usize
+}
+const LY_5_40_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_5_BEST_PBS_MS_20_EF_1_40,
+    log_extension_factor: 1,
+    shortcut_coeff: 20,
+};
+
+const LY_6_40_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_6_BEST_PBS_MS_1_EF_3_40,
+    log_extension_factor: 3,
+    shortcut_coeff: 1,
+};
+
+const LY_7_40_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_7_BEST_PBS_MS_94_EF_3_40,
+    log_extension_factor: 3,
+    shortcut_coeff: 94,
+};
+
+const LY_8_40_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_8_BEST_PBS_MS_90_EF_4_40,
+    log_extension_factor: 4,
+    shortcut_coeff: 90,
+};
+
+const LY_9_40_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_9_BEST_PBS_MS_76_EF_5_40,
+    log_extension_factor: 5,
+    shortcut_coeff: 76,
+};
+
+const LY_5_80_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_5_BEST_PBS_MS_151_EF_2_80,
+    log_extension_factor: 2,
+    shortcut_coeff: 151,
+};
+
+const LY_6_80_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_6_BEST_PBS_MS_255_EF_3_80,
+    log_extension_factor: 3,
+    shortcut_coeff: 255,
+};
+
+const LY_7_80_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_7_BEST_PBS_MS_256_EF_4_80,
+    log_extension_factor: 4,
+    shortcut_coeff: 256,
+};
+
+const LY_8_80_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_8_BEST_PBS_MS_256_EF_5_80,
+    log_extension_factor: 5,
+    shortcut_coeff: 256,
+};
+
+const LY_9_80_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_9_BEST_PBS_MS_255_EF_6_80,
+    log_extension_factor: 6,
+    shortcut_coeff: 255,
+};
+
+const LY_4_128_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_4_BEST_PBS_MS_123_EF_1_128,
+    log_extension_factor: 1,
+    shortcut_coeff: 123,
+};
+
+const LY_5_128_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_5_BEST_PBS_MS_0_EF_2_128,
+    log_extension_factor: 2,
+    shortcut_coeff: 0,
+};
+
+const LY_6_128_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_6_BEST_PBS_MS_150_EF_3_128,
+    log_extension_factor: 3,
+    shortcut_coeff: 150,
+};
+
+const LY_7_128_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_7_BEST_PBS_MS_148_EF_4_128,
+    log_extension_factor: 4,
+    shortcut_coeff: 148,
+};
+
+const LY_8_128_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_8_BEST_PBS_MS_137_EF_5_128,
+    log_extension_factor: 5,
+    shortcut_coeff: 137,
+};
+
+const LY_9_128_MS: ParametersLY23MS = ParametersLY23MS {
+    param: PARAM_MESSAGE_9_BEST_PBS_MS_96_EF_6_128,
+    log_extension_factor: 6,
+    shortcut_coeff: 96,
+};
+
+
+
+const PARAM_BENCHES_LY23_MS: [ParametersLY23MS; 11] = [
+    //LY_5_40_MS, LY_6_40_MS, LY_7_40_MS, LY_8_40_MS, LY_9_40_MS,
+    LY_5_80_MS, LY_6_80_MS, LY_7_80_MS, LY_8_80_MS, LY_9_80_MS,
+    LY_4_128_MS, LY_5_128_MS, LY_6_128_MS, LY_7_128_MS, LY_8_128_MS, LY_9_128_MS,
+];
+
+
+const PARAM_CJP: [ClassicPBSParameters; 24] = [
+    //PARAM_MESSAGE_2_PBS_MS_0_EF_0_40,PARAM_MESSAGE_3_PBS_MS_0_EF_0_40,PARAM_MESSAGE_4_PBS_MS_0_EF_0_40,PARAM_MESSAGE_5_PBS_MS_0_EF_0_40,
+    //PARAM_MESSAGE_6_PBS_MS_0_EF_0_40,PARAM_MESSAGE_7_PBS_MS_0_EF_0_40,PARAM_MESSAGE_8_PBS_MS_0_EF_0_40,PARAM_MESSAGE_9_PBS_MS_0_EF_0_40,
+    PARAM_MESSAGE_2_PBS_MS_0_EF_0_64,PARAM_MESSAGE_3_PBS_MS_0_EF_0_64,PARAM_MESSAGE_4_PBS_MS_0_EF_0_64,PARAM_MESSAGE_5_PBS_MS_0_EF_0_64,
+    PARAM_MESSAGE_6_PBS_MS_0_EF_0_64,PARAM_MESSAGE_7_PBS_MS_0_EF_0_64,PARAM_MESSAGE_8_PBS_MS_0_EF_0_64,PARAM_MESSAGE_9_PBS_MS_0_EF_0_64,
+    PARAM_MESSAGE_2_PBS_MS_0_EF_0_80,PARAM_MESSAGE_3_PBS_MS_0_EF_0_80,PARAM_MESSAGE_4_PBS_MS_0_EF_0_80,PARAM_MESSAGE_5_PBS_MS_0_EF_0_81,
+    PARAM_MESSAGE_6_PBS_MS_0_EF_0_81,PARAM_MESSAGE_7_PBS_MS_0_EF_0_80,PARAM_MESSAGE_8_PBS_MS_0_EF_0_81,PARAM_MESSAGE_9_PBS_MS_0_EF_0_80,
+    PARAM_MESSAGE_2_PBS_MS_0_EF_0_129,PARAM_MESSAGE_3_PBS_MS_0_EF_0_130,PARAM_MESSAGE_4_PBS_MS_0_EF_0_129,PARAM_MESSAGE_5_PBS_MS_0_EF_0_130,
+    PARAM_MESSAGE_6_PBS_MS_0_EF_0_129,PARAM_MESSAGE_7_PBS_MS_0_EF_0_129,PARAM_MESSAGE_8_PBS_MS_0_EF_0_129,PARAM_MESSAGE_9_PBS_MS_0_EF_0_129,
+];
+
+const PARAM_BENCHES_LY23_PARALLEL: [ClassicPBSParameters; 32] = [
+    PARAM_MESSAGE_1_CARRY_1_PARALLEL_PBS_MS_0_EF_4_128,
+    PARAM_MESSAGE_1_CARRY_2_PARALLEL_PBS_MS_0_EF_4_128,
+    PARAM_MESSAGE_2_CARRY_2_PARALLEL_PBS_MS_0_EF_4_128,
+    PARAM_MESSAGE_2_CARRY_3_PARALLEL_PBS_MS_0_EF_4_128,
+    PARAM_MESSAGE_3_CARRY_3_PARALLEL_PBS_MS_0_EF_4_128,
+    PARAM_MESSAGE_3_CARRY_4_PARALLEL_PBS_MS_0_EF_4_128,
+    PARAM_MESSAGE_4_CARRY_4_PARALLEL_PBS_MS_0_EF_4_128,
+    PARAM_MESSAGE_4_CARRY_5_PARALLEL_PBS_MS_0_EF_4_128,
+    PARAM_MESSAGE_1_CARRY_1_PARALLEL_PBS_MS_0_EF_4_80,
+    PARAM_MESSAGE_1_CARRY_2_PARALLEL_PBS_MS_0_EF_4_80,
+    PARAM_MESSAGE_2_CARRY_2_PARALLEL_PBS_MS_0_EF_4_80,
+    PARAM_MESSAGE_2_CARRY_3_PARALLEL_PBS_MS_0_EF_4_80,
+    PARAM_MESSAGE_3_CARRY_3_PARALLEL_PBS_MS_0_EF_4_80,
+    PARAM_MESSAGE_3_CARRY_4_PARALLEL_PBS_MS_0_EF_4_80,
+    PARAM_MESSAGE_4_CARRY_4_PARALLEL_PBS_MS_0_EF_4_80,
+    PARAM_MESSAGE_4_CARRY_5_PARALLEL_PBS_MS_0_EF_4_80,
+    PARAM_MESSAGE_1_CARRY_1_PARALLEL_PBS_MS_0_EF_4_64,
+    PARAM_MESSAGE_1_CARRY_2_PARALLEL_PBS_MS_0_EF_4_64,
+    PARAM_MESSAGE_2_CARRY_2_PARALLEL_PBS_MS_0_EF_4_64,
+    PARAM_MESSAGE_2_CARRY_3_PARALLEL_PBS_MS_0_EF_4_64,
+    PARAM_MESSAGE_3_CARRY_3_PARALLEL_PBS_MS_0_EF_4_64,
+    PARAM_MESSAGE_3_CARRY_4_PARALLEL_PBS_MS_0_EF_4_64,
+    PARAM_MESSAGE_4_CARRY_4_PARALLEL_PBS_MS_0_EF_4_64,
+    PARAM_MESSAGE_4_CARRY_5_PARALLEL_PBS_MS_0_EF_4_64,
+    PARAM_MESSAGE_1_CARRY_1_PARALLEL_PBS_MS_0_EF_4_40,
+    PARAM_MESSAGE_1_CARRY_2_PARALLEL_PBS_MS_0_EF_4_40,
+    PARAM_MESSAGE_2_CARRY_2_PARALLEL_PBS_MS_0_EF_4_40,
+    PARAM_MESSAGE_2_CARRY_3_PARALLEL_PBS_MS_0_EF_4_40,
+    PARAM_MESSAGE_3_CARRY_3_PARALLEL_PBS_MS_0_EF_4_40,
+    PARAM_MESSAGE_3_CARRY_4_PARALLEL_PBS_MS_0_EF_4_40,
+    PARAM_MESSAGE_4_CARRY_4_PARALLEL_PBS_MS_0_EF_4_40,
+    PARAM_MESSAGE_4_CARRY_5_PARALLEL_PBS_MS_0_EF_4_40,
+];
+
+fn ks_pbs(c: &mut Criterion) {
+    type Scalar = u64;
+    let bench_name = "KS_PBS";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for params in PARAM_CJP.iter() {
+
+        let glwe_dimension = params.glwe_dimension;
+        let polynomial_size = params.polynomial_size;
+        // This is the 2^nu from the paper
+
+        // Create the LweSecretKey
+        let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension,
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                &mut secret_generator,
+            );
+        let big_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension,
+            params.glwe_dimension.to_glwe_size(),
+            params.polynomial_size,
+            params.pbs_base_log,
+            params.pbs_level,
+        );
+
+        let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+            &big_lwe_secret_key,
+            &small_lwe_secret_key,
+            params.ks_base_log,
+            params.ks_level,
+            params.lwe_noise_distribution,
+            params.ciphertext_modulus,
+            &mut encryption_generator,
+        );
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+            &big_lwe_secret_key,
+            Plaintext(Scalar::ZERO),
+            params.glwe_noise_distribution,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension.to_glwe_size(),
+            polynomial_size,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            big_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the KS
+        let mut out_ks_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            small_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                glwe_dimension.to_glwe_size(),
+                polynomial_size,
+                fft,
+            )
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+
+        let mut buffer = ComputationBuffers::new();
+        buffer.resize(
+            add_external_product_assign_mem_optimized_requirement::<u64>(
+                glwe_dimension.to_glwe_size(),
+                params.polynomial_size,
+                fft,
+            )
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+        let msg_space = ((params.message_modulus.0 * params.carry_modulus.0) as f64).log2();
+        let pfail = params.log2_p_fail;
+        let id = format!("PRECISION_{msg_space}_BITS__PFAIL_2^{pfail}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    keyswitch_lwe_ciphertext(&ksk_big_to_small, &lwe_ciphertext_in, &mut out_ks_ct);
+                    fourier_bsk.as_view().bootstrap(
+                        out_pbs_ct.as_mut_view(),
+                        out_ks_ct.as_view(),
+                        accumulator.as_view(),
+                        fft,
+                        buffers.stack(),
+                    );
+                })  
+            });
+        }
+    }
+}
+fn ks_sorted_pbs(c: &mut Criterion) {
+    type Scalar = u64;
+    let bench_name = "KS_Sorted_PBS";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for param in PARAM_BENCHES_LY23.iter() {
+        let params = param.param;
+
+        let glwe_dimension = params.glwe_dimension;
+        let polynomial_size = params.polynomial_size;
+        // This is the 2^nu from the paper
+        let extension_factor = Ly23ExtensionFactor(1 << param.log_extension_factor);
+        let extended_polynomial_size = PolynomialSize(polynomial_size.0 * extension_factor.0);
+        // TODO adapt with parameters
+        let shortcut_coeff_count = Ly23ShortcutCoeffCount(0);
+
+        // Create the LweSecretKey
+        let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension,
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                &mut secret_generator,
+            );
+        let big_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension,
+            params.glwe_dimension.to_glwe_size(),
+            params.polynomial_size,
+            params.pbs_base_log,
+            params.pbs_level,
+        );
+
+        let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+            &big_lwe_secret_key,
+            &small_lwe_secret_key,
+            params.ks_base_log,
+            params.ks_level,
+            params.lwe_noise_distribution,
+            params.ciphertext_modulus,
+            &mut encryption_generator,
+        );
+
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+            &big_lwe_secret_key,
+            Plaintext(Scalar::ZERO),
+            params.lwe_noise_distribution,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension.to_glwe_size(),
+            extended_polynomial_size,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            big_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the KS
+        let mut out_ks_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            small_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement_ly23::<u64>(
+                glwe_dimension.to_glwe_size(),
+                polynomial_size,
+                extension_factor,
+                fft,
+            )
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+
+        let msg_space = ((params.message_modulus.0 * params.carry_modulus.0) as f64).log2();
+        let pfail = params.log2_p_fail;
+        let extfact = param.log_extension_factor;
+        let id = format!("PRECISION_{msg_space}_BITS__EXTENDED_FACTOR_2^{extfact}__PFAIL_2^{pfail}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    keyswitch_lwe_ciphertext(&ksk_big_to_small, &lwe_ciphertext_in, &mut out_ks_ct);
+                    fourier_bsk.as_view().bootstrap_bergerat24(
+                        out_pbs_ct.as_mut_view(),
+                        out_ks_ct.as_view(),
+                        accumulator.as_view(),
+                        extension_factor,
+                        shortcut_coeff_count,
+                        fft,
+                        buffers.stack(),
+                    );
+                })
+            });
+        }
+    }
+}
+fn ks_sorted_pbs_with_cms(c: &mut Criterion) {
+    type Scalar = u64;
+    let bench_name = "KS_Sorted_PBS_With_CMS";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for param in PARAM_BENCHES_LY23_MS.iter() {
+        let params = param.param;
+
+        let glwe_dimension = params.glwe_dimension;
+        let polynomial_size = params.polynomial_size;
+        // This is the 2^nu from the paper
+        let extension_factor = Ly23ExtensionFactor(1 << param.log_extension_factor);
+        let extended_polynomial_size = PolynomialSize(polynomial_size.0 * extension_factor.0);
+        let shortcut_coeff_count = Ly23ShortcutCoeffCount(param.shortcut_coeff);
+
+        // Create the LweSecretKey
+        let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension,
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                &mut secret_generator,
+            );
+        let big_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension,
+            params.glwe_dimension.to_glwe_size(),
+            params.polynomial_size,
+            params.pbs_base_log,
+            params.pbs_level,
+        );
+
+        let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+            &big_lwe_secret_key,
+            &small_lwe_secret_key,
+            params.ks_base_log,
+            params.ks_level,
+            params.lwe_noise_distribution,
+            params.ciphertext_modulus,
+            &mut encryption_generator,
+        );
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+            &big_lwe_secret_key,
+            Plaintext(Scalar::ZERO),
+            params.lwe_noise_distribution,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension.to_glwe_size(),
+            extended_polynomial_size,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            big_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the KS
+        let mut out_ks_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            small_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement_ly23::<u64>(
+                glwe_dimension.to_glwe_size(),
+                polynomial_size,
+                extension_factor,
+                fft,
+            )
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+
+        let msg_space = ((params.message_modulus.0 * params.carry_modulus.0) as f64).log2();
+        let pfail = params.log2_p_fail;
+        let extfact = param.log_extension_factor;
+        let cms = param.shortcut_coeff;
+        let id = format!("PRECISION_{msg_space}_BITS__EXTENDED_FACTOR_2^{extfact}__CMS_{cms}__PFAIL_2^{pfail}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    keyswitch_lwe_ciphertext(&ksk_big_to_small, &lwe_ciphertext_in, &mut out_ks_ct);
+                    fourier_bsk.as_view().bootstrap_bergerat24(
+                        out_pbs_ct.as_mut_view(),
+                        out_ks_ct.as_view(),
+                        accumulator.as_view(),
+                        extension_factor,
+                        shortcut_coeff_count,
+                        fft,
+                        buffers.stack(),
+                    );
+                })
+            });
+        }
+    }
+}
+fn ks_extended_pbs_ly23(c: &mut Criterion) {
+    type Scalar = u64;
+    let bench_name = "KS_Extended_PBS_LY23";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for param in PARAM_BENCHES_LY23.iter() {
+        let params = param.param;
+
+        let glwe_dimension = params.glwe_dimension;
+        let polynomial_size = params.polynomial_size;
+        // This is the 2^nu from the paper
+        let extension_factor = Ly23ExtensionFactor(1 << param.log_extension_factor);
+        let extended_polynomial_size = PolynomialSize(polynomial_size.0 * extension_factor.0);
+
+        // Create the LweSecretKey
+        let small_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension,
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                &mut secret_generator,
+            );
+        let big_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension,
+            params.glwe_dimension.to_glwe_size(),
+            params.polynomial_size,
+            params.pbs_base_log,
+            params.pbs_level,
+        );
+
+        let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+            &big_lwe_secret_key,
+            &small_lwe_secret_key,
+            params.ks_base_log,
+            params.ks_level,
+            params.lwe_noise_distribution,
+            params.ciphertext_modulus,
+            &mut encryption_generator,
+        );
+
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+            &big_lwe_secret_key,
+            Plaintext(Scalar::ZERO),
+            params.lwe_noise_distribution,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension.to_glwe_size(),
+            extended_polynomial_size,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            big_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the KS
+        let mut out_ks_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            small_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement_ly23::<u64>(
+                glwe_dimension.to_glwe_size(),
+                polynomial_size,
+                extension_factor,
+                fft,
+            )
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+
+        let msg_space = ((params.message_modulus.0 * params.carry_modulus.0) as f64).log2();
+        let pfail = params.log2_p_fail;
+        let extfact = param.log_extension_factor;
+        let id = format!("PRECISION_{msg_space}_BITS__EXTENDED_FACTOR_2^{extfact}__PFAIL_2^{pfail}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    keyswitch_lwe_ciphertext(&ksk_big_to_small, &lwe_ciphertext_in, &mut out_ks_ct);
+                    fourier_bsk.as_view().bootstrap_ly23(
+                        out_pbs_ct.as_mut_view(),
+                        out_ks_ct.as_view(),
+                        accumulator.as_view(),
+                        extension_factor,
+                        fft,
+                        buffers.stack(),
+                    );
+                })
+            });
+        }
+    }
+}
+
+fn pbs_ly23_parallelized(c: &mut Criterion) {
+    type Scalar = u64;
+    let bench_name = "LY23_PBS_PARALLELIZED";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for param in PARAM_BENCHES_LY23_PARALLEL.iter() {
+        let params = param;
+
+        let glwe_dimension = params.glwe_dimension;
+        let polynomial_size = params.polynomial_size;
+        // This is the 2^nu from the paper
+        let extension_factor = Ly23ExtensionFactor(1 << 4);
+        let extended_polynomial_size = PolynomialSize(polynomial_size.0 * extension_factor.0);
+
+        // Create the LweSecretKey
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension,
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                &mut secret_generator,
+            );
+        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension,
+            params.glwe_dimension.to_glwe_size(),
+            params.polynomial_size,
+            params.pbs_base_log,
+            params.pbs_level,
+        );
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+            &input_lwe_secret_key,
+            Plaintext(Scalar::ZERO),
+            params.lwe_noise_distribution,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension.to_glwe_size(),
+            extended_polynomial_size,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement_ly23::<u64>(
+                glwe_dimension.to_glwe_size(),
+                polynomial_size,
+                extension_factor,
+                fft,
+            )
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+
+        let mut thread_buffers = Vec::with_capacity(extension_factor.0);
+        for _ in 0..extension_factor.0 {
+            let mut buffer = ComputationBuffers::new();
+            buffer.resize(
+                programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement_ly23::<u64>(
+                    glwe_dimension.to_glwe_size(),
+                    params.polynomial_size,
+                    extension_factor,
+                    fft,
+                )
+                    .unwrap()
+                    .unaligned_bytes_required(),
+            );
+            thread_buffers.push(buffer);
+        }
+
+        let mut thread_stacks: Vec<_> = thread_buffers.iter_mut().map(|x| x.stack()).collect();
+
+        
+
+        let msg_space = ((params.message_modulus.0 * params.carry_modulus.0) as f64).log2();
+        let pfail = params.log2_p_fail;
+        let id = format!("PRECISION_{msg_space}_BITS__PFAIL_2^{pfail}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    fourier_bsk.as_view().bootstrap_ly23_parallelized(
+                        out_pbs_ct.as_mut_view(),
+                        lwe_ciphertext_in.as_view(),
+                        accumulator.as_view(),
+                        extension_factor,
+                        fft,
+                        buffers.stack(),
+                        thread_stacks.as_mut_slice(),
+                    );
+                })
+            });
+        }
+    }
+}
+
+fn pbs_ly23_sorted_parallelized(c: &mut Criterion) {
+    type Scalar = u64;
+    let bench_name = "SORTED_PBS_PARALLELIZED";
+    let mut bench_group = c.benchmark_group(bench_name);
+
+    // Create the PRNG
+    let mut seeder = new_seeder();
+    let seeder = seeder.as_mut();
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
+    let mut secret_generator =
+        SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
+
+    for param in PARAM_BENCHES_LY23_PARALLEL.iter() {
+        let params = param;
+
+        let glwe_dimension = params.glwe_dimension;
+        let polynomial_size = params.polynomial_size;
+        // This is the 2^nu from the paper
+        let extension_factor = Ly23ExtensionFactor(1 << 4);
+        let extended_polynomial_size = PolynomialSize(polynomial_size.0 * extension_factor.0);
+        // TODO adapt with parameters
+        let shortcut_coeff_count = Ly23ShortcutCoeffCount(0);
+
+        // Create the LweSecretKey
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+            params.lwe_dimension,
+            &mut secret_generator,
+        );
+        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                &mut secret_generator,
+            );
+        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
+
+        // Create the empty bootstrapping key in the Fourier domain
+        let fourier_bsk = FourierLweBootstrapKey::new(
+            params.lwe_dimension,
+            params.glwe_dimension.to_glwe_size(),
+            params.polynomial_size,
+            params.pbs_base_log,
+            params.pbs_level,
+        );
+
+        // Allocate a new LweCiphertext and encrypt our plaintext
+        let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
+            &input_lwe_secret_key,
+            Plaintext(Scalar::ZERO),
+            params.lwe_noise_distribution,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+            &mut encryption_generator,
+        );
+
+        let accumulator = GlweCiphertext::new(
+            Scalar::ZERO,
+            params.glwe_dimension.to_glwe_size(),
+            extended_polynomial_size,
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        // Allocate the LweCiphertext to store the result of the PBS
+        let mut out_pbs_ct = LweCiphertext::new(
+            Scalar::ZERO,
+            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+            tfhe::core_crypto::prelude::CiphertextModulus::new_native(),
+        );
+
+        let mut buffers = ComputationBuffers::new();
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        buffers.resize(
+            programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement_ly23::<u64>(
+                glwe_dimension.to_glwe_size(),
+                polynomial_size,
+                extension_factor,
+                fft,
+            )
+                .unwrap()
+                .unaligned_bytes_required(),
+        );
+
+        let mut thread_buffers = Vec::with_capacity(extension_factor.0);
+        for _ in 0..extension_factor.0 {
+            let mut buffer = ComputationBuffers::new();
+            buffer.resize(
+                programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement_ly23::<u64>(
+                    glwe_dimension.to_glwe_size(),
+                    params.polynomial_size,
+                    extension_factor,
+                    fft,
+                )
+                    .unwrap()
+                    .unaligned_bytes_required(),
+            );
+            thread_buffers.push(buffer);
+        }
+
+        let mut thread_stacks: Vec<_> = thread_buffers.iter_mut().map(|x| x.stack()).collect();
+
+        let msg_space = ((params.message_modulus.0 * params.carry_modulus.0) as f64).log2();
+        let pfail = params.log2_p_fail;
+        let id = format!("PRECISION_{msg_space}_BITS__PFAIL_2^{pfail}");
+        {
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    fourier_bsk.as_view().bootstrap_ly23_parallelized_sorted(
+                        out_pbs_ct.as_mut_view(),
+                        lwe_ciphertext_in.as_view(),
+                        accumulator.as_view(),
+                        extension_factor,
+                        shortcut_coeff_count,
+                        fft,
+                        buffers.stack(),
+                        thread_stacks.as_mut_slice(),
+                    );
+                })
+            });
+        }
+    }
+}

@@ -1,4 +1,5 @@
 #![deny(rustdoc::broken_intra_doc_links)]
+#![allow(deprecated)]
 //! Cryptographically secure pseudo random number generator.
 //!
 //! Welcome to the `concrete-csprng` documentation.

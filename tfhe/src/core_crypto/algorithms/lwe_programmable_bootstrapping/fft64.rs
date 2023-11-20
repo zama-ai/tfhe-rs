@@ -7,7 +7,9 @@ use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::bootstrap_scratch;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
+    bootstrap_ly23_scratch, bootstrap_scratch, FourierLweBootstrapKey,
+};
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     add_external_product_assign as impl_add_external_product_assign,
     add_external_product_assign_scratch as impl_add_external_product_assign_scratch, cmux,
@@ -1070,4 +1072,13 @@ pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<OutputSca
     fft: FftView<'_>,
 ) -> Result<StackReq, SizeOverflow> {
     bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, fft)
+}
+
+pub fn programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement_ly23<Scalar>(
+    glwe_size: GlweSize,
+    small_polynomial_size: PolynomialSize,
+    extension_factor: Ly23ExtensionFactor,
+    fft: FftView<'_>,
+) -> Result<StackReq, SizeOverflow> {
+    bootstrap_ly23_scratch::<Scalar>(glwe_size, small_polynomial_size, extension_factor, fft)
 }

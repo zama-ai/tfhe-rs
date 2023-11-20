@@ -52,6 +52,12 @@ impl<T> Container for aligned_vec::AVec<T> {
 
 impl<T> ContainerMut for aligned_vec::AVec<T> {}
 
+impl<'data, T> Container for dyn_stack::DynArray<'data, T> {
+    type Element = T;
+}
+
+impl<'data, T> ContainerMut for dyn_stack::DynArray<'data, T> {}
+
 pub trait IntoContainerOwned: Container + AsMut<[Self::Element]> {
     fn collect<I: Iterator<Item = Self::Element>>(iter: I) -> Self;
 }

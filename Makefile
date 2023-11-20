@@ -967,7 +967,45 @@ bench_pbs128: install_rs_check_toolchain
 bench_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_FAST_BENCH=$(FAST_BENCH) cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
-	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)\
+
+
+.PHONY: bench_pbs_asiacrypt # Run benchmarks for PBS for asiacrypt artifact
+bench_pbs_asiacrypt: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS) -A dead_code" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench pbs-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512,pbs_asiacrypt -p $(TFHE_SPEC)
+
+.PHONY: bench_ly # Run benchmarks for LY23 for asiacrypt artifact
+bench_ly: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS) -A dead_code" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench pbs-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512,ly -p $(TFHE_SPEC)
+
+.PHONY: bench_sorted # Run benchmarks for Sorted PBS for asiacrypt artifact
+bench_sorted: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS) -A dead_code" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench pbs-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512,sorted -p $(TFHE_SPEC)
+
+.PHONY: bench_cms # Run benchmarks for Sorted PBS with CMS for asiacrypt artifact
+bench_cms: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS) -A dead_code" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench pbs-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512,cms -p $(TFHE_SPEC)
+
+.PHONY: bench_ly23_parallelized # Run benchmarks for PBS
+bench_ly23_parallelized: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS) -A dead_code" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench pbs-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512,ly23_parallelized -p $(TFHE_SPEC)
+
+.PHONY: bench_sorted_parallelized # Run benchmarks for PBS
+bench_sorted_parallelized: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS) -A dead_code" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench pbs-bench \
+	--features=$(TARGET_ARCH_FEATURE),boolean,shortint,internal-keycache,nightly-avx512,sorted_parallelized -p $(TFHE_SPEC)
+
 
 .PHONY: bench_ks # Run benchmarks for keyswitch
 bench_ks: install_rs_check_toolchain

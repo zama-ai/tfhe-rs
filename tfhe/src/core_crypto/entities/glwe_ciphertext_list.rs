@@ -164,6 +164,29 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertextList
     pub fn ciphertext_modulus(&self) -> CiphertextModulus<C::Element> {
         self.ciphertext_modulus
     }
+
+    pub fn as_view(&self) -> GlweCiphertextListView<C::Element> {
+        GlweCiphertextListView::from_container(
+            self.as_ref(),
+            self.glwe_size(),
+            self.polynomial_size(),
+            self.ciphertext_modulus(),
+        )
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweCiphertextList<C> {
+    pub fn as_mut_view(&mut self) -> GlweCiphertextListMutView<C::Element> {
+        let glwe_size = self.glwe_size();
+        let polynomial_size = self.polynomial_size();
+        let ciphertext_modulus = self.ciphertext_modulus();
+        GlweCiphertextListMutView::from_container(
+            self.as_mut(),
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        )
+    }
 }
 
 /// A [`GlweCiphertextList`] owning the memory for its own storage.
