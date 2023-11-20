@@ -270,7 +270,11 @@ pub struct LweBskGroupingFactor(pub usize);
 
 impl LweBskGroupingFactor {
     pub fn ggsw_per_multi_bit_element(&self) -> GgswPerLweMultiBitBskElement {
-        GgswPerLweMultiBitBskElement(1 << self.0)
+        GgswPerLweMultiBitBskElement(self.group_power_set_size())
+    }
+
+    pub fn group_power_set_size(&self) -> usize {
+        1 << self.0
     }
 }
 
@@ -377,3 +381,9 @@ impl std::ops::Mul<EncryptionNoiseSampleCount> for usize {
 /// A quantity representing a number of bytes used for noise generation during encryption.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct EncryptionNoiseByteCount(pub usize);
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Ly23ExtensionFactor(pub usize);
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Ly23ShortcutCoeffCount(pub usize);
