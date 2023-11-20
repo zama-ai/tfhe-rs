@@ -1,4 +1,5 @@
 use crate::integer::{CrtCiphertext, ServerKey};
+use crate::shortint::CheckError;
 
 impl ServerKey {
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
@@ -109,12 +110,12 @@ impl ServerKey {
         ctxt_right: &mut CrtCiphertext,
     ) -> CrtCiphertext {
         // If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_crt_sub_possible(ctxt_left, ctxt_right) {
+        if self.is_crt_sub_possible(ctxt_left, ctxt_right).is_err() {
             self.full_extract_message_assign(ctxt_left);
             self.full_extract_message_assign(ctxt_right);
         }
 
-        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
+        self.is_crt_sub_possible(ctxt_left, ctxt_right).unwrap();
 
         let mut result = ctxt_left.clone();
         self.unchecked_crt_sub_assign(&mut result, ctxt_right);
@@ -153,12 +154,12 @@ impl ServerKey {
         ctxt_right: &mut CrtCiphertext,
     ) {
         // If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_crt_sub_possible(ctxt_left, ctxt_right) {
+        if self.is_crt_sub_possible(ctxt_left, ctxt_right).is_err() {
             self.full_extract_message_assign(ctxt_left);
             self.full_extract_message_assign(ctxt_right);
         }
 
-        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
+        self.is_crt_sub_possible(ctxt_left, ctxt_right).unwrap();
 
         self.unchecked_crt_sub_assign(ctxt_left, ctxt_right);
     }
@@ -167,12 +168,10 @@ impl ServerKey {
         &self,
         ctxt_left: &CrtCiphertext,
         ctxt_right: &CrtCiphertext,
-    ) -> bool {
+    ) -> Result<(), CheckError> {
         for (ct_left_i, ct_right_i) in ctxt_left.blocks.iter().zip(ctxt_right.blocks.iter()) {
-            if !self.key.is_sub_possible(ct_left_i, ct_right_i) {
-                return false;
-            }
+            self.key.is_sub_possible(ct_left_i, ct_right_i)?;
         }
-        true
+        Ok(())
     }
 }

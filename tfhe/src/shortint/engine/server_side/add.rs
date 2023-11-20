@@ -27,7 +27,7 @@ impl ShortintEngine {
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !server_key.is_add_possible(ct_left, ct_right) {
+        if server_key.is_add_possible(ct_left, ct_right).is_err() {
             if ct_left.message_modulus.0 - 1 + ct_right.degree.0 <= server_key.max_degree.0 {
                 self.message_extract_assign(server_key, ct_left);
             } else if ct_right.message_modulus.0 - 1 + ct_left.degree.0 <= server_key.max_degree.0 {
@@ -38,7 +38,7 @@ impl ShortintEngine {
             }
         }
 
-        assert!(server_key.is_add_possible(ct_left, ct_right));
+        server_key.is_add_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_add(ct_left, ct_right)
     }
@@ -50,7 +50,7 @@ impl ShortintEngine {
         ct_right: &mut Ciphertext,
     ) {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !server_key.is_add_possible(ct_left, ct_right) {
+        if server_key.is_add_possible(ct_left, ct_right).is_err() {
             if ct_left.message_modulus.0 - 1 + ct_right.degree.0 <= server_key.max_degree.0 {
                 self.message_extract_assign(server_key, ct_left);
             } else if ct_right.message_modulus.0 - 1 + ct_left.degree.0 <= server_key.max_degree.0 {
@@ -61,7 +61,7 @@ impl ShortintEngine {
             }
         }
 
-        assert!(server_key.is_add_possible(ct_left, ct_right));
+        server_key.is_add_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_add_assign(ct_left, ct_right);
     }

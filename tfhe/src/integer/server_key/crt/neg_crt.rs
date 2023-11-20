@@ -1,4 +1,5 @@
 use crate::integer::{CrtCiphertext, ServerKey};
+use crate::shortint::CheckError;
 
 impl ServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
@@ -70,28 +71,26 @@ impl ServerKey {
     /// assert_eq!(16, res);
     /// ```
     pub fn smart_crt_neg_assign(&self, ctxt: &mut CrtCiphertext) {
-        if !self.is_crt_neg_possible(ctxt) {
+        if self.is_crt_neg_possible(ctxt).is_err() {
             self.full_extract_message_assign(ctxt);
         }
-        assert!(self.is_crt_neg_possible(ctxt));
+        self.is_crt_neg_possible(ctxt).unwrap();
 
         self.unchecked_crt_neg_assign(ctxt);
     }
 
     pub fn smart_crt_neg(&self, ctxt: &mut CrtCiphertext) -> CrtCiphertext {
-        if !self.is_crt_neg_possible(ctxt) {
+        if self.is_crt_neg_possible(ctxt).is_err() {
             self.full_extract_message_assign(ctxt);
         }
-        assert!(self.is_crt_neg_possible(ctxt));
+        self.is_crt_neg_possible(ctxt).unwrap();
         self.unchecked_crt_neg(ctxt)
     }
 
-    pub fn is_crt_neg_possible(&self, ctxt: &CrtCiphertext) -> bool {
+    pub fn is_crt_neg_possible(&self, ctxt: &CrtCiphertext) -> Result<(), CheckError> {
         for ct_i in ctxt.blocks.iter() {
-            if !self.key.is_neg_possible(ct_i) {
-                return false;
-            }
+            self.key.is_neg_possible(ct_i)?;
         }
-        true
+        Ok(())
     }
 }

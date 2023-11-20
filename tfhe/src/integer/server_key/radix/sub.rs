@@ -1,7 +1,6 @@
 use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
 
@@ -104,16 +103,15 @@ impl ServerKey {
     /// let ctxt_2 = cks.encrypt(msg_2);
     ///
     /// // Check if we can perform a subtraction
-    /// let res = sks.is_sub_possible(&ctxt_1, &ctxt_2);
-    ///
-    /// assert_eq!(true, res);
+    /// sks.is_sub_possible(&ctxt_1, &ctxt_2).unwrap();
     /// ```
-    pub fn is_sub_possible<T>(&self, ctxt_left: &T, ctxt_right: &T) -> bool
+    pub fn is_sub_possible<T>(&self, ctxt_left: &T, ctxt_right: &T) -> Result<(), CheckError>
     where
         T: IntegerRadixCiphertext,
     {
         let mut preceding_block_carry = 0;
         let mut preceding_scaled_z = 0;
+
         for (left_block, right_block) in ctxt_left.blocks().iter().zip(ctxt_right.blocks().iter()) {
             // Assumes message_modulus and carry_modulus matches between pairs of block
             let msg_mod = left_block.message_modulus.0;
@@ -136,19 +134,19 @@ impl ServerKey {
             // and we also want to be able to add the carry from preceding block addition
             // to make sure carry propagation would be correct.
             if (degree_after_add + preceding_block_carry) >= total_modulus {
-                return false;
+                return Err(CheckError::CarryFull);
             }
 
             preceding_block_carry = degree_after_add / msg_mod;
             preceding_scaled_z = z / msg_mod;
         }
-        true
+        Ok(())
     }
 
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// The result is returned as a new ciphertext.
     ///
@@ -183,17 +181,14 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_sub_possible(ctxt_left, ctxt_right) {
-            Ok(self.unchecked_sub(ctxt_left, ctxt_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_sub_possible(ctxt_left, ctxt_right)?;
+        Ok(self.unchecked_sub(ctxt_left, ctxt_right))
     }
 
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// The result is assigned to the `ct_left` ciphertext.
     ///
@@ -215,9 +210,7 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg2 as u64);
     ///
     /// // Compute homomorphically an addition:
-    /// let res = sks.checked_sub_assign(&mut ct1, &ct2);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_sub_assign(&mut ct1, &ct2).unwrap();
     ///
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1.wrapping_sub(msg2) as u64, clear);
@@ -226,12 +219,9 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_sub_possible(ct_left, ct_right) {
-            self.unchecked_sub_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_sub_possible(ct_left, ct_right)?;
+        self.unchecked_sub_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Computes homomorphically the subtraction between ct_left and ct_right.
@@ -265,17 +255,17 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if !self.is_neg_possible(ctxt_right) {
+        if self.is_neg_possible(ctxt_right).is_err() {
             self.full_propagate(ctxt_right);
         }
 
         // If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_sub_possible(ctxt_left, ctxt_right) {
+        if self.is_sub_possible(ctxt_left, ctxt_right).is_err() {
             self.full_propagate(ctxt_left);
             self.full_propagate(ctxt_right);
         }
 
-        assert!(self.is_sub_possible(ctxt_left, ctxt_right));
+        self.is_sub_possible(ctxt_left, ctxt_right).unwrap();
 
         let mut result = ctxt_left.clone();
         self.unchecked_sub_assign(&mut result, ctxt_right);
@@ -314,17 +304,17 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if !self.is_neg_possible(ctxt_right) {
+        if self.is_neg_possible(ctxt_right).is_err() {
             self.full_propagate(ctxt_right);
         }
 
         // If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_sub_possible(ctxt_left, ctxt_right) {
+        if self.is_sub_possible(ctxt_left, ctxt_right).is_err() {
             self.full_propagate(ctxt_left);
             self.full_propagate(ctxt_right);
         }
 
-        assert!(self.is_sub_possible(ctxt_left, ctxt_right));
+        self.is_sub_possible(ctxt_left, ctxt_right).unwrap();
 
         self.unchecked_sub_assign(ctxt_left, ctxt_right);
     }

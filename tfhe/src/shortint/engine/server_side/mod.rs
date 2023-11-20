@@ -439,12 +439,17 @@ impl ShortintEngine {
     where
         F: Fn(u64, u64) -> u64,
     {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             // We don't have enough space in carries, so clear them
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         let factor = MessageModulus(ct_right.degree.0 + 1);
 
@@ -463,12 +468,17 @@ impl ShortintEngine {
     ) where
         F: Fn(u64, u64) -> u64,
     {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             // We don't have enough space in carries, so clear them
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         let factor = MessageModulus(ct_right.degree.0 + 1);
 
@@ -490,7 +500,10 @@ impl ShortintEngine {
         ct_right: &mut Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) -> Ciphertext {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
             // so the factor has to be message_modulus
             assert_eq!(ct_right.message_modulus.0, acc.ct_right_modulus.0);
@@ -498,7 +511,9 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_right);
         }
 
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_apply_lookup_table_bivariate(server_key, ct_left, ct_right, acc)
     }
@@ -510,7 +525,10 @@ impl ShortintEngine {
         ct_right: &mut Ciphertext,
         acc: &BivariateLookupTableOwned,
     ) {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             // After the message_extract, we'll have ct_left, ct_right in [0, message_modulus[
             // so the factor has to be message_modulus
             assert_eq!(ct_right.message_modulus.0, acc.ct_right_modulus.0);
@@ -518,7 +536,9 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct_right);
         }
 
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_apply_lookup_table_bivariate_assign(server_key, ct_left, ct_right, acc)
     }

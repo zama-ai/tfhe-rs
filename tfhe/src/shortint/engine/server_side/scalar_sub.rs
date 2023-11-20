@@ -54,7 +54,7 @@ impl ShortintEngine {
         scalar: u8,
     ) {
         // Direct scalar computation is possible
-        if server_key.is_scalar_sub_possible(ct, scalar) {
+        if server_key.is_scalar_sub_possible(ct, scalar).is_ok() {
             self.unchecked_scalar_sub_assign(server_key, ct, scalar);
         } else {
             let scalar = u64::from(scalar);

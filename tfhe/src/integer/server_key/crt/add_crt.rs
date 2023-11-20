@@ -1,4 +1,5 @@
 use crate::integer::{CrtCiphertext, ServerKey};
+use crate::shortint::CheckError;
 
 impl ServerKey {
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
@@ -31,32 +32,34 @@ impl ServerKey {
         ct_left: &mut CrtCiphertext,
         ct_right: &mut CrtCiphertext,
     ) -> CrtCiphertext {
-        if !self.is_crt_add_possible(ct_left, ct_right) {
+        if self.is_crt_add_possible(ct_left, ct_right).is_err() {
             self.full_extract_message_assign(ct_left);
             self.full_extract_message_assign(ct_right);
         }
-        assert!(self.is_crt_add_possible(ct_left, ct_right));
+        self.is_crt_add_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_crt_add(ct_left, ct_right)
     }
 
     pub fn smart_crt_add_assign(&self, ct_left: &mut CrtCiphertext, ct_right: &mut CrtCiphertext) {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_crt_add_possible(ct_left, ct_right) {
+        if self.is_crt_add_possible(ct_left, ct_right).is_err() {
             self.full_extract_message_assign(ct_left);
             self.full_extract_message_assign(ct_right);
         }
-        assert!(self.is_crt_add_possible(ct_left, ct_right));
+        self.is_crt_add_possible(ct_left, ct_right).unwrap();
         self.unchecked_crt_add_assign(ct_left, ct_right);
     }
 
-    pub fn is_crt_add_possible(&self, ct_left: &CrtCiphertext, ct_right: &CrtCiphertext) -> bool {
+    pub fn is_crt_add_possible(
+        &self,
+        ct_left: &CrtCiphertext,
+        ct_right: &CrtCiphertext,
+    ) -> Result<(), CheckError> {
         for (ct_left_i, ct_right_i) in ct_left.blocks.iter().zip(ct_right.blocks.iter()) {
-            if !self.key.is_add_possible(ct_left_i, ct_right_i) {
-                return false;
-            }
+            self.key.is_add_possible(ct_left_i, ct_right_i)?;
         }
-        true
+        Ok(())
     }
 
     pub fn unchecked_crt_add_assign(&self, ct_left: &mut CrtCiphertext, ct_right: &CrtCiphertext) {

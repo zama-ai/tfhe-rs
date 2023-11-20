@@ -1,6 +1,5 @@
 use super::ServerKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::CheckError::CarryFull;
 use crate::shortint::{CheckError, Ciphertext};
 
 impl ServerKey {
@@ -212,7 +211,7 @@ impl ServerKey {
     /// Compute bitwise AND between two ciphertexts without checks.
     ///
     /// If the operation can be performed, the result is returned a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -232,11 +231,8 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an AND:
-    /// let ct_res = sks.checked_bitand(&ct1, &ct2);
+    /// let ct_res = sks.checked_bitand(&ct1, &ct2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, msg & msg);
     ///
@@ -247,11 +243,8 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an AND:
-    /// let ct_res = sks.checked_bitand(&ct1, &ct2);
+    /// let ct_res = sks.checked_bitand(&ct1, &ct2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, msg & msg);
     /// ```
@@ -260,18 +253,15 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            let ct_result = self.unchecked_bitand(ct_left, ct_right);
-            Ok(ct_result)
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        let ct_result = self.unchecked_bitand(ct_left, ct_right);
+        Ok(ct_result)
     }
 
     /// Compute bitwise AND between two ciphertexts without checks.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     ///
     /// # Example
     ///
@@ -291,9 +281,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an AND:
-    /// let res = sks.checked_bitand_assign(&mut ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_bitand_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
     /// assert_eq!(clear_res, msg & msg);
@@ -305,9 +293,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an AND:
-    /// let res = sks.checked_bitand_assign(&mut ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_bitand_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
     /// assert_eq!(clear_res, msg & msg);
@@ -317,12 +303,9 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.unchecked_bitand_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.unchecked_bitand_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
@@ -636,7 +619,7 @@ impl ServerKey {
     /// Compute bitwise XOR between two ciphertexts without checks.
     ///
     /// If the operation can be performed, the result is returned a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -656,11 +639,8 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a xor:
-    /// let ct_res = sks.checked_bitxor(&ct1, &ct2);
+    /// let ct_res = sks.checked_bitxor(&ct1, &ct2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, msg ^ msg);
     ///
@@ -671,11 +651,7 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a xor:
-    /// let ct_res = sks.checked_bitxor(&ct1, &ct2);
-    ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
+    /// let ct_res = sks.checked_bitxor(&ct1, &ct2).unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, msg ^ msg);
     /// ```
@@ -684,18 +660,15 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            let ct_result = self.unchecked_bitxor(ct_left, ct_right);
-            Ok(ct_result)
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        let ct_result = self.unchecked_bitxor(ct_left, ct_right);
+        Ok(ct_result)
     }
 
     /// Compute bitwise XOR between two ciphertexts without checks.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     ///
     /// # Example
     ///
@@ -715,9 +688,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a xor:
-    /// let res = sks.checked_bitxor_assign(&mut ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_bitxor_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
     /// assert_eq!(clear_res, msg ^ msg);
@@ -729,9 +700,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a xor:
-    /// let res = sks.checked_bitxor_assign(&mut ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_bitxor_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
     /// assert_eq!(clear_res, msg ^ msg);
@@ -741,12 +710,9 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.unchecked_bitxor_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.unchecked_bitxor_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Compute homomorphically an XOR between two ciphertexts encrypting integer values.
@@ -1062,7 +1028,7 @@ impl ServerKey {
     /// Compute bitwise OR between two ciphertexts without checks.
     ///
     /// If the operation can be performed, the result is returned a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -1082,11 +1048,8 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a or:
-    /// let ct_res = sks.checked_bitor(&ct1, &ct2);
+    /// let ct_res = sks.checked_bitor(&ct1, &ct2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, msg | msg);
     ///
@@ -1097,11 +1060,8 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically a or:
-    /// let ct_res = sks.checked_bitor(&ct1, &ct2);
+    /// let ct_res = sks.checked_bitor(&ct1, &ct2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, msg | msg);
     /// ```
@@ -1110,18 +1070,15 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            let ct_result = self.unchecked_bitor(ct_left, ct_right);
-            Ok(ct_result)
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        let ct_result = self.unchecked_bitor(ct_left, ct_right);
+        Ok(ct_result)
     }
 
     /// Compute bitwise OR between two ciphertexts without checks.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     ///
     /// # Example
     ///
@@ -1141,9 +1098,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an or:
-    /// let res = sks.checked_bitor_assign(&mut ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_bitor_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
     /// assert_eq!(clear_res, msg | msg);
@@ -1155,9 +1110,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an or:
-    /// let res = sks.checked_bitor_assign(&mut ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_bitor_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
     /// assert_eq!(clear_res, msg | msg);
@@ -1167,12 +1120,9 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.unchecked_bitor_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.unchecked_bitor_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Compute homomorphically an OR between two ciphertexts encrypting integer values.

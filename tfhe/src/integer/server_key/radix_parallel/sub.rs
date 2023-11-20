@@ -49,19 +49,19 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if !self.is_neg_possible(ctxt_right) {
+        if self.is_neg_possible(ctxt_right).is_err() {
             self.full_propagate_parallelized(ctxt_right);
         }
 
         // If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_sub_possible(ctxt_left, ctxt_right) {
+        if self.is_sub_possible(ctxt_left, ctxt_right).is_err() {
             rayon::join(
                 || self.full_propagate_parallelized(ctxt_left),
                 || self.full_propagate_parallelized(ctxt_right),
             );
         }
 
-        assert!(self.is_sub_possible(ctxt_left, ctxt_right));
+        self.is_sub_possible(ctxt_left, ctxt_right).unwrap();
 
         let mut result = ctxt_left.clone();
         self.unchecked_sub_assign(&mut result, ctxt_right);
@@ -100,18 +100,18 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if !self.is_neg_possible(ctxt_right) {
+        if self.is_neg_possible(ctxt_right).is_err() {
             self.full_propagate_parallelized(ctxt_right);
         }
 
         // If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_sub_possible(ctxt_left, ctxt_right) {
+        if self.is_sub_possible(ctxt_left, ctxt_right).is_err() {
             rayon::join(
                 || self.full_propagate_parallelized(ctxt_left),
                 || self.full_propagate_parallelized(ctxt_right),
             );
         }
-        assert!(self.is_sub_possible(ctxt_left, ctxt_right));
+        self.is_sub_possible(ctxt_left, ctxt_right).unwrap();
 
         self.unchecked_sub_assign(ctxt_left, ctxt_right);
     }

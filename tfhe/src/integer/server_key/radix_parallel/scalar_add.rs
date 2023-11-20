@@ -34,10 +34,10 @@ impl ServerKey {
         Scalar: DecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
-        if !self.is_scalar_add_possible(ct, scalar) {
+        if self.is_scalar_add_possible(ct, scalar).is_err() {
             self.full_propagate_parallelized(ct);
         }
-        assert!(self.is_scalar_add_possible(ct, scalar));
+        self.is_scalar_add_possible(ct, scalar).unwrap();
         self.unchecked_scalar_add(ct, scalar)
     }
 
@@ -72,10 +72,10 @@ impl ServerKey {
         Scalar: DecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
-        if !self.is_scalar_add_possible(ct, scalar) {
+        if self.is_scalar_add_possible(ct, scalar).is_err() {
             self.full_propagate_parallelized(ct);
         }
-        assert!(self.is_scalar_add_possible(ct, scalar));
+        self.is_scalar_add_possible(ct, scalar).unwrap();
         self.unchecked_scalar_add_assign(ct, scalar);
     }
 

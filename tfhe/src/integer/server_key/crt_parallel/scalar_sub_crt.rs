@@ -1,5 +1,4 @@
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::{CrtCiphertext, ServerKey};
 use rayon::prelude::*;
 
@@ -61,7 +60,7 @@ impl ServerKey {
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -93,17 +92,14 @@ impl ServerKey {
         ct: &CrtCiphertext,
         scalar: u64,
     ) -> Result<CrtCiphertext, CheckError> {
-        if self.is_crt_scalar_sub_possible(ct, scalar) {
-            Ok(self.unchecked_crt_scalar_sub_parallelized(ct, scalar))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_crt_scalar_sub_possible(ct, scalar)?;
+        Ok(self.unchecked_crt_scalar_sub_parallelized(ct, scalar))
     }
 
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -135,12 +131,9 @@ impl ServerKey {
         ct: &mut CrtCiphertext,
         scalar: u64,
     ) -> Result<(), CheckError> {
-        if self.is_crt_scalar_sub_possible(ct, scalar) {
-            self.unchecked_crt_scalar_sub_assign_parallelized(ct, scalar);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_crt_scalar_sub_possible(ct, scalar)?;
+        self.unchecked_crt_scalar_sub_assign_parallelized(ct, scalar);
+        Ok(())
     }
 
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
@@ -172,20 +165,20 @@ impl ServerKey {
         ct: &mut CrtCiphertext,
         scalar: u64,
     ) -> CrtCiphertext {
-        if !self.is_crt_scalar_sub_possible(ct, scalar) {
+        if self.is_crt_scalar_sub_possible(ct, scalar).is_err() {
             self.full_extract_message_assign_parallelized(ct);
         }
 
-        assert!(self.is_crt_scalar_sub_possible(ct, scalar));
+        self.is_crt_scalar_sub_possible(ct, scalar).unwrap();
         self.unchecked_crt_scalar_sub_parallelized(ct, scalar)
     }
 
     pub fn smart_crt_scalar_sub_assign_parallelized(&self, ct: &mut CrtCiphertext, scalar: u64) {
-        if !self.is_crt_scalar_sub_possible(ct, scalar) {
+        if self.is_crt_scalar_sub_possible(ct, scalar).is_err() {
             self.full_extract_message_assign_parallelized(ct);
         }
 
-        assert!(self.is_crt_scalar_sub_possible(ct, scalar));
+        self.is_crt_scalar_sub_possible(ct, scalar).unwrap();
 
         self.unchecked_crt_scalar_sub_assign_parallelized(ct, scalar);
     }

@@ -1,7 +1,6 @@
 use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
 
 impl ServerKey {
@@ -90,11 +89,9 @@ impl ServerKey {
     /// let ctxt = cks.encrypt(msg);
     ///
     /// // Check if we can perform a negation
-    /// let res = sks.is_neg_possible(&ctxt);
-    ///
-    /// assert_eq!(true, res);
+    /// sks.is_neg_possible(&ctxt).unwrap();
     /// ```
-    pub fn is_neg_possible<T>(&self, ctxt: &T) -> bool
+    pub fn is_neg_possible<T>(&self, ctxt: &T) -> Result<(), CheckError>
     where
         T: IntegerRadixCiphertext,
     {
@@ -118,13 +115,13 @@ impl ServerKey {
             // We want to be able to add together the negated block and the carry
             // from preceding negated block to make sure carry propagation would be correct.
             if (block_degree_after_negation + preceding_block_carry) >= total_modulus {
-                return false;
+                return Err(CheckError::CarryFull);
             }
 
             preceding_block_carry = block_degree_after_negation / msg_mod;
             preceding_scaled_z = z / msg_mod;
         }
-        true
+        Ok(())
     }
 
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
@@ -165,13 +162,10 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         //If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if self.is_neg_possible(ctxt) {
-            let mut result = ctxt.clone();
-            self.unchecked_neg_assign(&mut result);
-            Ok(result)
-        } else {
-            Err(CarryFull)
-        }
+        self.is_neg_possible(ctxt)?;
+        let mut result = ctxt.clone();
+        self.unchecked_neg_assign(&mut result);
+        Ok(result)
     }
 
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
@@ -206,12 +200,9 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         //If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if self.is_neg_possible(ctxt) {
-            self.unchecked_neg_assign(ctxt);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_neg_possible(ctxt)?;
+        self.unchecked_neg_assign(ctxt);
+        Ok(())
     }
 
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
@@ -244,10 +235,10 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_neg_possible(ctxt) {
+        if self.is_neg_possible(ctxt).is_err() {
             self.full_propagate(ctxt);
         }
-        assert!(self.is_neg_possible(ctxt));
+        self.is_neg_possible(ctxt).unwrap();
         self.unchecked_neg(ctxt)
     }
 }

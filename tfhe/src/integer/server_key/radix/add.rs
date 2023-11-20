@@ -1,6 +1,5 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
 
 impl ServerKey {
@@ -101,11 +100,9 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Check if we can perform an addition
-    /// let res = sks.is_add_possible(&ct1, &ct2);
-    ///
-    /// assert_eq!(true, res);
+    /// sks.is_add_possible(&ct1, &ct2).unwrap();
     /// ```
-    pub fn is_add_possible<T>(&self, ct_left: &T, ct_right: &T) -> bool
+    pub fn is_add_possible<T>(&self, ct_left: &T, ct_right: &T) -> Result<(), CheckError>
     where
         T: IntegerRadixCiphertext,
     {
@@ -119,17 +116,18 @@ impl ServerKey {
                 >= (left_block.message_modulus.0 * left_block.carry_modulus.0)
             {
                 // We would exceed the block 'capacity'
-                return false;
+                return Err(CheckError::CarryFull);
             }
+
             preceding_block_carry = degree_after_add / left_block.message_modulus.0;
         }
-        true
+        Ok(())
     }
 
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -162,17 +160,14 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_add_possible(ct_left, ct_right) {
-            Ok(self.unchecked_add(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_add_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_add(ct_left, ct_right))
     }
 
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     ///
     /// # Example
     ///
@@ -191,9 +186,7 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Compute homomorphically an addition:
-    /// let res = sks.checked_add_assign(&mut ct1, &ct2);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_add_assign(&mut ct1, &ct2).unwrap();
     ///
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 + msg2, clear);
@@ -202,12 +195,9 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_add_possible(ct_left, ct_right) {
-            self.unchecked_add_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_add_possible(ct_left, ct_right)?;
+        self.unchecked_add_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
@@ -239,12 +229,12 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_add_possible(ct_left, ct_right) {
+        if self.is_add_possible(ct_left, ct_right).is_err() {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
 
-        assert!(self.is_add_possible(ct_left, ct_right));
+        self.is_add_possible(ct_left, ct_right).unwrap();
         self.unchecked_add(ct_left, ct_right)
     }
 
@@ -253,11 +243,11 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_add_possible(ct_left, ct_right) {
+        if self.is_add_possible(ct_left, ct_right).is_err() {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
-        assert!(self.is_add_possible(ct_left, ct_right));
+        self.is_add_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_add_assign(ct_left, ct_right);
     }

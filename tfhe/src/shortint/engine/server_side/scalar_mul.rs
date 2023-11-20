@@ -52,7 +52,7 @@ impl ShortintEngine {
         scalar: u8,
     ) {
         // Direct scalar computation is possible
-        if server_key.is_scalar_mul_possible(ctxt, scalar) {
+        if server_key.is_scalar_mul_possible(ctxt, scalar).is_ok() {
             self.unchecked_scalar_mul_assign(ctxt, scalar);
             ctxt.degree = Degree(ctxt.degree.0 * scalar as usize);
         }

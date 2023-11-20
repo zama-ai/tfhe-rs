@@ -34,12 +34,17 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
 
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_bitand(server_key, ct_left, ct_right)
     }
@@ -50,7 +55,10 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
@@ -89,11 +97,16 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_bitxor(server_key, ct_left, ct_right)
     }
@@ -104,7 +117,10 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
@@ -143,12 +159,17 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
 
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_bitor(server_key, ct_left, ct_right)
     }
@@ -159,12 +180,17 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
 
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_bitor_assign(server_key, ct_left, ct_right);
     }

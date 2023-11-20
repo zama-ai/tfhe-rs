@@ -2,7 +2,6 @@ use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
 
 pub trait TwosComplementNegation {
@@ -140,23 +139,25 @@ impl ServerKey {
     /// let ct1 = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let res = sks.is_scalar_sub_possible(&ct1, scalar);
-    ///
-    /// assert_eq!(true, res);
+    /// sks.is_scalar_sub_possible(&ct1, scalar).unwrap();
     /// ```
-    pub fn is_scalar_sub_possible<T, Scalar>(&self, ct: &T, scalar: Scalar) -> bool
+    pub fn is_scalar_sub_possible<T, Scalar>(
+        &self,
+        ct: &T,
+        scalar: Scalar,
+    ) -> Result<(), CheckError>
     where
         T: IntegerRadixCiphertext,
         Scalar: TwosComplementNegation + DecomposableInto<u8>,
     {
         let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
             // subtraction by zero
-            return true;
+            return Ok(());
         };
         ct.blocks()
             .iter()
             .zip(decomposer)
-            .all(|(ciphertext_block, scalar_block)| {
+            .try_for_each(|(ciphertext_block, scalar_block)| {
                 // The decomposer gives the block of the negated
                 // scalar (-scalar) that we will be adding
                 self.key
@@ -167,7 +168,7 @@ impl ServerKey {
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -199,17 +200,14 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: TwosComplementNegation + DecomposableInto<u8>,
     {
-        if self.is_scalar_sub_possible(ct, scalar) {
-            Ok(self.unchecked_scalar_sub(ct, scalar))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_scalar_sub_possible(ct, scalar)?;
+        Ok(self.unchecked_scalar_sub(ct, scalar))
     }
 
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -245,12 +243,9 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: TwosComplementNegation + DecomposableInto<u8>,
     {
-        if self.is_scalar_sub_possible(ct, scalar) {
-            self.unchecked_scalar_sub_assign(ct, scalar);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_scalar_sub_possible(ct, scalar)?;
+        self.unchecked_scalar_sub_assign(ct, scalar);
+        Ok(())
     }
 
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
@@ -282,11 +277,11 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: TwosComplementNegation + DecomposableInto<u8>,
     {
-        if !self.is_scalar_sub_possible(ct, scalar) {
+        if self.is_scalar_sub_possible(ct, scalar).is_err() {
             self.full_propagate(ct);
         }
 
-        assert!(self.is_scalar_sub_possible(ct, scalar));
+        self.is_scalar_sub_possible(ct, scalar).unwrap();
 
         self.unchecked_scalar_sub(ct, scalar)
     }
@@ -296,11 +291,11 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: TwosComplementNegation + DecomposableInto<u8>,
     {
-        if !self.is_scalar_sub_possible(ct, scalar) {
+        if self.is_scalar_sub_possible(ct, scalar).is_err() {
             self.full_propagate(ct);
         }
 
-        assert!(self.is_scalar_sub_possible(ct, scalar));
+        self.is_scalar_sub_possible(ct, scalar).unwrap();
 
         self.unchecked_scalar_sub_assign(ct, scalar);
     }

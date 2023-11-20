@@ -92,13 +92,13 @@ impl ServerKey {
         ct_left: &mut CrtCiphertext,
         ct_right: &mut CrtCiphertext,
     ) {
-        if !self.is_crt_add_possible(ct_left, ct_right) {
+        if self.is_crt_add_possible(ct_left, ct_right).is_err() {
             rayon::join(
                 || self.full_extract_message_assign(ct_left),
                 || self.full_extract_message_assign(ct_right),
             );
         }
-        assert!(self.is_crt_add_possible(ct_left, ct_right));
+        self.is_crt_add_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_crt_add_assign_parallelized(ct_left, ct_right);
     }
@@ -108,13 +108,13 @@ impl ServerKey {
         ct_left: &mut CrtCiphertext,
         ct_right: &mut CrtCiphertext,
     ) -> CrtCiphertext {
-        if !self.is_crt_add_possible(ct_left, ct_right) {
+        if self.is_crt_add_possible(ct_left, ct_right).is_err() {
             rayon::join(
                 || self.full_extract_message_assign(ct_left),
                 || self.full_extract_message_assign(ct_right),
             );
         }
-        assert!(self.is_crt_add_possible(ct_left, ct_right));
+        self.is_crt_add_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_crt_add_parallelized(ct_left, ct_right)
     }

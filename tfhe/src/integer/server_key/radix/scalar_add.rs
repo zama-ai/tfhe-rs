@@ -1,7 +1,6 @@
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
 
 impl ServerKey {
@@ -84,11 +83,9 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let res = sks.is_scalar_add_possible(&ct1, scalar);
-    ///
-    /// assert_eq!(true, res);
+    /// sks.is_scalar_add_possible(&ct1, scalar).unwrap();
     /// ```
-    pub fn is_scalar_add_possible<T, C>(&self, ct: &C, scalar: T) -> bool
+    pub fn is_scalar_add_possible<T, C>(&self, ct: &C, scalar: T) -> Result<(), CheckError>
     where
         T: DecomposableInto<u8>,
         C: IntegerRadixCiphertext,
@@ -107,17 +104,17 @@ impl ServerKey {
                 >= (left_block.message_modulus.0 * left_block.carry_modulus.0)
             {
                 // We would exceed the block 'capacity'
-                return false;
+                return Err(CheckError::CarryFull);
             }
             preceding_block_carry = degree_after_add / left_block.message_modulus.0;
         }
-        true
+        Ok(())
     }
 
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -149,28 +146,22 @@ impl ServerKey {
         T: DecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
-        if self.is_scalar_add_possible(ct, scalar) {
-            Ok(self.unchecked_scalar_add(ct, scalar))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_scalar_add_possible(ct, scalar)?;
+        Ok(self.unchecked_scalar_add(ct, scalar))
     }
 
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     pub fn checked_scalar_add_assign<T, C>(&self, ct: &mut C, scalar: T) -> Result<(), CheckError>
     where
         T: DecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
-        if self.is_scalar_add_possible(ct, scalar) {
-            self.unchecked_scalar_add_assign(ct, scalar);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_scalar_add_possible(ct, scalar)?;
+        self.unchecked_scalar_add_assign(ct, scalar);
+        Ok(())
     }
 
     /// Computes homomorphically the addition of ciphertext with a scalar.
@@ -204,11 +195,11 @@ impl ServerKey {
         T: DecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
-        if !self.is_scalar_add_possible(ct, scalar) {
+        if self.is_scalar_add_possible(ct, scalar).is_err() {
             self.full_propagate(ct);
         }
 
-        assert!(self.is_scalar_add_possible(ct, scalar));
+        self.is_scalar_add_possible(ct, scalar).unwrap();
 
         let mut ct = ct.clone();
         self.unchecked_scalar_add_assign(&mut ct, scalar);
@@ -246,10 +237,10 @@ impl ServerKey {
         T: DecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
-        if !self.is_scalar_add_possible(ct, scalar) {
+        if self.is_scalar_add_possible(ct, scalar).is_err() {
             self.full_propagate(ct);
         }
-        assert!(self.is_scalar_add_possible(ct, scalar));
+        self.is_scalar_add_possible(ct, scalar).unwrap();
         self.unchecked_scalar_add_assign(ct, scalar);
     }
 }

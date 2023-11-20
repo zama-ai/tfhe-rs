@@ -60,12 +60,12 @@ impl ShortintEngine {
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
         // If the ciphertext cannot be subtracted together without exceeding the degree max
-        if !server_key.is_sub_possible(ct_left, ct_right) {
+        if server_key.is_sub_possible(ct_left, ct_right).is_err() {
             self.message_extract_assign(server_key, ct_right);
             self.message_extract_assign(server_key, ct_left);
         }
 
-        assert!(server_key.is_sub_possible(ct_left, ct_right));
+        server_key.is_sub_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_sub(server_key, ct_left, ct_right)
     }
@@ -77,12 +77,12 @@ impl ShortintEngine {
         ct_right: &mut Ciphertext,
     ) {
         // If the ciphertext cannot be subtracted together without exceeding the degree max
-        if !server_key.is_sub_possible(ct_left, ct_right) {
+        if server_key.is_sub_possible(ct_left, ct_right).is_err() {
             self.message_extract_assign(server_key, ct_right);
             self.message_extract_assign(server_key, ct_left);
         }
 
-        assert!(server_key.is_sub_possible(ct_left, ct_right));
+        server_key.is_sub_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_sub_assign(server_key, ct_left, ct_right);
     }
@@ -94,12 +94,12 @@ impl ShortintEngine {
         ct_right: &mut Ciphertext,
     ) -> (Ciphertext, u64) {
         //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !server_key.is_sub_possible(ct_left, ct_right) {
+        if server_key.is_sub_possible(ct_left, ct_right).is_err() {
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
 
-        assert!(server_key.is_sub_possible(ct_left, ct_right));
+        server_key.is_sub_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_sub_with_correcting_term(server_key, ct_left, ct_right)
     }

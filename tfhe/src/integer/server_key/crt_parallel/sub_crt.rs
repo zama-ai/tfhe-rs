@@ -109,14 +109,14 @@ impl ServerKey {
         ctxt_right: &mut CrtCiphertext,
     ) -> CrtCiphertext {
         // If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_crt_sub_possible(ctxt_left, ctxt_right) {
+        if self.is_crt_sub_possible(ctxt_left, ctxt_right).is_err() {
             rayon::join(
                 || self.full_extract_message_assign_parallelized(ctxt_left),
                 || self.full_extract_message_assign_parallelized(ctxt_right),
             );
         }
 
-        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
+        self.is_crt_sub_possible(ctxt_left, ctxt_right).unwrap();
 
         self.unchecked_crt_sub_parallelized(ctxt_left, ctxt_right)
     }
@@ -152,14 +152,14 @@ impl ServerKey {
         ctxt_right: &mut CrtCiphertext,
     ) {
         // If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if !self.is_crt_sub_possible(ctxt_left, ctxt_right) {
+        if self.is_crt_sub_possible(ctxt_left, ctxt_right).is_err() {
             rayon::join(
                 || self.full_extract_message_assign_parallelized(ctxt_left),
                 || self.full_extract_message_assign_parallelized(ctxt_right),
             );
         }
 
-        assert!(self.is_crt_sub_possible(ctxt_left, ctxt_right));
+        self.is_crt_sub_possible(ctxt_left, ctxt_right).unwrap();
 
         self.unchecked_crt_sub_assign_parallelized(ctxt_left, ctxt_right);
     }
