@@ -59,6 +59,7 @@ pub mod key_switching_key;
 pub mod keycache;
 pub mod oprf;
 pub mod parameters;
+pub mod prelude;
 pub mod public_key;
 pub mod server_key;
 pub mod wopbs;
