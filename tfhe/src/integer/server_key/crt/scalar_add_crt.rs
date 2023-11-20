@@ -1,5 +1,5 @@
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
+
 use crate::integer::{CrtCiphertext, ServerKey};
 
 impl ServerKey {
@@ -70,26 +70,27 @@ impl ServerKey {
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// let tmp = sks.is_crt_scalar_add_possible(&mut ctxt_1, clear_2);
-    ///
-    /// assert_eq!(true, tmp);
+    /// sks.is_crt_scalar_add_possible(&mut ctxt_1, clear_2)
+    ///     .unwrap();
     /// ```
-    pub fn is_crt_scalar_add_possible(&self, ct: &CrtCiphertext, scalar: u64) -> bool {
+    pub fn is_crt_scalar_add_possible(
+        &self,
+        ct: &CrtCiphertext,
+        scalar: u64,
+    ) -> Result<(), CheckError> {
         for (ct_i, mod_i) in ct.blocks.iter().zip(ct.moduli.iter()) {
             let scalar_i = scalar % mod_i;
 
-            if !self.key.is_scalar_add_possible(ct_i, scalar_i as u8) {
-                return false;
-            }
+            self.key.is_scalar_add_possible(ct_i, scalar_i as u8)?;
         }
 
-        true
+        Ok(())
     }
 
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -121,28 +122,22 @@ impl ServerKey {
         ct: &CrtCiphertext,
         scalar: u64,
     ) -> Result<CrtCiphertext, CheckError> {
-        if self.is_crt_scalar_add_possible(ct, scalar) {
-            Ok(self.unchecked_crt_scalar_add(ct, scalar))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_crt_scalar_add_possible(ct, scalar)?;
+        Ok(self.unchecked_crt_scalar_add(ct, scalar))
     }
 
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     pub fn checked_crt_scalar_add_assign(
         &self,
         ct: &mut CrtCiphertext,
         scalar: u64,
     ) -> Result<(), CheckError> {
-        if self.is_crt_scalar_add_possible(ct, scalar) {
-            self.unchecked_crt_scalar_add_assign(ct, scalar);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_crt_scalar_add_possible(ct, scalar)?;
+        self.unchecked_crt_scalar_add_assign(ct, scalar);
+        Ok(())
     }
 
     /// Computes homomorphically the addition of ciphertext with a scalar.
@@ -172,11 +167,11 @@ impl ServerKey {
     /// assert_eq!((clear_1 + clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_scalar_add(&self, ct: &mut CrtCiphertext, scalar: u64) -> CrtCiphertext {
-        if !self.is_crt_scalar_add_possible(ct, scalar) {
+        if self.is_crt_scalar_add_possible(ct, scalar).is_err() {
             self.full_extract_message_assign(ct);
         }
 
-        assert!(self.is_crt_scalar_add_possible(ct, scalar));
+        self.is_crt_scalar_add_possible(ct, scalar).unwrap();
 
         let mut ct = ct.clone();
         self.unchecked_crt_scalar_add_assign(&mut ct, scalar);
@@ -210,11 +205,11 @@ impl ServerKey {
     /// assert_eq!((clear_1 + clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_scalar_add_assign(&self, ct: &mut CrtCiphertext, scalar: u64) {
-        if !self.is_crt_scalar_add_possible(ct, scalar) {
+        if self.is_crt_scalar_add_possible(ct, scalar).is_err() {
             self.full_extract_message_assign(ct);
         }
 
-        assert!(self.is_crt_scalar_add_possible(ct, scalar));
+        self.is_crt_scalar_add_possible(ct, scalar).unwrap();
 
         self.unchecked_crt_scalar_add_assign(ct, scalar);
     }

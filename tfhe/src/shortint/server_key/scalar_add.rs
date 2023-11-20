@@ -1,7 +1,7 @@
 use super::ServerKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::server_key::CheckError::CarryFull;
+
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
@@ -230,9 +230,7 @@ impl ServerKey {
     /// let ct = cks.encrypt(2);
     ///
     /// // Verification if the scalar addition can be computed:
-    /// let can_be_computed = sks.is_scalar_add_possible(&ct, 3);
-    ///
-    /// assert_eq!(can_be_computed, true);
+    /// sks.is_scalar_add_possible(&ct, 3).unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -240,20 +238,22 @@ impl ServerKey {
     /// let ct = cks.encrypt(2);
     ///
     /// // Verification if the scalar addition can be computed:
-    /// let can_be_computed = sks.is_scalar_add_possible(&ct, 3);
-    ///
-    /// assert_eq!(can_be_computed, true);
+    /// sks.is_scalar_add_possible(&ct, 3).unwrap();
     /// ```
-    pub fn is_scalar_add_possible(&self, ct: &Ciphertext, scalar: u8) -> bool {
+    pub fn is_scalar_add_possible(&self, ct: &Ciphertext, scalar: u8) -> Result<(), CheckError> {
         let final_degree = scalar as usize + ct.degree.0;
 
-        final_degree <= self.max_degree.0
+        if final_degree > self.max_degree.0 {
+            Err(CheckError::CarryFull)
+        } else {
+            Ok(())
+        }
     }
 
     /// Compute homomorphically an addition between a ciphertext and a scalar.
     ///
     /// If the operation is possible, the result is returned in a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -270,11 +270,8 @@ impl ServerKey {
     /// let ct = cks.encrypt(1);
     ///
     /// // Compute homomorphically a addition multiplication:
-    /// let ct_res = sks.checked_scalar_add(&ct, 2);
+    /// let ct_res = sks.checked_scalar_add(&ct, 2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, 3);
     ///
@@ -284,11 +281,8 @@ impl ServerKey {
     /// let ct = cks.encrypt(1);
     ///
     /// // Compute homomorphically a addition multiplication:
-    /// let ct_res = sks.checked_scalar_add(&ct, 2);
+    /// let ct_res = sks.checked_scalar_add(&ct, 2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, 3);
     /// ```
@@ -298,18 +292,16 @@ impl ServerKey {
         scalar: u8,
     ) -> Result<Ciphertext, CheckError> {
         //If the ciphertext cannot be multiplied without exceeding the max degree
-        if self.is_scalar_add_possible(ct, scalar) {
-            let ct_result = self.unchecked_scalar_add(ct, scalar);
-            Ok(ct_result)
-        } else {
-            Err(CarryFull)
-        }
+        self.is_scalar_add_possible(ct, scalar)?;
+        let ct_result = self.unchecked_scalar_add(ct, scalar);
+        Ok(ct_result)
     }
 
     /// Compute homomorphically an addition between a ciphertext and a scalar.
     ///
     /// If the operation is possible, the result is stored _in_ the input ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned and the ciphertext is not modified.
+    /// Otherwise a [CheckError] is returned and the ciphertext is not
+    /// modified.
     ///
     /// # Example
     ///
@@ -326,9 +318,7 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(1);
     ///
     /// // Compute homomorphically a scalar addition:
-    /// let res = sks.checked_scalar_add_assign(&mut ct, 2);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_scalar_add_assign(&mut ct, 2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct);
     /// assert_eq!(clear_res, 3);
@@ -339,9 +329,7 @@ impl ServerKey {
     /// let mut ct = cks.encrypt(1);
     ///
     /// // Compute homomorphically a scalar addition:
-    /// let res = sks.checked_scalar_add_assign(&mut ct, 2);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_scalar_add_assign(&mut ct, 2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct);
     /// assert_eq!(clear_res, 3);
@@ -351,12 +339,9 @@ impl ServerKey {
         ct: &mut Ciphertext,
         scalar: u8,
     ) -> Result<(), CheckError> {
-        if self.is_scalar_add_possible(ct, scalar) {
-            self.unchecked_scalar_add_assign(ct, scalar);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_scalar_add_possible(ct, scalar)?;
+        self.unchecked_scalar_add_assign(ct, scalar);
+        Ok(())
     }
 
     /// Compute homomorphically an addition between a ciphertext and a scalar.

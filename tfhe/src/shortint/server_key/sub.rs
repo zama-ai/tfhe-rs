@@ -1,7 +1,6 @@
 use super::ServerKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
@@ -175,11 +174,13 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(msg);
     ///
     /// // Check if we can perform an subtraction
-    /// let can_be_subtracted = sks.is_sub_possible(&ct_1, &ct_2);
-    ///
-    /// assert_eq!(true, can_be_subtracted);
+    /// sks.is_sub_possible(&ct_1, &ct_2).unwrap();
     /// ```
-    pub fn is_sub_possible(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> bool {
+    pub fn is_sub_possible(
+        &self,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+    ) -> Result<(), CheckError> {
         // z = ceil( degree / 2^p ) x 2^p
         let msg_mod = self.message_modulus.0;
         let mut z = (ct_right.degree.0 + msg_mod - 1) / msg_mod;
@@ -187,13 +188,17 @@ impl ServerKey {
 
         let final_operation_count = ct_left.degree.0 + z;
 
-        final_operation_count <= self.max_degree.0
+        if final_operation_count > self.max_degree.0 {
+            Err(CheckError::CarryFull)
+        } else {
+            Ok(())
+        }
     }
 
     /// Compute homomorphically a subtraction between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -209,11 +214,10 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(1);
     ///
     /// // Compute homomorphically a subtraction:
-    /// let ct_res = sks.checked_sub(&ct_1, &ct_2);
+    /// let ct_res = sks.checked_sub(&ct_1, &ct_2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
     /// let modulus = cks.parameters.message_modulus().0 as u64;
-    /// let clear_res = cks.decrypt(&ct_res.unwrap());
+    /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn checked_sub(
@@ -222,18 +226,15 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
         // If the ciphertexts cannot be subtracted without exceeding the degree max
-        if self.is_sub_possible(ct_left, ct_right) {
-            let ct_result = self.unchecked_sub(ct_left, ct_right);
-            Ok(ct_result)
-        } else {
-            Err(CarryFull)
-        }
+        self.is_sub_possible(ct_left, ct_right)?;
+        let ct_result = self.unchecked_sub(ct_left, ct_right);
+        Ok(ct_result)
     }
 
     /// Compute homomorphically a subtraction between two ciphertexts.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     ///
     /// # Example
     ///
@@ -249,9 +250,7 @@ impl ServerKey {
     /// let ct_2 = cks.encrypt(1);
     ///
     /// // Compute homomorphically a subtraction:
-    /// let res = sks.checked_sub_assign(&mut ct_1, &ct_2);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_sub_assign(&mut ct_1, &ct_2).unwrap();
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// let clear_res = cks.decrypt(&ct_1);
     /// assert_eq!(clear_res % modulus, 2);
@@ -262,12 +261,9 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
         // If the ciphertexts cannot be subtracted without exceeding the degree max
-        if self.is_sub_possible(ct_left, ct_right) {
-            self.unchecked_sub_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_sub_possible(ct_left, ct_right)?;
+        self.unchecked_sub_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Compute homomorphically a subtraction between two ciphertexts.

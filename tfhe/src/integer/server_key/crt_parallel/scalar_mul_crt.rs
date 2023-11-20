@@ -1,5 +1,4 @@
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::{CrtCiphertext, ServerKey};
 use rayon::prelude::*;
 
@@ -65,7 +64,7 @@ impl ServerKey {
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -97,32 +96,26 @@ impl ServerKey {
         let mut ct_result = ct.clone();
 
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
-        if self.is_crt_scalar_mul_possible(ct, scalar) {
-            ct_result = self.unchecked_crt_scalar_mul(&ct_result, scalar);
+        self.is_crt_scalar_mul_possible(ct, scalar)?;
+        ct_result = self.unchecked_crt_scalar_mul(&ct_result, scalar);
 
-            Ok(ct_result)
-        } else {
-            Err(CarryFull)
-        }
+        Ok(ct_result)
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is assigned to the ciphertext given
     /// as parameter.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     pub fn checked_crt_scalar_mul_assign_parallelized(
         &self,
         ct: &mut CrtCiphertext,
         scalar: u64,
     ) -> Result<(), CheckError> {
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
-        if self.is_crt_scalar_mul_possible(ct, scalar) {
-            self.unchecked_crt_scalar_mul_assign_parallelized(ct, scalar);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_crt_scalar_mul_possible(ct, scalar)?;
+        self.unchecked_crt_scalar_mul_assign_parallelized(ct, scalar);
+        Ok(())
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
@@ -160,10 +153,10 @@ impl ServerKey {
         ctxt: &mut CrtCiphertext,
         scalar: u64,
     ) -> CrtCiphertext {
-        if !self.is_crt_scalar_mul_possible(ctxt, scalar) {
+        if self.is_crt_scalar_mul_possible(ctxt, scalar).is_err() {
             self.full_extract_message_assign_parallelized(ctxt);
         }
-        assert!(self.is_crt_scalar_mul_possible(ctxt, scalar));
+        self.is_crt_scalar_mul_possible(ctxt, scalar).unwrap();
         self.unchecked_crt_scalar_mul(ctxt, scalar)
     }
 
@@ -198,10 +191,10 @@ impl ServerKey {
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_scalar_mul_assign_parallelized(&self, ctxt: &mut CrtCiphertext, scalar: u64) {
-        if !self.is_crt_small_scalar_mul_possible(ctxt, scalar) {
+        if self.is_crt_small_scalar_mul_possible(ctxt, scalar).is_err() {
             self.full_extract_message_assign_parallelized(ctxt);
         }
-        assert!(self.is_crt_scalar_mul_possible(ctxt, scalar));
+        self.is_crt_scalar_mul_possible(ctxt, scalar).unwrap();
 
         self.unchecked_crt_scalar_mul_assign_parallelized(ctxt, scalar);
     }

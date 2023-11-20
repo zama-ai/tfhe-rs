@@ -1,7 +1,7 @@
 use super::ServerKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::server_key::CheckError::CarryFull;
+
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
@@ -571,7 +571,7 @@ impl ServerKey {
     /// // Check if we can perform an addition
     /// let res = sks.is_scalar_left_shift_possible(&ct1, shift);
     ///
-    /// assert_eq!(false, res);
+    /// assert!(res.is_err());
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -581,17 +581,26 @@ impl ServerKey {
     /// // Check if we can perform an addition
     /// let res = sks.is_scalar_left_shift_possible(&ct1, shift);
     ///
-    /// assert_eq!(false, res);
+    /// assert!(res.is_err());
     /// ```
-    pub fn is_scalar_left_shift_possible(&self, ct1: &Ciphertext, shift: u8) -> bool {
+    pub fn is_scalar_left_shift_possible(
+        &self,
+        ct1: &Ciphertext,
+        shift: u8,
+    ) -> Result<(), CheckError> {
         let final_operation_count = ct1.degree.0 << shift as usize;
-        final_operation_count <= self.max_degree.0
+
+        if final_operation_count > self.max_degree.0 {
+            Err(CheckError::CarryFull)
+        } else {
+            Ok(())
+        }
     }
 
     /// Compute homomorphically a left shift of the bits.
     ///
     /// If the operation can be performed, a new ciphertext with the result is returned.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -619,9 +628,8 @@ impl ServerKey {
     ///
     /// // Shifting 2 times is ok
     /// let shift = 2;
-    /// let ct_res = sks.checked_scalar_left_shift(&ct1, shift);
-    /// assert!(ct_res.is_ok());
-    /// let ct_res = ct_res.unwrap();
+    /// let ct_res = sks.checked_scalar_left_shift(&ct1, shift).unwrap();
+    ///
     /// // |      ct_res     |
     /// // | carry | message |
     /// // |-------|---------|
@@ -650,9 +658,8 @@ impl ServerKey {
     ///
     /// // Shifting 2 times is ok
     /// let shift = 2;
-    /// let ct_res = sks.checked_scalar_left_shift(&ct1, shift);
-    /// assert!(ct_res.is_ok());
-    /// let ct_res = ct_res.unwrap();
+    /// let ct_res = sks.checked_scalar_left_shift(&ct1, shift).unwrap();
+    ///
     /// // |      ct_res     |
     /// // | carry | message |
     /// // |-------|---------|
@@ -671,12 +678,9 @@ impl ServerKey {
         ct: &Ciphertext,
         shift: u8,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_scalar_left_shift_possible(ct, shift) {
-            let ct_result = self.unchecked_scalar_left_shift(ct, shift);
-            Ok(ct_result)
-        } else {
-            Err(CarryFull)
-        }
+        self.is_scalar_left_shift_possible(ct, shift)?;
+        let ct_result = self.unchecked_scalar_left_shift(ct, shift);
+        Ok(ct_result)
     }
 
     pub fn checked_scalar_left_shift_assign(
@@ -684,12 +688,9 @@ impl ServerKey {
         ct: &mut Ciphertext,
         shift: u8,
     ) -> Result<(), CheckError> {
-        if self.is_scalar_left_shift_possible(ct, shift) {
-            self.unchecked_scalar_left_shift_assign(ct, shift);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_scalar_left_shift_possible(ct, shift)?;
+        self.unchecked_scalar_left_shift_assign(ct, shift);
+        Ok(())
     }
 
     /// Compute homomorphically a left shift of the bits

@@ -1,5 +1,4 @@
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::{CrtCiphertext, ServerKey};
 use rayon::prelude::*;
 
@@ -67,7 +66,7 @@ impl ServerKey {
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -99,28 +98,22 @@ impl ServerKey {
         ct: &CrtCiphertext,
         scalar: u64,
     ) -> Result<CrtCiphertext, CheckError> {
-        if self.is_crt_scalar_add_possible(ct, scalar) {
-            Ok(self.unchecked_crt_scalar_add_parallelized(ct, scalar))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_crt_scalar_add_possible(ct, scalar)?;
+        Ok(self.unchecked_crt_scalar_add_parallelized(ct, scalar))
     }
 
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     pub fn checked_crt_scalar_add_assign_parallelized(
         &self,
         ct: &mut CrtCiphertext,
         scalar: u64,
     ) -> Result<(), CheckError> {
-        if self.is_crt_scalar_add_possible(ct, scalar) {
-            self.unchecked_crt_scalar_add_assign_parallelized(ct, scalar);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_crt_scalar_add_possible(ct, scalar)?;
+        self.unchecked_crt_scalar_add_assign_parallelized(ct, scalar);
+        Ok(())
     }
 
     /// Computes homomorphically the addition of ciphertext with a scalar.
@@ -154,11 +147,11 @@ impl ServerKey {
         ct: &mut CrtCiphertext,
         scalar: u64,
     ) -> CrtCiphertext {
-        if !self.is_crt_scalar_add_possible(ct, scalar) {
+        if self.is_crt_scalar_add_possible(ct, scalar).is_err() {
             self.full_extract_message_assign_parallelized(ct);
         }
 
-        assert!(self.is_crt_scalar_add_possible(ct, scalar));
+        self.is_crt_scalar_add_possible(ct, scalar).unwrap();
 
         let mut ct = ct.clone();
         self.unchecked_crt_scalar_add_assign_parallelized(&mut ct, scalar);
@@ -192,10 +185,10 @@ impl ServerKey {
     /// assert_eq!((clear_1 + clear_2) % modulus, res);
     /// ```
     pub fn smart_crt_scalar_add_assign_parallelized(&self, ct: &mut CrtCiphertext, scalar: u64) {
-        if !self.is_crt_scalar_add_possible(ct, scalar) {
+        if self.is_crt_scalar_add_possible(ct, scalar).is_err() {
             self.full_extract_message_assign_parallelized(ct);
         }
-        assert!(self.is_crt_scalar_add_possible(ct, scalar));
+        self.is_crt_scalar_add_possible(ct, scalar).unwrap();
 
         self.unchecked_crt_scalar_add_assign_parallelized(ct, scalar);
     }

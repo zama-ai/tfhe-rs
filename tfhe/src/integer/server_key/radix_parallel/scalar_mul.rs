@@ -2,7 +2,6 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::radix::scalar_mul::ScalarMultiplier;
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
 use rayon::prelude::*;
 
@@ -58,7 +57,7 @@ impl ServerKey {
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -92,18 +91,15 @@ impl ServerKey {
         scalar: u64,
     ) -> Result<RadixCiphertext, CheckError> {
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
-        if self.is_small_scalar_mul_possible(ct, scalar) {
-            Ok(self.unchecked_small_scalar_mul_parallelized(ct, scalar))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_small_scalar_mul_possible(ct, scalar)?;
+        Ok(self.unchecked_small_scalar_mul_parallelized(ct, scalar))
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is assigned to the ciphertext given
     /// as parameter.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -132,12 +128,9 @@ impl ServerKey {
         scalar: u64,
     ) -> Result<(), CheckError> {
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
-        if self.is_small_scalar_mul_possible(ct, scalar) {
-            self.unchecked_small_scalar_mul_assign_parallelized(ct, scalar);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_small_scalar_mul_possible(ct, scalar)?;
+        self.unchecked_small_scalar_mul_assign_parallelized(ct, scalar);
+        Ok(())
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
@@ -176,10 +169,10 @@ impl ServerKey {
         ctxt: &mut RadixCiphertext,
         scalar: u64,
     ) -> RadixCiphertext {
-        if !self.is_small_scalar_mul_possible(ctxt, scalar) {
+        if self.is_small_scalar_mul_possible(ctxt, scalar).is_err() {
             self.full_propagate_parallelized(ctxt);
         }
-        assert!(self.is_small_scalar_mul_possible(ctxt, scalar));
+        self.is_small_scalar_mul_possible(ctxt, scalar).unwrap();
         self.unchecked_small_scalar_mul_parallelized(ctxt, scalar)
     }
 
@@ -219,10 +212,10 @@ impl ServerKey {
         ctxt: &mut RadixCiphertext,
         scalar: u64,
     ) {
-        if !self.is_small_scalar_mul_possible(ctxt, scalar) {
+        if self.is_small_scalar_mul_possible(ctxt, scalar).is_err() {
             self.full_propagate_parallelized(ctxt);
         }
-        assert!(self.is_small_scalar_mul_possible(ctxt, scalar));
+        self.is_small_scalar_mul_possible(ctxt, scalar).unwrap();
         self.unchecked_small_scalar_mul_assign_parallelized(ctxt, scalar);
     }
 

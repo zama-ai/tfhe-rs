@@ -109,16 +109,21 @@ impl ShortintEngine {
         if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
             //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
-            if !server_key.is_mul_small_carry_possible(ct_left, ct_right) {
+            if server_key
+                .is_mul_small_carry_possible(ct_left, ct_right)
+                .is_err()
+            {
                 self.message_extract_assign(server_key, ct_left);
                 self.message_extract_assign(server_key, ct_right);
             }
-            assert!(server_key.is_mul_small_carry_possible(ct_left, ct_right));
+            server_key
+                .is_mul_small_carry_possible(ct_left, ct_right)
+                .unwrap();
             self.unchecked_mul_lsb_small_carry_modulus_assign(server_key, ct_left, ct_right);
         } else {
             //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
-            if !server_key.is_mul_possible(ct_left, ct_right) {
+            if server_key.is_mul_possible(ct_left, ct_right).is_err() {
                 if (server_key.message_modulus.0 - 1) * ct_right.degree.0
                     < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
                 {
@@ -132,7 +137,7 @@ impl ShortintEngine {
                     self.message_extract_assign(server_key, ct_right);
                 }
             }
-            assert!(server_key.is_mul_possible(ct_left, ct_right));
+            server_key.is_mul_possible(ct_left, ct_right).unwrap();
             self.unchecked_mul_lsb_assign(server_key, ct_left, ct_right);
         }
     }
@@ -146,18 +151,23 @@ impl ShortintEngine {
         if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
             //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
-            if !server_key.is_mul_small_carry_possible(ct_left, ct_right) {
+            if server_key
+                .is_mul_small_carry_possible(ct_left, ct_right)
+                .is_err()
+            {
                 self.message_extract_assign(server_key, ct_left);
                 self.message_extract_assign(server_key, ct_right);
             }
 
-            assert!(server_key.is_mul_small_carry_possible(ct_left, ct_right));
+            server_key
+                .is_mul_small_carry_possible(ct_left, ct_right)
+                .unwrap();
 
             self.unchecked_mul_lsb_small_carry_modulus(server_key, ct_left, ct_right)
         } else {
             //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
             // ciphertext
-            if !server_key.is_mul_possible(ct_left, ct_right) {
+            if server_key.is_mul_possible(ct_left, ct_right).is_err() {
                 if (server_key.message_modulus.0 - 1) * ct_right.degree.0
                     < (ct_right.carry_modulus.0 * ct_right.message_modulus.0 - 1)
                 {
@@ -172,7 +182,7 @@ impl ShortintEngine {
                 }
             }
 
-            assert!(server_key.is_mul_possible(ct_left, ct_right));
+            server_key.is_mul_possible(ct_left, ct_right).unwrap();
 
             self.unchecked_mul_lsb(server_key, ct_left, ct_right)
         }
@@ -184,12 +194,12 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) {
-        if !server_key.is_mul_possible(ct_left, ct_right) {
+        if server_key.is_mul_possible(ct_left, ct_right).is_err() {
             self.message_extract_assign(server_key, ct_left);
             self.message_extract_assign(server_key, ct_right);
         }
 
-        assert!(server_key.is_mul_possible(ct_left, ct_right));
+        server_key.is_mul_possible(ct_left, ct_right).unwrap();
 
         self.unchecked_mul_msb_assign(server_key, ct_left, ct_right);
     }

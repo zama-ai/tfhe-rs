@@ -283,13 +283,18 @@ impl ServerKey {
 /// Returns whether it is possible to pack lhs and rhs into a unique
 /// ciphertext without exceeding the max storable value using the formula:
 /// `unique_ciphertext = (lhs * factor) + rhs`
-fn ciphertexts_can_be_packed_without_exceeding_space(
+fn ciphertexts_can_be_packed_without_exceeding_space_or_noise(
     lhs: &Ciphertext,
     rhs: &Ciphertext,
     factor: usize,
-) -> bool {
+) -> Result<(), CheckError> {
     let final_degree = (lhs.degree.0 * factor) + rhs.degree.0;
-    final_degree < lhs.carry_modulus.0 * lhs.message_modulus.0
+
+    if final_degree >= lhs.carry_modulus.0 * lhs.message_modulus.0 {
+        return Err(CheckError::CarryFull);
+    }
+
+    Ok(())
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -318,8 +323,17 @@ pub type BivariateLookupTableMutView<'a> = BivariateLookupTable<&'a mut [u64]>;
 pub type BivariateLookupTableView<'a> = BivariateLookupTable<&'a [u64]>;
 
 impl<C: Container<Element = u64>> BivariateLookupTable<C> {
-    pub fn is_bivariate_pbs_possible(&self, lhs: &Ciphertext, rhs: &Ciphertext) -> bool {
-        ciphertexts_can_be_packed_without_exceeding_space(lhs, rhs, self.ct_right_modulus.0)
+    pub fn is_bivariate_pbs_possible(
+        &self,
+        lhs: &Ciphertext,
+        rhs: &Ciphertext,
+    ) -> Result<(), CheckError> {
+        ciphertexts_can_be_packed_without_exceeding_space_or_noise(
+            lhs,
+            rhs,
+            self.ct_right_modulus.0,
+        )?;
+        Ok(())
     }
 }
 
@@ -472,7 +486,7 @@ impl ServerKey {
     /// let f = |x, y| (x + y) % 4;
     ///
     /// let acc = sks.generate_lookup_table_bivariate(f);
-    /// assert!(acc.is_bivariate_pbs_possible(&ct1, &ct2));
+    /// acc.is_bivariate_pbs_possible(&ct1, &ct2).unwrap();
     /// let ct_res = sks.smart_apply_lookup_table_bivariate(&mut ct1, &mut ct2, &acc);
     ///
     /// let dec = cks.decrypt(&ct_res);
@@ -641,8 +655,14 @@ impl ServerKey {
     }
 
     /// Verify if a functional bivariate pbs can be applied on ct_left and ct_right.
-    pub fn is_functional_bivariate_pbs_possible(&self, ct1: &Ciphertext, ct2: &Ciphertext) -> bool {
-        ciphertexts_can_be_packed_without_exceeding_space(ct1, ct2, ct2.degree.0 + 1)
+    pub fn is_functional_bivariate_pbs_possible(
+        &self,
+        ct1: &Ciphertext,
+        ct2: &Ciphertext,
+    ) -> Result<(), CheckError> {
+        ciphertexts_can_be_packed_without_exceeding_space_or_noise(ct1, ct2, ct2.degree.0 + 1)?;
+
+        Ok(())
     }
 
     pub fn smart_evaluate_bivariate_function_assign<F>(

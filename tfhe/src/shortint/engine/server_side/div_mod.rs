@@ -41,7 +41,10 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             if ct_left.message_modulus.0 + ct_right.degree.0 <= server_key.max_degree.0 {
                 self.message_extract_assign(server_key, ct_left);
             } else if ct_right.message_modulus.0 + (ct_left.degree.0 + 1) <= server_key.max_degree.0
@@ -53,7 +56,9 @@ impl ShortintEngine {
             }
         }
 
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_div(server_key, ct_left, ct_right)
     }
@@ -64,7 +69,10 @@ impl ShortintEngine {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) {
-        if !server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             if ct_left.message_modulus.0 + ct_right.degree.0 <= server_key.max_degree.0 {
                 self.message_extract_assign(server_key, ct_left);
             } else if ct_right.message_modulus.0 + (ct_left.degree.0 + 1) <= server_key.max_degree.0
@@ -75,7 +83,9 @@ impl ShortintEngine {
                 self.message_extract_assign(server_key, ct_right);
             }
         }
-        assert!(server_key.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        server_key
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_div_assign(server_key, ct_left, ct_right);
     }

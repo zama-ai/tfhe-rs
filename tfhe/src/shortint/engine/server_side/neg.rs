@@ -58,21 +58,21 @@ impl ShortintEngine {
 
     pub(crate) fn smart_neg(&mut self, server_key: &ServerKey, ct: &mut Ciphertext) -> Ciphertext {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if !server_key.is_neg_possible(ct) {
+        if server_key.is_neg_possible(ct).is_err() {
             self.message_extract_assign(server_key, ct);
         }
 
-        assert!(server_key.is_neg_possible(ct));
+        server_key.is_neg_possible(ct).unwrap();
 
         self.unchecked_neg(server_key, ct)
     }
 
     pub(crate) fn smart_neg_assign(&mut self, server_key: &ServerKey, ct: &mut Ciphertext) {
         // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if !server_key.is_neg_possible(ct) {
+        if server_key.is_neg_possible(ct).is_err() {
             self.message_extract_assign(server_key, ct);
         }
-        assert!(server_key.is_neg_possible(ct));
+        server_key.is_neg_possible(ct).unwrap();
         self.unchecked_neg_assign(server_key, ct)
     }
 }

@@ -397,7 +397,7 @@ impl ServerKey {
         let max_value = total_modulus - 1;
 
         assert!(carry_modulus >= message_modulus);
-        assert!(u8::try_from(max_value).is_ok());
+        u8::try_from(max_value).unwrap();
 
         let num_blocks = lhs.blocks().len();
         let num_blocks_halved = (num_blocks / 2) + (num_blocks % 2);
@@ -490,7 +490,7 @@ impl ServerKey {
         let max_value = total_modulus - 1;
 
         assert!(carry_modulus >= message_modulus);
-        assert!(u8::try_from(max_value).is_ok());
+        u8::try_from(max_value).unwrap();
 
         let num_blocks = lhs.blocks().len();
         let num_blocks_halved = (num_blocks / 2) + (num_blocks % 2);

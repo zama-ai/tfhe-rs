@@ -162,11 +162,9 @@ fn main() {
     let ct_2 = client_key.encrypt(msg2);
     let ct_3 = client_key.encrypt(msg3);
 
-    let result = server_key.checked_small_scalar_mul_assign(&mut ct_1, scalar);
-    assert!(result.is_ok());
-
-    let result = server_key.checked_sub_assign(&mut ct_1, &ct_2);
-    assert!(result.is_ok());
+    server_key.checked_small_scalar_mul_assign(&mut ct_1, scalar).unwrap();
+    
+    server_key.checked_sub_assign(&mut ct_1, &ct_2).unwrap();
     
     let result = server_key.checked_add_assign(&mut ct_1, &ct_3);
     assert!(result.is_err());

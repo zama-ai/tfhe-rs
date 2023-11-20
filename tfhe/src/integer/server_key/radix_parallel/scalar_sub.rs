@@ -33,10 +33,10 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: TwosComplementNegation + DecomposableInto<u8>,
     {
-        if !self.is_scalar_sub_possible(ct, scalar) {
+        if self.is_scalar_sub_possible(ct, scalar).is_err() {
             self.full_propagate_parallelized(ct);
         }
-        assert!(self.is_scalar_sub_possible(ct, scalar));
+        self.is_scalar_sub_possible(ct, scalar).unwrap();
         self.unchecked_scalar_sub(ct, scalar)
     }
 
@@ -45,10 +45,10 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: TwosComplementNegation + DecomposableInto<u8>,
     {
-        if !self.is_scalar_sub_possible(ct, scalar) {
+        if self.is_scalar_sub_possible(ct, scalar).is_err() {
             self.full_propagate_parallelized(ct);
         }
-        assert!(self.is_scalar_sub_possible(ct, scalar));
+        self.is_scalar_sub_possible(ct, scalar).unwrap();
         self.unchecked_scalar_sub_assign(ct, scalar);
     }
 

@@ -2,7 +2,6 @@ use crate::core_crypto::prelude::{Numeric, SignedInteger};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::CheckError;
-use crate::integer::server_key::CheckError::CarryFull;
 use crate::integer::ServerKey;
 use std::collections::BTreeMap;
 
@@ -136,28 +135,28 @@ impl ServerKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// // Verification if the scalar multiplication can be computed:
-    /// let res = sks.is_small_scalar_mul_possible(&ct, scalar1);
-    ///
-    /// assert_eq!(true, res);
+    /// sks.is_small_scalar_mul_possible(&ct, scalar1).unwrap();
     ///
     /// let scalar2 = 7;
     /// // Verification if the scalar multiplication can be computed:
     /// let res = sks.is_small_scalar_mul_possible(&ct, scalar2);
-    /// assert_eq!(false, res);
+    /// assert!(res.is_err());
     /// ```
-    pub fn is_small_scalar_mul_possible(&self, ctxt: &RadixCiphertext, scalar: u64) -> bool {
+    pub fn is_small_scalar_mul_possible(
+        &self,
+        ctxt: &RadixCiphertext,
+        scalar: u64,
+    ) -> Result<(), CheckError> {
         for ct_i in ctxt.blocks.iter() {
-            if !self.key.is_scalar_mul_possible(ct_i, scalar as u8) {
-                return false;
-            }
+            self.key.is_scalar_mul_possible(ct_i, scalar as u8)?;
         }
-        true
+        Ok(())
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -193,20 +192,17 @@ impl ServerKey {
         let mut ct_result = ct.clone();
 
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
-        if self.is_small_scalar_mul_possible(ct, scalar) {
-            ct_result = self.unchecked_small_scalar_mul(&ct_result, scalar);
+        self.is_small_scalar_mul_possible(ct, scalar)?;
+        ct_result = self.unchecked_small_scalar_mul(&ct_result, scalar);
 
-            Ok(ct_result)
-        } else {
-            Err(CarryFull)
-        }
+        Ok(ct_result)
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// If the operation can be performed, the result is assigned to the ciphertext given
     /// as parameter.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -235,12 +231,9 @@ impl ServerKey {
         scalar: u64,
     ) -> Result<(), CheckError> {
         // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
-        if self.is_small_scalar_mul_possible(ct, scalar) {
-            self.unchecked_small_scalar_mul_assign(ct, scalar);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_small_scalar_mul_possible(ct, scalar)?;
+        self.unchecked_small_scalar_mul_assign(ct, scalar);
+        Ok(())
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
@@ -279,10 +272,10 @@ impl ServerKey {
         ctxt: &mut RadixCiphertext,
         scalar: u64,
     ) -> RadixCiphertext {
-        if !self.is_small_scalar_mul_possible(ctxt, scalar) {
+        if self.is_small_scalar_mul_possible(ctxt, scalar).is_err() {
             self.full_propagate(ctxt);
         }
-        assert!(self.is_small_scalar_mul_possible(ctxt, scalar));
+        self.is_small_scalar_mul_possible(ctxt, scalar).unwrap();
         self.unchecked_small_scalar_mul(ctxt, scalar)
     }
 
@@ -318,10 +311,10 @@ impl ServerKey {
     /// assert_eq!(msg * scalar % modulus, clear);
     /// ```
     pub fn smart_small_scalar_mul_assign(&self, ctxt: &mut RadixCiphertext, scalar: u64) {
-        if !self.is_small_scalar_mul_possible(ctxt, scalar) {
+        if self.is_small_scalar_mul_possible(ctxt, scalar).is_err() {
             self.full_propagate(ctxt);
         }
-        assert!(self.is_small_scalar_mul_possible(ctxt, scalar));
+        self.is_small_scalar_mul_possible(ctxt, scalar).unwrap();
 
         self.unchecked_small_scalar_mul_assign(ctxt, scalar);
     }

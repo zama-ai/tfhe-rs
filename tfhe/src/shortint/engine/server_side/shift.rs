@@ -56,7 +56,7 @@ impl ShortintEngine {
         ct: &mut Ciphertext,
         shift: u8,
     ) {
-        if server_key.is_scalar_left_shift_possible(ct, shift) {
+        if server_key.is_scalar_left_shift_possible(ct, shift).is_ok() {
             self.unchecked_scalar_left_shift_assign(ct, shift);
         } else {
             let modulus = server_key.message_modulus.0 as u64;

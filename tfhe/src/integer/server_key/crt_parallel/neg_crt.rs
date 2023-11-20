@@ -69,18 +69,18 @@ impl ServerKey {
     /// assert_eq!(16, res);
     /// ```
     pub fn smart_crt_neg_assign_parallelized(&self, ctxt: &mut CrtCiphertext) {
-        if !self.is_crt_neg_possible(ctxt) {
+        if self.is_crt_neg_possible(ctxt).is_err() {
             self.full_extract_message_assign_parallelized(ctxt);
         }
-        assert!(self.is_crt_neg_possible(ctxt));
+        self.is_crt_neg_possible(ctxt).unwrap();
         self.unchecked_crt_neg_assign_parallelized(ctxt);
     }
 
     pub fn smart_crt_neg_parallelized(&self, ctxt: &mut CrtCiphertext) -> CrtCiphertext {
-        if !self.is_crt_neg_possible(ctxt) {
+        if self.is_crt_neg_possible(ctxt).is_err() {
             self.full_extract_message_assign_parallelized(ctxt);
         }
-        assert!(self.is_crt_neg_possible(ctxt));
+        self.is_crt_neg_possible(ctxt).unwrap();
         self.unchecked_crt_neg_parallelized(ctxt)
     }
 }

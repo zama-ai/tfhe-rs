@@ -32,10 +32,10 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_neg_possible(ctxt) {
+        if self.is_neg_possible(ctxt).is_err() {
             self.full_propagate_parallelized(ctxt);
         }
-        assert!(self.is_neg_possible(ctxt));
+        self.is_neg_possible(ctxt).unwrap();
         self.unchecked_neg(ctxt)
     }
 

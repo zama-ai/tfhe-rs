@@ -52,7 +52,7 @@ impl ShortintEngine {
         scalar: u8,
     ) {
         // Direct scalar computation is possible
-        if server_key.is_scalar_add_possible(ct, scalar) {
+        if server_key.is_scalar_add_possible(ct, scalar).is_ok() {
             self.unchecked_scalar_add_assign(server_key, ct, scalar);
         } else {
             // If the scalar is too large, PBS is used to compute the scalar mul

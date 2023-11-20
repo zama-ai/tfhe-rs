@@ -57,13 +57,17 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
         self.unchecked_bitand_parallelized(ct_left, ct_right)
     }
 
@@ -71,13 +75,17 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
         self.unchecked_bitand_assign_parallelized(ct_left, ct_right);
     }
 
@@ -214,13 +222,17 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_bitor_parallelized(ct_left, ct_right)
     }
@@ -229,13 +241,17 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_bitor_assign_parallelized(ct_left, ct_right);
     }
@@ -373,13 +389,17 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_bitxor_parallelized(ct_left, ct_right)
     }
@@ -388,13 +408,17 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             rayon::join(
                 || self.full_propagate_parallelized(ct_left),
                 || self.full_propagate_parallelized(ct_right),
             );
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
 
         self.unchecked_bitxor_assign_parallelized(ct_left, ct_right);
     }

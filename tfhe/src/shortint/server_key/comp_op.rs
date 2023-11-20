@@ -1,7 +1,6 @@
 use super::ServerKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::server_key::CheckError::CarryFull;
 use crate::shortint::Ciphertext;
 
 // # Note:
@@ -125,7 +124,7 @@ impl ServerKey {
     /// Implement the "greater" (`>`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -144,10 +143,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_greater(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_greater(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 > msg_2) as u64, clear_res);
@@ -158,10 +154,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_greater(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_greater(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 > msg_2) as u64, clear_res);
@@ -171,11 +164,8 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            Ok(self.unchecked_greater(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_greater(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `>` between two ciphertexts encrypting integer values.
@@ -394,7 +384,7 @@ impl ServerKey {
     /// Implement the "greater or equal" (`>=`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -413,10 +403,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_greater_or_equal(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_greater_or_equal(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 >= msg_2) as u64, clear_res);
@@ -427,10 +414,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_greater_or_equal(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_greater_or_equal(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 >= msg_2) as u64, clear_res);
@@ -440,11 +424,8 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            Ok(self.unchecked_greater_or_equal(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_greater_or_equal(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `<` between two ciphertexts encrypting integer values.
@@ -563,7 +544,7 @@ impl ServerKey {
     /// Implement the "less" (`<`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -582,10 +563,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_less(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_less(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 < msg_2) as u64, clear_res);
@@ -596,10 +574,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_less(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_less(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 < msg_2) as u64, clear_res);
@@ -609,11 +584,8 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            Ok(self.unchecked_less(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_less(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `<` between two ciphertexts encrypting integer values.
@@ -779,7 +751,7 @@ impl ServerKey {
     /// Implement the "less or equal" (`<=`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -798,10 +770,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_less_or_equal(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_less_or_equal(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 <= msg_2) as u64, clear_res);
@@ -812,10 +781,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_less_or_equal(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_less_or_equal(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 <= msg_2) as u64, clear_res);
@@ -825,11 +791,8 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            Ok(self.unchecked_less(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_less(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `<=` between two ciphertexts encrypting integer values.
@@ -997,7 +960,7 @@ impl ServerKey {
     /// Implement the "equal" (`==`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -1016,10 +979,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_equal(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_equal(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 == msg_2) as u64, clear_res);
@@ -1030,10 +990,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_equal(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_equal(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 == msg_2) as u64, clear_res);
@@ -1043,11 +1000,8 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            Ok(self.unchecked_equal(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_equal(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `==` between two ciphertexts encrypting integer values.
@@ -1209,7 +1163,7 @@ impl ServerKey {
     /// Implement the "not equal" (`!=`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -1228,10 +1182,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_not_equal(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_not_equal(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 != msg_2) as u64, clear_res);
@@ -1242,10 +1193,7 @@ impl ServerKey {
     /// let ct_left = cks.encrypt(msg_1);
     /// let ct_right = cks.encrypt(msg_2);
     ///
-    /// let res = sks.checked_not_equal(&ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
-    /// let res = res.unwrap();
+    /// let res = sks.checked_not_equal(&ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&res);
     /// assert_eq!((msg_1 != msg_2) as u64, clear_res);
@@ -1255,11 +1203,8 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            Ok(self.unchecked_not_equal(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_not_equal(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `!=` between two ciphertexts encrypting integer values.

@@ -1,7 +1,6 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 use crate::shortint::CheckError;
-use crate::shortint::CheckError::CarryFull;
 
 impl ServerKey {
     /// Computes homomorphically bitand between two ciphertexts encrypting integer values.
@@ -75,29 +74,29 @@ impl ServerKey {
     /// let ct1 = cks.encrypt(msg1);
     /// let ct2 = cks.encrypt(msg2);
     ///
-    /// let res = sks.is_functional_bivariate_pbs_possible(&ct1, &ct2);
-    ///
-    /// assert_eq!(true, res);
+    /// let res = sks
+    ///     .is_functional_bivariate_pbs_possible(&ct1, &ct2)
+    ///     .unwrap();
     /// ```
-    pub fn is_functional_bivariate_pbs_possible<T>(&self, ct_left: &T, ct_right: &T) -> bool
+    pub fn is_functional_bivariate_pbs_possible<T>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+    ) -> Result<(), CheckError>
     where
         T: IntegerRadixCiphertext,
     {
         for (ct_left_i, ct_right_i) in ct_left.blocks().iter().zip(ct_right.blocks().iter()) {
-            if !self
-                .key
-                .is_functional_bivariate_pbs_possible(ct_left_i, ct_right_i)
-            {
-                return false;
-            }
+            self.key
+                .is_functional_bivariate_pbs_possible(ct_left_i, ct_right_i)?;
         }
-        true
+        Ok(())
     }
 
     /// Computes homomorphically a bitand between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -130,17 +129,14 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            Ok(self.unchecked_bitand(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_bitand(ct_left, ct_right))
     }
 
     /// Computes homomorphically a bitand between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     ///
     /// # Example
     ///
@@ -159,9 +155,7 @@ impl ServerKey {
     /// let mut ct1 = cks.encrypt(msg1);
     /// let ct2 = cks.encrypt(msg2);
     ///
-    /// let res = sks.checked_bitand_assign(&mut ct1, &ct2);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_bitand_assign(&mut ct1, &ct2).unwrap();
     ///
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 & msg2, clear);
@@ -170,12 +164,9 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.unchecked_bitand_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.unchecked_bitand_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Computes homomorphically a bitand between two ciphertexts encrypting integer values.
@@ -207,11 +198,15 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
         self.unchecked_bitand(ct_left, ct_right)
     }
 
@@ -219,11 +214,15 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
         self.unchecked_bitand_assign(ct_left, ct_right);
     }
 
@@ -282,7 +281,7 @@ impl ServerKey {
     /// Computes homomorphically a bitor between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -316,17 +315,14 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            Ok(self.unchecked_bitor(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_bitor(ct_left, ct_right))
     }
 
     /// Computes homomorphically a bitand between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     ///
     /// # Example
     ///
@@ -346,9 +342,7 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Compute homomorphically an addition:
-    /// let res = sks.checked_bitor_assign(&mut ct1, &ct2);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_bitor_assign(&mut ct1, &ct2).unwrap();
     ///
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 | msg2, clear);
@@ -357,12 +351,9 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.unchecked_bitor_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.unchecked_bitor_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Computes homomorphically a bitor between two ciphertexts encrypting integer values.
@@ -394,12 +385,16 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
 
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
         self.unchecked_bitor(ct_left, ct_right)
     }
 
@@ -407,12 +402,16 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
 
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
         self.unchecked_bitor_assign(ct_left, ct_right);
     }
 
@@ -471,7 +470,7 @@ impl ServerKey {
     /// Computes homomorphically a bitxor between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -505,17 +504,14 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            Ok(self.unchecked_bitxor(ct_left, ct_right))
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        Ok(self.unchecked_bitxor(ct_left, ct_right))
     }
 
     /// Computes homomorphically a bitxor between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     ///
     /// # Example
     ///
@@ -535,9 +531,7 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg2);
     ///
     /// // Compute homomorphically an addition:
-    /// let res = sks.checked_bitxor_assign(&mut ct1, &ct2);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_bitxor_assign(&mut ct1, &ct2).unwrap();
     ///
     /// let clear: u64 = cks.decrypt(&ct1);
     /// assert_eq!(msg1 ^ msg2, clear);
@@ -546,12 +540,9 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
-            self.unchecked_bitxor_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)?;
+        self.unchecked_bitxor_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Computes homomorphically a bitxor between two ciphertexts encrypting integer values.
@@ -583,11 +574,15 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
         self.unchecked_bitxor(ct_left, ct_right)
     }
 
@@ -595,11 +590,15 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !self.is_functional_bivariate_pbs_possible(ct_left, ct_right) {
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
             self.full_propagate(ct_left);
             self.full_propagate(ct_right);
         }
-        assert!(self.is_functional_bivariate_pbs_possible(ct_left, ct_right));
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
         self.unchecked_bitxor_assign(ct_left, ct_right);
     }
 }
