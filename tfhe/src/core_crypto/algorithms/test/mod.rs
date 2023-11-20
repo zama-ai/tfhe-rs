@@ -1,6 +1,11 @@
+pub mod params;
+pub(crate) use params::*;
+
 pub use super::misc::check_encrypted_content_respects_mod;
+use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::*;
 use paste::paste;
+use std::fmt::Debug;
 
 mod ggsw_encryption;
 mod glwe_encryption;
@@ -13,11 +18,11 @@ mod lwe_keyswitch;
 mod lwe_keyswitch_key_generation;
 mod lwe_linear_algebra;
 mod lwe_multi_bit_bootstrap_key_generation;
-mod lwe_multi_bit_programmable_bootstrapping;
+pub(crate) mod lwe_multi_bit_programmable_bootstrapping;
 mod lwe_packing_keyswitch;
 mod lwe_packing_keyswitch_key_generation;
 mod lwe_private_functional_packing_keyswitch;
-mod lwe_programmable_bootstrapping;
+pub(crate) mod lwe_programmable_bootstrapping;
 mod noise_distribution;
 
 pub struct TestResources {
@@ -40,28 +45,14 @@ impl TestResources {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct TestParams<Scalar: UnsignedTorus> {
-    pub lwe_dimension: LweDimension,
-    pub glwe_dimension: GlweDimension,
-    pub polynomial_size: PolynomialSize,
-    pub lwe_modular_std_dev: StandardDev,
-    pub glwe_modular_std_dev: StandardDev,
-    pub pbs_base_log: DecompositionBaseLog,
-    pub pbs_level: DecompositionLevelCount,
-    pub ks_base_log: DecompositionBaseLog,
-    pub ks_level: DecompositionLevelCount,
-    pub pfks_level: DecompositionLevelCount,
-    pub pfks_base_log: DecompositionBaseLog,
-    pub pfks_modular_std_dev: StandardDev,
-    pub cbs_level: DecompositionLevelCount,
-    pub cbs_base_log: DecompositionBaseLog,
-    pub message_modulus_log: CiphertextModulusLog,
-    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+impl Default for TestResources {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // DISCLAIMER: all parameters here are not guaranteed to be secure or yield correct computations
-pub const TEST_PARAMS_4_BITS_NATIVE_U64: TestParams<u64> = TestParams {
+pub const TEST_PARAMS_4_BITS_NATIVE_U64: ClassicTestParams<u64> = ClassicTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -80,7 +71,7 @@ pub const TEST_PARAMS_4_BITS_NATIVE_U64: TestParams<u64> = TestParams {
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
-pub const TEST_PARAMS_3_BITS_63_U64: TestParams<u64> = TestParams {
+pub const TEST_PARAMS_3_BITS_63_U64: ClassicTestParams<u64> = ClassicTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -99,7 +90,26 @@ pub const TEST_PARAMS_3_BITS_63_U64: TestParams<u64> = TestParams {
     ciphertext_modulus: CiphertextModulus::new(1 << 63),
 };
 
-pub const DUMMY_NATIVE_U32: TestParams<u32> = TestParams {
+pub const TEST_PARAMS_3_BITS_SOLINAS_U64: ClassicTestParams<u64> = ClassicTestParams {
+    lwe_dimension: LweDimension(742),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(5),
+    ks_base_log: DecompositionBaseLog(3),
+    pfks_level: DecompositionLevelCount(1),
+    pfks_base_log: DecompositionBaseLog(23),
+    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    cbs_level: DecompositionLevelCount(0),
+    cbs_base_log: DecompositionBaseLog(0),
+    message_modulus_log: CiphertextModulusLog(3),
+    ciphertext_modulus: CiphertextModulus::new((1 << 64) - (1 << 32) + 1),
+};
+
+pub const DUMMY_NATIVE_U32: ClassicTestParams<u32> = ClassicTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -118,7 +128,7 @@ pub const DUMMY_NATIVE_U32: TestParams<u32> = TestParams {
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
-pub const DUMMY_31_U32: TestParams<u32> = TestParams {
+pub const DUMMY_31_U32: ClassicTestParams<u32> = ClassicTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
@@ -137,23 +147,173 @@ pub const DUMMY_31_U32: TestParams<u32> = TestParams {
     ciphertext_modulus: CiphertextModulus::new(1 << 31),
 };
 
-pub const TEST_PARAMS_3_BITS_SOLINAS_U64: TestParams<u64> = TestParams {
+pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(818),
+    lwe_modular_std_dev: StandardDev(0.000002226459789930014),
+    decomp_base_log: DecompositionBaseLog(22),
+    decomp_level_count: DecompositionLevelCount(1),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    message_modulus_log: CiphertextModulusLog(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    grouping_factor: LweBskGroupingFactor(2),
+    thread_count: ThreadCount(5),
+};
+
+pub const MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(818),
+    lwe_modular_std_dev: StandardDev(0.000002226459789930014),
+    decomp_base_log: DecompositionBaseLog(22),
+    decomp_level_count: DecompositionLevelCount(1),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    message_modulus_log: CiphertextModulusLog(3),
+    ciphertext_modulus: CiphertextModulus::new(1 << 63),
+    grouping_factor: LweBskGroupingFactor(2),
+    thread_count: ThreadCount(5),
+};
+
+pub const MULTI_BIT_2_2_3_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(888),
+    lwe_modular_std_dev: StandardDev(0.0000006125031601933181),
+    decomp_base_log: DecompositionBaseLog(21),
+    decomp_level_count: DecompositionLevelCount(1),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    message_modulus_log: CiphertextModulusLog(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    grouping_factor: LweBskGroupingFactor(3),
+    thread_count: ThreadCount(12),
+};
+
+pub const MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(888),
+    lwe_modular_std_dev: StandardDev(0.0000006125031601933181),
+    decomp_base_log: DecompositionBaseLog(21),
+    decomp_level_count: DecompositionLevelCount(1),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
+    message_modulus_log: CiphertextModulusLog(3),
+    ciphertext_modulus: CiphertextModulus::new(1 << 63),
+    grouping_factor: LweBskGroupingFactor(3),
+    thread_count: ThreadCount(12),
+};
+
+// DISCLAIMER: example parameters tailored for FFT implementation tests. There are not guaranteed
+// to be secure or yield correct computations.
+// Define the parameters for a 4 bits message able to hold the doubled 2 bits message.
+pub const FFT_U32_PARAMS: FftTestParams<u32> = FftTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_modular_std_dev: StandardDev(0.00000000004998277131225527),
+    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
-    ks_level: DecompositionLevelCount(5),
-    ks_base_log: DecompositionBaseLog(3),
-    pfks_level: DecompositionLevelCount(1),
-    pfks_base_log: DecompositionBaseLog(23),
-    pfks_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
-    cbs_level: DecompositionLevelCount(0),
-    cbs_base_log: DecompositionBaseLog(0),
-    message_modulus_log: CiphertextModulusLog(3),
-    ciphertext_modulus: CiphertextModulus::new((1 << 64) - (1 << 32) + 1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+};
+
+pub const FFT_U64_PARAMS: FftTestParams<u64> = FftTestParams {
+    lwe_dimension: LweDimension(742),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.00000000004998277131225527),
+    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+};
+
+pub const FFT_U128_PARAMS: FftTestParams<u128> = FftTestParams {
+    lwe_dimension: LweDimension(742),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.00000000004998277131225527),
+    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+};
+
+pub const FFT128_U128_PARAMS: FftTestParams<u128> = FftTestParams {
+    lwe_dimension: LweDimension(742),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.12345),
+    glwe_modular_std_dev: StandardDev(0.00000000000000000000000000000008645717832544903),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ciphertext_modulus: CiphertextModulus::<u128>::new_native(),
+};
+
+pub const FFT_WOPBS_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams {
+    lwe_dimension: LweDimension(481),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(1024),
+    // Value was 0.000_000_000_000_000_221_486_881_160_055_68_513645324585951
+    // But rust indicates it gets truncated anyways to
+    // 0.000_000_000_000_000_221_486_881_160_055_68
+    lwe_modular_std_dev: StandardDev(0.000_000_000_000_000_221_486_881_160_055_68),
+    // Value was 0.000_061_200_133_780_220_371_345
+    // But rust indicates it gets truncated anyways to
+    // 0.000_061_200_133_780_220_36
+    glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
+    pbs_base_log: DecompositionBaseLog(4),
+    pbs_level: DecompositionLevelCount(9),
+    pfks_level: DecompositionLevelCount(9),
+    pfks_base_log: DecompositionBaseLog(4),
+    cbs_level: DecompositionLevelCount(4),
+    cbs_base_log: DecompositionBaseLog(6),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+};
+
+pub const FFT_WOPBS_N512_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams {
+    lwe_dimension: LweDimension(4),
+    glwe_dimension: GlweDimension(2),
+    polynomial_size: PolynomialSize(512),
+    lwe_modular_std_dev: StandardDev(0.000_000_000_000_000_221_486_881_160_055_68),
+    glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
+    pbs_base_log: DecompositionBaseLog(9),
+    pbs_level: DecompositionLevelCount(4),
+    pfks_level: DecompositionLevelCount(2),
+    pfks_base_log: DecompositionBaseLog(15),
+    cbs_level: DecompositionLevelCount(4),
+    cbs_base_log: DecompositionBaseLog(6),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+};
+
+pub const FFT_WOPBS_N1024_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams {
+    lwe_dimension: LweDimension(4),
+    glwe_dimension: GlweDimension(2),
+    polynomial_size: PolynomialSize(1024),
+    lwe_modular_std_dev: StandardDev(0.000_000_000_000_000_221_486_881_160_055_68),
+    glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
+    pbs_base_log: DecompositionBaseLog(9),
+    pbs_level: DecompositionLevelCount(4),
+    pfks_level: DecompositionLevelCount(2),
+    pfks_base_log: DecompositionBaseLog(15),
+    cbs_level: DecompositionLevelCount(4),
+    cbs_base_log: DecompositionBaseLog(6),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+};
+
+pub const FFT_WOPBS_N2048_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams {
+    lwe_dimension: LweDimension(4),
+    glwe_dimension: GlweDimension(2),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.000_000_000_000_000_221_486_881_160_055_68),
+    glwe_modular_std_dev: StandardDev(0.000_061_200_133_780_220_36),
+    pbs_base_log: DecompositionBaseLog(9),
+    pbs_level: DecompositionLevelCount(4),
+    pfks_level: DecompositionLevelCount(2),
+    pfks_base_log: DecompositionBaseLog(15),
+    cbs_level: DecompositionLevelCount(4),
+    cbs_base_log: DecompositionBaseLog(6),
+    ciphertext_modulus: CiphertextModulus::new_native(),
 };
 
 pub fn get_encoding_with_padding<Scalar: UnsignedInteger>(
@@ -221,6 +381,23 @@ where
         &accumulator_plaintext,
         ciphertext_modulus,
     )
+}
+
+pub(crate) fn gen_keys_or_get_from_cache_if_enabled<
+    P: Debug + KeyCacheAccess<Keys = K> + serde::Serialize + serde::de::DeserializeOwned,
+    K: serde::de::DeserializeOwned + serde::Serialize + Clone,
+>(
+    params: P,
+    keygen_func: &mut dyn FnMut(P) -> K,
+) -> K {
+    #[cfg(feature = "internal-keycache")]
+    {
+        crate::core_crypto::keycache::KEY_CACHE.get_key_with_closure(params, keygen_func)
+    }
+    #[cfg(not(feature = "internal-keycache"))]
+    {
+        keygen_func(params)
+    }
 }
 
 // Macro to generate tests for all parameter sets

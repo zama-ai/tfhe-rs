@@ -86,69 +86,88 @@ pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
 
 #[cfg(test)]
 pub mod tests {
+    pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
+
+    use crate::core_crypto::algorithms::test::{FftBootstrapKeys, FftTestParams, TestResources};
     use crate::core_crypto::commons::numeric::Numeric;
     use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
+    use crate::core_crypto::keycache::KeyCacheAccess;
     use crate::core_crypto::prelude::*;
     use dyn_stack::{GlobalPodBuffer, PodStack};
+    use serde::de::DeserializeOwned;
+    use serde::Serialize;
 
-    pub fn test_bootstrap_generic<
-        Scalar: Numeric + UnsignedTorus + CastFrom<usize> + CastInto<usize> + Send + Sync,
-        K: FourierBootstrapKey<Scalar>,
+    pub fn generate_keys<
+        Scalar: UnsignedTorus
+            + Sync
+            + Send
+            + CastFrom<usize>
+            + CastInto<usize>
+            + Serialize
+            + DeserializeOwned,
     >(
-        lwe_modular_std_dev: StandardDev,
-        glwe_modular_std_dev: StandardDev,
-    ) {
-        // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
-        // computations
-        // Define the parameters for a 4 bits message able to hold the doubled 2 bits message
-        let small_lwe_dimension = LweDimension(742);
-        let glwe_dimension = GlweDimension(1);
-        let polynomial_size = PolynomialSize(2048);
-        let pbs_base_log = DecompositionBaseLog(23);
-        let pbs_level = DecompositionLevelCount(1);
-        let ciphertext_modulus = CiphertextModulus::new_native();
-
-        // Request the best seeder possible, starting with hardware entropy sources and falling back
-        // to /dev/random on Unix systems if enabled via cargo features
-        let mut boxed_seeder = new_seeder();
-        // Get a mutable reference to the seeder as a trait object from the Box returned by
-        // new_seeder
-        let seeder = boxed_seeder.as_mut();
-
-        // Create a generator which uses a CSPRNG to generate secret keys
-        let mut secret_generator =
-            SecretRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed());
-
-        // Create a generator which uses two CSPRNGs to generate public masks and secret encryption
-        // noise
-        let mut encryption_generator =
-            EncryptionRandomGenerator::<ActivatedRandomGenerator>::new(seeder.seed(), seeder);
-
-        println!("Generating keys...");
-
+        params: FftTestParams<Scalar>,
+        rsc: &mut TestResources,
+    ) -> FftBootstrapKeys<Scalar> {
         // Generate an LweSecretKey with binary coefficients
-        let small_lwe_sk =
-            LweSecretKey::generate_new_binary(small_lwe_dimension, &mut secret_generator);
+        let small_lwe_sk = LweSecretKey::generate_new_binary(
+            params.lwe_dimension,
+            &mut rsc.secret_random_generator,
+        );
 
         // Generate a GlweSecretKey with binary coefficients
         let glwe_sk = GlweSecretKey::generate_new_binary(
-            glwe_dimension,
-            polynomial_size,
-            &mut secret_generator,
+            params.glwe_dimension,
+            params.polynomial_size,
+            &mut rsc.secret_random_generator,
         );
 
         // Create a copy of the GlweSecretKey re-interpreted as an LweSecretKey
         let big_lwe_sk = glwe_sk.clone().into_lwe_secret_key();
 
-        let std_bootstrapping_key = par_allocate_and_generate_new_lwe_bootstrap_key(
+        let bsk = par_allocate_and_generate_new_lwe_bootstrap_key(
             &small_lwe_sk,
             &glwe_sk,
-            pbs_base_log,
-            pbs_level,
-            glwe_modular_std_dev,
-            ciphertext_modulus,
-            &mut encryption_generator,
+            params.pbs_base_log,
+            params.pbs_level,
+            params.glwe_modular_std_dev,
+            params.ciphertext_modulus,
+            &mut rsc.encryption_random_generator,
         );
+
+        FftBootstrapKeys {
+            small_lwe_sk,
+            big_lwe_sk,
+            bsk,
+        }
+    }
+
+    pub fn test_bootstrap_generic<Scalar, K>(params: FftTestParams<Scalar>)
+    where
+        Scalar: Numeric
+            + UnsignedTorus
+            + CastFrom<usize>
+            + CastInto<usize>
+            + Send
+            + Sync
+            + Serialize
+            + DeserializeOwned,
+        K: FourierBootstrapKey<Scalar>,
+        FftTestParams<Scalar>: KeyCacheAccess<Keys = FftBootstrapKeys<Scalar>>,
+    {
+        let lwe_modular_std_dev = params.lwe_modular_std_dev;
+        let glwe_dimension = params.glwe_dimension;
+        let polynomial_size = params.polynomial_size;
+        let ciphertext_modulus = params.ciphertext_modulus;
+
+        let mut rsc = TestResources::new();
+
+        let fft = K::new_fft(polynomial_size);
+
+        let mut keys_gen = |params| generate_keys(params, &mut rsc);
+        let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+        let (std_bootstrapping_key, small_lwe_sk, big_lwe_sk) =
+            (keys.bsk, keys.small_lwe_sk, keys.big_lwe_sk);
 
         // Create the empty bootstrapping key in the Fourier domain
         let mut fourier_bsk = K::new(
@@ -159,7 +178,6 @@ pub mod tests {
             std_bootstrapping_key.decomposition_level_count(),
         );
 
-        let fft = K::new_fft(polynomial_size);
         fourier_bsk.fill_with_forward_fourier(
             &std_bootstrapping_key,
             &fft,
@@ -186,7 +204,7 @@ pub mod tests {
             plaintext,
             lwe_modular_std_dev,
             ciphertext_modulus,
-            &mut encryption_generator,
+            &mut rsc.encryption_random_generator,
         );
 
         // Now we will use a PBS to compute a multiplication by 2, it is NOT the recommended way of
