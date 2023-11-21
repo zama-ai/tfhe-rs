@@ -46,7 +46,6 @@
 #![allow(clippy::significant_drop_tightening)] // 10
 #![allow(clippy::cognitive_complexity)] // 6
 #![allow(clippy::iter_with_drain)] // 2
-#![allow(clippy::iter_without_into_iter)] // 1
 #![allow(clippy::large_stack_frames)] // 1
 #![cfg_attr(feature = "__wasm_api", allow(dead_code))]
 #![cfg_attr(feature = "nightly-avx512", feature(stdsimd, avx512_target_feature))]
