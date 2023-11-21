@@ -35,7 +35,6 @@
 #![allow(clippy::large_types_passed_by_value)] // 8
 #![allow(clippy::float_cmp)] // 7
 #![allow(clippy::bool_to_int_with_if)] // 6
-#![allow(clippy::trivially_copy_pass_by_ref)] // 5
 #![allow(clippy::ptr_as_ptr)] // 2
 #![allow(clippy::unsafe_derive_deserialize)] // 1
 #![allow(clippy::cast_possible_wrap)] // 1
