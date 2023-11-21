@@ -103,7 +103,7 @@ impl std::ops::Mul<usize> for NoiseLevel {
 }
 
 impl Degree {
-    pub(crate) fn after_bitxor(&self, other: Self) -> Self {
+    pub(crate) fn after_bitxor(self, other: Self) -> Self {
         let max = cmp::max(self.0, other.0);
         let min = cmp::min(self.0, other.0);
         let mut result = max;
@@ -118,7 +118,7 @@ impl Degree {
         Self(result)
     }
 
-    pub(crate) fn after_bitor(&self, other: Self) -> Self {
+    pub(crate) fn after_bitor(self, other: Self) -> Self {
         let max = cmp::max(self.0, other.0);
         let min = cmp::min(self.0, other.0);
         let mut result = max;
@@ -132,11 +132,11 @@ impl Degree {
         Self(result)
     }
 
-    pub(crate) fn after_bitand(&self, other: Self) -> Self {
+    pub(crate) fn after_bitand(self, other: Self) -> Self {
         Self(cmp::min(self.0, other.0))
     }
 
-    pub(crate) fn after_left_shift(&self, shift: u8, modulus: usize) -> Self {
+    pub(crate) fn after_left_shift(self, shift: u8, modulus: usize) -> Self {
         let mut result = 0;
 
         for i in 0..self.0 + 1 {
@@ -150,7 +150,7 @@ impl Degree {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn after_pbs<F>(&self, f: F) -> Self
+    pub(crate) fn after_pbs<F>(self, f: F) -> Self
     where
         F: Fn(usize) -> usize,
     {
