@@ -83,8 +83,8 @@ impl BooleanParameters {
             glwe_modular_std_dev,
             pbs_base_log,
             pbs_level,
-            ks_level,
             ks_base_log,
+            ks_level,
             encryption_key_choice,
         }
     }
@@ -108,8 +108,8 @@ impl BooleanKeySwitchingParameters {
     /// results with 128 bits of security.
     pub fn new(ks_base_log: DecompositionBaseLog, ks_level: DecompositionLevelCount) -> Self {
         Self {
-            ks_level,
             ks_base_log,
+            ks_level,
         }
     }
 }

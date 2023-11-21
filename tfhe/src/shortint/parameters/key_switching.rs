@@ -20,8 +20,8 @@ impl ShortintKeySwitchingParameters {
     /// 128 bits of security.
     pub fn new(ks_base_log: DecompositionBaseLog, ks_level: DecompositionLevelCount) -> Self {
         Self {
-            ks_level,
             ks_base_log,
+            ks_level,
         }
     }
 }

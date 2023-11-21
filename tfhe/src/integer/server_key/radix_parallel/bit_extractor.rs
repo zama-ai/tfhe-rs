@@ -39,8 +39,8 @@ impl<'a> BitExtractor<'a> {
 
         Self {
             bit_extract_luts,
-            server_key,
             bits_per_block,
+            server_key,
         }
     }
 
