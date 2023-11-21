@@ -29,7 +29,6 @@
 #![allow(clippy::range_plus_one)] // 16
 #![allow(clippy::return_self_not_must_use)] // 11
 #![allow(clippy::ignored_unit_patterns)] // 9
-#![allow(clippy::inconsistent_struct_constructor)] // 9
 #![allow(clippy::large_types_passed_by_value)] // 8
 #![allow(clippy::float_cmp)] // 7
 #![allow(clippy::bool_to_int_with_if)] // 6

@@ -143,8 +143,8 @@ impl<C: Container<Element = c64>> FourierGgswLevelMatrix<C> {
         );
         Self {
             data,
-            polynomial_size,
             glwe_size,
+            polynomial_size,
             row_count,
             decomposition_level,
         }
@@ -199,8 +199,8 @@ impl<C: Container<Element = c64>> FourierGgswLevelRow<C> {
         );
         Self {
             data,
-            polynomial_size,
             glwe_size,
+            polynomial_size,
             decomposition_level,
         }
     }

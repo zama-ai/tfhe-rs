@@ -79,10 +79,10 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
             data_re1,
             data_im0,
             data_im1,
+            polynomial_size,
             glwe_size,
             decomposition_base_log,
             decomposition_level_count,
-            polynomial_size,
         }
     }
 

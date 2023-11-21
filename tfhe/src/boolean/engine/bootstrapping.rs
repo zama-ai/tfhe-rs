@@ -451,8 +451,8 @@ impl From<CompressedServerKey> for ServerKey {
         );
 
         Self {
-            key_switching_key,
             bootstrapping_key,
+            key_switching_key,
             pbs_order,
         }
     }
