@@ -21,7 +21,6 @@
 #![allow(clippy::items_after_statements)] // 99
 #![allow(clippy::cast_sign_loss)] // 97
 #![allow(clippy::inline_always)] // 51
-#![allow(clippy::unnecessary_wraps)] // 45
 #![allow(clippy::many_single_char_names)] // 44
 #![allow(clippy::needless_pass_by_value)] // 44
 #![allow(clippy::too_many_lines)] // 34

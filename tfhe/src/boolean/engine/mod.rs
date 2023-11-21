@@ -103,11 +103,11 @@ impl BooleanEngine {
     }
 
     pub fn create_server_key(&mut self, cks: &ClientKey) -> ServerKey {
-        self.bootstrapper.new_server_key(cks).unwrap()
+        self.bootstrapper.new_server_key(cks)
     }
 
     pub fn create_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {
-        self.bootstrapper.new_compressed_server_key(cks).unwrap()
+        self.bootstrapper.new_compressed_server_key(cks)
     }
 
     pub fn create_public_key(&mut self, client_key: &ClientKey) -> PublicKey {
@@ -564,15 +564,13 @@ impl BooleanEngine {
 
                 match server_key.pbs_order {
                     PBSOrder::KeyswitchBootstrap => {
-                        let ct_ks_1 = bootstrapper
-                            .keyswitch(buffer_lwe_before_pbs, server_key)
-                            .unwrap();
+                        let ct_ks_1 = bootstrapper.keyswitch(buffer_lwe_before_pbs, server_key);
 
                         // Compute the first programmable bootstrapping with fixed test polynomial:
-                        let mut ct_pbs_1 = bootstrapper.bootstrap(&ct_ks_1, server_key).unwrap();
+                        let mut ct_pbs_1 = bootstrapper.bootstrap(&ct_ks_1, server_key);
 
-                        let ct_ks_2 = bootstrapper.keyswitch(&ct_temp_2, server_key).unwrap();
-                        let ct_pbs_2 = bootstrapper.bootstrap(&ct_ks_2, server_key).unwrap();
+                        let ct_ks_2 = bootstrapper.keyswitch(&ct_temp_2, server_key);
+                        let ct_pbs_2 = bootstrapper.bootstrap(&ct_ks_2, server_key);
 
                         // Compute the linear combination to add the two results:
                         // buffer_lwe_pbs + ct_pbs_2 + (0,...,0, +1/8)
@@ -585,11 +583,10 @@ impl BooleanEngine {
                     }
                     PBSOrder::BootstrapKeyswitch => {
                         // Compute the first programmable bootstrapping with fixed test polynomial:
-                        let mut ct_pbs_1 = bootstrapper
-                            .bootstrap(buffer_lwe_before_pbs, server_key)
-                            .unwrap();
+                        let mut ct_pbs_1 =
+                            bootstrapper.bootstrap(buffer_lwe_before_pbs, server_key);
 
-                        let ct_pbs_2 = bootstrapper.bootstrap(&ct_temp_2, server_key).unwrap();
+                        let ct_pbs_2 = bootstrapper.bootstrap(&ct_temp_2, server_key);
 
                         // Compute the linear combination to add the two results:
                         // buffer_lwe_pbs + ct_pbs_2 + (0,...,0, +1/8)
@@ -597,7 +594,7 @@ impl BooleanEngine {
                         let cst = Plaintext(PLAINTEXT_TRUE);
                         lwe_ciphertext_plaintext_add_assign(&mut ct_pbs_1, cst); // + 1/8
 
-                        let ct_ks = bootstrapper.keyswitch(&ct_pbs_1, server_key).unwrap();
+                        let ct_ks = bootstrapper.keyswitch(&ct_pbs_1, server_key);
 
                         // Output the result:
                         Ciphertext::Encrypted(ct_ks)
@@ -642,9 +639,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_plaintext_add_assign(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
-                bootstrapper
-                    .apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
-                    .unwrap()
+                bootstrapper.apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
             }
         }
     }
@@ -682,9 +677,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_plaintext_add_assign(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
-                bootstrapper
-                    .apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
-                    .unwrap()
+                bootstrapper.apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
             }
         }
     }
@@ -723,9 +716,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_plaintext_add_assign(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
-                bootstrapper
-                    .apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
-                    .unwrap()
+                bootstrapper.apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
             }
         }
     }
@@ -762,9 +753,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_plaintext_add_assign(&mut buffer_lwe_before_pbs, cst);
 
                 // compute the bootstrap and the key switch
-                bootstrapper
-                    .apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
-                    .unwrap()
+                bootstrapper.apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
             }
         }
     }
@@ -804,9 +793,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_cleartext_mul_assign(&mut buffer_lwe_before_pbs, cst_mul);
 
                 // compute the bootstrap and the key switch
-                bootstrapper
-                    .apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
-                    .unwrap()
+                bootstrapper.apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
             }
         }
     }
@@ -848,9 +835,7 @@ impl BinaryGatesEngine<&Ciphertext, &Ciphertext, ServerKey> for BooleanEngine {
                 lwe_ciphertext_cleartext_mul_assign(&mut buffer_lwe_before_pbs, cst_mul);
 
                 // compute the bootstrap and the key switch
-                bootstrapper
-                    .apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
-                    .unwrap()
+                bootstrapper.apply_bootstrapping_pattern(buffer_lwe_before_pbs, server_key)
             }
         }
     }
