@@ -472,7 +472,7 @@ fn test_uniform_random_custom_mod<
                 let diff = empirical_cdf - theoretical_cdf;
                 diff.abs()
             })
-            .max_by(|a, b| a.total_cmp(b))
+            .max_by(f64::total_cmp)
             .unwrap();
 
         // https://en.wikipedia.org/wiki/Dvoretzky%E2%80%93Kiefer%E2%80%93Wolfowitz_inequality#Building_CDF_bands

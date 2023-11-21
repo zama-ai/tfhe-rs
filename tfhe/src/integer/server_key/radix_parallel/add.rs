@@ -891,7 +891,9 @@ impl ServerKey {
             "Not all ciphertexts have the same number of blocks"
         );
         assert!(
-            ciphertexts.iter().all(|ct| ct.block_carries_are_empty()),
+            ciphertexts
+                .iter()
+                .all(IntegerRadixCiphertext::block_carries_are_empty),
             "All ciphertexts must have empty carries"
         );
 

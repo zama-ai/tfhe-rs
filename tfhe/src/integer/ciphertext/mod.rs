@@ -126,7 +126,7 @@ impl CompactCiphertextList {
 
 impl RadixCiphertext {
     pub fn block_carries_are_empty(&self) -> bool {
-        self.blocks.iter().all(|block| block.carry_is_empty())
+        self.blocks.iter().all(Ciphertext::carry_is_empty)
     }
 }
 
@@ -177,7 +177,7 @@ impl ParameterSetConformant for CompressedSignedRadixCiphertext {
 
 impl SignedRadixCiphertext {
     pub fn block_carries_are_empty(&self) -> bool {
-        self.blocks.iter().all(|block| block.carry_is_empty())
+        self.blocks.iter().all(Ciphertext::carry_is_empty)
     }
 }
 impl From<CompressedSignedRadixCiphertext> for SignedRadixCiphertext {
@@ -210,7 +210,7 @@ pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send + From<Vec<Cip
     const IS_SIGNED: bool;
 
     fn block_carries_are_empty(&self) -> bool {
-        self.blocks().iter().all(|block| block.carry_is_empty())
+        self.blocks().iter().all(Ciphertext::carry_is_empty)
     }
 
     /// Returns whether the ciphertext _seems_ like it holds/encrypts
