@@ -33,7 +33,7 @@ impl KeySwitchingKey {
                         *ct_dest = Ciphertext::Encrypted(cipher_dest);
                     }
                     Ciphertext::Encrypted(ref mut cipher_dest) => {
-                        keyswitch_lwe_ciphertext(&self.key_switching_key, cipher, cipher_dest)
+                        keyswitch_lwe_ciphertext(&self.key_switching_key, cipher, cipher_dest);
                     }
                 };
             }

@@ -85,7 +85,7 @@ mod tests {
         assert!(!U512::from(8329842348123u64).is_power_of_two());
 
         for i in 0..U512::BITS {
-            assert!((U512::ONE << i).is_power_of_two())
+            assert!((U512::ONE << i).is_power_of_two());
         }
     }
 
@@ -110,7 +110,7 @@ mod tests {
         );
 
         for i in 0..U512::BITS {
-            assert_eq!((U512::ONE << i).ilog2(), i)
+            assert_eq!((U512::ONE << i).ilog2(), i);
         }
     }
 

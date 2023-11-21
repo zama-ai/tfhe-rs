@@ -116,7 +116,7 @@ impl<const N: usize> std::ops::Add<Self> for StaticSignedBigInt<N> {
 
 impl<const N: usize> std::ops::AddAssign<Self> for StaticSignedBigInt<N> {
     fn add_assign(&mut self, rhs: Self) {
-        super::algorithms::add_assign_words(self.0.as_mut_slice(), rhs.0.as_slice())
+        super::algorithms::add_assign_words(self.0.as_mut_slice(), rhs.0.as_slice());
     }
 }
 
@@ -141,7 +141,7 @@ impl<const N: usize> std::ops::Not for StaticSignedBigInt<N> {
 
 impl<const N: usize> std::ops::SubAssign<Self> for StaticSignedBigInt<N> {
     fn sub_assign(&mut self, rhs: Self) {
-        self.add_assign(-rhs)
+        self.add_assign(-rhs);
     }
 }
 
@@ -273,7 +273,7 @@ impl<const N: usize> std::ops::Shl<usize> for StaticSignedBigInt<N> {
 
 impl<const N: usize> std::ops::BitAndAssign<Self> for StaticSignedBigInt<N> {
     fn bitand_assign(&mut self, rhs: Self) {
-        super::algorithms::bitand_assign(self.0.as_mut_slice(), rhs.0.as_slice())
+        super::algorithms::bitand_assign(self.0.as_mut_slice(), rhs.0.as_slice());
     }
 }
 
@@ -288,7 +288,7 @@ impl<const N: usize> std::ops::BitAnd<Self> for StaticSignedBigInt<N> {
 
 impl<const N: usize> std::ops::BitOrAssign<Self> for StaticSignedBigInt<N> {
     fn bitor_assign(&mut self, rhs: Self) {
-        super::algorithms::bitor_assign(self.0.as_mut_slice(), rhs.0.as_slice())
+        super::algorithms::bitor_assign(self.0.as_mut_slice(), rhs.0.as_slice());
     }
 }
 
@@ -303,7 +303,7 @@ impl<const N: usize> std::ops::BitOr<Self> for StaticSignedBigInt<N> {
 
 impl<const N: usize> std::ops::BitXorAssign<Self> for StaticSignedBigInt<N> {
     fn bitxor_assign(&mut self, rhs: Self) {
-        super::algorithms::bitxor_assign(self.0.as_mut_slice(), rhs.0.as_slice())
+        super::algorithms::bitxor_assign(self.0.as_mut_slice(), rhs.0.as_slice());
     }
 }
 

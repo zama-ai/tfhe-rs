@@ -117,6 +117,6 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_multi_bit_bootstrapping_ke
             &mut bsk,
             glwe_encryption_std_dev,
             &mut encryption_random_generator,
-        )
+        );
     })
 }

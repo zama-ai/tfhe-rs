@@ -238,8 +238,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_div_assign(self, ct_left, ct_right)
-        })
+            engine.unchecked_div_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Compute a division between two ciphertexts.
@@ -342,8 +342,8 @@ impl ServerKey {
     /// ```
     pub fn smart_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_div_assign(self, ct_left, ct_right)
-        })
+            engine.smart_div_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Alias to [`unchecked_scalar_div`](`Self::unchecked_scalar_div`) provided for convenience
@@ -378,7 +378,7 @@ impl ServerKey {
     ///
     /// This function will panic if `scalar == 0`.
     pub fn scalar_div_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
-        self.unchecked_scalar_div_assign(ct_left, scalar)
+        self.unchecked_scalar_div_assign(ct_left, scalar);
     }
 
     /// Compute a division of a ciphertext by a scalar without checks.
@@ -431,8 +431,8 @@ impl ServerKey {
 
     pub fn unchecked_scalar_div_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_div_assign(self, ct_left, scalar)
-        })
+            engine.unchecked_scalar_div_assign(self, ct_left, scalar);
+        });
     }
 
     /// Alias to [`unchecked_scalar_mod`](`Self::unchecked_scalar_mod`) provided for convenience
@@ -467,7 +467,7 @@ impl ServerKey {
     ///
     /// This function will panic if `scalar == 0`.
     pub fn scalar_mod_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
-        self.unchecked_scalar_mod_assign(ct_left, scalar)
+        self.unchecked_scalar_mod_assign(ct_left, scalar);
     }
 
     /// Compute homomorphically a modular reduction without checks.
@@ -519,7 +519,7 @@ impl ServerKey {
 
     pub fn unchecked_scalar_mod_assign(&self, ct_left: &mut Ciphertext, modulus: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mod_assign(self, ct_left, modulus)
-        })
+            engine.unchecked_scalar_mod_assign(self, ct_left, modulus);
+        });
     }
 }

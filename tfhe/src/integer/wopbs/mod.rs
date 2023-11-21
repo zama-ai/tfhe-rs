@@ -620,7 +620,7 @@ impl WopbsKey {
                 lut[block_index][index] = ((f(value as u64)
                     >> (log_carry_modulus * block_index as u64))
                     % (1 << log_message_modulus))
-                    << delta
+                    << delta;
             }
         }
         lut
@@ -680,7 +680,7 @@ impl WopbsKey {
             }
             for (j, b) in basis.iter().enumerate() {
                 lut[j][index_lut as usize] =
-                    (((f(value) % b) as u128 * (1 << 64)) / *b as u128) as u64
+                    (((f(value) % b) as u128 * (1 << 64)) / *b as u128) as u64;
             }
         }
         lut
@@ -993,7 +993,7 @@ impl WopbsKey {
             let index = (index_lut_2 << total_bit) + (index_lut_1);
             for (j, b) in basis.iter().enumerate() {
                 lut[j][index as usize] =
-                    (((f(value_1, value_2) % b) as u128 * (1 << 64)) / *b as u128) as u64
+                    (((f(value_1, value_2) % b) as u128 * (1 << 64)) / *b as u128) as u64;
             }
         }
         lut

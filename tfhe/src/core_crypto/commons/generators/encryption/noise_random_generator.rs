@@ -90,7 +90,7 @@ impl<G: ByteRandomGenerator> NoiseRandomGenerator<G> {
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
     {
         self.gen
-            .fill_slice_with_random_gaussian(output, 0., std.get_standard_dev())
+            .fill_slice_with_random_gaussian(output, 0., std.get_standard_dev());
     }
 
     // Fills the input slice with random noise, using the random generator.

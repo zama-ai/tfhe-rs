@@ -175,7 +175,7 @@ impl ServerKey {
 
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         self.key
-            .set_deterministic_pbs_execution(new_deterministic_execution)
+            .set_deterministic_pbs_execution(new_deterministic_execution);
     }
     pub fn message_modulus(&self) -> MessageModulus {
         self.key.message_modulus

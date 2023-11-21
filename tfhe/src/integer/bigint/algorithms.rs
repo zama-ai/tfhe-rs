@@ -183,7 +183,7 @@ pub(crate) fn schoolbook_mul_assign(lhs: &mut [u64], rhs: &[u64]) {
         }
         blocks.push(carry as u64);
 
-        terms.push(blocks)
+        terms.push(blocks);
     }
 
     let mut result = terms.pop().unwrap();

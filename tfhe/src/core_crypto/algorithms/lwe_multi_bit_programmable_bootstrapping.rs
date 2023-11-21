@@ -385,7 +385,7 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
             polynomial_wrapping_monic_monomial_div_assign(
                 &mut poly,
                 MonomialDegree(monomial_degree),
-            )
+            );
         });
 
     let fourier_multi_bit_ggsw_buffers = (0..thread_count.0)
@@ -634,7 +634,7 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, OutputCont
             polynomial_wrapping_monic_monomial_div_assign(
                 &mut poly,
                 MonomialDegree(monomial_degree),
-            )
+            );
         });
 
     let fourier_multi_bit_ggsw_buffers = (0..thread_count.0)
@@ -1382,7 +1382,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
             polynomial_wrapping_monic_monomial_div_assign(
                 &mut poly,
                 MonomialDegree(monomial_degree),
-            )
+            );
         });
 
     let fourier_multi_bit_ggsw_buffers = (0..thread_count.0)
@@ -1666,7 +1666,7 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, InputCont, Output
             polynomial_wrapping_monic_monomial_div_assign(
                 &mut poly,
                 MonomialDegree(monomial_degree),
-            )
+            );
         });
 
     let fourier_multi_bit_ggsw_buffers = (0..thread_count.0)

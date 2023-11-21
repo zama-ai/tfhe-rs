@@ -637,12 +637,12 @@ impl ServerKey {
         rayon::join(
             || {
                 if !numerator.block_carries_are_empty() {
-                    self.full_propagate_parallelized(numerator)
+                    self.full_propagate_parallelized(numerator);
                 }
             },
             || {
                 if !divisor.block_carries_are_empty() {
-                    self.full_propagate_parallelized(divisor)
+                    self.full_propagate_parallelized(divisor);
                 }
             },
         );

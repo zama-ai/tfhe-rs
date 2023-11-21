@@ -232,7 +232,7 @@ impl ServerKey {
                 .zip(false_ct.blocks().par_iter())
                 .for_each(|(lhs_block, rhs_block)| {
                     self.key.unchecked_add_assign(lhs_block, rhs_block);
-                    self.key.message_extract_assign(lhs_block)
+                    self.key.message_extract_assign(lhs_block);
                 });
         } else {
             true_ct
@@ -261,7 +261,7 @@ impl ServerKey {
     {
         assert!(condition_block.degree.0 <= 1);
 
-        self.zero_out_if_condition_equals(ct, condition_block, 0)
+        self.zero_out_if_condition_equals(ct, condition_block, 0);
     }
 
     pub(crate) fn zero_out_if_condition_equals<T>(

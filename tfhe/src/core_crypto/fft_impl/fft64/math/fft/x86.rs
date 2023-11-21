@@ -592,7 +592,7 @@ pub fn convert_forward_integer_u64_avx2_v3(
         in_re,
         in_im,
         twisties,
-    })
+    });
 }
 
 /// Perform common work for `u32` and `u64`, used by the backward torus transformation.
@@ -955,7 +955,7 @@ pub fn convert_add_backward_torus_u32_v3(
         out_im,
         inp,
         twisties,
-    })
+    });
 }
 
 pub fn convert_add_backward_torus_u64_v3(
@@ -1040,7 +1040,7 @@ pub fn convert_add_backward_torus_u64_v3(
         out_im,
         inp,
         twisties,
-    })
+    });
 }
 
 pub fn convert_forward_integer_u32(
@@ -1056,7 +1056,7 @@ pub fn convert_forward_integer_u32(
     if let Some(simd) = V3::try_new() {
         return convert_forward_integer_u32_v3(simd, out, in_re, in_im, twisties);
     }
-    super::convert_forward_integer_scalar::<u32>(out, in_re, in_im, twisties)
+    super::convert_forward_integer_scalar::<u32>(out, in_re, in_im, twisties);
 }
 
 pub fn convert_forward_integer_u64(
@@ -1072,7 +1072,7 @@ pub fn convert_forward_integer_u64(
     if let Some(simd) = V3::try_new() {
         return convert_forward_integer_u64_avx2_v3(simd, out, in_re, in_im, twisties);
     }
-    super::convert_forward_integer_scalar::<u64>(out, in_re, in_im, twisties)
+    super::convert_forward_integer_scalar::<u64>(out, in_re, in_im, twisties);
 }
 
 pub fn convert_add_backward_torus_u32(
@@ -1088,7 +1088,7 @@ pub fn convert_add_backward_torus_u32(
     if let Some(simd) = V3::try_new() {
         return convert_add_backward_torus_u32_v3(simd, out_re, out_im, inp, twisties);
     }
-    super::convert_add_backward_torus_scalar::<u32>(out_re, out_im, inp, twisties)
+    super::convert_add_backward_torus_scalar::<u32>(out_re, out_im, inp, twisties);
 }
 
 pub fn convert_add_backward_torus_u64(
@@ -1104,7 +1104,7 @@ pub fn convert_add_backward_torus_u64(
     if let Some(simd) = V3::try_new() {
         return convert_add_backward_torus_u64_v3(simd, out_re, out_im, inp, twisties);
     }
-    super::convert_add_backward_torus_scalar::<u64>(out_re, out_im, inp, twisties)
+    super::convert_add_backward_torus_scalar::<u64>(out_re, out_im, inp, twisties);
 }
 
 #[cfg(test)]

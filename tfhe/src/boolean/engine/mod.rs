@@ -433,7 +433,7 @@ impl BooleanEngine {
     pub fn replace_thread_local(new_engine: Self) {
         Self::with_thread_local_mut(|local_engine| {
             let _ = std::mem::replace(local_engine, new_engine);
-        })
+        });
     }
 
     pub fn new() -> Self {

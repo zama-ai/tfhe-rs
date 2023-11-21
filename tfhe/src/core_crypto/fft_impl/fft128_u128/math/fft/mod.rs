@@ -976,7 +976,7 @@ pub fn convert_forward_integer(
     }
     convert_forward_integer_scalar(
         out_re0, out_re1, out_im0, out_im1, in_re_lo, in_re_hi, in_im_lo, in_im_hi,
-    )
+    );
 }
 
 pub fn convert_add_backward_torus_scalar(
@@ -1216,7 +1216,7 @@ pub fn convert_add_backward_torus(
     }
     convert_add_backward_torus_scalar(
         out_re_lo, out_re_hi, out_im_lo, out_im_hi, in_re0, in_re1, in_im0, in_im1,
-    )
+    );
 }
 
 impl<'a> Fft128View<'a> {
@@ -1237,7 +1237,7 @@ impl<'a> Fft128View<'a> {
             standard_lo,
             standard_hi,
             convert_forward_integer,
-        )
+        );
     }
 
     /// Perform an inverse negacyclic real FFT of `fourier` and adds the result to `standard`,
@@ -1265,7 +1265,7 @@ impl<'a> Fft128View<'a> {
             fourier_im1,
             convert_add_backward_torus,
             stack,
-        )
+        );
     }
 
     fn forward_with_conv_split(
@@ -1380,6 +1380,6 @@ mod tests {
         let a = f128(-11984547.0, -1.0316078675142442e-10);
         let b = f128_floor(a);
 
-        assert!(b.1.abs() <= 0.5 * ulp(b.0))
+        assert!(b.1.abs() <= 0.5 * ulp(b.0));
     }
 }

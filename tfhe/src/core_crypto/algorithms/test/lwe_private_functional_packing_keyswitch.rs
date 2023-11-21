@@ -201,10 +201,10 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
 
 #[test]
 fn test_parallel_pfpks_equivalence_u32_native_mod() {
-    test_parallel_pfpks_equivalence::<u32>(CiphertextModulus::new_native())
+    test_parallel_pfpks_equivalence::<u32>(CiphertextModulus::new_native());
 }
 
 #[test]
 fn test_parallel_pfpks_equivalence_u64_native_mod() {
-    test_parallel_pfpks_equivalence::<u64>(CiphertextModulus::new_native())
+    test_parallel_pfpks_equivalence::<u64>(CiphertextModulus::new_native());
 }

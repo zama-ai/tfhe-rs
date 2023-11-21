@@ -77,7 +77,7 @@ pub fn decompress_seeded_ggsw_ciphertext<Scalar, InputCont, OutputCont, Gen>(
         output_ggsw,
         input_seeded_ggsw,
         &mut generator,
-    )
+    );
 }
 
 /// Parallel variant of [`decompress_seeded_ggsw_ciphertext_with_existing_generator`].
@@ -133,7 +133,7 @@ pub fn par_decompress_seeded_ggsw_ciphertext_with_existing_generator<
                         );
                     },
                 );
-        })
+        });
 }
 
 /// Parallel variant of [`decompress_seeded_ggsw_ciphertext`].
@@ -151,5 +151,5 @@ pub fn par_decompress_seeded_ggsw_ciphertext<Scalar, InputCont, OutputCont, Gen>
         output_ggsw,
         input_seeded_ggsw,
         &mut generator,
-    )
+    );
 }

@@ -218,19 +218,19 @@ create_parametrized_test!(shortint_default_scalar_bitxor);
 #[cfg(not(feature = "__coverage"))]
 #[test]
 fn test_shortint_compressed_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
-    shortint_compressed_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS)
+    shortint_compressed_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 }
 
 #[cfg(not(feature = "__coverage"))]
 #[test]
 fn test_shortint_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
-    shortint_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS)
+    shortint_public_key_smart_add(PARAM_MESSAGE_1_CARRY_1_KS_PBS);
 }
 
 #[cfg(not(feature = "__coverage"))]
 #[test]
 fn test_shortint_public_key_smart_add_param_message_2_carry_2_ks_pbs() {
-    shortint_public_key_smart_add(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
+    shortint_public_key_smart_add(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 }
 
 //These functions are compatible with some parameter sets where the carry modulus is larger than
@@ -2146,7 +2146,7 @@ where
         let ct_res = sks.unchecked_div(&ct_num, &ct_denom);
 
         let res = cks.decrypt(&ct_res);
-        assert_eq!(res, (ct_num.message_modulus.0 - 1) as u64)
+        assert_eq!(res, (ct_num.message_modulus.0 - 1) as u64);
     }
 
     for _ in 0..NB_TEST {

@@ -64,5 +64,5 @@ pub fn decompress_seeded_lwe_ciphertext<Scalar, OutputCont, Gen>(
         output_lwe,
         input_seeded_lwe,
         &mut generator,
-    )
+    );
 }

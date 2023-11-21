@@ -213,7 +213,7 @@ pub fn generate_keys() {
         println!("Generation took {stop} seconds");
 
         // Clear keys as we go to avoid filling the RAM
-        KEY_CACHE.clear_in_memory_cache::<P, K>()
+        KEY_CACHE.clear_in_memory_cache::<P, K>();
     }
 
     let mut rsc = TestResources::new();

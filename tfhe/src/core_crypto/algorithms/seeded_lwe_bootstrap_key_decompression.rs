@@ -31,7 +31,9 @@ pub fn decompress_seeded_lwe_bootstrap_key_with_existing_generator<
         output_bsk.ciphertext_modulus(),
     );
 
-    decompress_seeded_ggsw_ciphertext_list_with_existing_generator(output_bsk, input_bsk, generator)
+    decompress_seeded_ggsw_ciphertext_list_with_existing_generator(
+        output_bsk, input_bsk, generator,
+    );
 }
 
 /// Decompress a [`SeededLweBootstrapKey`], without consuming it, into a standard
@@ -59,7 +61,7 @@ pub fn decompress_seeded_lwe_bootstrap_key<Scalar, InputCont, OutputCont, Gen>(
         output_bsk,
         input_bsk,
         &mut generator,
-    )
+    );
 }
 
 /// Parallel variant of [`decompress_seeded_lwe_bootstrap_key_with_existing_generator`].
@@ -89,7 +91,7 @@ pub fn par_decompress_seeded_lwe_bootstrap_key_with_existing_generator<
 
     par_decompress_seeded_ggsw_ciphertext_list_with_existing_generator(
         output_bsk, input_bsk, generator,
-    )
+    );
 }
 
 /// Parallel variant of [`decompress_seeded_lwe_bootstrap_key`]`.
@@ -116,5 +118,5 @@ pub fn par_decompress_seeded_lwe_bootstrap_key<Scalar, InputCont, OutputCont, Ge
         output_bsk,
         input_bsk,
         &mut generator,
-    )
+    );
 }

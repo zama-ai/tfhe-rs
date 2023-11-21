@@ -100,7 +100,7 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_right_shift_assign_parallelized(lhs, rhs)
+        self.unchecked_right_shift_assign_parallelized(lhs, rhs);
     }
 
     /// Computes homomorphically a right shift by an encrypted amount
@@ -248,7 +248,7 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_left_shift_assign_parallelized(lhs, rhs)
+        self.unchecked_left_shift_assign_parallelized(lhs, rhs);
     }
 
     /// Computes homomorphically a left shift by an encrypted amount.

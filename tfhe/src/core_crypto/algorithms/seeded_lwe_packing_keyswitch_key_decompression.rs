@@ -26,7 +26,7 @@ pub fn decompress_seeded_lwe_packing_keyswitch_key_with_existing_generator<
         &mut output_pksk.as_mut_glwe_ciphertext_list(),
         &input_pksk.as_seeded_glwe_ciphertext_list(),
         generator,
-    )
+    );
 }
 
 /// Decompress a [`SeededLwePackingKeyswitchKey`], without consuming it, into a standard
@@ -45,5 +45,5 @@ pub fn decompress_seeded_lwe_packing_keyswitch_key<Scalar, InputCont, OutputCont
         output_pksk,
         input_pksk,
         &mut generator,
-    )
+    );
 }

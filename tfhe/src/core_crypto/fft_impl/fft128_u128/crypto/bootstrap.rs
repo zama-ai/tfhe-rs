@@ -99,7 +99,7 @@ where
                     poly_lo,
                     poly_hi,
                     MonomialDegree(monomial_degree),
-                )
+                );
             }
 
             // We initialize the ct_0 used for the successive cmuxes
@@ -141,7 +141,7 @@ where
                                 ModulusSwitchOffset(0),
                                 LutCountLog(0),
                             )),
-                        )
+                        );
                     }
 
                     cmux_split(
@@ -163,7 +163,7 @@ where
             lwe.as_view(),
             fft,
             stack,
-        )
+        );
     }
 
     pub fn bootstrap_u128<ContLweOut, ContLweIn, ContAcc>(
@@ -260,6 +260,6 @@ where
             accumulator.as_view(),
             fft,
             stack,
-        )
+        );
     }
 }

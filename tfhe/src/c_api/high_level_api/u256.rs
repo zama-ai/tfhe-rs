@@ -42,7 +42,7 @@ pub unsafe extern "C" fn u256_from_little_endian_bytes(
         let input = std::slice::from_raw_parts(input, len);
         inner.copy_from_le_byte_slice(input);
 
-        *result = U256::from(inner)
+        *result = U256::from(inner);
     })
 }
 
@@ -61,7 +61,7 @@ pub unsafe extern "C" fn u256_from_big_endian_bytes(
         let input = std::slice::from_raw_parts(input, len);
         inner.copy_from_be_byte_slice(input);
 
-        *result = U256::from(inner)
+        *result = U256::from(inner);
     })
 }
 

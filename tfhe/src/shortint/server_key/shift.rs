@@ -268,8 +268,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_right_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_right_shift_assign(self, ct, shift)
-        })
+            engine.unchecked_scalar_right_shift_assign(self, ct, shift);
+        });
     }
 
     /// Compute homomorphically a left shift of the bits.
@@ -546,8 +546,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_left_shift_assign(ct, shift)
-        })
+            engine.unchecked_scalar_left_shift_assign(ct, shift);
+        });
     }
 
     /// Checks if the left shift operation can be applied.
@@ -770,7 +770,7 @@ impl ServerKey {
 
     pub fn smart_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_left_shift_assign(self, ct, shift)
-        })
+            engine.smart_scalar_left_shift_assign(self, ct, shift);
+        });
     }
 }

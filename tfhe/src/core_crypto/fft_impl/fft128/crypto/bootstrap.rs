@@ -212,7 +212,7 @@ where
                 fourier_ggsw.fill_with_forward_fourier(&standard_ggsw, fft);
             }
         }
-        implementation(self.as_mut_view(), coef_bsk.as_view(), fft)
+        implementation(self.as_mut_view(), coef_bsk.as_view(), fft);
     }
 }
 
@@ -279,7 +279,7 @@ where
                     polynomial_wrapping_monic_monomial_div_assign(
                         &mut poly,
                         MonomialDegree(monomial_degree),
-                    )
+                    );
                 });
 
             // We initialize the ct_0 used for the successive cmuxes
@@ -333,7 +333,7 @@ where
                     .for_each(|x| *x = signed_decomposer.closest_representable(*x));
             }
         }
-        implementation(self.as_view(), lut.as_mut_view(), lwe.as_view(), fft, stack)
+        implementation(self.as_view(), lut.as_mut_view(), lwe.as_view(), fft, stack);
     }
 
     pub fn bootstrap<Scalar, ContLweOut, ContLweIn, ContAcc>(
@@ -390,7 +390,7 @@ where
             accumulator.as_view(),
             fft,
             stack,
-        )
+        );
     }
 }
 
@@ -453,7 +453,7 @@ where
         ContLweIn: Container<Element = Scalar>,
         ContAcc: Container<Element = Scalar>,
     {
-        self.bootstrap(lwe_out, lwe_in, accumulator, fft.as_view(), stack)
+        self.bootstrap(lwe_out, lwe_in, accumulator, fft.as_view(), stack);
     }
 
     fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> Result<StackReq, SizeOverflow> {

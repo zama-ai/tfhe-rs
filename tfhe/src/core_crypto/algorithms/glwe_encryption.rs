@@ -1067,7 +1067,7 @@ pub fn encrypt_seeded_glwe_ciphertext_list_with_existing_generator<
             &plaintext_list,
             noise_parameters,
             generator,
-        )
+        );
     }
 }
 

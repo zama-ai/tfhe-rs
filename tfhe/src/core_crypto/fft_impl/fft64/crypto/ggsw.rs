@@ -684,7 +684,7 @@ pub(crate) fn update_with_fmadd(
                 self.fourier,
                 self.is_output_uninit,
                 self.fourier_poly_size,
-            )
+            );
         }
     }
 
@@ -694,7 +694,7 @@ pub(crate) fn update_with_fmadd(
         fourier,
         is_output_uninit,
         fourier_poly_size,
-    })
+    });
 }
 
 pub(crate) fn update_with_fmadd_factor(
@@ -751,7 +751,7 @@ pub(crate) fn update_with_fmadd_factor(
         factor,
         is_output_uninit,
         fourier_poly_size,
-    })
+    });
 }
 
 /// Return the required memory for [`cmux`].

@@ -367,7 +367,7 @@ impl ServerKey {
                             lhs_block,
                             rhs_block,
                             &lsb_block_mul_lut,
-                        )
+                        );
                     });
 
                 result
@@ -395,7 +395,7 @@ impl ServerKey {
                                         lhs_block,
                                         rhs_block,
                                         &msb_block_mul_lut,
-                                    )
+                                    );
                                 });
 
                             result
@@ -470,12 +470,12 @@ impl ServerKey {
         rayon::join(
             || {
                 if !lhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(lhs)
+                    self.full_propagate_parallelized(lhs);
                 }
             },
             || {
                 if !rhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(rhs)
+                    self.full_propagate_parallelized(rhs);
                 }
             },
         );
@@ -497,12 +497,12 @@ impl ServerKey {
         rayon::join(
             || {
                 if !lhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(lhs)
+                    self.full_propagate_parallelized(lhs);
                 }
             },
             || {
                 if !rhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(rhs)
+                    self.full_propagate_parallelized(rhs);
                 }
             },
         );

@@ -540,7 +540,7 @@ impl ShortintEngine {
             .is_functional_bivariate_pbs_possible(ct_left, ct_right)
             .unwrap();
 
-        self.unchecked_apply_lookup_table_bivariate_assign(server_key, ct_left, ct_right, acc)
+        self.unchecked_apply_lookup_table_bivariate_assign(server_key, ct_left, ct_right, acc);
     }
 
     pub(crate) fn programmable_bootstrap_keyswitch_assign(

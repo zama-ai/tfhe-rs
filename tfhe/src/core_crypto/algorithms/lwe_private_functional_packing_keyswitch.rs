@@ -282,7 +282,7 @@ pub fn private_functional_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphert
             .as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
-                polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(degree))
+                polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(degree));
             });
         slice_wrapping_add_assign(output.as_mut(), buffer.as_ref());
     }

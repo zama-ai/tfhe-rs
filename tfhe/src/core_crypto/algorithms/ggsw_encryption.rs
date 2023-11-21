@@ -504,7 +504,7 @@ pub fn encrypt_constant_seeded_ggsw_ciphertext<Scalar, KeyCont, OutputCont, Nois
         encoded,
         noise_parameters,
         &mut generator,
-    )
+    );
 }
 
 /// Convenience function to share the core logic of the parallel seeded GGSW encryption between all

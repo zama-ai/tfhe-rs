@@ -45,5 +45,5 @@ pub fn decompress_seeded_lwe_compact_public_key<Scalar, InputCont, OutputCont, G
         output_cpk,
         input_seeded_cpk,
         &mut generator,
-    )
+    );
 }

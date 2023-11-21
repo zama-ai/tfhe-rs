@@ -460,7 +460,7 @@ impl<'a> FftView<'a> {
         fourier: FourierPolynomialView<'_>,
         stack: PodStack<'_>,
     ) {
-        self.backward_with_conv(standard, fourier, convert_backward_torus, stack)
+        self.backward_with_conv(standard, fourier, convert_backward_torus, stack);
     }
 
     /// Perform an inverse negacyclic real FFT of `fourier` and adds the result to `standard`,
@@ -479,7 +479,7 @@ impl<'a> FftView<'a> {
         fourier: FourierPolynomialView<'_>,
         stack: PodStack<'_>,
     ) {
-        self.backward_with_conv(standard, fourier, convert_add_backward_torus, stack)
+        self.backward_with_conv(standard, fourier, convert_add_backward_torus, stack);
     }
 
     /// Variant of [`Self::add_backward_as_torus`] writing the output of the backward fourier
@@ -490,7 +490,7 @@ impl<'a> FftView<'a> {
         fourier: FourierPolynomialMutView<'_>,
         stack: PodStack<'_>,
     ) {
-        self.backward_with_conv_in_place(standard, fourier, convert_add_backward_torus, stack)
+        self.backward_with_conv_in_place(standard, fourier, convert_add_backward_torus, stack);
     }
 
     fn forward_with_conv<

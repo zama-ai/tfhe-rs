@@ -32,7 +32,7 @@ pub fn polynomial_wrapping_add_assign<Scalar, OutputCont, InputCont>(
     InputCont: Container<Element = Scalar>,
 {
     assert_eq!(lhs.polynomial_size(), rhs.polynomial_size());
-    slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref())
+    slice_wrapping_add_assign(lhs.as_mut(), rhs.as_ref());
 }
 
 /// Subtract a polynomial to the output polynomial.
@@ -61,7 +61,7 @@ pub fn polynomial_wrapping_sub_assign<Scalar, OutputCont, InputCont>(
     InputCont: Container<Element = Scalar>,
 {
     assert_eq!(lhs.polynomial_size(), rhs.polynomial_size());
-    slice_wrapping_sub_assign(lhs.as_mut(), rhs.as_ref())
+    slice_wrapping_sub_assign(lhs.as_mut(), rhs.as_ref());
 }
 
 /// Add the sum of the element-wise product between two lists of polynomials to the output
@@ -750,7 +750,7 @@ where
         for (lhs_degree, &lhs_elt) in p.iter().enumerate() {
             let res = &mut res[lhs_degree..];
             for (&rhs_elt, res) in q.iter().zip(res) {
-                *res = (*res).wrapping_add(lhs_elt.wrapping_mul(rhs_elt))
+                *res = (*res).wrapping_add(lhs_elt.wrapping_mul(rhs_elt));
             }
         }
     } else {
@@ -942,41 +942,41 @@ mod test {
 
     #[test]
     pub fn test_multiply_divide_unit_monomial_u32() {
-        test_multiply_divide_unit_monomial::<u32>()
+        test_multiply_divide_unit_monomial::<u32>();
     }
 
     #[test]
     pub fn test_multiply_divide_unit_monomial_u64() {
-        test_multiply_divide_unit_monomial::<u64>()
+        test_multiply_divide_unit_monomial::<u64>();
     }
 
     #[test]
     pub fn test_multiply_karatsuba_u32() {
-        test_multiply_karatsuba::<u32>()
+        test_multiply_karatsuba::<u32>();
     }
 
     #[test]
     pub fn test_multiply_karatsuba_u64() {
-        test_multiply_karatsuba::<u64>()
+        test_multiply_karatsuba::<u64>();
     }
 
     #[test]
     pub fn test_add_mul_u32() {
-        test_add_mul::<u32>()
+        test_add_mul::<u32>();
     }
 
     #[test]
     pub fn test_add_mul_u64() {
-        test_add_mul::<u64>()
+        test_add_mul::<u64>();
     }
 
     #[test]
     pub fn test_sub_mul_u32() {
-        test_sub_mul::<u32>()
+        test_sub_mul::<u32>();
     }
 
     #[test]
     pub fn test_sub_mul_u64() {
-        test_sub_mul::<u64>()
+        test_sub_mul::<u64>();
     }
 }
