@@ -215,9 +215,7 @@ impl WopbsKey {
     /// let mut wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
     /// ```
     pub fn new_wopbs_key(cks: &ClientKey, sks: &ServerKey, parameters: &WopbsParameters) -> Self {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_wopbs_key(cks, sks, parameters).unwrap()
-        })
+        ShortintEngine::with_thread_local_mut(|engine| engine.new_wopbs_key(cks, sks, parameters))
     }
 
     /// Generate the Look-Up Table homomorphically using the WoPBS approach.

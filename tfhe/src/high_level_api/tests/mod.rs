@@ -94,7 +94,7 @@ fn test_server_key_decompression() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_with_seed() -> Result<(), Box<dyn std::error::Error>> {
+fn test_with_seed() {
     use crate::Seed;
     let builder = ConfigBuilder::default();
     let config = builder.build();
@@ -112,8 +112,6 @@ fn test_with_seed() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(&cks1_serialized, &cks3_serialized);
     assert_ne!(&cks1_serialized, &cks2_serialized);
     assert_ne!(&cks1_serialized, &cks4_serialized);
-
-    Ok(())
 }
 
 #[test]
