@@ -127,6 +127,22 @@ impl ShortintWopbsLUT {
     }
 }
 
+impl<'a> IntoIterator for &'a ShortintWopbsLUT {
+    type IntoIter = std::slice::Iter<'a, u64>;
+    type Item = &'a u64;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut ShortintWopbsLUT {
+    type IntoIter = std::slice::IterMut<'a, u64>;
+    type Item = &'a mut u64;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
 impl AsRef<WopbsLUTBase> for ShortintWopbsLUT {
     fn as_ref(&self) -> &WopbsLUTBase {
         &self.inner
