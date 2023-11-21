@@ -118,7 +118,7 @@ fn id_mut<From: 'static, To: 'static>(slice: &mut [From]) -> &mut [To] {
 
     let len = slice.len();
     let ptr = slice.as_mut_ptr();
-    unsafe { core::slice::from_raw_parts_mut(ptr as *mut To, len) }
+    unsafe { core::slice::from_raw_parts_mut(ptr.cast::<To>(), len) }
 }
 
 /// Return the input slice, cast to the same type.
@@ -138,7 +138,7 @@ fn id<From: 'static, To: 'static>(slice: &[From]) -> &[To] {
 
     let len = slice.len();
     let ptr = slice.as_ptr();
-    unsafe { core::slice::from_raw_parts(ptr as *const To, len) }
+    unsafe { core::slice::from_raw_parts(ptr.cast::<To>(), len) }
 }
 
 impl Fft {
