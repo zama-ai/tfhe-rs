@@ -194,21 +194,11 @@ fn test_default_function<SmartFn, ClearF>(
 }
 
 fn test_unchecked_min_256_bits(params: crate::shortint::ClassicPBSParameters, num_tests: usize) {
-    test_unchecked_function(
-        params,
-        num_tests,
-        |server_key, lhs, rhs| server_key.unchecked_min(lhs, rhs),
-        std::cmp::min,
-    );
+    test_unchecked_function(params, num_tests, ServerKey::unchecked_min, std::cmp::min);
 }
 
 fn test_unchecked_max_256_bits(params: crate::shortint::ClassicPBSParameters, num_tests: usize) {
-    test_unchecked_function(
-        params,
-        num_tests,
-        |server_key, lhs, rhs| server_key.unchecked_max(lhs, rhs),
-        std::cmp::max,
-    );
+    test_unchecked_function(params, num_tests, ServerKey::unchecked_max, std::cmp::max);
 }
 
 fn test_unchecked_min_parallelized_256_bits(
@@ -218,7 +208,7 @@ fn test_unchecked_min_parallelized_256_bits(
     test_unchecked_function(
         params,
         num_tests,
-        |server_key, lhs, rhs| server_key.unchecked_min_parallelized(lhs, rhs),
+        ServerKey::unchecked_min_parallelized,
         std::cmp::min,
     );
 }
@@ -230,7 +220,7 @@ fn test_unchecked_max_parallelized_256_bits(
     test_unchecked_function(
         params,
         num_tests,
-        |server_key, lhs, rhs| server_key.unchecked_max_parallelized(lhs, rhs),
+        ServerKey::unchecked_max_parallelized,
         std::cmp::max,
     );
 }
@@ -239,7 +229,7 @@ fn test_min_parallelized_256_bits(params: crate::shortint::ClassicPBSParameters,
     test_default_function(
         params,
         num_tests,
-        |server_key, lhs, rhs| server_key.min_parallelized(lhs, rhs),
+        ServerKey::min_parallelized,
         std::cmp::min,
     );
 }
@@ -248,7 +238,7 @@ fn test_max_parallelized_256_bits(params: crate::shortint::ClassicPBSParameters,
     test_default_function(
         params,
         num_tests,
-        |server_key, lhs, rhs| server_key.max_parallelized(lhs, rhs),
+        ServerKey::max_parallelized,
         std::cmp::max,
     );
 }
@@ -768,7 +758,7 @@ fn integer_signed_unchecked_min_parallelized_128_bits(
     test_signed_unchecked_function(
         params,
         2,
-        |server_key, lhs, rhs| server_key.unchecked_min_parallelized(lhs, rhs),
+        ServerKey::unchecked_min_parallelized,
         std::cmp::min,
     );
 }
@@ -779,45 +769,25 @@ fn integer_signed_unchecked_max_parallelized_128_bits(
     test_signed_unchecked_function(
         params,
         2,
-        |server_key, lhs, rhs| server_key.unchecked_max_parallelized(lhs, rhs),
+        ServerKey::unchecked_max_parallelized,
         std::cmp::max,
     );
 }
 
 fn integer_signed_smart_min_parallelized_128_bits(params: crate::shortint::ClassicPBSParameters) {
-    test_signed_smart_function(
-        params,
-        2,
-        |server_key, lhs, rhs| server_key.smart_min_parallelized(lhs, rhs),
-        std::cmp::min,
-    );
+    test_signed_smart_function(params, 2, ServerKey::smart_min_parallelized, std::cmp::min);
 }
 
 fn integer_signed_smart_max_parallelized_128_bits(params: crate::shortint::ClassicPBSParameters) {
-    test_signed_smart_function(
-        params,
-        2,
-        |server_key, lhs, rhs| server_key.smart_max_parallelized(lhs, rhs),
-        std::cmp::max,
-    );
+    test_signed_smart_function(params, 2, ServerKey::smart_max_parallelized, std::cmp::max);
 }
 
 fn integer_signed_min_parallelized_128_bits(params: crate::shortint::ClassicPBSParameters) {
-    test_signed_default_function(
-        params,
-        2,
-        |server_key, lhs, rhs| server_key.min_parallelized(lhs, rhs),
-        std::cmp::min,
-    );
+    test_signed_default_function(params, 2, ServerKey::min_parallelized, std::cmp::min);
 }
 
 fn integer_signed_max_parallelized_128_bits(params: crate::shortint::ClassicPBSParameters) {
-    test_signed_default_function(
-        params,
-        2,
-        |server_key, lhs, rhs| server_key.max_parallelized(lhs, rhs),
-        std::cmp::max,
-    );
+    test_signed_default_function(params, 2, ServerKey::max_parallelized, std::cmp::max);
 }
 
 /// This macro generates the tests for a given comparison fn
@@ -1245,7 +1215,7 @@ fn test_unchecked_scalar_min_parallelized_256_bits(
     test_unchecked_function(
         params,
         num_tests,
-        |server_key, lhs, rhs| server_key.unchecked_min_parallelized(lhs, rhs),
+        ServerKey::unchecked_min_parallelized,
         std::cmp::min,
     );
 }
@@ -1257,7 +1227,7 @@ fn test_unchecked_scalar_max_parallelized_256_bits(
     test_unchecked_function(
         params,
         num_tests,
-        |server_key, lhs, rhs| server_key.unchecked_max_parallelized(lhs, rhs),
+        ServerKey::unchecked_max_parallelized,
         std::cmp::max,
     );
 }
@@ -1269,7 +1239,7 @@ fn test_scalar_min_parallelized_256_bits(
     test_default_function(
         params,
         num_tests,
-        |server_key, lhs, rhs| server_key.min_parallelized(lhs, rhs),
+        ServerKey::min_parallelized,
         std::cmp::min,
     );
 }
@@ -1281,7 +1251,7 @@ fn test_scalar_max_parallelized_256_bits(
     test_default_function(
         params,
         num_tests,
-        |server_key, lhs, rhs| server_key.max_parallelized(lhs, rhs),
+        ServerKey::max_parallelized,
         std::cmp::max,
     );
 }
@@ -1799,7 +1769,7 @@ fn integer_signed_unchecked_scalar_min_parallelized_128_bits(
     test_signed_unchecked_scalar_function(
         params,
         2,
-        |server_key, lhs, rhs| server_key.unchecked_scalar_min_parallelized(lhs, rhs),
+        ServerKey::unchecked_scalar_min_parallelized,
         std::cmp::min,
     );
 }
@@ -1810,7 +1780,7 @@ fn integer_signed_unchecked_scalar_max_parallelized_128_bits(
     test_signed_unchecked_scalar_function(
         params,
         2,
-        |server_key, lhs, rhs| server_key.unchecked_scalar_max_parallelized(lhs, rhs),
+        ServerKey::unchecked_scalar_max_parallelized,
         std::cmp::max,
     );
 }
@@ -1821,7 +1791,7 @@ fn integer_signed_smart_scalar_min_parallelized_128_bits(
     test_signed_smart_scalar_function(
         params,
         2,
-        |server_key, lhs, rhs| server_key.smart_scalar_min_parallelized(lhs, rhs),
+        ServerKey::smart_scalar_min_parallelized,
         std::cmp::min,
     );
 }
@@ -1832,7 +1802,7 @@ fn integer_signed_smart_scalar_max_parallelized_128_bits(
     test_signed_smart_scalar_function(
         params,
         2,
-        |server_key, lhs, rhs| server_key.smart_scalar_max_parallelized(lhs, rhs),
+        ServerKey::smart_scalar_max_parallelized,
         std::cmp::max,
     );
 }
@@ -1841,7 +1811,7 @@ fn integer_signed_scalar_min_parallelized_128_bits(params: crate::shortint::Clas
     test_signed_default_scalar_function(
         params,
         2,
-        |server_key, lhs, rhs| server_key.scalar_min_parallelized(lhs, rhs),
+        ServerKey::scalar_min_parallelized,
         std::cmp::min,
     );
 }
@@ -1850,7 +1820,7 @@ fn integer_signed_scalar_max_parallelized_128_bits(params: crate::shortint::Clas
     test_signed_default_scalar_function(
         params,
         2,
-        |server_key, lhs, rhs| server_key.scalar_max_parallelized(lhs, rhs),
+        ServerKey::scalar_max_parallelized,
         std::cmp::max,
     );
 }

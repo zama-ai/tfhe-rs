@@ -260,7 +260,7 @@ impl ServerKey {
             return vec![];
         }
 
-        debug_assert!(lhs.iter().all(|block| block.carry_is_empty()));
+        debug_assert!(lhs.iter().all(Ciphertext::carry_is_empty));
 
         let message_modulus = self.key.message_modulus.0;
         let carry_modulus = self.key.carry_modulus.0;

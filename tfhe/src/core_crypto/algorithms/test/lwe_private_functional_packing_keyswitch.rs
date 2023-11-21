@@ -53,7 +53,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
                 &mut lwe_pfpksk,
                 std_dev,
                 &mut rsc.encryption_random_generator,
-                |x| x.wrapping_neg(),
+                UnsignedInteger::wrapping_neg,
                 &polynomial,
             );
 
@@ -155,7 +155,7 @@ fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
                     &mut lwe_pfpksk,
                     std_dev,
                     &mut rsc.encryption_random_generator,
-                    |x| x.wrapping_neg(),
+                    UnsignedInteger::wrapping_neg,
                     &polynomial,
                 );
 

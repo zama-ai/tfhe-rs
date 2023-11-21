@@ -168,7 +168,7 @@ where
         T: CastInto<V>,
     {
         assert!(self.num_bits_in_mask <= V::BITS as u32);
-        self.map(|masked| masked.cast_into())
+        self.map(CastInto::cast_into)
     }
 
     pub fn next_as<V>(&mut self) -> Option<V>
