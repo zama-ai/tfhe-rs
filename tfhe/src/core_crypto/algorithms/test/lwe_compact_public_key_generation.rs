@@ -83,10 +83,10 @@ fn test_seeded_lwe_cpk_gen_equivalence<Scalar: UnsignedTorus>(
 
 #[test]
 fn test_seeded_lwe_cpk_gen_equivalence_u32_native_mod() {
-    test_seeded_lwe_cpk_gen_equivalence::<u32>(CiphertextModulus::new_native())
+    test_seeded_lwe_cpk_gen_equivalence::<u32>(CiphertextModulus::new_native());
 }
 
 #[test]
 fn test_seeded_lwe_cpk_gen_equivalence_u64_naive_mod() {
-    test_seeded_lwe_cpk_gen_equivalence::<u64>(CiphertextModulus::new_native())
+    test_seeded_lwe_cpk_gen_equivalence::<u64>(CiphertextModulus::new_native());
 }

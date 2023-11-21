@@ -251,7 +251,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     where
         Scalar: RandomGenerable<Uniform>,
     {
-        self.mask.fill_slice_with_random_mask(output)
+        self.mask.fill_slice_with_random_mask(output);
     }
 
     // Fills the slice with random uniform values, using the mask generator
@@ -295,7 +295,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         Scalar: UnsignedTorus,
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
     {
-        self.noise.fill_slice_with_random_noise(output, std)
+        self.noise.fill_slice_with_random_noise(output, std);
     }
 
     // Fills the input slice with random noise, using the noise generator.
@@ -309,7 +309,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>, CustomModulus = Scalar>,
     {
         self.noise
-            .fill_slice_with_random_noise_custom_mod(output, std, custom_modulus)
+            .fill_slice_with_random_noise_custom_mod(output, std, custom_modulus);
     }
 
     // Adds noise on top of existing data for in place encryption
@@ -322,7 +322,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         (Scalar, Scalar): RandomGenerable<Gaussian<f64>>,
     {
         self.noise
-            .unsigned_torus_slice_wrapping_add_random_noise_assign(output, std)
+            .unsigned_torus_slice_wrapping_add_random_noise_assign(output, std);
     }
 
     // Adds noise on top of existing data for in place encryption
@@ -340,7 +340,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
                 output,
                 std,
                 custom_modulus,
-            )
+            );
     }
 }
 

@@ -37,7 +37,7 @@ pub fn generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
         PlaintextCount(output.zero_encryption_count().0),
     );
 
-    encrypt_lwe_ciphertext_list(lwe_secret_key, output, &zeros, noise_parameters, generator)
+    encrypt_lwe_ciphertext_list(lwe_secret_key, output, &zeros, noise_parameters, generator);
 }
 
 /// Allocate a new [`LWE public key`](`LwePublicKey`) and fill it with an actual public key
@@ -95,7 +95,7 @@ pub fn par_generate_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, Gen>(
         PlaintextCount(output.zero_encryption_count().0),
     );
 
-    par_encrypt_lwe_ciphertext_list(lwe_secret_key, output, &zeros, noise_parameters, generator)
+    par_encrypt_lwe_ciphertext_list(lwe_secret_key, output, &zeros, noise_parameters, generator);
 }
 
 /// Parallel variant of [`allocate_and_generate_new_lwe_public_key`], it is recommended to use this
@@ -227,7 +227,7 @@ pub fn par_generate_seeded_lwe_public_key<Scalar, InputKeyCont, OutputKeyCont, N
         &zeros,
         noise_parameters,
         noise_seeder,
-    )
+    );
 }
 
 /// Parallel variant of [`allocate_and_generate_new_seeded_lwe_public_key`], it is recommended to

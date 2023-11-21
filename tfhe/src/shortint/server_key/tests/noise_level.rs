@@ -162,7 +162,7 @@ fn test_ct_binary_op_assign_noise_level_propagation(
     });
     test_fn(
         &|sk, ct1, ct2| {
-            ServerKey::unchecked_evaluate_bivariate_function_assign(sk, ct1, ct2, |_, _| 0)
+            ServerKey::unchecked_evaluate_bivariate_function_assign(sk, ct1, ct2, |_, _| 0);
         },
         &|_, _| NoiseLevel::NOMINAL,
     );

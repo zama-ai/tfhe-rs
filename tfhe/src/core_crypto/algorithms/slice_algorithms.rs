@@ -319,7 +319,7 @@ pub fn slice_wrapping_sub_scalar_mul_assign<Scalar>(
             // Fall back case, will likely be slower as the compiler cannot hard code optimized code
             // like filling with 0s for the 0 case, noop for the 1 case, shift left by 1 for 2, etc.
             for (lhs, &rhs) in lhs.iter_mut().zip(rhs.iter()) {
-                *lhs = (*lhs).wrapping_sub(rhs.wrapping_mul(scalar))
+                *lhs = (*lhs).wrapping_sub(rhs.wrapping_mul(scalar));
             }
         }
     }

@@ -102,7 +102,7 @@ pub fn decompress_seeded_lwe_multi_bit_bootstrap_key<Scalar, InputCont, OutputCo
         output_bsk,
         input_bsk,
         &mut generator,
-    )
+    );
 }
 
 /// Parallel variant of [`decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator`].
@@ -174,9 +174,9 @@ pub fn par_decompress_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator
                                 &mut inner_loop_generator,
                             );
                         },
-                    )
+                    );
             },
-        )
+        );
 }
 
 /// Parallel variant of [`decompress_seeded_lwe_multi_bit_bootstrap_key`].
@@ -203,5 +203,5 @@ pub fn par_decompress_seeded_lwe_multi_bit_bootstrap_key<Scalar, InputCont, Outp
         output_bsk,
         input_bsk,
         &mut generator,
-    )
+    );
 }

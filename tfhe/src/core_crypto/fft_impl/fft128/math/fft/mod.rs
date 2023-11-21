@@ -375,7 +375,7 @@ impl<'a> Fft128View<'a> {
             fourier_im1,
             standard,
             convert_forward_torus,
-        )
+        );
     }
 
     pub fn forward_as_integer<Scalar: UnsignedTorus>(
@@ -393,7 +393,7 @@ impl<'a> Fft128View<'a> {
             fourier_im1,
             standard,
             convert_forward_integer,
-        )
+        );
     }
 
     fn forward_with_conv<Scalar: UnsignedTorus>(
@@ -447,7 +447,7 @@ impl<'a> Fft128View<'a> {
             fourier_im1,
             convert_backward_torus,
             stack,
-        )
+        );
     }
 
     /// Perform an inverse negacyclic real FFT of `fourier` and adds the result to `standard`,
@@ -473,7 +473,7 @@ impl<'a> Fft128View<'a> {
             fourier_im1,
             convert_add_backward_torus,
             stack,
-        )
+        );
     }
 
     fn backward_with_conv<

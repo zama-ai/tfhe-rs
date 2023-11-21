@@ -169,7 +169,7 @@ pub unsafe extern "C" fn shortint_server_key_bivariate_programmable_bootstrap_as
                 &mut ct_left_and_result.0,
                 &mut ct_right.0,
                 &lookup_table.0,
-            )
+            );
         });
     })
 }

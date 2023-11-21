@@ -25,7 +25,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         for block in ctxt.blocks_mut() {
-            self.key.create_trivial_assign(block, 0)
+            self.key.create_trivial_assign(block, 0);
         }
     }
 
@@ -210,7 +210,7 @@ impl ServerKey {
     ) {
         let block_trivial_zero = self.key.create_trivial(0);
         ct.blocks
-            .resize(ct.blocks.len() + num_blocks, block_trivial_zero)
+            .resize(ct.blocks.len() + num_blocks, block_trivial_zero);
     }
 
     /// Append trivial zero MSB blocks to an existing [`RadixCiphertext`] and returns the result as

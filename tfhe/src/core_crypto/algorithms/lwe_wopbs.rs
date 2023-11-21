@@ -360,7 +360,7 @@ pub fn extract_bits_from_lwe_ciphertext_mem_optimized<
         number_of_bits_to_extract,
         fft,
         stack,
-    )
+    );
 }
 
 /// Return the required memory for [`extract_bits_from_lwe_ciphertext_mem_optimized`].
@@ -697,7 +697,7 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimi
         base_log_cbs,
         fft,
         stack,
-    )
+    );
 }
 
 #[allow(clippy::too_many_arguments)]

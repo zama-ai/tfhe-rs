@@ -153,8 +153,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_sub_assign(self, ct_left, ct_right)
-        })
+            engine.unchecked_sub_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Verify if ct_right can be subtracted to ct_left.
@@ -326,8 +326,8 @@ impl ServerKey {
     /// ```
     pub fn smart_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_sub_assign(self, ct_left, ct_right)
-        })
+            engine.smart_sub_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Compute homomorphically a subtraction between two ciphertexts without checks, and returns

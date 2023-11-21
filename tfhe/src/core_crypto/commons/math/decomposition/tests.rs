@@ -53,12 +53,12 @@ where
 
 #[test]
 fn test_decompose_recompose_u32() {
-    test_decompose_recompose::<u32>()
+    test_decompose_recompose::<u32>();
 }
 
 #[test]
 fn test_decompose_recompose_u64() {
-    test_decompose_recompose::<u64>()
+    test_decompose_recompose::<u64>();
 }
 
 fn test_round_to_closest_representable<T: UnsignedTorus>() {

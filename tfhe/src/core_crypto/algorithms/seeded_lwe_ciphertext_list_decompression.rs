@@ -91,7 +91,7 @@ pub fn decompress_seeded_lwe_ciphertext_list<Scalar, InputCont, OutputCont, Gen>
         output_list,
         input_seeded_list,
         &mut generator,
-    )
+    );
 }
 
 /// Parllel variant of [`decompress_seeded_lwe_ciphertext_list_with_existing_generator`].
@@ -175,5 +175,5 @@ pub fn par_decompress_seeded_lwe_ciphertext_list<Scalar, InputCont, OutputCont, 
         output_list,
         input_seeded_list,
         &mut generator,
-    )
+    );
 }

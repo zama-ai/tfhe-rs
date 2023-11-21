@@ -1057,7 +1057,7 @@ pub fn programmable_bootstrap_lwe_ciphertext<Scalar, InputCont, OutputCont, AccC
         fourier_bsk,
         fft,
         stack,
-    )
+    );
 }
 
 /// Memory optimized version of [`programmable_bootstrap_lwe_ciphertext`], the caller must provide
@@ -1367,7 +1367,7 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext<Scalar, InputCont, OutputCont,
         fourier_bsk,
         fft,
         stack,
-    )
+    );
 }
 
 /// Memory optimized version of [`programmable_bootstrap_f128_lwe_ciphertext`], the caller must

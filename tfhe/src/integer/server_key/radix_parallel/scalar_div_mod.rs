@@ -612,7 +612,7 @@ impl ServerKey {
         <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator)
+            self.full_propagate_parallelized(numerator);
         }
 
         *numerator = self.unchecked_signed_scalar_div_parallelized(numerator, divisor);
@@ -673,7 +673,7 @@ impl ServerKey {
         <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator)
+            self.full_propagate_parallelized(numerator);
         }
 
         let remainder = self.unchecked_signed_scalar_rem_parallelized(numerator, divisor);
@@ -855,7 +855,7 @@ impl ServerKey {
         T: Reciprocable + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator)
+            self.full_propagate_parallelized(numerator);
         }
 
         *numerator = self.unchecked_scalar_div_parallelized(numerator, divisor);
@@ -869,7 +869,7 @@ impl ServerKey {
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator)
+            self.full_propagate_parallelized(numerator);
         }
 
         *numerator = self.unchecked_scalar_rem_parallelized(numerator, divisor);
@@ -884,7 +884,7 @@ impl ServerKey {
         T: Reciprocable + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator)
+            self.full_propagate_parallelized(numerator);
         }
 
         self.unchecked_scalar_div_parallelized(numerator, divisor)
@@ -899,7 +899,7 @@ impl ServerKey {
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator)
+            self.full_propagate_parallelized(numerator);
         }
 
         self.unchecked_scalar_rem_parallelized(numerator, divisor)
@@ -914,7 +914,7 @@ impl ServerKey {
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator)
+            self.full_propagate_parallelized(numerator);
         }
 
         self.unchecked_scalar_div_rem_parallelized(numerator, divisor)
@@ -925,7 +925,7 @@ impl ServerKey {
         T: Reciprocable + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator)
+            self.full_propagate_parallelized(numerator);
         }
 
         *numerator = self.unchecked_scalar_div_parallelized(numerator, divisor);
@@ -936,7 +936,7 @@ impl ServerKey {
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator)
+            self.full_propagate_parallelized(numerator);
         }
 
         *numerator = self.unchecked_scalar_rem_parallelized(numerator, divisor);

@@ -141,7 +141,7 @@ impl ServerKey {
         // rotate left as the blocks are from LSB to MSB
         ct.blocks.rotate_left(rotations);
         for block in &mut ct.blocks[num_blocks - rotations..] {
-            self.key.create_trivial_assign(block, 0)
+            self.key.create_trivial_assign(block, 0);
         }
 
         if shift_within_block == 0 || rotations == ct.blocks.len() {
@@ -188,7 +188,7 @@ impl ServerKey {
         let blocks_to_replace = &mut ct.blocks[..num_blocks - rotations - 1];
         assert_eq!(partial_blocks.len(), blocks_to_replace.len());
         for (block, shifted_block) in izip!(blocks_to_replace, partial_blocks) {
-            *block = shifted_block
+            *block = shifted_block;
         }
         debug_assert!(ct.block_carries_are_empty());
     }
@@ -293,7 +293,7 @@ impl ServerKey {
         // rotate right as the blocks are from LSB to MSB
         ct.blocks.rotate_right(rotations);
         for block in &mut ct.blocks[..rotations] {
-            self.key.create_trivial_assign(block, 0)
+            self.key.create_trivial_assign(block, 0);
         }
 
         if shift_within_block == 0 || rotations == ct.blocks.len() {
@@ -332,7 +332,7 @@ impl ServerKey {
         let blocks_to_replace = &mut ct.blocks[rotations + 1..];
         assert_eq!(partial_blocks.len(), blocks_to_replace.len());
         for (block, shifted_block) in izip!(blocks_to_replace, partial_blocks) {
-            *block = shifted_block
+            *block = shifted_block;
         }
         debug_assert!(ct.block_carries_are_empty());
     }

@@ -121,7 +121,7 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_rotate_right_assign_parallelized(lhs, rhs)
+        self.unchecked_rotate_right_assign_parallelized(lhs, rhs);
     }
 
     pub fn rotate_right_parallelized<T>(&self, ct: &T, rotate: &RadixCiphertext) -> T
@@ -221,7 +221,7 @@ impl ServerKey {
             }
         };
 
-        self.unchecked_rotate_left_assign_parallelized(lhs, rhs)
+        self.unchecked_rotate_left_assign_parallelized(lhs, rhs);
     }
 
     /// Computes homomorphically a rotation of bits.

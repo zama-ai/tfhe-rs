@@ -45,7 +45,7 @@ impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
     where
         Scalar: RandomGenerable<Uniform>,
     {
-        self.gen.fill_slice_with_random_uniform(output)
+        self.gen.fill_slice_with_random_uniform(output);
     }
 
     // Fills the slice with random uniform values, using the mask generator

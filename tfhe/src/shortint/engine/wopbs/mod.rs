@@ -274,7 +274,7 @@ impl ShortintEngine {
                     extracted_bit_count,
                     fft,
                     stack,
-                )
+                );
             }
             ShortintBootstrappingKey::MultiBit { .. } => {
                 todo!("extract_bits_assign currently does not support multi-bit PBS")
@@ -338,7 +338,7 @@ impl ShortintEngine {
                     wopbs_key.param.cbs_level,
                     fft,
                     stack,
-                )
+                );
             }
             ShortintBootstrappingKey::MultiBit { .. } => {
                 return Err(WopbsKeyCreationError::UnsupportedMultiBit.into());

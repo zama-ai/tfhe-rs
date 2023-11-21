@@ -266,7 +266,7 @@ pub fn par_keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
         input_lwe_ciphertext,
         output_lwe_ciphertext,
         thread_count,
-    )
+    );
 }
 
 /// Parallel variant of [`keyswitch_lwe_ciphertext`].

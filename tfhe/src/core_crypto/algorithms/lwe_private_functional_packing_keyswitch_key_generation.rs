@@ -129,7 +129,7 @@ pub fn generate_lwe_private_functional_packing_keyswitch_key<
             &messages,
             noise_parameters,
             &mut loop_generator,
-        )
+        );
     }
 }
 
@@ -246,7 +246,7 @@ pub fn par_generate_lwe_private_functional_packing_keyswitch_key<
                     &messages,
                     noise_parameters,
                     &mut loop_generator,
-                )
+                );
             },
         );
 }
@@ -331,7 +331,7 @@ mod test {
                 &mut encryption_generator,
             );
 
-            assert_eq!(par_cbs_pfpksk, ser_cbs_pfpksk)
+            assert_eq!(par_cbs_pfpksk, ser_cbs_pfpksk);
         }
     }
 }

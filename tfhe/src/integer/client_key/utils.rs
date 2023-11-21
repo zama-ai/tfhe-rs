@@ -46,7 +46,7 @@ pub fn radix_decomposition(
         out.push(RadixDecomposition {
             msg_space,
             block_number,
-        })
+        });
     }
     out
 }

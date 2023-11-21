@@ -849,7 +849,7 @@ pub fn vertical_packing<Scalar: UnsignedTorus + CastInto<usize>>(
     );
 
     // sample extract of the RLWE of the Vertical packing
-    extract_lwe_sample_from_glwe_ciphertext(&cmux_tree_lut_res, &mut lwe_out, MonomialDegree(0))
+    extract_lwe_sample_from_glwe_ciphertext(&cmux_tree_lut_res, &mut lwe_out, MonomialDegree(0));
 }
 
 pub fn blind_rotate_assign_scratch<Scalar>(
@@ -884,7 +884,7 @@ pub fn blind_rotate_assign<Scalar: UnsignedTorus + CastInto<usize>>(
         ct_1.as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
-                polynomial_wrapping_monic_monomial_div_assign(&mut poly, monomial_degree)
+                polynomial_wrapping_monic_monomial_div_assign(&mut poly, monomial_degree);
             });
         monomial_degree.0 <<= 1;
         cmux(ct_0, ct_1, ggsw, fft, stack);

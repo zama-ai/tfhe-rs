@@ -65,5 +65,5 @@ pub fn decompress_seeded_glwe_ciphertext_list<Scalar, InputCont, OutputCont, Gen
         output_list,
         input_seeded_list,
         &mut generator,
-    )
+    );
 }

@@ -128,7 +128,7 @@ create_parametrized_test!(integer_default_add_sequence_multi_thread {
 // Other tests are pretty slow, and the code is the same as a smart add but slower
 #[test]
 fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2_ks_pbs() {
-    integer_default_add_sequence_single_thread(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
+    integer_default_add_sequence_single_thread(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 }
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
@@ -282,7 +282,7 @@ where
     F: Fn(&ServerKey, &RadixCiphertext) -> RadixCiphertext,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: &'a RadixCiphertext) -> RadixCiphertext {
@@ -297,12 +297,12 @@ where
     F: Fn(&ServerKey, &'a mut RadixCiphertext),
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: &'a mut RadixCiphertext) {
         let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
+        (self.func)(sks, input);
     }
 }
 
@@ -311,7 +311,7 @@ where
     F: Fn(&ServerKey, &mut RadixCiphertext) -> RadixCiphertext,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: &'a mut RadixCiphertext) -> RadixCiphertext {
@@ -326,7 +326,7 @@ where
     F: Fn(&ServerKey, I1, I2) -> O,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: (I1, I2)) -> O {
@@ -341,7 +341,7 @@ where
     F: Fn(&ServerKey, I1, I2, I3) -> O,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: (I1, I2, I3)) -> O {

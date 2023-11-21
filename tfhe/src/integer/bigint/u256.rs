@@ -94,7 +94,7 @@ mod tests {
         assert!(!U256::from(8329842348123u64).is_power_of_two());
 
         for i in 0..U256::BITS {
-            assert!((U256::ONE << i).is_power_of_two())
+            assert!((U256::ONE << i).is_power_of_two());
         }
     }
 
@@ -119,7 +119,7 @@ mod tests {
         );
 
         for i in 0..U256::BITS {
-            assert_eq!((U256::ONE << i).ilog2(), i)
+            assert_eq!((U256::ONE << i).ilog2(), i);
         }
     }
 

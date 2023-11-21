@@ -204,8 +204,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_bitand_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitand_assign(self, ct_left, ct_right)
-        })
+            engine.unchecked_bitand_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Compute bitwise AND between two ciphertexts without checks.
@@ -403,8 +403,8 @@ impl ServerKey {
     /// ```
     pub fn smart_bitand_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitand_assign(self, ct_left, ct_right)
-        })
+            engine.smart_bitand_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Compute homomorphically an XOR between two ciphertexts encrypting integer values.
@@ -612,8 +612,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_bitxor_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitxor_assign(self, ct_left, ct_right)
-        })
+            engine.unchecked_bitxor_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Compute bitwise XOR between two ciphertexts without checks.
@@ -810,8 +810,8 @@ impl ServerKey {
     /// ```
     pub fn smart_bitxor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitxor_assign(self, ct_left, ct_right)
-        })
+            engine.smart_bitxor_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
@@ -1021,8 +1021,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitor_assign(self, ct_left, ct_right)
-        })
+            engine.unchecked_bitor_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Compute bitwise OR between two ciphertexts without checks.
@@ -1221,7 +1221,7 @@ impl ServerKey {
     /// ```
     pub fn smart_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitor_assign(self, ct_left, ct_right)
-        })
+            engine.smart_bitor_assign(self, ct_left, ct_right);
+        });
     }
 }

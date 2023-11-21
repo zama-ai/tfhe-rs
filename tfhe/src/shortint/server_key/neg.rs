@@ -214,7 +214,7 @@ impl ServerKey {
     /// assert_eq!(modulus - msg, cks.decrypt(&ct));
     /// ```
     pub fn unchecked_neg_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_neg_assign(self, ct))
+        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_neg_assign(self, ct));
     }
 
     pub fn unchecked_neg_assign_with_correcting_term(&self, ct: &mut Ciphertext) -> u64 {
@@ -451,6 +451,6 @@ impl ServerKey {
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn smart_neg_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_neg_assign(self, ct))
+        ShortintEngine::with_thread_local_mut(|engine| engine.smart_neg_assign(self, ct));
     }
 }

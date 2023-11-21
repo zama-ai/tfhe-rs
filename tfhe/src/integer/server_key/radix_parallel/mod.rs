@@ -151,6 +151,6 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        self.partial_propagate_parallelized(ctxt, 0)
+        self.partial_propagate_parallelized(ctxt, 0);
     }
 }

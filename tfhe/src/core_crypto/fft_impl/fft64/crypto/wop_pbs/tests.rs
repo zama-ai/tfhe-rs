@@ -249,7 +249,7 @@ pub fn test_extract_bits() {
                 "Bit #{}, for plaintext {:#066b}",
                 delta_log.0 + i,
                 message.0
-            )
+            );
         }
     }
 }
@@ -422,7 +422,7 @@ fn test_circuit_bootstrapping_binary() {
 
                 decoded_glwe.as_mut().iter_mut().for_each(|coeff| {
                     *coeff = decomposer.closest_representable(*coeff)
-                        >> (64 - base_log_cbs.0 * current_level)
+                        >> (64 - base_log_cbs.0 * current_level);
                 });
 
                 assert_eq!(expected_decryption.as_ref(), decoded_glwe.as_ref());
@@ -439,7 +439,7 @@ fn test_circuit_bootstrapping_binary() {
 
             last_decoded_glwe.as_mut().iter_mut().for_each(|coeff| {
                 *coeff = decomposer.closest_representable(*coeff)
-                    >> (64 - base_log_cbs.0 * level_count_cbs.0)
+                    >> (64 - base_log_cbs.0 * level_count_cbs.0);
             });
 
             let mut expected_decryption =
@@ -576,7 +576,7 @@ pub fn test_cmux_tree() {
         // witness % 2 ^ {64 - delta_log}
         println!("result : {decoded_result:?}");
         println!("witness : {witness:?}");
-        assert_eq!(decoded_result, witness)
+        assert_eq!(decoded_result, witness);
     }
 }
 
@@ -833,7 +833,7 @@ fn test_wop_add_one(params: FftWopPbsTestParams<u64>) {
                 Plaintext(((val >> i) & 1) << 63),
                 std_small,
                 &mut rsc.encryption_random_generator,
-            )
+            );
         }
 
         // We'll apply a single table look-up computing x + 1 to our 10 bits input integer
@@ -917,17 +917,17 @@ fn test_wop_add_one(params: FftWopPbsTestParams<u64>) {
 //CMUX tree
 #[test]
 fn test_wop_add_one_cmux_tree() {
-    test_wop_add_one(FFT_WOPBS_N512_PARAMS)
+    test_wop_add_one(FFT_WOPBS_N512_PARAMS);
 }
 
 //No CMUX tree
 #[test]
 fn test_wop_add_one_no_cmux_tree() {
-    test_wop_add_one(FFT_WOPBS_N1024_PARAMS)
+    test_wop_add_one(FFT_WOPBS_N1024_PARAMS);
 }
 
 //Expanded lut
 #[test]
 fn test_wop_add_one_expanded_lut() {
-    test_wop_add_one(FFT_WOPBS_N2048_PARAMS)
+    test_wop_add_one(FFT_WOPBS_N2048_PARAMS);
 }

@@ -92,38 +92,38 @@ where
 {
     fn and_assign(&self, ct_left: Lhs, ct_right: Rhs) {
         <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.and_assign(ct_left, ct_right, self)
-        })
+            engine.and_assign(ct_left, ct_right, self);
+        });
     }
 
     fn nand_assign(&self, ct_left: Lhs, ct_right: Rhs) {
         <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.nand_assign(ct_left, ct_right, self)
-        })
+            engine.nand_assign(ct_left, ct_right, self);
+        });
     }
 
     fn nor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
         <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.nor_assign(ct_left, ct_right, self)
-        })
+            engine.nor_assign(ct_left, ct_right, self);
+        });
     }
 
     fn or_assign(&self, ct_left: Lhs, ct_right: Rhs) {
         <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.or_assign(ct_left, ct_right, self)
-        })
+            engine.or_assign(ct_left, ct_right, self);
+        });
     }
 
     fn xor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
         <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.xor_assign(ct_left, ct_right, self)
-        })
+            engine.xor_assign(ct_left, ct_right, self);
+        });
     }
 
     fn xnor_assign(&self, ct_left: Lhs, ct_right: Rhs) {
         <Self as DefaultImplementation>::Engine::with_thread_local_mut(|engine| {
-            engine.xnor_assign(ct_left, ct_right, self)
-        })
+            engine.xnor_assign(ct_left, ct_right, self);
+        });
     }
 }
 
@@ -141,7 +141,7 @@ impl ServerKey {
     }
 
     pub fn not_assign(&self, ct: &mut Ciphertext) {
-        BooleanEngine::with_thread_local_mut(|engine| engine.not_assign(ct))
+        BooleanEngine::with_thread_local_mut(|engine| engine.not_assign(ct));
     }
 
     pub fn mux(

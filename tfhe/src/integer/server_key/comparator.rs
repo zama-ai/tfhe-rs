@@ -337,7 +337,7 @@ impl<'a> Comparator<'a> {
                 {
                     let mut last_lhs_block = last_lhs_block.clone();
                     comparator.compare_block_assign(&mut last_lhs_block, last_rhs_block);
-                    out_comparisons.push(last_lhs_block)
+                    out_comparisons.push(last_lhs_block);
                 }
             }
 
@@ -837,7 +837,7 @@ impl<'a> Comparator<'a> {
             let maybe_rhs = self.server_key.key.apply_lookup_table(&rhs_block, rhs_lut);
 
             let r = self.server_key.key.unchecked_add(&maybe_lhs, &maybe_rhs);
-            result.push(r)
+            result.push(r);
         }
 
         T::from_blocks(result)

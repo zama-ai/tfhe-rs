@@ -573,8 +573,8 @@ impl ServerKey {
         acc: &BivariateLookupTableOwned,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
-        })
+            engine.unchecked_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc);
+        });
     }
 
     /// Compute a keyswitch and programmable bootstrap.
@@ -619,8 +619,8 @@ impl ServerKey {
         acc: &BivariateLookupTableOwned,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
-        })
+            engine.smart_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc);
+        });
     }
 
     /// Compute a keyswitch and programmable bootstrap.
@@ -652,8 +652,8 @@ impl ServerKey {
 
     pub fn apply_lookup_table_assign(&self, ct_in: &mut Ciphertext, acc: &LookupTableOwned) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.apply_lookup_table_assign(self, ct_in, acc)
-        })
+            engine.apply_lookup_table_assign(self, ct_in, acc);
+        });
     }
 
     /// Generic programmable bootstrap where messages are concatenated into one ciphertext to
@@ -682,8 +682,8 @@ impl ServerKey {
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
-        })
+            engine.unchecked_evaluate_bivariate_function_assign(self, ct_left, ct_right, f);
+        });
     }
 
     /// Verify if a functional bivariate pbs can be applied on ct_left and ct_right.
@@ -711,8 +711,8 @@ impl ServerKey {
         F: Fn(u64, u64) -> u64,
     {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
-        })
+            engine.smart_evaluate_bivariate_function_assign(self, ct_left, ct_right, f);
+        });
     }
 
     pub fn smart_evaluate_bivariate_function<F>(
@@ -762,7 +762,7 @@ impl ServerKey {
     /// assert_eq!(2, res);
     /// ```
     pub fn carry_extract_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| engine.carry_extract_assign(self, ct))
+        ShortintEngine::with_thread_local_mut(|engine| engine.carry_extract_assign(self, ct));
     }
 
     /// Extract a new ciphertext encrypting the input carry buffer.
@@ -836,7 +836,7 @@ impl ServerKey {
     /// assert_eq!(1, res);
     /// ```
     pub fn message_extract_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| engine.message_extract_assign(self, ct))
+        ShortintEngine::with_thread_local_mut(|engine| engine.message_extract_assign(self, ct));
     }
 
     /// Extract a new ciphertext containing only the message i.e., with a cleared carry buffer.
@@ -904,8 +904,8 @@ impl ServerKey {
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.create_trivial_assign(self, ct, value)
-        })
+            engine.create_trivial_assign(self, ct, value);
+        });
     }
 
     pub fn bootstrapping_key_size_elements(&self) -> usize {
@@ -930,7 +930,7 @@ impl ServerKey {
 
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         self.bootstrapping_key
-            .set_deterministic_pbs_execution(new_deterministic_execution)
+            .set_deterministic_pbs_execution(new_deterministic_execution);
     }
 }
 

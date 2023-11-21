@@ -11,7 +11,6 @@
 #![allow(clippy::missing_panics_doc)] // 667
 #![allow(clippy::cast_possible_truncation)] // 540
 #![allow(clippy::similar_names)] // 514
-#![allow(clippy::semicolon_if_nothing_returned)] // 383
 #![allow(clippy::must_use_candidate)] // 356
 #![allow(clippy::wildcard_imports)] // 350
 #![allow(clippy::module_name_repetitions)] // 328

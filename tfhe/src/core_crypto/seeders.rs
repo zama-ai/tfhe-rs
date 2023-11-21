@@ -87,7 +87,7 @@ pub fn new_seeder() -> Box<dyn Seeder> {
         #[cfg(target_os = "macos")]
         {
             if seeder.is_none() && AppleSecureEnclaveSeeder::is_available() {
-                seeder = Some(Box::new(AppleSecureEnclaveSeeder))
+                seeder = Some(Box::new(AppleSecureEnclaveSeeder));
             }
         }
 
@@ -113,7 +113,7 @@ pub fn new_seeder() -> Box<dyn Seeder> {
     #[cfg(feature = "__wasm_api")]
     {
         if seeder.is_none() && wasm_seeder::WasmSeeder::is_available() {
-            seeder = Some(Box::new(wasm_seeder::WasmSeeder {}))
+            seeder = Some(Box::new(wasm_seeder::WasmSeeder {}));
         }
 
         err_msg = "No compatible seeder found. Consider changing browser or dev environment";

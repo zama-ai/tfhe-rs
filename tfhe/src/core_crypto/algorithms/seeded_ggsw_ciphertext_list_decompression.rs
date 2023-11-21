@@ -50,7 +50,7 @@ pub fn decompress_seeded_ggsw_ciphertext_list_with_existing_generator<
             &mut ggsw_out,
             &ggsw_in,
             &mut loop_generator,
-        )
+        );
     }
 }
 
@@ -70,7 +70,7 @@ pub fn decompress_seeded_ggsw_ciphertext_list<Scalar, InputCont, OutputCont, Gen
         output_list,
         input_seeded_list,
         &mut generator,
-    )
+    );
 }
 
 /// Parallel variant of [`decompress_seeded_ggsw_ciphertext_list_with_existing_generator`].
@@ -115,8 +115,8 @@ pub fn par_decompress_seeded_ggsw_ciphertext_list_with_existing_generator<
                 &mut ggsw_out,
                 &ggsw_in,
                 &mut loop_generator,
-            )
-        })
+            );
+        });
 }
 
 /// Parallel variant of [`decompress_seeded_ggsw_ciphertext_list`].
@@ -134,5 +134,5 @@ pub fn par_decompress_seeded_ggsw_ciphertext_list<Scalar, InputCont, OutputCont,
         output_list,
         input_seeded_list,
         &mut generator,
-    )
+    );
 }

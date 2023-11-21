@@ -67,5 +67,5 @@ pub fn generate_binary_glwe_secret_key<Scalar, InCont, Gen>(
     InCont: ContainerMut<Element = Scalar>,
     Gen: ByteRandomGenerator,
 {
-    generator.fill_slice_with_random_uniform_binary(glwe_secret_key.as_mut())
+    generator.fill_slice_with_random_uniform_binary(glwe_secret_key.as_mut());
 }

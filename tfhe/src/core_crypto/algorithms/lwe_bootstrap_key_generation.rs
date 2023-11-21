@@ -534,7 +534,7 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
                 noise_parameters,
                 &mut generator,
             );
-        })
+        });
 }
 
 /// Parallel variant of [`allocate_and_generate_new_seeded_lwe_bootstrap_key`], it is recommended to

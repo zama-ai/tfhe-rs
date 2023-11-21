@@ -201,8 +201,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mul_assign(ct, scalar)
-        })
+            engine.unchecked_scalar_mul_assign(ct, scalar);
+        });
     }
 
     /// Multiply one ciphertext with a scalar in the case the carry space cannot fit the product
@@ -252,8 +252,8 @@ impl ServerKey {
         scalar: u8,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mul_lsb_small_carry_modulus_assign(self, ct, scalar)
-        })
+            engine.unchecked_scalar_mul_lsb_small_carry_modulus_assign(self, ct, scalar);
+        });
     }
 
     /// Verify if the ciphertext can be multiplied by a scalar.
@@ -493,7 +493,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_mul_assign(self, ct, scalar)
-        })
+            engine.smart_scalar_mul_assign(self, ct, scalar);
+        });
     }
 }

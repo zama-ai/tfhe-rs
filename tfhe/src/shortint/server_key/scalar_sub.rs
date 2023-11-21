@@ -206,8 +206,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_sub_assign(self, ct, scalar)
-        })
+            engine.unchecked_scalar_sub_assign(self, ct, scalar);
+        });
     }
 
     /// Verify if a scalar can be subtracted to the ciphertext.
@@ -443,7 +443,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_sub_assign(self, ct, scalar)
-        })
+            engine.smart_scalar_sub_assign(self, ct, scalar);
+        });
     }
 }

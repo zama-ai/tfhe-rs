@@ -503,8 +503,8 @@ impl WopbsKey {
                 self,
                 ExtractedBitsCount(num_bits_to_extract),
                 output,
-            )
-        })
+            );
+        });
     }
 
     /// Temporary wrapper.

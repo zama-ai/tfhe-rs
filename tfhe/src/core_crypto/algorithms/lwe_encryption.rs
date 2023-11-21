@@ -541,7 +541,7 @@ pub fn encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, Gen>(
             encoded_plaintext_ref.into(),
             noise_parameters,
             &mut loop_generator,
-        )
+        );
     }
 }
 
@@ -652,7 +652,7 @@ pub fn par_encrypt_lwe_ciphertext_list<Scalar, KeyCont, OutputCont, InputCont, G
                 encoded_plaintext_ref.into(),
                 noise_parameters,
                 &mut generator,
-            )
+            );
         });
 }
 
@@ -1015,7 +1015,7 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
             plaintext.into(),
             noise_parameters,
             &mut loop_generator,
-        )
+        );
     }
 }
 
@@ -1176,7 +1176,7 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
                 plaintext.into(),
                 noise_parameters,
                 &mut loop_generator,
-            )
+            );
         });
 }
 
@@ -1304,7 +1304,7 @@ pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<Scalar, KeyCont, Ge
         encoded,
         noise_parameters,
         generator,
-    )
+    );
 }
 
 /// Encrypt an input plaintext in an output [`seeded LWE ciphertext`](`SeededLweCiphertext`).
@@ -1393,7 +1393,7 @@ pub fn encrypt_seeded_lwe_ciphertext<Scalar, KeyCont, NoiseSeeder>(
         encoded,
         noise_parameters,
         &mut encryption_generator,
-    )
+    );
 }
 
 /// Allocate a new [`seeded LWE ciphertext`](`SeededLweCiphertext`) and encrypt an input plaintext
@@ -1820,7 +1820,7 @@ pub fn encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                     .for_each(|(dst, (&src, plaintext))| {
                         *dst.data = src
                             .wrapping_add(loop_generator.random_noise(body_noise_parameters))
-                            .wrapping_add(*plaintext.0)
+                            .wrapping_add(*plaintext.0);
                     });
             },
         );
@@ -2033,7 +2033,7 @@ pub fn par_encrypt_lwe_compact_ciphertext_list_with_compact_public_key<
                     .for_each(|(dst, (&src, plaintext))| {
                         *dst.data = src
                             .wrapping_add(loop_generator.random_noise(body_noise_parameters))
-                            .wrapping_add(*plaintext.0)
+                            .wrapping_add(*plaintext.0);
                     });
             },
         );

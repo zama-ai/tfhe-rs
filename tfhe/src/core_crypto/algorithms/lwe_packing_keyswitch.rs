@@ -373,7 +373,7 @@ pub fn keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
             .as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
-                polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(degree))
+                polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(degree));
             });
         slice_wrapping_add_assign(output_glwe_ciphertext.as_mut(), buffer.as_ref());
     }
@@ -509,7 +509,7 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext<
         input_lwe_ciphertext_list,
         output_glwe_ciphertext,
         thread_count,
-    )
+    );
 }
 
 /// Parallel variant of [`keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext`].
@@ -739,7 +739,7 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext_with_thread
                     polynomial_wrapping_monic_monomial_mul_assign(
                         &mut poly,
                         MonomialDegree(chunk_idx * chunk_size),
-                    )
+                    );
                 });
 
             buffer

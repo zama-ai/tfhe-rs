@@ -267,7 +267,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
 
                 let mut tmp_poly = Polynomial::from_container(&mut *tmp_poly);
                 tmp_poly.as_mut().copy_from_slice(poly.as_ref());
-                polynomial_wrapping_monic_monomial_div(&mut poly, &tmp_poly, monomial_degree)
+                polynomial_wrapping_monic_monomial_div(&mut poly, &tmp_poly, monomial_degree);
             });
 
         // We initialize the ct_0 used for the successive cmuxes
@@ -432,6 +432,6 @@ where
             accumulator.as_view(),
             fft.as_view(),
             stack,
-        )
+        );
     }
 }

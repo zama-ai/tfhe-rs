@@ -73,6 +73,6 @@ impl ShortintEngine {
             self.message_extract_assign(server_key, ct);
         }
         server_key.is_neg_possible(ct).unwrap();
-        self.unchecked_neg_assign(server_key, ct)
+        self.unchecked_neg_assign(server_key, ct);
     }
 }

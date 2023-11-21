@@ -282,7 +282,7 @@ impl Ciphertext {
     }
 
     pub fn set_noise_level(&mut self, noise_level: NoiseLevel) {
-        self.noise_level = noise_level
+        self.noise_level = noise_level;
     }
 }
 

@@ -232,7 +232,7 @@ impl ServerKey {
         let blocks_to_replace = &mut ct.blocks_mut()[..num_blocks - rotations - 1];
         assert_eq!(partial_blocks.len(), blocks_to_replace.len());
         for (block, shifted_block) in izip!(blocks_to_replace, partial_blocks) {
-            *block = shifted_block
+            *block = shifted_block;
         }
 
         // Replace blocks 'pulled' from the left with the correct padding block
@@ -279,7 +279,7 @@ impl ServerKey {
         // rotate left as the blocks are from LSB to MSB
         ct.blocks_mut().rotate_left(rotations);
         for block in &mut ct.blocks_mut()[num_blocks - rotations..] {
-            self.key.create_trivial_assign(block, 0)
+            self.key.create_trivial_assign(block, 0);
         }
 
         if shift_within_block == 0 || rotations == ct.blocks().len() {
@@ -309,7 +309,7 @@ impl ServerKey {
         let blocks_to_replace = &mut ct.blocks_mut()[..num_blocks - rotations - 1];
         assert_eq!(partial_blocks.len(), blocks_to_replace.len());
         for (block, shifted_block) in izip!(blocks_to_replace, partial_blocks) {
-            *block = shifted_block
+            *block = shifted_block;
         }
 
         debug_assert!(ct.block_carries_are_empty());
@@ -586,7 +586,7 @@ impl ServerKey {
         ct.blocks_mut().rotate_right(rotations);
         // Every block below 'rotations' should be discarded
         for block in &mut ct.blocks_mut()[..rotations] {
-            self.key.create_trivial_assign(block, 0)
+            self.key.create_trivial_assign(block, 0);
         }
 
         if shift_within_block == 0 || rotations == ct.blocks().len() {
@@ -643,7 +643,7 @@ impl ServerKey {
         let blocks_to_replace = &mut ct.blocks_mut()[rotations + 1..];
         assert_eq!(partial_blocks.len(), blocks_to_replace.len());
         for (block, shifted_block) in izip!(blocks_to_replace, partial_blocks) {
-            *block = shifted_block
+            *block = shifted_block;
         }
         debug_assert!(ct.block_carries_are_empty());
     }

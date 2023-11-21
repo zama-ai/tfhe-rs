@@ -242,7 +242,7 @@ pub fn add_external_product_assign_split<ContOutLo, ContOutHi, ContGgsw, ContGlw
         glwe_hi.as_view(),
         fft,
         stack,
-    )
+    );
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -670,5 +670,5 @@ pub fn cmux_split<ContCt0Lo, ContCt0Hi, ContCt1Lo, ContCt1Hi, ContGgsw>(
         ggsw.as_view(),
         fft,
         stack,
-    )
+    );
 }

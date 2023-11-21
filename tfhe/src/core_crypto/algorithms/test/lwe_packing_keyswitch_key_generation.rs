@@ -108,20 +108,20 @@ fn test_seeded_lwe_pksk_gen_equivalence<Scalar: UnsignedTorus>(
 
 #[test]
 fn test_seeded_lwe_pksk_gen_equivalence_u32_native_mod() {
-    test_seeded_lwe_pksk_gen_equivalence::<u32>(CiphertextModulus::new_native())
+    test_seeded_lwe_pksk_gen_equivalence::<u32>(CiphertextModulus::new_native());
 }
 
 #[test]
 fn test_seeded_lwe_pksk_gen_equivalence_u64_native_mod() {
-    test_seeded_lwe_pksk_gen_equivalence::<u64>(CiphertextModulus::new_native())
+    test_seeded_lwe_pksk_gen_equivalence::<u64>(CiphertextModulus::new_native());
 }
 
 #[test]
 fn test_seeded_lwe_pksk_gen_equivalence_u32_custom_mod() {
-    test_seeded_lwe_pksk_gen_equivalence::<u32>(CiphertextModulus::try_new_power_of_2(31).unwrap())
+    test_seeded_lwe_pksk_gen_equivalence::<u32>(CiphertextModulus::try_new_power_of_2(31).unwrap());
 }
 
 #[test]
 fn test_seeded_lwe_pksk_gen_equivalence_u64_custom_mod() {
-    test_seeded_lwe_pksk_gen_equivalence::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap())
+    test_seeded_lwe_pksk_gen_equivalence::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap());
 }

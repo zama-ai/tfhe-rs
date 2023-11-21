@@ -558,6 +558,6 @@ impl ServerKey {
         let lut = self.key.generate_lookup_table(|x| (!x) % modulus);
         ct.blocks_mut()
             .par_iter_mut()
-            .for_each(|block| self.key.apply_lookup_table_assign(block, &lut))
+            .for_each(|block| self.key.apply_lookup_table_assign(block, &lut));
     }
 }

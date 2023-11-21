@@ -120,8 +120,8 @@ impl ServerKey {
     /// ```
     pub fn unchecked_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_mul_lsb_assign(self, ct_left, ct_right)
-        })
+            engine.unchecked_mul_lsb_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Multiply two ciphertexts together without checks.
@@ -193,8 +193,8 @@ impl ServerKey {
 
     pub fn unchecked_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_mul_msb_assign(self, ct_left, ct_right)
-        })
+            engine.unchecked_mul_msb_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Verify if two ciphertexts can be multiplied together.
@@ -478,8 +478,8 @@ impl ServerKey {
         ct_right: &Ciphertext,
     ) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, ct_right)
-        })
+            engine.unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Verify if two ciphertexts can be multiplied together in the case where the carry
@@ -829,12 +829,12 @@ impl ServerKey {
 
         if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
             ShortintEngine::with_thread_local_mut(|engine| {
-                engine.unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, rhs)
+                engine.unchecked_mul_lsb_small_carry_modulus_assign(self, ct_left, rhs);
             });
             self.message_extract_assign(ct_left);
         } else {
             ShortintEngine::with_thread_local_mut(|engine| {
-                engine.unchecked_mul_lsb_assign(self, ct_left, rhs)
+                engine.unchecked_mul_lsb_assign(self, ct_left, rhs);
             });
         }
     }
@@ -894,7 +894,7 @@ impl ServerKey {
     /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
     /// ```
     pub fn mul_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        self.mul_lsb_assign(ct_left, ct_right)
+        self.mul_lsb_assign(ct_left, ct_right);
     }
 
     /// Multiply two ciphertexts together
@@ -965,7 +965,7 @@ impl ServerKey {
         };
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_mul_msb_assign(self, ct_left, rhs)
+            engine.unchecked_mul_msb_assign(self, ct_left, rhs);
         });
     }
 
@@ -1074,8 +1074,8 @@ impl ServerKey {
     /// ```
     pub fn smart_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_mul_lsb_assign(self, ct_left, ct_right)
-        })
+            engine.smart_mul_lsb_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Multiply two ciphertexts together
@@ -1125,8 +1125,8 @@ impl ServerKey {
     /// ```
     pub fn smart_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_mul_msb_assign(self, ct_left, ct_right)
-        })
+            engine.smart_mul_msb_assign(self, ct_left, ct_right);
+        });
     }
 
     /// Multiply two ciphertexts together
