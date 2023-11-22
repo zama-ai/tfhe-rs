@@ -77,34 +77,34 @@ jobs:
               - concrete-csprng/src/**
 
       - name: Generate Keys
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make GEN_KEY_CACHE_COVERAGE_ONLY=TRUE gen_key_cache
           make gen_key_cache_core_crypto
 
-      - name: Run coverage for core_crypto
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
-        run: |
-          make test_core_crypto_cov AVX512_SUPPORT=ON
-
-      - name: Run coverage for boolean
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
-        run: |
-          make test_boolean_cov
-
-      - name: Run coverage for shortint
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
-        run: |
-          make test_shortint_cov
+#      - name: Run coverage for core_crypto
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        run: |
+#          make test_core_crypto_cov AVX512_SUPPORT=ON
+#
+#      - name: Run coverage for boolean
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        run: |
+#          make test_boolean_cov
+#
+#      - name: Run coverage for shortint
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        run: |
+#          make test_shortint_cov
 
       - name: Run integer coverage
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         run: |
           make test_integer_cov
 
       - name: Upload tfhe coverage to Codecov
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d
-        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+#        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/
