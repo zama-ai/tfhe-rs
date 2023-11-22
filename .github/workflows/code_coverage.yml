@@ -97,6 +97,11 @@ jobs:
         run: |
           make test_shortint_cov
 
+      - name: Run integer coverage
+        if: steps.changed-files.outputs.tfhe_any_changed == 'true'
+        run: |
+          make test_integer_cov
+
       - name: Upload tfhe coverage to Codecov
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'
@@ -104,7 +109,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/
           fail_ci_if_error: true
-          files: shortint/cobertura.xml,boolean/cobertura.xml,core_crypto/cobertura.xml,core_crypto_avx512/cobertura.xml
+          files: shortint/cobertura.xml,boolean/cobertura.xml,core_crypto/cobertura.xml,core_crypto_avx512/cobertura.xml,integer/cobertura.xml
 
       - name: Slack Notification
         if: ${{ failure() }}

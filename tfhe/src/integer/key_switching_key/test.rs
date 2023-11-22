@@ -2,15 +2,18 @@ use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::prelude::{PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
 
 use crate::integer::key_switching_key::KeySwitchingKey;
-use crate::integer::IntegerKeyKind;
+use crate::integer::keycache::KEY_CACHE;
+use crate::integer::{CrtClientKey, IntegerKeyKind, RadixClientKey};
 
 #[test]
 fn gen_multi_keys_test_rdxinteger_to_rdxinteger() {
     let num_block = 4;
 
-    // We generate a set of client/server keys, using the default parameters:
+    // We retrieve only one keys set from cache since testing key switching with two identical keys
+    // set is meaningless.
     let (client_key_1, server_key_1) =
-        crate::integer::gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+    let client_key_1 = RadixClientKey::from((client_key_1, num_block));
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_2, server_key_2) =
@@ -40,9 +43,11 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger() {
 fn gen_multi_keys_test_crtinteger_to_crtinteger() {
     let basis = vec![2, 3, 5, 7, 11];
 
-    // We generate a set of client/server keys, using the default parameters:
+    // We retrieve only one keys set from cache since testing key switching with two identical keys
+    // set is meaningless.
     let (client_key_1, server_key_1) =
-        crate::integer::gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis.clone());
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::CRT);
+    let client_key_1 = CrtClientKey::from((client_key_1, basis.clone()));
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_2, server_key_2) =
@@ -75,13 +80,17 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger() {
 fn gen_multi_keys_test_crtinteger_to_crtinteger_fail() {
     let basis = vec![2, 3, 5, 7, 11];
 
-    // We generate a set of client/server keys, using the default parameters:
+    // We retrieve only one keys set from cache since testing key switching with two identical keys
+    // set is meaningless.
     let (client_key_1, server_key_1) =
-        crate::integer::gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis.clone());
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::CRT);
+    let client_key_1 = CrtClientKey::from((client_key_1, basis.clone()));
 
-    // We generate a set of client/server keys, using the default parameters:
+    // We retrieve only one keys set from cache since testing key switching with two identical keys
+    // set is meaningless.
     let (client_key_2, server_key_2) =
-        crate::integer::gen_keys_crt(PARAM_MESSAGE_1_CARRY_1_KS_PBS, basis);
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_1_CARRY_1_KS_PBS, IntegerKeyKind::CRT);
+    let client_key_2 = CrtClientKey::from((client_key_2, basis));
 
     // Get casting key
     let ksk_params = ShortintKeySwitchingParameters::new(
@@ -97,9 +106,10 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail() {
 
 #[test]
 fn gen_multi_keys_test_integer_to_integer() {
-    // We generate a set of client/server keys, using the default parameters:
+    // We retrieve only one keys set from cache since testing key switching with two identical keys
+    // set is meaningless.
     let (client_key_1, server_key_1) =
-        crate::integer::gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS, IntegerKeyKind::Radix);
 
     // We generate a set of client/server keys, using the default parameters:
     let (client_key_2, server_key_2) =

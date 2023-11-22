@@ -16,11 +16,19 @@ create_parametrized_test!(integer_smart_crt_scalar_sub);
 create_parametrized_test!(integer_smart_crt_sub);
 
 /// Number of loop iteration within randomized tests
+#[cfg(not(feature = "__coverage"))]
 const NB_TEST: usize = 30;
-
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
+#[cfg(not(feature = "__coverage"))]
 const NB_TEST_SMALLER: usize = 10;
+
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(feature = "__coverage")]
+const NB_TEST: usize = 1;
+#[cfg(feature = "__coverage")]
+const NB_TEST_SMALLER: usize = 1;
 
 fn make_basis(message_modulus: usize) -> Vec<u64> {
     match message_modulus {

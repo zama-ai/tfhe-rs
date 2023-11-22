@@ -4,7 +4,12 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 
 /// Number of loop iteration within randomized tests
+#[cfg(not(feature = "__coverage"))]
 const NB_TEST: usize = 30;
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(feature = "__coverage")]
+const NB_TEST: usize = 1;
 
 #[test]
 fn integer_unchecked_crt_add_parallelized_32_bits() {

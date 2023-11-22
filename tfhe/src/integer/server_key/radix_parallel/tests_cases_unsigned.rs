@@ -10,12 +10,24 @@ use rand::Rng;
 use std::sync::Arc;
 
 /// Number of loop iteration within randomized tests
+#[cfg(not(feature = "__coverage"))]
 const NB_TEST: usize = 30;
-
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
+#[cfg(not(feature = "__coverage"))]
 const NB_TEST_SMALLER: usize = 10;
+
+// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
+// instrumentation
+#[cfg(feature = "__coverage")]
+const NB_TEST: usize = 1;
+#[cfg(feature = "__coverage")]
+const NB_TEST_SMALLER: usize = 1;
+
+#[cfg(not(feature = "__coverage"))]
 const NB_CTXT: usize = 4;
+#[cfg(feature = "__coverage")]
+const NB_CTXT: usize = 2;
 
 fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
     rng.gen_range(1..modulus)
