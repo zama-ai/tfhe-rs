@@ -587,12 +587,12 @@ impl ServerKey {
         T: SignedReciprocable + ScalarMultiplier,
         <<T as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
-        if !numerator.block_carries_are_empty() {
+        if numerator.block_carries_are_empty() {
+            self.unchecked_signed_scalar_div_rem_parallelized(numerator, divisor)
+        } else {
             let mut tmp = numerator.clone();
             self.full_propagate_parallelized(&mut tmp);
             self.unchecked_signed_scalar_div_rem_parallelized(&tmp, divisor)
-        } else {
-            self.unchecked_signed_scalar_div_rem_parallelized(numerator, divisor)
         }
     }
 
@@ -1069,12 +1069,12 @@ impl ServerKey {
     where
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
-        if !numerator.block_carries_are_empty() {
+        if numerator.block_carries_are_empty() {
+            self.unchecked_scalar_div_rem_parallelized(numerator, divisor)
+        } else {
             let mut cloned_numerator = numerator.clone();
             self.full_propagate_parallelized(&mut cloned_numerator);
             self.unchecked_scalar_div_rem_parallelized(&cloned_numerator, divisor)
-        } else {
-            self.unchecked_scalar_div_rem_parallelized(numerator, divisor)
         }
     }
 }

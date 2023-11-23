@@ -147,19 +147,19 @@ impl<'a> Comparator<'a> {
             // However, we are dealing with signed number,
             // so in reality, it is the smaller of the two.
             // i.e the cmp result is inversed
-            if x_sign_bit != y_sign_bit {
-                match x.cmp(&y) {
-                    std::cmp::Ordering::Less => Self::IS_SUPERIOR,
-                    std::cmp::Ordering::Equal => Self::IS_EQUAL,
-                    std::cmp::Ordering::Greater => Self::IS_INFERIOR,
-                }
-            } else {
+            if x_sign_bit == y_sign_bit {
                 // Both have either sign bit set or unset,
                 // cmp will give correct result
                 match x.cmp(&y) {
                     std::cmp::Ordering::Less => Self::IS_INFERIOR,
                     std::cmp::Ordering::Equal => Self::IS_EQUAL,
                     std::cmp::Ordering::Greater => Self::IS_SUPERIOR,
+                }
+            } else {
+                match x.cmp(&y) {
+                    std::cmp::Ordering::Less => Self::IS_SUPERIOR,
+                    std::cmp::Ordering::Equal => Self::IS_EQUAL,
+                    std::cmp::Ordering::Greater => Self::IS_INFERIOR,
                 }
             }
         });
@@ -1625,12 +1625,12 @@ impl<'a> Comparator<'a> {
         F: Fn(u64) -> bool + Sync,
     {
         let mut tmp_lhs;
-        let lhs = if !lhs.block_carries_are_empty() {
+        let lhs = if lhs.block_carries_are_empty() {
+            lhs
+        } else {
             tmp_lhs = lhs.clone();
             self.server_key.full_propagate_parallelized(&mut tmp_lhs);
             &tmp_lhs
-        } else {
-            lhs
         };
         self.unchecked_scalar_compare_parallelized_handler(lhs, rhs, sign_result_handler_fn)
     }
@@ -1677,12 +1677,12 @@ impl<'a> Comparator<'a> {
         Scalar: DecomposableInto<u64>,
     {
         let mut tmp_lhs;
-        let lhs = if !lhs.block_carries_are_empty() {
+        let lhs = if lhs.block_carries_are_empty() {
+            lhs
+        } else {
             tmp_lhs = lhs.clone();
             self.server_key.full_propagate_parallelized(&mut tmp_lhs);
             &tmp_lhs
-        } else {
-            lhs
         };
         self.unchecked_scalar_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Max)
     }
@@ -1693,12 +1693,12 @@ impl<'a> Comparator<'a> {
         Scalar: DecomposableInto<u64>,
     {
         let mut tmp_lhs;
-        let lhs = if !lhs.block_carries_are_empty() {
+        let lhs = if lhs.block_carries_are_empty() {
+            lhs
+        } else {
             tmp_lhs = lhs.clone();
             self.server_key.full_propagate_parallelized(&mut tmp_lhs);
             &tmp_lhs
-        } else {
-            lhs
         };
         self.unchecked_scalar_min_or_max_parallelized(lhs, rhs, MinMaxSelector::Min)
     }

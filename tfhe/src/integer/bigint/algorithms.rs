@@ -102,7 +102,9 @@ where
         return compare_unsigned(&lhs[..lhs.len() - 1], &rhs[..rhs.len() - 1]);
     }
 
-    if lhs_sign_bit != rhs_sign_bit {
+    if lhs_sign_bit == rhs_sign_bit {
+        cmp
+    } else {
         // The block that has its sign bit set is going
         // to be ordered as 'greater' by the cmp fn.
         // However, we are dealing with signed number,
@@ -113,8 +115,6 @@ where
             std::cmp::Ordering::Greater => std::cmp::Ordering::Less,
             std::cmp::Ordering::Equal => unreachable!(),
         }
-    } else {
-        cmp
     }
 }
 

@@ -31,7 +31,6 @@
 #![allow(clippy::match_same_arms)] // 19
 #![allow(clippy::unused_self)] // 17
 #![allow(clippy::range_plus_one)] // 16
-#![allow(clippy::if_not_else)] // 14
 #![allow(clippy::return_self_not_must_use)] // 11
 #![allow(clippy::default_trait_access)] // 11
 #![allow(clippy::ignored_unit_patterns)] // 9

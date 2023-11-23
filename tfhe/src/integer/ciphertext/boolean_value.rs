@@ -98,11 +98,11 @@ impl BooleanBlock {
     where
         T: IntegerRadixCiphertext,
     {
-        if !ct.holds_boolean_value() {
-            sks.scalar_ne_parallelized(ct, 0)
-        } else {
+        if ct.holds_boolean_value() {
             let block = ct.blocks()[0].clone();
             Self(block)
+        } else {
+            sks.scalar_ne_parallelized(ct, 0)
         }
     }
 
