@@ -107,8 +107,7 @@ pub fn extract_lwe_sample_from_glwe_ciphertext<Scalar, InputCont, OutputCont>(
     assert_eq!(
         in_lwe_dim, out_lwe_dim,
         "Mismatch between equivalent LweDimension of input ciphertext and output ciphertext. \
-        Got {:?} for input and {:?} for output.",
-        in_lwe_dim, out_lwe_dim,
+        Got {in_lwe_dim:?} for input and {out_lwe_dim:?} for output.",
     );
 
     assert_eq!(
@@ -369,8 +368,7 @@ pub fn par_extract_lwe_sample_from_glwe_ciphertext_with_thread_count<
     assert_eq!(
         in_lwe_dim, out_lwe_dim,
         "Mismatch between equivalent LweDimension of input ciphertext and output ciphertext. \
-        Got {:?} for input and {:?} for output.",
-        in_lwe_dim, out_lwe_dim,
+        Got {in_lwe_dim:?} for input and {out_lwe_dim:?} for output.",
     );
 
     assert!(

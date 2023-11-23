@@ -763,8 +763,7 @@ where
             assert_eq!(
                 expected, decrypted_result,
                 "Invalid left shift result for {clear} << {scalar}: \
-                expected {}, got {}",
-                expected, decrypted_result
+                expected {expected}, got {decrypted_result}"
             );
         }
 
@@ -777,8 +776,7 @@ where
             assert_eq!(
                 expected, decrypted_result,
                 "Invalid left shift result for {clear} << {scalar}: \
-                expected {}, got {}",
-                expected, decrypted_result
+                expected {expected}, got {decrypted_result}"
             );
         }
     }
@@ -794,8 +792,7 @@ where
         assert_eq!(
             expected, decrypted_result,
             "Invalid left shift result for {clear} << {scalar}: \
-            expected {}, got {}",
-            expected, decrypted_result
+            expected {expected}, got {decrypted_result}"
         );
     }
 }
@@ -833,8 +830,7 @@ where
             assert_eq!(
                 expected, decrypted_result,
                 "Invalid right shift result for {clear} >> {scalar}: \
-                expected {}, got {}",
-                expected, decrypted_result
+                expected {expected}, got {decrypted_result}"
             );
         }
 
@@ -848,8 +844,7 @@ where
             assert_eq!(
                 expected, decrypted_result,
                 "Invalid right shift result for {clear} >> {scalar}: \
-                expected {}, got {}",
-                expected, decrypted_result
+                expected {expected}, got {decrypted_result}"
             );
         }
     }
@@ -866,8 +861,7 @@ where
         assert_eq!(
             expected, decrypted_result,
             "Invalid right shift result for {clear} >> {scalar}: \
-            expected {}, got {}",
-            expected, decrypted_result
+            expected {expected}, got {decrypted_result}"
         );
     }
 }
