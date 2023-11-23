@@ -259,7 +259,7 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
 
         Ok(CiphertextModulus {
             inner: new_inner,
-            _scalar: Default::default(),
+            _scalar: PhantomData,
         }
         .canonicalize())
     }

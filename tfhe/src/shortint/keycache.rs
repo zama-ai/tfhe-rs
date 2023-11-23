@@ -498,7 +498,7 @@ impl KeycacheKeySwitchingKey {
 }
 
 lazy_static! {
-    pub static ref KEY_CACHE: Keycache = Default::default();
-    pub static ref KEY_CACHE_WOPBS: KeycacheWopbsV0 = Default::default();
-    pub static ref KEY_CACHE_KSK: KeycacheKeySwitchingKey = Default::default();
+    pub static ref KEY_CACHE: Keycache = Keycache::default();
+    pub static ref KEY_CACHE_WOPBS: KeycacheWopbsV0 = KeycacheWopbsV0::default();
+    pub static ref KEY_CACHE_KSK: KeycacheKeySwitchingKey = KeycacheKeySwitchingKey::default();
 }

@@ -148,9 +148,9 @@ pub(crate) struct Bootstrapper {
 impl Bootstrapper {
     pub fn new(seeder: &mut dyn Seeder) -> Self {
         Self {
-            memory: Default::default(),
+            memory: Memory::default(),
             encryption_generator: EncryptionRandomGenerator::<_>::new(seeder.seed(), seeder),
-            computation_buffers: Default::default(),
+            computation_buffers: ComputationBuffers::default(),
             seeder: DeterministicSeeder::<_>::new(seeder.seed()),
         }
     }

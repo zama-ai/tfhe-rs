@@ -60,5 +60,5 @@ impl Keycache {
 }
 
 lazy_static! {
-    pub static ref KEY_CACHE: Keycache = Default::default();
+    pub static ref KEY_CACHE: Keycache = Keycache::default();
 }
