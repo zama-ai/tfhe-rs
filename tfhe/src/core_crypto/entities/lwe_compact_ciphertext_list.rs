@@ -44,10 +44,10 @@ pub fn lwe_compact_ciphertext_list_mask_count(
 ) -> LweMaskCount {
     LweMaskCount(
         lwe_ciphertext_count.0 / lwe_dimension.0
-            + if lwe_ciphertext_count.0 % lwe_dimension.0 != 0 {
-                1
-            } else {
+            + if lwe_ciphertext_count.0 % lwe_dimension.0 == 0 {
                 0
+            } else {
+                1
             },
     )
 }

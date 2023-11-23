@@ -551,7 +551,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
                         ciphertext_modulus,
                     );
 
-                    if j != nb_layer - 1 {
+                    if j < nb_layer - 1 {
                         let (j_counter_plus_1, (mut t_0_j_plus_1, mut t_1_j_plus_1)) =
                             t_iter.next().unwrap();
 
@@ -573,6 +573,7 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
 
                         (j_counter, t0_j, t1_j) = (j_counter_plus_1, t_0_j_plus_1, t_1_j_plus_1);
                     } else {
+                        assert_eq!(j, nb_layer - 1);
                         let mut output = output_glwe.as_mut_view();
                         output.as_mut().copy_from_slice(t0_j.as_ref());
                         add_external_product_assign(output, ggsw, diff, fft, stack);

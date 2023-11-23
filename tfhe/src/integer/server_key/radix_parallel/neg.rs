@@ -80,12 +80,12 @@ impl ServerKey {
     {
         let mut tmp_ctxt;
 
-        let ct = if !ctxt.block_carries_are_empty() {
+        let ct = if ctxt.block_carries_are_empty() {
+            ctxt
+        } else {
             tmp_ctxt = ctxt.clone();
             self.full_propagate_parallelized(&mut tmp_ctxt);
             &tmp_ctxt
-        } else {
-            ctxt
         };
 
         if self.is_eligible_for_parallel_single_carry_propagation(ct) {

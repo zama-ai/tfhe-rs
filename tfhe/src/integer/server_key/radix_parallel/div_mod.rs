@@ -13,17 +13,17 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !T::IS_SIGNED {
-            let n = RadixCiphertext::from_blocks(numerator.blocks().to_vec());
-            let d = RadixCiphertext::from_blocks(divisor.blocks().to_vec());
-            let (q, r) = self.unsigned_unchecked_div_rem_parallelized(&n, &d);
+        if T::IS_SIGNED {
+            let n = SignedRadixCiphertext::from_blocks(numerator.blocks().to_vec());
+            let d = SignedRadixCiphertext::from_blocks(divisor.blocks().to_vec());
+            let (q, r) = self.signed_unchecked_div_rem_parallelized(&n, &d);
             let q = T::from_blocks(q.into_blocks());
             let r = T::from_blocks(r.into_blocks());
             (q, r)
         } else {
-            let n = SignedRadixCiphertext::from_blocks(numerator.blocks().to_vec());
-            let d = SignedRadixCiphertext::from_blocks(divisor.blocks().to_vec());
-            let (q, r) = self.signed_unchecked_div_rem_parallelized(&n, &d);
+            let n = RadixCiphertext::from_blocks(numerator.blocks().to_vec());
+            let d = RadixCiphertext::from_blocks(divisor.blocks().to_vec());
+            let (q, r) = self.unsigned_unchecked_div_rem_parallelized(&n, &d);
             let q = T::from_blocks(q.into_blocks());
             let r = T::from_blocks(r.into_blocks());
             (q, r)

@@ -153,7 +153,7 @@ where
         // The size_hint docs states that it is ok (not best thing
         // but won't break code)
         let max_remaining_iter = self.num_bits_valid / self.num_bits_in_mask;
-        let min_remaining_iter = if max_remaining_iter != 0 { 1 } else { 0 };
+        let min_remaining_iter = if max_remaining_iter == 0 { 0 } else { 1 };
         (min_remaining_iter, Some(max_remaining_iter as usize))
     }
 }

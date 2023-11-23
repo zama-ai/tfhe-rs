@@ -574,12 +574,12 @@ impl ServerKey {
         Scalar: DecomposableInto<u64>,
     {
         let mut tmp_lhs;
-        let lhs = if !lhs.block_carries_are_empty() {
+        let lhs = if lhs.block_carries_are_empty() {
+            lhs
+        } else {
             tmp_lhs = lhs.clone();
             self.full_propagate_parallelized(&mut tmp_lhs);
             &tmp_lhs
-        } else {
-            lhs
         };
         self.unchecked_scalar_eq_parallelized(lhs, rhs)
     }
@@ -601,12 +601,12 @@ impl ServerKey {
         Scalar: DecomposableInto<u64>,
     {
         let mut tmp_lhs;
-        let lhs = if !lhs.block_carries_are_empty() {
+        let lhs = if lhs.block_carries_are_empty() {
+            lhs
+        } else {
             tmp_lhs = lhs.clone();
             self.full_propagate_parallelized(&mut tmp_lhs);
             &tmp_lhs
-        } else {
-            lhs
         };
         self.unchecked_scalar_ne_parallelized(lhs, rhs)
     }
