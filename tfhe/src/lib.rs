@@ -38,7 +38,6 @@
 #![allow(clippy::large_types_passed_by_value)] // 8
 #![allow(clippy::float_cmp)] // 7
 #![allow(clippy::bool_to_int_with_if)] // 6
-#![allow(clippy::implicit_clone)] // 5
 #![allow(clippy::trivially_copy_pass_by_ref)] // 5
 #![allow(clippy::manual_let_else)] // 4
 #![allow(clippy::used_underscore_binding)] // 3

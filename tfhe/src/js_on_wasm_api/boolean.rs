@@ -135,7 +135,7 @@ impl Boolean {
 
         let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(seed));
         let key = crate::boolean::engine::BooleanEngine::new_from_seeder(&mut seeder)
-            .create_client_key(parameters.0.to_owned());
+            .create_client_key(parameters.0);
         BooleanClientKey(key)
     }
 
