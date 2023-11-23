@@ -1153,9 +1153,11 @@ pub const PARAM_MESSAGE_1_CARRY_1_PBS_KS: ClassicPBSParameters = ClassicPBSParam
 };
 
 pub const PARAM_MESSAGE_2_CARRY_2_PBS_KS: ClassicPBSParameters = ClassicPBSParameters {
-    lwe_dimension: LweDimension(870),
+    // lwe_dimension: LweDimension(870),
+    lwe_dimension: LweDimension(1),
     glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
+    // polynomial_size: PolynomialSize(2048),
+    polynomial_size: PolynomialSize(256),
     lwe_modular_std_dev: StandardDev(0.0000006791658447437413),
     glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     pbs_base_log: DecompositionBaseLog(23),

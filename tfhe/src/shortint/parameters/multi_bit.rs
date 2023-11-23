@@ -114,9 +114,11 @@ pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_2_KS_PBS: MultiBitPBSParameter
 
 pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
-        lwe_dimension: LweDimension(818),
+        // lwe_dimension: LweDimension(818),
+        lwe_dimension: LweDimension(2),
         glwe_dimension: GlweDimension(1),
-        polynomial_size: PolynomialSize(2048),
+        // polynomial_size: PolynomialSize(2048),
+        polynomial_size: PolynomialSize(256),
         lwe_modular_std_dev: StandardDev(0.000002226459789930014),
         glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
         pbs_base_log: DecompositionBaseLog(22),
@@ -172,9 +174,11 @@ pub const PARAM_MULTI_BIT_MESSAGE_1_CARRY_1_GROUP_3_KS_PBS: MultiBitPBSParameter
 
 pub const PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS: MultiBitPBSParameters =
     MultiBitPBSParameters {
-        lwe_dimension: LweDimension(888),
+        // lwe_dimension: LweDimension(888),
+        lwe_dimension: LweDimension(3),
         glwe_dimension: GlweDimension(1),
-        polynomial_size: PolynomialSize(2048),
+        // polynomial_size: PolynomialSize(2048),
+        polynomial_size: PolynomialSize(256),
         lwe_modular_std_dev: StandardDev(0.0000006125031601933181),
         glwe_modular_std_dev: StandardDev(0.0000000000000003152931493498455),
         pbs_base_log: DecompositionBaseLog(21),
