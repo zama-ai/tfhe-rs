@@ -520,9 +520,8 @@ pub fn cmux_tree_memory_optimized<Scalar: UnsignedTorus + CastInto<usize>>(
             let even = lut_polynomial_iter.next();
             let odd = lut_polynomial_iter.next();
 
-            let (lut_2i, lut_2i_plus_1) = match (even, odd) {
-                (Some(even), Some(odd)) => (even, odd),
-                _ => break,
+            let (Some(lut_2i), Some(lut_2i_plus_1)) = (even, odd) else {
+                break;
             };
 
             let mut t_iter = izip!(t_0.iter_mut(), t_1.iter_mut(),).enumerate();

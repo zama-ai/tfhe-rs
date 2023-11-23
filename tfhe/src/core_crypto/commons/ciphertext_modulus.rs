@@ -109,12 +109,10 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             Err("Modulus is bigger than the maximum value of the associated Scalar type")
         } else {
             let res = if let Some(modulus) = 1u128.checked_shl(exponent as u32) {
-                let non_zero_modulus = match NonZeroU128::new(modulus) {
-                    Some(val) => val,
-                    None => {
-                        panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
-                    }
+                let Some(non_zero_modulus) = NonZeroU128::new(modulus) else {
+                    panic!("Got zero modulus for CiphertextModulusInner::Custom variant",)
                 };
+
                 Self {
                     inner: CiphertextModulusInner::Custom(non_zero_modulus),
                     _scalar: PhantomData,

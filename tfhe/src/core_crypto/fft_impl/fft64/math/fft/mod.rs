@@ -657,13 +657,13 @@ impl<'de, C: IntoContainerOwned<Element = c64>> serde::Deserialize<'de>
                 use crate::core_crypto::commons::traits::Split;
 
                 let str = "sequence of two fields and Fourier polynomials";
-                let polynomial_size = match seq.next_element::<PolynomialSize>()? {
-                    Some(polynomial_size) => polynomial_size,
-                    None => return Err(serde::de::Error::invalid_length(0, &str)),
+
+                let Some(polynomial_size) = seq.next_element::<PolynomialSize>()? else {
+                    return Err(serde::de::Error::invalid_length(0, &str));
                 };
-                let chunk_count = match seq.next_element::<usize>()? {
-                    Some(chunk_count) => chunk_count,
-                    None => return Err(serde::de::Error::invalid_length(1, &str)),
+
+                let Some(chunk_count) = seq.next_element::<usize>()? else {
+                    return Err(serde::de::Error::invalid_length(1, &str));
                 };
 
                 struct FillFourier<'a> {
