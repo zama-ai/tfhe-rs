@@ -58,7 +58,7 @@ impl ShortintEngine {
         );
         PublicKey {
             lwe_public_key,
-            parameters: client_key.parameters.to_owned(),
+            parameters: client_key.parameters,
             pbs_order: client_key.parameters.encryption_key_choice().into(),
         }
     }
@@ -105,7 +105,7 @@ impl ShortintEngine {
 
         CompressedPublicKey {
             lwe_public_key: compressed_public_key,
-            parameters: client_key.parameters.to_owned(),
+            parameters: client_key.parameters,
             pbs_order: client_key.parameters.encryption_key_choice().into(),
         }
     }

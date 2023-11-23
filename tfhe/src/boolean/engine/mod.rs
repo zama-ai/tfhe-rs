@@ -149,7 +149,7 @@ impl BooleanEngine {
 
         PublicKey {
             lwe_public_key,
-            parameters: client_key.parameters.to_owned(),
+            parameters: client_key.parameters,
         }
     }
 

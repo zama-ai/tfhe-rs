@@ -60,7 +60,7 @@ impl ShortintEngine {
             wopbs_server_key: sks_cpy.clone(),
             cbs_pfpksk,
             ksk_pbs_to_wopbs: sks.key_switching_key.clone(),
-            param: wop_params.to_owned(),
+            param: wop_params,
             pbs_server_key: sks_cpy,
         };
         Ok(wopbs_key)

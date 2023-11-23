@@ -357,9 +357,7 @@ impl Shortint {
     pub fn new_client_key(parameters: &ShortintParameters) -> ShortintClientKey {
         set_hook(Box::new(console_error_panic_hook::hook));
 
-        ShortintClientKey(crate::shortint::client_key::ClientKey::new(
-            parameters.0.to_owned(),
-        ))
+        ShortintClientKey(crate::shortint::client_key::ClientKey::new(parameters.0))
     }
 
     #[wasm_bindgen]
