@@ -178,7 +178,7 @@ impl KeyCacheAccess for PackingKeySwitchTestParams<u64> {
 }
 
 lazy_static! {
-    pub static ref KEY_CACHE: KeyCache = Default::default();
+    pub static ref KEY_CACHE: KeyCache = KeyCache::default();
 }
 
 #[cfg(feature = "internal-keycache")]

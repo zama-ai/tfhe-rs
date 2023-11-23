@@ -221,8 +221,8 @@ impl ShortintEngine {
                 &mut deterministic_seeder,
             ),
             seeder: deterministic_seeder,
-            computation_buffers: Default::default(),
-            ciphertext_buffers: Default::default(),
+            computation_buffers: ComputationBuffers::default(),
+            ciphertext_buffers: Memory::default(),
         }
     }
 

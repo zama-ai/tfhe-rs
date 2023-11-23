@@ -44,6 +44,6 @@ impl WopbsKeyCache {
 }
 
 lazy_static! {
-    pub static ref KEY_CACHE: IntegerKeyCache = Default::default();
-    pub static ref KEY_CACHE_WOPBS: WopbsKeyCache = Default::default();
+    pub static ref KEY_CACHE: IntegerKeyCache = IntegerKeyCache;
+    pub static ref KEY_CACHE_WOPBS: WopbsKeyCache = WopbsKeyCache;
 }

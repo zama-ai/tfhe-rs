@@ -28,7 +28,6 @@
 #![allow(clippy::unused_self)] // 17
 #![allow(clippy::range_plus_one)] // 16
 #![allow(clippy::return_self_not_must_use)] // 11
-#![allow(clippy::default_trait_access)] // 11
 #![allow(clippy::ignored_unit_patterns)] // 9
 #![allow(clippy::inconsistent_struct_constructor)] // 9
 #![allow(clippy::large_types_passed_by_value)] // 8
