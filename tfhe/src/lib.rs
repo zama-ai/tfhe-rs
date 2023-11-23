@@ -39,7 +39,6 @@
 #![allow(clippy::float_cmp)] // 7
 #![allow(clippy::bool_to_int_with_if)] // 6
 #![allow(clippy::trivially_copy_pass_by_ref)] // 5
-#![allow(clippy::manual_let_else)] // 4
 #![allow(clippy::used_underscore_binding)] // 3
 #![allow(clippy::ptr_as_ptr)] // 2
 #![allow(clippy::unsafe_derive_deserialize)] // 1
