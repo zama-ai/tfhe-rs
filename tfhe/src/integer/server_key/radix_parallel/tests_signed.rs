@@ -2475,7 +2475,7 @@ fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
         {
             let neg_clear_0 = rng.gen_range(-modulus..=0);
             let ctxt_0 = cks.encrypt_signed_radix(neg_clear_0, NB_CTXT);
-            println!("{} / {}", neg_clear_0, d);
+            println!("{neg_clear_0} / {d}");
             let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
             let q: i64 = cks.decrypt_signed_radix(&q_res);
             let r: i64 = cks.decrypt_signed_radix(&r_res);
@@ -2486,7 +2486,7 @@ fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
         {
             let pos_clear_0 = rng.gen_range(0..modulus);
             let ctxt_0 = cks.encrypt_signed_radix(pos_clear_0, NB_CTXT);
-            println!("{} / {}", pos_clear_0, d);
+            println!("{pos_clear_0} / {d}");
             let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
             let q: i64 = cks.decrypt_signed_radix(&q_res);
             let r: i64 = cks.decrypt_signed_radix(&r_res);
@@ -2512,7 +2512,7 @@ fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
             {
                 let pos_clear_0 = rng.gen_range(0..modulus);
                 let ctxt_0 = cks.encrypt_signed_radix(pos_clear_0, NB_CTXT);
-                println!("{} / {}", pos_clear_0, d);
+                println!("{pos_clear_0} / {d}");
                 let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
                 let q: i64 = cks.decrypt_signed_radix(&q_res);
                 let r: i64 = cks.decrypt_signed_radix(&r_res);

@@ -40,23 +40,20 @@ impl std::fmt::Display for GenericIntegerBlockError {
             Self::NumberOfBlocks(correct, incorrect) => write!(
                 f,
                 "Wrong number of blocks for creating 
-                    a GenericInteger: should have been {}, but 
-                    was {} instead",
-                correct, incorrect
+                    a GenericInteger: should have been {correct}, but 
+                    was {incorrect} instead"
             ),
             Self::CarryModulus(correct, incorrect) => write!(
                 f,
                 "Wrong carry modulus for creating 
-                    a GenericInteger: should have been {:?}, but 
-                    was {:?} instead",
-                correct, incorrect
+                    a GenericInteger: should have been {correct:?}, but 
+                    was {incorrect:?} instead"
             ),
             Self::MessageModulus(correct, incorrect) => write!(
                 f,
                 "Wrong message modulus for creating 
-                    a GenericInteger: should have been {:?}, but 
-                    was {:?} instead",
-                correct, incorrect
+                    a GenericInteger: should have been {correct:?}, but 
+                    was {incorrect:?} instead"
             ),
         }
     }

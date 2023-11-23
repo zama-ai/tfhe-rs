@@ -29,7 +29,6 @@
 #![allow(clippy::explicit_iter_loop)] // 34
 #![allow(clippy::redundant_closure_for_method_calls)] // 32
 #![allow(clippy::match_same_arms)] // 19
-#![allow(clippy::uninlined_format_args)] // 19
 #![allow(clippy::unused_self)] // 17
 #![allow(clippy::range_plus_one)] // 16
 #![allow(clippy::if_not_else)] // 14

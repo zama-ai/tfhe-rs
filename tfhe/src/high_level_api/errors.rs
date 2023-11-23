@@ -98,7 +98,7 @@ impl Display for Error {
                 write!(f, "{OutOfRangeError}")
             }
             Self::UninitializedServerKey => {
-                write!(f, "{}", UninitializedServerKey)
+                write!(f, "{UninitializedServerKey}")
             }
         }
     }

@@ -44,8 +44,7 @@ where
 {
     assert!(
         ciphertext_modulus.is_native_modulus(),
-        "This operation currently only supports native moduli, got modulus {:?}",
-        ciphertext_modulus
+        "This operation currently only supports native moduli, got modulus {ciphertext_modulus:?}"
     );
 
     let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyListOwned::new(
@@ -185,8 +184,7 @@ where
 {
     assert!(
         ciphertext_modulus.is_native_modulus(),
-        "This operation currently only supports native moduli, got modulus {:?}",
-        ciphertext_modulus
+        "This operation currently only supports native moduli, got modulus {ciphertext_modulus:?}"
     );
 
     let mut cbs_pfpksk_list = LwePrivateFunctionalPackingKeyswitchKeyListOwned::new(

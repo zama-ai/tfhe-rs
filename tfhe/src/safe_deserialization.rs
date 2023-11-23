@@ -71,8 +71,7 @@ pub fn safe_deserialize<T: DeserializeOwned + Named>(
 
     if deserialized_version != SERIALIZATION_VERSION {
         return Err(format!(
-            "On deserialization, expected serialization version {}, got version {}",
-            SERIALIZATION_VERSION, deserialized_version
+            "On deserialization, expected serialization version {SERIALIZATION_VERSION}, got version {deserialized_version}"
         ));
     }
 

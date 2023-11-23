@@ -217,9 +217,8 @@ impl BooleanEngine {
             }
             (choice1, choice2) => panic!(
                 "EncryptionKeyChoice of cks1 and cks2 must be the same.\
-cks1 has {:?}, cks2 has: {:?}
-            ",
-                choice1, choice2
+cks1 has {choice1:?}, cks2 has: {choice2:?}
+            "
             ),
         };
 
