@@ -16,7 +16,7 @@ use rayon::prelude::*;
 pub fn fill_lwe_mask_and_body_for_encryption<Scalar, KeyCont, OutputCont, Gen>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     output_mask: &mut LweMask<OutputCont>,
-    output_body: LweBodyRefMut<Scalar>,
+    output_body: &mut LweBodyRefMut<Scalar>,
     encoded: Plaintext<Scalar>,
     noise_parameters: impl DispersionParameter,
     generator: &mut EncryptionRandomGenerator<Gen>,
@@ -135,12 +135,12 @@ pub fn encrypt_lwe_ciphertext<Scalar, KeyCont, OutputCont, Gen>(
         lwe_secret_key.lwe_dimension()
     );
 
-    let (mut mask, body) = output.get_mut_mask_and_body();
+    let (mut mask, mut body) = output.get_mut_mask_and_body();
 
     fill_lwe_mask_and_body_for_encryption(
         lwe_secret_key,
         &mut mask,
-        body,
+        &mut body,
         encoded,
         noise_parameters,
         generator,
@@ -1005,13 +1005,13 @@ pub fn encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
         .fork_lwe_list_to_lwe::<Scalar>(output.lwe_ciphertext_count(), output.lwe_size())
         .unwrap();
 
-    for ((output_body, plaintext), mut loop_generator) in
+    for ((mut output_body, plaintext), mut loop_generator) in
         output.iter_mut().zip(encoded.iter()).zip(gen_iter)
     {
         fill_lwe_mask_and_body_for_encryption(
             lwe_secret_key,
             &mut output_mask,
-            output_body,
+            &mut output_body,
             plaintext.into(),
             noise_parameters,
             &mut loop_generator,
@@ -1166,13 +1166,13 @@ pub fn par_encrypt_seeded_lwe_ciphertext_list_with_existing_generator<
         .par_iter_mut()
         .zip(encoded.par_iter())
         .zip(gen_iter)
-        .for_each(|((output_body, plaintext), mut loop_generator)| {
+        .for_each(|((mut output_body, plaintext), mut loop_generator)| {
             let mut output_mask =
                 LweMask::from_container(vec![Scalar::ZERO; lwe_dimension.0], ciphertext_modulus);
             fill_lwe_mask_and_body_for_encryption(
                 lwe_secret_key,
                 &mut output_mask,
-                output_body,
+                &mut output_body,
                 plaintext.into(),
                 noise_parameters,
                 &mut loop_generator,
@@ -1300,7 +1300,7 @@ pub fn encrypt_seeded_lwe_ciphertext_with_existing_generator<Scalar, KeyCont, Ge
     fill_lwe_mask_and_body_for_encryption(
         lwe_secret_key,
         &mut mask,
-        output.get_mut_body(),
+        &mut output.get_mut_body(),
         encoded,
         noise_parameters,
         generator,

@@ -9,6 +9,7 @@ use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::Ciphertext;
 
 /// Used for compare_blocks_with_zero
+#[derive(Clone, Copy)]
 pub(crate) enum ZeroComparisonType {
     // We want to compare with zeros for equality (==)
     Equality,
@@ -17,6 +18,7 @@ pub(crate) enum ZeroComparisonType {
 }
 
 /// Simple enum to select whether we are looking for the min or the max
+#[derive(Clone, Copy)]
 enum MinMaxSelector {
     Max,
     Min,
@@ -954,7 +956,7 @@ impl<'a> Comparator<'a> {
     /// a boolean value.
     fn map_sign_result<F>(
         &self,
-        comparison: crate::shortint::Ciphertext,
+        comparison: &crate::shortint::Ciphertext,
         sign_result_handler_fn: F,
     ) -> BooleanBlock
     where
@@ -964,7 +966,7 @@ impl<'a> Comparator<'a> {
             .server_key
             .key
             .generate_lookup_table(|x| u64::from(sign_result_handler_fn(x)));
-        let result_block = self.server_key.key.apply_lookup_table(&comparison, &acc);
+        let result_block = self.server_key.key.apply_lookup_table(comparison, &acc);
         BooleanBlock::new_unchecked(result_block)
     }
 
@@ -984,7 +986,7 @@ impl<'a> Comparator<'a> {
         F: Fn(u64) -> bool,
     {
         let comparison = comparison_fn(self, lhs, rhs);
-        self.map_sign_result(comparison, sign_result_handler_fn)
+        self.map_sign_result(&comparison, sign_result_handler_fn)
     }
 
     /// Helper function to implement smart_lt, smart_ge, etc
@@ -1001,7 +1003,7 @@ impl<'a> Comparator<'a> {
         F: Fn(u64) -> bool,
     {
         let comparison = smart_comparison_fn(self, lhs, rhs);
-        self.map_sign_result(comparison, sign_result_handler_fn)
+        self.map_sign_result(&comparison, sign_result_handler_fn)
     }
 
     //======================================
@@ -1475,7 +1477,7 @@ impl<'a> Comparator<'a> {
         F: Fn(u64) -> bool + Sync,
     {
         let sign_block = self.unchecked_scalar_compare_parallelized(lhs, rhs);
-        self.map_sign_result(sign_block, sign_result_handler_fn)
+        self.map_sign_result(&sign_block, sign_result_handler_fn)
     }
 
     pub fn unchecked_scalar_gt_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock

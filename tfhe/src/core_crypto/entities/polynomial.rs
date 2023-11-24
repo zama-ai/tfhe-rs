@@ -5,7 +5,7 @@ use crate::core_crypto::commons::traits::*;
 use std::ops::{Index, IndexMut};
 
 /// A [`polynomial`](`Polynomial`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Polynomial<C: Container> {
     data: C,
 }

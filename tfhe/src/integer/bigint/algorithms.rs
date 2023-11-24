@@ -295,6 +295,7 @@ where
     }
 }
 
+#[derive(Clone, Copy)]
 pub(crate) enum ShiftType {
     Logical,
     Arithmetic,

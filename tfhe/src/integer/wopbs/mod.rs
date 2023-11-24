@@ -89,7 +89,7 @@ impl std::ops::IndexMut<usize> for IntegerWopbsLUT {
 /// let nb_block = 5;
 /// let radix = encode_radix(val, basis, nb_block);
 ///
-/// assert_eq!(val, decode_radix(radix, basis));
+/// assert_eq!(val, decode_radix(&radix, basis));
 /// ```
 pub fn encode_radix(val: u64, basis: u64, nb_block: u64) -> Vec<u64> {
     let mut output = vec![];
@@ -174,9 +174,11 @@ pub fn split_value_according_to_bit_basis(value: u64, basis: &[u64]) -> Vec<u64>
 /// let val = 11;
 /// let basis = 2;
 /// let nb_block = 5;
-/// assert_eq!(val, decode_radix(encode_radix(val, basis, nb_block), basis));
+/// let radix = encode_radix(val, basis, nb_block);
+///
+/// assert_eq!(val, decode_radix(&radix, basis));
 /// ```
-pub fn decode_radix(val: Vec<u64>, basis: u64) -> u64 {
+pub fn decode_radix(val: &[u64], basis: u64) -> u64 {
     let mut result = 0_u64;
     let mut shift = 1_u64;
     for v_i in val.iter() {
@@ -552,7 +554,7 @@ impl WopbsKey {
 
         for lut_index_val in 0..(1 << total_bit) {
             let encoded_with_deg_val = encode_mix_radix(lut_index_val, &vec_deg_basis, basis);
-            let decoded_val = decode_radix(encoded_with_deg_val.clone(), basis);
+            let decoded_val = decode_radix(&encoded_with_deg_val, basis);
             let f_val = f(decoded_val % modulus) % modulus;
             let encoded_f_val = encode_radix(f_val, basis, block_nb as u64);
             for (lut_number, radix_encoded_val) in encoded_f_val.iter().enumerate().take(block_nb) {
@@ -830,7 +832,7 @@ impl WopbsKey {
             let mut decoded_val = [0; 2];
             for i in 0..2 {
                 let encoded_with_deg_val = encode_mix_radix(split[i], &vec_deg_basis[i], basis);
-                decoded_val[i] = decode_radix(encoded_with_deg_val.clone(), basis);
+                decoded_val[i] = decode_radix(&encoded_with_deg_val, basis);
             }
             let f_val = f(decoded_val[0] % modulus, decoded_val[1] % modulus) % modulus;
             let encoded_f_val = encode_radix(f_val, basis, block_nb as u64);

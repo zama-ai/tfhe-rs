@@ -6,7 +6,7 @@ use crate::core_crypto::entities::*;
 
 /// A contiguous list containing
 /// [`LWE ciphertexts`](`crate::core_crypto::entities::LweCiphertext`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LweCiphertextList<C: Container>
 where
     C::Element: UnsignedInteger,

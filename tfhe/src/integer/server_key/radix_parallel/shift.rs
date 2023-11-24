@@ -4,6 +4,7 @@ use crate::integer::ServerKey;
 
 use rayon::prelude::*;
 
+#[derive(Clone, Copy)]
 pub(super) enum BarrelShifterOperation {
     LeftRotate,
     LeftShift,

@@ -6,7 +6,7 @@ use crate::core_crypto::entities::*;
 
 /// A contiguous list containing [`LWE private functional packing keyswitch
 /// keys`](`crate::core_crypto::entities::LwePrivateFunctionalPackingKeyswitchKey`).
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LwePrivateFunctionalPackingKeyswitchKeyList<C: Container>
 where
     C::Element: UnsignedInteger,
