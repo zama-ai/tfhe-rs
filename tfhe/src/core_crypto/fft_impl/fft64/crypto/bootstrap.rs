@@ -308,7 +308,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
                 add_external_product_assign(
                     ct0.as_mut_view(),
                     bootstrap_key_ggsw,
-                    ct1.as_mut_view(),
+                    ct1.as_view(),
                     fft,
                     stack.rb_mut(),
                 );

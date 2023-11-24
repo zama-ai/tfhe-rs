@@ -156,7 +156,7 @@ use crate::core_crypto::entities::*;
 /// [`GLWE decryption
 /// algorithm`](`crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext`)
 /// on one of the GLWE ciphertexts contained in the GLev ciphertext.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GgswCiphertext<C: Container>
 where
     C::Element: UnsignedInteger,

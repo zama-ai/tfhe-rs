@@ -95,7 +95,7 @@ use crate::core_crypto::entities::*;
 /// 4. Compute $\mathsf{ACC} = \mathsf{CMux}(\overline{\overline{\mathsf{CT}\_i}}, \mathsf{ACC}
 /// \cdot X^{\tilde{a}\_i}, \mathsf{ACC})$, for $i= 0, 1, \ldots, n\_{\mathsf{in}-1}$
 /// 5. Output $\mathsf{ct}\_{\mathsf{out}} \leftarrow \mathsf{SampleExtract}(\mathsf{ACC})$
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LweBootstrapKey<C: Container>
 where
     C::Element: UnsignedInteger,

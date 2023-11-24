@@ -474,15 +474,14 @@ pub fn add_external_product_assign_scratch<Scalar>(
 
 /// Perform the external product of `ggsw` and `glwe`, and adds the result to `out`.
 #[cfg_attr(__profiling, inline(never))]
-pub fn add_external_product_assign<Scalar, InputGlweCont>(
+pub fn add_external_product_assign<Scalar>(
     mut out: GlweCiphertextMutView<'_, Scalar>,
     ggsw: FourierGgswCiphertextView<'_>,
-    glwe: GlweCiphertext<InputGlweCont>,
+    glwe: GlweCiphertextView<Scalar>,
     fft: FftView<'_>,
     stack: PodStack<'_>,
 ) where
     Scalar: UnsignedTorus,
-    InputGlweCont: Container<Element = Scalar>,
 {
     // we check that the polynomial sizes match
     debug_assert_eq!(ggsw.polynomial_size(), glwe.polynomial_size());
@@ -774,5 +773,5 @@ pub fn cmux<Scalar: UnsignedTorus>(
     izip!(ct1.as_mut(), ct0.as_ref(),).for_each(|(c1, c0)| {
         *c1 = c1.wrapping_sub(*c0);
     });
-    add_external_product_assign(ct0, ggsw, ct1, fft, stack);
+    add_external_product_assign(ct0, ggsw, ct1.as_view(), fft, stack);
 }

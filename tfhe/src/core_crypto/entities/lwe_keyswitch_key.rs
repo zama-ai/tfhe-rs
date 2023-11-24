@@ -73,7 +73,7 @@ use crate::core_crypto::entities::*;
 /// \sum\_{i=0}^{n\_{\mathsf{in}}-1} \mathsf{decompProduct}\left( a\_i , \overline{\mathsf{ct}\_i}
 /// \right)$
 /// 3. output $\mathsf{ct}\_{\mathsf{out}}$
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LweKeyswitchKey<C: Container>
 where
     C::Element: UnsignedInteger,

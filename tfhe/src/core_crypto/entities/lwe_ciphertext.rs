@@ -497,7 +497,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
 ///
 /// **Remark:** Observe that the decryption is followed by a decoding phase that will contain a
 /// rounding.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct LweCiphertext<C: Container>
 where
     C::Element: UnsignedInteger,
