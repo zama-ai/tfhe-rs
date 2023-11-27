@@ -1,5 +1,6 @@
 use crate::core_crypto::algorithms::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
+use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::integer::server_key::CheckError;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -445,10 +446,12 @@ impl ServerKey {
         let overflowed = BooleanBlock::new_unchecked(borrow);
         (RadixCiphertext::from(new_blocks), overflowed)
     }
-    pub fn unchecked_signed_overflowing_sub(
+
+    pub(crate) fn unchecked_signed_overflowing_add_or_sub(
         &self,
         lhs: &SignedRadixCiphertext,
         rhs: &SignedRadixCiphertext,
+        signed_operation: SignedOperation,
     ) -> (SignedRadixCiphertext, BooleanBlock) {
         let mut result = lhs.clone();
 
@@ -477,7 +480,11 @@ impl ServerKey {
         // If we have at least 2 bits and at least as much carries
         if self.key.message_modulus.0 >= 4 && self.key.carry_modulus.0 >= self.key.message_modulus.0
         {
-            self.unchecked_sub_assign(&mut result, rhs);
+            if signed_operation == SignedOperation::Subtraction {
+                self.unchecked_sub_assign(&mut result, rhs);
+            } else {
+                self.unchecked_add_assign(&mut result, rhs);
+            }
 
             let mut input_carry = self.key.create_trivial(0);
 
@@ -491,6 +498,7 @@ impl ServerKey {
                     self.generate_last_block_inner_propagation(
                         &lhs.blocks[num_blocks - 1],
                         &rhs.blocks[num_blocks - 1],
+                        signed_operation,
                     )
                 },
             );
@@ -520,7 +528,11 @@ impl ServerKey {
         // we do not have to resolve any inner propagation but it adds one more
         // sequential PBS
         if self.key.message_modulus.0 == 2 {
-            self.unchecked_sub_assign(&mut result, rhs);
+            if signed_operation == SignedOperation::Subtraction {
+                self.unchecked_sub_assign(&mut result, rhs);
+            } else {
+                self.unchecked_add_assign(&mut result, rhs);
+            }
 
             let mut input_carry = self.key.create_trivial(0);
             for block in result.blocks[..num_blocks - 1].iter_mut() {
@@ -546,6 +558,13 @@ impl ServerKey {
             I.e. PARAM_MESSAGE_X_CARRY_Y where X >= 1 and Y >= X.",
             self.key.message_modulus.0, self.key.carry_modulus.0
         );
+    }
+    pub fn unchecked_signed_overflowing_sub(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        rhs: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
+        self.unchecked_signed_overflowing_add_or_sub(lhs, rhs, SignedOperation::Subtraction)
     }
 
     pub fn signed_overflowing_sub(

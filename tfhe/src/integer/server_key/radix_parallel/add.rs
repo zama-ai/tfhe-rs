@@ -1,9 +1,10 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
 
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::prelude::misc::divide_ceil;
+use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use rayon::prelude::*;
 
 #[repr(u64)]
@@ -320,6 +321,72 @@ impl ServerKey {
             }
             let carry = self.propagate_parallelized(lhs, len - 1);
             BooleanBlock::new_unchecked(carry)
+        }
+    }
+
+    pub fn signed_overflowing_add_parallelized(
+        &self,
+        ct_left: &SignedRadixCiphertext,
+        ct_right: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
+        let mut tmp_lhs: SignedRadixCiphertext;
+        let mut tmp_rhs: SignedRadixCiphertext;
+
+        let (lhs, rhs) = match (
+            ct_left.block_carries_are_empty(),
+            ct_right.block_carries_are_empty(),
+        ) {
+            (true, true) => (ct_left, ct_right),
+            (true, false) => {
+                tmp_rhs = ct_right.clone();
+                self.full_propagate_parallelized(&mut tmp_rhs);
+                (ct_left, &tmp_rhs)
+            }
+            (false, true) => {
+                tmp_lhs = ct_left.clone();
+                self.full_propagate_parallelized(&mut tmp_lhs);
+                (&tmp_lhs, ct_right)
+            }
+            (false, false) => {
+                tmp_lhs = ct_left.clone();
+                tmp_rhs = ct_right.clone();
+                rayon::join(
+                    || self.full_propagate_parallelized(&mut tmp_lhs),
+                    || self.full_propagate_parallelized(&mut tmp_rhs),
+                );
+                (&tmp_lhs, &tmp_rhs)
+            }
+        };
+
+        self.unchecked_signed_overflowing_add_parallelized(lhs, rhs)
+    }
+
+    pub fn unchecked_signed_overflowing_add_parallelized(
+        &self,
+        ct_left: &SignedRadixCiphertext,
+        ct_right: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
+        assert_eq!(
+            ct_left.blocks.len(),
+            ct_right.blocks.len(),
+            "lhs and rhs must have the name number of blocks ({} vs {})",
+            ct_left.blocks.len(),
+            ct_right.blocks.len()
+        );
+        assert!(!ct_left.blocks.is_empty(), "inputs cannot be empty");
+
+        if self.is_eligible_for_parallel_single_carry_propagation(ct_left) {
+            self.unchecked_signed_overflowing_add_or_sub_parallelized_impl(
+                ct_left,
+                ct_right,
+                SignedOperation::Addition,
+            )
+        } else {
+            self.unchecked_signed_overflowing_add_or_sub(
+                ct_left,
+                ct_right,
+                SignedOperation::Addition,
+            )
         }
     }
 
