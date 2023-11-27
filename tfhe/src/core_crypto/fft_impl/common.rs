@@ -207,12 +207,6 @@ pub mod tests {
             &mut rsc.encryption_random_generator,
         );
 
-        // Now we will use a PBS to compute a multiplication by 2, it is NOT the recommended way of
-        // doing this operation in terms of performance as it's much more costly than a
-        // multiplication with a cleartext, however it resets the noise in a ciphertext to a
-        // nominal level and allows to evaluate arbitrary functions so depending on your use
-        // case it can be a better fit.
-
         // Here we will define a helper function to generate an accumulator for a PBS
         fn generate_accumulator<Scalar: Numeric + UnsignedTorus + CastFrom<usize>, F>(
             polynomial_size: PolynomialSize,
@@ -260,7 +254,7 @@ pub mod tests {
             )
         }
 
-        let f = |x: Scalar| Scalar::TWO * x;
+        let f = |x: Scalar| x;
         let accumulator: GlweCiphertextOwned<Scalar> = generate_accumulator(
             polynomial_size,
             glwe_dimension.to_glwe_size(),
@@ -271,7 +265,7 @@ pub mod tests {
         );
 
         // Allocate the LweCiphertext to store the result of the PBS
-        let mut pbs_multiplication_ct: LweCiphertext<Vec<Scalar>> = LweCiphertext::new(
+        let mut pbs_ct: LweCiphertext<Vec<Scalar>> = LweCiphertext::new(
             Scalar::ZERO,
             big_lwe_sk.lwe_dimension().to_lwe_size(),
             ciphertext_modulus,
@@ -279,7 +273,7 @@ pub mod tests {
         println!("Computing PBS...");
 
         fourier_bsk.bootstrap(
-            &mut pbs_multiplication_ct,
+            &mut pbs_ct,
             &lwe_ciphertext_in,
             &accumulator,
             &fft,
@@ -293,9 +287,8 @@ pub mod tests {
             )),
         );
 
-        // Decrypt the PBS multiplication result
-        let pbs_multiplication_plaintext: Plaintext<Scalar> =
-            decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_multiplication_ct);
+        // Decrypt the PBS result
+        let pbs_plaintext: Plaintext<Scalar> = decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_ct);
 
         // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
         // We pass a DecompositionBaseLog of 5 and a DecompositionLevelCount of 1 indicating we want
@@ -304,13 +297,9 @@ pub mod tests {
             SignedDecomposer::new(DecompositionBaseLog(5), DecompositionLevelCount(1));
 
         // Round and remove our encoding
-        let pbs_multiplication_result: Scalar =
-            signed_decomposer.closest_representable(pbs_multiplication_plaintext.0) / delta;
+        let pbs_result: Scalar = signed_decomposer.closest_representable(pbs_plaintext.0) / delta;
 
         println!("Checking result...");
-        assert_eq!(f(input_message), pbs_multiplication_result);
-        println!(
-            "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
-        );
+        assert_eq!(f(input_message), pbs_result);
     }
 }

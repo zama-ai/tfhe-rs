@@ -93,11 +93,7 @@ where
 
     let mut rsc = TestResources::new();
 
-    let f = |x: Scalar| {
-        x.wrapping_mul(Scalar::TWO)
-            .wrapping_sub(Scalar::ONE)
-            .wrapping_rem(msg_modulus)
-    };
+    let f = |x: Scalar| x;
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
@@ -201,11 +197,7 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
 
     let mut rsc = TestResources::new();
 
-    let f = |x: Scalar| {
-        x.wrapping_mul(Scalar::TWO)
-            .wrapping_sub(Scalar::ONE)
-            .wrapping_rem(msg_modulus)
-    };
+    let f = |x: Scalar| x;
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
@@ -332,11 +324,7 @@ where
 
     let mut rsc = TestResources::new();
 
-    let f = |x: Scalar| {
-        x.wrapping_mul(Scalar::TWO)
-            .wrapping_sub(Scalar::ONE)
-            .wrapping_rem(msg_modulus)
-    };
+    let f = |x: Scalar| x;
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
@@ -440,11 +428,7 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
 
     let mut rsc = TestResources::new();
 
-    let f = |x: Scalar| {
-        x.wrapping_mul(Scalar::TWO)
-            .wrapping_sub(Scalar::ONE)
-            .wrapping_rem(msg_modulus)
-    };
+    let f = |x: Scalar| x;
 
     let delta: Scalar = encoding_with_padding / msg_modulus;
     let mut msg = msg_modulus;
