@@ -17,6 +17,13 @@ enum BorrowGeneration {
     Propagated = 2,
 }
 
+// see [ServerKey::generate_last_block_inner_propagation]
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum SignedOperation {
+    Addition,
+    Subtraction,
+}
+
 impl ServerKey {
     /// Computes homomorphically the subtraction between ct_left and ct_right.
     ///
@@ -412,6 +419,7 @@ impl ServerKey {
         &self,
         last_lhs_block: &Ciphertext,
         last_rhs_block: &Ciphertext,
+        op: SignedOperation,
     ) -> Ciphertext {
         let bits_of_message = self.key.message_modulus.0.ilog2();
         let message_bit_mask = (1 << bits_of_message) - 1;
@@ -421,21 +429,26 @@ impl ServerKey {
         let last_block_inner_propagation_lut =
             self.key
                 .generate_lookup_table_bivariate(|lhs_block, rhs_block| {
-                    // subtraction is done by doing addition of negation
-                    // negation(x) = bit_flip(x) + 1
-                    // We only add the flipped value, the + 1 will be resolved by
-                    // carry propagation computation
-                    let flipped_rhs = !rhs_block;
+                    let rhs_block = if op == SignedOperation::Subtraction {
+                        // subtraction is done by doing addition of negation
+                        // negation(x) = bit_flip(x) + 1
+                        // We only add the flipped value, the + 1 will be resolved by
+                        // carry propagation computation
+                        let flipped_rhs = !rhs_block;
 
-                    // We remove the last bit, its not interesting in this step
+                        // We remove the last bit, its not interesting in this step
+                        (flipped_rhs << 1) & message_bit_mask
+                    } else {
+                        (rhs_block << 1) & message_bit_mask
+                    };
+
                     let lhs_block = (lhs_block << 1) & message_bit_mask;
-                    let flipped_rhs = (flipped_rhs << 1) & message_bit_mask;
 
-                    // whole_result contains the result of addtion with
+                    // whole_result contains the result of addition with
                     // the carry being in the first bit of carry space
                     // the message space contains the message, but with one 0
                     // on the right (lsb)
-                    let whole_result = lhs_block + flipped_rhs;
+                    let whole_result = lhs_block + rhs_block;
                     let carry = whole_result >> bits_of_message;
                     let result = (whole_result & message_bit_mask) >> 1;
                     let propagation_result = if carry == 1 {
@@ -508,16 +521,13 @@ impl ServerKey {
         BooleanBlock::new_unchecked(result)
     }
 
-    // This is the implementation of overflowing sub when we can use parallel carry
-    // propagation.
-    //
-    // It is in its own function so that it can be tested, as the main entry point
-    // unchecked_signed_overflowing_sub may select non parallel version if lhs
-    // does not have enough block.
-    pub(crate) fn unchecked_signed_overflowing_sub_parallelized_impl(
+    // This is the implementation of overflowing add/sub when we can use parallel carry
+    // propagation, as only a few things change between the two.
+    pub(crate) fn unchecked_signed_overflowing_add_or_sub_parallelized_impl(
         &self,
         lhs: &SignedRadixCiphertext,
         rhs: &SignedRadixCiphertext,
+        signed_operation: SignedOperation,
     ) -> (SignedRadixCiphertext, BooleanBlock) {
         // This assert is here because this overflow computation requires these preconditions
         // which is_eligible_for_parallel_single_carry_propagation, but it could change in the
@@ -540,8 +550,13 @@ impl ServerKey {
 
         let mut result = lhs.clone();
 
-        let neg = self.unchecked_neg(rhs);
-        self.unchecked_add_assign_parallelized(&mut result, &neg);
+        // Using parallel algorithms for unchecked_add/sub does not seem to bring
+        // measurable improvements
+        if signed_operation == SignedOperation::Subtraction {
+            self.unchecked_sub_assign(&mut result, rhs);
+        } else {
+            self.unchecked_add_assign(&mut result, rhs);
+        }
 
         let ((input_carries, output_carry), last_block_inner_propagation) = rayon::join(
             || {
@@ -552,6 +567,7 @@ impl ServerKey {
                 self.generate_last_block_inner_propagation(
                     lhs.blocks.last().as_ref().unwrap(),
                     rhs.blocks.last().as_ref().unwrap(),
+                    signed_operation,
                 )
             },
         );
@@ -583,6 +599,21 @@ impl ServerKey {
         );
 
         (result, overflowed)
+    }
+
+    // It is in its own function so that it can be tested, as the main entry point
+    // unchecked_signed_overflowing_sub may select non parallel version if lhs
+    // does not have enough block.
+    pub(crate) fn unchecked_signed_overflowing_sub_parallelized_impl(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        rhs: &SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
+        self.unchecked_signed_overflowing_add_or_sub_parallelized_impl(
+            lhs,
+            rhs,
+            SignedOperation::Subtraction,
+        )
     }
 
     pub fn unchecked_signed_overflowing_sub_parallelized(

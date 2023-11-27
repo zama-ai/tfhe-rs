@@ -17,7 +17,7 @@ mod scalar_rotate;
 mod scalar_shift;
 mod scalar_sub;
 mod shift;
-mod sub;
+pub(crate) mod sub;
 
 #[cfg(test)]
 pub(crate) mod tests_cases_comparisons;
