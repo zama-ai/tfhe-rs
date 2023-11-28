@@ -897,15 +897,54 @@ impl ServerKey {
     /// assert_eq!(1, ct_res);
     /// ```
     pub fn create_trivial(&self, value: u64) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.create_trivial(self, value, self.ciphertext_modulus)
-        })
+        let lwe_size = match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => {
+                self.bootstrapping_key.output_lwe_dimension().to_lwe_size()
+            }
+            PBSOrder::BootstrapKeyswitch => {
+                self.bootstrapping_key.input_lwe_dimension().to_lwe_size()
+            }
+        };
+
+        let modular_value = value as usize % self.message_modulus.0;
+
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+
+        let shifted_value = (modular_value as u64) * delta;
+
+        let encoded = Plaintext(shifted_value);
+
+        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+            lwe_size,
+            encoded,
+            self.ciphertext_modulus,
+        );
+
+        let degree = Degree(modular_value);
+
+        Ciphertext::new(
+            ct,
+            degree,
+            NoiseLevel::ZERO,
+            self.message_modulus,
+            self.carry_modulus,
+            self.pbs_order,
+        )
     }
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.create_trivial_assign(self, ct, value);
-        });
+        let modular_value = value as usize % self.message_modulus.0;
+
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+
+        let shifted_value = (modular_value as u64) * delta;
+
+        let encoded = Plaintext(shifted_value);
+
+        trivially_encrypt_lwe_ciphertext(&mut ct.ct, encoded);
+
+        ct.degree = Degree(modular_value);
+        ct.set_noise_level(NoiseLevel::ZERO);
     }
 
     pub fn bootstrapping_key_size_elements(&self) -> usize {
