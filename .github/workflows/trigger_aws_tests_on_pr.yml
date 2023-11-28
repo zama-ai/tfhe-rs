@@ -48,7 +48,7 @@ jobs:
             Pull Request has been approved :tada:
             Launching full test suite...
             @slab-ci cpu_test
-            @slab-ci cpu_integer_test
-            @slab-ci cpu_multi_bit_test
+            @slab-ci cpu_unsigned_integer_test
+            @slab-ci cpu_signed_integer_test
             @slab-ci cpu_wasm_test
             @slab-ci csprng_randomness_testing
