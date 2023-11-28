@@ -1,6 +1,5 @@
-use super::ServerKey;
-use crate::shortint::engine::ShortintEngine;
-use crate::shortint::Ciphertext;
+use crate::shortint::ciphertext::Degree;
+use crate::shortint::{Ciphertext, ServerKey};
 
 impl ServerKey {
     /// Compute a division between two ciphertexts.
@@ -184,9 +183,9 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn unchecked_div(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_div(self, ct_left, ct_right)
-        })
+        let mut result = ct_left.clone();
+        self.unchecked_div_assign(&mut result, ct_right);
+        result
     }
 
     /// Compute a division between two ciphertexts without checks.
@@ -237,8 +236,9 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn unchecked_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_div_assign(self, ct_left, ct_right);
+        let value_on_div_by_zero = (ct_left.message_modulus.0 - 1) as u64;
+        self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |x, y| {
+            safe_division(x, y, value_on_div_by_zero)
         });
     }
 
@@ -290,7 +290,24 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn smart_div(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_div(self, ct_left, ct_right))
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
+            if ct_left.message_modulus.0 + ct_right.degree.0 <= self.max_degree.0 {
+                self.message_extract_assign(ct_left);
+            } else if ct_right.message_modulus.0 + (ct_left.degree.0 + 1) <= self.max_degree.0 {
+                self.message_extract_assign(ct_right);
+            } else {
+                self.message_extract_assign(ct_left);
+                self.message_extract_assign(ct_right);
+            }
+        }
+
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
+
+        self.unchecked_div(ct_left, ct_right)
     }
 
     /// Compute a division between two ciphertexts without checks.
@@ -341,9 +358,23 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn smart_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_div_assign(self, ct_left, ct_right);
-        });
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
+            if ct_left.message_modulus.0 + ct_right.degree.0 <= self.max_degree.0 {
+                self.message_extract_assign(ct_left);
+            } else if ct_right.message_modulus.0 + (ct_left.degree.0 + 1) <= self.max_degree.0 {
+                self.message_extract_assign(ct_right);
+            } else {
+                self.message_extract_assign(ct_left);
+                self.message_extract_assign(ct_right);
+            }
+        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
+
+        self.unchecked_div_assign(ct_left, ct_right);
     }
 
     /// Alias to [`unchecked_scalar_div`](`Self::unchecked_scalar_div`) provided for convenience
@@ -423,16 +454,19 @@ impl ServerKey {
     /// let res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_1 / (clear_2 as u64), res);
     /// ```
-    pub fn unchecked_scalar_div(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_div(self, ct_left, scalar)
-        })
+    pub fn unchecked_scalar_div(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
+        let mut result = ct.clone();
+        self.unchecked_scalar_div_assign(&mut result, scalar);
+        result
     }
 
-    pub fn unchecked_scalar_div_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_div_assign(self, ct_left, scalar);
-        });
+    pub fn unchecked_scalar_div_assign(&self, ct: &mut Ciphertext, scalar: u8) {
+        assert_ne!(scalar, 0, "attempt to divide by zero");
+
+        let lookup_table =
+            self.generate_msg_lookup_table(|x| x / (scalar as u64), ct.message_modulus);
+        self.apply_lookup_table_assign(ct, &lookup_table);
+        ct.degree = Degree(ct.degree.0 / scalar as usize);
     }
 
     /// Alias to [`unchecked_scalar_mod`](`Self::unchecked_scalar_mod`) provided for convenience
@@ -511,15 +545,25 @@ impl ServerKey {
     /// let dec = cks.decrypt(&ct_res);
     /// assert_eq!(1, dec);
     /// ```
-    pub fn unchecked_scalar_mod(&self, ct_left: &Ciphertext, modulus: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mod(self, ct_left, modulus)
-        })
+    pub fn unchecked_scalar_mod(&self, ct: &Ciphertext, modulus: u8) -> Ciphertext {
+        let mut result = ct.clone();
+        self.unchecked_scalar_mod_assign(&mut result, modulus);
+        result
     }
 
-    pub fn unchecked_scalar_mod_assign(&self, ct_left: &mut Ciphertext, modulus: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mod_assign(self, ct_left, modulus);
-        });
+    pub fn unchecked_scalar_mod_assign(&self, ct: &mut Ciphertext, modulus: u8) {
+        assert_ne!(modulus, 0);
+        let acc = self.generate_msg_lookup_table(|x| x % modulus as u64, ct.message_modulus);
+        self.apply_lookup_table_assign(ct, &acc);
+        ct.degree = Degree(modulus as usize - 1);
+    }
+}
+
+// Specific division function returning value_on_div_by_zero in case of a division by 0
+pub(crate) fn safe_division(x: u64, y: u64, value_on_div_by_zero: u64) -> u64 {
+    if y == 0 {
+        value_on_div_by_zero
+    } else {
+        x / y
     }
 }

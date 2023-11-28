@@ -1,5 +1,4 @@
 use super::ServerKey;
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::{CheckError, Ciphertext};
 
 impl ServerKey {
@@ -162,9 +161,9 @@ impl ServerKey {
     /// assert_eq!(clear_1 & clear_2, res);
     /// ```
     pub fn unchecked_bitand(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitand(self, ct_left, ct_right)
-        })
+        let mut result = ct_left.clone();
+        self.unchecked_bitand_assign(&mut result, ct_right);
+        result
     }
 
     /// Compute bitwise AND between two ciphertexts without checks.
@@ -203,9 +202,8 @@ impl ServerKey {
     /// assert_eq!(clear_1 & clear_2, res);
     /// ```
     pub fn unchecked_bitand_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitand_assign(self, ct_left, ct_right);
-        });
+        self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs & rhs);
+        ct_left.degree = ct_left.degree.after_bitand(ct_right.degree);
     }
 
     /// Compute bitwise AND between two ciphertexts without checks.
@@ -350,7 +348,18 @@ impl ServerKey {
     /// assert_eq!(msg & msg, res);
     /// ```
     pub fn smart_bitand(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_bitand(self, ct_left, ct_right))
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
+            self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
+        }
+
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
+
+        self.unchecked_bitand(ct_left, ct_right)
     }
 
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
@@ -402,9 +411,14 @@ impl ServerKey {
     /// assert_eq!((msg2 & msg1) % modulus, res);
     /// ```
     pub fn smart_bitand_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitand_assign(self, ct_left, ct_right);
-        });
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
+            self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
+        }
+        self.unchecked_bitand_assign(ct_left, ct_right);
     }
 
     /// Compute homomorphically an XOR between two ciphertexts encrypting integer values.
@@ -568,9 +582,9 @@ impl ServerKey {
     /// assert_eq!(clear_1 ^ clear_2, res);
     /// ```
     pub fn unchecked_bitxor(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitxor(self, ct_left, ct_right)
-        })
+        let mut result = ct_left.clone();
+        self.unchecked_bitxor_assign(&mut result, ct_right);
+        result
     }
 
     /// Compute bitwise XOR between two ciphertexts without checks.
@@ -611,9 +625,8 @@ impl ServerKey {
     /// assert_eq!(clear_1 ^ clear_2, res);
     /// ```
     pub fn unchecked_bitxor_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitxor_assign(self, ct_left, ct_right);
-        });
+        self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs ^ rhs);
+        ct_left.degree = ct_left.degree.after_bitxor(ct_right.degree);
     }
 
     /// Compute bitwise XOR between two ciphertexts without checks.
@@ -757,7 +770,17 @@ impl ServerKey {
     /// assert_eq!(msg ^ msg, res);
     /// ```
     pub fn smart_bitxor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_bitxor(self, ct_left, ct_right))
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
+            self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
+        }
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
+
+        self.unchecked_bitxor(ct_left, ct_right)
     }
 
     /// Compute homomorphically a XOR between two ciphertexts encrypting integer values.
@@ -809,9 +832,14 @@ impl ServerKey {
     /// assert_eq!((msg2 ^ msg1) % modulus, res);
     /// ```
     pub fn smart_bitxor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitxor_assign(self, ct_left, ct_right);
-        });
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
+            self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
+        }
+        self.unchecked_bitxor_assign(ct_left, ct_right);
     }
 
     /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
@@ -976,9 +1004,9 @@ impl ServerKey {
     /// assert_eq!(clear_left | clear_right, res);
     /// ```
     pub fn unchecked_bitor(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitor(self, ct_left, ct_right)
-        })
+        let mut result = ct_left.clone();
+        self.unchecked_bitor_assign(&mut result, ct_right);
+        result
     }
 
     /// Compute bitwise OR between two ciphertexts.
@@ -1020,9 +1048,8 @@ impl ServerKey {
     /// assert_eq!(clear_left | clear_right, res);
     /// ```
     pub fn unchecked_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_bitor_assign(self, ct_left, ct_right);
-        });
+        self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs | rhs);
+        ct_left.degree = ct_left.degree.after_bitor(ct_right.degree);
     }
 
     /// Compute bitwise OR between two ciphertexts without checks.
@@ -1167,7 +1194,18 @@ impl ServerKey {
     /// assert_eq!(msg | msg, res);
     /// ```
     pub fn smart_bitor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_bitor(self, ct_left, ct_right))
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
+            self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
+        }
+
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
+
+        self.unchecked_bitor(ct_left, ct_right)
     }
 
     /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
@@ -1220,8 +1258,17 @@ impl ServerKey {
     /// assert_eq!((msg2 | msg1) % modulus, res);
     /// ```
     pub fn smart_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_bitor_assign(self, ct_left, ct_right);
-        });
+        if self
+            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .is_err()
+        {
+            self.message_extract_assign(ct_left);
+            self.message_extract_assign(ct_right);
+        }
+
+        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
+            .unwrap();
+
+        self.unchecked_bitor_assign(ct_left, ct_right);
     }
 }

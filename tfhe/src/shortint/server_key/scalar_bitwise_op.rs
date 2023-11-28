@@ -1,5 +1,4 @@
 use super::ServerKey;
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::Ciphertext;
 
 impl ServerKey {
@@ -43,25 +42,25 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitand(&self, lhs: &Ciphertext, rhs: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_bitand(self, lhs, rhs)
-        })
+        let mut result = lhs.clone();
+        self.unchecked_scalar_bitand_assign(&mut result, rhs);
+        result
     }
 
     pub fn unchecked_scalar_bitand_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_bitand_assign(self, lhs, rhs);
-        });
+        let lut = self.generate_msg_lookup_table(|x| x & rhs as u64, lhs.message_modulus);
+        self.apply_lookup_table_assign(lhs, &lut);
     }
 
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_bitand(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_bitand(self, lhs, rhs))
+        let mut result = lhs.clone();
+        self.smart_scalar_bitand_assign(&mut result, rhs);
+        result
     }
 
     pub fn smart_scalar_bitand_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_bitand_assign(self, lhs, rhs);
-        });
+        self.unchecked_scalar_bitand_assign(lhs, rhs);
     }
 
     /// Compute homomorphically a bitwise XOR between a ciphertext and a clear value
@@ -104,24 +103,24 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitxor(&self, lhs: &Ciphertext, rhs: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_bitxor(self, lhs, rhs)
-        })
+        let mut result = lhs.clone();
+        self.unchecked_scalar_bitxor_assign(&mut result, rhs);
+        result
     }
 
     pub fn unchecked_scalar_bitxor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_bitxor_assign(self, lhs, rhs);
-        });
+        let lut = self.generate_msg_lookup_table(|x| x ^ rhs as u64, lhs.message_modulus);
+        self.apply_lookup_table_assign(lhs, &lut);
     }
 
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_bitxor(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_bitxor(self, lhs, rhs))
+        let mut result = lhs.clone();
+        self.smart_scalar_bitxor_assign(&mut result, rhs);
+        result
     }
     pub fn smart_scalar_bitxor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_bitxor_assign(self, lhs, rhs);
-        });
+        self.unchecked_scalar_bitxor_assign(lhs, rhs);
     }
 
     /// Compute homomorphically a bitwise OR between a ciphertext and a clear value
@@ -164,24 +163,24 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitor(&self, lhs: &Ciphertext, rhs: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_bitor(self, lhs, rhs)
-        })
+        let mut result = lhs.clone();
+        self.unchecked_scalar_bitor_assign(&mut result, rhs);
+        result
     }
 
     pub fn unchecked_scalar_bitor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_bitor_assign(self, lhs, rhs);
-        });
+        let lut = self.generate_msg_lookup_table(|x| x | rhs as u64, lhs.message_modulus);
+        self.apply_lookup_table_assign(lhs, &lut);
     }
 
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_bitor(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_bitor(self, lhs, rhs))
+        let mut result = lhs.clone();
+        self.smart_scalar_bitor_assign(&mut result, rhs);
+        result
     }
 
     pub fn smart_scalar_bitor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_bitor_assign(self, lhs, rhs);
-        });
+        self.unchecked_scalar_bitor_assign(lhs, rhs);
     }
 }

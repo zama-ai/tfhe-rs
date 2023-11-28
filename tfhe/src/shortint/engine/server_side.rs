@@ -10,24 +10,12 @@ use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapK
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use crate::shortint::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::parameters::{MessageModulus, ShortintKeySwitchingParameters};
+use crate::shortint::server_key::add::unchecked_add_assign;
 use crate::shortint::server_key::{
     BivariateLookupTableOwned, LookupTableOwned, MaxDegree, ShortintBootstrappingKey,
     ShortintCompressedBootstrappingKey,
 };
 use crate::shortint::{Ciphertext, ClientKey, CompressedServerKey, PBSOrder, ServerKey};
-
-mod add;
-mod bitwise_op;
-mod comp_op;
-mod div_mod;
-mod mul;
-mod neg;
-mod scalar_add;
-mod scalar_bitwise_op;
-mod scalar_mul;
-mod scalar_sub;
-mod shift;
-mod sub;
 
 impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {
@@ -385,9 +373,9 @@ impl ShortintEngine {
         assert!(modulus <= acc.ct_right_modulus.0 as u64);
 
         // Message 1 is shifted
-        self.unchecked_scalar_mul_assign(ct_left, acc.ct_right_modulus.0 as u8);
+        server_key.unchecked_scalar_mul_assign(ct_left, acc.ct_right_modulus.0 as u8);
 
-        self.unchecked_add_assign(ct_left, ct_right);
+        unchecked_add_assign(ct_left, ct_right);
 
         // Compute the PBS
         self.apply_lookup_table_assign(server_key, ct_left, &acc.acc);
