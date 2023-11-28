@@ -10,11 +10,11 @@ use rand::Rng;
 use std::sync::Arc;
 
 /// Number of loop iteration within randomized tests
-const NB_TEST: usize = 30;
+const NB_TESTS: usize = 30;
 
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
-const NB_TEST_SMALLER: usize = 10;
+const NB_TESTS_SMALLER: usize = 10;
 const NB_CTXT: usize = 4;
 
 fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
@@ -119,7 +119,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -154,7 +154,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -189,7 +189,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -225,7 +225,7 @@ where
     let trivial0 = sks.create_trivial_radix(0u64, NB_CTXT);
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
@@ -261,7 +261,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -297,7 +297,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % block_modulus;
 
@@ -374,7 +374,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -429,7 +429,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -485,7 +485,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -538,7 +538,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -593,7 +593,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -627,7 +627,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -661,7 +661,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u64>() % scalar_modulus;
 
@@ -748,7 +748,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -814,7 +814,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -884,7 +884,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..(NB_TEST / 3).max(1) {
+    for _ in 0..(NB_TESTS / 3).max(1) {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -948,7 +948,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..(NB_TEST / 3).max(1) {
+    for _ in 0..(NB_TESTS / 3).max(1) {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -1019,7 +1019,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1031,7 +1031,7 @@ where
         clear = (clear_0 + clear_1) % modulus;
 
         // Add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = executor.execute((&mut ct_res, &mut ctxt_0));
             clear = clear.wrapping_add(clear_0) % modulus;
 
@@ -1061,7 +1061,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
@@ -1072,7 +1072,7 @@ where
         let mut clear = clear1;
 
         // Subtract multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             res = executor.execute((&mut res, &mut ctxt_2));
             clear = clear.wrapping_sub(clear2) % modulus;
         }
@@ -1103,7 +1103,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
@@ -1114,7 +1114,7 @@ where
         let mut clear = clear1;
 
         res = executor.execute((&mut res, &mut ctxt_2));
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             res = executor.execute((&mut res, &mut ctxt_2));
             clear = (clear * clear2) % modulus;
         }
@@ -1151,7 +1151,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         // Define the cleartexts
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % block_modulus;
@@ -1170,7 +1170,7 @@ where
         res = executor.execute((&mut res, &mut ctxt_2, index));
         clear = (clear.wrapping_mul(clear2.wrapping_mul(multiplier))) % modulus;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             res = executor.execute((&mut res, &mut ctxt_2, index));
             clear = (clear.wrapping_mul(clear2.wrapping_mul(multiplier))) % modulus;
         }
@@ -1196,7 +1196,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
 
         let mut ctxt = cks.encrypt(clear);
@@ -1206,7 +1206,7 @@ where
         let dec: u64 = cks.decrypt(&ct_res);
         assert_eq!(clear_res, dec);
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = executor.execute(&mut ct_res);
             clear_res = clear_res.wrapping_neg() % modulus;
 
@@ -1237,7 +1237,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1248,7 +1248,7 @@ where
 
         clear = clear_0 & clear_1;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let mut ctxt_2 = cks.encrypt(clear_2);
@@ -1283,7 +1283,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1294,7 +1294,7 @@ where
 
         clear = (clear_0 | clear_1) % modulus;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let mut ctxt_2 = cks.encrypt(clear_2);
@@ -1330,7 +1330,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1341,7 +1341,7 @@ where
 
         clear = (clear_0 ^ clear_1) % modulus;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let mut ctxt_2 = cks.encrypt(clear_2);
@@ -1375,7 +1375,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for i in 0..NB_TEST_SMALLER {
+    for i in 0..NB_TESTS_SMALLER {
         println!("i: {i}");
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
@@ -1417,7 +1417,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for i in 0..NB_TEST_SMALLER {
+    for i in 0..NB_TESTS_SMALLER {
         println!("i: {i}");
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
@@ -1456,7 +1456,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for i in 0..NB_TEST_SMALLER {
+    for i in 0..NB_TESTS_SMALLER {
         println!("i: {i}");
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
@@ -1499,7 +1499,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
         let clear_condition = rng.gen_range(0u64..1);
@@ -1573,7 +1573,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1583,7 +1583,7 @@ where
         clear = (clear_0 + clear_1) % modulus;
 
         // Add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = executor.execute((&mut ct_res, clear_1));
             clear = (clear + clear_1) % modulus;
 
@@ -1613,7 +1613,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1623,7 +1623,7 @@ where
         clear = (clear_0 - clear_1) % modulus;
 
         // Sub multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = executor.execute((&mut ct_res, clear_1));
             clear = (clear - clear_1) % modulus;
 
@@ -1650,7 +1650,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u64>() % modulus;
 
@@ -1708,7 +1708,7 @@ where
     executor.setup(&cks, sks);
 
     let mut clear_res;
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u64>() % scalar_modulus;
 
@@ -1717,7 +1717,7 @@ where
         let mut ct_res = executor.execute((&mut ct, scalar));
 
         clear_res = clear * scalar;
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             // scalar multiplication
             ct_res = executor.execute((&mut ct_res, scalar));
             clear_res *= scalar;
@@ -1752,7 +1752,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1767,7 +1767,7 @@ where
         clear = (clear_0 + clear_1) % modulus;
 
         // Add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = executor.execute((&ct_res, &ctxt_0));
             assert!(ct_res.block_carries_are_empty());
             clear = (clear + clear_0) % modulus;
@@ -1800,7 +1800,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1830,7 +1830,7 @@ where
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             // Add non zero scalar to have non clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_3 = random_non_zero_value(&mut rng, modulus);
@@ -1919,7 +1919,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1949,7 +1949,7 @@ where
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             // Add non zero scalar to have non clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_3 = random_non_zero_value(&mut rng, modulus);
@@ -2040,7 +2040,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
@@ -2051,7 +2051,7 @@ where
         let mut clear = clear1;
 
         // Subtract multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let tmp = executor.execute((&res, &ctxt_2));
             res = executor.execute((&res, &ctxt_2));
             assert!(res.block_carries_are_empty());
@@ -2082,7 +2082,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
@@ -2094,7 +2094,7 @@ where
 
         res = executor.execute((&res, &ctxt_2));
         assert!(res.block_carries_are_empty());
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let tmp = executor.execute((&res, &ctxt_2));
             res = executor.execute((&res, &ctxt_2));
             assert!(res.block_carries_are_empty());
@@ -2146,7 +2146,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
@@ -2182,7 +2182,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2194,7 +2194,7 @@ where
 
         clear = clear_0 & clear_1;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let ctxt_2 = cks.encrypt(clear_2);
@@ -2231,7 +2231,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2243,7 +2243,7 @@ where
 
         clear = (clear_0 | clear_1) % modulus;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let ctxt_2 = cks.encrypt(clear_2);
@@ -2280,7 +2280,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2292,7 +2292,7 @@ where
 
         clear = clear_0 ^ clear_1;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let ctxt_2 = cks.encrypt(clear_2);
@@ -2327,7 +2327,7 @@ where
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
@@ -2365,7 +2365,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
         let clear_2 = rng.gen::<u64>() % modulus;
@@ -2411,7 +2411,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
         let clear_2 = rng.gen::<u64>() % modulus;
@@ -2454,7 +2454,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen_range(1..modulus); // avoid division by zero
         let clear_2 = rng.gen::<u64>() % modulus;
@@ -2500,7 +2500,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
         let clear_condition = rng.gen_range(0u64..1);
@@ -2623,7 +2623,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2636,7 +2636,7 @@ where
         clear = (clear_0 + clear_1) % modulus;
 
         // Add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let tmp = executor.execute((&ct_res, clear_1));
             ct_res = executor.execute((&ct_res, clear_1));
             assert!(ct_res.block_carries_are_empty());
@@ -2669,7 +2669,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2681,7 +2681,7 @@ where
         clear = (clear_0.wrapping_sub(clear_1)) % modulus;
 
         // Sub multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let tmp = executor.execute((&ct_res, clear_1));
             ct_res = executor.execute((&ct_res, clear_1));
             assert!(ct_res.block_carries_are_empty());
@@ -2715,7 +2715,7 @@ where
     executor.setup(&cks, sks);
 
     let mut clear_res;
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u64>() % scalar_modulus;
 
@@ -2725,7 +2725,7 @@ where
         assert!(ct_res.block_carries_are_empty());
 
         clear_res = clear * scalar;
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             // scalar multiplication
             let tmp = executor.execute((&ct_res, scalar));
             ct_res = executor.execute((&ct_res, scalar));
@@ -2756,7 +2756,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u64>() % modulus;
 
@@ -2797,7 +2797,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         // Define the cleartexts
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % block_modulus;
@@ -2813,7 +2813,7 @@ where
         let mut res = ctxt_1.clone();
         let mut clear = clear1;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let tmp = executor.execute((&res, &ctxt_2, index));
             res = executor.execute((&res, &ctxt_2, index));
             assert!(res.block_carries_are_empty());
@@ -2874,7 +2874,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2892,7 +2892,7 @@ where
 
         clear = clear_0 & clear_1;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let tmp = executor.execute((&ct_res, clear_2));
@@ -2927,7 +2927,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2943,7 +2943,7 @@ where
         assert!(ct_res.block_carries_are_empty());
         clear = (clear_0 | clear_1) % modulus;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let tmp = executor.execute((&ct_res, clear_2));
@@ -2978,7 +2978,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2994,7 +2994,7 @@ where
         assert!(ct_res.block_carries_are_empty());
         clear = (clear_0 ^ clear_1) % modulus;
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clear_2 = rng.gen::<u64>() % modulus;
 
             let tmp = executor.execute((&ct_res, clear_2));
@@ -3027,7 +3027,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -3086,7 +3086,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
     let nb_bits = modulus.ilog2();
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -3149,7 +3149,7 @@ where
     let nb_bits = modulus.ilog2();
     let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
-    for _ in 0..(NB_TEST / 2).max(1) {
+    for _ in 0..(NB_TESTS / 2).max(1) {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -3221,7 +3221,7 @@ where
 
     executor.setup(&cks, sks);
 
-    for _ in 0..(NB_TEST / 3).max(1) {
+    for _ in 0..(NB_TESTS / 3).max(1) {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u32>();
 
@@ -3315,7 +3315,7 @@ where
         assert_eq!(r_res, clear % divisor);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
         let scalar = rng.gen_range(1u32..=u32::MAX) as u64;
 

@@ -9,7 +9,7 @@ use crate::shortint::{gen_keys, ClassicPBSParameters, WopbsParameters};
 use paste::paste;
 use rand::Rng;
 
-const NB_TEST: usize = 1;
+const NB_TESTS: usize = 1;
 
 #[cfg(not(feature = "__coverage"))]
 macro_rules! create_parametrized_test{
@@ -109,7 +109,7 @@ fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {
     let mut rng = rand::thread_rng();
 
     let mut tmp = 0;
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let message_modulus = params.0.message_modulus.0;
         let m = rng.gen::<usize>() % message_modulus;
         let ct = cks.encrypt(m as u64);
@@ -123,7 +123,7 @@ fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {
     }
     if 0 != tmp {
         println!("______");
-        println!("failure rate {tmp:?}/{NB_TEST:?}");
+        println!("failure rate {tmp:?}/{NB_TESTS:?}");
         println!("______");
     }
     assert_eq!(0, tmp);
@@ -134,7 +134,7 @@ fn generate_lut_modulus(params: (ClassicPBSParameters, WopbsParameters)) {
     let (cks, sks, wopbs_key) = (keys.client_key(), keys.server_key(), keys.wopbs_key());
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let message_modulus = MessageModulus(params.0.message_modulus.0 - 1);
         let m = rng.gen::<usize>() % message_modulus.0;
 
@@ -159,7 +159,7 @@ fn generate_lut_modulus_not_power_of_two(params: WopbsParameters) {
 
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let message_modulus = MessageModulus(params.message_modulus.0 - 1);
 
         let m = rng.gen::<usize>() % message_modulus.0;

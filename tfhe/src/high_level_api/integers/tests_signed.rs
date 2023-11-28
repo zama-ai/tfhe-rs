@@ -142,8 +142,6 @@ fn test_int32_bitwise() {
 
     let (cks, sks) = generate_keys(config);
 
-    use rand::prelude::*;
-
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<i32>();
     let clear_b = rng.gen::<i32>();
@@ -217,8 +215,6 @@ fn test_int32_bitwise() {
 fn fhe_int64_rotate(config: Config) {
     let (cks, sks) = generate_keys(config);
 
-    use rand::prelude::*;
-
     let mut rng = thread_rng();
     let clear_a = rng.gen::<i64>();
     let clear_b = rng.gen_range(0u32..64u32);
@@ -289,8 +285,6 @@ fn test_multi_bit_rotate() {
 
 fn fhe_int32_div_rem(config: Config) {
     let (cks, sks) = generate_keys(config);
-
-    use rand::prelude::*;
 
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<i32>();

@@ -431,13 +431,6 @@ pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, Output
     OutputCont: ContainerMut<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
 {
-    assert!(
-        output.polynomial_size() == input.polynomial_size(),
-        "Output polynomial size {:?} is not the same as input polynomial size {:?}.",
-        output.polynomial_size(),
-        input.polynomial_size(),
-    );
-
     /// performs the operation: dst = -src - src_orig, with wrapping arithmetic
     fn copy_with_neg_and_subtract<Scalar: UnsignedInteger>(
         dst: &mut [Scalar],
@@ -459,6 +452,13 @@ pub(crate) fn polynomial_wrapping_monic_monomial_mul_and_subtract<Scalar, Output
             *dst = src.wrapping_sub(*src_orig);
         }
     }
+
+    assert!(
+        output.polynomial_size() == input.polynomial_size(),
+        "Output polynomial size {:?} is not the same as input polynomial size {:?}.",
+        output.polynomial_size(),
+        input.polynomial_size(),
+    );
 
     let polynomial_size = output.polynomial_size().0;
     let remaining_degree = monomial_degree.0 % polynomial_size;

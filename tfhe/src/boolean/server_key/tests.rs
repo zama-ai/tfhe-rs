@@ -7,12 +7,12 @@ use crate::boolean::{random_boolean, random_integer};
 
 /// Number of assert in randomized tests
 #[cfg(not(feature = "__coverage"))]
-const NB_TEST: usize = 128;
+const NB_TESTS: usize = 128;
 
 // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
 // instrumentation
 #[cfg(feature = "__coverage")]
-const NB_TEST: usize = 1;
+const NB_TESTS: usize = 1;
 
 /// Number of ciphertext in the deep circuit test
 const NB_CT: usize = 8;
@@ -261,7 +261,7 @@ fn test_encrypt_decrypt_lwe_secret_key(parameters: BooleanParameters) {
     let keys = KEY_CACHE.get_from_param(parameters);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // encryption of false
         let ct_false = cks.encrypt(false);
 
@@ -310,7 +310,7 @@ fn test_and_gate(parameters: BooleanParameters) {
     let keys = KEY_CACHE.get_from_param(parameters);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // generation of two random booleans
         let b1 = random_boolean();
         let b2 = random_boolean();
@@ -385,7 +385,7 @@ fn test_mux_gate(parameters: BooleanParameters) {
     let keys = KEY_CACHE.get_from_param(parameters);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // generation of three random booleans
         let b1 = random_boolean();
         let b2 = random_boolean();
@@ -419,7 +419,7 @@ fn test_nand_gate(parameters: BooleanParameters) {
     let keys = KEY_CACHE.get_from_param(parameters);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // generation of two random booleans
         let b1 = random_boolean();
         let b2 = random_boolean();
@@ -494,7 +494,7 @@ fn test_nor_gate(parameters: BooleanParameters) {
     let keys = KEY_CACHE.get_from_param(parameters);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // generation of two random booleans
         let b1 = random_boolean();
         let b2 = random_boolean();
@@ -569,7 +569,7 @@ fn test_not_gate(parameters: BooleanParameters) {
     let keys = KEY_CACHE.get_from_param(parameters);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // generation of one random booleans
         let b1 = random_boolean();
         let expected_result = !b1;
@@ -602,7 +602,7 @@ fn test_or_gate(parameters: BooleanParameters) {
     let keys = KEY_CACHE.get_from_param(parameters);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // generation of two random booleans
         let b1 = random_boolean();
         let b2 = random_boolean();
@@ -677,7 +677,7 @@ fn test_xnor_gate(parameters: BooleanParameters) {
     let keys = KEY_CACHE.get_from_param(parameters);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // generation of two random booleans
         let b1 = random_boolean();
         let b2 = random_boolean();
@@ -752,7 +752,7 @@ fn test_xor_gate(parameters: BooleanParameters) {
     let keys = KEY_CACHE.get_from_param(parameters);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // generation of two random booleans
         let b1 = random_boolean();
         let b2 = random_boolean();

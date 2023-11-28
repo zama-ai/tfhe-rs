@@ -89,9 +89,9 @@ mod tests {
 
     use super::PublicKey;
     #[cfg(not(feature = "__coverage"))]
-    const NB_TEST: usize = 32;
+    const NB_TESTS: usize = 32;
     #[cfg(feature = "__coverage")]
-    const NB_TEST: usize = 1;
+    const NB_TESTS: usize = 1;
 
     #[test]
     fn test_public_key_default_parameters() {
@@ -109,7 +109,7 @@ mod tests {
         let (cks, sks) = (keys.client_key(), keys.server_key());
         let pks = PublicKey::new(cks);
 
-        for _ in 0..NB_TEST {
+        for _ in 0..NB_TESTS {
             let b1 = random_boolean();
             let b2 = random_boolean();
             let expected_result = !(b1 && b2);
@@ -146,7 +146,7 @@ mod tests {
         let cpks = CompressedPublicKey::new(cks);
         let pks = PublicKey::from(cpks);
 
-        for _ in 0..NB_TEST {
+        for _ in 0..NB_TESTS {
             let b1 = random_boolean();
             let b2 = random_boolean();
             let expected_result = !(b1 && b2);

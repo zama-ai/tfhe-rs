@@ -257,10 +257,10 @@ mod test {
     use crate::core_crypto::commons::math::random::Seed;
     use crate::core_crypto::prelude::*;
 
+    const NB_TESTS: usize = 10;
+
     #[test]
     fn test_pfpksk_list_gen_equivalence() {
-        const NB_TESTS: usize = 10;
-
         for _ in 0..NB_TESTS {
             // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield
             // correct computations

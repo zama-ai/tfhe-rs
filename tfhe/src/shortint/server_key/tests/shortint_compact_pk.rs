@@ -6,7 +6,7 @@ use rand::Rng;
 
 /// Number of assert in randomized tests
 #[cfg(not(feature = "__coverage"))]
-const NB_TEST: usize = 30;
+const NB_TESTS: usize = 30;
 /// Number of sub tests used to increase degree of ciphertexts
 #[cfg(not(feature = "__coverage"))]
 const NB_SUB_TEST: usize = 40;
@@ -14,7 +14,7 @@ const NB_SUB_TEST: usize = 40;
 // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
 // instrumentation
 #[cfg(feature = "__coverage")]
-const NB_TEST: usize = 1;
+const NB_TESTS: usize = 1;
 // This constant is tailored to trigger a message extract during operation processing.
 // It's applicable for PARAM_MESSAGE_2_CARRY_2_KS_PBS parameters set.
 #[cfg(feature = "__coverage")]
@@ -129,7 +129,7 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -173,13 +173,13 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    const MAX_CT: usize = 5;
+    let max_ct: usize = 5;
 
-    let mut first_clear_vec = Vec::with_capacity(MAX_CT);
-    let mut second_clear_vec = Vec::with_capacity(MAX_CT);
+    let mut first_clear_vec = Vec::with_capacity(max_ct);
+    let mut second_clear_vec = Vec::with_capacity(max_ct);
 
-    for _ in 0..(NB_TEST / 2).min(5) {
-        let num_ct_for_this_iter = rng.gen_range(1..=MAX_CT);
+    for _ in 0..(NB_TESTS / 2).min(5) {
+        let num_ct_for_this_iter = rng.gen_range(1..=max_ct);
         first_clear_vec.truncate(0);
         second_clear_vec.truncate(0);
         for _ in 0..num_ct_for_this_iter {

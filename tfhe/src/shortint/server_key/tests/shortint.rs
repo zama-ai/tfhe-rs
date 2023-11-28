@@ -5,10 +5,10 @@ use rand::Rng;
 
 /// Number of assert in randomized tests
 #[cfg(not(feature = "__coverage"))]
-const NB_TEST: usize = 200;
+const NB_TESTS: usize = 200;
 /// Number of iterations in randomized tests for smart operations
 #[cfg(not(feature = "__coverage"))]
-const NB_TEST_SMART: usize = 10;
+const NB_TESTS_SMART: usize = 10;
 /// Number of sub tests used to increase degree of ciphertexts
 #[cfg(not(feature = "__coverage"))]
 const NB_SUB_TEST_SMART: usize = 40;
@@ -16,10 +16,10 @@ const NB_SUB_TEST_SMART: usize = 40;
 // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
 // instrumentation
 #[cfg(feature = "__coverage")]
-const NB_TEST: usize = 1;
+const NB_TESTS: usize = 1;
 /// Number of iterations in randomized tests for smart operations
 #[cfg(feature = "__coverage")]
-const NB_TEST_SMART: usize = 1;
+const NB_TESTS_SMART: usize = 1;
 // This constant is tailored to trigger a message extract during operation processing.
 // It's applicable for PARAM_MESSAGE_2_CARRY_2_KS_PBS parameters set.
 #[cfg(feature = "__coverage")]
@@ -294,7 +294,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
 
         let ct = cks.encrypt(clear);
@@ -317,7 +317,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut modulus = rng.gen::<u64>() % cks.parameters.message_modulus().0 as u64;
         while modulus == 0 {
             modulus = rng.gen::<u64>() % cks.parameters.message_modulus().0 as u64;
@@ -347,7 +347,7 @@ where
     // We assume that the modulus is the largest possible without padding bit
     let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
 
         let ct = cks.encrypt_without_padding(clear);
@@ -373,7 +373,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mut failures = 0;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         // encryption of an integer
@@ -392,7 +392,7 @@ where
         // assert_eq!(clear_0, dec_res);
     }
 
-    println!("fail_rate = {failures}/{NB_TEST}");
+    println!("fail_rate = {failures}/{NB_TESTS}");
     assert_eq!(0, failures);
 }
 
@@ -407,7 +407,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         // encryption of an integer
@@ -437,7 +437,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -471,7 +471,7 @@ where
         cks.parameters.message_modulus().0 as u64 + cks.parameters.carry_modulus().0 as u64;
     let msg_modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // shift to the carry bits
         let clear = rng.gen::<u64>() % full_modulus;
 
@@ -508,7 +508,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus_sup;
 
         // encryption of an integer
@@ -540,7 +540,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
 
         // encryption of an integer
@@ -568,7 +568,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -607,7 +607,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -650,7 +650,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -686,7 +686,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -729,7 +729,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -769,7 +769,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -802,7 +802,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -835,7 +835,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -867,7 +867,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -892,7 +892,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -918,7 +918,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -945,7 +945,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -985,7 +985,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1020,7 +1020,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1059,7 +1059,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1092,7 +1092,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1132,7 +1132,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1167,7 +1167,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1206,7 +1206,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1239,7 +1239,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1279,7 +1279,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1314,7 +1314,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1353,7 +1353,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1385,7 +1385,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1418,7 +1418,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1451,7 +1451,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1484,7 +1484,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1518,7 +1518,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1559,7 +1559,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1599,7 +1599,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1633,7 +1633,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1674,7 +1674,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1714,7 +1714,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1747,7 +1747,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1781,7 +1781,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1822,7 +1822,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1861,7 +1861,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -1895,7 +1895,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1936,7 +1936,7 @@ where
     let modulus = cks.parameters.message_modulus().0 as u64;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
         let mut clear_1 = rng.gen::<u64>() % modulus;
         let scalar = rng.gen::<u8>() % mod_scalar;
@@ -1977,7 +1977,7 @@ where
     let msg_modulus = cks.parameters.message_modulus().0 as u64;
     let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % msg_modulus;
 
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
@@ -2009,7 +2009,7 @@ where
     let msg_modulus = cks.parameters.message_modulus().0 as u64;
     let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % msg_modulus;
 
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
@@ -2041,7 +2041,7 @@ where
     let msg_modulus = cks.parameters.message_modulus().0 as u64;
     let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % msg_modulus;
 
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
@@ -2073,7 +2073,7 @@ where
     let msg_modulus = cks.parameters.message_modulus().0 as u64;
     let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % msg_modulus;
 
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
@@ -2105,7 +2105,7 @@ where
     let msg_modulus = cks.parameters.message_modulus().0 as u64;
     let modulus = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % msg_modulus;
 
         let scalar = (rng.gen::<u16>() % modulus as u16) as u8;
@@ -2149,7 +2149,7 @@ where
         assert_eq!(res, (ct_num.message_modulus.0 - 1) as u64);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = (rng.gen::<u64>() % (modulus - 1)) + 1;
 
@@ -2182,7 +2182,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = (rng.gen::<u64>() % (modulus - 1)) + 1;
 
@@ -2212,7 +2212,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = (rng.gen::<u64>() % (modulus - 1)) + 1;
 
@@ -2242,7 +2242,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2275,7 +2275,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
 
@@ -2308,7 +2308,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -2354,7 +2354,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -2388,7 +2388,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -2434,7 +2434,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -2468,7 +2468,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // Define the cleartexts
         let clear = rng.gen::<u64>() % modulus;
 
@@ -2500,7 +2500,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear1 = rng.gen::<u64>() % modulus;
 
         let mut ct1 = cks.encrypt(clear1);
@@ -2536,7 +2536,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % modulus;
 
         let ct1 = cks.encrypt(clear1);
@@ -2565,7 +2565,7 @@ where
 
     let message_modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u8>() % message_modulus;
 
         let scalar = rng.gen::<u8>() % message_modulus;
@@ -2596,7 +2596,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u8>() % modulus;
 
         let clear_1 = rng.gen::<u8>() % modulus;
@@ -2634,7 +2634,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u8>() % modulus;
 
         let clear_1 = rng.gen::<u8>() % modulus;
@@ -2665,7 +2665,7 @@ where
 
     let message_modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u8>() % message_modulus;
 
         let scalar = rng.gen::<u8>() % message_modulus;
@@ -2695,7 +2695,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u8>() % modulus;
 
         let clear_1 = rng.gen::<u8>() % modulus;
@@ -2738,7 +2738,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u8>() % modulus;
 
         let clear_1 = rng.gen::<u8>() % modulus;
@@ -2770,7 +2770,7 @@ where
     let message_modulus = cks.parameters.message_modulus().0 as u8;
     let carry_modulus = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u8>() % message_modulus;
 
         let scalar = rng.gen::<u8>() % carry_modulus;
@@ -2803,7 +2803,7 @@ where
 
     let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear = rng.gen::<u8>() % modulus;
 
         let scalar = rng.gen::<u8>() % scalar_modulus;
@@ -2842,7 +2842,7 @@ where
 
     let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<u8>() % modulus;
 
         let scalar = rng.gen::<u8>() % scalar_modulus;
@@ -2874,7 +2874,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let shift = rng.gen::<u64>() % 2;
 
@@ -2904,7 +2904,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let shift = rng.gen::<u64>() % 2;
 
@@ -2934,7 +2934,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let shift = rng.gen::<u64>() % 2;
 
@@ -2964,7 +2964,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
         let shift = rng.gen::<u64>() % 2;
 
@@ -2993,7 +2993,7 @@ where
     let mut rng = rand::thread_rng();
 
     let modulus = cks.parameters.message_modulus().0 as u64;
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         // Define the cleartexts
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
@@ -3025,7 +3025,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST_SMART {
+    for _ in 0..NB_TESTS_SMART {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
@@ -3059,7 +3059,7 @@ where
 
     let modulus = cks.parameters.message_modulus().0 as u64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
 
@@ -3123,7 +3123,7 @@ where
     let mut rng = rand::thread_rng();
     let full_mod = (cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0) / 3;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut modulus = rng.gen::<u64>() % full_mod as u64;
         while modulus == 0 {
             modulus = rng.gen::<u64>() % full_mod as u64;
@@ -3161,7 +3161,7 @@ where
     let param_msg_mod = cks.parameters.message_modulus().0;
     let param_carry_mod = cks.parameters.carry_modulus().0;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let msg_modulus = rng.gen_range(2u64..param_msg_mod as u64);
         let carry_modulus = rng.gen_range(2u64..param_carry_mod as u64);
 
