@@ -201,9 +201,8 @@ clippy_tasks:
 
 .PHONY: clippy_trivium # Run clippy lints on Trivium app
 clippy_trivium: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy -p tfhe-trivium \
-		--features=$(TARGET_ARCH_FEATURE),boolean,shortint,integer \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		-p tfhe-trivium -- --no-deps -D warnings
 
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets:
