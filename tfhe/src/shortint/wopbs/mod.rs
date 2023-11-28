@@ -7,13 +7,34 @@
 //! In the case where a padding bit is defined, keys are generated so that there a compatible for
 //! both uses.
 
+use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::*;
 pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCount};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
+use crate::shortint::ciphertext::*;
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::{Ciphertext, ClientKey, ServerKey, WopbsParameters};
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug)]
+pub enum WopbsKeyCreationError {
+    UnsupportedMultiBit,
+}
+
+impl std::error::Error for WopbsKeyCreationError {}
+
+impl std::fmt::Display for WopbsKeyCreationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnsupportedMultiBit => {
+                write!(f, "WopbsKey does not yet support using multi bit PBS")
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod test;
@@ -380,11 +401,10 @@ impl WopbsKey {
         ct_in: &Ciphertext,
         lut: &ShortintWopbsLUT,
     ) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .programmable_bootstrapping(self, sks, ct_in, lut.as_ref())
-                .unwrap()
-        })
+        let ct_wopbs = self.keyswitch_to_wopbs_params(sks, ct_in);
+        let result_ct = self.wopbs(&ct_wopbs, lut);
+
+        self.keyswitch_to_pbs_params(&result_ct)
     }
 
     /// Apply the Look-Up Table homomorphically using the WoPBS approach.
@@ -412,9 +432,22 @@ impl WopbsKey {
     /// assert_eq!(res, 1);
     /// ```
     pub fn wopbs(&self, ct_in: &Ciphertext, lut: &ShortintWopbsLUT) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.wopbs(self, ct_in, lut.as_ref()).unwrap()
-        })
+        let tmp_sks = &self.wopbs_server_key;
+        let message_modulus = tmp_sks.message_modulus.0 as u64;
+        let carry_modulus = tmp_sks.carry_modulus.0 as u64;
+        let delta = (1u64 << 63) / (carry_modulus * message_modulus);
+        // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
+        let delta_log = DeltaLog(delta.ilog2() as usize);
+        let nb_bit_to_extract = f64::log2((message_modulus * carry_modulus) as f64) as usize;
+
+        let ct_out = self.extract_bits_circuit_bootstrapping(
+            ct_in,
+            lut.as_ref(),
+            delta_log,
+            ExtractedBitsCount(nb_bit_to_extract),
+        );
+
+        ct_out
     }
 
     /// Apply the Look-Up Table homomorphically using the WoPBS approach.
@@ -441,11 +474,24 @@ impl WopbsKey {
         ct_in: &Ciphertext,
         lut: &ShortintWopbsLUT,
     ) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .programmable_bootstrapping_without_padding(self, ct_in, lut.as_ref())
-                .unwrap()
-        })
+        let sks = &self.wopbs_server_key;
+        let message_modulus = sks.message_modulus.0 as u64;
+        let carry_modulus = sks.carry_modulus.0 as u64;
+        let delta = (1u64 << 63) / (carry_modulus * message_modulus) * 2;
+        // casting to usize is fine, ilog2 of u64 is guaranteed to be < 64
+        let delta_log = DeltaLog(delta.ilog2() as usize);
+
+        let nb_bit_to_extract =
+            f64::log2((sks.message_modulus.0 * sks.carry_modulus.0) as f64) as usize;
+
+        let ciphertext = self.extract_bits_circuit_bootstrapping(
+            ct_in,
+            lut.as_ref(),
+            delta_log,
+            ExtractedBitsCount(nb_bit_to_extract),
+        );
+
+        ciphertext
     }
 
     /// Apply the Look-Up Table homomorphically using the WoPBS approach.
@@ -472,11 +518,24 @@ impl WopbsKey {
         ct_in: &mut Ciphertext,
         lut: &ShortintWopbsLUT,
     ) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .programmable_bootstrapping_native_crt(self, ct_in, lut.as_ref())
-                .unwrap()
-        })
+        let nb_bit_to_extract =
+            f64::log2((ct_in.message_modulus.0 * ct_in.carry_modulus.0) as f64).ceil() as usize;
+        let delta_log = DeltaLog(64 - nb_bit_to_extract);
+
+        // trick ( ct - delta/2 + delta/2^4  )
+        lwe_ciphertext_plaintext_sub_assign(
+            &mut ct_in.ct,
+            Plaintext((1 << (64 - nb_bit_to_extract - 1)) - (1 << (64 - nb_bit_to_extract - 5))),
+        );
+
+        let ciphertext = self.extract_bits_circuit_bootstrapping(
+            ct_in,
+            lut.as_ref(),
+            delta_log,
+            ExtractedBitsCount(nb_bit_to_extract),
+        );
+
+        ciphertext
     }
 
     /// Extract the given number of bits from a ciphertext.
@@ -486,16 +545,25 @@ impl WopbsKey {
         &self,
         delta_log: DeltaLog,
         ciphertext: &Ciphertext,
-        num_bits_to_extract: usize,
+        num_bits_to_extract: ExtractedBitsCount,
     ) -> LweCiphertextListOwned<u64> {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.extract_bits(
-                delta_log,
-                &ciphertext.ct,
-                self,
-                ExtractedBitsCount(num_bits_to_extract),
-            )
-        })
+        let server_key = &self.wopbs_server_key;
+
+        let lwe_size = server_key
+            .key_switching_key
+            .output_key_lwe_dimension()
+            .to_lwe_size();
+
+        let mut output = LweCiphertextListOwned::new(
+            0u64,
+            lwe_size,
+            LweCiphertextCount(num_bits_to_extract.0),
+            self.param.ciphertext_modulus,
+        );
+
+        self.extract_bits_assign(delta_log, ciphertext, num_bits_to_extract, &mut output);
+
+        output
     }
 
     /// Extract the given number of bits from a ciphertext.
@@ -505,19 +573,51 @@ impl WopbsKey {
         &self,
         delta_log: DeltaLog,
         ciphertext: &Ciphertext,
-        num_bits_to_extract: usize,
+        num_bits_to_extract: ExtractedBitsCount,
         output: &mut LweCiphertextList<OutputCont>,
     ) where
         OutputCont: ContainerMut<Element = u64>,
     {
+        let server_key = &self.wopbs_server_key;
+
+        let bsk = &server_key.bootstrapping_key;
+        let ksk = &server_key.key_switching_key;
+
+        let fft = Fft::new(bsk.polynomial_size());
+        let fft = fft.as_view();
+
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine.extract_bits_assign(
-                delta_log,
-                &ciphertext.ct,
-                self,
-                ExtractedBitsCount(num_bits_to_extract),
-                output,
+            engine.computation_buffers.resize(
+                extract_bits_from_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                    ciphertext.ct.lwe_size().to_lwe_dimension(),
+                    ksk.output_key_lwe_dimension(),
+                    bsk.glwe_size(),
+                    bsk.polynomial_size(),
+                    fft,
+                )
+                .unwrap()
+                .unaligned_bytes_required(),
             );
+
+            let stack = engine.computation_buffers.stack();
+
+            match bsk {
+                ShortintBootstrappingKey::Classic(bsk) => {
+                    extract_bits_from_lwe_ciphertext_mem_optimized(
+                        &ciphertext.ct,
+                        output,
+                        bsk,
+                        ksk,
+                        delta_log,
+                        num_bits_to_extract,
+                        fft,
+                        stack,
+                    );
+                }
+                ShortintBootstrappingKey::MultiBit { .. } => {
+                    todo!("extract_bits_assign currently does not support multi-bit PBS")
+                }
+            }
         });
     }
 
@@ -532,19 +632,224 @@ impl WopbsKey {
     where
         InputCont: Container<Element = u64>,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.circuit_bootstrapping_vertical_packing(self, vec_lut, extracted_bits_blocks)
-        })
-    }
+        let output_list = self.circuit_bootstrap_with_bits(
+            extracted_bits_blocks,
+            &vec_lut.lut(),
+            LweCiphertextCount(vec_lut.output_ciphertext_count().0),
+        );
 
-    pub fn keyswitch_to_wopbs_params(&self, sks: &ServerKey, ct_in: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.keyswitch_to_wopbs_params(sks, self, ct_in)
-        })
+        assert_eq!(
+            output_list.lwe_ciphertext_count().0,
+            vec_lut.output_ciphertext_count().0
+        );
+
+        let output_container = output_list.into_container();
+        let ciphertext_modulus = self.param.ciphertext_modulus;
+        let lwes: Vec<_> = output_container
+            .chunks_exact(output_container.len() / vec_lut.output_ciphertext_count().0)
+            .map(|s| LweCiphertextOwned::from_container(s.to_vec(), ciphertext_modulus))
+            .collect();
+
+        assert_eq!(lwes.len(), vec_lut.output_ciphertext_count().0);
+        lwes
     }
 
     pub fn keyswitch_to_pbs_params(&self, ct_in: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.keyswitch_to_pbs_params(self, ct_in))
-            .unwrap()
+        // move to wopbs parameters to pbs parameters
+        //Keyswitch-PBS:
+        // 1. KS to go back to the original encryption key
+        // 2. PBS to remove the noise added by the previous KS
+        //
+        let acc = self.pbs_server_key.generate_lookup_table(|x| x);
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            let (mut ciphertext_buffers, buffers) = engine.get_buffers(&self.pbs_server_key);
+            // Compute a key switch
+            keyswitch_lwe_ciphertext(
+                &self.pbs_server_key.key_switching_key,
+                &ct_in.ct,
+                &mut ciphertext_buffers.buffer_lwe_after_ks,
+            );
+
+            let ct_out = match &self.pbs_server_key.bootstrapping_key {
+                ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                    let out_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
+                    let mut ct_out =
+                        LweCiphertextOwned::new(0, out_lwe_size, self.param.ciphertext_modulus);
+
+                    let fft = Fft::new(fourier_bsk.polynomial_size());
+                    let fft = fft.as_view();
+                    buffers.resize(
+                        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                            fourier_bsk.glwe_size(),
+                            fourier_bsk.polynomial_size(),
+                            fft,
+                        )
+                        .unwrap()
+                        .unaligned_bytes_required(),
+                    );
+                    let stack = buffers.stack();
+
+                    // Compute a bootstrap
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                        &ciphertext_buffers.buffer_lwe_after_ks,
+                        &mut ct_out,
+                        &acc.acc,
+                        fourier_bsk,
+                        fft,
+                        stack,
+                    );
+
+                    ct_out
+                }
+                ShortintBootstrappingKey::MultiBit { .. } => {
+                    return Err(WopbsKeyCreationError::UnsupportedMultiBit);
+                }
+            };
+            Ok(Ciphertext::new(
+                ct_out,
+                ct_in.degree,
+                NoiseLevel::NOMINAL,
+                ct_in.message_modulus,
+                ct_in.carry_modulus,
+                ct_in.pbs_order,
+            ))
+        })
+        .unwrap()
+    }
+
+    pub fn keyswitch_to_wopbs_params(&self, sks: &ServerKey, ct_in: &Ciphertext) -> Ciphertext {
+        // First PBS to remove the noise
+        let acc = sks.generate_lookup_table(|x| x);
+        let ct_clean = sks.apply_lookup_table(ct_in, &acc);
+
+        let mut buffer_lwe_after_ks = LweCiphertextOwned::new(
+            0,
+            self.ksk_pbs_to_wopbs
+                .output_key_lwe_dimension()
+                .to_lwe_size(),
+            self.param.ciphertext_modulus,
+        );
+
+        // Compute a key switch
+        keyswitch_lwe_ciphertext(
+            &self.ksk_pbs_to_wopbs,
+            &ct_clean.ct,
+            &mut buffer_lwe_after_ks,
+        );
+
+        // The identity lut wrongly sets the max degree in the ciphertext, when in reality the
+        // degree of the ciphertext has no changed, we manage this case manually here
+        Ciphertext::new(
+            buffer_lwe_after_ks,
+            ct_in.degree,
+            NoiseLevel::NOMINAL,
+            ct_clean.message_modulus,
+            ct_clean.carry_modulus,
+            ct_in.pbs_order,
+        )
+    }
+
+    pub(crate) fn circuit_bootstrap_with_bits<InputCont, LutCont>(
+        &self,
+        extracted_bits: &LweCiphertextList<InputCont>,
+        lut: &PlaintextList<LutCont>,
+        count: LweCiphertextCount,
+    ) -> LweCiphertextListOwned<u64>
+    where
+        InputCont: Container<Element = u64>,
+        LutCont: Container<Element = u64>,
+    {
+        let sks = &self.wopbs_server_key;
+        let fourier_bsk = &sks.bootstrapping_key;
+
+        let output_lwe_size = fourier_bsk.output_lwe_dimension().to_lwe_size();
+
+        let mut output_cbs_vp_ct = LweCiphertextListOwned::new(
+            0u64,
+            output_lwe_size,
+            count,
+            self.param.ciphertext_modulus,
+        );
+        let lut = PolynomialListView::from_container(lut.as_ref(), fourier_bsk.polynomial_size());
+
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            engine.computation_buffers.resize(
+                circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized_requirement::<u64>(
+                    extracted_bits.lwe_ciphertext_count(),
+                    output_cbs_vp_ct.lwe_ciphertext_count(),
+                    extracted_bits.lwe_size(),
+                    lut.polynomial_count(),
+                    fourier_bsk.output_lwe_dimension().to_lwe_size(),
+                    fourier_bsk.glwe_size(),
+                    self.cbs_pfpksk.output_polynomial_size(),
+                    self.param.cbs_level,
+                    fft,
+                )
+                .unwrap()
+                .unaligned_bytes_required(),
+            );
+
+            let stack = engine.computation_buffers.stack();
+
+            match &sks.bootstrapping_key {
+                ShortintBootstrappingKey::Classic(bsk) => {
+                    circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimized(
+                        extracted_bits,
+                        &mut output_cbs_vp_ct,
+                        &lut,
+                        bsk,
+                        &self.cbs_pfpksk,
+                        self.param.cbs_base_log,
+                        self.param.cbs_level,
+                        fft,
+                        stack,
+                    );
+                }
+                ShortintBootstrappingKey::MultiBit { .. } => {
+                    return Err(WopbsKeyCreationError::UnsupportedMultiBit);
+                }
+            };
+            Ok(())
+        }).unwrap();
+
+        output_cbs_vp_ct
+    }
+
+    pub(crate) fn extract_bits_circuit_bootstrapping(
+        &self,
+        ct_in: &Ciphertext,
+        lut: &WopbsLUTBase,
+        delta_log: DeltaLog,
+        nb_bit_to_extract: ExtractedBitsCount,
+    ) -> Ciphertext {
+        let extracted_bits = self.extract_bits(delta_log, ct_in, nb_bit_to_extract);
+
+        let ciphertext_list = self.circuit_bootstrap_with_bits(
+            &extracted_bits.as_view(),
+            &lut.lut(),
+            LweCiphertextCount(1),
+        );
+
+        // Here the output list contains a single ciphertext, we can consume the container to
+        // convert it to a single ciphertext
+        let ciphertext = LweCiphertextOwned::from_container(
+            ciphertext_list.into_container(),
+            self.param.ciphertext_modulus,
+        );
+
+        let sks = &self.wopbs_server_key;
+
+        Ciphertext::new(
+            ciphertext,
+            Degree(sks.message_modulus.0 - 1),
+            NoiseLevel::NOMINAL,
+            sks.message_modulus,
+            sks.carry_modulus,
+            ct_in.pbs_order,
+        )
     }
 }

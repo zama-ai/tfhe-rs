@@ -317,7 +317,7 @@ impl WopbsKey {
             self.wopbs_key.extract_bits_assign(
                 delta_log,
                 block,
-                nb_bit_to_extract,
+                ExtractedBitsCount(nb_bit_to_extract),
                 &mut lwe_sub_list,
             );
         }
@@ -404,7 +404,7 @@ impl WopbsKey {
             self.wopbs_key.extract_bits_assign(
                 delta_log,
                 block,
-                nb_bit_to_extract,
+                ExtractedBitsCount(nb_bit_to_extract),
                 &mut lwe_sub_list,
             );
         }
@@ -1093,7 +1093,7 @@ impl WopbsKey {
                 self.wopbs_key.extract_bits_assign(
                     delta_log,
                     block,
-                    nb_bit_to_extract,
+                    ExtractedBitsCount(nb_bit_to_extract),
                     &mut lwe_sub_list,
                 );
             }
