@@ -296,26 +296,6 @@ impl Bootstrapper {
         )
     }
 
-    pub(crate) fn keyswitch(
-        &mut self,
-        input: &LweCiphertextOwned<u32>,
-        server_key: &ServerKey,
-    ) -> LweCiphertextOwned<u32> {
-        // Allocate the output of the KS
-        let mut output = LweCiphertext::new(
-            0u32,
-            server_key
-                .bootstrapping_key
-                .input_lwe_dimension()
-                .to_lwe_size(),
-            input.ciphertext_modulus(),
-        );
-
-        keyswitch_lwe_ciphertext(&server_key.key_switching_key, input, &mut output);
-
-        output
-    }
-
     pub(crate) fn bootstrap_keyswitch(
         &mut self,
         mut ciphertext: LweCiphertextOwned<u32>,
@@ -418,6 +398,21 @@ impl Bootstrapper {
             PBSOrder::KeyswitchBootstrap => self.keyswitch_bootstrap(ct, server_key),
             PBSOrder::BootstrapKeyswitch => self.bootstrap_keyswitch(ct, server_key),
         }
+    }
+}
+
+impl ServerKey {
+    pub(crate) fn keyswitch(&self, input: &LweCiphertextOwned<u32>) -> LweCiphertextOwned<u32> {
+        // Allocate the output of the KS
+        let mut output = LweCiphertext::new(
+            0u32,
+            self.bootstrapping_key.input_lwe_dimension().to_lwe_size(),
+            input.ciphertext_modulus(),
+        );
+
+        keyswitch_lwe_ciphertext(&self.key_switching_key, input, &mut output);
+
+        output
     }
 }
 

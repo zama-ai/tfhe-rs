@@ -458,42 +458,6 @@ impl BooleanEngine {
         }
     }
 
-    /// convert into an actual LWE ciphertext even when trivial
-    fn convert_into_lwe_ciphertext_32(
-        &mut self,
-        ct: &Ciphertext,
-        server_key: &ServerKey,
-    ) -> LweCiphertextOwned<u32> {
-        match ct {
-            Ciphertext::Encrypted(ct_ct) => ct_ct.clone(),
-            Ciphertext::Trivial(message) => {
-                // encode the boolean message
-                let plain: Plaintext<u32> = if *message {
-                    Plaintext(PLAINTEXT_TRUE)
-                } else {
-                    Plaintext(PLAINTEXT_FALSE)
-                };
-
-                let lwe_size = match server_key.pbs_order {
-                    PBSOrder::KeyswitchBootstrap => server_key
-                        .key_switching_key
-                        .input_key_lwe_dimension()
-                        .to_lwe_size(),
-                    PBSOrder::BootstrapKeyswitch => server_key
-                        .bootstrapping_key
-                        .input_lwe_dimension()
-                        .to_lwe_size(),
-                };
-
-                allocate_and_trivially_encrypt_new_lwe_ciphertext(
-                    lwe_size,
-                    plain,
-                    CiphertextModulus::new_native(),
-                )
-            }
-        }
-    }
-
     pub fn mux(
         &mut self,
         ct_condition: &Ciphertext,
@@ -536,8 +500,8 @@ impl BooleanEngine {
                 }
 
                 // convert inputs into LweCiphertextOwned<u32>
-                let ct_then_ct = self.convert_into_lwe_ciphertext_32(ct_then, server_key);
-                let ct_else_ct = self.convert_into_lwe_ciphertext_32(ct_else, server_key);
+                let ct_then_ct = convert_into_lwe_ciphertext_32(ct_then, server_key);
+                let ct_else_ct = convert_into_lwe_ciphertext_32(ct_else, server_key);
 
                 let mut buffer_lwe_before_pbs_o = LweCiphertext::new(
                     0u32,
@@ -564,12 +528,12 @@ impl BooleanEngine {
 
                 match server_key.pbs_order {
                     PBSOrder::KeyswitchBootstrap => {
-                        let ct_ks_1 = bootstrapper.keyswitch(buffer_lwe_before_pbs, server_key);
+                        let ct_ks_1 = server_key.keyswitch(buffer_lwe_before_pbs);
 
                         // Compute the first programmable bootstrapping with fixed test polynomial:
                         let mut ct_pbs_1 = bootstrapper.bootstrap(&ct_ks_1, server_key);
 
-                        let ct_ks_2 = bootstrapper.keyswitch(&ct_temp_2, server_key);
+                        let ct_ks_2 = server_key.keyswitch(&ct_temp_2);
                         let ct_pbs_2 = bootstrapper.bootstrap(&ct_ks_2, server_key);
 
                         // Compute the linear combination to add the two results:
@@ -594,13 +558,48 @@ impl BooleanEngine {
                         let cst = Plaintext(PLAINTEXT_TRUE);
                         lwe_ciphertext_plaintext_add_assign(&mut ct_pbs_1, cst); // + 1/8
 
-                        let ct_ks = bootstrapper.keyswitch(&ct_pbs_1, server_key);
+                        let ct_ks = server_key.keyswitch(&ct_pbs_1);
 
                         // Output the result:
                         Ciphertext::Encrypted(ct_ks)
                     }
                 }
             }
+        }
+    }
+}
+
+/// convert into an actual LWE ciphertext even when trivial
+fn convert_into_lwe_ciphertext_32(
+    ct: &Ciphertext,
+    server_key: &ServerKey,
+) -> LweCiphertextOwned<u32> {
+    match ct {
+        Ciphertext::Encrypted(ct_ct) => ct_ct.clone(),
+        Ciphertext::Trivial(message) => {
+            // encode the boolean message
+            let plain: Plaintext<u32> = if *message {
+                Plaintext(PLAINTEXT_TRUE)
+            } else {
+                Plaintext(PLAINTEXT_FALSE)
+            };
+
+            let lwe_size = match server_key.pbs_order {
+                PBSOrder::KeyswitchBootstrap => server_key
+                    .key_switching_key
+                    .input_key_lwe_dimension()
+                    .to_lwe_size(),
+                PBSOrder::BootstrapKeyswitch => server_key
+                    .bootstrapping_key
+                    .input_lwe_dimension()
+                    .to_lwe_size(),
+            };
+
+            allocate_and_trivially_encrypt_new_lwe_ciphertext(
+                lwe_size,
+                plain,
+                CiphertextModulus::new_native(),
+            )
         }
     }
 }
