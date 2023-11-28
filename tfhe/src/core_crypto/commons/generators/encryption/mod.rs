@@ -65,7 +65,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter =
             self.noise
                 .fork_bsk_to_ggsw(lwe_dimension, level, glwe_size, polynomial_size)?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a multi_bit bootstrap key into ggsw ciphertext groups.
@@ -91,7 +91,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
             polynomial_size,
             grouping_factor,
         )?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a multi_bit bootstrap key ggsw ciphertext group into
@@ -115,7 +115,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
             polynomial_size,
             grouping_factor,
         )?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a ggsw into level matrices.
@@ -131,7 +131,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter = self
             .noise
             .fork_ggsw_to_ggsw_levels(level, glwe_size, polynomial_size)?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a ggsw level matrix to glwe.
@@ -146,7 +146,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter = self
             .noise
             .fork_ggsw_level_to_glwe(glwe_size, polynomial_size)?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a ggsw into level matrices.
@@ -157,7 +157,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_iter = self.mask.fork_gsw_to_gsw_levels::<T>(level, lwe_size)?;
         let noise_iter = self.noise.fork_gsw_to_gsw_levels(level, lwe_size)?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a ggsw level matrix to glwe.
@@ -167,7 +167,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_iter = self.mask.fork_gsw_level_to_lwe::<T>(lwe_size)?;
         let noise_iter = self.noise.fork_gsw_level_to_lwe(lwe_size)?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting an lwe ciphertext list into ciphertexts.
@@ -178,7 +178,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     ) -> Result<impl Iterator<Item = Self>, ForkError> {
         let mask_iter = self.mask.fork_lwe_list_to_lwe::<T>(lwe_count, lwe_size)?;
         let noise_iter = self.noise.fork_lwe_list_to_lwe(lwe_count)?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a collection of pfpksk for cbs
@@ -200,7 +200,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter =
             self.noise
                 .fork_cbs_pfpksk_to_pfpksk(level, poly_size, lwe_size, pfpksk_count)?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a pfpksk into chunks
@@ -217,7 +217,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter = self
             .noise
             .fork_pfpksk_to_pfpksk_chunks(level, poly_size, lwe_size)?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     pub(crate) fn fork_lwe_compact_ciphertext_list_to_bin<T: UnsignedInteger>(
@@ -231,19 +231,7 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter = self
             .noise
             .fork_lwe_compact_ciphertext_list_to_bin(lwe_mask_count, lwe_dimension)?;
-        Ok(self.map_to_encryption_generator(mask_iter, noise_iter))
-    }
-
-    // Forks both generators into an iterator
-    fn map_to_encryption_generator(
-        &mut self,
-        mask_iter: impl Iterator<Item = MaskRandomGenerator<G>>,
-        noise_iter: impl Iterator<Item = NoiseRandomGenerator<G>>,
-    ) -> impl Iterator<Item = Self> {
-        // We return a proper iterator.
-        mask_iter
-            .zip(noise_iter)
-            .map(|(mask, noise)| Self { mask, noise })
+        Ok(map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Fills the slice with random uniform values, using the mask generator.
@@ -344,6 +332,17 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     }
 }
 
+// Forks both generators into an iterator
+fn map_to_encryption_generator<G: ByteRandomGenerator>(
+    mask_iter: impl Iterator<Item = MaskRandomGenerator<G>>,
+    noise_iter: impl Iterator<Item = NoiseRandomGenerator<G>>,
+) -> impl Iterator<Item = EncryptionRandomGenerator<G>> {
+    // We return a proper iterator.
+    mask_iter
+        .zip(noise_iter)
+        .map(|(mask, noise)| EncryptionRandomGenerator { mask, noise })
+}
+
 impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
     // Forks the generator into a parallel iterator, when splitting a bootstrap key into ggsw ct.
     pub(crate) fn par_fork_bsk_to_ggsw<T: UnsignedInteger>(
@@ -362,7 +361,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter =
             self.noise
                 .par_fork_bsk_to_ggsw(lwe_dimension, level, glwe_size, polynomial_size)?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a multi_bit bootstrap key into ggsw ct.
@@ -388,7 +387,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
             polynomial_size,
             grouping_factor,
         )?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a multi_bit bootstrap key ggsw ciphertext group into
@@ -412,7 +411,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
             polynomial_size,
             grouping_factor,
         )?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator into a parallel iterator, when splitting a ggsw into level matrices.
@@ -428,7 +427,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter =
             self.noise
                 .par_fork_ggsw_to_ggsw_levels(level, glwe_size, polynomial_size)?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator into a parallel iterator, when splitting a ggsw level matrix to glwe.
@@ -443,7 +442,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter = self
             .noise
             .par_fork_ggsw_level_to_glwe(glwe_size, polynomial_size)?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator into a parallel iterator, when splitting a ggsw into level matrices.
@@ -454,7 +453,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
     ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_iter = self.mask.par_fork_gsw_to_gsw_levels::<T>(level, lwe_size)?;
         let noise_iter = self.noise.par_fork_gsw_to_gsw_levels(level, lwe_size)?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator into a parallel iterator, when splitting a ggsw level matrix to glwe.
@@ -464,7 +463,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
     ) -> Result<impl IndexedParallelIterator<Item = Self>, ForkError> {
         let mask_iter = self.mask.par_fork_gsw_level_to_lwe::<T>(lwe_size)?;
         let noise_iter = self.noise.par_fork_gsw_level_to_lwe(lwe_size)?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting an lwe ciphertext list into ciphertexts.
@@ -477,7 +476,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
             .mask
             .par_fork_lwe_list_to_lwe::<T>(lwe_count, lwe_size)?;
         let noise_iter = self.noise.par_fork_lwe_list_to_lwe(lwe_count)?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a collection of pfpksk for cbs
@@ -499,7 +498,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter =
             self.noise
                 .par_fork_cbs_pfpksk_to_pfpksk(level, poly_size, lwe_size, pfpksk_count)?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     // Forks the generator, when splitting a pfpksk into chunks
@@ -516,7 +515,7 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter = self
             .noise
             .par_fork_pfpksk_to_pfpksk_chunks(level, poly_size, lwe_size)?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
 
     pub(crate) fn par_fork_lwe_compact_ciphertext_list_to_bin<T: UnsignedInteger>(
@@ -530,18 +529,17 @@ impl<G: ParallelByteRandomGenerator> EncryptionRandomGenerator<G> {
         let noise_iter = self
             .noise
             .par_fork_lwe_compact_ciphertext_list_to_bin(lwe_mask_count, lwe_dimension)?;
-        Ok(self.par_map_to_encryption_generator(mask_iter, noise_iter))
+        Ok(par_map_to_encryption_generator(mask_iter, noise_iter))
     }
+}
 
-    // Forks both generators into a parallel iterator.
-    fn par_map_to_encryption_generator(
-        &mut self,
-        mask_iter: impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>,
-        noise_iter: impl IndexedParallelIterator<Item = NoiseRandomGenerator<G>>,
-    ) -> impl IndexedParallelIterator<Item = Self> {
-        // We return a proper iterator.
-        mask_iter
-            .zip(noise_iter)
-            .map(|(mask, noise)| Self { mask, noise })
-    }
+// Forks both generators into a parallel iterator.
+fn par_map_to_encryption_generator<G: ParallelByteRandomGenerator>(
+    mask_iter: impl IndexedParallelIterator<Item = MaskRandomGenerator<G>>,
+    noise_iter: impl IndexedParallelIterator<Item = NoiseRandomGenerator<G>>,
+) -> impl IndexedParallelIterator<Item = EncryptionRandomGenerator<G>> {
+    // We return a proper iterator.
+    mask_iter
+        .zip(noise_iter)
+        .map(|(mask, noise)| EncryptionRandomGenerator { mask, noise })
 }
