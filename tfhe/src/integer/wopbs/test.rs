@@ -108,7 +108,7 @@ pub fn wopbs_native_crt_bivariate() {
 
     let params = (pbs_params, wopbs_params);
 
-    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space = 1;
@@ -143,7 +143,7 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let nb_block = basis.len();
 
-    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space = 1;
@@ -186,7 +186,7 @@ pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let nb_block = 2;
 
-    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = params.0.message_modulus.0 as u64;
@@ -223,7 +223,7 @@ pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let nb_block = 2;
 
-    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = params.0.message_modulus.0 as u64;
@@ -266,7 +266,7 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
     let basis = make_basis(params.1.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = gen_keys(params.0, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = 1;
