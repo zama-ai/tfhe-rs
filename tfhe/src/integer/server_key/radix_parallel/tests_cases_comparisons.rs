@@ -1,5 +1,6 @@
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
-use crate::integer::{gen_keys, IntegerKeyKind, ServerKey, I256, U256};
+use crate::integer::keycache::KEY_CACHE;
+use crate::integer::{IntegerKeyKind, ServerKey, I256, U256};
 use crate::shortint::ClassicPBSParameters;
 use rand;
 use rand::prelude::*;
@@ -22,7 +23,7 @@ fn test_unchecked_function<UncheckedFn, ClearF>(
 
     let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     for _ in 0..num_test {
         let clear_a = rng.gen::<U256>();
@@ -66,7 +67,7 @@ fn test_smart_function<SmartFn, ClearF>(
     ) -> RadixCiphertext,
     ClearF: Fn(U256, U256) -> U256,
 {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
@@ -137,7 +138,7 @@ fn test_default_function<SmartFn, ClearF>(
     SmartFn: for<'a> Fn(&'a ServerKey, &'a RadixCiphertext, &'a RadixCiphertext) -> RadixCiphertext,
     ClearF: Fn(U256, U256) -> U256,
 {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
@@ -558,7 +559,7 @@ fn test_signed_unchecked_function<UncheckedFn, ClearF>(
 
     let num_block = (128f64 / (param.message_modulus.0.ilog2() as f64)).ceil() as usize;
 
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     // Some hard coded tests
     let pairs = [
@@ -621,7 +622,7 @@ fn test_signed_smart_function<SmartFn, ClearF>(
     ) -> SignedRadixCiphertext,
     ClearF: Fn(i128, i128) -> i128,
 {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (128f64 / (param.message_modulus.0.ilog2() as f64).ceil()) as usize;
 
     let mut rng = rand::thread_rng();
@@ -696,7 +697,7 @@ fn test_signed_default_function<SmartFn, ClearF>(
     ) -> SignedRadixCiphertext,
     ClearF: Fn(i128, i128) -> i128,
 {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (128f64 / (param.message_modulus.0.ilog2() as f64).ceil()) as usize;
 
     let mut rng = rand::thread_rng();
@@ -991,7 +992,7 @@ fn test_unchecked_scalar_function<UncheckedFn, ClearF>(
 
     let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     for _ in 0..num_test {
         let clear_a = rng.gen::<U256>();
@@ -1026,7 +1027,7 @@ fn test_smart_scalar_function<SmartFn, ClearF>(
     SmartFn: for<'a, 'b> Fn(&'a ServerKey, &'a mut RadixCiphertext, U256) -> RadixCiphertext,
     ClearF: Fn(U256, U256) -> U256,
 {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
@@ -1077,7 +1078,7 @@ fn test_default_scalar_function<SmartFn, ClearF>(
     SmartFn: for<'a, 'b> Fn(&'a ServerKey, &'a RadixCiphertext, U256) -> RadixCiphertext,
     ClearF: Fn(U256, U256) -> U256,
 {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
@@ -1352,7 +1353,7 @@ fn test_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
 
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     for _ in 0..4 {
         let clear_a = rng.gen::<u128>();
@@ -1460,7 +1461,7 @@ create_parametrized_test!(test_unchecked_scalar_comparisons_edge {
 });
 
 fn integer_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
@@ -1545,7 +1546,7 @@ fn test_signed_unchecked_scalar_function<UncheckedFn, ClearF>(
 
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     for _ in 0..num_test {
         let clear_a = rng.gen::<i128>();
@@ -1581,7 +1582,7 @@ fn test_signed_smart_scalar_function<SmartFn, ClearF>(
         for<'a, 'b> Fn(&'a ServerKey, &'a mut SignedRadixCiphertext, i128) -> SignedRadixCiphertext,
     ClearF: Fn(i128, i128) -> i128,
 {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
@@ -1633,7 +1634,7 @@ fn test_signed_default_scalar_function<SmartFn, ClearF>(
         for<'a, 'b> Fn(&'a ServerKey, &'a SignedRadixCiphertext, i128) -> SignedRadixCiphertext,
     ClearF: Fn(i128, i128) -> i128,
 {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
@@ -1869,7 +1870,7 @@ create_parametrized_test!(integer_signed_scalar_min_parallelized_128_bits {
 });
 
 fn integer_signed_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
-    let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
