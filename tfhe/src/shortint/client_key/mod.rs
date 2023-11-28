@@ -1,12 +1,15 @@
 //! Module with the definition of the ClientKey.
 
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{MessageModulus, ShortintParameterSet};
 use crate::shortint::CarryModulus;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+
+use super::PBSOrder;
 
 /// A structure containing the client key, which must be kept secret.
 ///
@@ -276,7 +279,26 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
-        ShortintEngine::with_thread_local_mut(|engine| engine.decrypt_message_and_carry(self, ct))
+        let lwe_decryption_key = match ct.pbs_order {
+            PBSOrder::KeyswitchBootstrap => &self.large_lwe_secret_key,
+            PBSOrder::BootstrapKeyswitch => &self.small_lwe_secret_key,
+        };
+
+        // decryption
+        let decrypted_encoded = decrypt_lwe_ciphertext(lwe_decryption_key, &ct.ct);
+
+        let decrypted_u64: u64 = decrypted_encoded.0;
+
+        let delta = (1_u64 << 63)
+            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64;
+
+        //The bit before the message
+        let rounding_bit = delta >> 1;
+
+        //compute the rounding bit
+        let rounding = (decrypted_u64 & rounding_bit) << 1;
+
+        (decrypted_u64.wrapping_add(rounding)) / delta
     }
 
     /// Decrypt a ciphertext encrypting a message using the client key.
@@ -311,7 +333,7 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt(&self, ct: &Ciphertext) -> u64 {
-        ShortintEngine::with_thread_local_mut(|engine| engine.decrypt(self, ct))
+        self.decrypt_message_and_carry(ct) % ct.message_modulus.0 as u64
     }
 
     /// Encrypt a small integer message using the client key without padding bit.
@@ -400,9 +422,27 @@ impl ClientKey {
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_message_and_carry_without_padding(&self, ct: &Ciphertext) -> u64 {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.decrypt_message_and_carry_without_padding(self, ct)
-        })
+        let lwe_decryption_key = match ct.pbs_order {
+            PBSOrder::KeyswitchBootstrap => &self.large_lwe_secret_key,
+            PBSOrder::BootstrapKeyswitch => &self.small_lwe_secret_key,
+        };
+
+        // decryption
+        let decrypted_encoded = decrypt_lwe_ciphertext(lwe_decryption_key, &ct.ct);
+
+        let decrypted_u64: u64 = decrypted_encoded.0;
+
+        let delta = ((1_u64 << 63)
+            / (self.parameters.message_modulus().0 * self.parameters.carry_modulus().0) as u64)
+            * 2;
+
+        //The bit before the message
+        let rounding_bit = delta >> 1;
+
+        //compute the rounding bit
+        let rounding = (decrypted_u64 & rounding_bit) << 1;
+
+        (decrypted_u64.wrapping_add(rounding)) / delta
     }
 
     /// Decrypt a ciphertext encrypting an integer message using the client key,
@@ -439,7 +479,7 @@ impl ClientKey {
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn decrypt_without_padding(&self, ct: &Ciphertext) -> u64 {
-        ShortintEngine::with_thread_local_mut(|engine| engine.decrypt_without_padding(self, ct))
+        self.decrypt_message_and_carry_without_padding(ct) % ct.message_modulus.0 as u64
     }
 
     /// Encrypt a small integer message using the client key without padding bit with some modulus.
@@ -541,9 +581,22 @@ impl ClientKey {
     /// let dec = cks.decrypt_message_native_crt(&ct, modulus);
     /// assert_eq!(msg, dec % modulus as u64);
     /// ```
-    pub fn decrypt_message_native_crt(&self, ct: &Ciphertext, message_modulus: u8) -> u64 {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.decrypt_message_native_crt(self, ct, message_modulus as u64)
-        })
+    pub fn decrypt_message_native_crt(&self, ct: &Ciphertext, basis: u8) -> u64 {
+        let basis = basis as u64;
+
+        let lwe_decryption_key = match ct.pbs_order {
+            PBSOrder::KeyswitchBootstrap => &self.large_lwe_secret_key,
+            PBSOrder::BootstrapKeyswitch => &self.small_lwe_secret_key,
+        };
+
+        // decryption
+        let decrypted_encoded = decrypt_lwe_ciphertext(lwe_decryption_key, &ct.ct);
+
+        let decrypted_u64: u64 = decrypted_encoded.0;
+
+        let mut result = decrypted_u64 as u128 * basis as u128;
+        result = result.wrapping_add((result & 1 << 63) << 1) / (1 << 64);
+
+        result as u64 % basis
     }
 }

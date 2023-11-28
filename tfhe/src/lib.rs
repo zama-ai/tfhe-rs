@@ -24,7 +24,6 @@
 #![allow(clippy::many_single_char_names)] // 44
 #![allow(clippy::too_many_lines)] // 34
 #![allow(clippy::match_same_arms)] // 19
-#![allow(clippy::unused_self)] // 17
 #![allow(clippy::range_plus_one)] // 16
 #![allow(clippy::return_self_not_must_use)] // 11
 #![allow(clippy::ignored_unit_patterns)] // 9

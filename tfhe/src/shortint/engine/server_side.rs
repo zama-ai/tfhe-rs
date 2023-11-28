@@ -1,6 +1,5 @@
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
     LweDimension, PolynomialSize, ThreadCount,
@@ -8,7 +7,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::shortint::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
+use crate::shortint::ciphertext::{MaxNoiseLevel, NoiseLevel};
 use crate::shortint::parameters::{MessageModulus, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::add::unchecked_add_assign;
 use crate::shortint::server_key::{
@@ -659,71 +658,5 @@ impl ShortintEngine {
         let mut result = ct.clone();
         self.message_extract_assign(server_key, &mut result);
         result
-    }
-
-    // Impossible to call the assign function in this case
-    pub(crate) fn create_trivial(
-        &mut self,
-        server_key: &ServerKey,
-        value: u64,
-        ciphertext_modulus: CiphertextModulus<u64>,
-    ) -> Ciphertext {
-        let lwe_size = match server_key.pbs_order {
-            PBSOrder::KeyswitchBootstrap => server_key
-                .bootstrapping_key
-                .output_lwe_dimension()
-                .to_lwe_size(),
-            PBSOrder::BootstrapKeyswitch => server_key
-                .bootstrapping_key
-                .input_lwe_dimension()
-                .to_lwe_size(),
-        };
-
-        let modular_value = value as usize % server_key.message_modulus.0;
-
-        let delta =
-            (1_u64 << 63) / (server_key.message_modulus.0 * server_key.carry_modulus.0) as u64;
-
-        let shifted_value = (modular_value as u64) * delta;
-
-        let encoded = Plaintext(shifted_value);
-
-        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(
-            lwe_size,
-            encoded,
-            ciphertext_modulus,
-        );
-
-        let degree = Degree(modular_value);
-
-        Ciphertext::new(
-            ct,
-            degree,
-            NoiseLevel::ZERO,
-            server_key.message_modulus,
-            server_key.carry_modulus,
-            server_key.pbs_order,
-        )
-    }
-
-    pub(crate) fn create_trivial_assign(
-        &mut self,
-        server_key: &ServerKey,
-        ct: &mut Ciphertext,
-        value: u64,
-    ) {
-        let modular_value = value as usize % server_key.message_modulus.0;
-
-        let delta =
-            (1_u64 << 63) / (server_key.message_modulus.0 * server_key.carry_modulus.0) as u64;
-
-        let shifted_value = (modular_value as u64) * delta;
-
-        let encoded = Plaintext(shifted_value);
-
-        trivially_encrypt_lwe_ciphertext(&mut ct.ct, encoded);
-
-        ct.degree = Degree(modular_value);
-        ct.set_noise_level(NoiseLevel::ZERO);
     }
 }
