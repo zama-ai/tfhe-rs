@@ -12,7 +12,7 @@ use std::cmp::max;
 use crate::integer::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 use paste::paste;
 
-const NB_TEST: usize = 10;
+const NB_TESTS: usize = 10;
 
 macro_rules! create_parametrized_test{
     ($name:ident { $( ($sks_param:ident, $wopbs_param:ident) ),* }) => {
@@ -66,9 +66,7 @@ pub fn wopbs_native_crt() {
         msg_space *= modulus;
     }
 
-    let nb_test = 10;
-
-    for _ in 0..nb_test {
+    for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % msg_space; // Encrypt the integers
         let mut ct1 = cks.encrypt_native_crt(clear1, basis.clone());
 
@@ -116,9 +114,8 @@ pub fn wopbs_native_crt_bivariate() {
         msg_space *= modulus;
     }
 
-    let nb_test = 10;
     let mut tmp = 0;
-    for _ in 0..nb_test {
+    for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % msg_space; // Encrypt the integers
         let clear2 = rng.gen::<u64>() % msg_space; // Encrypt the integers
         let mut ct1 = cks.encrypt_native_crt(clear1, basis.clone());
@@ -151,9 +148,8 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         msg_space *= modulus;
     }
 
-    let nb_test = 10;
     let mut tmp = 0;
-    for _ in 0..nb_test {
+    for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % msg_space;
         let mut ct1 = cks.encrypt_crt(clear1, basis.clone());
         //artificially modify the degree
@@ -175,7 +171,7 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         }
     }
     if tmp != 0 {
-        println!("failure rate {tmp:?}/{nb_test:?}");
+        println!("failure rate {tmp:?}/{NB_TESTS:?}");
         panic!()
     }
 }
@@ -194,9 +190,8 @@ pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
         msg_space *= params.0.message_modulus.0 as u64;
     }
 
-    let nb_test = 10;
     let mut tmp = 0;
-    for _ in 0..nb_test {
+    for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % msg_space;
         let mut ct1 = cks.encrypt_radix(clear1, nb_block);
 
@@ -212,7 +207,7 @@ pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
         }
     }
     if tmp != 0 {
-        println!("failure rate {tmp:?}/{nb_test:?}");
+        println!("failure rate {tmp:?}/{NB_TESTS:?}");
         panic!()
     }
 }
@@ -231,9 +226,7 @@ pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
         msg_space *= params.0.message_modulus.0 as u64;
     }
 
-    let nb_test = 10;
-
-    for _ in 0..nb_test {
+    for _ in 0..NB_TESTS {
         let mut clear1 = rng.gen::<u64>() % msg_space;
         let mut clear2 = rng.gen::<u64>() % msg_space;
 
@@ -274,9 +267,7 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         msg_space *= modulus;
     }
 
-    let nb_test = 10;
-
-    for _ in 0..nb_test {
+    for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % msg_space;
         let clear2 = rng.gen::<u64>() % msg_space;
         let mut ct1 = cks.encrypt_crt(clear1, basis.clone());

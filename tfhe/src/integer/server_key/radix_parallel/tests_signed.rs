@@ -9,9 +9,9 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 
 /// Number of loop iteration within randomized tests
-const NB_TEST: usize = 30;
+const NB_TESTS: usize = 30;
 
-const NB_TEST_SMALLER: usize = 10;
+const NB_TESTS_SMALLER: usize = 10;
 const NB_CTXT: usize = 4;
 
 macro_rules! create_parametrized_test{
@@ -326,7 +326,7 @@ fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
     let num_block =
         (128f64 / (cks.parameters().message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i128>();
 
         let ct = cks.encrypt_signed_radix(clear, num_block);
@@ -343,7 +343,7 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen_range(i64::MIN..=0) % modulus;
 
         let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
@@ -355,7 +355,7 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
         assert_eq!(clear, dec);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen_range(0..=i64::MAX) % modulus;
 
         let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
@@ -485,7 +485,8 @@ fn integer_signed_unchecked_add(param: impl Into<PBSParameters>) {
         assert_eq!(clear_res, expected_clear);
     }
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -522,7 +523,7 @@ fn integer_signed_unchecked_neg(param: impl Into<PBSParameters>) {
         assert_eq!(clear_result, -modulus);
     }
 
-    for (clear_0, _) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, _) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus) {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
 
         let ct_res = sks.unchecked_neg(&ctxt_0);
@@ -564,7 +565,8 @@ fn integer_signed_unchecked_sub(param: impl Into<PBSParameters>) {
         assert_eq!(clear_res, expected_clear);
     }
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -593,7 +595,7 @@ where
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -684,7 +686,8 @@ fn integer_signed_unchecked_mul(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -702,7 +705,8 @@ fn integer_signed_unchecked_bitand(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -720,7 +724,8 @@ fn integer_signed_unchecked_bitor(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -738,7 +743,8 @@ fn integer_signed_unchecked_bitxor(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -776,7 +782,7 @@ fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
         assert_eq!(dec_res, -modulus);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
 
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
@@ -803,7 +809,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -854,7 +860,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -906,7 +912,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -957,7 +963,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -1015,7 +1021,7 @@ fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
     }
 
     // Div is the slowest operation
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = loop {
             let value = rng.gen::<i64>() % modulus;
@@ -1144,7 +1150,7 @@ fn integer_signed_smart_add(param: impl Into<PBSParameters>) {
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen_range(-modulus..modulus);
         let clear_1 = rng.gen_range(-modulus..modulus);
 
@@ -1157,7 +1163,7 @@ fn integer_signed_smart_add(param: impl Into<PBSParameters>) {
         assert_eq!(clear, dec_res);
 
         // add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.smart_add_parallelized(&mut ct_res, &mut ctxt_0);
             clear = signed_add_under_modulus(clear, clear_0, modulus);
 
@@ -1180,7 +1186,7 @@ where
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<i64>() % modulus;
 
         let mut ctxt = cks.encrypt_signed(clear);
@@ -1190,7 +1196,7 @@ where
         let dec: i64 = cks.decrypt_signed(&ct_res);
         assert_eq!(clear_res, dec);
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.smart_neg_parallelized(&mut ct_res);
             clear_res = signed_neg_under_modulus(clear_res, modulus);
 
@@ -1216,7 +1222,7 @@ fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
         assert_eq!(dec_res, -modulus);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let clear_to_add = rng.gen::<i64>() % modulus;
 
@@ -1306,7 +1312,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1322,7 +1328,7 @@ where
 
         // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
         // add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.add_parallelized(&ct_res, &ctxt_0);
             assert!(ct_res.block_carries_are_empty());
             clear = signed_add_under_modulus(clear, clear_0, modulus);
@@ -1366,7 +1372,7 @@ where
         assert_eq!(clear_result, dec);
     }
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<i64>() % modulus;
 
         let ctxt = cks.encrypt_signed(clear);
@@ -1399,7 +1405,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1414,7 +1420,7 @@ where
         clear = signed_sub_under_modulus(clear_0, clear_1, modulus);
 
         // sub multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.sub_parallelized(&ct_res, &ctxt_0);
             assert!(ct_res.block_carries_are_empty());
             clear = signed_sub_under_modulus(clear, clear_0, modulus);
@@ -1441,7 +1447,7 @@ where
     // message_modulus^vec_length
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1471,7 +1477,7 @@ where
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
         );
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             // Add non zero scalar to have non clean ciphertexts
             let clear_2 = random_non_zero_value(&mut rng, modulus);
             let clear_3 = random_non_zero_value(&mut rng, modulus);
@@ -1558,7 +1564,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1573,7 +1579,7 @@ where
         clear = signed_mul_under_modulus(clear_0, clear_1, modulus);
 
         // mul multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.mul_parallelized(&ct_res, &ctxt_0);
             assert!(ct_res.block_carries_are_empty());
             clear = signed_mul_under_modulus(clear, clear_0, modulus);
@@ -1594,7 +1600,7 @@ fn integer_signed_default_bitnot(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
 
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
@@ -1617,7 +1623,7 @@ fn integer_signed_default_bitand(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let mut clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1661,7 +1667,7 @@ fn integer_signed_default_bitor(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let mut clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1705,7 +1711,7 @@ fn integer_signed_default_bitxor(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let mut clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1757,7 +1763,7 @@ fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
         assert_eq!(dec_res, -modulus);
     }
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let clear_to_add = rng.gen::<i64>() % modulus;
 
@@ -1792,7 +1798,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -1875,7 +1881,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -1958,7 +1964,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -2044,7 +2050,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -2151,7 +2157,7 @@ fn integer_signed_unchecked_scalar_add(param: impl Into<PBSParameters>) {
         assert_eq!(clear_res, expected_clear);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2187,7 +2193,7 @@ fn integer_signed_unchecked_scalar_sub(param: impl Into<PBSParameters>) {
         assert_eq!(clear_res, expected_clear);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2207,7 +2213,7 @@ fn integer_signed_unchecked_scalar_mul(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2227,7 +2233,7 @@ fn integer_signed_unchecked_scalar_bitand(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2247,7 +2253,7 @@ fn integer_signed_unchecked_scalar_bitor(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2267,7 +2273,7 @@ fn integer_signed_unchecked_scalar_bitxor(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2290,7 +2296,7 @@ fn integer_signed_unchecked_scalar_rotate_left(param: impl Into<PBSParameters>) 
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -2326,7 +2332,7 @@ fn integer_signed_unchecked_scalar_rotate_right(param: impl Into<PBSParameters>)
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -2362,7 +2368,7 @@ fn integer_signed_unchecked_scalar_left_shift(param: impl Into<PBSParameters>) {
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -2398,7 +2404,7 @@ fn integer_signed_unchecked_scalar_right_shift(param: impl Into<PBSParameters>) 
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -2706,7 +2712,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2718,7 +2724,7 @@ where
         clear = signed_add_under_modulus(clear_0, clear_1, modulus);
 
         // add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let tmp = sks.scalar_add_parallelized(&ct_res, clear_1);
             ct_res = sks.scalar_add_parallelized(&ct_res, clear_1);
             assert!(ct_res.block_carries_are_empty());
@@ -2739,7 +2745,7 @@ fn integer_signed_default_scalar_bitand(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2775,7 +2781,7 @@ fn integer_signed_default_scalar_bitor(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2811,7 +2817,7 @@ fn integer_signed_default_scalar_bitxor(param: impl Into<PBSParameters>) {
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2908,7 +2914,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -2970,7 +2976,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -3032,7 +3038,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -3096,7 +3102,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);

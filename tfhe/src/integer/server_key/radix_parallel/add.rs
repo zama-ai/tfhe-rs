@@ -719,7 +719,6 @@ impl ServerKey {
         // overhead of dynamic dispatch is negligible compared to multithreading, PBS, etc.
         // we defer all calls to a single implementation to avoid code bloat and long compile
         // times
-        #[allow(clippy::type_complexity)]
         fn reduce_impl<C>(
             sks: &ServerKey,
             mut ct_seq: Vec<CiphertextCow<C>>,
@@ -801,7 +800,6 @@ impl ServerKey {
         // overhead of dynamic dispatch is negligible compared to multithreading, PBS, etc.
         // we defer all calls to a single implementation to avoid code bloat and long compile
         // times
-        #[allow(clippy::type_complexity)]
         fn reduce_impl<C>(
             sks: &ServerKey,
             mut ct_seq: Vec<CiphertextCow<C>>,

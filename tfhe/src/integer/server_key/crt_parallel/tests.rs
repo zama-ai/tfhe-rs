@@ -4,7 +4,7 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 
 /// Number of loop iteration within randomized tests
-const NB_TEST: usize = 30;
+const NB_TESTS: usize = 30;
 
 #[test]
 fn integer_unchecked_crt_add_parallelized_32_bits() {
@@ -18,7 +18,7 @@ fn integer_unchecked_crt_add_parallelized_32_bits() {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
@@ -51,7 +51,7 @@ fn integer_unchecked_crt_mul_parallelized_32_bits() {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
@@ -85,7 +85,7 @@ fn integer_unchecked_crt_neg_parallelized_32_bits() {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u128>() % modulus;
 
         // encryption of an integer
@@ -113,7 +113,7 @@ fn integer_unchecked_crt_sub_parallelized_32_bits() {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
@@ -146,7 +146,7 @@ fn integer_unchecked_crt_scalar_add_parallelized_32_bits() {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
@@ -178,7 +178,7 @@ fn integer_unchecked_crt_scalar_mul_parallelized_32_bits() {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 
@@ -210,7 +210,7 @@ fn integer_unchecked_crt_scalar_sub_parallelized_32_bits() {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u128>() % modulus;
         let clear_1 = rng.gen::<u128>() % modulus;
 

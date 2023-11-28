@@ -8,6 +8,8 @@ use crate::core_crypto::commons::test_tools::{
 // 1 / 32 is too strict and fails the tests
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
+const NB_TESTS: usize = 1000;
+
 fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + CastInto<usize>>(
     params: ClassicTestParams<Scalar>,
 ) {
@@ -20,7 +22,6 @@ fn lwe_encrypt_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + Cas
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 1000;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
@@ -121,7 +122,6 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
 
     let mut rsc = TestResources::new();
 
-    const NB_TESTS: usize = 1000;
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;

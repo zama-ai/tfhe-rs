@@ -179,8 +179,6 @@ fn test_uint32() {
 
     let (cks, sks) = generate_keys(config);
 
-    use rand::prelude::*;
-
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen::<u32>();
@@ -203,8 +201,6 @@ fn test_uint32() {
 
 fn fhe_uint32_shift(config: Config) {
     let (cks, sks) = generate_keys(config);
-
-    use rand::prelude::*;
 
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<u32>();
@@ -263,8 +259,6 @@ fn test_uint32_bitwise() {
     let config = ConfigBuilder::default().build();
 
     let (cks, sks) = generate_keys(config);
-
-    use rand::prelude::*;
 
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<u32>();
@@ -356,8 +350,6 @@ fn test_multi_bit_shift() {
 fn fhe_uint32_rotate(config: Config) {
     let (cks, sks) = generate_keys(config);
 
-    use rand::prelude::*;
-
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<u32>();
     let clear_b = rng.gen_range(0u32..32u32);
@@ -429,8 +421,6 @@ fn test_multi_bit_rotate() {
 
 fn fhe_uint32_div_rem(config: Config) {
     let (cks, sks) = generate_keys(config);
-
-    use rand::prelude::*;
 
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<u32>();
@@ -519,8 +509,6 @@ fn test_uint64() {
 
     let (cks, sks) = generate_keys(config);
 
-    use rand::prelude::*;
-
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<u64>();
     let clear_b = rng.gen::<u64>();
@@ -541,8 +529,6 @@ fn test_small_uint128() {
     let config = ConfigBuilder::default_with_small_encryption().build();
 
     let (cks, sks) = generate_keys(config);
-
-    use rand::prelude::*;
 
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen::<u128>();

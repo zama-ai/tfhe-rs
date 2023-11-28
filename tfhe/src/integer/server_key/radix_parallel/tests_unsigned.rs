@@ -9,7 +9,7 @@ use super::tests_cases_unsigned::*;
 
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
-const NB_TEST_SMALLER: usize = 10;
+const NB_TESTS_SMALLER: usize = 10;
 const NB_CTXT: usize = 4;
 
 macro_rules! create_parametrized_test{
@@ -584,7 +584,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
@@ -623,7 +623,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17] {
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
@@ -855,7 +855,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
@@ -899,7 +899,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17] {
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
@@ -1050,16 +1050,16 @@ fn test_non_regression_clone_from() {
     // Issue: https://github.com/zama-ai/tfhe-rs/issues/410
     let (client_key, server_key) =
         KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2, IntegerKeyKind::Radix);
-    const NUM_BLOCK: usize = 4;
+    let num_block: usize = 4;
     let a: u8 = 248;
     let b: u8 = 249;
     let c: u8 = 250;
     let d: u8 = 251;
 
-    let enc_a = client_key.encrypt_radix(a, NUM_BLOCK);
-    let enc_b = client_key.encrypt_radix(b, NUM_BLOCK);
-    let enc_c = client_key.encrypt_radix(c, NUM_BLOCK);
-    let enc_d = client_key.encrypt_radix(d, NUM_BLOCK);
+    let enc_a = client_key.encrypt_radix(a, num_block);
+    let enc_b = client_key.encrypt_radix(b, num_block);
+    let enc_c = client_key.encrypt_radix(c, num_block);
+    let enc_d = client_key.encrypt_radix(d, num_block);
 
     let (mut q1, mut r1) = server_key.div_rem_parallelized(&enc_b, &enc_a);
     let (mut q2, mut r2) = server_key.div_rem_parallelized(&enc_d, &enc_c);

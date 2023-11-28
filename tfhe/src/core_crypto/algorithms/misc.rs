@@ -205,13 +205,14 @@ where
 mod test {
     use super::*;
 
+    const NB_TESTS: usize = 1_000_000_000;
+
     #[test]
     fn test_divide_funcs() {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
 
-        const NB_TESTS: usize = 1_000_000_000;
         const SCALING: f64 = u64::MAX as f64;
         for _ in 0..NB_TESTS {
             let num: f64 = rng.gen();
