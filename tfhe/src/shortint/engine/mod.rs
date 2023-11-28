@@ -177,7 +177,7 @@ pub struct ShortintEngine {
     /// A seeder that can be called to generate 128 bits seeds, useful to create new
     /// [`EncryptionRandomGenerator`] to encrypt seeded types.
     pub(crate) seeder: DeterministicSeeder<ActivatedRandomGenerator>,
-    computation_buffers: ComputationBuffers,
+    pub(crate) computation_buffers: ComputationBuffers,
     ciphertext_buffers: Memory,
 }
 
