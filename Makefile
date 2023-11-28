@@ -317,13 +317,13 @@ test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain inst
 		--out xml --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
 		--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
 		--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,__coverage \
-		-p tfhe -- core_crypto::
+		-p $(TFHE_SPEC) -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
 			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
 			--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache,__coverage,$(AVX512_FEATURE) \
-			-p tfhe -- core_crypto::; \
+			-p $(TFHE_SPEC) -- core_crypto::; \
 	fi
 
 .PHONY: test_boolean # Run the tests of the boolean module
@@ -644,7 +644,7 @@ gen_key_cache: install_rs_build_toolchain
 .PHONY: gen_key_cache_core_crypto # Run function to generate keys and cache them for core_crypto tests
 gen_key_cache_core_crypto: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --tests --profile $(CARGO_PROFILE) \
-		--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache -p tfhe -- --nocapture \
+		--features=$(TARGET_ARCH_FEATURE),experimental,internal-keycache -p $(TFHE_SPEC) -- --nocapture \
 		core_crypto::keycache::generate_keys
 
 .PHONY: measure_hlapi_compact_pk_ct_sizes # Measure sizes of public keys and ciphertext for high-level API
