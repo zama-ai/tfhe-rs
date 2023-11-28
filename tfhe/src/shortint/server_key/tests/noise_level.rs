@@ -123,7 +123,7 @@ fn test_ct_binary_op_assign_noise_level_propagation(
     });
     test_fn(
         &|sk, ct1, ct2| {
-            ServerKey::unchecked_sub_with_correcting_term_assign(sk, ct1, ct2);
+            ServerKey::unchecked_sub_assign_with_correcting_term(sk, ct1, ct2);
         },
         &|ct1_noise, ct2_noise| ct1_noise + ct2_noise,
     );

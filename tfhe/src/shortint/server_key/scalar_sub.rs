@@ -1,9 +1,8 @@
-use super::ServerKey;
+use crate::core_crypto::algorithms::*;
+use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
-
-use crate::shortint::Ciphertext;
+use crate::shortint::{Ciphertext, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -162,9 +161,9 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_sub(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_sub(self, ct, scalar)
-        })
+        let mut ct_result = ct.clone();
+        self.unchecked_scalar_sub_assign(&mut ct_result, scalar);
+        ct_result
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -205,9 +204,14 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_sub_assign(self, ct, scalar);
-        });
+        let neg_scalar = u64::from(scalar.wrapping_neg()) % ct.message_modulus.0 as u64;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let shift_plaintext = neg_scalar * delta;
+        let encoded_scalar = Plaintext(shift_plaintext);
+
+        lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
+
+        ct.degree = Degree(ct.degree.0 + neg_scalar as usize);
     }
 
     /// Verify if a scalar can be subtracted to the ciphertext.
@@ -394,8 +398,12 @@ impl ServerKey {
     ///
     /// assert_eq!(msg - scalar as u64, clear);
     /// ```
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_sub(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_sub(self, ct, scalar))
+        let mut ct_result = ct.clone();
+        self.smart_scalar_sub_assign(&mut ct_result, scalar);
+
+        ct_result
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -442,8 +450,19 @@ impl ServerKey {
     /// assert_eq!(msg - scalar as u64, clear);
     /// ```
     pub fn smart_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_sub_assign(self, ct, scalar);
-        });
+        // Direct scalar computation is possible
+        if self.is_scalar_sub_possible(ct, scalar).is_ok() {
+            self.unchecked_scalar_sub_assign(ct, scalar);
+        } else {
+            let scalar = u64::from(scalar);
+            let msg_mod = self.message_modulus.0 as u64;
+            // If the scalar is too large, PBS is used to compute the scalar sub
+            let acc = self.generate_msg_lookup_table(
+                |x| x + msg_mod - (scalar % msg_mod),
+                self.message_modulus,
+            );
+            self.apply_lookup_table_assign(ct, &acc);
+            ct.degree = Degree(self.message_modulus.0 - 1);
+        }
     }
 }

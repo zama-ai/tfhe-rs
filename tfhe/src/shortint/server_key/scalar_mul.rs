@@ -1,9 +1,9 @@
-use super::ServerKey;
+use crate::core_crypto::algorithms::*;
+use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::lwe_encryption::trivially_encrypt_lwe_ciphertext;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
-
-use crate::shortint::Ciphertext;
+use crate::shortint::{Ciphertext, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
@@ -157,7 +157,10 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_mul(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_scalar_mul(ct, scalar))
+        let mut ct_result = ct.clone();
+        self.unchecked_scalar_mul_assign(&mut ct_result, scalar);
+
+        ct_result
     }
 
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
@@ -200,9 +203,7 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mul_assign(ct, scalar);
-        });
+        unchecked_scalar_mul_assign(ct, scalar);
     }
 
     /// Multiply one ciphertext with a scalar in the case the carry space cannot fit the product
@@ -251,9 +252,12 @@ impl ServerKey {
         ct: &mut Ciphertext,
         scalar: u8,
     ) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_scalar_mul_lsb_small_carry_modulus_assign(self, ct, scalar);
-        });
+        // Modulus of the msg in the msg bits
+        let modulus = ct.message_modulus.0 as u64;
+
+        let acc_mul = self.generate_lookup_table(|x| (x.wrapping_mul(scalar as u64)) % modulus);
+
+        self.apply_lookup_table_assign(ct, &acc_mul);
     }
 
     /// Verify if the ciphertext can be multiplied by a scalar.
@@ -446,8 +450,12 @@ impl ServerKey {
     /// let modulus = cks.parameters.message_modulus().0 as u64;
     /// assert_eq!(3, clear % modulus);
     /// ```
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_mul(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_scalar_mul(self, ct, scalar))
+        let mut ct_result = ct.clone();
+        self.smart_scalar_mul_assign(&mut ct_result, scalar);
+
+        ct_result
     }
 
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
@@ -492,8 +500,35 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn smart_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_scalar_mul_assign(self, ct, scalar);
-        });
+        // Direct scalar computation is possible
+        if self.is_scalar_mul_possible(ct, scalar).is_ok() {
+            self.unchecked_scalar_mul_assign(ct, scalar);
+            ct.degree = Degree(ct.degree.0 * scalar as usize);
+        }
+        // If the ciphertext cannot be multiplied without exceeding the degree max
+        else {
+            let acc = self.generate_msg_lookup_table(|x| scalar as u64 * x, self.message_modulus);
+            self.apply_lookup_table_assign(ct, &acc);
+            ct.degree = Degree(self.message_modulus.0 - 1);
+        }
+    }
+}
+
+pub(crate) fn unchecked_scalar_mul_assign(ct: &mut Ciphertext, scalar: u8) {
+    ct.set_noise_level(ct.noise_level() * scalar as usize);
+    ct.degree = Degree(ct.degree.0 * scalar as usize);
+
+    match scalar {
+        0 => {
+            trivially_encrypt_lwe_ciphertext(&mut ct.ct, Plaintext(0));
+        }
+        1 => {
+            // Multiplication by one is the identidy
+        }
+        scalar => {
+            let scalar = u64::from(scalar);
+            let cleartext_scalar = Cleartext(scalar);
+            lwe_ciphertext_cleartext_mul_assign(&mut ct.ct, cleartext_scalar);
+        }
     }
 }

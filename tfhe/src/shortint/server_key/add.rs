@@ -1,8 +1,7 @@
-use super::ServerKey;
+use crate::core_crypto::algorithms::*;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::Ciphertext;
+use crate::shortint::{Ciphertext, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
@@ -178,7 +177,9 @@ impl ServerKey {
     /// assert_eq!(msg1 + msg2, res);
     /// ```
     pub fn unchecked_add(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.unchecked_add(ct_left, ct_right))
+        let mut result = ct_left.clone();
+        self.unchecked_add_assign(&mut result, ct_right);
+        result
     }
 
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
@@ -224,9 +225,7 @@ impl ServerKey {
     /// assert_eq!(msg + msg, two);
     /// ```
     pub fn unchecked_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_add_assign(ct_left, ct_right);
-        });
+        unchecked_add_assign(ct_left, ct_right);
     }
 
     /// Verify if ct_left and ct_right can be added together.
@@ -422,7 +421,21 @@ impl ServerKey {
     /// assert_eq!(msg + msg, two);
     /// ```
     pub fn smart_add(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.smart_add(self, ct_left, ct_right))
+        //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
+        if self.is_add_possible(ct_left, ct_right).is_err() {
+            if ct_left.message_modulus.0 - 1 + ct_right.degree.0 <= self.max_degree.0 {
+                self.message_extract_assign(ct_left);
+            } else if ct_right.message_modulus.0 - 1 + ct_left.degree.0 <= self.max_degree.0 {
+                self.message_extract_assign(ct_right);
+            } else {
+                self.message_extract_assign(ct_left);
+                self.message_extract_assign(ct_right);
+            }
+        }
+
+        self.is_add_possible(ct_left, ct_right).unwrap();
+
+        self.unchecked_add(ct_left, ct_right)
     }
 
     /// Compute homomorphically an addition between two ciphertexts
@@ -474,8 +487,26 @@ impl ServerKey {
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn smart_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_add_assign(self, ct_left, ct_right);
-        });
+        //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
+        if self.is_add_possible(ct_left, ct_right).is_err() {
+            if ct_left.message_modulus.0 - 1 + ct_right.degree.0 <= self.max_degree.0 {
+                self.message_extract_assign(ct_left);
+            } else if ct_right.message_modulus.0 - 1 + ct_left.degree.0 <= self.max_degree.0 {
+                self.message_extract_assign(ct_right);
+            } else {
+                self.message_extract_assign(ct_left);
+                self.message_extract_assign(ct_right);
+            }
+        }
+
+        self.is_add_possible(ct_left, ct_right).unwrap();
+
+        self.unchecked_add_assign(ct_left, ct_right);
     }
+}
+
+pub(crate) fn unchecked_add_assign(ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
+    lwe_ciphertext_add_assign(&mut ct_left.ct, &ct_right.ct);
+    ct_left.degree = Degree(ct_left.degree.0 + ct_right.degree.0);
+    ct_left.set_noise_level(ct_left.noise_level() + ct_right.noise_level());
 }
