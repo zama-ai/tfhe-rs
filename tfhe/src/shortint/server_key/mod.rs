@@ -981,6 +981,11 @@ impl ServerKey {
     /// assert_eq!(1, ct_res);
     /// ```
     pub fn create_trivial(&self, value: u64) -> Ciphertext {
+        let modular_value = value as usize % self.message_modulus.0;
+        self.unchecked_create_trivial(modular_value as u64)
+    }
+
+    pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
         let lwe_size = match self.pbs_order {
             PBSOrder::KeyswitchBootstrap => {
                 self.bootstrapping_key.output_lwe_dimension().to_lwe_size()
@@ -990,11 +995,9 @@ impl ServerKey {
             }
         };
 
-        let modular_value = value as usize % self.message_modulus.0;
-
         let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
 
-        let shifted_value = (modular_value as u64) * delta;
+        let shifted_value = value * delta;
 
         let encoded = Plaintext(shifted_value);
 
@@ -1004,7 +1007,7 @@ impl ServerKey {
             self.ciphertext_modulus,
         );
 
-        let degree = Degree(modular_value);
+        let degree = Degree(value as usize);
 
         Ciphertext::new(
             ct,
@@ -1056,11 +1059,36 @@ impl ServerKey {
             .set_deterministic_pbs_execution(new_deterministic_execution);
     }
 
+    fn trivial_pbs_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
+        assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
+        let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let ct_value = *ct.ct.get_body().data / delta;
+
+        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup;
+        let result = if ct_value >= modulus_sup as u64 {
+            // padding bit is 1
+            let ct_value = ct_value % modulus_sup as u64;
+            let index_in_lut = ct_value as usize * box_size;
+            acc.acc.get_body().as_ref()[index_in_lut].wrapping_neg()
+        } else {
+            let index_in_lut = ct_value as usize * box_size;
+            acc.acc.get_body().as_ref()[index_in_lut]
+        };
+        *ct.ct.get_mut_body().data = result;
+        ct.degree = acc.degree;
+    }
+
     pub(crate) fn keyswitch_programmable_bootstrap_assign(
         &self,
         ct: &mut Ciphertext,
         acc: &LookupTableOwned,
     ) {
+        if ct.is_trivial() {
+            self.trivial_pbs_assign(ct, acc);
+            return;
+        }
+
         ShortintEngine::with_thread_local_mut(|engine| {
             // Compute the programmable bootstrapping with fixed test polynomial
             let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
@@ -1132,6 +1160,11 @@ impl ServerKey {
         ct: &mut Ciphertext,
         acc: &LookupTableOwned,
     ) {
+        if ct.is_trivial() {
+            self.trivial_pbs_assign(ct, acc);
+            return;
+        }
+
         ShortintEngine::with_thread_local_mut(|engine| {
             let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
 

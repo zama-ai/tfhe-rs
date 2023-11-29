@@ -1,5 +1,7 @@
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::*;
+use crate::shortint::server_key::LookupTableOwned;
 use paste::paste;
 use rand::Rng;
 
@@ -211,6 +213,7 @@ create_parametrized_test!(shortint_smart_scalar_bitxor);
 create_parametrized_test!(shortint_default_scalar_bitand);
 create_parametrized_test!(shortint_default_scalar_bitor);
 create_parametrized_test!(shortint_default_scalar_bitxor);
+create_parametrized_test!(shortint_trivial_pbs);
 
 // Public key tests are limited to small parameter sets to avoid blowing up memory and large testing
 // times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
@@ -3225,4 +3228,69 @@ where
     let clear_mux = (msg_true - msg_false) * control_bit + msg_false;
     println!("(msg_true - msg_false) * control_bit  + msg_false = {clear_mux}, res = {dec_res}");
     assert_eq!(clear_mux, dec_res);
+}
+
+fn shortint_trivial_pbs<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let param = param.into();
+    let full_modulus = param.message_modulus().0 as u64 * param.carry_modulus().0 as u64;
+    let keys = KEY_CACHE.get_from_param(param);
+    let (cks, sks) = (keys.client_key(), keys.server_key());
+
+    let check_trivial_bootstrap = |clear, lut: &LookupTableOwned| {
+        let trivial_ct = sks.unchecked_create_trivial(clear);
+        let non_trivial_ct = cks.unchecked_encrypt(clear);
+
+        let trivial_res = sks.apply_lookup_table(&trivial_ct, lut);
+        let non_trivial_res = sks.apply_lookup_table(&non_trivial_ct, lut);
+        assert!(trivial_res.is_trivial());
+        assert!(!non_trivial_res.is_trivial());
+        assert_eq!(non_trivial_res.noise_level(), NoiseLevel::NOMINAL);
+
+        let trivial_res = cks.decrypt_message_and_carry(&trivial_res);
+        let non_trivial_res = cks.decrypt_message_and_carry(&non_trivial_res);
+        assert_eq!(
+            trivial_res, non_trivial_res,
+            "Invalid trivial PBS result expected '{non_trivial_res}', got '{trivial_res}'"
+        );
+    };
+
+    let functions = [
+        Box::new(|x| x) as Box<dyn Fn(u64) -> u64>,
+        Box::new(|x| x % sks.message_modulus.0 as u64) as Box<dyn Fn(u64) -> u64>,
+        Box::new(|x| x / sks.message_modulus.0 as u64) as Box<dyn Fn(u64) -> u64>,
+    ];
+
+    // Test will be too expensive
+    if full_modulus >= 64 {
+        let mut rng = rand::thread_rng();
+        // at least do one test
+        for _ in 0..(NB_TESTS / functions.len()).max(1) {
+            for f in &functions {
+                let lut = sks.generate_lookup_table(f);
+
+                let clear_with_clean_padding_bit = rng.gen_range(0..full_modulus);
+                check_trivial_bootstrap(clear_with_clean_padding_bit, &lut);
+
+                let clear_with_dirty_padding_bit = rng.gen_range(full_modulus..2 * full_modulus);
+                check_trivial_bootstrap(clear_with_dirty_padding_bit, &lut);
+            }
+        }
+    } else {
+        for f in functions {
+            let lut = sks.generate_lookup_table(f);
+
+            // Test 'normal' behaviour (i.e. padding bit set to 0)
+            for clear_with_clean_padding_bit in 0..full_modulus {
+                check_trivial_bootstrap(clear_with_clean_padding_bit, &lut);
+            }
+
+            // Test behaviour when padding bit set to 1
+            for clear_with_dirty_padding_bit in full_modulus..(full_modulus * 2) {
+                check_trivial_bootstrap(clear_with_dirty_padding_bit, &lut);
+            }
+        }
+    }
 }
