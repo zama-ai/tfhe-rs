@@ -750,23 +750,7 @@ impl ServerKey {
     ) where
         F: Fn(u64, u64) -> u64,
     {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            // We don't have enough space in carries, so clear them
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-
-        let factor = MessageModulus(ct_right.degree.get() + 1);
-
-        // Generate the lookup table for the function
-        let lookup_table = self.generate_lookup_table_bivariate_with_factor(f, factor);
-
-        self.unchecked_apply_lookup_table_bivariate_assign(ct_left, ct_right, &lookup_table);
+        *ct_left = self.smart_evaluate_bivariate_function(ct_left, ct_right, f);
     }
 
     pub fn smart_evaluate_bivariate_function<F>(
@@ -796,6 +780,36 @@ impl ServerKey {
 
         self.unchecked_apply_lookup_table_bivariate(ct_left, ct_right, &lookup_table)
     }
+
+    /// Applies the given function to the message of a ciphertext
+    /// The input is reduced to the message space before the funciton application
+    /// Thee output of the function is also rduced to the message space such that the carry bits are
+    /// clean on the output
+    pub fn evaluate_msg_univariate_function_assign<F>(&self, ct: &mut Ciphertext, f: F)
+    where
+        F: Fn(u64) -> u64,
+    {
+        // Generate the lookup table for the function
+        let lookup_table = self.generate_msg_lookup_table(f, self.message_modulus);
+
+        self.apply_lookup_table_assign(ct, &lookup_table);
+    }
+
+    /// Applies the given function to the message of a ciphertext
+    /// The input is reduced to the message space before the funciton application
+    /// Thee output of the function is also rduced to the message space such that the carry bits are
+    /// clean on the output
+    pub fn evaluate_msg_univariate_function<F>(&self, ct: &Ciphertext, f: F) -> Ciphertext
+    where
+        F: Fn(u64) -> u64,
+    {
+        let mut ct_res = ct.clone();
+
+        self.evaluate_msg_univariate_function_assign(&mut ct_res, f);
+
+        ct_res
+    }
+
     /// Replace the input encrypted message by the value of its carry buffer.
     ///
     /// # Example

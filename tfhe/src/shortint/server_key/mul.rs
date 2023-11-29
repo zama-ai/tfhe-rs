@@ -1,6 +1,6 @@
 use super::add::unchecked_add_assign;
 use super::ServerKey;
-use crate::shortint::ciphertext::{Degree, MaxDegree};
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
 
 use crate::shortint::Ciphertext;
@@ -1128,29 +1128,11 @@ impl ServerKey {
             self.is_mul_small_carry_possible(ct_left, ct_right).unwrap();
             self.unchecked_mul_lsb_small_carry_modulus_assign(ct_left, ct_right);
         } else {
-            let max_degree =
-                MaxDegree::from_msg_carry_modulus(ct_right.message_modulus, ct_right.carry_modulus);
+            let msg_modulus = ct_left.message_modulus.0 as u64;
 
-            //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
-            // ciphertext
-            if self.is_mul_possible(ct_left, ct_right).is_err() {
-                if max_degree
-                    .validate(ct_right.degree * (self.message_modulus.0 - 1))
-                    .is_ok()
-                {
-                    self.message_extract_assign(ct_left);
-                } else if max_degree
-                    .validate(ct_left.degree + Degree::new(self.message_modulus.0 - 1))
-                    .is_ok()
-                {
-                    self.message_extract_assign(ct_right);
-                } else {
-                    self.message_extract_assign(ct_left);
-                    self.message_extract_assign(ct_right);
-                }
-            }
-            self.is_mul_possible(ct_left, ct_right).unwrap();
-            self.unchecked_mul_lsb_assign(ct_left, ct_right);
+            self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| {
+                (lhs * rhs) % msg_modulus
+            });
         }
     }
 
@@ -1200,14 +1182,11 @@ impl ServerKey {
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     /// ```
     pub fn smart_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        if self.is_mul_possible(ct_left, ct_right).is_err() {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
+        let msg_modulus = ct_left.message_modulus.0 as u64;
 
-        self.is_mul_possible(ct_left, ct_right).unwrap();
-
-        self.unchecked_mul_msb_assign(ct_left, ct_right);
+        self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| {
+            (lhs * rhs) / msg_modulus
+        });
     }
 
     /// Multiply two ciphertexts together
@@ -1290,31 +1269,11 @@ impl ServerKey {
 
             self.unchecked_mul_lsb_small_carry_modulus(ct_left, ct_right)
         } else {
-            let max_degree =
-                MaxDegree::from_msg_carry_modulus(ct_right.message_modulus, ct_right.carry_modulus);
+            let msg_modulus = ct_left.message_modulus.0 as u64;
 
-            //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
-            // ciphertext
-            if self.is_mul_possible(ct_left, ct_right).is_err() {
-                if max_degree
-                    .validate(ct_right.degree * (self.message_modulus.0 - 1))
-                    .is_ok()
-                {
-                    self.message_extract_assign(ct_left);
-                } else if max_degree
-                    .validate(ct_left.degree + Degree::new(self.message_modulus.0 - 1))
-                    .is_ok()
-                {
-                    self.message_extract_assign(ct_right);
-                } else {
-                    self.message_extract_assign(ct_left);
-                    self.message_extract_assign(ct_right);
-                }
-            }
-
-            self.is_mul_possible(ct_left, ct_right).unwrap();
-
-            self.unchecked_mul_lsb(ct_left, ct_right)
+            self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| {
+                (lhs * rhs) % msg_modulus
+            })
         }
     }
 
@@ -1361,10 +1320,10 @@ impl ServerKey {
     /// let modulus = sks.message_modulus.0 as u64;
     /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
     /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_mul_msb(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        let mut result = ct_left.clone();
-        self.smart_mul_msb_assign(&mut result, ct_right);
-        result
+        let msg_modulus = ct_left.message_modulus.0 as u64;
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| {
+            (lhs * rhs) / msg_modulus
+        })
     }
 }

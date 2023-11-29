@@ -503,8 +503,7 @@ impl ServerKey {
         }
         // If the ciphertext cannot be multiplied without exceeding the degree max
         else {
-            let acc = self.generate_msg_lookup_table(|x| scalar as u64 * x, self.message_modulus);
-            self.apply_lookup_table_assign(ct, &acc);
+            self.evaluate_msg_univariate_function_assign(ct, |x| scalar as u64 * x);
             ct.degree = Degree::new(self.message_modulus.0 - 1);
         }
     }

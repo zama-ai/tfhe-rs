@@ -348,18 +348,7 @@ impl ServerKey {
     /// assert_eq!(msg & msg, res);
     /// ```
     pub fn smart_bitand(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-
-        self.unchecked_bitand(ct_left, ct_right)
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| lhs & rhs)
     }
 
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
@@ -411,14 +400,7 @@ impl ServerKey {
     /// assert_eq!((msg2 & msg1) % modulus, res);
     /// ```
     pub fn smart_bitand_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.unchecked_bitand_assign(ct_left, ct_right);
+        self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs & rhs);
     }
 
     /// Compute homomorphically an XOR between two ciphertexts encrypting integer values.
@@ -770,17 +752,7 @@ impl ServerKey {
     /// assert_eq!(msg ^ msg, res);
     /// ```
     pub fn smart_bitxor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-
-        self.unchecked_bitxor(ct_left, ct_right)
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| lhs ^ rhs)
     }
 
     /// Compute homomorphically a XOR between two ciphertexts encrypting integer values.
@@ -832,14 +804,7 @@ impl ServerKey {
     /// assert_eq!((msg2 ^ msg1) % modulus, res);
     /// ```
     pub fn smart_bitxor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.unchecked_bitxor_assign(ct_left, ct_right);
+        self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs ^ rhs);
     }
 
     /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
@@ -1194,18 +1159,7 @@ impl ServerKey {
     /// assert_eq!(msg | msg, res);
     /// ```
     pub fn smart_bitor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-
-        self.unchecked_bitor(ct_left, ct_right)
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| lhs | rhs)
     }
 
     /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
@@ -1258,17 +1212,6 @@ impl ServerKey {
     /// assert_eq!((msg2 | msg1) % modulus, res);
     /// ```
     pub fn smart_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-
-        self.unchecked_bitor_assign(ct_left, ct_right);
+        self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs | rhs);
     }
 }
