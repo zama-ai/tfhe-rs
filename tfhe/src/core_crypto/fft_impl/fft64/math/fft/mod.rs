@@ -257,7 +257,7 @@ fn convert_forward_integer<Scalar: UnsignedTorus>(
     }
 
     #[cfg(not(any(target_arch = "x86_64", target_arch = "x86")))]
-    convert_forward_integer_scalar::<Scalar>(out, in_re, in_im, twisties)
+    convert_forward_integer_scalar::<Scalar>(out, in_re, in_im, twisties);
 }
 
 #[cfg_attr(__profiling, inline(never))]
