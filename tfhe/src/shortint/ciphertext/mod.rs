@@ -277,6 +277,11 @@ impl Ciphertext {
         self.degree.0 < self.message_modulus.0
     }
 
+    pub fn is_trivial(&self) -> bool {
+        self.noise_level() == NoiseLevel::ZERO
+            && self.ct.get_mask().as_ref().iter().all(|&x| x == 0u64)
+    }
+
     pub fn noise_level(&self) -> NoiseLevel {
         self.noise_level
     }

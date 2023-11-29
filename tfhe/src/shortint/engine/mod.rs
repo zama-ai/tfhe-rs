@@ -109,13 +109,9 @@ where
     // This accumulator extracts the carry bits
     for i in 0..modulus_sup {
         let index = i * box_size;
-        accumulator_u64[index..index + box_size]
-            .iter_mut()
-            .for_each(|a| {
-                let f_eval = f(i as u64);
-                *a = f_eval * delta;
-                max_value = max_value.max(f_eval);
-            });
+        let f_eval = f(i as u64);
+        max_value = max_value.max(f_eval);
+        accumulator_u64[index..index + box_size].fill(f_eval * delta);
     }
 
     let half_box_size = box_size / 2;
