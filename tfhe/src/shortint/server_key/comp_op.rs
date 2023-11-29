@@ -1,5 +1,4 @@
 use super::ServerKey;
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::Ciphertext;
 
@@ -216,16 +215,7 @@ impl ServerKey {
     /// assert_eq!((msg > msg) as u64, res);
     /// ```
     pub fn smart_greater(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_greater(ct_left, ct_right)
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs > rhs))
     }
 
     /// Compute homomorphically a `>=` between two ciphertexts encrypting integer values.
@@ -395,18 +385,8 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_greater_or_equal(ct_left, ct_right)
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs >= rhs))
     }
-
     /// Implement the "greater or equal" (`>=`) operator between two ciphertexts with checks.
     ///
     /// If the operation can be performed, the result is returned in a _new_ ciphertext.
@@ -662,16 +642,7 @@ impl ServerKey {
     /// assert_eq!((msg < msg) as u64, res);
     /// ```
     pub fn smart_less(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_less(ct_left, ct_right)
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs < rhs))
     }
 
     /// Compute homomorphically a `<=` between two ciphertexts encrypting integer values.
@@ -888,16 +859,7 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_less_or_equal(ct_left, ct_right)
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs <= rhs))
     }
 
     /// Compute homomorphically a `==` between two ciphertexts encrypting integer values.
@@ -1106,16 +1068,7 @@ impl ServerKey {
     /// assert_eq!((msg == msg) as u64, res);
     /// ```
     pub fn smart_equal(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_equal(ct_left, ct_right)
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs == rhs))
     }
 
     /// Compute homomorphically a `!=` between two ciphertexts encrypting integer values.
@@ -1328,16 +1281,7 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &mut Ciphertext,
     ) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.message_extract_assign(ct_left);
-            self.message_extract_assign(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_not_equal(ct_left, ct_right)
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs != rhs))
     }
 
     /// Implement the "equal" operator (`==`) between a ciphertext and a scalar without checks.
@@ -1377,16 +1321,7 @@ impl ServerKey {
     /// ```
     #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        let mut result = ct_left.clone();
-        self.smart_scalar_equal_assign(&mut result, scalar);
-        result
-    }
-
-    fn smart_scalar_equal_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
-        let acc = self
-            .generate_msg_lookup_table(|x| (x == scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree = Degree::new(1);
+        self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs == scalar as u64))
     }
 
     /// Alias of [`smart_scalar_equal`](`Self::smart_scalar_equal`) provided for convenience
@@ -1439,16 +1374,7 @@ impl ServerKey {
     /// ```
     #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_not_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        let mut result = ct_left.clone();
-        self.smart_scalar_not_equal_assign(&mut result, scalar);
-        result
-    }
-
-    fn smart_scalar_not_equal_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
-        let acc = self
-            .generate_msg_lookup_table(|x| (x != scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree = Degree::new(1);
+        self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs != scalar as u64))
     }
 
     /// Alias of [`smart_scalar_not_equal`](`Self::smart_scalar_not_equal`) provided for convenience
@@ -1506,16 +1432,7 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         scalar: u8,
     ) -> Ciphertext {
-        let mut result = ct_left.clone();
-        self.smart_scalar_greater_or_equal_assign(&mut result, scalar);
-        result
-    }
-
-    fn smart_scalar_greater_or_equal_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
-        let acc = self
-            .generate_msg_lookup_table(|x| (x >= scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree = Degree::new(1);
+        self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs >= scalar as u64))
     }
 
     /// Alias of [`smart_scalar_greater_or_equal`](`Self::smart_scalar_greater_or_equal`) provided
@@ -1570,16 +1487,7 @@ impl ServerKey {
     /// ```
     #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_less_or_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        let mut result = ct_left.clone();
-        self.smart_scalar_less_or_equal_assign(&mut result, scalar);
-        result
-    }
-
-    fn smart_scalar_less_or_equal_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
-        let acc = self
-            .generate_msg_lookup_table(|x| (x <= scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree = Degree::new(1);
+        self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs <= scalar as u64))
     }
 
     /// Alias of [`smart_scalar_less_or_equal`](`Self::smart_scalar_less_or_equal`) provided for
@@ -1633,16 +1541,7 @@ impl ServerKey {
     /// ```
     #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_greater(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        let mut result = ct_left.clone();
-        self.smart_scalar_greater_assign(&mut result, scalar);
-        result
-    }
-
-    fn smart_scalar_greater_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
-        let acc =
-            self.generate_msg_lookup_table(|x| (x > scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree = Degree::new(1);
+        self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs > scalar as u64))
     }
 
     /// Alias of [`smart_scalar_greater`](`Self::smart_scalar_greater`) provided for convenience
@@ -1695,16 +1594,7 @@ impl ServerKey {
     /// ```
     #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_less(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        let mut result = ct_left.clone();
-        self.smart_scalar_less_assign(&mut result, scalar);
-        result
-    }
-
-    fn smart_scalar_less_assign(&self, ct_left: &mut Ciphertext, scalar: u8) {
-        let acc =
-            self.generate_msg_lookup_table(|x| (x < scalar as u64) as u64, ct_left.message_modulus);
-        self.apply_lookup_table_assign(ct_left, &acc);
-        ct_left.degree = Degree::new(1);
+        self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs < scalar as u64))
     }
 
     /// Alias of [`smart_scalar_less`](`Self::smart_scalar_less`) provided for convenience

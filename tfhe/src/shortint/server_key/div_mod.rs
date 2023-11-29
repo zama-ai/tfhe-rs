@@ -290,32 +290,10 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn smart_div(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            if self
-                .max_degree
-                .validate(ct_right.degree + Degree::new(ct_left.message_modulus.0))
-                .is_ok()
-            {
-                self.message_extract_assign(ct_left);
-            } else if self
-                .max_degree
-                .validate(ct_left.degree + Degree::new(1 + ct_right.message_modulus.0))
-                .is_ok()
-            {
-                self.message_extract_assign(ct_right);
-            } else {
-                self.message_extract_assign(ct_left);
-                self.message_extract_assign(ct_right);
-            }
-        }
-
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-
-        self.unchecked_div(ct_left, ct_right)
+        let value_on_div_by_zero = (ct_left.message_modulus.0 - 1) as u64;
+        self.smart_evaluate_bivariate_function(ct_left, ct_right, |x, y| {
+            safe_division(x, y, value_on_div_by_zero)
+        })
     }
 
     /// Compute a division between two ciphertexts without checks.
@@ -366,31 +344,10 @@ impl ServerKey {
     /// assert_eq!(clear_1 / clear_2, res);
     /// ```
     pub fn smart_div_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            if self
-                .max_degree
-                .validate(ct_right.degree + Degree::new(ct_left.message_modulus.0))
-                .is_ok()
-            {
-                self.message_extract_assign(ct_left);
-            } else if self
-                .max_degree
-                .validate(ct_left.degree + Degree::new(1 + ct_right.message_modulus.0))
-                .is_ok()
-            {
-                self.message_extract_assign(ct_right);
-            } else {
-                self.message_extract_assign(ct_left);
-                self.message_extract_assign(ct_right);
-            }
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-
-        self.unchecked_div_assign(ct_left, ct_right);
+        let value_on_div_by_zero = (ct_left.message_modulus.0 - 1) as u64;
+        self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |x, y| {
+            safe_division(x, y, value_on_div_by_zero)
+        });
     }
 
     /// Alias to [`unchecked_scalar_div`](`Self::unchecked_scalar_div`) provided for convenience

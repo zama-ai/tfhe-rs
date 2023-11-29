@@ -48,8 +48,7 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitand_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        let lut = self.generate_msg_lookup_table(|x| x & rhs as u64, lhs.message_modulus);
-        self.apply_lookup_table_assign(lhs, &lut);
+        self.evaluate_msg_univariate_function_assign(lhs, |x| x & rhs as u64);
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]
@@ -109,8 +108,7 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitxor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        let lut = self.generate_msg_lookup_table(|x| x ^ rhs as u64, lhs.message_modulus);
-        self.apply_lookup_table_assign(lhs, &lut);
+        self.evaluate_msg_univariate_function_assign(lhs, |x| x ^ rhs as u64);
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]
@@ -169,8 +167,7 @@ impl ServerKey {
     }
 
     pub fn unchecked_scalar_bitor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        let lut = self.generate_msg_lookup_table(|x| x | rhs as u64, lhs.message_modulus);
-        self.apply_lookup_table_assign(lhs, &lut);
+        self.evaluate_msg_univariate_function_assign(lhs, |x| x | rhs as u64);
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]
