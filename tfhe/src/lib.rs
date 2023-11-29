@@ -23,7 +23,6 @@
 #![allow(clippy::inline_always)] // 51
 #![allow(clippy::many_single_char_names)] // 44
 #![allow(clippy::too_many_lines)] // 34
-#![allow(clippy::explicit_iter_loop)] // 34
 #![allow(clippy::match_same_arms)] // 19
 #![allow(clippy::unused_self)] // 17
 #![allow(clippy::range_plus_one)] // 16
@@ -33,7 +32,20 @@
 #![allow(clippy::float_cmp)] // 7
 #![allow(clippy::bool_to_int_with_if)] // 6
 #![allow(clippy::unsafe_derive_deserialize)] // 1
-#![allow(clippy::cast_possible_wrap)] // 1
+#![allow(clippy::cast_possible_wrap)]
+// 1
+
+// These pedantic lints are deemed to bring too little value therefore they are allowed (which are
+// their natural state anyways, being pedantic lints)
+
+// Would require a ; for the last statement of a function even if the function returns (), compiler
+// indicates it is for formatting consistency, cargo fmt works well with it allowed anyways.
+#![allow(clippy::semicolon_if_nothing_returned)]
+// Warns when iter or iter_mut are called explicitely, but it reads more nicely e.g. when there are
+// parallel and sequential iterators that are mixed
+#![allow(clippy::explicit_iter_loop)]
+// End allowed pedantic lints
+
 // Nursery lints
 #![warn(clippy::nursery)]
 // The following lints have been temporarily allowed
