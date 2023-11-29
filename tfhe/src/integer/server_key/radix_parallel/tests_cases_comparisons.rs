@@ -1213,10 +1213,10 @@ fn test_unchecked_scalar_min_parallelized_256_bits(
     params: crate::shortint::ClassicPBSParameters,
     num_tests: usize,
 ) {
-    test_unchecked_function(
+    test_unchecked_scalar_function(
         params,
         num_tests,
-        ServerKey::unchecked_min_parallelized,
+        ServerKey::unchecked_scalar_min_parallelized,
         std::cmp::min,
     );
 }
@@ -1225,10 +1225,10 @@ fn test_unchecked_scalar_max_parallelized_256_bits(
     params: crate::shortint::ClassicPBSParameters,
     num_tests: usize,
 ) {
-    test_unchecked_function(
+    test_unchecked_scalar_function(
         params,
         num_tests,
-        ServerKey::unchecked_max_parallelized,
+        ServerKey::unchecked_scalar_max_parallelized,
         std::cmp::max,
     );
 }
@@ -1237,10 +1237,10 @@ fn test_scalar_min_parallelized_256_bits(
     params: crate::shortint::ClassicPBSParameters,
     num_tests: usize,
 ) {
-    test_default_function(
+    test_default_scalar_function(
         params,
         num_tests,
-        ServerKey::min_parallelized,
+        ServerKey::scalar_min_parallelized,
         std::cmp::min,
     );
 }
@@ -1249,10 +1249,10 @@ fn test_scalar_max_parallelized_256_bits(
     params: crate::shortint::ClassicPBSParameters,
     num_tests: usize,
 ) {
-    test_default_function(
+    test_default_scalar_function(
         params,
         num_tests,
-        ServerKey::max_parallelized,
+        ServerKey::scalar_max_parallelized,
         std::cmp::max,
     );
 }
