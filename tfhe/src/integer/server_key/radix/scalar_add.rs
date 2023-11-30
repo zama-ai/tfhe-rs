@@ -2,8 +2,7 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
-use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::MaxDegree;
+use crate::shortint::ciphertext::{Degree, MaxDegree};
 
 impl ServerKey {
     /// Computes homomorphically an addition between a scalar and a ciphertext.

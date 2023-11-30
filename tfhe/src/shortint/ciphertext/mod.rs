@@ -22,10 +22,6 @@ impl std::fmt::Display for NotTrivialCiphertextError {
 
 impl std::error::Error for NotTrivialCiphertextError {}
 
-/// This tracks the number of operations that has been done.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct Degree(pub usize);
-
 /// This tracks the maximal amount of noise of a [Ciphertext]
 /// that guarantees the target p-error when doing a PBS on it
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -113,6 +109,14 @@ impl std::ops::Mul<usize> for NoiseLevel {
         self
     }
 }
+
+/// Maximum value that the degree can reach.
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct MaxDegree(pub usize);
+
+/// This tracks the number of operations that has been done.
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct Degree(pub usize);
 
 impl Degree {
     pub(crate) fn after_bitxor(self, other: Self) -> Self {

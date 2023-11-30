@@ -3,8 +3,7 @@ use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix_parallel::sub::SignedOperation;
 use crate::integer::server_key::CheckError;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::server_key::MaxDegree;
+use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
 use crate::shortint::Ciphertext;
 
 impl ServerKey {

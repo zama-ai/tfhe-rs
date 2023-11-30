@@ -2,9 +2,9 @@
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
-use crate::shortint::ciphertext::MaxNoiseLevel;
+use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::{EngineResult, ShortintEngine};
-use crate::shortint::server_key::{MaxDegree, ShortintBootstrappingKey};
+use crate::shortint::server_key::ShortintBootstrappingKey;
 use crate::shortint::wopbs::{WopbsKey, WopbsKeyCreationError};
 use crate::shortint::{ClientKey, ServerKey, WopbsParameters};
 

@@ -1,8 +1,7 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
-use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::server_key::MaxDegree;
+use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
 
 impl ServerKey {
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.

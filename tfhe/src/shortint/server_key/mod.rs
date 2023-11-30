@@ -30,7 +30,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::shortint::ciphertext::{Ciphertext, Degree, MaxNoiseLevel, NoiseLevel};
+use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{fill_accumulator, ShortintEngine};
 use crate::shortint::parameters::{
@@ -40,10 +40,6 @@ use crate::shortint::server_key::add::unchecked_add_assign;
 use crate::shortint::PBSOrder;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
-
-/// Maximum value that the degree can reach.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct MaxDegree(pub usize);
 
 /// Error returned when the carry buffer is full.
 #[derive(Debug)]

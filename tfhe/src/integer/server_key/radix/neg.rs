@@ -2,8 +2,7 @@ use crate::core_crypto::prelude::misc::divide_ceil;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
-use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::MaxDegree;
+use crate::shortint::ciphertext::{Degree, MaxDegree};
 
 impl ServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
