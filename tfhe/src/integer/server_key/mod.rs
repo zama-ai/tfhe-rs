@@ -9,7 +9,7 @@ mod radix;
 pub(crate) mod radix_parallel;
 
 use crate::integer::client_key::ClientKey;
-use crate::shortint::server_key::MaxDegree;
+use crate::shortint::ciphertext::MaxDegree;
 use serde::{Deserialize, Serialize};
 
 /// Error returned when the carry buffer is full.
