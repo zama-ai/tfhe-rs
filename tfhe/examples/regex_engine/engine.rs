@@ -19,7 +19,7 @@ pub fn has_match(
 
     let res = if branches.len() <= 1 {
         branches
-            .get(0)
+            .first()
             .map_or(exec.ct_false(), |branch| branch(&mut exec))
             .0
     } else {

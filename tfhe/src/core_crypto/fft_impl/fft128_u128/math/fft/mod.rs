@@ -1,5 +1,5 @@
 use crate::core_crypto::commons::utils::izip;
-pub use crate::core_crypto::fft_impl::fft128::math::fft::{Fft128, Fft128View};
+pub use crate::core_crypto::fft_impl::fft128::math::fft::Fft128View;
 use concrete_fft::fft128::f128;
 use dyn_stack::PodStack;
 

@@ -1,8 +1,8 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-pub use crate::core_crypto::commons::math::random::Seed;
+use crate::core_crypto::commons::math::random::Seed;
 use crate::core_crypto::prelude::ActivatedRandomGenerator;
-pub use crate::shortint::parameters::parameters_compact_pk::*;
-pub use crate::shortint::parameters::*;
+use crate::shortint::parameters::parameters_compact_pk::*;
+use crate::shortint::parameters::*;
 use wasm_bindgen::prelude::*;
 
 use std::panic::set_hook;
@@ -349,7 +349,7 @@ impl Shortint {
         let mut seeder = DeterministicSeeder::<ActivatedRandomGenerator>::new(Seed(seed));
         ShortintClientKey(
             crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
-                .new_client_key(parameters.0.try_into().unwrap()),
+                .new_client_key(parameters.0.into()),
         )
     }
 

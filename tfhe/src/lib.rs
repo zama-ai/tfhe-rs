@@ -95,8 +95,6 @@ pub mod shortint;
 #[cfg(feature = "__wasm_api")]
 /// cbindgen:ignore
 mod js_on_wasm_api;
-#[cfg(feature = "__wasm_api")]
-pub use js_on_wasm_api::*;
 
 #[cfg(all(
     doctest,
@@ -106,15 +104,15 @@ pub use js_on_wasm_api::*;
 ))]
 mod test_user_docs;
 
-/// cbindgen:ignore
 #[cfg(feature = "integer")]
+/// cbindgen:ignore
 pub(crate) mod high_level_api;
 
 #[cfg(feature = "integer")]
 pub use high_level_api::*;
 
-/// cbindgen:ignore
 #[cfg(any(test, doctest, feature = "internal-keycache"))]
+/// cbindgen:ignore
 pub mod keycache;
 
 #[cfg(feature = "safe-deserialization")]
