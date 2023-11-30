@@ -80,7 +80,7 @@ jobs:
 
       - name: Run user docs tests
         run: |
-          CARGO_PROFILE=release_lto_off make test_user_doc
+          make test_user_doc
 
       - name: Run js on wasm API tests
         run: |

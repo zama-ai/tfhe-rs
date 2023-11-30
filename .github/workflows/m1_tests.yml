@@ -85,7 +85,7 @@ jobs:
 
       - name: Run user docs tests
         run: |
-          CARGO_PROFILE=release_lto_off make test_user_doc
+          make test_user_doc
 
       # JS tests are more easily launched in docker, we won't test that on M1 as docker is pretty
       # slow on Apple machines due to the virtualization layer.

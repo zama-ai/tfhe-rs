@@ -22,8 +22,6 @@ not_multi_bit="_multi_bit"
 signed=""
 not_signed=""
 cargo_profile="release"
-# TODO: revert to release once the bug is properly fixed/identified
-cargo_profile_doctests="release_lto_off"
 avx512_feature=""
 
 while [ -n "$1" ]
@@ -163,7 +161,7 @@ cargo "${RUST_TOOLCHAIN}" nextest run \
 
 if [[ "${multi_bit}" == "" ]]; then
     cargo "${RUST_TOOLCHAIN}" test \
-        --profile "${cargo_profile_doctests}" \
+        --profile "${cargo_profile}" \
         --package tfhe \
         --features="${ARCH_FEATURE}",integer,internal-keycache,"${avx512_feature}" \
         --doc \
