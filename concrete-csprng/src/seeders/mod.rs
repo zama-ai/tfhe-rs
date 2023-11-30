@@ -22,6 +22,9 @@ pub trait Seeder {
 }
 
 mod implem;
+// This import statement can be empty if seeder features are disabled, rustc's behavior changed to
+// warn of empty modules, we know this can happen, so allow it.
+#[allow(unused_imports)]
 pub use implem::*;
 
 #[cfg(test)]
