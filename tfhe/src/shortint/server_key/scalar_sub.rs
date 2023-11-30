@@ -3,6 +3,7 @@ use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
 use crate::shortint::{Ciphertext, ServerKey};
+use crate::MessageModulus;
 
 impl ServerKey {
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -204,9 +205,10 @@ impl ServerKey {
     /// assert_eq!(3, clear);
     /// ```
     pub fn unchecked_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        let neg_scalar = u64::from(scalar.wrapping_neg()) % ct.message_modulus.0 as u64;
+        let neg_scalar = neg_scalar(scalar, ct.message_modulus);
+
         let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
-        let shift_plaintext = neg_scalar * delta;
+        let shift_plaintext = neg_scalar as u64 * delta;
         let encoded_scalar = Plaintext(shift_plaintext);
 
         lwe_ciphertext_plaintext_add_assign(&mut ct.ct, encoded_scalar);
@@ -242,16 +244,7 @@ impl ServerKey {
     /// sks.is_scalar_sub_possible(&ct, 3).unwrap();
     /// ```
     pub fn is_scalar_sub_possible(&self, ct: &Ciphertext, scalar: u8) -> Result<(), CheckError> {
-        let neg_scalar = u64::from(scalar.wrapping_neg()) % self.message_modulus.0 as u64;
-        let final_degree = neg_scalar as usize + ct.degree.0;
-        if final_degree > self.max_degree.0 {
-            Err(CheckError::CarryFull {
-                degree: Degree(final_degree),
-                max_degree: self.max_degree,
-            })
-        } else {
-            Ok(())
-        }
+        self.is_scalar_add_possible(ct, neg_scalar(scalar, ct.message_modulus))
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -295,10 +288,7 @@ impl ServerKey {
         ct: &Ciphertext,
         scalar: u8,
     ) -> Result<Ciphertext, CheckError> {
-        //If the scalar subtraction cannot be done without exceeding the max degree
-        self.is_scalar_sub_possible(ct, scalar)?;
-        let ct_result = self.unchecked_scalar_sub(ct, scalar);
-        Ok(ct_result)
+        self.checked_scalar_add(ct, neg_scalar(scalar, ct.message_modulus))
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -343,9 +333,7 @@ impl ServerKey {
         ct: &mut Ciphertext,
         scalar: u8,
     ) -> Result<(), CheckError> {
-        self.is_scalar_sub_possible(ct, scalar)?;
-        self.unchecked_scalar_sub_assign(ct, scalar);
-        Ok(())
+        self.checked_scalar_add_assign(ct, neg_scalar(scalar, ct.message_modulus))
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -398,12 +386,8 @@ impl ServerKey {
     ///
     /// assert_eq!(msg - scalar as u64, clear);
     /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub fn smart_scalar_sub(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        let mut ct_result = ct.clone();
-        self.smart_scalar_sub_assign(&mut ct_result, scalar);
-
-        ct_result
+        self.smart_scalar_add(ct, neg_scalar(scalar, ct.message_modulus))
     }
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
@@ -450,19 +434,14 @@ impl ServerKey {
     /// assert_eq!(msg - scalar as u64, clear);
     /// ```
     pub fn smart_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        // Direct scalar computation is possible
-        if self.is_scalar_sub_possible(ct, scalar).is_ok() {
-            self.unchecked_scalar_sub_assign(ct, scalar);
-        } else {
-            let scalar = u64::from(scalar);
-            let msg_mod = self.message_modulus.0 as u64;
-            // If the scalar is too large, PBS is used to compute the scalar sub
-            let acc = self.generate_msg_lookup_table(
-                |x| x + msg_mod - (scalar % msg_mod),
-                self.message_modulus,
-            );
-            self.apply_lookup_table_assign(ct, &acc);
-            ct.degree = Degree(self.message_modulus.0 - 1);
-        }
+        self.smart_scalar_add_assign(ct, neg_scalar(scalar, ct.message_modulus))
     }
+}
+
+fn neg_scalar(scalar: u8, msg_modulus: MessageModulus) -> u8 {
+    let msg_modulus = msg_modulus.0 as u64;
+
+    let scalar = scalar as u64 % msg_modulus;
+
+    ((msg_modulus - scalar) % msg_modulus) as u8
 }
