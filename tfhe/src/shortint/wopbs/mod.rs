@@ -340,11 +340,11 @@ impl WopbsKey {
     /// ```rust
     /// use rand::Rng;
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_3_NORM2_2_KS_PBS;
+    /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     /// use tfhe::shortint::wopbs::WopbsKey;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_NORM2_2_KS_PBS);
+    /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let message_modulus = 5;
     /// let m = 2;
@@ -500,10 +500,10 @@ impl WopbsKey {
     ///
     /// ```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::parameters_wopbs::WOPBS_PARAM_MESSAGE_3_NORM2_2_KS_PBS;
+    /// use tfhe::shortint::parameters::parameters_wopbs_message_carry::WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
     /// use tfhe::shortint::wopbs::*;
     ///
-    /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_NORM2_2_KS_PBS);
+    /// let (cks, sks) = gen_keys(WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
     /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
     /// let msg = 2;
     /// let modulus = 5;
